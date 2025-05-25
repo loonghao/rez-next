@@ -1,68 +1,70 @@
 //! Version implementation
 
-// use pyo3::prelude::*;  // Temporarily disabled
+use pyo3::prelude::*;
 use std::cmp::Ordering;
 use std::hash::{Hash, Hasher};
 use crate::common::RezCoreError;
 use super::token::VersionToken;
 
 /// High-performance version representation
-// #[pyclass]  // Temporarily disabled
+#[pyclass]
 #[derive(Clone, Debug)]
 pub struct Version {
     tokens: Vec<VersionToken>,
     separators: Vec<char>,
-    // #[pyo3(get)]  // Temporarily disabled
+    #[pyo3(get)]
     string_repr: String,
 }
 
-// Python methods temporarily disabled
-// #[pymethods]
+#[pymethods]
 impl Version {
-    // #[new]  // Temporarily disabled
-    pub fn new(version_str: &str) -> Result<Self, RezCoreError> {
-        Self::parse(version_str)
+    #[new]
+    pub fn new(version_str: &str) -> PyResult<Self> {
+        Self::parse(version_str).map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(e.to_string()))
     }
 
     pub fn as_str(&self) -> &str {
         &self.string_repr
     }
 
-    pub fn to_string(&self) -> String {
+    fn __str__(&self) -> String {
+        self.string_repr.clone()
+    }
+
+    fn __repr__(&self) -> String {
         format!("Version('{}')", self.string_repr)
     }
 
-    // Python comparison methods temporarily disabled
-    // fn __lt__(&self, other: &Self) -> bool {
-    //     self.cmp(other) == Ordering::Less
-    // }
-    //
-    // fn __le__(&self, other: &Self) -> bool {
-    //     matches!(self.cmp(other), Ordering::Less | Ordering::Equal)
-    // }
-    //
-    // fn __eq__(&self, other: &Self) -> bool {
-    //     self.cmp(other) == Ordering::Equal
-    // }
-    //
-    // fn __ne__(&self, other: &Self) -> bool {
-    //     self.cmp(other) != Ordering::Equal
-    // }
-    //
-    // fn __gt__(&self, other: &Self) -> bool {
-    //     self.cmp(other) == Ordering::Greater
-    // }
-    //
-    // fn __ge__(&self, other: &Self) -> bool {
-    //     matches!(self.cmp(other), Ordering::Greater | Ordering::Equal)
-    // }
-    //
-    // fn __hash__(&self) -> u64 {
-    //     use std::collections::hash_map::DefaultHasher;
-    //     let mut hasher = DefaultHasher::new();
-    //     self.string_repr.hash(&mut hasher);
-    //     hasher.finish()
-    // }
+    fn __lt__(&self, other: &Self) -> bool {
+        self.cmp(other) == Ordering::Less
+    }
+
+    fn __le__(&self, other: &Self) -> bool {
+        matches!(self.cmp(other), Ordering::Less | Ordering::Equal)
+    }
+
+    fn __eq__(&self, other: &Self) -> bool {
+        self.cmp(other) == Ordering::Equal
+    }
+
+    fn __ne__(&self, other: &Self) -> bool {
+        self.cmp(other) != Ordering::Equal
+    }
+
+    fn __gt__(&self, other: &Self) -> bool {
+        self.cmp(other) == Ordering::Greater
+    }
+
+    fn __ge__(&self, other: &Self) -> bool {
+        matches!(self.cmp(other), Ordering::Greater | Ordering::Equal)
+    }
+
+    fn __hash__(&self) -> u64 {
+        use std::collections::hash_map::DefaultHasher;
+        let mut hasher = DefaultHasher::new();
+        self.string_repr.hash(&mut hasher);
+        hasher.finish()
+    }
 }
 
 impl Version {

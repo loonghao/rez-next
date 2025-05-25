@@ -1,25 +1,27 @@
 //! Configuration management for rez-core
 
 use serde::{Deserialize, Serialize};
+use pyo3::prelude::*;
 
 /// Configuration for rez-core components
+#[pyclass(name = "Config")]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RezCoreConfig {
     /// Enable Rust version system
     pub use_rust_version: bool,
-    
+
     /// Enable Rust solver
     pub use_rust_solver: bool,
-    
+
     /// Enable Rust repository system
     pub use_rust_repository: bool,
-    
+
     /// Fallback to Python on Rust errors
     pub rust_fallback: bool,
-    
+
     /// Number of threads for parallel operations
     pub thread_count: Option<usize>,
-    
+
     /// Cache configuration
     pub cache: CacheConfig,
 }
@@ -29,13 +31,13 @@ pub struct RezCoreConfig {
 pub struct CacheConfig {
     /// Enable memory cache
     pub enable_memory_cache: bool,
-    
+
     /// Enable disk cache
     pub enable_disk_cache: bool,
-    
+
     /// Memory cache size (number of entries)
     pub memory_cache_size: usize,
-    
+
     /// Cache TTL in seconds
     pub cache_ttl_seconds: u64,
 }
