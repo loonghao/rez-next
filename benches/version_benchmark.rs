@@ -3,6 +3,9 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion, BenchmarkId};
 use rez_core::version::Version;
 
+#[cfg(feature = "flamegraph")]
+use pprof::criterion::{Output, PProfProfiler};
+
 fn version_parsing_benchmark(c: &mut Criterion) {
     c.bench_function("version_parsing", |b| {
         b.iter(|| {
@@ -61,11 +64,23 @@ fn version_creation_scale_benchmark(c: &mut Criterion) {
     group.finish();
 }
 
-criterion_group!(
-    benches,
-    version_parsing_benchmark,
-    version_comparison_benchmark,
-    version_sorting_benchmark,
-    version_creation_scale_benchmark
-);
+fn configure_criterion() -> Criterion {
+    #[cfg(feature = "flamegraph")]
+    {
+        Criterion::default().with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)))
+    }
+    #[cfg(not(feature = "flamegraph"))]
+    {
+        Criterion::default()
+    }
+}
+
+criterion_group! {
+    name = benches;
+    config = configure_criterion();
+    targets = version_parsing_benchmark,
+              version_comparison_benchmark,
+              version_sorting_benchmark,
+              version_creation_scale_benchmark
+}
 criterion_main!(benches);

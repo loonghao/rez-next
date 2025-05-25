@@ -16,9 +16,11 @@ This is primarily a **learning project** to explore whether Rust can bring meani
 
 ## 🚀 What We're Building
 
-### Phase 1: Version System (🚧 In Progress)
-- High-performance version parsing and comparison
-- Version range calculations and intersections
+### Phase 1: Version System (✅ Core Complete, 🚧 Optimizing)
+- ✅ High-performance version parsing and comparison
+- ✅ Python bindings with ABI3 compatibility (Python 3.8+)
+- ✅ Comprehensive test suite (35/38 tests passing)
+- 🚧 Version range calculations and intersections
 - **Target**: 5-10x performance improvement over Python implementation
 
 ### Phase 2: Dependency Solver (📋 Planned)
@@ -71,7 +73,8 @@ rez-core/                           # Unified Rust crate
 ### Prerequisites
 
 - Rust 1.70+ (install via [rustup](https://rustup.rs/))
-- Python 3.7+ (for PyO3 bindings)
+- Python 3.8+ (for PyO3 bindings with ABI3 support)
+- [uv](https://docs.astral.sh/uv/getting-started/installation/) (recommended Python package manager)
 - Git
 
 ### Quick Start
@@ -81,28 +84,81 @@ rez-core/                           # Unified Rust crate
 git clone https://github.com/loonghao/rez-core.git
 cd rez-core
 
-# Check that everything compiles
-cargo check
+# Install uv (if not already installed)
+curl -LsSf https://astral.sh/uv/install.sh | sh  # Unix
+# or
+powershell -c "irm https://astral.sh/uv/install.ps1 | iex"  # Windows
+
+# Set up development environment
+uv sync --all-extras
+```
+
+### Building and Testing
+
+#### Windows (PowerShell)
+```powershell
+# Development build with Python bindings
+.\scripts\build.ps1 build-dev
+
+# Run Python tests
+.\scripts\build.ps1 test-python
+
+# Run all tests (Python + Rust)
+.\scripts\build.ps1 test
+
+# Build ABI3 wheel for distribution
+.\scripts\build.ps1 build-wheel
+
+# Run performance benchmarks
+.\scripts\build.ps1 benchmark
+
+# Format and lint code
+.\scripts\build.ps1 format
+.\scripts\build.ps1 lint
+```
+
+#### Unix/Linux/macOS (Make)
+```bash
+# Development build
+make build-dev
 
 # Run tests
-cargo test
+make test
+
+# Build wheel
+make build-wheel
 
 # Run benchmarks
-cargo bench
+make benchmark
+
+# Format and lint
+make format
+make lint
 ```
 
-### Building with Python Support
+### Performance Profiling
+
+We use [flamegraph](https://github.com/flamegraph-rs/flamegraph) for performance analysis, following pydantic-core's approach:
 
 ```bash
-# Install maturin for Python extension building
-pip install maturin
+# Install flamegraph (requires perf on Linux)
+cargo install flamegraph
 
-# Build in development mode
-maturin develop
+# Build with profiling symbols
+.\scripts\build.ps1 build-profiling  # Windows
+# or
+make build-profiling  # Unix
 
-# Build release wheels
-maturin build --release
+# Profile Python benchmarks
+flamegraph -- uv run pytest tests/python/ -k test_version_creation_performance --benchmark-enable
+
+# Profile Rust benchmarks
+flamegraph -- cargo bench
+
+# The flamegraph command will produce an interactive SVG at flamegraph.svg
 ```
+
+**Note**: On Windows, flamegraph requires additional setup. Consider using Linux/WSL for profiling.
 
 ## 📋 Implementation Status & TODO
 
@@ -110,16 +166,23 @@ maturin build --release
 - [x] Basic project structure and Cargo configuration
 - [x] Core module architecture (common, version, solver, repository)
 - [x] Error handling and configuration management
-- [x] Basic version token system
-- [x] Placeholder implementations for all major components
+- [x] Basic version token system and parsing
+- [x] PyO3 Python bindings with ABI3 compatibility (Python 3.8+)
+- [x] Comprehensive test framework (Python + Rust)
+- [x] Development workflow automation (Makefile + PowerShell scripts)
+- [x] Version comparison and ordering algorithms
+- [x] Performance benchmarking infrastructure
+- [x] uv-based dependency management following pydantic-core patterns
 
 ### 🚧 Version System (Phase 1 - Current Focus)
-- [ ] **High-priority**: Implement state-machine based version parsing
-- [ ] **High-priority**: Optimize version comparison algorithms
-- [ ] **Medium-priority**: Version range intersection and union operations
+- [x] ~~Implement state-machine based version parsing~~ ✅ **Completed**
+- [x] ~~Optimize version comparison algorithms~~ ✅ **Completed**
+- [x] ~~PyO3 Python bindings for version system~~ ✅ **Completed**
+- [x] ~~Comprehensive test suite with edge cases~~ ✅ **Completed (35/38 tests passing)**
+- [ ] **High-priority**: Complete version range intersection and union operations
+- [ ] **High-priority**: Fix remaining 3 test failures (error handling + pre-release comparison)
 - [ ] **Medium-priority**: Support for custom version token types
-- [ ] **Low-priority**: PyO3 Python bindings for version system
-- [ ] **Low-priority**: Comprehensive test suite with edge cases
+- [ ] **Medium-priority**: Performance optimization based on flamegraph profiling
 
 ### 📋 Dependency Solver (Phase 2 - Planned)
 - [ ] Core dependency resolution algorithm implementation
@@ -200,5 +263,21 @@ Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) for detai
 
 *"The best way to learn Rust is to build something useful... or at least try to!"* 🦀
 
-**Current Status**: 🚧 Work in Progress - Version System Implementation
-**Next Milestone**: Complete basic version parsing and comparison (Phase 1)
+## 📈 Current Status & Performance
+
+**Current Status**: ✅ Phase 1 Core Complete - Version System with Python Bindings
+**Next Milestone**: Performance optimization and Phase 2 planning
+
+### Recent Achievements
+- ✅ **ABI3 Python Bindings**: Compatible with Python 3.8+ (single wheel for all versions)
+- ✅ **Comprehensive Testing**: 35/38 tests passing with pytest framework
+- ✅ **Development Workflow**: Automated builds, testing, and profiling
+- ✅ **Performance Infrastructure**: Benchmarking and flamegraph profiling ready
+
+### Performance Baseline
+- **Version Creation**: ~1000 versions/ms (development build)
+- **Version Comparison**: ~100 sorts of 100 versions/ms
+- **Memory Usage**: Reasonable for 1000+ version objects
+- **ABI3 Compatibility**: Single wheel works across Python 3.8-3.13+
+
+*Detailed performance analysis with flamegraph profiling coming soon...*

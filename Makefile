@@ -110,6 +110,18 @@ bench-rust:
 	PYO3_PYTHON=$(shell uv run which python) \
 	cargo bench
 
+.PHONY: flamegraph
+flamegraph:
+	@echo "Installing flamegraph if needed..."
+	@which flamegraph || cargo install flamegraph
+	@echo "Building with profiling symbols..."
+	@$(MAKE) build-profiling
+	@echo "Running flamegraph profiling..."
+	PYTHONPATH=$(shell uv run python -c "import sys; print(':'.join(sys.path))") \
+	PYO3_PYTHON=$(shell uv run which python) \
+	flamegraph --output flamegraph.svg -- cargo bench --features flamegraph
+	@echo "Flamegraph saved to flamegraph.svg"
+
 .PHONY: all
 all: format build-dev lint test
 
