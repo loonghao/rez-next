@@ -29,7 +29,7 @@ pprof = { version = "0.14", features = ["flamegraph", "criterion"], optional = t
 [dev-dependencies]
 criterion = { version = "0.6", features = ["html_reports"] }
 proptest = "1.0"
-rstest = "0.23"
+rstest = "0.25"
 tempfile = "3.0"
 assert_matches = "1.5"
 pretty_assertions = "1.4"
