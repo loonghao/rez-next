@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use pyo3::prelude::*;
 
 /// Version token representation
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum VersionToken {
     /// Numeric token (e.g., "123")
     Numeric(u64),

@@ -32,4 +32,4 @@ pub enum RezCoreError {
 pub type RezCoreResult<T> = Result<T, RezCoreError>;
 
 // Create Python exception types
-pyo3::create_exception!(rez_core, RezCoreError, pyo3::exceptions::PyException);
+pyo3::create_exception!(rez_core, PyRezCoreError, pyo3::exceptions::PyException);

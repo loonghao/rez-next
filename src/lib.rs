@@ -24,7 +24,7 @@ mod python;
 
 /// Python module initialization
 #[pymodule]
-fn _rez_core(_py: Python, m: &PyModule) -> PyResult<()> {
+fn _rez_core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Version system
     m.add_class::<version::Version>()?;
     m.add_class::<version::VersionRange>()?;
@@ -35,11 +35,11 @@ fn _rez_core(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(version::parse_version_range, m)?)?;
 
     // Error types
-    m.add("RezCoreError", _py.get_type::<common::error::RezCoreError>())?;
-    m.add("VersionParseError", _py.get_type::<version::VersionParseError>())?;
+    m.add("RezCoreError", m.py().get_type::<common::error::PyRezCoreError>())?;
+    m.add("VersionParseError", m.py().get_type::<version::PyVersionParseError>())?;
 
     // Configuration
-    m.add_class::<common::config::Config>()?;
+    m.add_class::<common::RezCoreConfig>()?;
 
     Ok(())
 }

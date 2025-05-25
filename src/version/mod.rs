@@ -33,7 +33,7 @@ impl From<RezCoreError> for VersionParseError {
 }
 
 // Make it a Python exception
-pyo3::create_exception!(rez_core, VersionParseError, pyo3::exceptions::PyException);
+pyo3::create_exception!(rez_core, PyVersionParseError, pyo3::exceptions::PyException);
 
 /// Parse a version string into a Version object
 #[pyfunction]

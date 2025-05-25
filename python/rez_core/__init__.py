@@ -23,8 +23,8 @@ from ._rez_core import (
 )
 
 __version__ = "0.1.0"
-__author__ = "Rez Core Team"
-__email__ = "rez-core@example.com"
+__author__ = "Long Hao"
+__email__ = "hal.long@outlook.com"
 
 __all__ = [
     # Version management

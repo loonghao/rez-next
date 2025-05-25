@@ -7,7 +7,7 @@ name = "rez-core"
 version = "0.1.0"
 description = "High-performance core components for Rez package manager"
 authors = [
-    {name = "Rez Core Team", email = "rez-core@example.com"},
+    {name = "LongHao", email = "hal.long@outlook.com"},
 ]
 license = {text = "Apache-2.0"}
 readme = "README.md"
@@ -32,17 +32,60 @@ Homepage = "https://github.com/loonghao/rez-core"
 Repository = "https://github.com/loonghao/rez-core"
 Issues = "https://github.com/loonghao/rez-core/issues"
 
+[dependency-groups]
+dev = ["maturin"]
+testing = [
+    { include-group = "dev" },
+    "pytest",
+    "pytest-cov",
+    "pytest-benchmark",
+    "pytest-mock",
+    "pytest-timeout",
+    "coverage",
+    "hypothesis",
+]
+linting = [
+    { include-group = "dev" },
+    "ruff",
+    "mypy",
+]
+all = [
+    { include-group = "dev" },
+    { include-group = "testing" },
+    { include-group = "linting" },
+]
+
 [tool.maturin]
 python-source = "python"
 module-name = "rez_core._rez_core"
-features = ["pyo3/extension-module"]
+features = ["pyo3/extension-module", "pyo3/abi3-py38"]
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["tests/python"]
 python_files = ["test_*.py", "*_test.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
-addopts = "-v --tb=short"
+addopts = [
+    "-v",
+    "--tb=short",
+    "--strict-markers",
+    "--strict-config",
+    "--color=yes",
+    "--durations=10",
+]
+markers = [
+    "unit: Unit tests",
+    "integration: Integration tests",
+    "performance: Performance tests",
+    "slow: Slow running tests",
+    "compat: Compatibility tests with original rez",
+]
+filterwarnings = [
+    "error",
+    "ignore::UserWarning",
+    "ignore::DeprecationWarning",
+]
+minversion = "6.0"
 
 [tool.coverage.run]
 source = ["rez_core"]
@@ -98,3 +141,8 @@ strict_equality = true
 [[tool.mypy.overrides]]
 module = "tests.*"
 disallow_untyped_defs = false
+
+[tool.uv]
+# this ensures that `uv run` doesn't actually build the package; a `make`
+# command is needed to build
+package = false

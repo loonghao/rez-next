@@ -42,6 +42,19 @@ pub struct CacheConfig {
     pub cache_ttl_seconds: u64,
 }
 
+#[pymethods]
+impl RezCoreConfig {
+    #[new]
+    fn new() -> Self {
+        Self::default()
+    }
+
+    fn __repr__(&self) -> String {
+        format!("Config(use_rust_version={}, use_rust_solver={}, use_rust_repository={})",
+                self.use_rust_version, self.use_rust_solver, self.use_rust_repository)
+    }
+}
+
 impl Default for RezCoreConfig {
     fn default() -> Self {
         Self {
