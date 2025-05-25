@@ -34,6 +34,12 @@ function Build-Wheel {
     uv run maturin build --release
 }
 
+function Build-Profiling {
+    Write-Host "Building profiling version..." -ForegroundColor Green
+    Remove-Item -Path "python/rez_core/*.so" -Force -ErrorAction SilentlyContinue
+    uv run maturin develop --uv --profile profiling
+}
+
 function Test-Python {
     Write-Host "Running Python tests..." -ForegroundColor Green
     uv run pytest tests/python/
@@ -87,6 +93,30 @@ function Run-Bench-Rust {
     cargo bench
 }
 
+function Run-Flamegraph {
+    Write-Host "Running flamegraph profiling..." -ForegroundColor Green
+
+    # Check if flamegraph is installed
+    try {
+        flamegraph --version | Out-Null
+    } catch {
+        Write-Host "Installing flamegraph..." -ForegroundColor Yellow
+        cargo install flamegraph
+    }
+
+    # Build with profiling symbols
+    Build-Profiling
+
+    Write-Host "Running flamegraph on benchmarks..." -ForegroundColor Green
+    $env:PYTHONPATH = (uv run python -c "import sys; print(';'.join(sys.path))")
+    $env:PYO3_PYTHON = (uv run python -c "import sys; print(sys.executable)")
+
+    # Run flamegraph with criterion benchmarks
+    flamegraph --output flamegraph.svg -- cargo bench --features flamegraph
+
+    Write-Host "Flamegraph saved to flamegraph.svg" -ForegroundColor Green
+}
+
 function Clean-All {
     Write-Host "Cleaning build artifacts..." -ForegroundColor Green
     Remove-Item -Path "__pycache__" -Recurse -Force -ErrorAction SilentlyContinue
@@ -106,6 +136,7 @@ if (-not (Test-UV)) {
 switch ($Command) {
     "build-dev" { Build-Dev }
     "build-prod" { Build-Prod }
+    "build-profiling" { Build-Profiling }
     "build-wheel" { Build-Wheel }
     "test-python" { Test-Python }
     "test-rust" { Test-Rust }
@@ -116,6 +147,7 @@ switch ($Command) {
     "format" { Format-Code }
     "benchmark" { Run-Benchmark }
     "bench-rust" { Run-Bench-Rust }
+    "flamegraph" { Run-Flamegraph }
     "clean" { Clean-All }
     "all" {
         Format-Code
@@ -125,9 +157,10 @@ switch ($Command) {
     }
     default {
         Write-Host "Available commands:" -ForegroundColor Yellow
-        Write-Host "  build-dev    - Build development version"
-        Write-Host "  build-prod   - Build production version"
-        Write-Host "  build-wheel  - Build wheel package"
+        Write-Host "  build-dev      - Build development version"
+        Write-Host "  build-prod     - Build production version"
+        Write-Host "  build-profiling- Build profiling version"
+        Write-Host "  build-wheel    - Build wheel package"
         Write-Host "  test-python  - Run Python tests"
         Write-Host "  test-rust    - Run Rust tests"
         Write-Host "  test         - Run all tests"
@@ -137,6 +170,7 @@ switch ($Command) {
         Write-Host "  format       - Format all code"
         Write-Host "  benchmark    - Run Python benchmarks"
         Write-Host "  bench-rust   - Run Rust benchmarks"
+        Write-Host "  flamegraph   - Run flamegraph profiling"
         Write-Host "  clean        - Clean build artifacts"
         Write-Host "  all          - Format, build, lint, and test"
     }

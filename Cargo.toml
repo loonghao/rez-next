@@ -23,6 +23,9 @@ tokio = { version = "1.0", features = ["full"] }
 regex = "1.10"
 thiserror = "2.0"
 
+# Performance profiling (optional)
+pprof = { version = "0.14", features = ["flamegraph", "criterion"], optional = true }
+
 [dev-dependencies]
 criterion = { version = "0.6", features = ["html_reports"] }
 proptest = "1.0"
@@ -32,9 +35,26 @@ assert_matches = "1.5"
 pretty_assertions = "1.4"
 serial_test = "3.0"
 
+
+
 [[bench]]
 name = "version_benchmark"
 harness = false
 
 [build-dependencies]
 pyo3-build-config = "0.25"
+
+[features]
+default = []
+flamegraph = ["pprof"]
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+
+[profile.profiling]
+inherits = "release"
+debug = true
+lto = false
