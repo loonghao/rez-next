@@ -1,30 +1,34 @@
 //! Version range implementation
 
-// use pyo3::prelude::*;  // Temporarily disabled
+use pyo3::prelude::*;
 use crate::common::RezCoreError;
 use super::Version;
 
 /// Version range representation
-// #[pyclass]  // Temporarily disabled
+#[pyclass]
 #[derive(Clone, Debug)]
 pub struct VersionRange {
     // TODO: Implement proper range representation
+    #[pyo3(get)]
     range_str: String,
 }
 
-// Python methods temporarily disabled
-// #[pymethods]
+#[pymethods]
 impl VersionRange {
-    // #[new]  // Temporarily disabled
-    pub fn new(range_str: &str) -> Result<Self, RezCoreError> {
-        Self::parse(range_str)
+    #[new]
+    pub fn new(range_str: &str) -> PyResult<Self> {
+        Self::parse(range_str).map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(e.to_string()))
     }
 
     pub fn as_str(&self) -> &str {
         &self.range_str
     }
 
-    pub fn to_string(&self) -> String {
+    fn __str__(&self) -> String {
+        self.range_str.clone()
+    }
+
+    fn __repr__(&self) -> String {
         format!("VersionRange('{}')", self.range_str)
     }
 
