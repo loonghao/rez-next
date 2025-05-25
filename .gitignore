@@ -43,6 +43,41 @@ MANIFEST
 # Benchmark results
 /target/criterion/
 
+# Performance profiling
+flamegraph.svg
+perf.data*
+callgrind.out.*
+*.prof
+
+# Testing artifacts
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+.cache/
+
+# UV Python package manager
+.venv/
+
+# Local development
+.env
+.env.local
+*.local
+
 # Temporary files
 *.tmp
 *.temp
+
+# Build artifacts
+*.whl
+*.tar.gz
+
+# IDE specific
+*.code-workspace
+.history/
+
+# Platform specific
+*.exe
+*.pdb
