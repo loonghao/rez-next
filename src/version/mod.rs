@@ -39,12 +39,12 @@ pyo3::create_exception!(rez_core, PyVersionParseError, pyo3::exceptions::PyExcep
 #[pyfunction]
 pub fn parse_version(version_str: &str) -> PyResult<Version> {
     Version::parse(version_str)
-        .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(e.to_string()))
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("{:?}", e)))
 }
 
 /// Parse a version range string into a VersionRange object
 #[pyfunction]
 pub fn parse_version_range(range_str: &str) -> PyResult<VersionRange> {
     VersionRange::parse(range_str)
-        .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(e.to_string()))
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("{:?}", e)))
 }

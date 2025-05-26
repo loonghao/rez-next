@@ -18,7 +18,7 @@ impl VersionRange {
     #[new]
     pub fn new(range_str: &str) -> PyResult<Self> {
         Self::parse(range_str)
-            .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(e.to_string()))
+            .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("{:?}", e)))
     }
 
     pub fn as_str(&self) -> &str {

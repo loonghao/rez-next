@@ -1,5 +1,6 @@
 //! Error types for rez-core
 
+#[allow(unused_imports)]
 use pyo3::prelude::*;
 use thiserror::Error;
 

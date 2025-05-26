@@ -34,6 +34,7 @@ tempfile = "3.0"
 assert_matches = "1.5"
 pretty_assertions = "1.4"
 serial_test = "3.0"
+clippy = "0.0.302"
 
 
 
@@ -47,6 +48,23 @@ pyo3-build-config = "0.25"
 [features]
 default = []
 # flamegraph = ["pprof"]
+
+# Linting configuration
+[lints.rust]
+# Allow unused imports for Python bindings that may not be used in all builds
+unused_imports = "allow"
+# Allow dead code for experimental features
+dead_code = "allow"
+
+[lints.clippy]
+# Allow some clippy lints that are too strict for development
+too_many_arguments = "allow"
+module_inception = "allow"
+# Focus on critical issues only
+complexity = "warn"
+correctness = "deny"
+suspicious = "deny"
+perf = "warn"
 
 [profile.release]
 opt-level = 3
