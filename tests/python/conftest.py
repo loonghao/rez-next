@@ -5,12 +5,12 @@ This module provides common fixtures and configuration for testing
 the rez-core Python bindings.
 """
 
-import pytest
-import tempfile
 import shutil
+import tempfile
 from pathlib import Path
-from typing import Generator, Dict, Any
+from typing import Any, Dict, Generator
 
+import pytest
 import rez_core
 
 
@@ -58,7 +58,7 @@ def config():
 
 class VersionTestCase:
     """Test case data for version testing."""
-    
+
     def __init__(self, version_str: str, expected_parts: Dict[str, Any] = None):
         self.version_str = version_str
         self.expected_parts = expected_parts or {}
@@ -92,20 +92,13 @@ def comparison_test_cases():
 # Pytest markers for categorizing tests
 pytest_plugins = []
 
+
 def pytest_configure(config):
     """Configure pytest with custom markers."""
-    config.addinivalue_line(
-        "markers", "unit: mark test as a unit test"
-    )
-    config.addinivalue_line(
-        "markers", "integration: mark test as an integration test"
-    )
-    config.addinivalue_line(
-        "markers", "performance: mark test as a performance test"
-    )
-    config.addinivalue_line(
-        "markers", "slow: mark test as slow running"
-    )
+    config.addinivalue_line("markers", "unit: mark test as a unit test")
+    config.addinivalue_line("markers", "integration: mark test as an integration test")
+    config.addinivalue_line("markers", "performance: mark test as a performance test")
+    config.addinivalue_line("markers", "slow: mark test as slow running")
     config.addinivalue_line(
         "markers", "compat: mark test as compatibility test with original rez"
     )
@@ -117,15 +110,15 @@ def pytest_collection_modifyitems(config, items):
         # Add unit marker to tests in unit directories
         if "unit" in str(item.fspath):
             item.add_marker(pytest.mark.unit)
-        
+
         # Add integration marker to tests in integration directories
         if "integration" in str(item.fspath):
             item.add_marker(pytest.mark.integration)
-        
+
         # Add performance marker to performance tests
         if "performance" in str(item.fspath) or "benchmark" in item.name:
             item.add_marker(pytest.mark.performance)
-        
+
         # Add slow marker to tests that might be slow
         if "slow" in item.name or "stress" in item.name:
             item.add_marker(pytest.mark.slow)

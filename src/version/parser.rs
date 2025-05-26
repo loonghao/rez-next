@@ -44,7 +44,7 @@ mod tests {
 
     #[test]
     fn test_parser_creation() {
-        let parser = VersionParser::new();
+        let _parser = VersionParser::new();
         // Basic test to ensure parser can be created
         assert!(true);
     }

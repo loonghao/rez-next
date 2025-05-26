@@ -5,13 +5,13 @@ use rez_core::version::{Version, VersionRange, VersionToken};
 
 #[test]
 fn test_version_creation() {
-    let version = Version::new("1.2.3").expect("Should create version");
+    let version = Version::parse("1.2.3").expect("Should create version");
     assert_eq!(version.as_str(), "1.2.3");
 }
 
 #[test]
 fn test_version_range_creation() {
-    let range = VersionRange::new("1.0.0..2.0.0").expect("Should create version range");
+    let range = VersionRange::parse("1.0.0..2.0.0").expect("Should create version range");
     assert_eq!(range.as_str(), "1.0.0..2.0.0");
 }
 
@@ -46,8 +46,8 @@ fn test_config_defaults() {
 #[test]
 fn test_module_structure() {
     // Test that all modules can be imported and basic functionality works
-    let _version = Version::new("1.0.0").expect("Version creation should work");
-    let _range = VersionRange::new("1.0.0+").expect("Range creation should work");
+    let _version = Version::parse("1.0.0").expect("Version creation should work");
+    let _range = VersionRange::parse("1.0.0+").expect("Range creation should work");
     let _config = RezCoreConfig::default();
 
     // This test ensures the basic module structure is working

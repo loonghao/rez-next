@@ -34,7 +34,6 @@ tempfile = "3.0"
 assert_matches = "1.5"
 pretty_assertions = "1.4"
 serial_test = "3.0"
-clippy = "0.0.302"
 
 
 

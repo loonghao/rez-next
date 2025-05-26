@@ -16,6 +16,10 @@ unmaintained = "warn"
 yanked = "warn"
 notice = "warn"
 ignore = []
+# Network timeout configuration for better reliability
+timeout = 300
+# Retry configuration for network operations
+retry = 3
 
 [licenses]
 unlicensed = "deny"

@@ -1,0 +1,163 @@
+name: 'Retry Action with Network Resilience'
+description: 'A reusable action that provides retry mechanisms for network operations and CI/CD tasks'
+author: 'rez-core team'
+
+inputs:
+  command:
+    description: 'Command to execute with retry logic'
+    required: true
+  max_attempts:
+    description: 'Maximum number of retry attempts'
+    required: false
+    default: '3'
+  timeout_minutes:
+    description: 'Timeout for each attempt in minutes'
+    required: false
+    default: '10'
+  retry_wait_seconds:
+    description: 'Wait time between retries in seconds'
+    required: false
+    default: '30'
+  retry_on:
+    description: 'Retry on specific conditions (error, timeout, any)'
+    required: false
+    default: 'any'
+  shell:
+    description: 'Shell to use for command execution'
+    required: false
+    default: 'bash'
+  working_directory:
+    description: 'Working directory for command execution'
+    required: false
+    default: '.'
+  continue_on_error:
+    description: 'Continue workflow even if all retries fail'
+    required: false
+    default: 'false'
+  log_level:
+    description: 'Logging level (debug, info, warn, error)'
+    required: false
+    default: 'info'
+
+outputs:
+  success:
+    description: 'Whether the command succeeded'
+    value: ${{ steps.retry-logic.outputs.success }}
+  attempts_made:
+    description: 'Number of attempts made'
+    value: ${{ steps.retry-logic.outputs.attempts_made }}
+  final_exit_code:
+    description: 'Final exit code of the command'
+    value: ${{ steps.retry-logic.outputs.final_exit_code }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup retry environment
+      shell: bash
+      run: |
+        echo "🔄 Setting up retry mechanism..."
+        echo "Command: ${{ inputs.command }}"
+        echo "Max attempts: ${{ inputs.max_attempts }}"
+        echo "Timeout: ${{ inputs.timeout_minutes }} minutes"
+        echo "Retry wait: ${{ inputs.retry_wait_seconds }} seconds"
+        echo "Working directory: ${{ inputs.working_directory }}"
+        
+    - name: Execute command with retry logic
+      id: retry-logic
+      shell: bash
+      working-directory: ${{ inputs.working_directory }}
+      run: |
+        #!/bin/bash
+        set -e
+        
+        # Configuration
+        MAX_ATTEMPTS=${{ inputs.max_attempts }}
+        TIMEOUT_MINUTES=${{ inputs.timeout_minutes }}
+        RETRY_WAIT=${{ inputs.retry_wait_seconds }}
+        CONTINUE_ON_ERROR=${{ inputs.continue_on_error }}
+        LOG_LEVEL=${{ inputs.log_level }}
+        
+        # Logging functions
+        log_debug() { [[ "$LOG_LEVEL" == "debug" ]] && echo "🐛 DEBUG: $1"; }
+        log_info() { [[ "$LOG_LEVEL" =~ ^(debug|info)$ ]] && echo "ℹ️  INFO: $1"; }
+        log_warn() { [[ "$LOG_LEVEL" =~ ^(debug|info|warn)$ ]] && echo "⚠️  WARN: $1"; }
+        log_error() { echo "❌ ERROR: $1"; }
+        
+        # Initialize variables
+        attempt=1
+        success=false
+        final_exit_code=0
+        
+        log_info "Starting command execution with retry logic"
+        
+        while [ $attempt -le $MAX_ATTEMPTS ]; do
+          log_info "Attempt $attempt of $MAX_ATTEMPTS"
+          
+          # Create timeout command
+          if command -v timeout >/dev/null 2>&1; then
+            TIMEOUT_CMD="timeout ${TIMEOUT_MINUTES}m"
+          elif command -v gtimeout >/dev/null 2>&1; then
+            TIMEOUT_CMD="gtimeout ${TIMEOUT_MINUTES}m"
+          else
+            TIMEOUT_CMD=""
+            log_warn "No timeout command available, running without timeout"
+          fi
+          
+          # Execute command with timeout
+          set +e
+          if [ -n "$TIMEOUT_CMD" ]; then
+            log_debug "Executing: $TIMEOUT_CMD ${{ inputs.command }}"
+            eval "$TIMEOUT_CMD ${{ inputs.command }}"
+          else
+            log_debug "Executing: ${{ inputs.command }}"
+            eval "${{ inputs.command }}"
+          fi
+          exit_code=$?
+          set -e
+          
+          if [ $exit_code -eq 0 ]; then
+            log_info "✅ Command succeeded on attempt $attempt"
+            success=true
+            final_exit_code=0
+            break
+          else
+            log_warn "❌ Command failed on attempt $attempt with exit code $exit_code"
+            final_exit_code=$exit_code
+            
+            if [ $attempt -lt $MAX_ATTEMPTS ]; then
+              log_info "⏳ Waiting $RETRY_WAIT seconds before retry..."
+              sleep $RETRY_WAIT
+            fi
+          fi
+          
+          attempt=$((attempt + 1))
+        done
+        
+        # Set outputs
+        echo "success=$success" >> $GITHUB_OUTPUT
+        echo "attempts_made=$((attempt - 1))" >> $GITHUB_OUTPUT
+        echo "final_exit_code=$final_exit_code" >> $GITHUB_OUTPUT
+        
+        # Final result
+        if [ "$success" = true ]; then
+          log_info "🎉 Command completed successfully after $((attempt - 1)) attempts"
+          exit 0
+        else
+          log_error "💥 Command failed after $MAX_ATTEMPTS attempts"
+          if [ "$CONTINUE_ON_ERROR" = "true" ]; then
+            log_warn "Continuing workflow despite failure (continue_on_error=true)"
+            exit 0
+          else
+            exit $final_exit_code
+          fi
+        fi
+
+    - name: Summary
+      shell: bash
+      if: always()
+      run: |
+        echo "📊 Retry Action Summary:"
+        echo "  Success: ${{ steps.retry-logic.outputs.success }}"
+        echo "  Attempts made: ${{ steps.retry-logic.outputs.attempts_made }}"
+        echo "  Final exit code: ${{ steps.retry-logic.outputs.final_exit_code }}"

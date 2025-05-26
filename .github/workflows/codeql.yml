@@ -28,8 +28,6 @@ jobs:
         include:
         - language: python
           build-mode: none
-        - language: rust
-          build-mode: manual
 
     steps:
     - name: Harden Runner
@@ -45,15 +43,9 @@ jobs:
       with:
         languages: ${{ matrix.language }}
         build-mode: ${{ matrix.build-mode }}
+        config-file: ./.github/codeql/codeql-config.yml
 
-    - if: matrix.build-mode == 'manual' && matrix.language == 'rust'
-      name: Setup Rust
-      uses: dtolnay/rust-toolchain@d0592fe69e35bc8f12e3dbaf9ad2694d976cb8e3 # stable
 
-    - if: matrix.build-mode == 'manual' && matrix.language == 'rust'
-      name: Build Rust
-      run: |
-        cargo build --release
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@4f3212b61783c3c68e8309a0f18a699764811cda # v3.28.18

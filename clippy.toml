@@ -1,0 +1,30 @@
+# Global Clippy configuration for rez-core
+# This file provides unified clippy settings across the entire project
+
+# Cognitive complexity threshold
+cognitive-complexity-threshold = 30
+
+# Type complexity threshold
+type-complexity-threshold = 250
+
+# Too many arguments threshold
+too-many-arguments-threshold = 8
+
+# Too many lines threshold
+too-many-lines-threshold = 150
+
+# Single char binding names threshold
+single-char-binding-names-threshold = 4
+
+# Avoid false positives for large types
+pass-by-value-size-limit = 256
+
+# Minimum supported Rust version
+msrv = "1.70.0"
+
+# Allow some lints that are not critical during development
+# These can be addressed in future iterations
+allow-unwrap-in-tests = true
+allow-expect-in-tests = true
+allow-panic-in-tests = true
+allow-print-in-tests = true

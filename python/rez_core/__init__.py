@@ -7,19 +7,17 @@ package repository operations.
 """
 
 from ._rez_core import (
+    # Configuration
+    Config,
+    # Error types
+    RezCoreError,
     # Version-related classes and functions
     Version,
+    VersionParseError,
     VersionRange,
     VersionToken,
     parse_version,
     parse_version_range,
-    
-    # Error types
-    RezCoreError,
-    VersionParseError,
-    
-    # Configuration
-    Config,
 )
 
 __version__ = "0.1.0"
@@ -29,18 +27,15 @@ __email__ = "hal.long@outlook.com"
 __all__ = [
     # Version management
     "Version",
-    "VersionRange", 
+    "VersionRange",
     "VersionToken",
     "parse_version",
     "parse_version_range",
-    
     # Error handling
     "RezCoreError",
     "VersionParseError",
-    
     # Configuration
     "Config",
-    
     # Metadata
     "__version__",
     "__author__",
