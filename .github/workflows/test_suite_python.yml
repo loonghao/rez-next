@@ -81,45 +81,22 @@ jobs:
         with:
           enable-cache: true
 
-      - name: Install dependencies
+      - name: Install dependencies and run Python tests (Unix)
+        if: runner.os != 'Windows'
         run: |
-          uv sync --frozen --all-extras
+          make install
+          make lint-python
+          make test-python
+          make testcov
 
-      - name: Lint with Ruff (check)
+      - name: Install dependencies and run Python tests (Windows)
+        if: runner.os == 'Windows'
         run: |
-          uv run ruff check python/rez_core tests/python
-
-      - name: Lint with Ruff (format)
-        run: |
-          uv run ruff format --check python/rez_core tests/python
-
-      - name: Type check with mypy
-        run: |
-          uv run mypy python/rez_core
-
-      - name: Build Rust extension
-        uses: PyO3/maturin-action@aef21716ff3dcae8a1c301d23ec3e4446972a6e3 # v1.49.1
-        with:
-          sccache: 'true'
-          manylinux: auto
-
-      - name: Install built package
-        run: |
-          uv pip install rez-core --find-links target/wheels
-
-      - name: Run Python tests
-        run: |
-          uv run pytest tests/python/ -v --tb=short
-
-      - name: Run Python benchmarks
-        run: |
-          uv run pytest tests/python/ -m performance --benchmark-enable
-
-      - name: Test coverage
-        run: |
-          uv run coverage run -m pytest tests/python/
-          uv run coverage report
-          uv run coverage xml
+          uv sync --all-extras
+          uv pip install -e .
+          .\scripts\build.ps1 build-dev
+          .\scripts\build.ps1 lint-python
+          .\scripts\build.ps1 test-python
 
       - uses: codecov/codecov-action@18283e04ce6e62d37312384ff67231eb8fd56d24 # v5.4.3
         with:

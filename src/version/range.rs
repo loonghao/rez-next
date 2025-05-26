@@ -1,8 +1,8 @@
 //! Version range implementation
 
-use pyo3::prelude::*;
-use crate::common::RezCoreError;
 use super::Version;
+use crate::common::RezCoreError;
+use pyo3::prelude::*;
 
 /// Version range representation
 #[pyclass]
@@ -17,7 +17,8 @@ pub struct VersionRange {
 impl VersionRange {
     #[new]
     pub fn new(range_str: &str) -> PyResult<Self> {
-        Self::parse(range_str).map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(e.to_string()))
+        Self::parse(range_str)
+            .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(e.to_string()))
     }
 
     pub fn as_str(&self) -> &str {
@@ -33,13 +34,13 @@ impl VersionRange {
     }
 
     /// Check if a version is contained in this range
-    pub fn contains(&self, version: &Version) -> bool {
+    pub fn contains(&self, _version: &Version) -> bool {
         // TODO: Implement proper range containment check
         true
     }
 
     /// Compute the intersection of two ranges
-    pub fn intersect(&self, other: &VersionRange) -> Option<VersionRange> {
+    pub fn intersect(&self, _other: &VersionRange) -> Option<VersionRange> {
         // TODO: Implement range intersection
         None
     }

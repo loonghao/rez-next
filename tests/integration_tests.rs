@@ -1,7 +1,7 @@
 //! Integration tests for rez-core
 
-use rez_core::version::{Version, VersionRange, VersionToken};
 use rez_core::common::RezCoreConfig;
+use rez_core::version::{Version, VersionRange, VersionToken};
 
 #[test]
 fn test_version_creation() {
@@ -19,7 +19,7 @@ fn test_version_range_creation() {
 fn test_version_token_creation() {
     let numeric_token = VersionToken::from_str("123");
     assert_eq!(numeric_token, VersionToken::Numeric(123));
-    
+
     let alpha_token = VersionToken::from_str("alpha");
     assert_eq!(alpha_token, VersionToken::Alphanumeric("alpha".to_string()));
 }
@@ -29,7 +29,7 @@ fn test_version_token_comparison() {
     let num1 = VersionToken::Numeric(1);
     let num2 = VersionToken::Numeric(2);
     let alpha = VersionToken::Alphanumeric("alpha".to_string());
-    
+
     assert!(num1 < num2);
     assert!(num1 < alpha);
 }
@@ -49,7 +49,7 @@ fn test_module_structure() {
     let _version = Version::new("1.0.0").expect("Version creation should work");
     let _range = VersionRange::new("1.0.0+").expect("Range creation should work");
     let _config = RezCoreConfig::default();
-    
+
     // This test ensures the basic module structure is working
     assert!(true);
 }

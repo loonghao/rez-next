@@ -15,9 +15,9 @@ use pyo3::prelude::*;
 
 // Core modules
 pub mod common;
-pub mod version;
-pub mod solver;
 pub mod repository;
+pub mod solver;
+pub mod version;
 
 // Python bindings
 mod python;
@@ -35,8 +35,14 @@ fn _rez_core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(version::parse_version_range, m)?)?;
 
     // Error types
-    m.add("RezCoreError", m.py().get_type::<common::error::PyRezCoreError>())?;
-    m.add("VersionParseError", m.py().get_type::<version::PyVersionParseError>())?;
+    m.add(
+        "RezCoreError",
+        m.py().get_type::<common::error::PyRezCoreError>(),
+    )?;
+    m.add(
+        "VersionParseError",
+        m.py().get_type::<version::PyVersionParseError>(),
+    )?;
 
     // Configuration
     m.add_class::<common::RezCoreConfig>()?;

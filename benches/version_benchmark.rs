@@ -1,6 +1,6 @@
 //! Version system benchmarks
 
-use criterion::{black_box, criterion_group, criterion_main, Criterion, BenchmarkId};
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use rez_core::version::Version;
 
 #[cfg(feature = "flamegraph")]

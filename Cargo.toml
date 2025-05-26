@@ -23,8 +23,8 @@ tokio = { version = "1.0", features = ["full"] }
 regex = "1.10"
 thiserror = "2.0"
 
-# Performance profiling (optional)
-pprof = { version = "0.14", features = ["flamegraph", "criterion"], optional = true }
+# Performance profiling (optional) - disabled due to dependency issues
+# pprof = { version = "0.14", features = ["flamegraph", "criterion"], optional = true }
 
 [dev-dependencies]
 criterion = { version = "0.6", features = ["html_reports"] }
@@ -46,7 +46,7 @@ pyo3-build-config = "0.25"
 
 [features]
 default = []
-flamegraph = ["pprof"]
+# flamegraph = ["pprof"]
 
 [profile.release]
 opt-level = 3

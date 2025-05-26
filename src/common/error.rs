@@ -1,7 +1,7 @@
 //! Error types for rez-core
 
-use thiserror::Error;
 use pyo3::prelude::*;
+use thiserror::Error;
 
 /// Main error type for rez-core operations
 #[derive(Error, Debug)]

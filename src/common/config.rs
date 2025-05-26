@@ -1,7 +1,7 @@
 //! Configuration management for rez-core
 
-use serde::{Deserialize, Serialize};
 use pyo3::prelude::*;
+use serde::{Deserialize, Serialize};
 
 /// Configuration for rez-core components
 #[pyclass(name = "Config")]
@@ -50,8 +50,10 @@ impl RezCoreConfig {
     }
 
     fn __repr__(&self) -> String {
-        format!("Config(use_rust_version={}, use_rust_solver={}, use_rust_repository={})",
-                self.use_rust_version, self.use_rust_solver, self.use_rust_repository)
+        format!(
+            "Config(use_rust_version={}, use_rust_solver={}, use_rust_repository={})",
+            self.use_rust_version, self.use_rust_solver, self.use_rust_repository
+        )
     }
 }
 

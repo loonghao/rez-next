@@ -1,7 +1,7 @@
 //! Version parsing utilities
 
-use crate::common::RezCoreError;
 use super::{Version, VersionToken};
+use crate::common::RezCoreError;
 
 /// High-performance version parser
 pub struct VersionParser {
@@ -13,16 +13,19 @@ impl VersionParser {
     pub fn new() -> Self {
         Self {}
     }
-    
+
     /// Parse a version string into tokens
-    pub fn parse_tokens(&self, input: &str) -> Result<(Vec<VersionToken>, Vec<char>), RezCoreError> {
+    pub fn parse_tokens(
+        &self,
+        _input: &str,
+    ) -> Result<(Vec<VersionToken>, Vec<char>), RezCoreError> {
         // TODO: Implement state-machine based parsing
         // This is a placeholder implementation
         let tokens = vec![];
         let separators = vec![];
         Ok((tokens, separators))
     }
-    
+
     /// Parse a complete version string
     pub fn parse_version(&self, input: &str) -> Result<Version, RezCoreError> {
         Version::parse(input)

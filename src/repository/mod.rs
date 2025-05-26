@@ -1,5 +1,5 @@
 //! Repository management implementation
-//! 
+//!
 //! This module provides high-performance package scanning and caching.
 
 // TODO: Implement repository modules

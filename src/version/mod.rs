@@ -2,17 +2,17 @@
 //!
 //! This module provides high-performance version parsing, comparison, and range operations.
 
-use pyo3::prelude::*;
 use crate::common::RezCoreError;
+use pyo3::prelude::*;
 
-pub mod version;
+pub mod parser;
 pub mod range;
 pub mod token;
-pub mod parser;
+pub mod version;
 
-pub use version::Version;
 pub use range::VersionRange;
-pub use token::{VersionToken, PyVersionToken};
+pub use token::{PyVersionToken, VersionToken};
+pub use version::Version;
 
 // Define a custom error type for version parsing
 #[derive(Debug)]
@@ -38,11 +38,13 @@ pyo3::create_exception!(rez_core, PyVersionParseError, pyo3::exceptions::PyExcep
 /// Parse a version string into a Version object
 #[pyfunction]
 pub fn parse_version(version_str: &str) -> PyResult<Version> {
-    Version::parse(version_str).map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(e.to_string()))
+    Version::parse(version_str)
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(e.to_string()))
 }
 
 /// Parse a version range string into a VersionRange object
 #[pyfunction]
 pub fn parse_version_range(range_str: &str) -> PyResult<VersionRange> {
-    VersionRange::parse(range_str).map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(e.to_string()))
+    VersionRange::parse(range_str)
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(e.to_string()))
 }

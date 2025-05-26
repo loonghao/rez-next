@@ -1,5 +1,5 @@
 //! Dependency solver implementation
-//! 
+//!
 //! This module provides high-performance dependency resolution algorithms.
 
 // TODO: Implement solver modules

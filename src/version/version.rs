@@ -1,10 +1,10 @@
 //! Version implementation
 
+use super::token::VersionToken;
+use crate::common::RezCoreError;
 use pyo3::prelude::*;
 use std::cmp::Ordering;
 use std::hash::{Hash, Hasher};
-use crate::common::RezCoreError;
-use super::token::VersionToken;
 
 /// High-performance version representation
 #[pyclass]
@@ -20,7 +20,8 @@ pub struct Version {
 impl Version {
     #[new]
     pub fn new(version_str: &str) -> PyResult<Self> {
-        Self::parse(version_str).map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(e.to_string()))
+        Self::parse(version_str)
+            .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(e.to_string()))
     }
 
     pub fn as_str(&self) -> &str {
@@ -110,8 +111,8 @@ impl Ord for Version {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rstest::*;
     use pretty_assertions::assert_eq;
+    use rstest::*;
 
     #[rstest]
     #[case("1.0.0")]

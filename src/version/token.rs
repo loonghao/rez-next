@@ -1,8 +1,8 @@
 //! Version token types
 
-use std::cmp::Ordering;
-use serde::{Deserialize, Serialize};
 use pyo3::prelude::*;
+use serde::{Deserialize, Serialize};
+use std::cmp::Ordering;
 
 /// Version token representation
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -101,7 +101,10 @@ mod tests {
     #[test]
     fn test_token_creation() {
         assert_eq!(VersionToken::from_str("123"), VersionToken::Numeric(123));
-        assert_eq!(VersionToken::from_str("alpha"), VersionToken::Alphanumeric("alpha".to_string()));
+        assert_eq!(
+            VersionToken::from_str("alpha"),
+            VersionToken::Alphanumeric("alpha".to_string())
+        );
     }
 
     #[test]
