@@ -1,0 +1,50 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-toml
+      - id: check-merge-conflict
+      - id: check-added-large-files
+      - id: check-case-conflict
+      - id: check-executables-have-shebangs
+      - id: check-shebang-scripts-are-executable
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.4
+    hooks:
+      - id: ruff
+        args: [--fix]
+        files: ^(python/|tests/python/).*\.py$
+      - id: ruff-format
+        files: ^(python/|tests/python/).*\.py$
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.13.0
+    hooks:
+      - id: mypy
+        files: ^python/.*\.py$
+        additional_dependencies: [types-all]
+
+  - repo: https://github.com/doublify/pre-commit-rust
+    rev: v1.0
+    hooks:
+      - id: fmt
+        args: ['--manifest-path', 'Cargo.toml', '--']
+      - id: clippy
+        args: ['--manifest-path', 'Cargo.toml', '--', '-D', 'warnings']
+
+  - repo: https://github.com/Lucas-C/pre-commit-hooks-safety
+    rev: v1.3.3
+    hooks:
+      - id: python-safety-dependencies-check
+        files: ^(pyproject\.toml|uv\.lock)$
+
+  - repo: https://github.com/gitguardian/ggshield
+    rev: v1.32.1
+    hooks:
+      - id: ggshield
+        language: python
+        stages: [commit]
