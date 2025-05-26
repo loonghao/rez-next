@@ -7,11 +7,34 @@ on:
 
 env:
   COLUMNS: 150
-  UV_PYTHON: 3.13
 
 jobs:
+  # Quick check job to fail fast on basic issues
+  quick-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: install rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: cache rust
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: quick-check-v1
+
+      - name: check rust formatting
+        run: cargo fmt --check
+
+      - name: check rust compilation
+        run: cargo check --all-targets --all-features
+
   coverage:
     runs-on: ubuntu-latest
+    # Only run coverage on main branch and PRs to reduce CI time
+    if: github.ref == 'refs/heads/main' || github.event_name == 'pull_request'
     steps:
       - uses: actions/checkout@v4
 
@@ -20,6 +43,18 @@ jobs:
 
       - name: cache rust
         uses: Swatinem/rust-cache@v2
+        with:
+          key: coverage-v1
+
+      - name: cache uv
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/uv
+            ~/.local/share/uv
+          key: uv-${{ runner.os }}-${{ hashFiles('**/uv.lock', '**/pyproject.toml') }}
+          restore-keys: |
+            uv-${{ runner.os }}-
 
       - uses: taiki-e/install-action@cargo-llvm-cov
 
@@ -38,8 +73,6 @@ jobs:
         env:
           RUST_BACKTRACE: 1
           RUSTFLAGS: '-C instrument-coverage'
-
-      - run: uv pip freeze
 
       - run: uv run coverage run -m pytest --junitxml=junit.xml -o junit_family=legacy
 
@@ -77,7 +110,18 @@ jobs:
       - name: cache rust
         uses: Swatinem/rust-cache@v2
         with:
-          key: test-v3
+          key: test-python-v1-${{ matrix.python-version }}
+
+      - name: cache uv
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/uv
+            ~/.local/share/uv
+          key: uv-${{ runner.os }}-py${{ matrix.python-version }}-${{ hashFiles('**/uv.lock', '**/pyproject.toml') }}
+          restore-keys: |
+            uv-${{ runner.os }}-py${{ matrix.python-version }}-
+            uv-${{ runner.os }}-
 
       - name: install uv
         uses: astral-sh/setup-uv@v6
@@ -90,8 +134,6 @@ jobs:
       - run: uv pip install -e .
         env:
           RUST_BACKTRACE: 1
-
-      - run: uv pip freeze
 
       - run: uv run pytest
         env:
@@ -113,6 +155,18 @@ jobs:
 
       - name: cache rust
         uses: Swatinem/rust-cache@v2
+        with:
+          key: test-os-v1-${{ matrix.os }}
+
+      - name: cache uv
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/uv
+            ~/.local/share/uv
+          key: uv-${{ runner.os }}-${{ hashFiles('**/uv.lock', '**/pyproject.toml') }}
+          restore-keys: |
+            uv-${{ runner.os }}-
 
       - name: install uv
         uses: astral-sh/setup-uv@v6
@@ -123,8 +177,6 @@ jobs:
       - run: uv pip install -e .
         env:
           RUST_BACKTRACE: 1
-
-      - run: uv pip freeze
 
       - run: uv run pytest
 
@@ -143,6 +195,18 @@ jobs:
 
       - name: cache rust
         uses: Swatinem/rust-cache@v2
+        with:
+          key: test-rust-v1
+
+      - name: cache uv
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/uv
+            ~/.local/share/uv
+          key: uv-${{ runner.os }}-${{ hashFiles('**/uv.lock', '**/pyproject.toml') }}
+          restore-keys: |
+            uv-${{ runner.os }}-
 
       - name: install uv
         uses: astral-sh/setup-uv@v6
@@ -168,6 +232,19 @@ jobs:
 
       - name: cache rust
         uses: Swatinem/rust-cache@v2
+        with:
+          key: lint-v1
+
+      - name: cache uv
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/uv
+            ~/.local/share/uv
+          key: uv-${{ runner.os }}-lint-${{ hashFiles('**/uv.lock', '**/pyproject.toml') }}
+          restore-keys: |
+            uv-${{ runner.os }}-lint-
+            uv-${{ runner.os }}-
 
       - name: install uv
         uses: astral-sh/setup-uv@v6
@@ -176,7 +253,6 @@ jobs:
         run: |
           uv sync --group linting
           make build-dev
-          uv pip freeze
 
       - run: make lint
 
@@ -191,9 +267,20 @@ jobs:
 
       - name: cache rust
         uses: Swatinem/rust-cache@v2
+        with:
+          key: audit-v1
+
+      - name: cache cargo-audit
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/bin/cargo-audit
+          key: cargo-audit-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
 
       - name: install cargo-audit
-        run: cargo install cargo-audit --locked
+        run: |
+          if ! command -v cargo-audit &> /dev/null; then
+            cargo install cargo-audit --locked
+          fi
 
       - name: run cargo audit
         run: cargo audit
@@ -212,6 +299,18 @@ jobs:
 
       - name: cache rust
         uses: Swatinem/rust-cache@v2
+        with:
+          key: build-v1
+
+      - name: cache uv
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/uv
+            ~/.local/share/uv
+          key: uv-${{ runner.os }}-${{ hashFiles('**/uv.lock', '**/pyproject.toml') }}
+          restore-keys: |
+            uv-${{ runner.os }}-
 
       - name: install uv
         uses: astral-sh/setup-uv@v6
@@ -232,7 +331,7 @@ jobs:
 
   check:
     if: always()
-    needs: [coverage, test-python, test-os, test-rust, lint, audit, build]
+    needs: [quick-check, coverage, test-python, test-os, test-rust, lint, audit, build]
     runs-on: ubuntu-latest
     steps:
       - name: Decide whether the needed jobs succeeded or failed

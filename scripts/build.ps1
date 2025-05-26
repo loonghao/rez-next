@@ -57,21 +57,21 @@ function Test-All {
     Test-Rust
 }
 
-function Lint-Python {
+function Invoke-PythonLint {
     Write-Host "Linting Python code..." -ForegroundColor Green
     uv run ruff check python/rez_core tests/python
     uv run ruff format --check python/rez_core tests/python
 }
 
-function Lint-Rust {
+function Invoke-RustLint {
     Write-Host "Linting Rust code..." -ForegroundColor Green
     cargo fmt --all -- --check
     cargo clippy --tests -- -D warnings
 }
 
-function Lint-All {
-    Lint-Python
-    Lint-Rust
+function Invoke-AllLint {
+    Invoke-PythonLint
+    Invoke-RustLint
 }
 
 function Format-Code {
@@ -81,19 +81,19 @@ function Format-Code {
     cargo fmt
 }
 
-function Run-Benchmark {
+function Invoke-Benchmark {
     Write-Host "Running benchmarks..." -ForegroundColor Green
     uv run pytest tests/python/ -m performance --benchmark-enable
 }
 
-function Run-Bench-Rust {
+function Invoke-RustBenchmark {
     Write-Host "Running Rust benchmarks..." -ForegroundColor Green
     $env:PYTHONPATH = (uv run python -c "import sys; print(';'.join(sys.path))")
     $env:PYO3_PYTHON = (uv run python -c "import sys; print(sys.executable)")
     cargo bench
 }
 
-function Run-Flamegraph {
+function Invoke-Flamegraph {
     Write-Host "Running flamegraph profiling..." -ForegroundColor Green
 
     # Check if flamegraph is installed
@@ -117,7 +117,7 @@ function Run-Flamegraph {
     Write-Host "Flamegraph saved to flamegraph.svg" -ForegroundColor Green
 }
 
-function Clean-All {
+function Clear-AllArtifacts {
     Write-Host "Cleaning build artifacts..." -ForegroundColor Green
     Remove-Item -Path "__pycache__" -Recurse -Force -ErrorAction SilentlyContinue
     Remove-Item -Path "*.pyc" -Recurse -Force -ErrorAction SilentlyContinue
@@ -141,18 +141,18 @@ switch ($Command) {
     "test-python" { Test-Python }
     "test-rust" { Test-Rust }
     "test" { Test-All }
-    "lint-python" { Lint-Python }
-    "lint-rust" { Lint-Rust }
-    "lint" { Lint-All }
+    "lint-python" { Invoke-PythonLint }
+    "lint-rust" { Invoke-RustLint }
+    "lint" { Invoke-AllLint }
     "format" { Format-Code }
-    "benchmark" { Run-Benchmark }
-    "bench-rust" { Run-Bench-Rust }
-    "flamegraph" { Run-Flamegraph }
-    "clean" { Clean-All }
+    "benchmark" { Invoke-Benchmark }
+    "bench-rust" { Invoke-RustBenchmark }
+    "flamegraph" { Invoke-Flamegraph }
+    "clean" { Clear-AllArtifacts }
     "all" {
         Format-Code
         Build-Dev
-        Lint-All
+        Invoke-AllLint
         Test-All
     }
     default {

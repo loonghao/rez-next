@@ -16,7 +16,7 @@ We take security vulnerabilities seriously. If you discover a security vulnerabi
 
 1. **Email**: Send details to hal.long@outlook.com
 2. **GitHub Security Advisory**: Use GitHub's private vulnerability reporting feature
-3. **Include**: 
+3. **Include**:
    - Description of the vulnerability
    - Steps to reproduce
    - Potential impact
@@ -34,9 +34,8 @@ We take security vulnerabilities seriously. If you discover a security vulnerabi
 This project implements several security measures:
 
 - **Dependency Scanning**: Automated dependency vulnerability scanning via Dependabot
-- **Code Analysis**: Static code analysis using CodeQL
 - **Supply Chain Security**: OSSF Scorecard monitoring
-- **Audit**: Regular Rust security audits using `cargo audit`
+- **Audit**: Regular Rust security audits using `cargo audit` and `cargo deny`
 - **Hardened CI/CD**: Security-hardened GitHub Actions workflows
 
 ### Responsible Disclosure

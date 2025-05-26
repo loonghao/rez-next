@@ -27,6 +27,9 @@ pub enum RezCoreError {
 
     #[error("Python error: {0}")]
     Python(String),
+
+    #[error("PyO3 error: {0}")]
+    PyO3(#[from] pyo3::PyErr),
 }
 
 /// Result type alias for rez-core operations
