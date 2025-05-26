@@ -1,0 +1,242 @@
+name: CI
+
+on:
+  push:
+    branches: ["main", "ci-setup"]
+  pull_request: {}
+
+env:
+  COLUMNS: 150
+  UV_PYTHON: 3.13
+
+jobs:
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: install rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: cache rust
+        uses: Swatinem/rust-cache@v2
+
+      - uses: taiki-e/install-action@cargo-llvm-cov
+
+      - name: install uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: install deps
+        run: uv sync --group testing
+
+      - run: rustc --version --verbose
+
+      - run: |
+          source <(cargo llvm-cov show-env --export-prefix)
+          cargo llvm-cov clean --workspace --profraw-only
+          make build-dev
+        env:
+          RUST_BACKTRACE: 1
+          RUSTFLAGS: '-C instrument-coverage'
+
+      - run: uv pip freeze
+
+      - run: uv run coverage run -m pytest --junitxml=junit.xml -o junit_family=legacy
+
+      - run: uv run coverage xml
+
+      - run: |
+          source <(cargo llvm-cov show-env --export-prefix)
+          cargo llvm-cov --codecov --output-path=codecov.json
+
+      - uses: codecov/codecov-action@v5
+        with:
+          files: codecov.json
+
+  test-python:
+    name: test ${{ matrix.python-version }}
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version:
+          - '3.8'
+          - '3.9'
+          - '3.10'
+          - '3.11'
+          - '3.12'
+          - '3.13'
+          - '3.13t'
+    runs-on: ubuntu-latest
+    continue-on-error: ${{ endsWith(matrix.python-version, 't') }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: install rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: cache rust
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: test-v3
+
+      - name: install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: install deps
+        run: uv sync --group testing
+
+      - run: uv pip install -e .
+        env:
+          RUST_BACKTRACE: 1
+
+      - run: uv pip freeze
+
+      - run: uv run pytest
+        env:
+          HYPOTHESIS_PROFILE: slow
+          PYTEST_ADDOPTS: ${{ endsWith(matrix.python-version, 't') && '--parallel-threads=2' || '' }}
+
+  test-os:
+    name: test on ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu, macos, windows]
+    runs-on: ${{ matrix.os }}-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: install rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: cache rust
+        uses: Swatinem/rust-cache@v2
+
+      - name: install uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: install deps
+        run: uv sync --group testing
+
+      - run: uv pip install -e .
+        env:
+          RUST_BACKTRACE: 1
+
+      - run: uv pip freeze
+
+      - run: uv run pytest
+
+      - run: cargo test
+
+  test-rust:
+    name: rust tests and linting
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: install rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: cache rust
+        uses: Swatinem/rust-cache@v2
+
+      - name: install uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: install deps
+        run: uv sync --group testing
+
+      - run: cargo fmt --check
+
+      - run: cargo clippy --all-targets --all-features -- -D warnings
+
+      - run: cargo test --all-features
+
+      - run: cargo bench --no-run
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: install rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: cache rust
+        uses: Swatinem/rust-cache@v2
+
+      - name: install uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: install deps
+        run: |
+          uv sync --group linting
+          make build-dev
+          uv pip freeze
+
+      - run: make lint
+
+  audit:
+    name: security audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: install rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: cache rust
+        uses: Swatinem/rust-cache@v2
+
+      - name: install cargo-audit
+        run: cargo install cargo-audit --locked
+
+      - name: run cargo audit
+        run: cargo audit
+
+      - name: run cargo deny
+        uses: EmbarkStudios/cargo-deny-action@v2
+
+  build:
+    name: build test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: install rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: cache rust
+        uses: Swatinem/rust-cache@v2
+
+      - name: install uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: install deps
+        run: uv sync --group testing
+
+      - name: build wheels
+        uses: PyO3/maturin-action@v1
+        with:
+          args: --release --out dist --find-interpreter
+          sccache: 'true'
+
+      - name: test wheel install
+        run: |
+          uv pip install dist/*.whl --force-reinstall
+          uv run python -c "import rez_core; print('Build test successful')"
+
+  check:
+    if: always()
+    needs: [coverage, test-python, test-os, test-rust, lint, audit, build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Decide whether the needed jobs succeeded or failed
+        uses: re-actors/alls-green@release/v1
+        with:
+          jobs: ${{ toJSON(needs) }}
+          allowed-failures: coverage

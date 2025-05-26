@@ -160,6 +160,37 @@ flamegraph -- cargo bench
 
 **Note**: On Windows, flamegraph requires additional setup. Consider using Linux/WSL for profiling.
 
+## 🔄 CI/CD Pipeline
+
+We use a simplified CI/CD configuration inspired by [pydantic-core](https://github.com/pydantic/pydantic-core) best practices:
+
+### Continuous Integration (`ci.yml`)
+Our main CI workflow includes:
+- **Coverage**: Code coverage testing with `cargo-llvm-cov` and `pytest`
+- **Test Python**: Multi-version Python testing (3.8-3.13, including freethreaded 3.13t)
+- **Test OS**: Cross-platform testing (Ubuntu, macOS, Windows)
+- **Test Rust**: Rust testing, linting (`cargo fmt`, `cargo clippy`), and benchmarks
+- **Lint**: Code quality checks using project's `make lint` commands
+- **Audit**: Security auditing with `cargo-audit` and `cargo-deny`
+- **Build**: Wheel building and installation testing
+
+### Release Pipeline (`release.yml`)
+Automated release process:
+- **Multi-platform builds**: Linux, macOS, Windows (x86_64 + aarch64 where supported)
+- **Source distribution**: Automated sdist creation
+- **GitHub releases**: Automatic release creation with generated notes
+- **PyPI publishing**: Automated publishing to PyPI with trusted publishing
+
+### Key Features
+- ✅ **Multi-platform support**: Ubuntu, macOS, Windows
+- ✅ **Multi-Python support**: Python 3.8-3.13 (including freethreaded)
+- ✅ **Multi-architecture**: x86_64 and aarch64 (where supported)
+- ✅ **Comprehensive testing**: Python, Rust, linting, security audits
+- ✅ **Automated releases**: Tag-triggered builds and PyPI publishing
+- ✅ **Performance testing**: Benchmark execution in CI
+
+The CI configuration is designed to be simple, maintainable, and aligned with Rust ecosystem best practices.
+
 ## 📋 Implementation Status & TODO
 
 ### ✅ Completed
@@ -200,10 +231,10 @@ flamegraph -- cargo bench
 - [ ] Python bindings for repository management
 
 ### 🔧 Infrastructure & Tooling
-- [ ] **Critical**: Set up Python environment for PyO3 development
-- [ ] **Critical**: Enable PyO3 bindings and Python integration tests
+- [x] ~~**Critical**: Set up Python environment for PyO3 development~~ ✅ **Completed**
+- [x] ~~**Critical**: Enable PyO3 bindings and Python integration tests~~ ✅ **Completed**
+- [x] ~~**High-priority**: CI/CD pipeline with multi-platform testing~~ ✅ **Completed**
 - [ ] **High-priority**: Comprehensive benchmark suite
-- [ ] **High-priority**: CI/CD pipeline with multi-platform testing
 - [ ] **Medium-priority**: Performance regression testing
 - [ ] **Medium-priority**: Memory usage profiling and optimization
 - [ ] **Low-priority**: Documentation generation and examples
@@ -244,8 +275,30 @@ We welcome contributions from both Rust experts and fellow learners! Here's how 
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/amazing-feature`)
 3. Make your changes and add tests
-4. Ensure `cargo test` and `cargo check` pass
+4. Run local checks:
+   ```bash
+   # Run all tests
+   make test                    # Unix/Linux/macOS
+   .\scripts\build.ps1 test     # Windows
+
+   # Run linting
+   make lint                    # Unix/Linux/macOS
+   .\scripts\build.ps1 lint     # Windows
+
+   # Ensure Rust checks pass
+   cargo test && cargo check
+   ```
 5. Submit a pull request with a clear description
+
+### CI/CD Integration
+Our simplified CI pipeline will automatically:
+- ✅ Run tests across Python 3.8-3.13 and multiple operating systems
+- ✅ Execute Rust tests, formatting checks, and clippy linting
+- ✅ Perform security audits with `cargo-audit` and `cargo-deny`
+- ✅ Generate code coverage reports
+- ✅ Build and test wheel installation
+
+All checks must pass before merging. The CI configuration is designed to be fast and reliable.
 
 ## ⚠️ Important Disclaimers
 
