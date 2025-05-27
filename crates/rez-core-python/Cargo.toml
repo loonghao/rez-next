@@ -1,0 +1,22 @@
+[package]
+name = "rez-core-python"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+description = "Python bindings for Rez Core"
+license.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+[dependencies]
+rez-core-common = { path = "../rez-core-common" }
+rez-core-version = { path = "../rez-core-version" }
+rez-core-solver = { path = "../rez-core-solver" }
+rez-core-repository = { path = "../rez-core-repository" }
+pyo3.workspace = true
+
+[dev-dependencies]
+rstest.workspace = true
+tempfile.workspace = true
+pretty_assertions.workspace = true

@@ -1,0 +1,26 @@
+[package]
+name = "rez-core-solver"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+description = "Dependency resolution algorithms for Rez Core"
+license.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+[dependencies]
+rez-core-common = { path = "../rez-core-common" }
+rez-core-version = { path = "../rez-core-version" }
+serde.workspace = true
+serde_json.workspace = true
+rayon.workspace = true
+thiserror.workspace = true
+pyo3.workspace = true
+
+[dev-dependencies]
+rstest.workspace = true
+proptest.workspace = true
+tempfile.workspace = true
+pretty_assertions.workspace = true
+assert_matches.workspace = true

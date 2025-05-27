@@ -59,7 +59,7 @@ htmlcov/
 .cache/
 
 # UV Python package manager
-.venv/
+.venv
 
 # Local development
 .env

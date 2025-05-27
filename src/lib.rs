@@ -13,21 +13,36 @@
 
 use pyo3::prelude::*;
 
-// Core modules
-pub mod common;
-pub mod repository;
-pub mod solver;
-pub mod version;
+// Re-export from workspace crates
+pub use rez_core_common as common;
+pub use rez_core_version as version;
+pub use rez_core_solver as solver;
+pub use rez_core_repository as repository;
 
-// Python bindings
-mod python;
-
-/// Python module initialization
+/// Main Python module that includes all sub-modules
 #[pymodule]
 fn _rez_core(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    // Create and add common submodule
+    let common_module = PyModule::new(m.py(), "common")?;
+    rez_core_common::common_module(&common_module)?;
+    m.add_submodule(&common_module)?;
+
+    // Create and add version submodule
+    let version_module = PyModule::new(m.py(), "version")?;
+    rez_core_version::version_module(&version_module)?;
+    m.add_submodule(&version_module)?;
+
+    // Also expose main classes at the top level for convenience
     // Version system
     m.add_class::<version::Version>()?;
     m.add_class::<version::VersionRange>()?;
+
+    // Version tokens (rez-compatible)
+    m.add_class::<version::VersionToken>()?;
+    m.add_class::<version::NumericToken>()?;
+    m.add_class::<version::AlphanumericVersionToken>()?;
+
+    // Internal version token (for compatibility)
     m.add_class::<version::PyVersionToken>()?;
 
     // Version parsing functions
@@ -37,10 +52,10 @@ fn _rez_core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Error types
     m.add(
         "RezCoreError",
-        m.py().get_type::<common::error::PyRezCoreError>(),
+        m.py().get_type::<common::PyRezCoreError>(),
     )?;
     m.add(
-        "VersionParseError",
+        "PyVersionParseError",
         m.py().get_type::<version::PyVersionParseError>(),
     )?;
 

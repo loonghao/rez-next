@@ -1,7 +1,7 @@
 //! Version parsing utilities
 
 use super::{Version, VersionToken};
-use crate::common::RezCoreError;
+use rez_core_common::RezCoreError;
 
 /// High-performance version parser
 pub struct VersionParser {

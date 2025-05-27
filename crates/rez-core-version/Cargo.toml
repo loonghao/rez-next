@@ -1,0 +1,31 @@
+[package]
+name = "rez-core-version"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+description = "Version parsing and comparison for Rez Core"
+license.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+[lib]
+name = "rez_core_version"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+rez-core-common = { path = "../rez-core-common" }
+serde.workspace = true
+serde_json.workspace = true
+regex.workspace = true
+thiserror.workspace = true
+pyo3.workspace = true
+lru.workspace = true
+rand.workspace = true
+
+[dev-dependencies]
+rstest.workspace = true
+proptest.workspace = true
+tempfile.workspace = true
+pretty_assertions.workspace = true
+assert_matches.workspace = true

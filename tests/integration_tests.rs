@@ -1,7 +1,7 @@
 //! Integration tests for rez-core
 
 use rez_core::common::RezCoreConfig;
-use rez_core::version::{Version, VersionRange, VersionToken};
+use rez_core::version::{Version, VersionRange};
 
 #[test]
 fn test_version_creation() {

@@ -1,19 +1,24 @@
-[package]
-name = "rez-core"
+[workspace]
+members = [
+    "crates/rez-core-common",
+    "crates/rez-core-version",
+    "crates/rez-core-solver",
+    "crates/rez-core-repository",
+    "crates/rez-core-python",
+]
+resolver = "2"
+
+[workspace.package]
 version = "0.1.0"
 edition = "2021"
 authors = ["LongHao <hal.long@outlook.com>"]
-description = "High-performance core components for Rez package manager"
 license = "Apache-2.0"
 repository = "https://github.com/loonghao/rez-core"
 keywords = ["rez", "package-manager", "dependency-resolution", "version-management"]
 categories = ["development-tools"]
 
-[lib]
-name = "rez_core"
-crate-type = ["cdylib", "rlib"]
-
-[dependencies]
+[workspace.dependencies]
+# External dependencies
 pyo3 = { version = "0.25", features = ["extension-module", "abi3-py38"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
@@ -22,11 +27,9 @@ lru = "0.14.0"
 tokio = { version = "1.0", features = ["full"] }
 regex = "1.10"
 thiserror = "2.0"
+rand = "0.8"
 
-# Performance profiling (optional) - disabled due to dependency issues
-# pprof = { version = "0.14", features = ["flamegraph", "criterion"], optional = true }
-
-[dev-dependencies]
+# Dev dependencies
 criterion = { version = "0.6", features = ["html_reports"] }
 proptest = "1.0"
 rstest = "0.25"
@@ -34,6 +37,41 @@ tempfile = "3.0"
 assert_matches = "1.5"
 pretty_assertions = "1.4"
 serial_test = "3.0"
+
+[package]
+name = "rez-core"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+description = "High-performance core components for Rez package manager (meta-package)"
+license.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+[lib]
+name = "rez_core"
+crate-type = ["cdylib"]
+
+[dependencies]
+# Workspace crates
+rez-core-common = { path = "crates/rez-core-common" }
+rez-core-version = { path = "crates/rez-core-version" }
+rez-core-solver = { path = "crates/rez-core-solver" }
+rez-core-repository = { path = "crates/rez-core-repository" }
+rez-core-python = { path = "crates/rez-core-python" }
+
+# Python bindings
+pyo3.workspace = true
+
+[dev-dependencies]
+criterion.workspace = true
+proptest.workspace = true
+rstest.workspace = true
+tempfile.workspace = true
+assert_matches.workspace = true
+pretty_assertions.workspace = true
+serial_test.workspace = true
 
 
 

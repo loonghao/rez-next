@@ -4,7 +4,7 @@
 //! Note: This is a placeholder implementation for the MVP.
 
 use rez_core::common::{RezCoreConfig, RezCoreResult};
-use rez_core::version::{Version, VersionRange, VersionToken};
+use rez_core::version::{Version, VersionRange};
 
 fn main() -> RezCoreResult<()> {
     println!("🦀 Rez Core Basic Usage Example");
