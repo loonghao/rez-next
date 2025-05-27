@@ -24,7 +24,7 @@ regex = "1.10"
 thiserror = "2.0"
 
 # Performance profiling (optional)
-pprof = { version = "0.14", features = ["flamegraph", "criterion"], optional = true }
+pprof = { version = "0.15", features = ["flamegraph", "criterion"], optional = true }
 
 [dev-dependencies]
 criterion = { version = "0.6", features = ["html_reports"] }
