@@ -1,0 +1,15 @@
+[package]
+name = "rez-core-unified-benchmark"
+version = "0.1.0"
+edition = "2021"
+
+[workspace]
+
+[dependencies]
+criterion = { version = "0.6", features = ["html_reports"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+[[bench]]
+name = "unified_benchmark_suite"
+harness = false

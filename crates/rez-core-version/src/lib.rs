@@ -10,19 +10,29 @@
 //! - Python bindings for version operations
 
 use rez_core_common::RezCoreError;
+#[cfg(feature = "python-bindings")]
 use pyo3::prelude::*;
 
 pub mod parser;
+#[cfg(feature = "python-bindings")]
 pub mod range;
+#[cfg(feature = "python-bindings")]
 pub mod token;
 pub mod version;
+#[cfg(feature = "python-bindings")]
 pub mod version_token;
+// pub mod optimized_parser;
 
 // Re-export main types
+pub use parser::{StateMachineParser, VersionParser};
+#[cfg(feature = "python-bindings")]
 pub use range::VersionRange;
+#[cfg(feature = "python-bindings")]
 pub use token::PyVersionToken;
 pub use version::Version;
+#[cfg(feature = "python-bindings")]
 pub use version_token::{VersionToken, NumericToken, AlphanumericVersionToken};
+// pub use optimized_parser::{OptimizedVersionParser, BatchVersionParser, ParsedVersionComponents};
 
 // Define a custom error type for version parsing
 #[derive(Debug)]
@@ -43,9 +53,11 @@ impl From<RezCoreError> for VersionParseError {
 }
 
 // Make it a Python exception
+#[cfg(feature = "python-bindings")]
 pyo3::create_exception!(rez_core, PyVersionParseError, pyo3::exceptions::PyException);
 
 /// Parse a version string into a Version object
+#[cfg(feature = "python-bindings")]
 #[pyfunction]
 pub fn parse_version(version_str: &str) -> PyResult<Version> {
     Version::parse(version_str)
@@ -53,6 +65,7 @@ pub fn parse_version(version_str: &str) -> PyResult<Version> {
 }
 
 /// Parse a version range string into a VersionRange object
+#[cfg(feature = "python-bindings")]
 #[pyfunction]
 pub fn parse_version_range(range_str: &str) -> PyResult<VersionRange> {
     VersionRange::parse(range_str)
@@ -60,6 +73,7 @@ pub fn parse_version_range(range_str: &str) -> PyResult<VersionRange> {
 }
 
 /// Python module for rez_core.version
+#[cfg(feature = "python-bindings")]
 #[pymodule]
 pub fn version_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Version system

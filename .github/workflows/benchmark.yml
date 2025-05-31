@@ -1,0 +1,338 @@
+name: Performance Benchmarks
+
+on:
+  # Run on main branch pushes
+  push:
+    branches: [ main ]
+  # Run on pull requests to main
+  pull_request:
+    branches: [ main ]
+  # Allow manual triggering
+  workflow_dispatch:
+    inputs:
+      benchmark_type:
+        description: 'Type of benchmark to run'
+        required: true
+        default: 'quick'
+        type: choice
+        options:
+        - quick
+        - comprehensive
+        - validation
+        - regression
+      baseline_update:
+        description: 'Update performance baselines'
+        required: false
+        default: false
+        type: boolean
+  # Run weekly for comprehensive benchmarks
+  schedule:
+    - cron: '0 2 * * 0'  # Every Sunday at 2 AM UTC
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+  # Disable incremental compilation for consistent benchmarks
+  CARGO_INCREMENTAL: 0
+  # Use release mode for benchmarks
+  CARGO_PROFILE_RELEASE_DEBUG: 0
+
+jobs:
+  benchmark:
+    name: Run Performance Benchmarks
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    
+    strategy:
+      matrix:
+        rust-version: [stable]
+        # Add different OS for comprehensive testing
+        os: [ubuntu-latest]
+        # Future: add windows-latest, macos-latest for cross-platform benchmarks
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        # Fetch full history for baseline comparison
+        fetch-depth: 0
+    
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        toolchain: ${{ matrix.rust-version }}
+        components: rustfmt, clippy
+    
+    - name: Cache Rust dependencies
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-cargo-benchmark-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-benchmark-
+          ${{ runner.os }}-cargo-
+    
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          build-essential \
+          cmake \
+          pkg-config \
+          libssl-dev \
+          python3-dev \
+          python3-pip
+    
+    - name: Setup Python environment
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+    
+    - name: Install Python dependencies
+      run: |
+        pip install --upgrade pip
+        pip install numpy pandas matplotlib seaborn
+    
+    - name: Determine benchmark type
+      id: benchmark-type
+      run: |
+        if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          echo "type=${{ github.event.inputs.benchmark_type }}" >> $GITHUB_OUTPUT
+          echo "update_baseline=${{ github.event.inputs.baseline_update }}" >> $GITHUB_OUTPUT
+        elif [ "${{ github.event_name }}" = "schedule" ]; then
+          echo "type=comprehensive" >> $GITHUB_OUTPUT
+          echo "update_baseline=false" >> $GITHUB_OUTPUT
+        elif [ "${{ github.event_name }}" = "push" ] && [ "${{ github.ref }}" = "refs/heads/main" ]; then
+          echo "type=validation" >> $GITHUB_OUTPUT
+          echo "update_baseline=false" >> $GITHUB_OUTPUT
+        else
+          echo "type=quick" >> $GITHUB_OUTPUT
+          echo "update_baseline=false" >> $GITHUB_OUTPUT
+        fi
+    
+    - name: Create benchmark directories
+      run: |
+        mkdir -p benchmark-results
+        mkdir -p benchmark-baselines
+        mkdir -p benchmark-reports
+    
+    - name: Download previous baselines
+      uses: actions/download-artifact@v3
+      with:
+        name: benchmark-baselines
+        path: benchmark-baselines
+      continue-on-error: true
+    
+    - name: Run quick benchmarks
+      if: steps.benchmark-type.outputs.type == 'quick'
+      run: |
+        echo "Running quick benchmarks for development..."
+        cargo bench --bench simple_version_benchmark -- --output-format json | tee benchmark-results/version-quick.json
+        cargo bench --bench standalone_solver_benchmark -- --output-format json | tee benchmark-results/solver-quick.json
+        cargo bench --bench simple_context_benchmark -- --output-format json | tee benchmark-results/context-quick.json
+        cargo bench --bench simple_rex_benchmark -- --output-format json | tee benchmark-results/rex-quick.json
+        cargo bench --bench simple_build_cache_benchmark -- --output-format json | tee benchmark-results/build-cache-quick.json
+    
+    - name: Run comprehensive benchmarks
+      if: steps.benchmark-type.outputs.type == 'comprehensive'
+      run: |
+        echo "Running comprehensive benchmarks..."
+        cargo bench --bench comprehensive_benchmark_suite -- --output-format json | tee benchmark-results/comprehensive.json
+        cargo bench --bench version_benchmark_main -- --output-format json | tee benchmark-results/version-comprehensive.json
+        cargo bench --bench solver_benchmark_main -- --output-format json | tee benchmark-results/solver-comprehensive.json
+        cargo bench --bench context_benchmark_main -- --output-format json | tee benchmark-results/context-comprehensive.json
+        cargo bench --bench rex_benchmark_main -- --output-format json | tee benchmark-results/rex-comprehensive.json
+        cargo bench --bench build_cache_benchmark_main -- --output-format json | tee benchmark-results/build-cache-comprehensive.json
+    
+    - name: Run validation benchmarks
+      if: steps.benchmark-type.outputs.type == 'validation'
+      run: |
+        echo "Running validation benchmarks..."
+        cargo bench --bench solver_benchmark_main solver_validation -- --output-format json | tee benchmark-results/solver-validation.json
+        cargo bench --bench context_benchmark_main context_validation -- --output-format json | tee benchmark-results/context-validation.json
+        cargo bench --bench rex_benchmark_main rex_validation -- --output-format json | tee benchmark-results/rex-validation.json
+        cargo bench --bench build_cache_benchmark_main build_validation -- --output-format json | tee benchmark-results/build-validation.json
+        cargo bench --bench build_cache_benchmark_main cache_validation -- --output-format json | tee benchmark-results/cache-validation.json
+    
+    - name: Run regression benchmarks
+      if: steps.benchmark-type.outputs.type == 'regression'
+      run: |
+        echo "Running regression benchmarks..."
+        cargo bench --bench solver_benchmark_main solver_regression -- --output-format json | tee benchmark-results/solver-regression.json
+        cargo bench --bench context_benchmark_main context_regression -- --output-format json | tee benchmark-results/context-regression.json
+        cargo bench --bench rex_benchmark_main rex_regression -- --output-format json | tee benchmark-results/rex-regression.json
+        cargo bench --bench build_cache_benchmark_main build_cache_regression -- --output-format json | tee benchmark-results/build-cache-regression.json
+    
+    - name: Generate performance report
+      run: |
+        python scripts/generate_performance_report.py \
+          --input-dir benchmark-results \
+          --output-dir benchmark-reports \
+          --baseline-dir benchmark-baselines \
+          --format html,json,markdown
+    
+    - name: Analyze performance regression
+      id: regression-analysis
+      run: |
+        python scripts/analyze_performance_regression.py \
+          --current-dir benchmark-results \
+          --baseline-dir benchmark-baselines \
+          --threshold 10.0 \
+          --output regression-analysis.json
+        
+        # Check if there are any regressions
+        if [ -f regression-analysis.json ]; then
+          REGRESSIONS=$(python -c "import json; data=json.load(open('regression-analysis.json')); print(len([r for r in data.get('regressions', []) if r['severity'] == 'critical']))")
+          echo "critical_regressions=$REGRESSIONS" >> $GITHUB_OUTPUT
+          
+          if [ "$REGRESSIONS" -gt 0 ]; then
+            echo "regression_detected=true" >> $GITHUB_OUTPUT
+          else
+            echo "regression_detected=false" >> $GITHUB_OUTPUT
+          fi
+        else
+          echo "regression_detected=false" >> $GITHUB_OUTPUT
+          echo "critical_regressions=0" >> $GITHUB_OUTPUT
+        fi
+    
+    - name: Update baselines
+      if: steps.benchmark-type.outputs.update_baseline == 'true' && github.ref == 'refs/heads/main'
+      run: |
+        echo "Updating performance baselines..."
+        python scripts/update_baselines.py \
+          --benchmark-dir benchmark-results \
+          --baseline-dir benchmark-baselines \
+          --commit-hash ${{ github.sha }}
+    
+    - name: Upload benchmark results
+      uses: actions/upload-artifact@v3
+      with:
+        name: benchmark-results-${{ github.sha }}
+        path: |
+          benchmark-results/
+          benchmark-reports/
+        retention-days: 30
+    
+    - name: Upload updated baselines
+      if: steps.benchmark-type.outputs.update_baseline == 'true'
+      uses: actions/upload-artifact@v3
+      with:
+        name: benchmark-baselines
+        path: benchmark-baselines/
+        retention-days: 90
+    
+    - name: Comment PR with benchmark results
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const fs = require('fs');
+          const path = require('path');
+          
+          // Read performance report
+          let reportContent = '';
+          try {
+            reportContent = fs.readFileSync('benchmark-reports/summary.md', 'utf8');
+          } catch (error) {
+            reportContent = 'Benchmark report generation failed. Please check the workflow logs.';
+          }
+          
+          // Read regression analysis
+          let regressionInfo = '';
+          try {
+            const regressionData = JSON.parse(fs.readFileSync('regression-analysis.json', 'utf8'));
+            if (regressionData.regressions && regressionData.regressions.length > 0) {
+              regressionInfo = '\n\n## ⚠️ Performance Regressions Detected\n\n';
+              regressionData.regressions.forEach(regression => {
+                regressionInfo += `- **${regression.benchmark}**: ${regression.change}% ${regression.severity}\n`;
+              });
+            } else {
+              regressionInfo = '\n\n## ✅ No Performance Regressions Detected\n';
+            }
+          } catch (error) {
+            regressionInfo = '\n\n## ❓ Regression Analysis Failed\n';
+          }
+          
+          const comment = `## 📊 Benchmark Results
+          
+          ${reportContent}
+          ${regressionInfo}
+          
+          <details>
+          <summary>View detailed results</summary>
+          
+          Benchmark artifacts are available in the workflow run.
+          </details>`;
+          
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: comment
+          });
+    
+    - name: Fail on critical regression
+      if: steps.regression-analysis.outputs.regression_detected == 'true' && steps.regression-analysis.outputs.critical_regressions > 0
+      run: |
+        echo "Critical performance regression detected!"
+        echo "Number of critical regressions: ${{ steps.regression-analysis.outputs.critical_regressions }}"
+        exit 1
+    
+    - name: Create performance badge
+      if: github.ref == 'refs/heads/main'
+      run: |
+        python scripts/create_performance_badge.py \
+          --benchmark-dir benchmark-results \
+          --output-file performance-badge.json
+    
+    - name: Upload performance badge
+      if: github.ref == 'refs/heads/main'
+      uses: actions/upload-artifact@v3
+      with:
+        name: performance-badge
+        path: performance-badge.json
+        retention-days: 7
+
+  # Separate job for performance trend analysis
+  trend-analysis:
+    name: Performance Trend Analysis
+    runs-on: ubuntu-latest
+    needs: benchmark
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+    
+    - name: Install Python dependencies
+      run: |
+        pip install --upgrade pip
+        pip install pandas matplotlib seaborn plotly
+    
+    - name: Download benchmark results
+      uses: actions/download-artifact@v3
+      with:
+        name: benchmark-results-${{ github.sha }}
+        path: benchmark-results
+    
+    - name: Generate trend analysis
+      run: |
+        python scripts/generate_trend_analysis.py \
+          --benchmark-dir benchmark-results \
+          --output-dir trend-analysis \
+          --lookback-days 30
+    
+    - name: Upload trend analysis
+      uses: actions/upload-artifact@v3
+      with:
+        name: trend-analysis-${{ github.sha }}
+        path: trend-analysis/
+        retention-days: 30

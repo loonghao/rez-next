@@ -9,15 +9,19 @@ repository.workspace = true
 keywords.workspace = true
 categories.workspace = true
 
+[features]
+default = []
+python-bindings = ["pyo3"]
+
 [lib]
 name = "rez_core_common"
-crate-type = ["cdylib", "rlib"]
+crate-type = ["rlib"]
 
 [dependencies]
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
-pyo3.workspace = true
+pyo3 = { workspace = true, optional = true }
 
 [dev-dependencies]
 rstest.workspace = true

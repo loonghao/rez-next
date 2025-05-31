@@ -8,9 +8,28 @@
 //! - Package selection strategies
 //! - Solver optimization techniques
 
-// Re-export from mod.rs for now
-pub use mod_solver::*;
+// Temporarily simplified for compilation
+mod solver;
+// mod graph;
+// mod resolution;
+// mod conflict;
+// mod cache;
+// mod optimized_solver;
+// mod astar;
 
-// Rename the module to avoid conflicts
-#[path = "mod.rs"]
-mod mod_solver;
+pub use solver::*;
+// pub use graph::*;
+// pub use resolution::*;
+// pub use conflict::*;
+// pub use cache::*;
+// pub use optimized_solver::*;
+// pub use astar::*;
+
+use pyo3::prelude::*;
+
+/// Initialize the solver module for Python
+#[pymodule]
+fn rez_core_solver(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    m.add_class::<DependencySolver>()?;
+    Ok(())
+}

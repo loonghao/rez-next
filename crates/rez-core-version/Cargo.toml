@@ -9,19 +9,27 @@ repository.workspace = true
 keywords.workspace = true
 categories.workspace = true
 
+[features]
+default = []
+python-bindings = ["pyo3", "rez-core-common/python-bindings"]
+
 [lib]
 name = "rez_core_version"
-crate-type = ["cdylib", "rlib"]
+crate-type = ["rlib"]
 
 [dependencies]
-rez-core-common = { path = "../rez-core-common" }
+rez-core-common = { path = "../rez-core-common", default-features = false }
 serde.workspace = true
 serde_json.workspace = true
 regex.workspace = true
 thiserror.workspace = true
-pyo3.workspace = true
+pyo3 = { workspace = true, optional = true }
 lru.workspace = true
 rand.workspace = true
+# Performance optimization dependencies
+ahash = "0.8"
+smallvec = "1.11"
+once_cell = "1.19"
 
 [dev-dependencies]
 rstest.workspace = true

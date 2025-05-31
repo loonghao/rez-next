@@ -64,6 +64,59 @@ fn version_creation_scale_benchmark(c: &mut Criterion) {
     group.finish();
 }
 
+fn optimized_vs_legacy_parsing_benchmark(c: &mut Criterion) {
+    let mut group = c.benchmark_group("optimized_vs_legacy_parsing");
+
+    let test_versions = vec![
+        "1.2.3",
+        "1.2.3-alpha.1",
+        "2.0.0-beta.2",
+        "1.0.0-rc.1",
+        "3.1.4-dev.123",
+        "10.20.30",
+        "1.2.3-alpha1.beta2.gamma3",
+    ];
+
+    group.bench_function("legacy_parsing", |b| {
+        b.iter(|| {
+            for version_str in &test_versions {
+                black_box(Version::parse(black_box(version_str)).unwrap());
+            }
+        });
+    });
+
+    group.bench_function("optimized_parsing", |b| {
+        b.iter(|| {
+            for version_str in &test_versions {
+                black_box(Version::parse_optimized(black_box(version_str)).unwrap());
+            }
+        });
+    });
+
+    group.finish();
+}
+
+fn state_machine_parser_benchmark(c: &mut Criterion) {
+    use rez_core::version::parser::StateMachineParser;
+
+    let parser = StateMachineParser::new();
+    let test_versions = vec![
+        "1.2.3",
+        "1.2.3-alpha.1",
+        "2.0.0-beta.2",
+        "1.0.0-rc.1",
+        "3.1.4-dev.123",
+    ];
+
+    c.bench_function("state_machine_token_parsing", |b| {
+        b.iter(|| {
+            for version_str in &test_versions {
+                black_box(parser.parse_tokens(black_box(version_str)).unwrap());
+            }
+        });
+    });
+}
+
 fn configure_criterion() -> Criterion {
     #[cfg(feature = "flamegraph")]
     {
@@ -81,6 +134,8 @@ criterion_group! {
     targets = version_parsing_benchmark,
               version_comparison_benchmark,
               version_sorting_benchmark,
-              version_creation_scale_benchmark
+              version_creation_scale_benchmark,
+              optimized_vs_legacy_parsing_benchmark,
+              state_machine_parser_benchmark
 }
 criterion_main!(benches);

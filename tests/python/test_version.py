@@ -27,7 +27,6 @@ class TestVersionCreation:
     def test_version_creation_invalid(self):
         """Test that invalid version strings raise appropriate errors."""
         invalid_versions = [
-            "",
             "not.a.version",
             "1.2.3.4.5.6",
             "v1.2.3",  # prefix not supported yet
@@ -36,6 +35,12 @@ class TestVersionCreation:
         for invalid in invalid_versions:
             with pytest.raises((ValueError, rez_core.VersionParseError)):
                 rez_core.Version(invalid)
+
+    def test_version_creation_empty(self):
+        """Test that empty version is now valid (epsilon version)."""
+        v = rez_core.Version("")
+        assert str(v) == ""
+        assert len(v) == 0
 
     def test_parse_version_function(self):
         """Test the standalone parse_version function."""
@@ -133,19 +138,20 @@ class TestVersionRange:
         v2 = rez_core.Version("2.0.0")
         v3 = rez_core.Version("0.9.0")
 
-        # Note: contains method is placeholder, will always return True for now
-        assert vr.contains(v1)
-        assert vr.contains(v2)
-        assert vr.contains(v3)  # TODO: implement proper logic
+        # Test correct containment logic
+        assert vr.contains(v1)  # 1.0.0 is included in >=1.0.0
+        assert vr.contains(v2)  # 2.0.0 is included in >=1.0.0
+        assert not vr.contains(v3)  # 0.9.0 is NOT included in >=1.0.0
 
     def test_version_range_intersection(self):
         """Test version range intersection."""
         vr1 = rez_core.VersionRange(">=1.0.0")
         vr2 = rez_core.VersionRange("<2.0.0")
 
-        # Note: intersect method is placeholder, will return None for now
+        # Test correct intersection logic
         intersection = vr1.intersect(vr2)
-        assert intersection is None  # TODO: implement proper logic
+        assert intersection is not None  # Should return a valid intersection
+        assert str(intersection) == "1.0.0..2.0.0"  # Expected intersection format
 
 
 @pytest.mark.performance

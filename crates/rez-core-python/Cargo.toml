@@ -13,7 +13,7 @@ categories.workspace = true
 rez-core-common = { path = "../rez-core-common" }
 rez-core-version = { path = "../rez-core-version" }
 rez-core-solver = { path = "../rez-core-solver" }
-rez-core-repository = { path = "../rez-core-repository" }
+# rez-core-repository = { path = "../rez-core-repository" }  # Temporarily disabled
 pyo3.workspace = true
 
 [dev-dependencies]

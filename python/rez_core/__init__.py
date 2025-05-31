@@ -11,16 +11,11 @@ from ._rez_core import (
     # Version system
     Version,
     VersionRange,
-    parse_version,
-    parse_version_range,
 
-    # Version tokens (rez-compatible)
-    VersionToken,
-    NumericToken,
-    AlphanumericVersionToken,
-
-    # Configuration (using the actual exported name)
-    Config as RezCoreConfig,
+    # Package system
+    Package,
+    PackageVariant,
+    PackageRequirement,
 )
 
 # Try to import error types with fallbacks
@@ -34,42 +29,23 @@ try:
 except ImportError:
     RezCoreError = Exception
 
-# Alias for easier access
-Config = RezCoreConfig
-
 __version__ = "0.1.0"
 __author__ = "Long Hao"
 __email__ = "hal.long@outlook.com"
-
-# Sub-modules for better organization
-from . import version as version_module
-from . import tokens as tokens_module
-from . import errors as errors_module
 
 __all__ = [
     # Core version management
     "Version",
     "VersionRange",
-    "parse_version",
-    "parse_version_range",
 
-    # Version tokens (rez-compatible)
-    "VersionToken",
-    "NumericToken",
-    "AlphanumericVersionToken",
+    # Package management
+    "Package",
+    "PackageVariant",
+    "PackageRequirement",
 
     # Error handling
     "RezCoreError",
     "VersionParseError",
-
-    # Configuration
-    "Config",
-    "RezCoreConfig",
-
-    # Sub-modules
-    "version_module",
-    "tokens_module",
-    "errors_module",
 
     # Metadata
     "__version__",

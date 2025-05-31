@@ -18,6 +18,23 @@ use rez_core_version::{
     parse_version_range, PyVersionParseError
 };
 
+/// Parse a version string with GIL release optimization
+#[pyfunction]
+pub fn parse_version_optimized(version_str: &str) -> PyResult<Version> {
+    Version::parse_with_gil_release(version_str)
+        .map_err(|e| PyErr::new::<PyVersionParseError, _>(e.to_string()))
+}
+
+/// Compare two versions with GIL release optimization
+#[pyfunction]
+pub fn compare_versions_optimized(version1: &Version, version2: &Version) -> i8 {
+    match version1.cmp_with_gil_release(version2) {
+        std::cmp::Ordering::Less => -1,
+        std::cmp::Ordering::Equal => 0,
+        std::cmp::Ordering::Greater => 1,
+    }
+}
+
 /// Python module initialization
 #[pymodule]
 pub fn _rez_core(m: &Bound<'_, PyModule>) -> PyResult<()> {
@@ -35,6 +52,10 @@ pub fn _rez_core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(parse_version, m)?)?;
     m.add_function(wrap_pyfunction!(parse_version_range, m)?)?;
 
+    // GIL-optimized functions
+    m.add_function(wrap_pyfunction!(parse_version_optimized, m)?)?;
+    m.add_function(wrap_pyfunction!(compare_versions_optimized, m)?)?;
+
     // Error types
     m.add(
         "RezCoreError",
@@ -50,3 +71,6 @@ pub fn _rez_core(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
     Ok(())
 }
+
+#[cfg(test)]
+mod gil_optimization_test;

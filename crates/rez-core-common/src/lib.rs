@@ -8,6 +8,7 @@
 //! - Utility functions
 //! - Shared data structures
 
+#[cfg(feature = "python-bindings")]
 use pyo3::prelude::*;
 
 pub mod config;
@@ -16,9 +17,13 @@ pub mod utils;
 
 // Re-export commonly used types
 pub use config::RezCoreConfig;
+#[cfg(feature = "python-bindings")]
 pub use error::{RezCoreError, PyRezCoreError};
+#[cfg(not(feature = "python-bindings"))]
+pub use error::RezCoreError;
 
 /// Python module for rez_core.common
+#[cfg(feature = "python-bindings")]
 #[pymodule]
 pub fn common_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Configuration

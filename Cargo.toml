@@ -2,9 +2,13 @@
 members = [
     "crates/rez-core-common",
     "crates/rez-core-version",
-    "crates/rez-core-solver",
-    "crates/rez-core-repository",
-    "crates/rez-core-python",
+    "crates/rez-core-package",
+    # "crates/rez-core-solver",  # Temporarily disabled
+    # "crates/rez-core-repository",  # Temporarily disabled
+    # "crates/rez-core-context",  # Temporarily disabled
+    # "crates/rez-core-build",  # Temporarily disabled due to compilation errors
+    # "crates/rez-core-python",  # Temporarily disabled due to DLL issues
+    # "crates/rez-core-cache",  # Temporarily disabled
 ]
 resolver = "2"
 
@@ -22,12 +26,14 @@ categories = ["development-tools"]
 pyo3 = { version = "0.25", features = ["extension-module", "abi3-py38"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+serde_yaml = "0.9"
 rayon = "1.7"
 lru = "0.14.0"
 tokio = { version = "1.0", features = ["full"] }
 regex = "1.10"
 thiserror = "2.0"
 rand = "0.8"
+clap = { version = "4.0", features = ["derive", "env"] }
 
 # Dev dependencies
 criterion = { version = "0.6", features = ["html_reports"] }
@@ -51,18 +57,31 @@ categories.workspace = true
 
 [lib]
 name = "rez_core"
-crate-type = ["cdylib"]
+crate-type = ["rlib"]
+
+[[bin]]
+name = "rez"
+path = "src/bin/rez.rs"
 
 [dependencies]
 # Workspace crates
-rez-core-common = { path = "crates/rez-core-common" }
-rez-core-version = { path = "crates/rez-core-version" }
-rez-core-solver = { path = "crates/rez-core-solver" }
-rez-core-repository = { path = "crates/rez-core-repository" }
-rez-core-python = { path = "crates/rez-core-python" }
+rez-core-common = { path = "crates/rez-core-common", default-features = false }
+rez-core-version = { path = "crates/rez-core-version", default-features = false }
+rez-core-package = { path = "crates/rez-core-package", default-features = false }
+# rez-core-solver = { path = "crates/rez-core-solver" }  # Temporarily disabled
+# rez-core-repository = { path = "crates/rez-core-repository" }  # Temporarily disabled
+# rez-core-context = { path = "crates/rez-core-context" }  # Temporarily disabled
+# rez-core-rex = { path = "crates/rez-core-rex" }  # Temporarily disabled due to compilation errors
+# rez-core-build = { path = "crates/rez-core-build" }  # Temporarily disabled due to compilation errors
+# rez-core-python = { path = "crates/rez-core-python" }  # Temporarily disabled due to DLL issues
+# rez-core-cache = { path = "crates/rez-core-cache" }  # Temporarily disabled
 
-# Python bindings
-pyo3.workspace = true
+# Python bindings - temporarily disabled
+# pyo3.workspace = true
+
+# CLI dependencies
+clap.workspace = true
+serde_json.workspace = true
 
 [dev-dependencies]
 criterion.workspace = true
@@ -72,6 +91,9 @@ tempfile.workspace = true
 assert_matches.workspace = true
 pretty_assertions.workspace = true
 serial_test.workspace = true
+serde.workspace = true
+serde_yaml.workspace = true
+thiserror.workspace = true
 
 
 
@@ -79,11 +101,88 @@ serial_test.workspace = true
 name = "version_benchmark"
 harness = false
 
-[build-dependencies]
-pyo3-build-config = "0.25"
+[[bench]]
+name = "comprehensive_benchmark_suite"
+harness = false
 
-[features]
-default = []
+[[bench]]
+name = "package_benchmark"
+harness = false
+
+[[bench]]
+name = "simple_package_benchmark"
+harness = false
+
+[[bench]]
+name = "package_core_benchmark"
+harness = false
+
+[[bench]]
+name = "standalone_package_benchmark"
+harness = false
+
+[[bench]]
+name = "unified_benchmark_test"
+harness = false
+
+[[bench]]
+name = "solver_benchmark"
+harness = false
+
+[[bench]]
+name = "solver_benchmark_main"
+harness = false
+
+[[bench]]
+name = "standalone_solver_benchmark"
+harness = false
+
+[[bench]]
+name = "simple_solver_benchmark"
+harness = false
+
+[[bench]]
+name = "context_benchmark"
+harness = false
+
+[[bench]]
+name = "context_benchmark_main"
+harness = false
+
+[[bench]]
+name = "simple_context_benchmark"
+harness = false
+
+# Rex System Benchmarks - Temporarily disabled
+# [[bench]]
+# name = "rex_benchmark_main"
+# harness = false
+
+# [[bench]]
+# name = "simple_rex_benchmark"
+# harness = false
+
+# Build and Cache System Benchmarks
+[[bench]]
+name = "build_cache_benchmark_main"
+harness = false
+
+[[bench]]
+name = "simple_build_cache_benchmark"
+harness = false
+
+# Performance Validation Benchmarks
+[[bench]]
+name = "performance_validation_benchmark"
+harness = false
+
+[[bench]]
+name = "performance_validation_main"
+harness = false
+
+# [build-dependencies]
+# pyo3-build-config = "0.25"  # Only needed for Python bindings
+
 # flamegraph = ["pprof"]
 
 # Linting configuration
