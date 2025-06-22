@@ -4,8 +4,7 @@
 use pyo3::prelude::*;
 use rez_core_common::RezCoreError;
 use rez_core_version::Version;
-#[cfg(feature = "python-bindings")]
-use rez_core_version::VersionRange;
+
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -379,7 +378,7 @@ impl<'de> Deserialize<'de> for Package {
     where
         D: serde::Deserializer<'de>,
     {
-        use serde::de::{self, Deserializer, MapAccess, SeqAccess, Visitor};
+        use serde::de::{self, MapAccess, Visitor};
         use std::fmt;
 
         #[derive(Deserialize)]

@@ -9,10 +9,8 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 
-#[cfg(feature = "python-bindings")]
-use crate::{PackageRequirement, PackageVariant};
-#[cfg(feature = "python-bindings")]
-use pyo3::prelude::*;
+// PackageRequirement and PackageVariant imports removed as they're not used in this module
+// PyO3 imports removed as they're not used in this module
 
 /// Package serialization format
 #[derive(Debug, Clone)]

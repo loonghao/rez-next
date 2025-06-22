@@ -131,7 +131,7 @@ impl<'de> Deserialize<'de> for PackageVariant {
     where
         D: serde::Deserializer<'de>,
     {
-        use serde::de::{self, Deserializer, MapAccess, Visitor};
+        use serde::de::{self, MapAccess, Visitor};
         use std::fmt;
 
         #[derive(Deserialize)]

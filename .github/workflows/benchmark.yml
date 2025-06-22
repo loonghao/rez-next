@@ -120,7 +120,7 @@ jobs:
         mkdir -p benchmark-reports
     
     - name: Download previous baselines
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: benchmark-baselines
         path: benchmark-baselines
@@ -130,10 +130,9 @@ jobs:
       if: steps.benchmark-type.outputs.type == 'quick'
       run: |
         echo "Running quick benchmarks for development..."
-        cargo bench --bench simple_version_benchmark -- --output-format json | tee benchmark-results/version-quick.json
-        cargo bench --bench standalone_solver_benchmark -- --output-format json | tee benchmark-results/solver-quick.json
+        cargo bench --bench version_benchmark -- --output-format json | tee benchmark-results/version-quick.json
+        cargo bench --bench solver_benchmark -- --output-format json | tee benchmark-results/solver-quick.json
         cargo bench --bench simple_context_benchmark -- --output-format json | tee benchmark-results/context-quick.json
-        cargo bench --bench simple_rex_benchmark -- --output-format json | tee benchmark-results/rex-quick.json
         cargo bench --bench simple_build_cache_benchmark -- --output-format json | tee benchmark-results/build-cache-quick.json
     
     - name: Run comprehensive benchmarks
@@ -141,10 +140,9 @@ jobs:
       run: |
         echo "Running comprehensive benchmarks..."
         cargo bench --bench comprehensive_benchmark_suite -- --output-format json | tee benchmark-results/comprehensive.json
-        cargo bench --bench version_benchmark_main -- --output-format json | tee benchmark-results/version-comprehensive.json
+        cargo bench --bench version_benchmark -- --output-format json | tee benchmark-results/version-comprehensive.json
         cargo bench --bench solver_benchmark_main -- --output-format json | tee benchmark-results/solver-comprehensive.json
         cargo bench --bench context_benchmark_main -- --output-format json | tee benchmark-results/context-comprehensive.json
-        cargo bench --bench rex_benchmark_main -- --output-format json | tee benchmark-results/rex-comprehensive.json
         cargo bench --bench build_cache_benchmark_main -- --output-format json | tee benchmark-results/build-cache-comprehensive.json
     
     - name: Run validation benchmarks
@@ -208,7 +206,7 @@ jobs:
           --commit-hash ${{ github.sha }}
     
     - name: Upload benchmark results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: benchmark-results-${{ github.sha }}
         path: |
@@ -218,7 +216,7 @@ jobs:
     
     - name: Upload updated baselines
       if: steps.benchmark-type.outputs.update_baseline == 'true'
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: benchmark-baselines
         path: benchmark-baselines/
@@ -290,7 +288,7 @@ jobs:
     
     - name: Upload performance badge
       if: github.ref == 'refs/heads/main'
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: performance-badge
         path: performance-badge.json
@@ -318,7 +316,7 @@ jobs:
         pip install pandas matplotlib seaborn plotly
     
     - name: Download benchmark results
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: benchmark-results-${{ github.sha }}
         path: benchmark-results
@@ -331,7 +329,7 @@ jobs:
           --lookback-days 30
     
     - name: Upload trend analysis
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: trend-analysis-${{ github.sha }}
         path: trend-analysis/

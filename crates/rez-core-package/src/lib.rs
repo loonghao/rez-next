@@ -22,7 +22,7 @@ pub mod variant;
 
 pub use package::*;
 pub use python_ast_parser::*;
-pub use serialization::*; // Always available for CLI usage // Advanced Python AST parser
+pub use serialization::{PackageFormat, PackageSerializer}; // Always available for CLI usage
 
 // Always export requirement types for CLI usage
 pub mod requirement;
