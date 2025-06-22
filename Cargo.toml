@@ -3,12 +3,12 @@ members = [
     "crates/rez-core-common",
     "crates/rez-core-version",
     "crates/rez-core-package",
-    # "crates/rez-core-solver",  # Temporarily disabled
-    # "crates/rez-core-repository",  # Temporarily disabled
-    # "crates/rez-core-context",  # Temporarily disabled
-    # "crates/rez-core-build",  # Temporarily disabled due to compilation errors
+    "crates/rez-core-solver",
+    "crates/rez-core-repository",
+    "crates/rez-core-context",
+    "crates/rez-core-build",
+    "crates/rez-core-cache",
     # "crates/rez-core-python",  # Temporarily disabled due to DLL issues
-    # "crates/rez-core-cache",  # Temporarily disabled
 ]
 resolver = "2"
 
@@ -59,6 +59,17 @@ categories.workspace = true
 name = "rez_core"
 crate-type = ["rlib"]
 
+[features]
+default = []
+python-bindings = [
+    "rez-core-common/python-bindings",
+    "rez-core-version/python-bindings",
+    "rez-core-package/python-bindings",
+    "rez-core-context/python-bindings",
+    "rez-core-solver/python-bindings",
+    "pyo3"
+]
+
 [[bin]]
 name = "rez"
 path = "src/bin/rez.rs"
@@ -68,20 +79,24 @@ path = "src/bin/rez.rs"
 rez-core-common = { path = "crates/rez-core-common", default-features = false }
 rez-core-version = { path = "crates/rez-core-version", default-features = false }
 rez-core-package = { path = "crates/rez-core-package", default-features = false }
-# rez-core-solver = { path = "crates/rez-core-solver" }  # Temporarily disabled
-# rez-core-repository = { path = "crates/rez-core-repository" }  # Temporarily disabled
-# rez-core-context = { path = "crates/rez-core-context" }  # Temporarily disabled
+rez-core-solver = { path = "crates/rez-core-solver", default-features = false }
+rez-core-repository = { path = "crates/rez-core-repository", default-features = false }
+rez-core-context = { path = "crates/rez-core-context", default-features = false }
 # rez-core-rex = { path = "crates/rez-core-rex" }  # Temporarily disabled due to compilation errors
-# rez-core-build = { path = "crates/rez-core-build" }  # Temporarily disabled due to compilation errors
+rez-core-build = { path = "crates/rez-core-build" }
+rez-core-cache = { path = "crates/rez-core-cache" }
 # rez-core-python = { path = "crates/rez-core-python" }  # Temporarily disabled due to DLL issues
-# rez-core-cache = { path = "crates/rez-core-cache" }  # Temporarily disabled
 
-# Python bindings - temporarily disabled
-# pyo3.workspace = true
+# Python bindings - conditionally enabled
+pyo3 = { workspace = true, optional = true }
 
 # CLI dependencies
 clap.workspace = true
 serde_json.workspace = true
+serde_yaml.workspace = true
+tokio.workspace = true
+regex.workspace = true
+tempfile.workspace = true
 
 [dev-dependencies]
 criterion.workspace = true

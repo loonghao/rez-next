@@ -10,30 +10,32 @@
 //! - Package management operations
 
 pub mod package;
+pub mod serialization;  // Always available for CLI usage
+pub mod python_ast_parser;  // Advanced Python AST parser
 
 #[cfg(feature = "python-bindings")]
 pub mod variant;
-#[cfg(feature = "python-bindings")]
-pub mod requirement;
-#[cfg(feature = "python-bindings")]
-pub mod serialization;
 #[cfg(feature = "python-bindings")]
 pub mod management;
 #[cfg(feature = "python-bindings")]
 pub mod validation;
 
 pub use package::*;
+pub use serialization::*;  // Always available for CLI usage
+pub use python_ast_parser::*;  // Advanced Python AST parser
+
+// Always export requirement types for CLI usage
+pub mod requirement;
+pub use requirement::{Requirement, VersionConstraint};
 
 #[cfg(feature = "python-bindings")]
 pub use variant::*;
 #[cfg(feature = "python-bindings")]
-pub use requirement::*;
-#[cfg(feature = "python-bindings")]
-pub use serialization::*;
-#[cfg(feature = "python-bindings")]
 pub use management::*;
 #[cfg(feature = "python-bindings")]
 pub use validation::*;
+#[cfg(feature = "python-bindings")]
+pub use requirement::PackageRequirement as PyPackageRequirement;
 
 #[cfg(feature = "python-bindings")]
 use pyo3::prelude::*;
@@ -44,7 +46,7 @@ use pyo3::prelude::*;
 fn rez_core_package(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Package>()?;
     m.add_class::<PackageVariant>()?;
-    m.add_class::<PackageRequirement>()?;
+    m.add_class::<PyPackageRequirement>()?;
     m.add_class::<PackageValidator>()?;
     m.add_class::<PackageValidationResult>()?;
     m.add_class::<PackageValidationOptions>()?;
@@ -75,6 +77,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "python-bindings")]
     fn test_package_validation() {
         let mut package = Package::new("valid_package".to_string());
         package.version = Some(Version::parse("1.0.0").unwrap());
@@ -92,6 +95,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "python-bindings")]
     fn test_package_validation_invalid() {
         let package = Package::new("".to_string()); // Invalid name
 
@@ -104,6 +108,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "python-bindings")]
     fn test_package_manager() {
         let mut package = Package::new("test_package".to_string());
         package.version = Some(Version::parse("1.0.0").unwrap());
@@ -126,6 +131,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "python-bindings")]
     fn test_package_copy() {
         let mut package = Package::new("original_package".to_string());
         package.version = Some(Version::parse("1.0.0").unwrap());
@@ -148,6 +154,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "python-bindings")]
     fn test_validation_options() {
         let default_options = PackageValidationOptions::new();
         assert!(default_options.check_metadata);
@@ -164,6 +171,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "python-bindings")]
     fn test_install_options() {
         let default_options = PackageInstallOptions::new();
         assert!(!default_options.overwrite);

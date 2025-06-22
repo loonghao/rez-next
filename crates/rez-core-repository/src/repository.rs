@@ -1,8 +1,9 @@
 //! Repository trait and base implementations
 
 use rez_core_common::RezCoreError;
-use rez_core_package::{Package, PackageVariant, PackageRequirement};
-use rez_core_version::{Version, VersionRange};
+use rez_core_package::{Package, PackageRequirement};
+use rez_core_version::Version;
+#[cfg(feature = "python-bindings")]
 use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -45,8 +46,8 @@ pub enum RepositoryType {
 pub struct PackageSearchCriteria {
     /// Package name pattern (supports wildcards)
     pub name_pattern: Option<String>,
-    /// Version range requirement
-    pub version_range: Option<VersionRange>,
+    /// Version requirement (simplified)
+    pub version_requirement: Option<String>,
     /// Additional requirements
     pub requirements: Vec<PackageRequirement>,
     /// Maximum number of results
@@ -59,7 +60,7 @@ impl Default for PackageSearchCriteria {
     fn default() -> Self {
         Self {
             name_pattern: None,
-            version_range: None,
+            version_requirement: None,
             requirements: Vec::new(),
             limit: None,
             include_prerelease: false,
@@ -91,8 +92,8 @@ pub trait Repository: Send + Sync {
     /// Get all versions of a package
     async fn get_package_versions(&self, name: &str) -> Result<Vec<Version>, RezCoreError>;
 
-    /// Get package variants for a specific package
-    async fn get_package_variants(&self, name: &str, version: Option<&Version>) -> Result<Vec<PackageVariant>, RezCoreError>;
+    /// Get package variants for a specific package (simplified - returns variant names)
+    async fn get_package_variants(&self, name: &str, version: Option<&Version>) -> Result<Vec<String>, RezCoreError>;
 
     /// Check if a package exists
     async fn package_exists(&self, name: &str, version: Option<&Version>) -> Result<bool, RezCoreError>;
@@ -135,7 +136,7 @@ impl Default for RepositoryStats {
 }
 
 /// Repository manager for handling multiple repositories
-#[pyclass]
+#[cfg_attr(feature = "python-bindings", pyclass)]
 pub struct RepositoryManager {
     /// List of repositories in priority order
     repositories: Arc<RwLock<Vec<Arc<RwLock<dyn Repository>>>>>,
@@ -143,9 +144,9 @@ pub struct RepositoryManager {
     cache: Arc<RwLock<HashMap<String, Arc<RwLock<dyn Repository>>>>>,
 }
 
-#[pymethods]
+#[cfg_attr(feature = "python-bindings", pymethods)]
 impl RepositoryManager {
-    #[new]
+    #[cfg_attr(feature = "python-bindings", new)]
     pub fn new() -> Self {
         Self {
             repositories: Arc::new(RwLock::new(Vec::new())),
@@ -154,7 +155,7 @@ impl RepositoryManager {
     }
 
     /// Get the number of repositories
-    #[getter]
+    #[cfg_attr(feature = "python-bindings", getter)]
     pub fn repository_count(&self) -> usize {
         // This is a simplified sync version for Python binding
         // In async context, use the async methods

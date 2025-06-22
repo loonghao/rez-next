@@ -3,6 +3,7 @@
 use rez_core_common::RezCoreError;
 use rez_core_package::{Package, PackageRequirement};
 use rez_core_version::Version;
+#[cfg(feature = "python-bindings")]
 use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -128,7 +129,7 @@ impl SolverRequest {
 }
 
 /// High-performance dependency solver - Simplified
-#[pyclass]
+#[cfg_attr(feature = "python-bindings", pyclass)]
 #[derive(Debug)]
 pub struct DependencySolver {
     /// Solver configuration
@@ -170,10 +171,12 @@ impl Default for SolverStats {
     }
 }
 
+// Python methods - conditionally compiled
+#[cfg(feature = "python-bindings")]
 #[pymethods]
 impl DependencySolver {
     #[new]
-    pub fn new() -> Self {
+    pub fn new_py() -> Self {
         let config = SolverConfig::default();
         Self {
             config,
@@ -189,6 +192,15 @@ impl DependencySolver {
 }
 
 impl DependencySolver {
+    /// Create a new solver with default configuration
+    pub fn new() -> Self {
+        let config = SolverConfig::default();
+        Self {
+            config,
+            stats: SolverStats::default(),
+        }
+    }
+
     /// Create a new solver with custom configuration
     pub fn with_config(config: SolverConfig) -> Self {
         Self {

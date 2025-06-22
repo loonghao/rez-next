@@ -30,8 +30,12 @@ pub struct Version {
     /// Separators between tokens
     separators: Vec<String>,
     /// Cached string representation
-    #[cfg_attr(feature = "python-bindings", pyo3(get))]
-    string_repr: String,
+    #[cfg(feature = "python-bindings")]
+    #[pyo3(get)]
+    pub string_repr: String,
+    /// Cached string representation (non-Python version)
+    #[cfg(not(feature = "python-bindings"))]
+    pub string_repr: String,
     /// Cached hash value
     cached_hash: Option<u64>,
 }

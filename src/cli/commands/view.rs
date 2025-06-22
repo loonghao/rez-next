@@ -4,7 +4,8 @@
 
 use clap::Args;
 use rez_core_common::{RezCoreError, error::RezCoreResult};
-use rez_core_package::Package;
+use rez_core_package::{Package, PackageSerializer};
+use std::path::Path;
 
 /// Arguments for the view command
 #[derive(Args, Clone)]
@@ -61,13 +62,33 @@ fn view_current_package(args: &ViewArgs) -> RezCoreResult<()> {
 
 /// View a package from repositories
 fn view_package(args: &ViewArgs) -> RezCoreResult<()> {
-    // TODO: Implement package loading from repositories
-    // This requires integration with rez-core-repository
-    
-    // For now, create a mock package for demonstration
-    let package = create_mock_package(&args.package)?;
-    
+    // Try to load package from directory first
+    let path = Path::new(&args.package);
+
+    let package = if path.exists() && path.is_dir() {
+        // Load from directory containing package.py
+        load_package_from_directory(path)?
+    } else {
+        // TODO: Implement package loading from repositories
+        // For now, create a mock package for demonstration
+        create_mock_package(&args.package)?
+    };
+
     display_package(&package, args)
+}
+
+/// Load package from directory containing package.py
+fn load_package_from_directory(dir_path: &Path) -> RezCoreResult<Package> {
+    let package_py_path = dir_path.join("package.py");
+
+    if !package_py_path.exists() {
+        return Err(RezCoreError::PackageParse(
+            format!("No package.py found in directory: {}", dir_path.display())
+        ));
+    }
+
+    // Load the package using PackageSerializer
+    PackageSerializer::load_from_file(&package_py_path)
 }
 
 /// Create a mock package for demonstration purposes
@@ -127,9 +148,72 @@ fn display_package_yaml(package: &Package, args: &ViewArgs) -> RezCoreResult<()>
         println!("description: {}", description);
     }
 
+    if !package.authors.is_empty() {
+        println!("authors:");
+        for author in &package.authors {
+            println!("  - {}", author);
+        }
+    }
+
+    if !package.requires.is_empty() {
+        println!("requires:");
+        for req in &package.requires {
+            println!("  - {}", req);
+        }
+    }
+
+    if !package.tools.is_empty() {
+        println!("tools:");
+        for tool in &package.tools {
+            println!("  - {}", tool);
+        }
+    }
+
+    if !package.variants.is_empty() {
+        println!("variants:");
+        for variant in &package.variants {
+            print!("  - [");
+            for (i, req) in variant.iter().enumerate() {
+                if i > 0 { print!(", "); }
+                print!("{}", req);
+            }
+            println!("]");
+        }
+    }
+
+    if let Some(ref build_command) = package.build_command {
+        println!("build_command: {}", build_command);
+    }
+
+    if let Some(ref build_system) = package.build_system {
+        println!("build_system: {}", build_system);
+    }
+
+    if let Some(ref uuid) = package.uuid {
+        println!("uuid: {}", uuid);
+    }
+
+    if let Some(ref commands) = package.commands {
+        println!("commands: |");
+        for line in commands.lines() {
+            println!("  {}", line);
+        }
+    }
+
     if args.all {
-        // TODO: Add more fields when Package has more metadata
-        println!("# Additional fields would be shown here with --all");
+        // Show additional fields with --all
+        if let Some(ref pre_commands) = package.pre_commands {
+            println!("pre_commands: {}", pre_commands);
+        }
+        if let Some(ref post_commands) = package.post_commands {
+            println!("post_commands: {}", post_commands);
+        }
+        if !package.tests.is_empty() {
+            println!("tests:");
+            for (key, value) in &package.tests {
+                println!("  {}: {}", key, value);
+            }
+        }
     }
 
     Ok(())
@@ -155,9 +239,73 @@ fn display_package_python(package: &Package, args: &ViewArgs) -> RezCoreResult<(
         println!("description = \"{}\"", description);
     }
 
+    if !package.authors.is_empty() {
+        print!("authors = [");
+        for (i, author) in package.authors.iter().enumerate() {
+            if i > 0 { print!(", "); }
+            print!("\"{}\"", author);
+        }
+        println!("]");
+    }
+
+    if !package.requires.is_empty() {
+        print!("requires = [");
+        for (i, req) in package.requires.iter().enumerate() {
+            if i > 0 { print!(", "); }
+            print!("\"{}\"", req);
+        }
+        println!("]");
+    }
+
+    if !package.tools.is_empty() {
+        print!("tools = [");
+        for (i, tool) in package.tools.iter().enumerate() {
+            if i > 0 { print!(", "); }
+            print!("\"{}\"", tool);
+        }
+        println!("]");
+    }
+
+    if !package.variants.is_empty() {
+        println!("variants = [");
+        for variant in &package.variants {
+            print!("    [");
+            for (i, req) in variant.iter().enumerate() {
+                if i > 0 { print!(", "); }
+                print!("\"{}\"", req);
+            }
+            println!("],");
+        }
+        println!("]");
+    }
+
+    if let Some(ref build_command) = package.build_command {
+        println!("build_command = \"{}\"", build_command);
+    }
+
+    if let Some(ref build_system) = package.build_system {
+        println!("build_system = \"{}\"", build_system);
+    }
+
+    if let Some(ref uuid) = package.uuid {
+        println!("uuid = \"{}\"", uuid);
+    }
+
     if args.all {
-        // TODO: Add more fields when Package has more metadata
-        println!("# Additional fields would be shown here with --all");
+        // Show additional fields with --all
+        if let Some(ref pre_commands) = package.pre_commands {
+            println!("pre_commands = \"{}\"", pre_commands);
+        }
+        if let Some(ref post_commands) = package.post_commands {
+            println!("post_commands = \"{}\"", post_commands);
+        }
+        if !package.tests.is_empty() {
+            println!("tests = {{");
+            for (key, value) in &package.tests {
+                println!("    \"{}\": \"{}\",", key, value);
+            }
+            println!("}}");
+        }
     }
 
     Ok(())

@@ -12,15 +12,27 @@ use std::collections::HashMap;
 #[derive(Debug)]
 pub struct PackageVariant {
     /// Parent package name
-    #[cfg_attr(feature = "python-bindings", pyo3(get))]
+    #[cfg(feature = "python-bindings")]
+    #[pyo3(get)]
+    pub name: String,
+    /// Parent package name (non-Python version)
+    #[cfg(not(feature = "python-bindings"))]
     pub name: String,
 
     /// Parent package version
-    #[cfg_attr(feature = "python-bindings", pyo3(get))]
+    #[cfg(feature = "python-bindings")]
+    #[pyo3(get)]
+    pub version: Option<Version>,
+    /// Parent package version (non-Python version)
+    #[cfg(not(feature = "python-bindings"))]
     pub version: Option<Version>,
 
     /// Variant index (None for packages without variants)
-    #[cfg_attr(feature = "python-bindings", pyo3(get))]
+    #[cfg(feature = "python-bindings")]
+    #[pyo3(get)]
+    pub index: Option<usize>,
+    /// Variant index (None for packages without variants) (non-Python version)
+    #[cfg(not(feature = "python-bindings"))]
     pub index: Option<usize>,
     
     /// Variant requirements (overrides parent package requirements)
@@ -42,9 +54,14 @@ pub struct PackageVariant {
     pub subpath: Option<String>,
     
     /// Variant metadata
+    #[cfg(feature = "python-bindings")]
     pub metadata: HashMap<String, PyObject>,
+    /// Variant metadata (non-Python version)
+    #[cfg(not(feature = "python-bindings"))]
+    pub metadata: HashMap<String, String>,
 }
 
+#[cfg(feature = "python-bindings")]
 impl Clone for PackageVariant {
     fn clone(&self) -> Self {
         Python::with_gil(|py| {
@@ -66,6 +83,24 @@ impl Clone for PackageVariant {
                 metadata: cloned_metadata,
             }
         })
+    }
+}
+
+#[cfg(not(feature = "python-bindings"))]
+impl Clone for PackageVariant {
+    fn clone(&self) -> Self {
+        Self {
+            name: self.name.clone(),
+            version: self.version.clone(),
+            index: self.index,
+            requires: self.requires.clone(),
+            build_requires: self.build_requires.clone(),
+            private_build_requires: self.private_build_requires.clone(),
+            commands: self.commands.clone(),
+            root: self.root.clone(),
+            subpath: self.subpath.clone(),
+            metadata: self.metadata.clone(),
+        }
     }
 }
 
@@ -211,6 +246,7 @@ impl<'de> Deserialize<'de> for PackageVariant {
     }
 }
 
+#[cfg(feature = "python-bindings")]
 #[pymethods]
 impl PackageVariant {
     #[new]

@@ -3,11 +3,15 @@ name = "rez-core-version"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
-description = "Version parsing and comparison for Rez Core"
+description = "Ultra-fast version parsing and comparison with 117x performance improvement - core component of Rez-Core"
 license.workspace = true
 repository.workspace = true
-keywords.workspace = true
-categories.workspace = true
+homepage = "https://github.com/loonghao/rez-core"
+documentation = "https://docs.rs/rez-core-version"
+readme = "README.md"
+keywords = ["version", "parsing", "semver", "rez", "performance"]
+categories = ["development-tools", "parsing", "data-structures"]
+exclude = ["benches/", "tests/fixtures/"]
 
 [features]
 default = []

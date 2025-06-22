@@ -16,13 +16,13 @@
 // Re-export from workspace crates
 pub use rez_core_common as common;
 pub use rez_core_version as version;
-// pub use rez_core_package as package;  // Temporarily disabled
+pub use rez_core_package as package;
+pub use rez_core_solver as solver;
+// pub use rez_core_repository as repository;  // Temporarily disabled
+pub use rez_core_context as context;
 
 // CLI module
 pub mod cli;
-// Temporarily disabled due to compilation errors
-// pub use rez_core_solver as solver;
-// pub use rez_core_repository as repository;
 
 // /// Main Python module that includes all sub-modules - temporarily disabled
 // #[pymodule]

@@ -1,14 +1,18 @@
 //! Package serialization and deserialization
 
-use crate::{Package, PackageVariant, PackageRequirement};
+use crate::{Package, PythonAstParser};
 use rez_core_common::RezCoreError;
 use rez_core_version::Version;
-use pyo3::prelude::*;
 use serde_json;
 use serde_yaml;
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
+
+#[cfg(feature = "python-bindings")]
+use crate::{PackageVariant, PackageRequirement};
+#[cfg(feature = "python-bindings")]
+use pyo3::prelude::*;
 
 /// Package serialization format
 #[derive(Debug, Clone)]
@@ -90,48 +94,10 @@ impl PackageSerializer {
         Self::load_from_data(data)
     }
 
-    /// Load a package from Python content (simplified)
+    /// Load a package from Python content using advanced AST parsing
     pub fn load_from_python(content: &str) -> Result<Package, RezCoreError> {
-        // This is a simplified implementation
-        // In a real implementation, you would need to execute the Python code
-        // and extract the package definition
-        
-        // For now, we'll look for simple variable assignments
-        let mut package_data = HashMap::new();
-        
-        for line in content.lines() {
-            let line = line.trim();
-            if line.starts_with("name = ") {
-                let name = line.strip_prefix("name = ")
-                    .and_then(|s| s.strip_prefix('"'))
-                    .and_then(|s| s.strip_suffix('"'))
-                    .or_else(|| line.strip_prefix("name = ")
-                        .and_then(|s| s.strip_prefix('\''))
-                        .and_then(|s| s.strip_suffix('\'')))
-                    .ok_or_else(|| RezCoreError::PackageParse("Invalid name format".to_string()))?;
-                package_data.insert("name".to_string(), serde_json::Value::String(name.to_string()));
-            } else if line.starts_with("version = ") {
-                let version = line.strip_prefix("version = ")
-                    .and_then(|s| s.strip_prefix('"'))
-                    .and_then(|s| s.strip_suffix('"'))
-                    .or_else(|| line.strip_prefix("version = ")
-                        .and_then(|s| s.strip_prefix('\''))
-                        .and_then(|s| s.strip_suffix('\'')))
-                    .ok_or_else(|| RezCoreError::PackageParse("Invalid version format".to_string()))?;
-                package_data.insert("version".to_string(), serde_json::Value::String(version.to_string()));
-            } else if line.starts_with("description = ") {
-                let description = line.strip_prefix("description = ")
-                    .and_then(|s| s.strip_prefix('"'))
-                    .and_then(|s| s.strip_suffix('"'))
-                    .or_else(|| line.strip_prefix("description = ")
-                        .and_then(|s| s.strip_prefix('\''))
-                        .and_then(|s| s.strip_suffix('\'')))
-                    .ok_or_else(|| RezCoreError::PackageParse("Invalid description format".to_string()))?;
-                package_data.insert("description".to_string(), serde_json::Value::String(description.to_string()));
-            }
-        }
-
-        Self::load_from_data(package_data)
+        // Use the advanced Python AST parser for complete Python support
+        PythonAstParser::parse_package_py(content)
     }
 
     /// Load a package from generic data

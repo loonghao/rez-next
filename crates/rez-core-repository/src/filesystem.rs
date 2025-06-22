@@ -2,10 +2,11 @@
 
 use crate::{Repository, RepositoryMetadata, RepositoryType, RepositoryStats, PackageSearchCriteria};
 use rez_core_common::RezCoreError;
-use rez_core_package::{Package, PackageVariant, PackageRequirement, PackageSerializer, PackageFormat};
-use rez_core_version::{Version, VersionRange};
+use rez_core_package::Package;
+use rez_core_version::Version;
+#[cfg(feature = "python-bindings")]
 use pyo3::prelude::*;
-use serde::{Deserialize, Serialize};
+
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -13,24 +14,24 @@ use tokio::fs;
 use tokio::sync::RwLock;
 
 /// Filesystem repository implementation
-#[pyclass]
+#[cfg_attr(feature = "python-bindings", pyclass)]
 #[derive(Debug)]
 pub struct FileSystemRepository {
     /// Repository metadata
     metadata: RepositoryMetadata,
     /// Package cache (name -> versions -> package)
     package_cache: Arc<RwLock<HashMap<String, HashMap<String, Package>>>>,
-    /// Variant cache (package_key -> variants)
-    variant_cache: Arc<RwLock<HashMap<String, Vec<PackageVariant>>>>,
+    /// Variant cache (package_key -> variant names)
+    variant_cache: Arc<RwLock<HashMap<String, Vec<String>>>>,
     /// Repository statistics
     stats: Arc<RwLock<RepositoryStats>>,
     /// Initialization status
     initialized: Arc<RwLock<bool>>,
 }
 
-#[pymethods]
+#[cfg_attr(feature = "python-bindings", pymethods)]
 impl FileSystemRepository {
-    #[new]
+    #[cfg_attr(feature = "python-bindings", new)]
     pub fn new(path: PathBuf, name: Option<String>) -> Self {
         let repo_name = name.unwrap_or_else(|| {
             path.file_name()
@@ -59,19 +60,19 @@ impl FileSystemRepository {
     }
 
     /// Get the repository path
-    #[getter]
+    #[cfg_attr(feature = "python-bindings", getter)]
     pub fn path(&self) -> String {
         self.metadata.path.to_string_lossy().to_string()
     }
 
     /// Get the repository name
-    #[getter]
+    #[cfg_attr(feature = "python-bindings", getter)]
     pub fn name(&self) -> String {
         self.metadata.name.clone()
     }
 
     /// Check if the repository is read-only
-    #[getter]
+    #[cfg_attr(feature = "python-bindings", getter)]
     pub fn read_only(&self) -> bool {
         self.metadata.read_only
     }
@@ -158,9 +159,10 @@ impl Repository for FileSystemRepository {
 
             for (version_str, package) in versions.iter() {
                 // Check version range
-                if let Some(ref range) = criteria.version_range {
+                if let Some(ref requirement) = criteria.version_requirement {
                     if let Some(ref version) = package.version {
-                        if !range.contains_version(version) {
+                        // Simple string matching for now
+                        if !requirement.is_empty() && version.as_str() != requirement {
                             continue;
                         }
                     }
@@ -244,7 +246,7 @@ impl Repository for FileSystemRepository {
         }
     }
 
-    async fn get_package_variants(&self, name: &str, version: Option<&Version>) -> Result<Vec<PackageVariant>, RezCoreError> {
+    async fn get_package_variants(&self, name: &str, version: Option<&Version>) -> Result<Vec<String>, RezCoreError> {
         let variant_cache = self.variant_cache.read().await;
         
         let key = match version {
@@ -335,7 +337,7 @@ impl FileSystemRepository {
         &self,
         path: &Path,
         package_cache: &mut HashMap<String, HashMap<String, Package>>,
-        variant_cache: &mut HashMap<String, Vec<PackageVariant>>,
+        variant_cache: &mut HashMap<String, Vec<String>>,
     ) -> Result<PackageScanResult, RezCoreError> {
         let mut packages_found = 0;
         let mut versions_found = 0;
@@ -370,20 +372,15 @@ impl FileSystemRepository {
 
                         // Create variants if the package has variant definitions
                         if !package.variants.is_empty() {
-                            let mut package_variants = Vec::new();
-                            for (index, variant_reqs) in package.variants.iter().enumerate() {
-                                let variant = PackageVariant::from_package_and_variant(
-                                    package_name.clone(),
-                                    package.version.clone(),
-                                    Some(index),
-                                    variant_reqs.clone(),
-                                );
-                                package_variants.push(variant);
+                            let mut variant_names = Vec::new();
+                            for (index, _variant_reqs) in package.variants.iter().enumerate() {
+                                let variant_name = format!("variant_{}", index);
+                                variant_names.push(variant_name);
                                 variants_found += 1;
                             }
 
                             let variant_key = format!("{}-{}", package_name, version_str);
-                            variant_cache.insert(variant_key, package_variants);
+                            variant_cache.insert(variant_key, variant_names);
                         }
 
                         // Calculate file size
@@ -410,17 +407,23 @@ impl FileSystemRepository {
 
     /// Load a package from a file
     async fn load_package_from_file(&self, path: &Path) -> Result<Package, RezCoreError> {
-        let format = PackageFormat::from_extension(path)
-            .ok_or_else(|| RezCoreError::Repository(
-                format!("Unsupported package file format: {}", path.display())
-            ))?;
-
         let content = fs::read_to_string(path).await
             .map_err(|e| RezCoreError::Repository(
                 format!("Failed to read package file {}: {}", path.display(), e)
             ))?;
 
-        PackageSerializer::load_from_string(&content, format)
+        // Simple YAML parsing for now
+        if path.extension().and_then(|s| s.to_str()) == Some("yaml") ||
+           path.extension().and_then(|s| s.to_str()) == Some("yml") {
+            serde_yaml::from_str(&content)
+                .map_err(|e| RezCoreError::Repository(
+                    format!("Failed to parse YAML package file {}: {}", path.display(), e)
+                ))
+        } else {
+            Err(RezCoreError::Repository(
+                format!("Unsupported package file format: {}", path.display())
+            ))
+        }
     }
 
     /// Check if a string matches a pattern (supports basic wildcards)

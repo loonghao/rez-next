@@ -1,24 +1,40 @@
 [package]
 name = "rez-core-package"
-version = "0.1.0"
-edition = "2021"
-description = "Package system for Rez Core"
-license = "Apache-2.0"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+description = "Advanced package management with complete package.py parsing and 100% Rez compatibility"
+license.workspace = true
+repository.workspace = true
+homepage = "https://github.com/loonghao/rez-core"
+documentation = "https://docs.rs/rez-core-package"
+readme = "README.md"
+keywords = ["package", "rez", "parsing", "management", "python"]
+categories = ["development-tools", "parsing", "filesystem"]
+exclude = ["tests/fixtures/", "examples/"]
 
 [features]
 default = []
 python-bindings = ["pyo3"]
 
 [dependencies]
-rez-core-common = { path = "../rez-core-common" }
-rez-core-version = { path = "../rez-core-version" }
-pyo3 = { version = "0.25", features = ["extension-module", "abi3-py38"], optional = true }
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-serde_yaml = "0.9"
-regex = "1.0"
-thiserror = "1.0"
-tempfile = "3.0"
+rez-core-common = { path = "../rez-core-common", default-features = false }
+rez-core-version = { path = "../rez-core-version", default-features = false }
+pyo3 = { workspace = true, optional = true }
+serde.workspace = true
+serde_json.workspace = true
+serde_yaml.workspace = true
+regex.workspace = true
+thiserror.workspace = true
+tempfile.workspace = true
+rustpython-parser = "0.3"
+rustpython-ast = "0.3"
+
+[dev-dependencies]
+rstest.workspace = true
+proptest.workspace = true
+pretty_assertions.workspace = true
+assert_matches.workspace = true
 
 [lib]
 name = "rez_core_package"

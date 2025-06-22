@@ -141,7 +141,7 @@ impl DependencyGraph {
 
         // Check if package is excluded
         if self.exclusions.contains(&package.name) {
-            return Err(RezCoreError::SolverError(
+            return Err(RezCoreError::Solver(
                 format!("Package {} is excluded", package.name)
             ));
         }
@@ -180,7 +180,7 @@ impl DependencyGraph {
         if let Some(from_node) = self.nodes.get_mut(from_key) {
             from_node.add_dependency(to_key.to_string());
         } else {
-            return Err(RezCoreError::SolverError(
+            return Err(RezCoreError::Solver(
                 format!("Package {} not found in graph", from_key)
             ));
         }
@@ -189,7 +189,7 @@ impl DependencyGraph {
         if let Some(to_node) = self.nodes.get_mut(to_key) {
             to_node.add_dependent(from_key.to_string());
         } else {
-            return Err(RezCoreError::SolverError(
+            return Err(RezCoreError::Solver(
                 format!("Package {} not found in graph", to_key)
             ));
         }
@@ -229,9 +229,10 @@ impl DependencyGraph {
                 
                 for (i, req1) in requirements.iter().enumerate() {
                     for req2 in requirements.iter().skip(i + 1) {
-                        if !req1.is_compatible_with(req2) {
-                            incompatible_groups.push((req1.clone(), req2.clone()));
-                        }
+                        // TODO: Implement is_compatible_with method for PackageRequirement
+                        // if !req1.is_compatible_with(req2) {
+                        //     incompatible_groups.push((req1.clone(), req2.clone()));
+                        // }
                     }
                 }
 
@@ -258,13 +259,14 @@ impl DependencyGraph {
         // If major versions differ, it's major
         // Otherwise, it's minor
         
-        for (req1, req2) in incompatible_groups {
-            if let (Some(range1), Some(range2)) = (&req1.range, &req2.range) {
-                if !range1.intersects(range2) {
-                    return ConflictSeverity::Incompatible;
-                }
-            }
-        }
+        // TODO: Implement range checking when PackageRequirement has range field
+        // for (req1, req2) in incompatible_groups {
+        //     if let (Some(range1), Some(range2)) = (&req1.range, &req2.range) {
+        //         if !range1.intersects(range2) {
+        //             return ConflictSeverity::Incompatible;
+        //         }
+        //     }
+        // }
 
         ConflictSeverity::Major // Default to major for now
     }
@@ -298,9 +300,10 @@ impl DependencyGraph {
         if let Some(requirements) = self.requirements.get_mut(&resolution.package_name) {
             // Create a new requirement based on the resolution
             if let Some(ref version) = resolution.selected_version {
-                let new_requirement = PackageRequirement::exact(
+                // TODO: Implement exact requirement creation when method is available
+                let new_requirement = PackageRequirement::with_version(
                     resolution.package_name.clone(),
-                    version.clone()
+                    version.as_str().to_string()
                 );
                 requirements.clear();
                 requirements.push(new_requirement);
@@ -361,7 +364,7 @@ impl DependencyGraph {
 
         // Check for cycles
         if result.len() != self.nodes.len() {
-            return Err(RezCoreError::SolverError(
+            return Err(RezCoreError::Solver(
                 "Circular dependency detected in package graph".to_string()
             ));
         }

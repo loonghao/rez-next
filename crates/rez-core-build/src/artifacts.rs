@@ -79,8 +79,9 @@ impl BuildArtifacts {
         }
 
         self.files.clear();
-        self.scan_directory(&self.install_dir, &PathBuf::new()).await?;
-        
+        let install_dir = self.install_dir.clone();
+        self.scan_directory(&install_dir, &PathBuf::new()).await?;
+
         Ok(())
     }
 

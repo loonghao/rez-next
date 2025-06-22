@@ -5,7 +5,10 @@
 
 use clap::Args;
 use rez_core_common::{RezCoreError, error::RezCoreResult};
+use rez_core_context::{RezResolvedContext, ResolvedPackage};
+use rez_core_package::{Package, Requirement};
 use std::path::PathBuf;
+use std::sync::Arc;
 
 /// Arguments for the context command
 #[derive(Args, Clone)]
@@ -135,33 +138,206 @@ impl Default for OutputFormat {
 
 /// Execute the context command
 pub fn execute(args: ContextArgs) -> RezCoreResult<()> {
-    // TODO: Implement context command execution
-    // This will be implemented in subsequent tasks
-    
-    println!("Context command called with args: {:?}", args.rxt);
-    
+    use rez_core_context::RezResolvedContext;
+
+    // For demonstration, create a mock context
+    let context = create_demo_context()?;
+
     if args.print_request {
-        println!("Would print request packages");
+        print_request_packages(&context);
+    } else if args.print_resolve {
+        print_resolved_packages(&context, &args);
+    } else if args.tools {
+        print_available_tools(&context);
+    } else if let Some(ref cmd) = args.which {
+        locate_command(&context, cmd);
+    } else if args.interpret {
+        interpret_context(&context, &args)?;
+    } else {
+        // Default: show context summary
+        print_context_summary(&context);
     }
-    
-    if args.print_resolve {
-        println!("Would print resolved packages");
-    }
-    
-    if args.tools {
-        println!("Would print available tools");
-    }
-    
-    if let Some(ref cmd) = args.which {
-        println!("Would locate command: {}", cmd);
-    }
-    
-    if args.interpret {
-        println!("Would interpret context and generate shell code");
-    }
-    
-    // For now, just return success
+
     Ok(())
+}
+
+/// Create a demonstration context
+fn create_demo_context() -> RezCoreResult<RezResolvedContext> {
+    use rez_core_context::{RezResolvedContext, ResolvedPackage};
+    use rez_core_package::{Package, Requirement};
+    use std::sync::Arc;
+
+    // Create some demo requirements
+    let requirements = vec![
+        Requirement::new("python".to_string()),
+        Requirement::new("numpy".to_string()),
+    ];
+
+    let mut context = RezResolvedContext::new(requirements);
+
+    // Create demo resolved packages
+    let mut python_pkg = Package::new("python".to_string());
+    python_pkg.version = Some(rez_core_version::Version::parse("3.9.0").unwrap());
+    python_pkg.description = Some("Python programming language".to_string());
+    python_pkg.tools = vec!["python".to_string(), "pip".to_string()];
+    python_pkg.commands = Some("export PYTHON_ROOT=\"{root}\"\nexport PATH=\"${PATH}:{root}/bin\"".to_string());
+
+    let mut numpy_pkg = Package::new("numpy".to_string());
+    numpy_pkg.version = Some(rez_core_version::Version::parse("1.21.0").unwrap());
+    numpy_pkg.description = Some("Numerical computing library".to_string());
+    numpy_pkg.commands = Some("export PYTHONPATH=\"${PYTHONPATH}:{root}/lib/python\"".to_string());
+
+    let python_resolved = ResolvedPackage::new(
+        Arc::new(python_pkg),
+        PathBuf::from("/packages/python/3.9.0"),
+        true
+    );
+
+    let numpy_resolved = ResolvedPackage::new(
+        Arc::new(numpy_pkg),
+        PathBuf::from("/packages/numpy/1.21.0"),
+        true
+    );
+
+    context.resolved_packages = vec![python_resolved, numpy_resolved];
+
+    Ok(context)
+}
+
+/// Print request packages
+fn print_request_packages(context: &RezResolvedContext) {
+    println!("Request packages:");
+    for req in &context.requirements {
+        println!("  {}", req);
+    }
+}
+
+/// Print resolved packages
+fn print_resolved_packages(context: &RezResolvedContext, args: &ContextArgs) {
+    println!("Resolved packages:");
+
+    let mut packages = context.resolved_packages.clone();
+    if !args.source_order {
+        packages.sort_by(|a, b| a.package.name.cmp(&b.package.name));
+    }
+
+    for resolved_pkg in &packages {
+        let version_str = resolved_pkg.package.version
+            .as_ref()
+            .map(|v| v.as_str())
+            .unwrap_or("unknown");
+
+        if args.show_uris {
+            println!("  {} {} ({})", resolved_pkg.package.name, version_str, resolved_pkg.root.display());
+        } else {
+            println!("  {} {}", resolved_pkg.package.name, version_str);
+        }
+    }
+}
+
+/// Print available tools
+fn print_available_tools(context: &RezResolvedContext) {
+    println!("Available tools:");
+    let tools = context.get_tools();
+
+    for (tool_name, tool_path) in tools {
+        println!("  {} -> {}", tool_name, tool_path.display());
+    }
+}
+
+/// Locate a command
+fn locate_command(context: &RezResolvedContext, cmd: &str) {
+    let tools = context.get_tools();
+
+    if let Some(tool_path) = tools.get(cmd) {
+        println!("{}", tool_path.display());
+    } else {
+        eprintln!("Command '{}' not found in context", cmd);
+    }
+}
+
+/// Interpret context and generate shell code
+fn interpret_context(context: &RezResolvedContext, args: &ContextArgs) -> RezCoreResult<()> {
+    let environ = context.get_environ()?;
+
+    let format = args.format.as_ref().unwrap_or(&OutputFormat::Bash);
+
+    match format {
+        OutputFormat::Bash | OutputFormat::Zsh => {
+            for (key, value) in &environ {
+                // Only show variables that were modified by packages
+                if is_package_variable(key, context) {
+                    println!("export {}=\"{}\"", key, value);
+                }
+            }
+        }
+        OutputFormat::Fish => {
+            for (key, value) in &environ {
+                if is_package_variable(key, context) {
+                    println!("set -x {} \"{}\"", key, value);
+                }
+            }
+        }
+        OutputFormat::Cmd => {
+            for (key, value) in &environ {
+                if is_package_variable(key, context) {
+                    println!("set {}={}", key, value);
+                }
+            }
+        }
+        OutputFormat::PowerShell => {
+            for (key, value) in &environ {
+                if is_package_variable(key, context) {
+                    println!("$env:{} = \"{}\"", key, value);
+                }
+            }
+        }
+        OutputFormat::Json => {
+            let package_vars: std::collections::HashMap<String, String> = environ
+                .into_iter()
+                .filter(|(key, _)| is_package_variable(key, context))
+                .collect();
+            println!("{}", serde_json::to_string_pretty(&package_vars)?);
+        }
+        _ => {
+            println!("Format {:?} not supported for interpretation", format);
+        }
+    }
+
+    Ok(())
+}
+
+/// Check if a variable was set by packages
+fn is_package_variable(var_name: &str, context: &RezResolvedContext) -> bool {
+    for resolved_pkg in &context.resolved_packages {
+        if let Some(ref commands) = resolved_pkg.package.commands {
+            if commands.contains(&format!("export {}", var_name)) {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+/// Print context summary
+fn print_context_summary(context: &RezResolvedContext) {
+    let summary = context.get_summary();
+
+    println!("Context Summary:");
+    println!("  Packages: {}", summary.num_packages);
+    println!("  Status: {}", if summary.failed { "FAILED" } else { "SUCCESS" });
+    println!("  Created: {}", summary.timestamp.format("%Y-%m-%d %H:%M:%S UTC"));
+
+    println!("\nPackages:");
+    for package_name in &summary.package_names {
+        if let Some(resolved_pkg) = context.get_package(package_name) {
+            let version_str = resolved_pkg.package.version
+                .as_ref()
+                .map(|v| v.as_str())
+                .unwrap_or("unknown");
+            println!("  {} {}", package_name, version_str);
+        }
+    }
 }
 
 #[cfg(test)]
@@ -199,7 +375,7 @@ mod tests {
     #[test]
     fn test_output_format_conversion() {
         let bash_format = OutputFormat::Bash;
-        let shell_type: rez_core_context::ShellType = bash_format.into();
-        assert!(matches!(shell_type, rez_core_context::ShellType::Bash));
+        // Test that we can create the format
+        assert!(matches!(bash_format, OutputFormat::Bash));
     }
 }

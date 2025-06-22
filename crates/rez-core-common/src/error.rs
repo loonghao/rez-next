@@ -52,6 +52,12 @@ pub enum RezCoreError {
 
     #[error("Execution error: {0}")]
     ExecutionError(String),
+
+    #[error("CLI error: {0}")]
+    CliError(String),
+
+    #[error("Configuration error: {0}")]
+    ConfigError(String),
 }
 
 /// Result type alias for rez-core operations

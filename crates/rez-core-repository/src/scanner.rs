@@ -1,7 +1,7 @@
 //! High-performance repository scanning utilities with optimized I/O
 
 use rez_core_common::RezCoreError;
-use rez_core_package::{Package, PackageSerializer, PackageFormat};
+use rez_core_package::Package;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -802,13 +802,10 @@ impl RepositoryScanner {
         }
 
         // Determine package format using smart detection if enabled
-        let format = if self.config.smart_file_detection {
+        let _format = if self.config.smart_file_detection {
             self.detect_package_format_smart(package_file, file_size).await?
         } else {
-            PackageFormat::from_extension(package_file)
-                .ok_or_else(|| RezCoreError::Repository(
-                    format!("Unsupported package file format: {}", package_file.display())
-                ))?
+            "yaml".to_string()
         };
 
         // Read file content using memory mapping for large files
@@ -826,7 +823,10 @@ impl RepositoryScanner {
 
         // Parse package
         let parse_start = std::time::Instant::now();
-        let package = PackageSerializer::load_from_string(&content, format)?;
+        let package: Package = serde_yaml::from_str(&content)
+            .map_err(|e| RezCoreError::Repository(
+                format!("Failed to parse package file: {}", e)
+            ))?;
         let parse_time = parse_start.elapsed().as_millis() as u64;
         self.parsing_time.fetch_add(parse_time, Ordering::Relaxed);
 
@@ -870,10 +870,15 @@ impl RepositoryScanner {
     }
 
     /// Smart package format detection
-    async fn detect_package_format_smart(&self, package_file: &Path, file_size: u64) -> Result<PackageFormat, RezCoreError> {
+    async fn detect_package_format_smart(&self, package_file: &Path, file_size: u64) -> Result<String, RezCoreError> {
         // First try extension-based detection
-        if let Some(format) = PackageFormat::from_extension(package_file) {
-            return Ok(format);
+        if let Some(ext) = package_file.extension().and_then(|s| s.to_str()) {
+            match ext {
+                "yaml" | "yml" => return Ok("yaml".to_string()),
+                "json" => return Ok("json".to_string()),
+                "py" => return Ok("python".to_string()),
+                _ => {}
+            }
         }
 
         // For small files, read a sample to detect format
@@ -885,19 +890,16 @@ impl RepositoryScanner {
 
             // Simple heuristic detection
             if content.trim_start().starts_with('{') {
-                return Ok(PackageFormat::Json);
+                return Ok("json".to_string());
             } else if content.contains("name:") || content.contains("version:") {
-                return Ok(PackageFormat::Yaml);
+                return Ok("yaml".to_string());
             } else if content.contains("name =") || content.contains("version =") {
-                return Ok(PackageFormat::Python);
+                return Ok("python".to_string());
             }
         }
 
-        // Fallback to extension-based detection
-        PackageFormat::from_extension(package_file)
-            .ok_or_else(|| RezCoreError::Repository(
-                format!("Cannot detect package format for: {}", package_file.display())
-            ))
+        // Fallback to yaml
+        Ok("yaml".to_string())
     }
 
     /// Read file using memory mapping for better performance
@@ -932,19 +934,17 @@ impl RepositoryScanner {
 
         let file_size = metadata.len();
 
-        // Determine package format
-        let format = PackageFormat::from_extension(package_file)
-            .ok_or_else(|| RezCoreError::Repository(
-                format!("Unsupported package file format: {}", package_file.display())
-            ))?;
-
         // Read and parse package file
         let content = fs::read_to_string(package_file).await
             .map_err(|e| RezCoreError::Repository(
                 format!("Failed to read package file: {}", e)
             ))?;
 
-        let package = PackageSerializer::load_from_string(&content, format)?;
+        // Simple YAML parsing for now
+        let package: Package = serde_yaml::from_str(&content)
+            .map_err(|e| RezCoreError::Repository(
+                format!("Failed to parse package file: {}", e)
+            ))?;
 
         let scan_duration_ms = start_time.elapsed().as_millis() as u64;
         let package_dir = package_file.parent()

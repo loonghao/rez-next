@@ -13,18 +13,22 @@ mod process;
 mod environment;
 mod artifacts;
 mod systems;
+mod sources;
 
 pub use builder::*;
 pub use process::*;
 pub use environment::*;
 pub use artifacts::*;
 pub use systems::*;
+pub use sources::*;
 
+#[cfg(feature = "python-bindings")]
 use pyo3::prelude::*;
 
 /// Initialize the build module for Python
+#[cfg(feature = "python-bindings")]
 #[pymodule]
-fn rez_core_build(_py: Python, m: &PyModule) -> PyResult<()> {
+fn rez_core_build(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<BuildManager>()?;
     m.add_class::<BuildProcess>()?;
     Ok(())

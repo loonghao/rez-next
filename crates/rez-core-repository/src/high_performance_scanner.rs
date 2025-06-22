@@ -9,7 +9,7 @@
 
 use crate::{PackageScanResult, ScanResult, ScanError, ScanErrorType, ScanPerformanceMetrics};
 use rez_core_common::RezCoreError;
-use rez_core_package::{Package, PackageSerializer, PackageFormat};
+use rez_core_package::Package;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -278,8 +278,11 @@ impl HighPerformanceScanner {
         };
 
         // Detect format and parse
-        let format = self.detect_format_simd(path, &content)?;
-        let package = PackageSerializer::load_from_string(&content, format)?;
+        let _format = self.detect_format_simd(path, &content)?;
+        let package: Package = serde_yaml::from_str(&content)
+            .map_err(|e| RezCoreError::Repository(
+                format!("Failed to parse package file: {}", e)
+            ))?;
 
         let scan_duration = start_time.elapsed().as_millis() as u64;
         
@@ -308,19 +311,28 @@ impl HighPerformanceScanner {
     }
 
     /// SIMD-optimized format detection
-    fn detect_format_simd(&self, path: &Path, content: &str) -> Result<PackageFormat, RezCoreError> {
+    fn detect_format_simd(&self, path: &Path, content: &str) -> Result<String, RezCoreError> {
         self.simd_operations.fetch_add(1, Ordering::Relaxed);
-        
+
         // Use SIMD pattern matching for format detection
         if self.pattern_matcher.is_json_simd(content) {
-            Ok(PackageFormat::Json)
+            Ok("json".to_string())
         } else if self.pattern_matcher.is_yaml_simd(content) {
-            Ok(PackageFormat::Yaml)
+            Ok("yaml".to_string())
         } else if self.pattern_matcher.is_python_simd(content) {
-            Ok(PackageFormat::Python)
+            Ok("python".to_string())
         } else {
-            PackageFormat::from_extension(path)
-                .ok_or_else(|| RezCoreError::Repository("Unknown format".to_string()))
+            // Fallback to extension-based detection
+            if let Some(ext) = path.extension().and_then(|s| s.to_str()) {
+                match ext {
+                    "yaml" | "yml" => Ok("yaml".to_string()),
+                    "json" => Ok("json".to_string()),
+                    "py" => Ok("python".to_string()),
+                    _ => Ok("yaml".to_string()),
+                }
+            } else {
+                Ok("yaml".to_string())
+            }
         }
     }
 

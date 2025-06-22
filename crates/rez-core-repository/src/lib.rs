@@ -13,16 +13,20 @@ pub mod filesystem;
 pub mod cache;
 pub mod scanner;
 pub mod high_performance_scanner;
+pub mod simple_repository;
 
 pub use repository::*;
 pub use filesystem::*;
 pub use cache::*;
 pub use scanner::*;
 pub use high_performance_scanner::*;
+pub use simple_repository::*;
 
+#[cfg(feature = "python-bindings")]
 use pyo3::prelude::*;
 
 /// Initialize the repository module for Python
+#[cfg(feature = "python-bindings")]
 #[pymodule]
 fn rez_core_repository(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<FileSystemRepository>()?;

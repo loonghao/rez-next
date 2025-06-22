@@ -4,6 +4,7 @@ use crate::{BuildProcess, BuildEnvironment, BuildArtifacts, BuildSystem};
 use rez_core_common::RezCoreError;
 use rez_core_package::Package;
 use rez_core_context::ResolvedContext;
+#[cfg(feature = "python-bindings")]
 use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -11,7 +12,7 @@ use std::path::PathBuf;
 use uuid::Uuid;
 
 /// Build manager for coordinating package builds
-#[pyclass]
+#[cfg_attr(feature = "python-bindings", pyclass)]
 #[derive(Debug)]
 pub struct BuildManager {
     /// Build configuration
@@ -114,6 +115,8 @@ pub struct BuildRequest {
     pub variant: Option<String>,
     /// Build options
     pub options: BuildOptions,
+    /// Installation path (if installing)
+    pub install_path: Option<PathBuf>,
 }
 
 /// Build options
@@ -202,6 +205,7 @@ impl BuildResult {
     }
 }
 
+#[cfg(feature = "python-bindings")]
 #[pymethods]
 impl BuildManager {
     #[new]
@@ -210,6 +214,7 @@ impl BuildManager {
     }
 
     /// Start a build
+    #[cfg(feature = "python-bindings")]
     pub fn build_package_py(&mut self, package: Package, source_dir: String) -> PyResult<String> {
         let request = BuildRequest {
             package,
@@ -245,6 +250,11 @@ impl BuildManager {
 }
 
 impl BuildManager {
+    /// Create a new build manager with default configuration
+    pub fn new() -> Self {
+        Self::with_config(BuildConfig::default())
+    }
+
     /// Create a new build manager with configuration
     pub fn with_config(config: BuildConfig) -> Self {
         Self {
@@ -267,10 +277,11 @@ impl BuildManager {
         let build_id = Uuid::new_v4().to_string();
 
         // Create build environment
-        let build_env = BuildEnvironment::new(
+        let build_env = BuildEnvironment::with_install_path(
             &request.package,
             &self.config.build_dir,
             request.context.as_ref(),
+            request.install_path.as_ref(),
         )?;
 
         // Create build process

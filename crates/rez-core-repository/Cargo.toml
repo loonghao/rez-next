@@ -15,10 +15,11 @@ rez-core-version = { path = "../rez-core-version" }
 rez-core-package = { path = "../rez-core-package" }
 serde.workspace = true
 serde_json.workspace = true
+serde_yaml.workspace = true
 tokio.workspace = true
 lru.workspace = true
 thiserror.workspace = true
-pyo3.workspace = true
+pyo3 = { workspace = true, optional = true }
 async-trait = "0.1"
 regex = "1.0"
 chrono = { version = "0.4", features = ["serde"] }
@@ -31,6 +32,10 @@ dashmap = "6.0"
 rayon.workspace = true
 parking_lot = "0.12"
 num_cpus = "1.0"
+
+[features]
+default = []
+python-bindings = ["pyo3"]
 
 [dev-dependencies]
 rstest.workspace = true

@@ -54,6 +54,56 @@ pub enum RezCommand {
     /// View package information
     View(commands::view::ViewArgs),
 
+    /// Resolve packages and spawn a shell or execute a command
+    Env(commands::env::EnvArgs),
+
+    /// Build a package from source and deploy it
+    Release(commands::release::ReleaseArgs),
+
+    /// Run tests defined in a package
+    Test(commands::test::TestArgs),
+
+    /// Build a package from source
+    Build(commands::build::BuildArgs),
+
+    /// Search for packages (advanced)
+    Search(commands::search_v2::SearchArgs),
+
+    /// Bind system software as rez packages
+    Bind(commands::bind::BindArgs),
+
+    /// Perform a reverse package dependency lookup
+    Depends(commands::depends::DependsArgs),
+
+    /// Resolve package dependencies
+    Solve(commands::solve::SolveArgs),
+
+    /// Copy packages between repositories
+    Cp(commands::cp::CpArgs),
+
+    /// Move packages between repositories
+    Mv(commands::mv::MvArgs),
+
+    /// Remove packages from repositories
+    Rm(commands::rm::RmArgs),
+
+    /// Show package and repository status
+    Status(commands::status::StatusArgs),
+
+    /// Compare packages and show differences
+    Diff(commands::diff::DiffArgs),
+
+    /// Show package help information
+    #[command(name = "pkg-help")]
+    PkgHelp(commands::help::PkgHelpArgs),
+
+    /// List package plugins
+    Plugins(commands::plugins::PluginsArgs),
+
+    /// Manage package cache
+    #[command(name = "pkg-cache")]
+    PkgCache(commands::pkg_cache::PkgCacheArgs),
+
     /// Parse and validate version strings (development command)
     ParseVersion {
         /// Version string to parse
@@ -61,7 +111,7 @@ pub enum RezCommand {
     },
 
     /// Run basic functionality tests (development command)
-    Test,
+    SelfTest,
 }
 
 impl RezCli {
@@ -109,10 +159,34 @@ impl RezCli {
             RezCommand::Config(args) => commands::config::execute(args.clone()),
             RezCommand::Context(args) => commands::context::execute(args.clone()),
             RezCommand::View(args) => commands::view::execute(args.clone()),
+            RezCommand::Env(args) => commands::env::execute(args.clone()),
+            RezCommand::Release(args) => commands::release::execute(args.clone()),
+            RezCommand::Test(args) => commands::test::execute(args.clone()),
+            RezCommand::Build(args) => commands::build::execute(args.clone()),
+            RezCommand::Search(args) => commands::search_v2::execute(args.clone()),
+            RezCommand::Bind(args) => commands::bind::execute(args.clone()),
+            RezCommand::Depends(args) => {
+                tokio::runtime::Runtime::new()
+                    .map_err(|e| RezCoreError::Io(e.into()))?
+                    .block_on(commands::depends::execute_depends(args.clone()))
+            }
+            RezCommand::Solve(args) => commands::solve::execute(args.clone()),
+            RezCommand::Cp(args) => commands::cp::execute(args.clone()),
+            RezCommand::Mv(args) => commands::mv::execute(args.clone()),
+            RezCommand::Rm(args) => commands::rm::execute(args.clone()),
+            RezCommand::Status(args) => commands::status::execute(args.clone()),
+            RezCommand::Diff(args) => commands::diff::execute(args.clone()),
+            RezCommand::PkgHelp(args) => commands::help::execute(args.clone()),
+            RezCommand::Plugins(args) => commands::plugins::execute(args.clone()),
+            RezCommand::PkgCache(args) => {
+                tokio::runtime::Runtime::new()
+                    .map_err(|e| RezCoreError::Io(e.into()))?
+                    .block_on(commands::pkg_cache::execute(args.clone()))
+            }
             RezCommand::ParseVersion { version } => {
                 self.parse_version_command(version)
             }
-            RezCommand::Test => self.run_tests(),
+            RezCommand::SelfTest => self.run_tests(),
         }
     }
 

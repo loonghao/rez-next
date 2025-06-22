@@ -1,7 +1,7 @@
 //! Shell integration and command execution
 
 use rez_core_common::RezCoreError;
-use pyo3::prelude::*;
+// use pyo3::prelude::*;  // Temporarily disabled due to DLL issues
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -81,24 +81,45 @@ impl ShellType {
 }
 
 /// Shell command execution result
-#[pyclass]
+// #[pyclass]  // Temporarily disabled due to DLL issues
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CommandResult {
     /// Exit code
-    #[pyo3(get)]
+    // #[pyo3(get)]  // Temporarily disabled due to DLL issues
     pub exit_code: i32,
     /// Standard output
-    #[pyo3(get)]
+    // #[pyo3(get)]  // Temporarily disabled due to DLL issues
     pub stdout: String,
     /// Standard error
-    #[pyo3(get)]
+    // #[pyo3(get)]  // Temporarily disabled due to DLL issues
     pub stderr: String,
     /// Execution time in milliseconds
-    #[pyo3(get)]
+    // #[pyo3(get)]  // Temporarily disabled due to DLL issues
     pub execution_time_ms: u64,
 }
 
+// Python methods temporarily disabled due to DLL issues
+/*
 #[pymethods]
+impl CommandResult {
+    /// Check if the command was successful
+    pub fn is_success(&self) -> bool {
+        self.exit_code == 0
+    }
+
+    /// Get combined output (stdout + stderr)
+    pub fn combined_output(&self) -> String {
+        if self.stderr.is_empty() {
+            self.stdout.clone()
+        } else if self.stdout.is_empty() {
+            self.stderr.clone()
+        } else {
+            format!("{}\n{}", self.stdout, self.stderr)
+        }
+    }
+}
+*/
+
 impl CommandResult {
     /// Check if the command was successful
     pub fn is_success(&self) -> bool {
@@ -118,7 +139,7 @@ impl CommandResult {
 }
 
 /// Shell executor for running commands in resolved contexts
-#[pyclass]
+// #[pyclass]  // Temporarily disabled due to DLL issues
 #[derive(Debug, Clone)]
 pub struct ShellExecutor {
     /// Shell type to use
@@ -131,6 +152,8 @@ pub struct ShellExecutor {
     timeout_seconds: u64,
 }
 
+// Python methods temporarily disabled due to DLL issues
+/*
 #[pymethods]
 impl ShellExecutor {
     #[new]
@@ -143,7 +166,7 @@ impl ShellExecutor {
         let result = tokio::runtime::Runtime::new()
             .unwrap()
             .block_on(self.execute(command));
-        
+
         result.map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))
     }
 
@@ -152,7 +175,7 @@ impl ShellExecutor {
         let result = tokio::runtime::Runtime::new()
             .unwrap()
             .block_on(self.execute_background(command));
-        
+
         result.map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))
     }
 
@@ -177,8 +200,14 @@ impl ShellExecutor {
         self.timeout_seconds = seconds;
     }
 }
+*/
 
 impl ShellExecutor {
+    /// Create a new shell executor with default shell type
+    pub fn new() -> Self {
+        Self::with_shell(ShellType::detect())
+    }
+
     /// Create a new shell executor with specified shell type
     pub fn with_shell(shell_type: ShellType) -> Self {
         Self {

@@ -3,6 +3,7 @@
 use crate::{BuildRequest, BuildResult, BuildConfig, BuildStatus, BuildEnvironment, BuildArtifacts, BuildSystem};
 use rez_core_common::RezCoreError;
 use rez_core_context::ShellExecutor;
+#[cfg(feature = "python-bindings")]
 use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -12,7 +13,7 @@ use tokio::sync::{RwLock, Mutex};
 use tokio::process::Child;
 
 /// Build process for managing individual package builds
-#[pyclass]
+#[cfg_attr(feature = "python-bindings", pyclass)]
 #[derive(Debug)]
 pub struct BuildProcess {
     /// Build ID
@@ -69,6 +70,7 @@ pub struct BuildStepResult {
     pub duration_ms: u64,
 }
 
+#[cfg(feature = "python-bindings")]
 #[pymethods]
 impl BuildProcess {
     /// Get build ID
@@ -225,9 +227,11 @@ impl BuildProcess {
 
     /// Get current build status
     pub fn get_status(&self) -> BuildStatus {
-        // This is a simplified sync version
-        // In practice, you'd need proper async access or use a different approach
-        BuildStatus::Running // TODO: Implement proper sync access
+        // Use try_read to avoid blocking
+        match self.status.try_read() {
+            Ok(status) => status.clone(),
+            Err(_) => BuildStatus::Running, // If we can't read, assume still running
+        }
     }
 
     /// Run build steps
@@ -367,7 +371,7 @@ impl BuildProcess {
         config: &BuildConfig,
     ) -> Result<(bool, String, String), RezCoreError> {
         // Detect and configure build system
-        let build_system = BuildSystem::detect(&request.source_dir)?;
+        let build_system = BuildSystem::detect_with_package(&request.source_dir, &request.package)?;
         let configure_result = build_system.configure(request, environment).await?;
 
         Ok((configure_result.success, configure_result.output, configure_result.errors))
@@ -380,7 +384,7 @@ impl BuildProcess {
         config: &BuildConfig,
         child_process: Arc<Mutex<Option<Child>>>,
     ) -> Result<(bool, String, String), RezCoreError> {
-        let build_system = BuildSystem::detect(&request.source_dir)?;
+        let build_system = BuildSystem::detect_with_package(&request.source_dir, &request.package)?;
         let compile_result = build_system.compile(request, environment, child_process).await?;
 
         Ok((compile_result.success, compile_result.output, compile_result.errors))
@@ -393,7 +397,7 @@ impl BuildProcess {
         config: &BuildConfig,
         child_process: Arc<Mutex<Option<Child>>>,
     ) -> Result<(bool, String, String), RezCoreError> {
-        let build_system = BuildSystem::detect(&request.source_dir)?;
+        let build_system = BuildSystem::detect_with_package(&request.source_dir, &request.package)?;
         let test_result = build_system.test(request, environment, child_process).await?;
 
         Ok((test_result.success, test_result.output, test_result.errors))
@@ -405,7 +409,7 @@ impl BuildProcess {
         environment: &BuildEnvironment,
         config: &BuildConfig,
     ) -> Result<(bool, String, String), RezCoreError> {
-        let build_system = BuildSystem::detect(&request.source_dir)?;
+        let build_system = BuildSystem::detect_with_package(&request.source_dir, &request.package)?;
         let package_result = build_system.package(request, environment).await?;
 
         Ok((package_result.success, package_result.output, package_result.errors))
@@ -417,7 +421,7 @@ impl BuildProcess {
         environment: &BuildEnvironment,
         config: &BuildConfig,
     ) -> Result<(bool, String, String), RezCoreError> {
-        let build_system = BuildSystem::detect(&request.source_dir)?;
+        let build_system = BuildSystem::detect_with_package(&request.source_dir, &request.package)?;
         let install_result = build_system.install(request, environment).await?;
 
         Ok((install_result.success, install_result.output, install_result.errors))

@@ -31,8 +31,29 @@ impl BuildEnvironment {
         base_build_dir: &PathBuf,
         context: Option<&ResolvedContext>,
     ) -> Result<Self, RezCoreError> {
-        let package_build_dir = base_build_dir.join(&package.name);
-        let install_dir = package_build_dir.join("install");
+        Self::with_install_path(package, base_build_dir, context, None)
+    }
+
+    /// Create a new build environment with custom install path
+    pub fn with_install_path(
+        package: &Package,
+        base_build_dir: &PathBuf,
+        context: Option<&ResolvedContext>,
+        install_path: Option<&PathBuf>,
+    ) -> Result<Self, RezCoreError> {
+        // Normalize the base build directory to handle various path formats
+        let normalized_base = Self::normalize_build_path(base_build_dir)?;
+        let package_build_dir = normalized_base.join(&package.name);
+
+        // Use custom install path or default to build directory
+        let install_dir = if let Some(custom_path) = install_path {
+            custom_path.join(&package.name).join(
+                package.version.as_ref().map(|v| v.as_str()).unwrap_or("unknown")
+            )
+        } else {
+            package_build_dir.join("install")
+        };
+
         let temp_dir = package_build_dir.join("tmp");
 
         // Set up environment variables
@@ -164,5 +185,77 @@ impl BuildEnvironment {
         }
 
         script
+    }
+
+    /// Normalize build path to handle various path formats
+    fn normalize_build_path(path: &PathBuf) -> Result<PathBuf, RezCoreError> {
+        let path_str = path.to_string_lossy();
+
+        // Handle different path formats
+        let normalized = if path_str.starts_with("~/") {
+            // Handle home directory expansion
+            Self::expand_home_path(&path_str)?
+        } else if path_str.starts_with("\\\\") {
+            // Handle UNC paths - validate but keep as-is
+            Self::validate_unc_path(&path_str)?;
+            path.clone()
+        } else if path_str.len() >= 2 && path_str.chars().nth(1) == Some(':') {
+            // Handle Windows drive paths - validate but keep as-is
+            Self::validate_drive_path(&path_str)?;
+            path.clone()
+        } else if path.is_absolute() {
+            // Already absolute path
+            path.clone()
+        } else {
+            // Convert relative path to absolute
+            std::env::current_dir()
+                .map_err(|e| RezCoreError::BuildError(format!("Cannot get current directory: {}", e)))?
+                .join(path)
+        };
+
+        Ok(normalized)
+    }
+
+    /// Expand home directory paths
+    fn expand_home_path(path: &str) -> Result<PathBuf, RezCoreError> {
+        if let Some(home) = std::env::var_os("USERPROFILE").or_else(|| std::env::var_os("HOME")) {
+            let home_path = PathBuf::from(home);
+            Ok(home_path.join(&path[2..]))
+        } else {
+            Err(RezCoreError::BuildError("Cannot determine home directory".to_string()))
+        }
+    }
+
+    /// Validate UNC paths
+    fn validate_unc_path(path: &str) -> Result<(), RezCoreError> {
+        if !path.starts_with("\\\\") {
+            return Err(RezCoreError::BuildError("Invalid UNC path format".to_string()));
+        }
+
+        // Basic UNC path validation: \\server\share\path
+        let parts: Vec<&str> = path[2..].split('\\').collect();
+        if parts.len() < 2 || parts[0].is_empty() || parts[1].is_empty() {
+            return Err(RezCoreError::BuildError(
+                "UNC path must be in format \\\\server\\share\\path".to_string()
+            ));
+        }
+
+        Ok(())
+    }
+
+    /// Validate Windows drive paths
+    fn validate_drive_path(path: &str) -> Result<(), RezCoreError> {
+        if path.len() < 2 {
+            return Err(RezCoreError::BuildError("Invalid drive path format".to_string()));
+        }
+
+        let drive_char = path.chars().nth(0).unwrap();
+        if !drive_char.is_ascii_alphabetic() || path.chars().nth(1) != Some(':') {
+            return Err(RezCoreError::BuildError(
+                "Drive path must start with a letter followed by colon (e.g., C:)".to_string()
+            ));
+        }
+
+        Ok(())
     }
 }

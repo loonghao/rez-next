@@ -3,14 +3,14 @@
 use crate::{ContextConfig, PathStrategy, ShellType};
 use rez_core_common::RezCoreError;
 use rez_core_package::Package;
-use pyo3::prelude::*;
+// use pyo3::prelude::*;  // Temporarily disabled due to DLL issues
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::env;
 use std::path::{Path, PathBuf};
 
 /// Environment manager for generating package environments
-#[pyclass]
+// #[pyclass]  // Temporarily disabled due to DLL issues
 #[derive(Debug, Clone)]
 pub struct EnvironmentManager {
     /// Configuration for environment generation
@@ -45,6 +45,8 @@ pub struct EnvVarDefinition {
     pub priority: i32,
 }
 
+// Python methods temporarily disabled due to DLL issues
+/*
 #[pymethods]
 impl EnvironmentManager {
     #[new]
@@ -53,11 +55,12 @@ impl EnvironmentManager {
     }
 
     /// Generate environment variables for packages
+    #[cfg(feature = "python-bindings")]
     pub fn generate_environment_py(&self, packages: Vec<Package>) -> PyResult<HashMap<String, String>> {
         let result = tokio::runtime::Runtime::new()
             .unwrap()
             .block_on(self.generate_environment(&packages));
-        
+
         result.map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))
     }
 
@@ -67,6 +70,7 @@ impl EnvironmentManager {
         self.base_env.clone()
     }
 }
+*/
 
 impl EnvironmentManager {
     /// Create a new environment manager

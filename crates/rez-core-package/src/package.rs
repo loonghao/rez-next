@@ -9,24 +9,119 @@ use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+/// Simple package requirement for basic functionality
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PackageRequirement {
+    /// Package name
+    pub name: String,
+    /// Version requirement (optional)
+    pub version_spec: Option<String>,
+    /// Whether this is a weak requirement
+    pub weak: bool,
+}
+
+impl PackageRequirement {
+    /// Create a new package requirement
+    pub fn new(name: String) -> Self {
+        Self {
+            name,
+            version_spec: None,
+            weak: false,
+        }
+    }
+
+    /// Create a package requirement with version specification
+    pub fn with_version(name: String, version_spec: String) -> Self {
+        Self {
+            name,
+            version_spec: Some(version_spec),
+            weak: false,
+        }
+    }
+
+    /// Parse a requirement string like "python-3.9" or "maya>=2023"
+    pub fn parse(requirement_str: &str) -> Result<Self, RezCoreError> {
+        // Simple parsing - can be enhanced later
+        if let Some(dash_pos) = requirement_str.rfind('-') {
+            let name = requirement_str[..dash_pos].to_string();
+            let version = requirement_str[dash_pos + 1..].to_string();
+            Ok(Self::with_version(name, version))
+        } else {
+            Ok(Self::new(requirement_str.to_string()))
+        }
+    }
+
+    /// Get the package name
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    /// Get the version specification
+    pub fn version_spec(&self) -> Option<&str> {
+        self.version_spec.as_deref()
+    }
+
+    /// Convert to string representation
+    pub fn to_string(&self) -> String {
+        if let Some(ref version) = self.version_spec {
+            format!("{}-{}", self.name, version)
+        } else {
+            self.name.clone()
+        }
+    }
+
+    /// Get requirement string (for compatibility)
+    pub fn requirement_string(&self) -> String {
+        self.to_string()
+    }
+
+    /// Check if this requirement is satisfied by a version (simplified)
+    pub fn satisfied_by(&self, version: &Version) -> bool {
+        // Simplified implementation - can be enhanced later
+        if let Some(ref version_spec) = self.version_spec {
+            // For now, just check if the version string matches
+            version.as_str() == version_spec
+        } else {
+            // No version constraint, always satisfied
+            true
+        }
+    }
+}
+
 /// High-performance package representation compatible with rez
 #[cfg_attr(feature = "python-bindings", pyclass)]
 #[derive(Debug)]
 pub struct Package {
     /// Package name
-    #[cfg_attr(feature = "python-bindings", pyo3(get))]
+    #[cfg(feature = "python-bindings")]
+    #[pyo3(get)]
+    pub name: String,
+    /// Package name (non-Python version)
+    #[cfg(not(feature = "python-bindings"))]
     pub name: String,
 
     /// Package version
-    #[cfg_attr(feature = "python-bindings", pyo3(get))]
+    #[cfg(feature = "python-bindings")]
+    #[pyo3(get)]
+    pub version: Option<Version>,
+    /// Package version (non-Python version)
+    #[cfg(not(feature = "python-bindings"))]
     pub version: Option<Version>,
 
     /// Package description
-    #[cfg_attr(feature = "python-bindings", pyo3(get))]
+    #[cfg(feature = "python-bindings")]
+    #[pyo3(get)]
+    pub description: Option<String>,
+    /// Package description (non-Python version)
+    #[cfg(not(feature = "python-bindings"))]
     pub description: Option<String>,
 
     /// Package authors
-    #[cfg_attr(feature = "python-bindings", pyo3(get))]
+    #[cfg(feature = "python-bindings")]
+    #[pyo3(get)]
+    pub authors: Vec<String>,
+    /// Package authors (non-Python version)
+    #[cfg(not(feature = "python-bindings"))]
     pub authors: Vec<String>,
     
     /// Package requirements
@@ -46,9 +141,37 @@ pub struct Package {
     
     /// Package commands
     pub commands: Option<String>,
-    
+
+    /// Build command for custom builds
+    pub build_command: Option<String>,
+
+    /// Build system type
+    pub build_system: Option<String>,
+
+    /// Pre commands (executed before main commands)
+    pub pre_commands: Option<String>,
+
+    /// Post commands (executed after main commands)
+    pub post_commands: Option<String>,
+
+    /// Pre test commands (executed before tests)
+    pub pre_test_commands: Option<String>,
+
+    /// Pre build commands (executed before build)
+    pub pre_build_commands: Option<String>,
+
+    /// Package tests
+    pub tests: HashMap<String, String>,
+
+    /// Required rez version
+    pub requires_rez_version: Option<String>,
+
     /// Package UUID
-    #[cfg_attr(feature = "python-bindings", pyo3(get))]
+    #[cfg(feature = "python-bindings")]
+    #[pyo3(get)]
+    pub uuid: Option<String>,
+    /// Package UUID (non-Python version)
+    #[cfg(not(feature = "python-bindings"))]
     pub uuid: Option<String>,
 
     /// Package config
@@ -103,6 +226,9 @@ pub struct Package {
     
     /// Package hashed variants
     pub hashed_variants: Option<bool>,
+
+    /// Package preprocess function
+    pub preprocess: Option<String>,
 }
 
 #[cfg(feature = "python-bindings")]
@@ -125,6 +251,14 @@ impl Clone for Package {
                 variants: self.variants.clone(),
                 tools: self.tools.clone(),
                 commands: self.commands.clone(),
+                build_command: self.build_command.clone(),
+                build_system: self.build_system.clone(),
+                pre_commands: self.pre_commands.clone(),
+                post_commands: self.post_commands.clone(),
+                pre_test_commands: self.pre_test_commands.clone(),
+                pre_build_commands: self.pre_build_commands.clone(),
+                tests: self.tests.clone(),
+                requires_rez_version: self.requires_rez_version.clone(),
                 uuid: self.uuid.clone(),
                 config: cloned_config,
                 help: self.help.clone(),
@@ -142,6 +276,7 @@ impl Clone for Package {
                 has_plugins: self.has_plugins,
                 plugin_for: self.plugin_for.clone(),
                 hashed_variants: self.hashed_variants,
+                preprocess: self.preprocess.clone(),
             }
         })
     }
@@ -161,6 +296,14 @@ impl Clone for Package {
             variants: self.variants.clone(),
             tools: self.tools.clone(),
             commands: self.commands.clone(),
+            build_command: self.build_command.clone(),
+            build_system: self.build_system.clone(),
+            pre_commands: self.pre_commands.clone(),
+            post_commands: self.post_commands.clone(),
+            pre_test_commands: self.pre_test_commands.clone(),
+            pre_build_commands: self.pre_build_commands.clone(),
+            tests: self.tests.clone(),
+            requires_rez_version: self.requires_rez_version.clone(),
             uuid: self.uuid.clone(),
             config: self.config.clone(),
             help: self.help.clone(),
@@ -178,6 +321,7 @@ impl Clone for Package {
             has_plugins: self.has_plugins,
             plugin_for: self.plugin_for.clone(),
             hashed_variants: self.hashed_variants,
+            preprocess: self.preprocess.clone(),
         }
     }
 }
@@ -199,6 +343,14 @@ impl Serialize for Package {
         state.serialize_field("variants", &self.variants)?;
         state.serialize_field("tools", &self.tools)?;
         state.serialize_field("commands", &self.commands)?;
+        state.serialize_field("build_command", &self.build_command)?;
+        state.serialize_field("build_system", &self.build_system)?;
+        state.serialize_field("pre_commands", &self.pre_commands)?;
+        state.serialize_field("post_commands", &self.post_commands)?;
+        state.serialize_field("pre_test_commands", &self.pre_test_commands)?;
+        state.serialize_field("pre_build_commands", &self.pre_build_commands)?;
+        state.serialize_field("tests", &self.tests)?;
+        state.serialize_field("requires_rez_version", &self.requires_rez_version)?;
         state.serialize_field("uuid", &self.uuid)?;
         // Skip config field as PyObject cannot be serialized
         state.serialize_field("help", &self.help)?;
@@ -216,6 +368,7 @@ impl Serialize for Package {
         state.serialize_field("has_plugins", &self.has_plugins)?;
         state.serialize_field("plugin_for", &self.plugin_for)?;
         state.serialize_field("hashed_variants", &self.hashed_variants)?;
+        state.serialize_field("preprocess", &self.preprocess)?;
         state.end()
     }
 }
@@ -232,10 +385,12 @@ impl<'de> Deserialize<'de> for Package {
         #[serde(field_identifier, rename_all = "snake_case")]
         enum Field {
             Name, Version, Description, Authors, Requires, BuildRequires,
-            PrivateBuildRequires, Variants, Tools, Commands, Uuid, Help,
-            Relocatable, Cachable, Timestamp, Revision, Changelog,
-            ReleaseMessage, PreviousVersion, PreviousRevision, Vcs,
-            FormatVersion, Base, HasPlugins, PluginFor, HashedVariants,
+            PrivateBuildRequires, Variants, Tools, Commands, BuildCommand,
+            BuildSystem, PreCommands, PostCommands, PreTestCommands, PreBuildCommands,
+            Tests, RequiresRezVersion, Uuid, Help, Relocatable, Cachable,
+            Timestamp, Revision, Changelog, ReleaseMessage, PreviousVersion,
+            PreviousRevision, Vcs, FormatVersion, Base, HasPlugins, PluginFor,
+            HashedVariants, Preprocess,
         }
 
         struct PackageVisitor;
@@ -261,6 +416,14 @@ impl<'de> Deserialize<'de> for Package {
                 let mut variants = None;
                 let mut tools = None;
                 let mut commands = None;
+                let mut build_command = None;
+                let mut build_system = None;
+                let mut pre_commands = None;
+                let mut post_commands = None;
+                let mut pre_test_commands = None;
+                let mut pre_build_commands = None;
+                let mut tests = None;
+                let mut requires_rez_version = None;
                 let mut uuid = None;
                 let mut help = None;
                 let mut relocatable = None;
@@ -277,6 +440,7 @@ impl<'de> Deserialize<'de> for Package {
                 let mut has_plugins = None;
                 let mut plugin_for = None;
                 let mut hashed_variants = None;
+                let mut preprocess = None;
 
                 while let Some(key) = map.next_key()? {
                     match key {
@@ -339,6 +503,54 @@ impl<'de> Deserialize<'de> for Package {
                                 return Err(de::Error::duplicate_field("commands"));
                             }
                             commands = Some(map.next_value()?);
+                        }
+                        Field::BuildCommand => {
+                            if build_command.is_some() {
+                                return Err(de::Error::duplicate_field("build_command"));
+                            }
+                            build_command = Some(map.next_value()?);
+                        }
+                        Field::BuildSystem => {
+                            if build_system.is_some() {
+                                return Err(de::Error::duplicate_field("build_system"));
+                            }
+                            build_system = Some(map.next_value()?);
+                        }
+                        Field::PreCommands => {
+                            if pre_commands.is_some() {
+                                return Err(de::Error::duplicate_field("pre_commands"));
+                            }
+                            pre_commands = Some(map.next_value()?);
+                        }
+                        Field::PostCommands => {
+                            if post_commands.is_some() {
+                                return Err(de::Error::duplicate_field("post_commands"));
+                            }
+                            post_commands = Some(map.next_value()?);
+                        }
+                        Field::PreTestCommands => {
+                            if pre_test_commands.is_some() {
+                                return Err(de::Error::duplicate_field("pre_test_commands"));
+                            }
+                            pre_test_commands = Some(map.next_value()?);
+                        }
+                        Field::PreBuildCommands => {
+                            if pre_build_commands.is_some() {
+                                return Err(de::Error::duplicate_field("pre_build_commands"));
+                            }
+                            pre_build_commands = Some(map.next_value()?);
+                        }
+                        Field::Tests => {
+                            if tests.is_some() {
+                                return Err(de::Error::duplicate_field("tests"));
+                            }
+                            tests = Some(map.next_value()?);
+                        }
+                        Field::RequiresRezVersion => {
+                            if requires_rez_version.is_some() {
+                                return Err(de::Error::duplicate_field("requires_rez_version"));
+                            }
+                            requires_rez_version = Some(map.next_value()?);
                         }
                         Field::Uuid => {
                             if uuid.is_some() {
@@ -436,6 +648,12 @@ impl<'de> Deserialize<'de> for Package {
                             }
                             hashed_variants = Some(map.next_value()?);
                         }
+                        Field::Preprocess => {
+                            if preprocess.is_some() {
+                                return Err(de::Error::duplicate_field("preprocess"));
+                            }
+                            preprocess = Some(map.next_value()?);
+                        }
                     }
                 }
 
@@ -451,6 +669,14 @@ impl<'de> Deserialize<'de> for Package {
                     variants: variants.unwrap_or_default(),
                     tools: tools.unwrap_or_default(),
                     commands: commands.unwrap_or(None),
+                    build_command: build_command.unwrap_or(None),
+                    build_system: build_system.unwrap_or(None),
+                    pre_commands: pre_commands.unwrap_or(None),
+                    post_commands: post_commands.unwrap_or(None),
+                    pre_test_commands: pre_test_commands.unwrap_or(None),
+                    pre_build_commands: pre_build_commands.unwrap_or(None),
+                    tests: tests.unwrap_or_default(),
+                    requires_rez_version: requires_rez_version.unwrap_or(None),
                     uuid: uuid.unwrap_or(None),
                     config: HashMap::new(), // Cannot deserialize PyObject
                     help: help.unwrap_or(None),
@@ -468,16 +694,19 @@ impl<'de> Deserialize<'de> for Package {
                     has_plugins: has_plugins.unwrap_or(None),
                     plugin_for: plugin_for.unwrap_or_default(),
                     hashed_variants: hashed_variants.unwrap_or(None),
+                    preprocess: preprocess.unwrap_or(None),
                 })
             }
         }
 
         const FIELDS: &'static [&'static str] = &[
             "name", "version", "description", "authors", "requires", "build_requires",
-            "private_build_requires", "variants", "tools", "commands", "uuid", "help",
+            "private_build_requires", "variants", "tools", "commands", "build_command",
+            "build_system", "pre_commands", "post_commands", "pre_test_commands",
+            "pre_build_commands", "tests", "requires_rez_version", "uuid", "help",
             "relocatable", "cachable", "timestamp", "revision", "changelog",
             "release_message", "previous_version", "previous_revision", "vcs",
-            "format_version", "base", "has_plugins", "plugin_for", "hashed_variants",
+            "format_version", "base", "has_plugins", "plugin_for", "hashed_variants", "preprocess",
         ];
         deserializer.deserialize_struct("Package", FIELDS, PackageVisitor)
     }
@@ -499,6 +728,14 @@ impl Package {
             variants: Vec::new(),
             tools: Vec::new(),
             commands: None,
+            build_command: None,
+            build_system: None,
+            pre_commands: None,
+            post_commands: None,
+            pre_test_commands: None,
+            pre_build_commands: None,
+            tests: HashMap::new(),
+            requires_rez_version: None,
             uuid: None,
             config: HashMap::new(),
             help: None,
@@ -516,6 +753,7 @@ impl Package {
             has_plugins: None,
             plugin_for: Vec::new(),
             hashed_variants: None,
+            preprocess: None,
         }
     }
 
@@ -630,6 +868,14 @@ impl Package {
             variants: Vec::new(),
             tools: Vec::new(),
             commands: None,
+            build_command: None,
+            build_system: None,
+            pre_commands: None,
+            post_commands: None,
+            pre_test_commands: None,
+            pre_build_commands: None,
+            tests: HashMap::new(),
+            requires_rez_version: None,
             uuid: None,
             config: HashMap::new(),
             help: None,
@@ -647,6 +893,7 @@ impl Package {
             has_plugins: None,
             plugin_for: Vec::new(),
             hashed_variants: None,
+            preprocess: None,
         }
     }
 
@@ -724,6 +971,59 @@ impl Package {
     /// Set commands
     pub fn set_commands(&mut self, commands: String) {
         self.commands = Some(commands);
+    }
+
+    /// Validate the package definition
+    pub fn validate(&self) -> Result<(), RezCoreError> {
+        // Check required fields
+        if self.name.is_empty() {
+            return Err(RezCoreError::PackageParse("Package name cannot be empty".to_string()));
+        }
+
+        // Validate name format (alphanumeric, underscore, hyphen)
+        if !self.name.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '-') {
+            return Err(RezCoreError::PackageParse(
+                format!("Invalid package name '{}': only alphanumeric, underscore, and hyphen allowed", self.name)
+            ));
+        }
+
+        // Validate version if present
+        if let Some(ref version) = self.version {
+            // Version validation is handled by the Version type itself
+            if version.as_str().is_empty() {
+                return Err(RezCoreError::PackageParse("Package version cannot be empty".to_string()));
+            }
+        }
+
+        // Validate requirements format
+        for req in &self.requires {
+            if req.is_empty() {
+                return Err(RezCoreError::PackageParse("Requirement cannot be empty".to_string()));
+            }
+        }
+
+        for req in &self.build_requires {
+            if req.is_empty() {
+                return Err(RezCoreError::PackageParse("Build requirement cannot be empty".to_string()));
+            }
+        }
+
+        for req in &self.private_build_requires {
+            if req.is_empty() {
+                return Err(RezCoreError::PackageParse("Private build requirement cannot be empty".to_string()));
+            }
+        }
+
+        // Validate variants
+        for variant in &self.variants {
+            for req in variant {
+                if req.is_empty() {
+                    return Err(RezCoreError::PackageParse("Variant requirement cannot be empty".to_string()));
+                }
+            }
+        }
+
+        Ok(())
     }
 }
 
