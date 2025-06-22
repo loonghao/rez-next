@@ -1,10 +1,15 @@
 //! Simple Rust test for package management functionality
 
+use rez_next_package::Package;
+use rez_next_version::Version;
+
+#[cfg(feature = "python-bindings")]
 use rez_next_package::{
-    Package, PackageCopyOptions, PackageInstallOptions, PackageManager, PackageValidationOptions,
+    PackageCopyOptions, PackageInstallOptions, PackageManager, PackageValidationOptions,
     PackageValidator,
 };
-use rez_next_version::Version;
+
+#[cfg(feature = "python-bindings")]
 use tempfile::TempDir;
 
 fn test_package_creation() {
@@ -31,6 +36,7 @@ fn test_package_creation() {
     println!("✅ Package creation test passed");
 }
 
+#[cfg(feature = "python-bindings")]
 fn test_package_validation() {
     println!("\n🧪 Testing package validation...");
 
@@ -60,6 +66,7 @@ fn test_package_validation() {
     }
 }
 
+#[cfg(feature = "python-bindings")]
 fn test_package_validation_invalid() {
     println!("\n🧪 Testing package validation with invalid package...");
 
@@ -86,6 +93,7 @@ fn test_package_validation_invalid() {
     }
 }
 
+#[cfg(feature = "python-bindings")]
 fn test_package_manager() {
     println!("\n🧪 Testing package manager...");
 
@@ -121,6 +129,7 @@ fn test_package_manager() {
     }
 }
 
+#[cfg(feature = "python-bindings")]
 fn test_package_copy() {
     println!("\n🧪 Testing package copy...");
 
@@ -156,6 +165,7 @@ fn test_package_copy() {
     }
 }
 
+#[cfg(feature = "python-bindings")]
 fn test_validation_options() {
     println!("\n🧪 Testing validation options...");
 
@@ -187,6 +197,7 @@ fn test_validation_options() {
     println!("✅ Validation options test passed");
 }
 
+#[cfg(feature = "python-bindings")]
 fn test_install_options() {
     println!("\n🧪 Testing install options...");
 
@@ -214,12 +225,21 @@ fn main() {
     println!("{}", "=".repeat(50));
 
     test_package_creation();
-    test_package_validation();
-    test_package_validation_invalid();
-    test_package_manager();
-    test_package_copy();
-    test_validation_options();
-    test_install_options();
+
+    #[cfg(feature = "python-bindings")]
+    {
+        test_package_validation();
+        test_package_validation_invalid();
+        test_package_manager();
+        test_package_copy();
+        test_validation_options();
+        test_install_options();
+    }
+
+    #[cfg(not(feature = "python-bindings"))]
+    {
+        println!("⚠️  Python bindings features are disabled. Only basic package creation test is available.");
+    }
 
     println!("\n{}", "=".repeat(50));
     println!("🎉 All tests completed successfully!");

@@ -80,15 +80,15 @@ path = "src/bin/rez-next.rs"
 
 [dependencies]
 # Workspace crates
-rez-next-common = { path = "crates/rez-next-common", default-features = false }
-rez-next-version = { path = "crates/rez-next-version", default-features = false }
-rez-next-package = { path = "crates/rez-next-package", default-features = false }
-rez-next-solver = { path = "crates/rez-next-solver", default-features = false }
-rez-next-repository = { path = "crates/rez-next-repository", default-features = false }
-rez-next-context = { path = "crates/rez-next-context", default-features = false }
+rez-next-common = { version = "0.1.0", path = "crates/rez-next-common", default-features = false }
+rez-next-version = { version = "0.1.0", path = "crates/rez-next-version", default-features = false }
+rez-next-package = { version = "0.1.0", path = "crates/rez-next-package", default-features = false }
+rez-next-solver = { version = "0.1.0", path = "crates/rez-next-solver", default-features = false }
+rez-next-repository = { version = "0.1.0", path = "crates/rez-next-repository", default-features = false }
+rez-next-context = { version = "0.1.0", path = "crates/rez-next-context", default-features = false }
 # rez-core-rex = { path = "crates/rez-core-rex" }  # Temporarily disabled due to compilation errors
-rez-next-build = { path = "crates/rez-next-build" }
-rez-next-cache = { path = "crates/rez-next-cache" }
+rez-next-build = { version = "0.1.0", path = "crates/rez-next-build" }
+rez-next-cache = { version = "0.1.0", path = "crates/rez-next-cache" }
 # rez-core-python = { path = "crates/rez-core-python" }  # Temporarily disabled due to DLL issues
 
 # Python bindings - temporarily disabled

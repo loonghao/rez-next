@@ -10,9 +10,9 @@ keywords.workspace = true
 categories.workspace = true
 
 [dependencies]
-rez-next-common = { path = "../rez-next-common" }
-rez-next-version = { path = "../rez-next-version" }
-rez-next-package = { path = "../rez-next-package" }
+rez-next-common = { version = "0.1.0", path = "../rez-next-common" }
+rez-next-version = { version = "0.1.0", path = "../rez-next-version" }
+rez-next-package = { version = "0.1.0", path = "../rez-next-package" }
 serde.workspace = true
 serde_json.workspace = true
 serde_yaml.workspace = true

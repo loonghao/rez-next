@@ -23,7 +23,7 @@ name = "rez_next_version"
 crate-type = ["rlib"]
 
 [dependencies]
-rez-next-common = { path = "../rez-next-common", default-features = false }
+rez-next-common = { version = "0.1.0", path = "../rez-next-common", default-features = false }
 serde.workspace = true
 serde_json.workspace = true
 regex.workspace = true

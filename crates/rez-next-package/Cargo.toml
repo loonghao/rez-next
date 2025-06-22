@@ -19,8 +19,8 @@ default = []
 python-bindings = []  # No dependencies for now
 
 [dependencies]
-rez-next-common = { path = "../rez-next-common", default-features = false }
-rez-next-version = { path = "../rez-next-version", default-features = false }
+rez-next-common = { version = "0.1.0", path = "../rez-next-common", default-features = false }
+rez-next-version = { version = "0.1.0", path = "../rez-next-version", default-features = false }
 # Temporarily disabled Python bindings
 # pyo3 = { workspace = true, optional = true }
 serde.workspace = true

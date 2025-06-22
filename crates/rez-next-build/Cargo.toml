@@ -15,10 +15,10 @@ default = []
 python-bindings = ["rez-next-common/python-bindings", "rez-next-package/python-bindings"]
 
 [dependencies]
-rez-next-common = { path = "../rez-next-common" }
-rez-next-version = { path = "../rez-next-version" }
-rez-next-package = { path = "../rez-next-package" }
-rez-next-context = { path = "../rez-next-context" }
+rez-next-common = { version = "0.1.0", path = "../rez-next-common" }
+rez-next-version = { version = "0.1.0", path = "../rez-next-version" }
+rez-next-package = { version = "0.1.0", path = "../rez-next-package" }
+rez-next-context = { version = "0.1.0", path = "../rez-next-context" }
 # rez-core-rex = { path = "../rez-core-rex" }  # Temporarily disabled due to compilation errors
 serde.workspace = true
 serde_json.workspace = true

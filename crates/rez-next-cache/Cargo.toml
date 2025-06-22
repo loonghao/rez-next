@@ -32,12 +32,12 @@ num_cpus = "1.17"
 rand = "0.9"
 
 # Internal dependencies
-rez-next-common = { path = "../rez-next-common" }
+rez-next-common = { version = "0.1.0", path = "../rez-next-common" }
 # Temporarily disabled due to compilation errors in other crates
-# rez-next-solver = { path = "../rez-next-solver" }
-# rez-next-repository = { path = "../rez-next-repository" }
+# rez-next-solver = { version = "0.1.0", path = "../rez-next-solver" }
+# rez-next-repository = { version = "0.1.0", path = "../rez-next-repository" }
 # rez-core-rex = { path = "../rez-core-rex" }
-# rez-next-package = { path = "../rez-next-package" }
+# rez-next-package = { version = "0.1.0", path = "../rez-next-package" }
 
 [dev-dependencies]
 criterion = { version = "0.6", features = ["html_reports"] }
