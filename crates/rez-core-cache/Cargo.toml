@@ -29,7 +29,7 @@ thiserror = "1.0"
 
 # System utilities
 num_cpus = "1.0"
-rand = "0.8"
+rand = "0.9"
 
 # Internal dependencies
 rez-core-common = { path = "../rez-core-common" }
