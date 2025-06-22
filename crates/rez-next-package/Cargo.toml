@@ -15,8 +15,8 @@ exclude = ["tests/fixtures/", "examples/"]
 
 [features]
 default = []
-# Temporarily disabled Python bindings
-# python-bindings = ["pyo3"]
+# Python bindings feature (defined to avoid warnings)
+python-bindings = []  # No dependencies for now
 
 [dependencies]
 rez-next-common = { path = "../rez-next-common", default-features = false }

@@ -3,9 +3,9 @@ name = "rez-next-cache"
 version = "0.1.0"
 edition = "2021"
 authors = ["Long Hao <hal.long@outlook.com>"]
-description = "Intelligent caching system for rez-core with multi-level cache and predictive preheating"
+description = "Intelligent caching system for rez-next with multi-level cache and predictive preheating"
 license = "Apache-2.0"
-repository = "https://github.com/longhao/rez-core"
+repository = "https://github.com/loonghao/rez-next"
 keywords = ["rez", "cache", "performance", "intelligent", "multi-level"]
 categories = ["caching", "development-tools"]
 

@@ -3,10 +3,10 @@ name = "rez-next-version"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
-description = "Ultra-fast version parsing and comparison with 117x performance improvement - core component of Rez-Core"
+description = "Ultra-fast version parsing and comparison with 117x performance improvement - core component of Rez-Next"
 license.workspace = true
 repository.workspace = true
-homepage = "https://github.com/loonghao/rez-core"
+homepage = "https://github.com/loonghao/rez-next"
 documentation = "https://docs.rs/rez-next-version"
 readme = "README.md"
 keywords = ["version", "parsing", "semver", "rez", "performance"]
@@ -15,8 +15,8 @@ exclude = ["benches/", "tests/fixtures/"]
 
 [features]
 default = []
-# Temporarily disabled Python bindings
-# python-bindings = ["pyo3", "rez-next-common/python-bindings"]
+# Python bindings feature (defined to avoid warnings)
+python-bindings = ["rez-next-common/python-bindings"]
 
 [lib]
 name = "rez_next_version"

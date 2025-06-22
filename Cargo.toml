@@ -19,7 +19,7 @@ version = "0.1.0"
 edition = "2021"
 authors = ["LongHao <hal.long@outlook.com>"]
 license = "Apache-2.0"
-repository = "https://github.com/loonghao/rez-core"
+repository = "https://github.com/loonghao/rez-next"
 keywords = ["rez", "package-manager", "dependency-resolution", "version-management"]
 categories = ["development-tools"]
 
@@ -64,15 +64,15 @@ crate-type = ["rlib"]
 
 [features]
 default = []
-# Temporarily disabled Python bindings to focus on core Rust functionality
-# python-bindings = [
-#     "rez-next-common/python-bindings",
-#     "rez-next-version/python-bindings",
-#     "rez-next-package/python-bindings",
-#     "rez-next-context/python-bindings",
-#     "rez-next-solver/python-bindings",
-#     "pyo3"
-# ]
+# Python bindings feature (currently disabled but defined to avoid warnings)
+python-bindings = [
+    "rez-next-common/python-bindings",
+    "rez-next-version/python-bindings",
+    "rez-next-package/python-bindings",
+    "rez-next-context/python-bindings",
+    "rez-next-solver/python-bindings",
+    # "pyo3"  # Temporarily disabled
+]
 
 [[bin]]
 name = "rez-next"

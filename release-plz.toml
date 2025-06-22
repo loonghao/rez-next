@@ -20,9 +20,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 """
 
-# Package-specific configuration - only for the main rez-core package
+# Package-specific configuration - only for the main rez-next package
 [[package]]
-name = "rez-core"
+name = "rez-next"
 # Main CLI package is in the root directory (no path needed)
 changelog_update = true
 # Enable GitHub releases only for the main package

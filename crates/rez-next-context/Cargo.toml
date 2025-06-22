@@ -11,8 +11,8 @@ categories.workspace = true
 
 [features]
 default = []
-# Temporarily disabled Python bindings
-# python-bindings = ["pyo3", "rez-next-common/python-bindings", "rez-next-package/python-bindings", "rez-next-version/python-bindings"]
+# Python bindings feature (defined to avoid warnings)
+python-bindings = ["rez-next-common/python-bindings", "rez-next-package/python-bindings", "rez-next-version/python-bindings"]
 
 [dependencies]
 rez-next-common = { path = "../rez-next-common" }

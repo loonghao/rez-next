@@ -36,8 +36,8 @@ num_cpus = "1.17"
 
 [features]
 default = []
-# Temporarily disabled Python bindings
-# python-bindings = ["pyo3"]
+# Python bindings feature (defined to avoid warnings)
+python-bindings = []  # No dependencies for now
 
 [dev-dependencies]
 rstest.workspace = true

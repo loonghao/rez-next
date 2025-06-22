@@ -11,8 +11,8 @@ categories.workspace = true
 
 [features]
 default = []
-# Temporarily disabled Python bindings
-# python-bindings = ["pyo3"]
+# Python bindings feature (defined to avoid warnings)
+python-bindings = []  # No dependencies for now
 
 [lib]
 name = "rez_next_common"
