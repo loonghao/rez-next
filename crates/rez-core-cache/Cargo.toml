@@ -40,7 +40,7 @@ rez-core-common = { path = "../rez-core-common" }
 # rez-core-package = { path = "../rez-core-package" }
 
 [dev-dependencies]
-criterion = { version = "0.5", features = ["html_reports"] }
+criterion = { version = "0.6", features = ["html_reports"] }
 tokio-test = "0.4"
 
 [features]
