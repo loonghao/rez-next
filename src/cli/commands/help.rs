@@ -358,15 +358,7 @@ mod tests {
 
     #[test]
     fn test_extract_help_sections() {
-        let package = Package {
-            name: "test-package".to_string(),
-            version: Some("1.0.0".into()),
-            description: Some("A test package".to_string()),
-            authors: vec!["Test Author".to_string()],
-            requires: vec!["python".to_string()],
-            tools: vec!["python".to_string()],
-            variants: vec![],
-        };
+        let package = Package::new("test-package".to_string());
 
         let sections = extract_help_sections(&package);
         assert_eq!(sections.len(), 3);

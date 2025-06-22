@@ -66,7 +66,8 @@ impl ResolutionResult {
 
     /// Get packages that match a pattern
     pub fn find_packages(&self, pattern: &str) -> Vec<&Package> {
-        self.packages.iter()
+        self.packages
+            .iter()
             .filter(|p| self.matches_pattern(&p.name, pattern))
             .collect()
     }
@@ -157,7 +158,7 @@ impl ResolutionResult {
             if let Some(ref commands) = package.commands {
                 environment_vars.insert(
                     format!("{}_COMMANDS", package.name.to_uppercase()),
-                    commands.clone()
+                    commands.clone(),
                 );
             }
         }

@@ -14,8 +14,7 @@ use pyo3::prelude::*;
 use rez_core_common::RezCoreError;
 
 pub mod parser;
-#[cfg(feature = "python-bindings")]
-pub mod range;
+pub mod range; // Always available for benchmarks and core functionality
 #[cfg(feature = "python-bindings")]
 pub mod token;
 pub mod version;
@@ -25,7 +24,7 @@ pub mod version_token;
 
 // Re-export main types
 pub use parser::{StateMachineParser, VersionParser};
-#[cfg(feature = "python-bindings")]
+// Always export VersionRange as it's needed by benchmarks and other core functionality
 pub use range::VersionRange;
 #[cfg(feature = "python-bindings")]
 pub use token::PyVersionToken;

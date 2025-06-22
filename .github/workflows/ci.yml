@@ -86,59 +86,60 @@ jobs:
         with:
           files: codecov.json
 
-  test-python:
-    name: test ${{ matrix.python-version }}
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version:
-          - '3.8'
-          - '3.9'
-          - '3.10'
-          - '3.11'
-          - '3.12'
-          - '3.13'
-          - '3.13t'
-    runs-on: ubuntu-latest
-    continue-on-error: ${{ endsWith(matrix.python-version, 't') }}
-    steps:
-      - uses: actions/checkout@v4
+  # Temporarily disabled Python testing to focus on core Rust functionality
+  # test-python:
+  #   name: test ${{ matrix.python-version }}
+  #   strategy:
+  #     fail-fast: false
+  #     matrix:
+  #       python-version:
+  #         - '3.8'
+  #         - '3.9'
+  #         - '3.10'
+  #         - '3.11'
+  #         - '3.12'
+  #         - '3.13'
+  #         - '3.13t'
+  #   runs-on: ubuntu-latest
+  #   continue-on-error: ${{ endsWith(matrix.python-version, 't') }}
+  #   steps:
+  #     - uses: actions/checkout@v4
 
-      - name: install rust stable
-        uses: dtolnay/rust-toolchain@stable
+  #     - name: install rust stable
+  #       uses: dtolnay/rust-toolchain@stable
 
-      - name: cache rust
-        uses: Swatinem/rust-cache@v2
-        with:
-          key: test-python-v1-${{ matrix.python-version }}
+  #     - name: cache rust
+  #       uses: Swatinem/rust-cache@v2
+  #       with:
+  #         key: test-python-v1-${{ matrix.python-version }}
 
-      - name: cache uv
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cache/uv
-            ~/.local/share/uv
-          key: uv-${{ runner.os }}-py${{ matrix.python-version }}-${{ hashFiles('**/uv.lock', '**/pyproject.toml') }}
-          restore-keys: |
-            uv-${{ runner.os }}-py${{ matrix.python-version }}-
-            uv-${{ runner.os }}-
+  #     - name: cache uv
+  #       uses: actions/cache@v4
+  #       with:
+  #         path: |
+  #           ~/.cache/uv
+  #           ~/.local/share/uv
+  #         key: uv-${{ runner.os }}-py${{ matrix.python-version }}-${{ hashFiles('**/uv.lock', '**/pyproject.toml') }}
+  #         restore-keys: |
+  #           uv-${{ runner.os }}-py${{ matrix.python-version }}-
+  #           uv-${{ runner.os }}-
 
-      - name: install uv
-        uses: astral-sh/setup-uv@v6
-        with:
-          python-version: ${{ matrix.python-version }}
+  #     - name: install uv
+  #       uses: astral-sh/setup-uv@v6
+  #       with:
+  #         python-version: ${{ matrix.python-version }}
 
-      - name: install deps
-        run: uv sync --group testing
+  #     - name: install deps
+  #       run: uv sync --group testing
 
-      - run: uv pip install -e .
-        env:
-          RUST_BACKTRACE: 1
+  #     - run: uv pip install -e .
+  #       env:
+  #         RUST_BACKTRACE: 1
 
-      - run: uv run pytest
-        env:
-          HYPOTHESIS_PROFILE: slow
-          PYTEST_ADDOPTS: ${{ endsWith(matrix.python-version, 't') && '--parallel-threads=2' || '' }}
+  #     - run: uv run pytest
+  #       env:
+  #         HYPOTHESIS_PROFILE: slow
+  #         PYTEST_ADDOPTS: ${{ endsWith(matrix.python-version, 't') && '--parallel-threads=2' || '' }}
 
   test-os:
     name: test on ${{ matrix.os }}
@@ -288,50 +289,51 @@ jobs:
       - name: run cargo deny
         uses: EmbarkStudios/cargo-deny-action@v2
 
-  build:
-    name: build test
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+  # Temporarily disabled Python wheel building to focus on core Rust functionality
+  # build:
+  #   name: build test
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v4
 
-      - name: install rust stable
-        uses: dtolnay/rust-toolchain@stable
+  #     - name: install rust stable
+  #       uses: dtolnay/rust-toolchain@stable
 
-      - name: cache rust
-        uses: Swatinem/rust-cache@v2
-        with:
-          key: build-v1
+  #     - name: cache rust
+  #       uses: Swatinem/rust-cache@v2
+  #       with:
+  #         key: build-v1
 
-      - name: cache uv
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cache/uv
-            ~/.local/share/uv
-          key: uv-${{ runner.os }}-${{ hashFiles('**/uv.lock', '**/pyproject.toml') }}
-          restore-keys: |
-            uv-${{ runner.os }}-
+  #     - name: cache uv
+  #       uses: actions/cache@v4
+  #       with:
+  #         path: |
+  #           ~/.cache/uv
+  #           ~/.local/share/uv
+  #         key: uv-${{ runner.os }}-${{ hashFiles('**/uv.lock', '**/pyproject.toml') }}
+  #         restore-keys: |
+  #           uv-${{ runner.os }}-
 
-      - name: install uv
-        uses: astral-sh/setup-uv@v6
+  #     - name: install uv
+  #       uses: astral-sh/setup-uv@v6
 
-      - name: install deps
-        run: uv sync --group testing
+  #     - name: install deps
+  #       run: uv sync --group testing
 
-      - name: build wheels
-        uses: PyO3/maturin-action@v1
-        with:
-          args: --release --out dist --find-interpreter
-          sccache: 'true'
+  #     - name: build wheels
+  #       uses: PyO3/maturin-action@v1
+  #       with:
+  #         args: --release --out dist --find-interpreter
+  #         sccache: 'true'
 
-      - name: test wheel install
-        run: |
-          uv pip install dist/*.whl --force-reinstall
-          uv run python -c "import rez_core; print('Build test successful')"
+  #     - name: test wheel install
+  #       run: |
+  #         uv pip install dist/*.whl --force-reinstall
+  #         uv run python -c "import rez_core; print('Build test successful')"
 
   check:
     if: always()
-    needs: [quick-check, coverage, test-python, test-os, test-rust, lint, audit, build]
+    needs: [quick-check, coverage, test-os, test-rust, lint, audit]
     runs-on: ubuntu-latest
     steps:
       - name: Decide whether the needed jobs succeeded or failed

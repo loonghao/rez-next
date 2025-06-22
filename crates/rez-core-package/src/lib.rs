@@ -31,7 +31,7 @@ pub use requirement::{Requirement, VersionConstraint};
 #[cfg(feature = "python-bindings")]
 pub use management::*;
 #[cfg(feature = "python-bindings")]
-pub use requirement::PackageRequirement as PyPackageRequirement;
+pub use package::PackageRequirement as PyPackageRequirement;
 #[cfg(feature = "python-bindings")]
 pub use validation::*;
 #[cfg(feature = "python-bindings")]

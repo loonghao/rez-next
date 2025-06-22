@@ -3,10 +3,10 @@
 //! Implements the `rez search` command for searching packages in repositories.
 
 use clap::Args;
-use rez_core_common::{RezCoreError, error::RezCoreResult};
+use rez_core_common::{error::RezCoreResult, RezCoreError};
+use rez_core_package::Package;
 use rez_core_repository::simple_repository::RepositoryManager;
 use rez_core_repository::PackageSearchCriteria;
-use rez_core_package::Package;
 use std::collections::HashMap;
 
 /// Arguments for the search command
@@ -92,7 +92,7 @@ pub fn execute(args: SearchArgs) -> RezCoreResult<()> {
     if let (Some(after), Some(before)) = (after_time, before_time) {
         if after >= before {
             return Err(RezCoreError::RequirementParse(
-                "non-overlapping --before and --after".to_string()
+                "non-overlapping --before and --after".to_string(),
             ));
         }
     }
@@ -101,8 +101,7 @@ pub fn execute(args: SearchArgs) -> RezCoreResult<()> {
     let repo_manager = RepositoryManager::new();
 
     // Execute search
-    let runtime = tokio::runtime::Runtime::new()
-        .map_err(|e| RezCoreError::Io(e.into()))?;
+    let runtime = tokio::runtime::Runtime::new().map_err(|e| RezCoreError::Io(e.into()))?;
 
     runtime.block_on(async {
         execute_search_async(&repo_manager, &args, before_time, after_time).await
@@ -156,7 +155,10 @@ async fn execute_search_async(
     display_search_results(&filtered_packages, args)?;
 
     if args.verbose {
-        println!("\n✅ Search completed. Found {} packages.", filtered_packages.len());
+        println!(
+            "\n✅ Search completed. Found {} packages.",
+            filtered_packages.len()
+        );
     }
 
     Ok(())
@@ -233,12 +235,13 @@ fn apply_latest_filter(packages: Vec<Package>) -> Vec<Package> {
 
     for package in packages {
         let name = package.name.clone();
-        
+
         match latest_packages.get(&name) {
             Some(existing) => {
                 // Compare versions and keep the latest
-                if let (Some(ref new_version), Some(ref existing_version)) = 
-                    (&package.version, &existing.version) {
+                if let (Some(ref new_version), Some(ref existing_version)) =
+                    (&package.version, &existing.version)
+                {
                     if new_version.as_str() > existing_version.as_str() {
                         latest_packages.insert(name, package);
                     }
@@ -286,11 +289,12 @@ fn display_formatted_results(
 /// Display results with default format
 fn display_default_results(packages: &[Package]) -> RezCoreResult<()> {
     for package in packages {
-        let version_str = package.version
+        let version_str = package
+            .version
             .as_ref()
             .map(|v| format!("-{}", v.as_str()))
             .unwrap_or_default();
-        
+
         println!("{}{}", package.name, version_str);
     }
     Ok(())
@@ -299,26 +303,29 @@ fn display_default_results(packages: &[Package]) -> RezCoreResult<()> {
 /// Format a package according to format string
 fn format_package(package: &Package, format_str: &str) -> RezCoreResult<String> {
     let mut result = format_str.to_string();
-    
+
     // Replace format fields
     result = result.replace("{name}", &package.name);
-    
+
     if let Some(ref version) = package.version {
         result = result.replace("{version}", version.as_str());
-        result = result.replace("{qualified_name}", &format!("{}-{}", package.name, version.as_str()));
+        result = result.replace(
+            "{qualified_name}",
+            &format!("{}-{}", package.name, version.as_str()),
+        );
     } else {
         result = result.replace("{version}", "");
         result = result.replace("{qualified_name}", &package.name);
     }
-    
+
     if let Some(ref description) = package.description {
         result = result.replace("{description}", description);
     } else {
         result = result.replace("{description}", "");
     }
-    
+
     // TODO: Add more format fields as needed
-    
+
     Ok(result)
 }
 
@@ -369,8 +376,11 @@ mod tests {
     fn test_determine_resource_type() {
         assert_eq!(determine_resource_type("package", &None), "packages");
         assert_eq!(determine_resource_type("family", &None), "package families");
-        assert_eq!(determine_resource_type("variant", &None), "package variants");
-        
+        assert_eq!(
+            determine_resource_type("variant", &None),
+            "package variants"
+        );
+
         assert_eq!(
             determine_resource_type("auto", &Some("python-3.9".to_string())),
             "packages"
@@ -385,6 +395,9 @@ mod tests {
     fn test_parse_time_constraint() {
         assert_eq!(parse_time_constraint("0").unwrap(), None);
         assert_eq!(parse_time_constraint("").unwrap(), None);
-        assert_eq!(parse_time_constraint("1393014494").unwrap(), Some(1393014494));
+        assert_eq!(
+            parse_time_constraint("1393014494").unwrap(),
+            Some(1393014494)
+        );
     }
 }

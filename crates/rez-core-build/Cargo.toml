@@ -11,7 +11,8 @@ categories.workspace = true
 
 [features]
 default = []
-python-bindings = ["pyo3", "rez-core-common/python-bindings", "rez-core-package/python-bindings"]
+# Temporarily disabled Python bindings
+# python-bindings = ["pyo3", "rez-core-common/python-bindings", "rez-core-package/python-bindings"]
 
 [dependencies]
 rez-core-common = { path = "../rez-core-common" }
@@ -23,7 +24,8 @@ serde.workspace = true
 serde_json.workspace = true
 tokio.workspace = true
 thiserror.workspace = true
-pyo3 = { workspace = true, optional = true }
+# Temporarily disabled Python bindings
+# pyo3 = { workspace = true, optional = true }
 uuid = { version = "1.0", features = ["v4", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }
 regex = "1.0"

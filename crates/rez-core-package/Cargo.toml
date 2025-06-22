@@ -15,12 +15,14 @@ exclude = ["tests/fixtures/", "examples/"]
 
 [features]
 default = []
-python-bindings = ["pyo3"]
+# Temporarily disabled Python bindings
+# python-bindings = ["pyo3"]
 
 [dependencies]
 rez-core-common = { path = "../rez-core-common", default-features = false }
 rez-core-version = { path = "../rez-core-version", default-features = false }
-pyo3 = { workspace = true, optional = true }
+# Temporarily disabled Python bindings
+# pyo3 = { workspace = true, optional = true }
 serde.workspace = true
 serde_json.workspace = true
 serde_yaml.workspace = true

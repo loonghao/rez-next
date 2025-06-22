@@ -5,7 +5,7 @@
 //! for the comprehensive benchmark architecture.
 
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
@@ -42,7 +42,7 @@ pub struct BenchmarkResult {
 /// Version module simulation
 pub mod version_module {
     use super::*;
-    
+
     #[derive(Debug, Clone)]
     pub struct MockVersion {
         pub major: u32,
@@ -50,17 +50,17 @@ pub mod version_module {
         pub patch: u32,
         pub prerelease: Option<String>,
     }
-    
+
     impl MockVersion {
         pub fn parse(version_str: &str) -> Result<Self, String> {
             // Simulate version parsing work
             std::thread::sleep(Duration::from_nanos(100));
-            
+
             let parts: Vec<&str> = version_str.split('.').collect();
             if parts.len() < 3 {
                 return Err("Invalid version format".to_string());
             }
-            
+
             Ok(MockVersion {
                 major: parts[0].parse().map_err(|_| "Invalid major version")?,
                 minor: parts[1].parse().map_err(|_| "Invalid minor version")?,
@@ -68,22 +68,23 @@ pub mod version_module {
                 prerelease: None,
             })
         }
-        
+
         pub fn compare(&self, other: &Self) -> std::cmp::Ordering {
-            self.major.cmp(&other.major)
+            self.major
+                .cmp(&other.major)
                 .then_with(|| self.minor.cmp(&other.minor))
                 .then_with(|| self.patch.cmp(&other.patch))
         }
     }
-    
+
     pub fn benchmark_version_parsing(c: &mut Criterion) {
         let test_versions = vec![
-            "1.2.3", "1.2.4", "1.2.5", "2.0.0", "2.0.1",
-            "3.1.4", "10.20.30", "0.0.1", "1.0.0", "2.1.0"
+            "1.2.3", "1.2.4", "1.2.5", "2.0.0", "2.0.1", "3.1.4", "10.20.30", "0.0.1", "1.0.0",
+            "2.1.0",
         ];
-        
+
         let mut group = c.benchmark_group("version_parsing");
-        
+
         group.bench_function("single_version_parsing", |b| {
             b.iter(|| {
                 for version_str in &test_versions {
@@ -91,7 +92,7 @@ pub mod version_module {
                 }
             });
         });
-        
+
         group.bench_function("batch_version_parsing", |b| {
             b.iter(|| {
                 let versions: Vec<MockVersion> = test_versions
@@ -101,15 +102,16 @@ pub mod version_module {
                 black_box(versions);
             });
         });
-        
+
         group.finish();
     }
-    
+
     pub fn benchmark_version_comparison(c: &mut Criterion) {
-        let versions: Vec<MockVersion> = vec![
-            "1.2.3", "1.2.4", "1.2.5", "2.0.0", "2.0.1"
-        ].iter().map(|v| MockVersion::parse(v).unwrap()).collect();
-        
+        let versions: Vec<MockVersion> = vec!["1.2.3", "1.2.4", "1.2.5", "2.0.0", "2.0.1"]
+            .iter()
+            .map(|v| MockVersion::parse(v).unwrap())
+            .collect();
+
         c.bench_function("version_comparison", |b| {
             b.iter(|| {
                 for i in 0..versions.len() {
@@ -120,15 +122,15 @@ pub mod version_module {
             });
         });
     }
-    
+
     pub fn benchmark_version_sorting(c: &mut Criterion) {
         let mut group = c.benchmark_group("version_sorting");
-        
+
         for size in [10, 100, 1000].iter() {
             let versions: Vec<MockVersion> = (0..*size)
                 .map(|i| MockVersion::parse(&format!("1.{}.0", i)).unwrap())
                 .collect();
-            
+
             group.bench_with_input(BenchmarkId::from_parameter(size), size, |b, _| {
                 b.iter(|| {
                     let mut sorted_versions = versions.clone();
@@ -144,36 +146,40 @@ pub mod version_module {
 /// Package module simulation
 pub mod package_module {
     use super::*;
-    
+
     #[derive(Debug, Clone)]
     pub struct MockPackage {
         pub name: String,
         pub version: String,
         pub dependencies: Vec<String>,
     }
-    
+
     impl MockPackage {
         pub fn new(name: &str, version: &str) -> Self {
             // Simulate package creation work
             std::thread::sleep(Duration::from_nanos(50));
-            
+
             Self {
                 name: name.to_string(),
                 version: version.to_string(),
                 dependencies: Vec::new(),
             }
         }
-        
+
         pub fn add_dependency(&mut self, dep: &str) {
             self.dependencies.push(dep.to_string());
         }
     }
-    
+
     pub fn benchmark_package_creation(c: &mut Criterion) {
         let package_names = vec![
-            "package_a", "package_b", "package_c", "package_d", "package_e"
+            "package_a",
+            "package_b",
+            "package_c",
+            "package_d",
+            "package_e",
         ];
-        
+
         c.bench_function("package_creation", |b| {
             b.iter(|| {
                 for name in &package_names {
@@ -182,20 +188,24 @@ pub mod package_module {
             });
         });
     }
-    
+
     pub fn benchmark_dependency_management(c: &mut Criterion) {
         let mut group = c.benchmark_group("dependency_management");
-        
+
         for dep_count in [5, 10, 50].iter() {
-            group.bench_with_input(BenchmarkId::from_parameter(dep_count), dep_count, |b, &dep_count| {
-                b.iter(|| {
-                    let mut package = MockPackage::new("test_package", "1.0.0");
-                    for i in 0..dep_count {
-                        package.add_dependency(&format!("dep_{}", i));
-                    }
-                    black_box(package);
-                });
-            });
+            group.bench_with_input(
+                BenchmarkId::from_parameter(dep_count),
+                dep_count,
+                |b, &dep_count| {
+                    b.iter(|| {
+                        let mut package = MockPackage::new("test_package", "1.0.0");
+                        for i in 0..dep_count {
+                            package.add_dependency(&format!("dep_{}", i));
+                        }
+                        black_box(package);
+                    });
+                },
+            );
         }
         group.finish();
     }
@@ -204,10 +214,10 @@ pub mod package_module {
 /// Performance optimization benchmarks
 pub mod performance_module {
     use super::*;
-    
+
     pub fn benchmark_memory_allocation(c: &mut Criterion) {
         let mut group = c.benchmark_group("memory_allocation");
-        
+
         group.bench_function("vector_allocation", |b| {
             b.iter(|| {
                 let mut vec: Vec<i32> = Vec::new();
@@ -217,7 +227,7 @@ pub mod performance_module {
                 black_box(vec);
             });
         });
-        
+
         group.bench_function("hashmap_allocation", |b| {
             b.iter(|| {
                 let mut map: HashMap<String, i32> = HashMap::new();
@@ -227,17 +237,20 @@ pub mod performance_module {
                 black_box(map);
             });
         });
-        
+
         group.finish();
     }
-    
+
     pub fn benchmark_string_operations(c: &mut Criterion) {
         let test_strings = vec![
-            "package_name_1", "package_name_2", "package_name_3",
+            "package_name_1",
+            "package_name_2",
+            "package_name_3",
             "very_long_package_name_with_many_characters",
-            "short", "medium_length_name"
+            "short",
+            "medium_length_name",
         ];
-        
+
         c.bench_function("string_concatenation", |b| {
             b.iter(|| {
                 let mut result = String::new();
@@ -255,23 +268,23 @@ pub mod performance_module {
 fn comprehensive_benchmarks(c: &mut Criterion) {
     println!("🚀 Running Unified Benchmark Suite");
     println!("==================================");
-    
+
     // Run version module benchmarks
     println!("📦 Running Version Module Benchmarks...");
     version_module::benchmark_version_parsing(c);
     version_module::benchmark_version_comparison(c);
     version_module::benchmark_version_sorting(c);
-    
+
     // Run package module benchmarks
     println!("📦 Running Package Module Benchmarks...");
     package_module::benchmark_package_creation(c);
     package_module::benchmark_dependency_management(c);
-    
+
     // Run performance benchmarks
     println!("⚡ Running Performance Benchmarks...");
     performance_module::benchmark_memory_allocation(c);
     performance_module::benchmark_string_operations(c);
-    
+
     println!("✅ All benchmarks completed successfully");
 }
 

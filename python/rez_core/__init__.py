@@ -8,14 +8,13 @@ package repository operations.
 
 # Core imports from the Rust extension
 from ._rez_core import (
+    # Package system
+    Package,
+    PackageRequirement,
+    PackageVariant,
     # Version system
     Version,
     VersionRange,
-
-    # Package system
-    Package,
-    PackageVariant,
-    PackageRequirement,
 )
 
 # Try to import error types with fallbacks
@@ -37,16 +36,13 @@ __all__ = [
     # Core version management
     "Version",
     "VersionRange",
-
     # Package management
     "Package",
     "PackageVariant",
     "PackageRequirement",
-
     # Error handling
     "RezCoreError",
     "VersionParseError",
-
     # Metadata
     "__version__",
     "__author__",

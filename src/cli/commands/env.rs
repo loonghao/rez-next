@@ -428,6 +428,7 @@ mod tests {
     fn test_env_args_parsing() {
         let args = EnvArgs {
             packages: vec!["python".to_string()],
+            extra_args: vec![],
             shell: Some("bash".to_string()),
             rcfile: None,
             norc: false,

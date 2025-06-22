@@ -107,7 +107,7 @@ pub enum OutputFormat {
 }
 
 /// Output style for shell code
-#[derive(clap::ValueEnum, Clone, Debug)]
+#[derive(clap::ValueEnum, Clone, Debug, PartialEq)]
 pub enum OutputStyle {
     /// File style output
     File,

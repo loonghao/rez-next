@@ -15,7 +15,8 @@ exclude = ["benches/", "examples/"]
 
 [features]
 default = []
-python-bindings = ["pyo3", "rez-core-common/python-bindings", "rez-core-package/python-bindings", "rez-core-version/python-bindings"]
+# Temporarily disabled Python bindings
+# python-bindings = ["pyo3", "rez-core-common/python-bindings", "rez-core-package/python-bindings", "rez-core-version/python-bindings"]
 
 [dependencies]
 rez-core-common = { path = "../rez-core-common" }
@@ -26,7 +27,8 @@ serde.workspace = true
 serde_json.workspace = true
 rayon.workspace = true
 thiserror.workspace = true
-pyo3 = { workspace = true, optional = true }
+# Temporarily disabled Python bindings
+# pyo3 = { workspace = true, optional = true }
 tokio.workspace = true
 regex = "1.0"
 dashmap = "6.0"

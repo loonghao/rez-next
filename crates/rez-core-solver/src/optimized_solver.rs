@@ -3,18 +3,18 @@
 //! This module provides an optimized dependency solver that uses advanced algorithms,
 //! parallel processing, and intelligent caching for maximum performance.
 
-use crate::{DependencyGraph, ResolutionResult, SolverConfig, SolverRequest, ConflictStrategy};
+use crate::{ConflictStrategy, DependencyGraph, ResolutionResult, SolverConfig, SolverRequest};
 use rez_core_common::RezCoreError;
 use rez_core_package::{Package, PackageRequirement};
 // use rez_core_repository::{RepositoryManager, PackageSearchCriteria};
+use dashmap::DashMap;
+use rayon::prelude::*;
 use rez_core_version::{Version, VersionRange};
-use std::collections::{HashMap, HashSet, BTreeMap};
+use smallvec::SmallVec;
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::Arc;
 use std::time::Instant;
 use tokio::sync::RwLock;
-use rayon::prelude::*;
-use dashmap::DashMap;
-use smallvec::SmallVec;
 
 /// High-performance dependency solver with advanced optimizations
 pub struct OptimizedDependencySolver {
@@ -67,12 +67,15 @@ impl OptimizedDependencySolver {
     }
 
     /// Resolve dependencies with maximum performance
-    pub async fn resolve_optimized(&self, request: SolverRequest) -> Result<ResolutionResult, RezCoreError> {
+    pub async fn resolve_optimized(
+        &self,
+        request: SolverRequest,
+    ) -> Result<ResolutionResult, RezCoreError> {
         let start_time = Instant::now();
-        
+
         // Generate cache key for this request
         let cache_key = self.generate_cache_key(&request);
-        
+
         // Check resolution cache first
         if let Some(cached_result) = self.resolution_cache.get(&cache_key) {
             self.update_metrics_cache_hit().await;
@@ -83,10 +86,11 @@ impl OptimizedDependencySolver {
 
         // Perform optimized resolution
         let result = self.resolve_internal_optimized(request).await?;
-        
+
         // Cache the result
-        self.resolution_cache.insert(cache_key, Arc::new(result.clone()));
-        
+        self.resolution_cache
+            .insert(cache_key, Arc::new(result.clone()));
+
         // Update metrics
         let resolution_time = start_time.elapsed().as_millis() as u64;
         self.update_metrics_resolution(resolution_time).await;
@@ -95,13 +99,18 @@ impl OptimizedDependencySolver {
     }
 
     /// Internal optimized resolution implementation
-    async fn resolve_internal_optimized(&self, request: SolverRequest) -> Result<ResolutionResult, RezCoreError> {
+    async fn resolve_internal_optimized(
+        &self,
+        request: SolverRequest,
+    ) -> Result<ResolutionResult, RezCoreError> {
         // Phase 1: Parallel package discovery
         let discovered_packages = self.discover_packages_parallel(&request).await?;
-        
+
         // Phase 2: Build optimized dependency graph
-        let graph = self.build_optimized_graph(&discovered_packages, &request).await?;
-        
+        let graph = self
+            .build_optimized_graph(&discovered_packages, &request)
+            .await?;
+
         // Phase 3: Detect and resolve conflicts using advanced algorithms
         let conflicts = graph.detect_conflicts_optimized();
         let resolved_packages = if conflicts.is_empty() {
@@ -119,43 +128,50 @@ impl OptimizedDependencySolver {
     }
 
     /// Parallel package discovery for maximum throughput
-    async fn discover_packages_parallel(&self, request: &SolverRequest) -> Result<HashMap<String, Vec<Package>>, RezCoreError> {
+    async fn discover_packages_parallel(
+        &self,
+        request: &SolverRequest,
+    ) -> Result<HashMap<String, Vec<Package>>, RezCoreError> {
         let mut discovered = HashMap::new();
-        
+
         // Use parallel processing for package discovery
-        let futures: Vec<_> = request.requirements.iter().map(|req| {
-            let repo_manager = self.repository_manager.clone();
-            let package_cache = self.package_cache.clone();
-            let req_clone = req.clone();
-            
-            async move {
-                // Check package cache first
-                let cache_key = format!("{}:{:?}", req.name, req.range);
-                if let Some(cached_packages) = package_cache.get(&cache_key) {
-                    return Ok((req.name.clone(), (**cached_packages).clone()));
+        let futures: Vec<_> = request
+            .requirements
+            .iter()
+            .map(|req| {
+                let repo_manager = self.repository_manager.clone();
+                let package_cache = self.package_cache.clone();
+                let req_clone = req.clone();
+
+                async move {
+                    // Check package cache first
+                    let cache_key = format!("{}:{:?}", req.name, req.range);
+                    if let Some(cached_packages) = package_cache.get(&cache_key) {
+                        return Ok((req.name.clone(), (**cached_packages).clone()));
+                    }
+
+                    // Search for packages
+                    let search_criteria = PackageSearchCriteria {
+                        name_pattern: Some(req.name.clone()),
+                        version_range: req.range.clone(),
+                        requirements: vec![req_clone.clone()],
+                        limit: Some(1000),
+                        include_prerelease: false,
+                    };
+
+                    let packages = repo_manager.find_packages(&search_criteria).await?;
+
+                    // Cache the result
+                    package_cache.insert(cache_key, Arc::new(packages.clone()));
+
+                    Ok::<_, RezCoreError>((req.name.clone(), packages))
                 }
-
-                // Search for packages
-                let search_criteria = PackageSearchCriteria {
-                    name_pattern: Some(req.name.clone()),
-                    version_range: req.range.clone(),
-                    requirements: vec![req_clone.clone()],
-                    limit: Some(1000),
-                    include_prerelease: false,
-                };
-
-                let packages = repo_manager.find_packages(&search_criteria).await?;
-                
-                // Cache the result
-                package_cache.insert(cache_key, Arc::new(packages.clone()));
-                
-                Ok::<_, RezCoreError>((req.name.clone(), packages))
-            }
-        }).collect();
+            })
+            .collect();
 
         // Execute all searches in parallel
         let results = futures::future::try_join_all(futures).await?;
-        
+
         for (name, packages) in results {
             discovered.insert(name, packages);
         }
@@ -170,7 +186,7 @@ impl OptimizedDependencySolver {
         request: &SolverRequest,
     ) -> Result<OptimizedDependencyGraph, RezCoreError> {
         let mut graph = OptimizedDependencyGraph::new();
-        
+
         // Add packages to graph with optimized insertion
         for (name, packages) in discovered_packages {
             let selected_package = self.select_optimal_package(packages)?;
@@ -192,22 +208,27 @@ impl OptimizedDependencySolver {
     /// Select optimal package using advanced scoring algorithms
     fn select_optimal_package(&self, packages: &[Package]) -> Result<Package, RezCoreError> {
         if packages.is_empty() {
-            return Err(RezCoreError::SolverError("No packages available".to_string()));
+            return Err(RezCoreError::SolverError(
+                "No packages available".to_string(),
+            ));
         }
 
         // Use parallel scoring for large package sets
         let scored_packages: Vec<_> = if packages.len() > 100 {
-            packages.par_iter()
+            packages
+                .par_iter()
                 .map(|pkg| (self.calculate_package_score(pkg), pkg))
                 .collect()
         } else {
-            packages.iter()
+            packages
+                .iter()
                 .map(|pkg| (self.calculate_package_score(pkg), pkg))
                 .collect()
         };
 
         // Find package with highest score
-        let best_package = scored_packages.iter()
+        let best_package = scored_packages
+            .iter()
             .max_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal))
             .map(|(_, pkg)| (*pkg).clone())
             .ok_or_else(|| RezCoreError::SolverError("Failed to select package".to_string()))?;
@@ -222,14 +243,22 @@ impl OptimizedDependencySolver {
         // Version score (prefer latest if configured)
         if let Some(ref version) = package.version {
             score += if self.config.prefer_latest {
-                version.major() as f64 * 1000.0 + version.minor() as f64 * 100.0 + version.patch() as f64
+                version.major() as f64 * 1000.0
+                    + version.minor() as f64 * 100.0
+                    + version.patch() as f64
             } else {
-                -(version.major() as f64 * 1000.0 + version.minor() as f64 * 100.0 + version.patch() as f64)
+                -(version.major() as f64 * 1000.0
+                    + version.minor() as f64 * 100.0
+                    + version.patch() as f64)
             };
         }
 
         // Stability score (prefer stable versions)
-        if package.version.as_ref().map_or(false, |v| !v.is_prerelease()) {
+        if package
+            .version
+            .as_ref()
+            .map_or(false, |v| !v.is_prerelease())
+        {
             score += 10000.0;
         }
 
@@ -246,14 +275,14 @@ impl OptimizedDependencySolver {
         graph: &OptimizedDependencyGraph,
     ) -> Result<Vec<Package>, RezCoreError> {
         let conflict_key = self.generate_conflict_key(&conflicts);
-        
+
         // Check conflict cache
         if let Some(cached_resolution) = self.conflict_cache.get(&conflict_key) {
             return Ok(cached_resolution.resolved_packages.clone());
         }
 
         let start_time = Instant::now();
-        
+
         // Use different strategies based on conflict complexity
         let resolved_packages = match conflicts.len() {
             1..=5 => self.resolve_simple_conflicts(&conflicts, graph).await?,
@@ -262,14 +291,15 @@ impl OptimizedDependencySolver {
         };
 
         let resolution_time = start_time.elapsed().as_millis() as u64;
-        
+
         // Cache the resolution
         let resolution = ConflictResolution {
             resolved_packages: resolved_packages.clone(),
             resolution_strategy: self.config.conflict_strategy.clone(),
             resolution_time_ms: resolution_time,
         };
-        self.conflict_cache.insert(conflict_key, Arc::new(resolution));
+        self.conflict_cache
+            .insert(conflict_key, Arc::new(resolution));
 
         self.update_metrics_conflict_resolution().await;
 
@@ -294,9 +324,10 @@ impl OptimizedDependencySolver {
                     // Implementation details...
                 }
                 ConflictStrategy::FailOnConflict => {
-                    return Err(RezCoreError::SolverError(
-                        format!("Conflict detected: {:?}", conflict)
-                    ));
+                    return Err(RezCoreError::SolverError(format!(
+                        "Conflict detected: {:?}",
+                        conflict
+                    )));
                 }
                 ConflictStrategy::FindCompatible => {
                     // Try to find compatible versions
@@ -336,7 +367,7 @@ impl OptimizedDependencySolver {
         use std::hash::{Hash, Hasher};
 
         let mut hasher = DefaultHasher::new();
-        
+
         // Hash all request components
         for req in &request.requirements {
             req.requirement_string.hash(&mut hasher);
@@ -379,9 +410,10 @@ impl OptimizedDependencySolver {
     async fn update_metrics_resolution(&self, resolution_time_ms: u64) {
         let mut metrics = self.metrics.write().await;
         metrics.total_resolutions += 1;
-        
+
         // Update average resolution time
-        let total_time = metrics.avg_resolution_time_ms * (metrics.total_resolutions - 1) as f64 + resolution_time_ms as f64;
+        let total_time = metrics.avg_resolution_time_ms * (metrics.total_resolutions - 1) as f64
+            + resolution_time_ms as f64;
         metrics.avg_resolution_time_ms = total_time / metrics.total_resolutions as f64;
     }
 
@@ -429,7 +461,10 @@ impl OptimizedDependencyGraph {
         Ok(())
     }
 
-    pub fn add_constraint_optimized(&mut self, constraint: PackageRequirement) -> Result<(), RezCoreError> {
+    pub fn add_constraint_optimized(
+        &mut self,
+        constraint: PackageRequirement,
+    ) -> Result<(), RezCoreError> {
         self.constraints.push(constraint);
         Ok(())
     }

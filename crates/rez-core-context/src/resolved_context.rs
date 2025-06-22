@@ -40,7 +40,7 @@ pub struct RezResolvedContext {
     /// Platform information
     pub platform: String,
 
-    /// Architecture information  
+    /// Architecture information
     pub arch: String,
 
     /// The Rez version used to create this context

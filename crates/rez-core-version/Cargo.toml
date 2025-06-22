@@ -15,7 +15,8 @@ exclude = ["benches/", "tests/fixtures/"]
 
 [features]
 default = []
-python-bindings = ["pyo3", "rez-core-common/python-bindings"]
+# Temporarily disabled Python bindings
+# python-bindings = ["pyo3", "rez-core-common/python-bindings"]
 
 [lib]
 name = "rez_core_version"
@@ -27,7 +28,8 @@ serde.workspace = true
 serde_json.workspace = true
 regex.workspace = true
 thiserror.workspace = true
-pyo3 = { workspace = true, optional = true }
+# Temporarily disabled Python bindings
+# pyo3 = { workspace = true, optional = true }
 lru.workspace = true
 rand.workspace = true
 # Performance optimization dependencies

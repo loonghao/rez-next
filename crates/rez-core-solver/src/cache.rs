@@ -91,7 +91,7 @@ impl Default for SolverCacheConfig {
     fn default() -> Self {
         Self {
             max_entries: 1000,
-            default_ttl: 3600, // 1 hour
+            default_ttl: 3600,                  // 1 hour
             max_memory_bytes: 50 * 1024 * 1024, // 50 MB
             eviction_strategy: EvictionStrategy::LRU,
             enable_persistence: false,
@@ -209,7 +209,7 @@ impl SolverCache {
 
         {
             let mut entries = self.entries.write().await;
-            
+
             // Check if we need to evict entries
             if entries.len() >= self.config.max_entries {
                 self.evict_entries(&mut entries).await;
@@ -239,7 +239,7 @@ impl SolverCache {
 
         if removed {
             self.remove_from_access_order(key).await;
-            
+
             let mut stats = self.stats.write().await;
             stats.entries = entries.len();
         }
@@ -327,13 +327,13 @@ impl SolverCache {
     async fn evict_lru(&self, entries: &mut HashMap<String, SolverCacheEntry>, count: usize) {
         let access_order = self.access_order.read().await;
         let keys_to_evict: Vec<String> = access_order.iter().take(count).cloned().collect();
-        
+
         for key in &keys_to_evict {
             entries.remove(key);
         }
-        
+
         drop(access_order);
-        
+
         // Remove from access order
         for key in &keys_to_evict {
             self.remove_from_access_order(key).await;
@@ -342,17 +342,19 @@ impl SolverCache {
 
     /// Evict least frequently used entries
     async fn evict_lfu(&self, entries: &mut HashMap<String, SolverCacheEntry>, count: usize) {
-        let mut entries_by_frequency: Vec<_> = entries.iter()
+        let mut entries_by_frequency: Vec<_> = entries
+            .iter()
             .map(|(key, entry)| (key.clone(), entry.access_count))
             .collect();
-        
+
         entries_by_frequency.sort_by(|a, b| a.1.cmp(&b.1));
-        
-        let keys_to_evict: Vec<String> = entries_by_frequency.iter()
+
+        let keys_to_evict: Vec<String> = entries_by_frequency
+            .iter()
             .take(count)
             .map(|(key, _)| key.clone())
             .collect();
-        
+
         for key in &keys_to_evict {
             entries.remove(key);
             self.remove_from_access_order(key).await;
@@ -361,17 +363,19 @@ impl SolverCache {
 
     /// Evict oldest entries (FIFO)
     async fn evict_fifo(&self, entries: &mut HashMap<String, SolverCacheEntry>, count: usize) {
-        let mut entries_by_age: Vec<_> = entries.iter()
+        let mut entries_by_age: Vec<_> = entries
+            .iter()
             .map(|(key, entry)| (key.clone(), entry.timestamp))
             .collect();
-        
+
         entries_by_age.sort_by(|a, b| a.1.cmp(&b.1));
-        
-        let keys_to_evict: Vec<String> = entries_by_age.iter()
+
+        let keys_to_evict: Vec<String> = entries_by_age
+            .iter()
             .take(count)
             .map(|(key, _)| key.clone())
             .collect();
-        
+
         for key in &keys_to_evict {
             entries.remove(key);
             self.remove_from_access_order(key).await;
@@ -380,11 +384,12 @@ impl SolverCache {
 
     /// Evict expired entries
     async fn evict_expired(&self, entries: &mut HashMap<String, SolverCacheEntry>) {
-        let expired_keys: Vec<String> = entries.iter()
+        let expired_keys: Vec<String> = entries
+            .iter()
             .filter(|(_, entry)| !entry.is_valid())
             .map(|(key, _)| key.clone())
             .collect();
-        
+
         for key in &expired_keys {
             entries.remove(key);
             self.remove_from_access_order(key).await;
@@ -394,10 +399,10 @@ impl SolverCache {
     /// Update access order for LRU tracking
     async fn update_access_order(&self, key: &str) {
         let mut access_order = self.access_order.write().await;
-        
+
         // Remove key if it already exists
         access_order.retain(|k| k != key);
-        
+
         // Add to the end (most recently used)
         access_order.push(key.to_string());
     }

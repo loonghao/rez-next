@@ -4,7 +4,7 @@ Test rez-core compatibility with original rez version system.
 This module contains tests based on the original rez project to ensure
 our Rust implementation is fully compatible with rez's version behavior.
 
-Based on: C:\github\rez\src\rez\tests\test_version.py
+Based on: C:\\github\rez\\src\rez\tests\test_version.py
 """
 
 import pytest
@@ -27,7 +27,7 @@ class TestRezVersionCompatibility:
         # Ascending order from original rez tests
         ascending = [
             "",
-            "0.0.0", 
+            "0.0.0",
             "1",
             "2",
             "2.alpha1",
@@ -36,9 +36,9 @@ class TestRezVersionCompatibility:
             "2.0",
             "2.0.8.8",
             "2.1",
-            "2.1.0"
+            "2.1.0",
         ]
-        
+
         # Test that each version is less than the next
         for i in range(len(ascending) - 1):
             v1 = rez_core.Version(ascending[i])
@@ -60,7 +60,7 @@ class TestRezVersionCompatibility:
             ("alpha", "alpha3"),
             ("gamma33", "33gamma"),
         ]
-        
+
         for a, b in test_cases:
             v1 = rez_core.Version(a)
             v2 = rez_core.Version(b)
@@ -71,7 +71,7 @@ class TestRezVersionCompatibility:
         # Test as_tuple equivalent (we use string representation)
         v = rez_core.Version("1.2.12")
         # In our implementation, we don't have as_tuple, but we can test string parts
-        parts = str(v).split('.')
+        parts = str(v).split(".")
         assert parts == ["1", "2", "12"]
 
     def test_prerelease_comparison(self):
@@ -80,7 +80,7 @@ class TestRezVersionCompatibility:
         v1 = rez_core.Version("2.0.0-alpha")
         v2 = rez_core.Version("2.0.0")
         assert v1 < v2, "Pre-release should be less than release"
-        
+
         # Test alpha < beta
         v3 = rez_core.Version("2.0.0-alpha")
         v4 = rez_core.Version("2.0.0-beta")
@@ -109,20 +109,20 @@ class TestVersionErrorHandling:
         """Test that invalid versions raise appropriate errors."""
         invalid_cases = [
             "",
-            "not.a.version", 
+            "not.a.version",
             "1.2.3.4.5.6.7",  # too many components
             "v1.2.3",  # prefix not supported
         ]
-        
+
         for invalid in invalid_cases:
             with pytest.raises((ValueError, rez_core.PyVersionParseError)):
                 rez_core.Version(invalid)
-                
+
     def test_parse_version_errors(self):
         """Test parse_version function error handling."""
         with pytest.raises((ValueError, rez_core.PyVersionParseError)):
             rez_core.parse_version("invalid.version")
-            
+
         with pytest.raises((ValueError, rez_core.PyVersionParseError)):
             rez_core.parse_version("")
 
@@ -135,14 +135,14 @@ class TestVersionRangeCompatibility:
         # Test that version ranges can be created
         vr = rez_core.VersionRange(">=1.0.0")
         assert str(vr) == ">=1.0.0"
-        
+
     def test_version_range_contains(self):
         """Test version range containment."""
         vr = rez_core.VersionRange(">=1.0.0")
         v1 = rez_core.Version("1.0.0")
         v2 = rez_core.Version("2.0.0")
         v3 = rez_core.Version("0.9.0")
-        
+
         # Note: This is placeholder behavior for now
         assert vr.contains(v1)
         assert vr.contains(v2)
@@ -156,25 +156,25 @@ class TestVersionPerformance:
     def test_version_creation_performance(self):
         """Test that version creation is reasonably fast."""
         import time
-        
+
         start_time = time.time()
         for i in range(1000):
             rez_core.Version(f"1.{i % 100}.{i % 10}")
         end_time = time.time()
-        
+
         # Should be able to create 1000 versions quickly
         assert (end_time - start_time) < 2.0
 
     def test_version_comparison_performance(self):
         """Test that version comparison is reasonably fast."""
         import time
-        
+
         versions = [rez_core.Version(f"1.{i}.0") for i in range(100)]
-        
+
         start_time = time.time()
         for _ in range(10):
             sorted(versions)
         end_time = time.time()
-        
+
         # Should be able to sort versions quickly
         assert (end_time - start_time) < 1.0

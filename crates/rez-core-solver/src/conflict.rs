@@ -1,6 +1,6 @@
 //! Conflict detection and resolution
 
-use crate::{DependencyConflict, ConflictResolution, ConflictStrategy};
+use crate::{ConflictResolution, ConflictStrategy, DependencyConflict};
 use rez_core_common::RezCoreError;
 use rez_core_package::PackageRequirement;
 use rez_core_version::{Version, VersionRange};
@@ -55,10 +55,10 @@ impl ConflictResolver {
             ConflictStrategy::LatestWins => self.resolve_latest_wins(conflict).await?,
             ConflictStrategy::EarliestWins => self.resolve_earliest_wins(conflict).await?,
             ConflictStrategy::FailOnConflict => {
-                return Err(RezCoreError::SolverError(
-                    format!("Conflict detected for package {}: {:?}", 
-                        conflict.package_name, conflict.conflicting_requirements)
-                ));
+                return Err(RezCoreError::SolverError(format!(
+                    "Conflict detected for package {}: {:?}",
+                    conflict.package_name, conflict.conflicting_requirements
+                )));
             }
             ConflictStrategy::FindCompatible => self.resolve_find_compatible(conflict).await?,
         };
@@ -143,7 +143,7 @@ impl ConflictResolver {
     ) -> Result<ConflictResolution, RezCoreError> {
         // Try to find a version that satisfies all requirements
         let compatible_range = self.find_compatible_range(&conflict.conflicting_requirements)?;
-        
+
         let selected_version = if let Some(range) = compatible_range {
             // Select the latest version within the compatible range
             range.get_max_version()
@@ -199,7 +199,7 @@ impl ConflictResolver {
         use std::hash::{Hash, Hasher};
 
         let mut hasher = DefaultHasher::new();
-        
+
         conflict.package_name.hash(&mut hasher);
         for req in &conflict.conflicting_requirements {
             req.requirement_string.hash(&mut hasher);
@@ -286,7 +286,9 @@ impl ConflictResolver {
             *conflicts_by_severity.entry(severity_str).or_insert(0) += 1;
 
             // Count conflicts per package
-            *package_conflict_count.entry(conflict.package_name.clone()).or_insert(0) += 1;
+            *package_conflict_count
+                .entry(conflict.package_name.clone())
+                .or_insert(0) += 1;
 
             // Generate suggestions for this conflict
             let conflict_suggestions = self.generate_suggestions_for_conflict(conflict);
@@ -311,11 +313,16 @@ impl ConflictResolver {
     }
 
     /// Generate suggestions for a specific conflict
-    fn generate_suggestions_for_conflict(&self, conflict: &DependencyConflict) -> Vec<ConflictSuggestion> {
+    fn generate_suggestions_for_conflict(
+        &self,
+        conflict: &DependencyConflict,
+    ) -> Vec<ConflictSuggestion> {
         let mut suggestions = Vec::new();
 
         // Suggest upgrading to latest compatible version
-        if let Some(latest_version) = self.find_latest_compatible_version(&conflict.conflicting_requirements) {
+        if let Some(latest_version) =
+            self.find_latest_compatible_version(&conflict.conflicting_requirements)
+        {
             suggestions.push(ConflictSuggestion {
                 package_name: conflict.package_name.clone(),
                 action: SuggestionAction::Upgrade(latest_version.as_str().to_string()),
@@ -338,7 +345,10 @@ impl ConflictResolver {
     }
 
     /// Find the latest version that is compatible with all requirements
-    fn find_latest_compatible_version(&self, requirements: &[PackageRequirement]) -> Option<Version> {
+    fn find_latest_compatible_version(
+        &self,
+        requirements: &[PackageRequirement],
+    ) -> Option<Version> {
         if let Ok(Some(compatible_range)) = self.find_compatible_range(requirements) {
             compatible_range.get_max_version()
         } else {

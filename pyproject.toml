@@ -35,7 +35,8 @@ Issues = "https://github.com/loonghao/rez-core/issues"
 [tool.maturin]
 python-source = "python"
 module-name = "rez_core._rez_core"
-features = ["pyo3/extension-module", "pyo3/abi3-py38"]
+# Temporarily disabled Python bindings to focus on core Rust functionality
+# features = ["pyo3/extension-module", "pyo3/abi3-py38"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests/python"]
