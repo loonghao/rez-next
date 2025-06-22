@@ -12,6 +12,16 @@
 >
 > **🎯 Drop-in replacement delivering 117x performance improvements while maintaining 100% API compatibility**
 
+## ⚠️ **EXPERIMENTAL - DO NOT USE IN PRODUCTION**
+
+> **🚧 This project is currently in experimental development phase**
+>
+> **❌ NOT READY FOR PRODUCTION USE**
+>
+> This is a research and development project aimed at rewriting Rez's core functionality in Rust for performance improvements. Many features are incomplete or missing. Use at your own risk and do not deploy in production environments.
+>
+> **For production use, please continue using the [official Rez package manager](https://github.com/AcademySoftwareFoundation/rez).**
+
 [English](README.md) | [中文](README_zh.md)
 
 ---
