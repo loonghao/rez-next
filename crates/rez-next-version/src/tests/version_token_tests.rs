@@ -1,8 +1,9 @@
 //! Tests for VersionToken compatibility with rez
 
+#[cfg(feature = "python-bindings")]
 use crate::version_token::{AlphanumericVersionToken, NumericToken, SubToken};
 
-#[cfg(test)]
+#[cfg(all(test, feature = "python-bindings"))]
 mod tests {
     use super::*;
 

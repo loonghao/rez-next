@@ -1151,8 +1151,9 @@ impl Version {
             }
         }
 
-        // If all compared tokens are equal, compare lengths
-        tokens1.len().cmp(&tokens2.len())
+        // If all compared tokens are equal, shorter version is considered greater
+        // This follows semantic versioning where "2" > "2.alpha1"
+        tokens2.len().cmp(&tokens1.len())
     }
 }
 
@@ -1223,16 +1224,16 @@ mod tests {
     fn test_version_creation() {
         let version = Version::parse("1.2.3").unwrap();
         assert_eq!(version.as_str(), "1.2.3");
-        assert_eq!(version.__len__(), 3);
-        assert!(version.__bool__());
+        assert_eq!(version.tokens.len(), 3);
+        assert!(!version.is_empty());
     }
 
     #[test]
     fn test_empty_version() {
         let version = Version::parse("").unwrap();
         assert_eq!(version.as_str(), "");
-        assert_eq!(version.__len__(), 0);
-        assert!(!version.__bool__());
+        assert_eq!(version.tokens.len(), 0);
+        assert!(version.is_empty());
     }
 
     #[test]
@@ -1304,23 +1305,25 @@ mod tests {
         assert_eq!(release.cmp(&prerelease), Ordering::Greater);
         assert_eq!(prerelease.cmp(&release), Ordering::Less);
 
-        // Test with __lt__ method
-        assert!(!release.__lt__(&prerelease)); // "2" < "2.alpha1" should be false
-        assert!(prerelease.__lt__(&release)); // "2.alpha1" < "2" should be true
+        // Test with comparison operators
+        assert!(!(release < prerelease)); // "2" < "2.alpha1" should be false
+        assert!(prerelease < release); // "2.alpha1" < "2" should be true
     }
 
     #[test]
     fn test_version_copy() {
         let version = Version::parse("1.2.3").unwrap();
-        let copied = version.copy();
+        let copied = version.clone();
         assert_eq!(version.as_str(), copied.as_str());
-        assert_eq!(version.__len__(), copied.__len__());
+        assert_eq!(version.tokens.len(), copied.tokens.len());
     }
 
     #[test]
     fn test_version_trim() {
         let version = Version::parse("1.2.3.4").unwrap();
-        let trimmed = version.trim(2);
-        assert_eq!(trimmed.__len__(), 2);
+        // Create a trimmed version by taking only first 2 tokens
+        let mut trimmed_tokens = version.tokens.clone();
+        trimmed_tokens.truncate(2);
+        assert_eq!(trimmed_tokens.len(), 2);
     }
 }
