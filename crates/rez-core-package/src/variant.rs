@@ -1,9 +1,9 @@
 //! Package variant implementation
 
-use rez_core_common::RezCoreError;
-use rez_core_version::Version;
 #[cfg(feature = "python-bindings")]
 use pyo3::prelude::*;
+use rez_core_common::RezCoreError;
+use rez_core_version::Version;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -34,25 +34,25 @@ pub struct PackageVariant {
     /// Variant index (None for packages without variants) (non-Python version)
     #[cfg(not(feature = "python-bindings"))]
     pub index: Option<usize>,
-    
+
     /// Variant requirements (overrides parent package requirements)
     pub requires: Vec<String>,
-    
+
     /// Variant build requirements
     pub build_requires: Vec<String>,
-    
+
     /// Variant private build requirements
     pub private_build_requires: Vec<String>,
-    
+
     /// Variant-specific commands
     pub commands: Option<String>,
-    
+
     /// Variant root path
     pub root: Option<String>,
-    
+
     /// Variant subpath
     pub subpath: Option<String>,
-    
+
     /// Variant metadata
     #[cfg(feature = "python-bindings")]
     pub metadata: HashMap<String, PyObject>,
@@ -65,7 +65,8 @@ pub struct PackageVariant {
 impl Clone for PackageVariant {
     fn clone(&self) -> Self {
         Python::with_gil(|py| {
-            let cloned_metadata: HashMap<String, PyObject> = self.metadata
+            let cloned_metadata: HashMap<String, PyObject> = self
+                .metadata
                 .iter()
                 .map(|(k, v)| (k.clone(), v.clone_ref(py)))
                 .collect();
@@ -130,14 +131,21 @@ impl<'de> Deserialize<'de> for PackageVariant {
     where
         D: serde::Deserializer<'de>,
     {
-        use serde::de::{self, Deserializer, Visitor, MapAccess};
+        use serde::de::{self, Deserializer, MapAccess, Visitor};
         use std::fmt;
 
         #[derive(Deserialize)]
         #[serde(field_identifier, rename_all = "snake_case")]
         enum Field {
-            Name, Version, Index, Requires, BuildRequires,
-            PrivateBuildRequires, Commands, Root, Subpath,
+            Name,
+            Version,
+            Index,
+            Requires,
+            BuildRequires,
+            PrivateBuildRequires,
+            Commands,
+            Root,
+            Subpath,
         }
 
         struct PackageVariantVisitor;
@@ -239,8 +247,15 @@ impl<'de> Deserialize<'de> for PackageVariant {
         }
 
         const FIELDS: &'static [&'static str] = &[
-            "name", "version", "index", "requires", "build_requires",
-            "private_build_requires", "commands", "root", "subpath",
+            "name",
+            "version",
+            "index",
+            "requires",
+            "build_requires",
+            "private_build_requires",
+            "commands",
+            "root",
+            "subpath",
         ];
         deserializer.deserialize_struct("PackageVariant", FIELDS, PackageVariantVisitor)
     }
@@ -272,7 +287,7 @@ impl PackageVariant {
             Some(version) => format!("{}-{}", self.name, version.as_str()),
             None => self.name.clone(),
         };
-        
+
         match self.index {
             Some(idx) => format!("{}[{}]", base_name, idx),
             None => base_name,
@@ -372,39 +387,54 @@ impl PackageVariant {
     pub fn validate(&self) -> Result<(), RezCoreError> {
         // Check required fields
         if self.name.is_empty() {
-            return Err(RezCoreError::PackageParse("Variant name cannot be empty".to_string()));
+            return Err(RezCoreError::PackageParse(
+                "Variant name cannot be empty".to_string(),
+            ));
         }
 
         // Validate name format (alphanumeric, underscore, hyphen)
-        if !self.name.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '-') {
-            return Err(RezCoreError::PackageParse(
-                format!("Invalid variant name '{}': only alphanumeric, underscore, and hyphen allowed", self.name)
-            ));
+        if !self
+            .name
+            .chars()
+            .all(|c| c.is_alphanumeric() || c == '_' || c == '-')
+        {
+            return Err(RezCoreError::PackageParse(format!(
+                "Invalid variant name '{}': only alphanumeric, underscore, and hyphen allowed",
+                self.name
+            )));
         }
 
         // Validate version if present
         if let Some(ref version) = self.version {
             if version.as_str().is_empty() {
-                return Err(RezCoreError::PackageParse("Variant version cannot be empty".to_string()));
+                return Err(RezCoreError::PackageParse(
+                    "Variant version cannot be empty".to_string(),
+                ));
             }
         }
 
         // Validate requirements format
         for req in &self.requires {
             if req.is_empty() {
-                return Err(RezCoreError::PackageParse("Variant requirement cannot be empty".to_string()));
+                return Err(RezCoreError::PackageParse(
+                    "Variant requirement cannot be empty".to_string(),
+                ));
             }
         }
 
         for req in &self.build_requires {
             if req.is_empty() {
-                return Err(RezCoreError::PackageParse("Variant build requirement cannot be empty".to_string()));
+                return Err(RezCoreError::PackageParse(
+                    "Variant build requirement cannot be empty".to_string(),
+                ));
             }
         }
 
         for req in &self.private_build_requires {
             if req.is_empty() {
-                return Err(RezCoreError::PackageParse("Variant private build requirement cannot be empty".to_string()));
+                return Err(RezCoreError::PackageParse(
+                    "Variant private build requirement cannot be empty".to_string(),
+                ));
             }
         }
 

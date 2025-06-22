@@ -6,8 +6,8 @@
 //! This module implements a complete CLI system compatible with the original Rez,
 //! using clap for argument parsing and integrating with all rez-core modules.
 
-use clap::{Parser, Subcommand, CommandFactory};
-use rez_core_common::{RezCoreError, error::RezCoreResult};
+use clap::{CommandFactory, Parser, Subcommand};
+use rez_core_common::{error::RezCoreResult, RezCoreError};
 
 pub mod commands;
 pub mod utils;
@@ -144,12 +144,12 @@ impl RezCli {
         println!("Target: {}", std::env::consts::ARCH);
         println!("OS: {}", std::env::consts::OS);
         println!();
-        
+
         // TODO: Add more system information when other modules are available
         // - Package paths
         // - Configuration files
         // - Available repositories
-        
+
         Ok(())
     }
 
@@ -165,11 +165,9 @@ impl RezCli {
             RezCommand::Build(args) => commands::build::execute(args.clone()),
             RezCommand::Search(args) => commands::search_v2::execute(args.clone()),
             RezCommand::Bind(args) => commands::bind::execute(args.clone()),
-            RezCommand::Depends(args) => {
-                tokio::runtime::Runtime::new()
-                    .map_err(|e| RezCoreError::Io(e.into()))?
-                    .block_on(commands::depends::execute_depends(args.clone()))
-            }
+            RezCommand::Depends(args) => tokio::runtime::Runtime::new()
+                .map_err(|e| RezCoreError::Io(e.into()))?
+                .block_on(commands::depends::execute_depends(args.clone())),
             RezCommand::Solve(args) => commands::solve::execute(args.clone()),
             RezCommand::Cp(args) => commands::cp::execute(args.clone()),
             RezCommand::Mv(args) => commands::mv::execute(args.clone()),
@@ -178,14 +176,10 @@ impl RezCli {
             RezCommand::Diff(args) => commands::diff::execute(args.clone()),
             RezCommand::PkgHelp(args) => commands::help::execute(args.clone()),
             RezCommand::Plugins(args) => commands::plugins::execute(args.clone()),
-            RezCommand::PkgCache(args) => {
-                tokio::runtime::Runtime::new()
-                    .map_err(|e| RezCoreError::Io(e.into()))?
-                    .block_on(commands::pkg_cache::execute(args.clone()))
-            }
-            RezCommand::ParseVersion { version } => {
-                self.parse_version_command(version)
-            }
+            RezCommand::PkgCache(args) => tokio::runtime::Runtime::new()
+                .map_err(|e| RezCoreError::Io(e.into()))?
+                .block_on(commands::pkg_cache::execute(args.clone())),
+            RezCommand::ParseVersion { version } => self.parse_version_command(version),
             RezCommand::SelfTest => self.run_tests(),
         }
     }
@@ -193,11 +187,18 @@ impl RezCli {
     /// Parse version command (development utility)
     fn parse_version_command(&self, version_str: &str) -> RezCoreResult<()> {
         use rez_core_version::Version;
-        
+
         match Version::parse(version_str) {
             Ok(version) => {
                 println!("✅ Valid version: {}", version.as_str());
-                println!("   Type: {}", if version.is_empty() { "Empty/epsilon" } else { "Normal" });
+                println!(
+                    "   Type: {}",
+                    if version.is_empty() {
+                        "Empty/epsilon"
+                    } else {
+                        "Normal"
+                    }
+                );
                 Ok(())
             }
             Err(e) => {
@@ -211,10 +212,10 @@ impl RezCli {
     fn run_tests(&self) -> RezCoreResult<()> {
         println!("🧪 Running rez-core functionality tests...");
         println!();
-        
+
         let mut passed = 0;
         let mut failed = 0;
-        
+
         // Test 1: Version parsing
         print!("Test 1: Version parsing... ");
         match self.test_version_parsing() {
@@ -227,13 +228,13 @@ impl RezCli {
                 failed += 1;
             }
         }
-        
+
         println!();
         println!("📊 Test Results:");
         println!("   Passed: {}", passed);
         println!("   Failed: {}", failed);
         println!("   Total:  {}", passed + failed);
-        
+
         if failed > 0 {
             println!();
             println!("❌ Some tests failed!");
@@ -248,15 +249,8 @@ impl RezCli {
     /// Test version parsing functionality
     fn test_version_parsing(&self) -> RezCoreResult<()> {
         use rez_core_version::Version;
-        
-        let test_cases = vec![
-            "1.0.0",
-            "2.1.3",
-            "1.0.0-alpha1",
-            "3.2.1-beta.2",
-            "1.0",
-            "1",
-        ];
+
+        let test_cases = vec!["1.0.0", "2.1.3", "1.0.0-alpha1", "3.2.1-beta.2", "1.0", "1"];
 
         for case in test_cases {
             Version::parse(case).map_err(|e| {

@@ -4,11 +4,12 @@
 //! multi-level caching, predictive preheating, and adaptive tuning.
 
 use crate::{
-    UnifiedCache, UnifiedCacheConfig, UnifiedCacheStats, CacheError,
-    PredictivePreheater, AdaptiveTuner, PerformanceMonitor,
+    AdaptiveTuner, CacheError, PerformanceMonitor, PredictivePreheater, UnifiedCache,
+    UnifiedCacheConfig, UnifiedCacheStats,
 };
 use dashmap::DashMap;
 
+use async_trait::async_trait;
 use std::{
     collections::HashMap,
     hash::Hash,
@@ -16,7 +17,6 @@ use std::{
     time::{Duration, Instant, SystemTime},
 };
 use tokio::sync::RwLock as AsyncRwLock;
-use async_trait::async_trait;
 
 /// Multi-level cache entry with metadata
 #[derive(Debug, Clone)]
@@ -60,8 +60,9 @@ impl<V> MultiLevelCacheEntry<V> {
         if self.ttl == 0 {
             return true; // No expiration
         }
-        
-        let elapsed = self.created_at
+
+        let elapsed = self
+            .created_at
             .elapsed()
             .unwrap_or(Duration::from_secs(u64::MAX))
             .as_secs();
@@ -76,13 +77,14 @@ impl<V> MultiLevelCacheEntry<V> {
 
     /// Calculate entry priority for eviction
     pub fn calculate_priority(&self) -> f64 {
-        let age_factor = self.last_accessed
+        let age_factor = self
+            .last_accessed
             .elapsed()
             .unwrap_or(Duration::from_secs(0))
             .as_secs() as f64;
         let frequency_factor = self.access_count as f64;
         let size_factor = 1.0 / (self.size_bytes as f64 + 1.0);
-        
+
         // Higher score = higher priority to keep
         (frequency_factor * size_factor) / (age_factor + 1.0)
     }
@@ -93,7 +95,7 @@ impl<V> MultiLevelCacheEntry<V> {
 /// Coordinates multi-level caching with predictive preheating and adaptive tuning.
 /// Provides unified interface for all cache operations while optimizing performance.
 #[derive(Debug)]
-pub struct IntelligentCacheManager<K, V> 
+pub struct IntelligentCacheManager<K, V>
 where
     K: Clone + Hash + Eq + Send + Sync + std::fmt::Debug + 'static,
     V: Clone + Send + Sync + std::fmt::Debug + 'static,
@@ -126,7 +128,7 @@ where
         let preheater = Arc::new(PredictivePreheater::new(config.preheating_config.clone()));
         let tuner = Arc::new(AdaptiveTuner::new(config.tuning_config.clone()));
         let monitor = Arc::new(PerformanceMonitor::new(config.monitoring_config.clone()));
-        
+
         Self {
             config,
             l1_cache: Arc::new(DashMap::new()),
@@ -167,21 +169,26 @@ where
 
         let mut patterns = self.access_patterns.write().unwrap();
         let now = SystemTime::now();
-        
+
         patterns
             .entry(key.clone())
             .or_insert_with(Vec::new)
             .push(now);
 
         // Keep only recent accesses for pattern analysis
-        let cutoff = now - Duration::from_secs(self.config.preheating_config.pattern_window_seconds);
+        let cutoff =
+            now - Duration::from_secs(self.config.preheating_config.pattern_window_seconds);
         if let Some(times) = patterns.get_mut(key) {
             times.retain(|&time| time > cutoff);
         }
     }
 
     /// Promote data from L2 to L1 cache
-    async fn promote_to_l1(&self, key: K, mut entry: MultiLevelCacheEntry<V>) -> Result<(), CacheError> {
+    async fn promote_to_l1(
+        &self,
+        key: K,
+        mut entry: MultiLevelCacheEntry<V>,
+    ) -> Result<(), CacheError> {
         // Check L1 capacity
         if self.l1_cache.len() >= self.config.l1_config.max_entries {
             self.evict_l1_entries().await?;
@@ -208,7 +215,11 @@ where
     }
 
     /// Demote data from L1 to L2 cache
-    async fn demote_to_l2(&self, key: K, mut entry: MultiLevelCacheEntry<V>) -> Result<(), CacheError> {
+    async fn demote_to_l2(
+        &self,
+        key: K,
+        mut entry: MultiLevelCacheEntry<V>,
+    ) -> Result<(), CacheError> {
         // Check L2 capacity
         {
             let l2_cache = self.l2_cache.read().await;
@@ -242,9 +253,10 @@ where
     /// Evict entries from L1 cache
     async fn evict_l1_entries(&self) -> Result<(), CacheError> {
         let eviction_count = (self.l1_cache.len() as f64 * 0.1).max(1.0) as usize;
-        
+
         // Collect entries with their priorities
-        let mut entries: Vec<(K, f64)> = self.l1_cache
+        let mut entries: Vec<(K, f64)> = self
+            .l1_cache
             .iter()
             .map(|entry| {
                 let priority = entry.value().calculate_priority();
@@ -272,7 +284,7 @@ where
     async fn evict_l2_entries(&self) -> Result<(), CacheError> {
         let mut l2_cache = self.l2_cache.write().await;
         let eviction_count = (l2_cache.len() as f64 * 0.1).max(1.0) as usize;
-        
+
         // Collect entries with their priorities
         let mut entries: Vec<(K, f64)> = l2_cache
             .iter()
@@ -297,7 +309,8 @@ where
     async fn update_statistics(&self) {
         // Collect L1 statistics
         let l1_entries = self.l1_cache.len();
-        let l1_usage_bytes = self.l1_cache
+        let l1_usage_bytes = self
+            .l1_cache
             .iter()
             .map(|entry| entry.value().size_bytes)
             .sum();
@@ -306,10 +319,7 @@ where
         let (l2_entries, l2_usage_bytes) = {
             let l2_cache = self.l2_cache.read().await;
             let entries = l2_cache.len();
-            let usage_bytes = l2_cache
-                .values()
-                .map(|entry| entry.size_bytes)
-                .sum();
+            let usage_bytes = l2_cache.values().map(|entry| entry.size_bytes).sum();
             (entries, usage_bytes)
         };
 
@@ -428,12 +438,8 @@ where
         let size_bytes = std::mem::size_of::<V>() as u64;
 
         // Create cache entry for L1
-        let entry = MultiLevelCacheEntry::new(
-            value,
-            self.config.l1_config.default_ttl,
-            1,
-            size_bytes,
-        );
+        let entry =
+            MultiLevelCacheEntry::new(value, self.config.l1_config.default_ttl, 1, size_bytes);
 
         // Check L1 capacity and evict if necessary
         if self.l1_cache.len() >= self.config.l1_config.max_entries {

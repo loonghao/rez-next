@@ -3,12 +3,12 @@
 //! Implements the `rez diff` command for comparing packages.
 
 use clap::Args;
-use rez_core_common::{RezCoreError, error::RezCoreResult};
-use rez_core_repository::simple_repository::{RepositoryManager, SimpleRepository};
+use rez_core_common::{error::RezCoreResult, RezCoreError};
 use rez_core_package::Package;
+use rez_core_repository::simple_repository::{RepositoryManager, SimpleRepository};
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::collections::HashMap;
 
 /// Arguments for the diff command
 #[derive(Args, Clone, Debug)]
@@ -100,12 +100,9 @@ pub fn execute(args: DiffArgs) -> RezCoreResult<()> {
     }
 
     // Create async runtime
-    let runtime = tokio::runtime::Runtime::new()
-        .map_err(|e| RezCoreError::Io(e.into()))?;
+    let runtime = tokio::runtime::Runtime::new().map_err(|e| RezCoreError::Io(e.into()))?;
 
-    runtime.block_on(async {
-        execute_diff_async(&args).await
-    })
+    runtime.block_on(async { execute_diff_async(&args).await })
 }
 
 /// Execute diff operation asynchronously
@@ -118,10 +115,22 @@ async fn execute_diff_async(args: &DiffArgs) -> RezCoreResult<()> {
 
     if args.verbose {
         println!("Found packages:");
-        println!("  {}-{}", pkg1.name, 
-            pkg1.version.as_ref().map(|v| v.as_str()).unwrap_or("unknown"));
-        println!("  {}-{}", pkg2.name, 
-            pkg2.version.as_ref().map(|v| v.as_str()).unwrap_or("unknown"));
+        println!(
+            "  {}-{}",
+            pkg1.name,
+            pkg1.version
+                .as_ref()
+                .map(|v| v.as_str())
+                .unwrap_or("unknown")
+        );
+        println!(
+            "  {}-{}",
+            pkg2.name,
+            pkg2.version
+                .as_ref()
+                .map(|v| v.as_str())
+                .unwrap_or("unknown")
+        );
         println!();
     }
 
@@ -181,13 +190,13 @@ fn parse_package_spec(spec: &str) -> RezCoreResult<(String, Option<String>)> {
     if let Some(dash_pos) = spec.rfind('-') {
         let name = spec[..dash_pos].to_string();
         let version = spec[dash_pos + 1..].to_string();
-        
+
         // Check if version part looks like a version
         if version.chars().next().map_or(false, |c| c.is_ascii_digit()) {
             return Ok((name, Some(version)));
         }
     }
-    
+
     Ok((spec.to_string(), None))
 }
 
@@ -198,11 +207,12 @@ async fn find_package(
     version_spec: Option<&str>,
 ) -> RezCoreResult<Package> {
     let packages = repo_manager.find_packages(package_name).await?;
-    
+
     if packages.is_empty() {
-        return Err(RezCoreError::RequirementParse(
-            format!("Package '{}' not found", package_name)
-        ));
+        return Err(RezCoreError::RequirementParse(format!(
+            "Package '{}' not found",
+            package_name
+        )));
     }
 
     // If version specified, find matching version
@@ -214,9 +224,10 @@ async fn find_package(
                 }
             }
         }
-        return Err(RezCoreError::RequirementParse(
-            format!("Package '{}-{}' not found", package_name, version)
-        ));
+        return Err(RezCoreError::RequirementParse(format!(
+            "Package '{}-{}' not found",
+            package_name, version
+        )));
     }
 
     // Return latest version (first in list)
@@ -229,26 +240,29 @@ async fn find_previous_version(
     pkg: &Package,
 ) -> RezCoreResult<Package> {
     let packages = repo_manager.find_packages(&pkg.name).await?;
-    
+
     if packages.len() < 2 {
-        return Err(RezCoreError::RequirementParse(
-            format!("No previous version found for package '{}'", pkg.name)
-        ));
+        return Err(RezCoreError::RequirementParse(format!(
+            "No previous version found for package '{}'",
+            pkg.name
+        )));
     }
 
     // Find the package with the version just before the current one
     // This is a simplified implementation - in reality we'd need proper version comparison
     for package in packages {
-        if let (Some(ref pkg_version), Some(ref current_version)) = (&package.version, &pkg.version) {
+        if let (Some(ref pkg_version), Some(ref current_version)) = (&package.version, &pkg.version)
+        {
             if pkg_version.as_str() != current_version.as_str() {
                 return Ok((*package).clone());
             }
         }
     }
 
-    Err(RezCoreError::RequirementParse(
-        format!("No suitable previous version found for package '{}'", pkg.name)
-    ))
+    Err(RezCoreError::RequirementParse(format!(
+        "No suitable previous version found for package '{}'",
+        pkg.name
+    )))
 }
 
 /// Compare two packages and generate diff
@@ -302,8 +316,14 @@ fn compare_requirements(pkg1: &Package, pkg2: &Package) -> RequirementsChanges {
     let pkg1_reqs: std::collections::HashSet<_> = pkg1.requires.iter().collect();
     let pkg2_reqs: std::collections::HashSet<_> = pkg2.requires.iter().collect();
 
-    let added: Vec<String> = pkg2_reqs.difference(&pkg1_reqs).map(|s| s.to_string()).collect();
-    let removed: Vec<String> = pkg1_reqs.difference(&pkg2_reqs).map(|s| s.to_string()).collect();
+    let added: Vec<String> = pkg2_reqs
+        .difference(&pkg1_reqs)
+        .map(|s| s.to_string())
+        .collect();
+    let removed: Vec<String> = pkg1_reqs
+        .difference(&pkg2_reqs)
+        .map(|s| s.to_string())
+        .collect();
 
     RequirementsChanges {
         added,
@@ -317,10 +337,14 @@ fn compare_variants(pkg1: &Package, pkg2: &Package) -> VariantsChanges {
     let pkg1_variants: std::collections::HashSet<_> = pkg1.variants.iter().collect();
     let pkg2_variants: std::collections::HashSet<_> = pkg2.variants.iter().collect();
 
-    let added: Vec<String> = pkg2_variants.difference(&pkg1_variants)
-        .map(|v| format!("{:?}", v)).collect();
-    let removed: Vec<String> = pkg1_variants.difference(&pkg2_variants)
-        .map(|v| format!("{:?}", v)).collect();
+    let added: Vec<String> = pkg2_variants
+        .difference(&pkg1_variants)
+        .map(|v| format!("{:?}", v))
+        .collect();
+    let removed: Vec<String> = pkg1_variants
+        .difference(&pkg2_variants)
+        .map(|v| format!("{:?}", v))
+        .collect();
 
     VariantsChanges {
         count_change: (pkg1.variants.len(), pkg2.variants.len()),
@@ -331,9 +355,18 @@ fn compare_variants(pkg1: &Package, pkg2: &Package) -> VariantsChanges {
 
 /// Output diff in text format
 fn output_text_diff(diff: &PackageDiff, verbose: bool) {
-    println!("Package Diff: {} vs {}", 
-        format!("{}-{}", diff.pkg1_name, diff.pkg1_version.as_deref().unwrap_or("unknown")),
-        format!("{}-{}", diff.pkg2_name, diff.pkg2_version.as_deref().unwrap_or("unknown"))
+    println!(
+        "Package Diff: {} vs {}",
+        format!(
+            "{}-{}",
+            diff.pkg1_name,
+            diff.pkg1_version.as_deref().unwrap_or("unknown")
+        ),
+        format!(
+            "{}-{}",
+            diff.pkg2_name,
+            diff.pkg2_version.as_deref().unwrap_or("unknown")
+        )
     );
     println!("=====================================");
     println!();
@@ -342,19 +375,19 @@ fn output_text_diff(diff: &PackageDiff, verbose: bool) {
     let meta = &diff.differences.metadata_changes;
     if meta.description.is_some() || meta.authors.is_some() || meta.tools.is_some() {
         println!("📝 Metadata Changes:");
-        
+
         if let Some((old, new)) = &meta.description {
             println!("  Description:");
             println!("    - {}", old.as_deref().unwrap_or("(none)"));
             println!("    + {}", new.as_deref().unwrap_or("(none)"));
         }
-        
+
         if let Some((old, new)) = &meta.authors {
             println!("  Authors:");
             println!("    - {:?}", old);
             println!("    + {:?}", new);
         }
-        
+
         if let Some((old, new)) = &meta.tools {
             println!("  Tools:");
             println!("    - {:?}", old);
@@ -367,15 +400,15 @@ fn output_text_diff(diff: &PackageDiff, verbose: bool) {
     let reqs = &diff.differences.requirements_changes;
     if !reqs.added.is_empty() || !reqs.removed.is_empty() || !reqs.modified.is_empty() {
         println!("📦 Requirements Changes:");
-        
+
         for req in &reqs.added {
             println!("  + {}", req);
         }
-        
+
         for req in &reqs.removed {
             println!("  - {}", req);
         }
-        
+
         for (old, new) in &reqs.modified {
             println!("  ~ {} -> {}", old, new);
         }
@@ -384,14 +417,20 @@ fn output_text_diff(diff: &PackageDiff, verbose: bool) {
 
     // Variants changes
     let variants = &diff.differences.variants_changes;
-    if variants.count_change.0 != variants.count_change.1 || !variants.added.is_empty() || !variants.removed.is_empty() {
+    if variants.count_change.0 != variants.count_change.1
+        || !variants.added.is_empty()
+        || !variants.removed.is_empty()
+    {
         println!("🔧 Variants Changes:");
-        println!("  Count: {} -> {}", variants.count_change.0, variants.count_change.1);
-        
+        println!(
+            "  Count: {} -> {}",
+            variants.count_change.0, variants.count_change.1
+        );
+
         for variant in &variants.added {
             println!("  + {}", variant);
         }
-        
+
         for variant in &variants.removed {
             println!("  - {}", variant);
         }
@@ -399,9 +438,15 @@ fn output_text_diff(diff: &PackageDiff, verbose: bool) {
     }
 
     // Summary
-    let has_changes = meta.description.is_some() || meta.authors.is_some() || meta.tools.is_some() ||
-                     !reqs.added.is_empty() || !reqs.removed.is_empty() || !reqs.modified.is_empty() ||
-                     variants.count_change.0 != variants.count_change.1 || !variants.added.is_empty() || !variants.removed.is_empty();
+    let has_changes = meta.description.is_some()
+        || meta.authors.is_some()
+        || meta.tools.is_some()
+        || !reqs.added.is_empty()
+        || !reqs.removed.is_empty()
+        || !reqs.modified.is_empty()
+        || variants.count_change.0 != variants.count_change.1
+        || !variants.added.is_empty()
+        || !variants.removed.is_empty();
 
     if !has_changes {
         println!("✅ No differences found between packages");
@@ -415,34 +460,59 @@ fn output_json_diff(diff: &PackageDiff) -> RezCoreResult<()> {
     // Simple JSON-like output without serde dependency
     println!("{{");
     println!("  \"pkg1_name\": \"{}\",", diff.pkg1_name);
-    println!("  \"pkg1_version\": \"{}\",", diff.pkg1_version.as_deref().unwrap_or("unknown"));
+    println!(
+        "  \"pkg1_version\": \"{}\",",
+        diff.pkg1_version.as_deref().unwrap_or("unknown")
+    );
     println!("  \"pkg2_name\": \"{}\",", diff.pkg2_name);
-    println!("  \"pkg2_version\": \"{}\",", diff.pkg2_version.as_deref().unwrap_or("unknown"));
+    println!(
+        "  \"pkg2_version\": \"{}\",",
+        diff.pkg2_version.as_deref().unwrap_or("unknown")
+    );
     println!("  \"differences\": {{");
 
     // Metadata changes
     println!("    \"metadata_changes\": {{");
     if let Some((old, new)) = &diff.differences.metadata_changes.description {
-        println!("      \"description\": [\"{}\", \"{}\"],",
+        println!(
+            "      \"description\": [\"{}\", \"{}\"],",
             old.as_deref().unwrap_or("null"),
-            new.as_deref().unwrap_or("null"));
+            new.as_deref().unwrap_or("null")
+        );
     }
     println!("    }},");
 
     // Requirements changes
     println!("    \"requirements_changes\": {{");
-    println!("      \"added\": {:?},", diff.differences.requirements_changes.added);
-    println!("      \"removed\": {:?},", diff.differences.requirements_changes.removed);
-    println!("      \"modified\": {:?}", diff.differences.requirements_changes.modified);
+    println!(
+        "      \"added\": {:?},",
+        diff.differences.requirements_changes.added
+    );
+    println!(
+        "      \"removed\": {:?},",
+        diff.differences.requirements_changes.removed
+    );
+    println!(
+        "      \"modified\": {:?}",
+        diff.differences.requirements_changes.modified
+    );
     println!("    }},");
 
     // Variants changes
     println!("    \"variants_changes\": {{");
-    println!("      \"count_change\": [{}, {}],",
+    println!(
+        "      \"count_change\": [{}, {}],",
         diff.differences.variants_changes.count_change.0,
-        diff.differences.variants_changes.count_change.1);
-    println!("      \"added\": {:?},", diff.differences.variants_changes.added);
-    println!("      \"removed\": {:?}", diff.differences.variants_changes.removed);
+        diff.differences.variants_changes.count_change.1
+    );
+    println!(
+        "      \"added\": {:?},",
+        diff.differences.variants_changes.added
+    );
+    println!(
+        "      \"removed\": {:?}",
+        diff.differences.variants_changes.removed
+    );
     println!("    }}");
 
     println!("  }}");
@@ -460,12 +530,12 @@ mod tests {
             parse_package_spec("python").unwrap(),
             ("python".to_string(), None)
         );
-        
+
         assert_eq!(
             parse_package_spec("python-3.9").unwrap(),
             ("python".to_string(), Some("3.9".to_string()))
         );
-        
+
         assert_eq!(
             parse_package_spec("my-package-name").unwrap(),
             ("my-package-name".to_string(), None)

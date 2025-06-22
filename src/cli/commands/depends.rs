@@ -98,12 +98,15 @@ impl ReverseDependencyTree {
 
         // Update or create node
         let dependency_key = dependency.clone();
-        let node = self.nodes.entry(dependency_key).or_insert_with(|| DependencyTreeNode {
-            package_name: dependency,
-            version: None,
-            dependents: Vec::new(),
-            depth,
-        });
+        let node = self
+            .nodes
+            .entry(dependency_key)
+            .or_insert_with(|| DependencyTreeNode {
+                package_name: dependency,
+                version: None,
+                dependents: Vec::new(),
+                depth,
+            });
 
         if !node.dependents.contains(&dependent) {
             node.dependents.push(dependent);
@@ -157,17 +160,17 @@ pub async fn execute_depends(args: DependsArgs) -> Result<(), RezCoreError> {
         args.build_requires,
         args.private_build_requires,
         args.verbose,
-    ).await?;
+    )
+    .await?;
 
     // Handle graph output options
     if args.graph || args.print_graph || args.write_graph.is_some() {
         let dot_graph = generate_dot_graph(&tree)?;
-        
+
         if args.print_graph {
             println!("{}", dot_graph);
         } else if let Some(output_file) = &args.write_graph {
-            std::fs::write(output_file, &dot_graph)
-                .map_err(|e| RezCoreError::Io(e.into()))?;
+            std::fs::write(output_file, &dot_graph).map_err(|e| RezCoreError::Io(e.into()))?;
             if args.verbose {
                 println!("✅ Graph written to: {}", output_file.display());
             }
@@ -201,7 +204,7 @@ async fn build_reverse_dependency_tree(
     let mut tree = ReverseDependencyTree::new(target_package.to_string(), max_depth);
     let mut visited = HashSet::new();
     let mut queue = VecDeque::new();
-    
+
     // Start with the target package at depth 0
     queue.push_back((target_package.to_string(), 0));
     visited.insert(target_package.to_string());
@@ -228,7 +231,8 @@ async fn build_reverse_dependency_tree(
             &current_package,
             include_build_requires,
             include_private_build_requires,
-        ).await?;
+        )
+        .await?;
 
         for dependent in dependents {
             if !visited.contains(&dependent) {
@@ -253,10 +257,10 @@ async fn find_package_dependents(
 
     // Get all packages by searching with empty string (gets all)
     let all_packages = repo_manager.find_packages("").await?;
-    
+
     for package in all_packages {
         let mut has_dependency = false;
-        
+
         // Check regular requires
         for req_name in &package.requires {
             if req_name == target_package {
@@ -284,12 +288,12 @@ async fn find_package_dependents(
                 }
             }
         }
-        
+
         if has_dependency {
             dependents.push(package.name.clone());
         }
     }
-    
+
     Ok(dependents)
 }
 

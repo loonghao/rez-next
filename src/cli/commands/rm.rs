@@ -3,7 +3,7 @@
 //! Implements the `rez rm` command for removing packages from repositories.
 
 use clap::Args;
-use rez_core_common::{RezCoreError, error::RezCoreResult};
+use rez_core_common::{error::RezCoreResult, RezCoreError};
 use rez_core_package::Package;
 use rez_core_repository::simple_repository::{RepositoryManager, SimpleRepository};
 use std::path::PathBuf;
@@ -78,13 +78,12 @@ pub fn execute(args: RmArgs) -> RezCoreResult<()> {
     // Validate arguments
     if args.package.is_none() && args.ignored_since.is_none() {
         return Err(RezCoreError::RequirementParse(
-            "Must specify either --package or --ignored-since".to_string()
+            "Must specify either --package or --ignored-since".to_string(),
         ));
     }
 
     // Create async runtime
-    let runtime = tokio::runtime::Runtime::new()
-        .map_err(|e| RezCoreError::Io(e.into()))?;
+    let runtime = tokio::runtime::Runtime::new().map_err(|e| RezCoreError::Io(e.into()))?;
 
     runtime.block_on(async {
         if let Some(ref package_spec) = args.package {
@@ -97,7 +96,7 @@ pub fn execute(args: RmArgs) -> RezCoreResult<()> {
             remove_ignored_since(&args).await
         } else {
             Err(RezCoreError::RequirementParse(
-                "Invalid arguments".to_string()
+                "Invalid arguments".to_string(),
             ))
         }
     })
@@ -116,7 +115,9 @@ async fn remove_package(package_spec: &str, args: &RmArgs) -> RezCoreResult<()> 
     let repo_manager = setup_repositories(args).await?;
 
     // Find packages to remove
-    let packages = find_packages_to_remove(&repo_manager, &package_name, version_spec.as_deref(), args).await?;
+    let packages =
+        find_packages_to_remove(&repo_manager, &package_name, version_spec.as_deref(), args)
+            .await?;
 
     if packages.is_empty() {
         println!("No packages found matching '{}'", package_spec);
@@ -126,16 +127,28 @@ async fn remove_package(package_spec: &str, args: &RmArgs) -> RezCoreResult<()> 
     if args.verbose {
         println!("Found {} package(s) to remove:", packages.len());
         for pkg in &packages {
-            println!("  {}-{}", pkg.name, 
-                pkg.version.as_ref().map(|v| v.as_str()).unwrap_or("unknown"));
+            println!(
+                "  {}-{}",
+                pkg.name,
+                pkg.version
+                    .as_ref()
+                    .map(|v| v.as_str())
+                    .unwrap_or("unknown")
+            );
         }
     }
 
     if args.dry_run {
         println!("DRY RUN - Would remove:");
         for pkg in &packages {
-            println!("  {}-{}", pkg.name, 
-                pkg.version.as_ref().map(|v| v.as_str()).unwrap_or("unknown"));
+            println!(
+                "  {}-{}",
+                pkg.name,
+                pkg.version
+                    .as_ref()
+                    .map(|v| v.as_str())
+                    .unwrap_or("unknown")
+            );
         }
         return Ok(());
     }
@@ -159,7 +172,8 @@ async fn remove_package(package_spec: &str, args: &RmArgs) -> RezCoreResult<()> 
                         }
                     }
                 } else {
-                    eprintln!("❌ Failed to remove {}: {}", 
+                    eprintln!(
+                        "❌ Failed to remove {}: {}",
                         package.name,
                         result.error.unwrap_or_else(|| "Unknown error".to_string())
                     );
@@ -182,7 +196,10 @@ async fn remove_package_family(package_name: &str, args: &RmArgs) -> RezCoreResu
     }
 
     if !args.force_family && !args.force {
-        println!("WARNING: This will remove ALL versions of package '{}'", package_name);
+        println!(
+            "WARNING: This will remove ALL versions of package '{}'",
+            package_name
+        );
         if !confirm_family_removal(package_name)? {
             println!("Operation cancelled");
             return Ok(());
@@ -201,10 +218,20 @@ async fn remove_package_family(package_name: &str, args: &RmArgs) -> RezCoreResu
     }
 
     if args.dry_run {
-        println!("DRY RUN - Would remove family '{}' ({} packages):", package_name, packages.len());
+        println!(
+            "DRY RUN - Would remove family '{}' ({} packages):",
+            package_name,
+            packages.len()
+        );
         for pkg in &packages {
-            println!("  {}-{}", pkg.name, 
-                pkg.version.as_ref().map(|v| v.as_str()).unwrap_or("unknown"));
+            println!(
+                "  {}-{}",
+                pkg.name,
+                pkg.version
+                    .as_ref()
+                    .map(|v| v.as_str())
+                    .unwrap_or("unknown")
+            );
         }
         return Ok(());
     }
@@ -217,8 +244,15 @@ async fn remove_package_family(package_name: &str, args: &RmArgs) -> RezCoreResu
                 if result.success {
                     removed_count += 1;
                     if args.verbose {
-                        println!("✅ Removed: {}-{}", package.name,
-                            package.version.as_ref().map(|v| v.as_str()).unwrap_or("unknown"));
+                        println!(
+                            "✅ Removed: {}-{}",
+                            package.name,
+                            package
+                                .version
+                                .as_ref()
+                                .map(|v| v.as_str())
+                                .unwrap_or("unknown")
+                        );
                     }
                 }
             }
@@ -228,24 +262,27 @@ async fn remove_package_family(package_name: &str, args: &RmArgs) -> RezCoreResu
         }
     }
 
-    println!("✅ Removed package family '{}' ({} packages)", package_name, removed_count);
+    println!(
+        "✅ Removed package family '{}' ({} packages)",
+        package_name, removed_count
+    );
     Ok(())
 }
 
 /// Remove packages ignored since a specific time
 async fn remove_ignored_since(args: &RmArgs) -> RezCoreResult<()> {
     let time_spec = args.ignored_since.as_ref().unwrap();
-    
+
     if args.verbose {
         println!("Removing packages ignored since: {}", time_spec);
     }
 
     // TODO: Implement time-based package removal
     // This would require package metadata with timestamps
-    
+
     println!("Time-based removal not yet implemented");
     println!("Would remove packages ignored since: {}", time_spec);
-    
+
     Ok(())
 }
 
@@ -285,9 +322,9 @@ async fn find_packages_to_remove(
 async fn remove_single_package(package: &Package, args: &RmArgs) -> RezCoreResult<RemoveResult> {
     // TODO: Implement actual package removal logic
     // This is a simplified implementation
-    
+
     let package_path = PathBuf::from("./local_packages").join(&package.name);
-    
+
     if args.verbose {
         println!("Would remove package at: {}", package_path.display());
     }
@@ -312,38 +349,46 @@ fn parse_package_spec(spec: &str) -> RezCoreResult<(String, Option<String>)> {
     if let Some(dash_pos) = spec.rfind('-') {
         let name = spec[..dash_pos].to_string();
         let version = spec[dash_pos + 1..].to_string();
-        
+
         if version.chars().next().map_or(false, |c| c.is_ascii_digit()) {
             return Ok((name, Some(version)));
         }
     }
-    
+
     Ok((spec.to_string(), None))
 }
 
 /// Confirm removal of a single package
 fn confirm_removal(package: &Package) -> RezCoreResult<bool> {
     use std::io::{self, Write};
-    
+
     print!("Remove package '{}'? [y/N]: ", package.name);
-    io::stdout().flush().map_err(|e| RezCoreError::Io(e.into()))?;
-    
+    io::stdout()
+        .flush()
+        .map_err(|e| RezCoreError::Io(e.into()))?;
+
     let mut input = String::new();
-    io::stdin().read_line(&mut input).map_err(|e| RezCoreError::Io(e.into()))?;
-    
+    io::stdin()
+        .read_line(&mut input)
+        .map_err(|e| RezCoreError::Io(e.into()))?;
+
     Ok(input.trim().to_lowercase() == "y" || input.trim().to_lowercase() == "yes")
 }
 
 /// Confirm removal of package family
 fn confirm_family_removal(family_name: &str) -> RezCoreResult<bool> {
     use std::io::{self, Write};
-    
+
     print!("Remove ENTIRE package family '{}'? [y/N]: ", family_name);
-    io::stdout().flush().map_err(|e| RezCoreError::Io(e.into()))?;
-    
+    io::stdout()
+        .flush()
+        .map_err(|e| RezCoreError::Io(e.into()))?;
+
     let mut input = String::new();
-    io::stdin().read_line(&mut input).map_err(|e| RezCoreError::Io(e.into()))?;
-    
+    io::stdin()
+        .read_line(&mut input)
+        .map_err(|e| RezCoreError::Io(e.into()))?;
+
     Ok(input.trim().to_lowercase() == "y" || input.trim().to_lowercase() == "yes")
 }
 
@@ -357,7 +402,7 @@ mod tests {
             parse_package_spec("python").unwrap(),
             ("python".to_string(), None)
         );
-        
+
         assert_eq!(
             parse_package_spec("python-3.9").unwrap(),
             ("python".to_string(), Some("3.9".to_string()))

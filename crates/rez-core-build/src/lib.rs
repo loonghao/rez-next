@@ -8,19 +8,19 @@
 //! - Build environment setup and configuration
 //! - Build artifact management
 
-mod builder;
-mod process;
-mod environment;
 mod artifacts;
-mod systems;
+mod builder;
+mod environment;
+mod process;
 mod sources;
+mod systems;
 
-pub use builder::*;
-pub use process::*;
-pub use environment::*;
 pub use artifacts::*;
-pub use systems::*;
+pub use builder::*;
+pub use environment::*;
+pub use process::*;
 pub use sources::*;
+pub use systems::*;
 
 #[cfg(feature = "python-bindings")]
 use pyo3::prelude::*;

@@ -4,7 +4,7 @@
 //! It analyzes access patterns and preheats cache with likely-to-be-accessed data.
 
 use crate::PreheatingConfig;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use std::{
     collections::{HashMap, VecDeque},
     hash::Hash,
@@ -12,7 +12,6 @@ use std::{
     time::{Duration, SystemTime},
 };
 use tokio::time::Interval;
-
 
 /// Access pattern for a cache key
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -50,7 +49,7 @@ impl AccessPattern {
     /// Record a new access
     pub fn record_access(&mut self, time: SystemTime) {
         self.access_times.push_back(time);
-        
+
         // Keep only recent accesses (last 24 hours)
         let cutoff = time - Duration::from_secs(24 * 3600);
         while let Some(&front_time) = self.access_times.front() {
@@ -71,10 +70,14 @@ impl AccessPattern {
         }
 
         // Calculate frequency (accesses per hour)
-        let time_span = self.access_times.back().unwrap()
+        let time_span = self
+            .access_times
+            .back()
+            .unwrap()
             .duration_since(*self.access_times.front().unwrap())
             .unwrap_or(Duration::from_secs(1))
-            .as_secs_f64() / 3600.0; // Convert to hours
+            .as_secs_f64()
+            / 3600.0; // Convert to hours
 
         self.frequency = if time_span > 0.0 {
             self.access_times.len() as f64 / time_span
@@ -84,17 +87,24 @@ impl AccessPattern {
 
         // Calculate regularity (consistency of intervals)
         if self.access_times.len() >= 3 {
-            let intervals: Vec<f64> = self.access_times
+            let intervals: Vec<f64> = self
+                .access_times
                 .iter()
                 .zip(self.access_times.iter().skip(1))
-                .map(|(a, b)| b.duration_since(*a).unwrap_or(Duration::from_secs(0)).as_secs_f64())
+                .map(|(a, b)| {
+                    b.duration_since(*a)
+                        .unwrap_or(Duration::from_secs(0))
+                        .as_secs_f64()
+                })
                 .collect();
 
             let mean_interval = intervals.iter().sum::<f64>() / intervals.len() as f64;
-            let variance = intervals.iter()
+            let variance = intervals
+                .iter()
                 .map(|&x| (x - mean_interval).powi(2))
-                .sum::<f64>() / intervals.len() as f64;
-            
+                .sum::<f64>()
+                / intervals.len() as f64;
+
             // Regularity is inverse of coefficient of variation
             self.regularity = if mean_interval > 0.0 {
                 1.0 / (1.0 + (variance.sqrt() / mean_interval))
@@ -114,7 +124,8 @@ impl AccessPattern {
         }
 
         // Calculate average interval
-        let intervals: Vec<Duration> = self.access_times
+        let intervals: Vec<Duration> = self
+            .access_times
             .iter()
             .zip(self.access_times.iter().skip(1))
             .map(|(a, b)| b.duration_since(*a).unwrap_or(Duration::from_secs(0)))
@@ -124,9 +135,8 @@ impl AccessPattern {
             return None;
         }
 
-        let avg_interval_secs = intervals.iter()
-            .map(|d| d.as_secs_f64())
-            .sum::<f64>() / intervals.len() as f64;
+        let avg_interval_secs =
+            intervals.iter().map(|d| d.as_secs_f64()).sum::<f64>() / intervals.len() as f64;
 
         let last_access = *self.access_times.back()?;
         let predicted_time = last_access + Duration::from_secs_f64(avg_interval_secs);
@@ -141,8 +151,9 @@ impl AccessPattern {
             let age = SystemTime::now()
                 .duration_since(*last_access)
                 .unwrap_or(Duration::from_secs(u64::MAX))
-                .as_secs_f64() / 3600.0; // Hours
-            
+                .as_secs_f64()
+                / 3600.0; // Hours
+
             // Decay factor: more recent = higher score
             (-age / 24.0).exp() // 24-hour half-life
         } else {
@@ -235,7 +246,7 @@ where
         let pattern = patterns
             .entry(key.clone())
             .or_insert_with(|| AccessPattern::new(key_hash));
-        
+
         pattern.record_access(now);
 
         // Update statistics
@@ -255,12 +266,12 @@ where
         if let Some(pattern) = patterns.get(key) {
             if let Some(predicted_time) = pattern.predict_next_access() {
                 let score = pattern.calculate_cache_score();
-                
+
                 // Only queue if confidence is high enough
                 if pattern.confidence >= self.config.min_confidence_threshold {
                     let mut queue = self.preheat_queue.write().unwrap();
                     queue.push_back((key.clone(), score, predicted_time));
-                    
+
                     // Keep queue size manageable
                     if queue.len() > self.config.max_preheat_queue_size {
                         queue.pop_front();
@@ -280,7 +291,7 @@ where
     pub async fn get_preheat_recommendations(&self) -> Vec<(K, f64)> {
         let mut queue = self.preheat_queue.write().unwrap();
         let now = SystemTime::now();
-        
+
         // Filter and sort by score
         let mut recommendations: Vec<(K, f64)> = queue
             .iter()
@@ -288,9 +299,12 @@ where
                 // Only recommend if prediction time is near
                 let time_diff = predicted_time
                     .duration_since(now)
-                    .unwrap_or_else(|_| now.duration_since(*predicted_time).unwrap_or(Duration::from_secs(0)))
+                    .unwrap_or_else(|_| {
+                        now.duration_since(*predicted_time)
+                            .unwrap_or(Duration::from_secs(0))
+                    })
                     .as_secs();
-                
+
                 time_diff <= self.config.preheat_window_seconds
             })
             .map(|(key, score, _)| (key.clone(), *score))
@@ -303,19 +317,26 @@ where
         queue.retain(|(_, _, predicted_time)| {
             let time_diff = predicted_time
                 .duration_since(now)
-                .unwrap_or_else(|_| now.duration_since(*predicted_time).unwrap_or(Duration::from_secs(0)))
+                .unwrap_or_else(|_| {
+                    now.duration_since(*predicted_time)
+                        .unwrap_or(Duration::from_secs(0))
+                })
                 .as_secs();
-            
+
             time_diff > self.config.preheat_window_seconds
         });
 
-        recommendations.into_iter().take(self.config.max_concurrent_preheats).collect()
+        recommendations
+            .into_iter()
+            .take(self.config.max_concurrent_preheats)
+            .collect()
     }
 
     /// Calculate cache score for a key
     pub fn calculate_cache_score(&self, key: &K) -> f64 {
         let patterns = self.patterns.read().unwrap();
-        patterns.get(key)
+        patterns
+            .get(key)
             .map(|pattern| pattern.calculate_cache_score())
             .unwrap_or(0.0)
     }
@@ -324,18 +345,18 @@ where
     pub fn get_stats(&self) -> PreheatingStats {
         let stats = self.stats.read().unwrap();
         let mut result = stats.clone();
-        
+
         // Calculate accuracy rate
         if result.predictions_made > 0 {
-            result.accuracy_rate = result.successful_predictions as f64 / result.predictions_made as f64;
+            result.accuracy_rate =
+                result.successful_predictions as f64 / result.predictions_made as f64;
         }
 
         // Calculate average confidence
         let patterns = self.patterns.read().unwrap();
         if !patterns.is_empty() {
-            result.avg_confidence = patterns.values()
-                .map(|p| p.confidence)
-                .sum::<f64>() / patterns.len() as f64;
+            result.avg_confidence =
+                patterns.values().map(|p| p.confidence).sum::<f64>() / patterns.len() as f64;
         }
 
         result
@@ -345,7 +366,7 @@ where
     fn calculate_key_hash(&self, key: &K) -> u64 {
         use std::collections::hash_map::DefaultHasher;
         use std::hash::Hasher;
-        
+
         let mut hasher = DefaultHasher::new();
         key.hash(&mut hasher);
         hasher.finish()

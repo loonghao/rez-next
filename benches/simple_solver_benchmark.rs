@@ -3,23 +3,21 @@
 //! A minimal benchmark for testing the solver system functionality
 //! without complex dependencies. This focuses on core solver operations.
 
-use criterion::{criterion_group, criterion_main, Criterion, BenchmarkId, black_box};
-use rez_core_solver::{DependencySolver, SolverConfig, SolverRequest, ConflictStrategy};
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use rez_core_package::PackageRequirement;
+use rez_core_solver::{ConflictStrategy, DependencySolver, SolverConfig, SolverRequest};
 use rez_core_version::VersionRange;
 use std::time::Duration;
 
 /// Test basic solver functionality
 fn bench_solver_basic(c: &mut Criterion) {
     let mut group = c.benchmark_group("solver_basic");
-    
+
     // Test solver creation
     group.bench_function("create_solver", |b| {
-        b.iter(|| {
-            black_box(DependencySolver::new())
-        });
+        b.iter(|| black_box(DependencySolver::new()));
     });
-    
+
     // Test solver with custom config
     group.bench_function("create_solver_with_config", |b| {
         b.iter(|| {
@@ -32,16 +30,16 @@ fn bench_solver_basic(c: &mut Criterion) {
             black_box(DependencySolver::with_config(config))
         });
     });
-    
+
     group.finish();
 }
 
 /// Test solver resolution with empty requests
 fn bench_solver_empty_resolution(c: &mut Criterion) {
     let mut group = c.benchmark_group("solver_empty_resolution");
-    
+
     let solver = DependencySolver::new();
-    
+
     group.bench_function("resolve_empty", |b| {
         b.iter(|| {
             let request = SolverRequest {
@@ -51,48 +49,43 @@ fn bench_solver_empty_resolution(c: &mut Criterion) {
             black_box(solver.resolve(black_box(request)))
         });
     });
-    
+
     group.finish();
 }
 
 /// Test package requirement creation
 fn bench_package_requirements(c: &mut Criterion) {
     let mut group = c.benchmark_group("package_requirements");
-    
+
     // Simple requirement
     group.bench_function("simple_requirement", |b| {
         b.iter(|| {
             black_box(PackageRequirement::new(
                 "python".to_string(),
-                Some(VersionRange::new("3.9+".to_string()).unwrap())
+                Some(VersionRange::new("3.9+".to_string()).unwrap()),
             ))
         });
     });
-    
+
     // Requirement without version
     group.bench_function("requirement_no_version", |b| {
-        b.iter(|| {
-            black_box(PackageRequirement::new(
-                "python".to_string(),
-                None
-            ))
-        });
+        b.iter(|| black_box(PackageRequirement::new("python".to_string(), None)));
     });
-    
+
     group.finish();
 }
 
 /// Test solver with single requirement
 fn bench_solver_single_requirement(c: &mut Criterion) {
     let mut group = c.benchmark_group("solver_single_requirement");
-    
+
     let solver = DependencySolver::new();
-    
+
     group.bench_function("resolve_single_python", |b| {
         b.iter(|| {
             let requirement = PackageRequirement::new(
                 "python".to_string(),
-                Some(VersionRange::new("3.9+".to_string()).unwrap())
+                Some(VersionRange::new("3.9+".to_string()).unwrap()),
             );
             let request = SolverRequest {
                 requirements: vec![requirement],
@@ -101,21 +94,21 @@ fn bench_solver_single_requirement(c: &mut Criterion) {
             black_box(solver.resolve(black_box(request)))
         });
     });
-    
+
     group.finish();
 }
 
 /// Test different conflict strategies
 fn bench_conflict_strategies(c: &mut Criterion) {
     let mut group = c.benchmark_group("conflict_strategies");
-    
+
     let strategies = vec![
         ConflictStrategy::LatestWins,
         ConflictStrategy::EarliestWins,
         ConflictStrategy::FailOnConflict,
         ConflictStrategy::FindCompatible,
     ];
-    
+
     for strategy in strategies {
         group.bench_with_input(
             BenchmarkId::new("strategy", format!("{:?}", strategy)),
@@ -126,7 +119,7 @@ fn bench_conflict_strategies(c: &mut Criterion) {
                     ..Default::default()
                 };
                 let solver = DependencySolver::with_config(config.clone());
-                
+
                 b.iter(|| {
                     let request = SolverRequest {
                         requirements: vec![],
@@ -137,87 +130,90 @@ fn bench_conflict_strategies(c: &mut Criterion) {
             },
         );
     }
-    
+
     group.finish();
 }
 
 /// Test solver configuration variations
 fn bench_solver_configs(c: &mut Criterion) {
     let mut group = c.benchmark_group("solver_configs");
-    
+
     let configs = vec![
         ("default", SolverConfig::default()),
-        ("parallel_enabled", SolverConfig {
-            enable_parallel: true,
-            max_workers: 4,
-            ..Default::default()
-        }),
-        ("cache_enabled", SolverConfig {
-            enable_caching: true,
-            cache_ttl_seconds: 3600,
-            ..Default::default()
-        }),
-        ("optimized", SolverConfig {
-            enable_parallel: true,
-            enable_caching: true,
-            max_workers: 8,
-            cache_ttl_seconds: 7200,
-            ..Default::default()
-        }),
-    ];
-    
-    for (name, config) in configs {
-        group.bench_with_input(
-            BenchmarkId::new("config", name),
-            &config,
-            |b, config| {
-                b.iter(|| {
-                    let solver = DependencySolver::with_config(config.clone());
-                    let request = SolverRequest {
-                        requirements: vec![],
-                        config: config.clone(),
-                    };
-                    black_box(solver.resolve(black_box(request)))
-                });
+        (
+            "parallel_enabled",
+            SolverConfig {
+                enable_parallel: true,
+                max_workers: 4,
+                ..Default::default()
             },
-        );
+        ),
+        (
+            "cache_enabled",
+            SolverConfig {
+                enable_caching: true,
+                cache_ttl_seconds: 3600,
+                ..Default::default()
+            },
+        ),
+        (
+            "optimized",
+            SolverConfig {
+                enable_parallel: true,
+                enable_caching: true,
+                max_workers: 8,
+                cache_ttl_seconds: 7200,
+                ..Default::default()
+            },
+        ),
+    ];
+
+    for (name, config) in configs {
+        group.bench_with_input(BenchmarkId::new("config", name), &config, |b, config| {
+            b.iter(|| {
+                let solver = DependencySolver::with_config(config.clone());
+                let request = SolverRequest {
+                    requirements: vec![],
+                    config: config.clone(),
+                };
+                black_box(solver.resolve(black_box(request)))
+            });
+        });
     }
-    
+
     group.finish();
 }
 
 /// Test solver statistics
 fn bench_solver_stats(c: &mut Criterion) {
     let mut group = c.benchmark_group("solver_stats");
-    
+
     let solver = DependencySolver::new();
-    
+
     group.bench_function("get_stats", |b| {
-        b.iter(|| {
-            black_box(solver.stats())
-        });
+        b.iter(|| black_box(solver.stats()));
     });
-    
+
     group.finish();
 }
 
 /// Test multiple requirements
 fn bench_multiple_requirements(c: &mut Criterion) {
     let mut group = c.benchmark_group("multiple_requirements");
-    
+
     let solver = DependencySolver::new();
-    
+
     // Test with 2 requirements
     group.bench_function("two_requirements", |b| {
         b.iter(|| {
             let requirements = vec![
                 PackageRequirement::new(
                     "python".to_string(),
-                    Some(VersionRange::new("3.9+".to_string()).unwrap())
+                    Some(VersionRange::new("3.9+".to_string()).unwrap()),
                 ),
                 PackageRequirement::new(
                     "numpy".to_string(),
-                    Some(VersionRange::new("1.20+".to_string()).unwrap())
+                    Some(VersionRange::new("1.20+".to_string()).unwrap()),
                 ),
             ];
             let request = SolverRequest {
@@ -227,15 +223,24 @@ fn bench_multiple_requirements(c: &mut Criterion) {
             black_box(solver.resolve(black_box(request)))
         });
     });
-    
+
     // Test with 5 requirements
     group.bench_function("five_requirements", |b| {
         b.iter(|| {
             let requirements = vec![
-                PackageRequirement::new("python".to_string(), Some(VersionRange::new("3.9+".to_string()).unwrap())),
-                PackageRequirement::new("numpy".to_string(), Some(VersionRange::new("1.20+".to_string()).unwrap())),
+                PackageRequirement::new(
+                    "python".to_string(),
+                    Some(VersionRange::new("3.9+".to_string()).unwrap()),
+                ),
+                PackageRequirement::new(
+                    "numpy".to_string(),
+                    Some(VersionRange::new("1.20+".to_string()).unwrap()),
+                ),
                 PackageRequirement::new("pandas".to_string(), None),
-                PackageRequirement::new("scipy".to_string(), Some(VersionRange::new("1.7+".to_string()).unwrap())),
+                PackageRequirement::new(
+                    "scipy".to_string(),
+                    Some(VersionRange::new("1.7+".to_string()).unwrap()),
+                ),
                 PackageRequirement::new("matplotlib".to_string(), None),
             ];
             let request = SolverRequest {
@@ -245,22 +250,22 @@ fn bench_multiple_requirements(c: &mut Criterion) {
             black_box(solver.resolve(black_box(request)))
         });
     });
-    
+
     group.finish();
 }
 
 /// Performance comparison benchmark
 fn bench_performance_comparison(c: &mut Criterion) {
     let mut group = c.benchmark_group("performance_comparison");
-    
+
     // Basic solver
     group.bench_function("basic_solver", |b| {
         let solver = DependencySolver::new();
         let requirement = PackageRequirement::new(
             "test_package".to_string(),
-            Some(VersionRange::new("1.0+".to_string()).unwrap())
+            Some(VersionRange::new("1.0+".to_string()).unwrap()),
         );
-        
+
         b.iter(|| {
             let request = SolverRequest {
                 requirements: vec![requirement.clone()],
@@ -269,7 +274,7 @@ fn bench_performance_comparison(c: &mut Criterion) {
             black_box(solver.resolve(black_box(request)))
         });
     });
-    
+
     // Optimized solver
     group.bench_function("optimized_solver", |b| {
         let config = SolverConfig {
@@ -282,9 +287,9 @@ fn bench_performance_comparison(c: &mut Criterion) {
         let solver = DependencySolver::with_config(config.clone());
         let requirement = PackageRequirement::new(
             "test_package".to_string(),
-            Some(VersionRange::new("1.0+".to_string()).unwrap())
+            Some(VersionRange::new("1.0+".to_string()).unwrap()),
         );
-        
+
         b.iter(|| {
             let request = SolverRequest {
                 requirements: vec![requirement.clone()],
@@ -293,7 +298,7 @@ fn bench_performance_comparison(c: &mut Criterion) {
             black_box(solver.resolve(black_box(request)))
         });
     });
-    
+
     group.finish();
 }
 
@@ -326,4 +331,8 @@ criterion_group!(
 );
 
 // Main entry point
-criterion_main!(solver_basic_tests, solver_functionality_tests, solver_advanced_tests);
+criterion_main!(
+    solver_basic_tests,
+    solver_functionality_tests,
+    solver_advanced_tests
+);

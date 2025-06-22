@@ -3,7 +3,7 @@
 use crate::Package;
 use rez_core_common::RezCoreError;
 use rez_core_version::Version;
-use rustpython_ast::{Suite, Stmt, Expr, Constant};
+use rustpython_ast::{Constant, Expr, Stmt, Suite};
 use rustpython_parser::Parse;
 use std::collections::HashMap;
 
@@ -53,7 +53,11 @@ impl PythonAstParser {
     }
 
     /// Process variable assignments
-    fn process_assignment(var_name: &str, value: &Expr, package_data: &mut PackageData) -> Result<(), RezCoreError> {
+    fn process_assignment(
+        var_name: &str,
+        value: &Expr,
+        package_data: &mut PackageData,
+    ) -> Result<(), RezCoreError> {
         match var_name {
             "name" => {
                 package_data.name = Some(Self::extract_string_value(value)?);
@@ -138,7 +142,9 @@ impl PythonAstParser {
             }
             _ => {
                 // Store unknown fields for later processing
-                package_data.extra_fields.insert(var_name.to_string(), format!("{:?}", value));
+                package_data
+                    .extra_fields
+                    .insert(var_name.to_string(), format!("{:?}", value));
             }
         }
         Ok(())
@@ -147,29 +153,37 @@ impl PythonAstParser {
     /// Extract string value from expression
     fn extract_string_value(expr: &Expr) -> Result<String, RezCoreError> {
         match expr {
-            Expr::Constant(constant) => {
-                match &constant.value {
-                    Constant::Str(s) => Ok(s.clone()),
-                    Constant::Int(i) => Ok(i.to_string()),
-                    Constant::Float(f) => Ok(f.to_string()),
-                    _ => Err(RezCoreError::PackageParse(format!("Expected string/number value, got: {:?}", constant.value)))
-                }
-            }
-            _ => Err(RezCoreError::PackageParse(format!("Expected constant value, got: {:?}", expr)))
+            Expr::Constant(constant) => match &constant.value {
+                Constant::Str(s) => Ok(s.clone()),
+                Constant::Int(i) => Ok(i.to_string()),
+                Constant::Float(f) => Ok(f.to_string()),
+                _ => Err(RezCoreError::PackageParse(format!(
+                    "Expected string/number value, got: {:?}",
+                    constant.value
+                ))),
+            },
+            _ => Err(RezCoreError::PackageParse(format!(
+                "Expected constant value, got: {:?}",
+                expr
+            ))),
         }
     }
 
     /// Extract boolean value from expression
     fn extract_bool_value(expr: &Expr) -> Result<Option<bool>, RezCoreError> {
         match expr {
-            Expr::Constant(constant) => {
-                match &constant.value {
-                    Constant::Bool(b) => Ok(Some(*b)),
-                    Constant::None => Ok(None),
-                    _ => Err(RezCoreError::PackageParse(format!("Expected boolean value, got: {:?}", constant.value)))
-                }
-            }
-            _ => Err(RezCoreError::PackageParse(format!("Expected constant value, got: {:?}", expr)))
+            Expr::Constant(constant) => match &constant.value {
+                Constant::Bool(b) => Ok(Some(*b)),
+                Constant::None => Ok(None),
+                _ => Err(RezCoreError::PackageParse(format!(
+                    "Expected boolean value, got: {:?}",
+                    constant.value
+                ))),
+            },
+            _ => Err(RezCoreError::PackageParse(format!(
+                "Expected constant value, got: {:?}",
+                expr
+            ))),
         }
     }
 
@@ -180,13 +194,20 @@ impl PythonAstParser {
                 match &constant.value {
                     Constant::Int(i) => {
                         // Convert BigInt to i32 safely
-                        i.to_string().parse::<i32>()
-                            .map_err(|e| RezCoreError::PackageParse(format!("Integer too large for i32: {}", e)))
-                    },
-                    _ => Err(RezCoreError::PackageParse(format!("Expected integer value, got: {:?}", constant.value)))
+                        i.to_string().parse::<i32>().map_err(|e| {
+                            RezCoreError::PackageParse(format!("Integer too large for i32: {}", e))
+                        })
+                    }
+                    _ => Err(RezCoreError::PackageParse(format!(
+                        "Expected integer value, got: {:?}",
+                        constant.value
+                    ))),
                 }
             }
-            _ => Err(RezCoreError::PackageParse(format!("Expected constant value, got: {:?}", expr)))
+            _ => Err(RezCoreError::PackageParse(format!(
+                "Expected constant value, got: {:?}",
+                expr
+            ))),
         }
     }
 
@@ -207,7 +228,10 @@ impl PythonAstParser {
                 }
                 Ok(result)
             }
-            _ => Err(RezCoreError::PackageParse(format!("Expected list, got: {:?}", expr)))
+            _ => Err(RezCoreError::PackageParse(format!(
+                "Expected list, got: {:?}",
+                expr
+            ))),
         }
     }
 
@@ -221,7 +245,10 @@ impl PythonAstParser {
                 }
                 Ok(result)
             }
-            _ => Err(RezCoreError::PackageParse(format!("Expected list of lists for variants, got: {:?}", expr)))
+            _ => Err(RezCoreError::PackageParse(format!(
+                "Expected list of lists for variants, got: {:?}",
+                expr
+            ))),
         }
     }
 
@@ -239,12 +266,18 @@ impl PythonAstParser {
                 }
                 Ok(result)
             }
-            _ => Err(RezCoreError::PackageParse(format!("Expected dictionary for tests, got: {:?}", expr)))
+            _ => Err(RezCoreError::PackageParse(format!(
+                "Expected dictionary for tests, got: {:?}",
+                expr
+            ))),
         }
     }
 
     /// Process commands function
-    fn process_commands_function(body: &[Stmt], package_data: &mut PackageData) -> Result<(), RezCoreError> {
+    fn process_commands_function(
+        body: &[Stmt],
+        package_data: &mut PackageData,
+    ) -> Result<(), RezCoreError> {
         // Extract environment variable assignments and path modifications
         let mut commands = Vec::new();
 
@@ -271,7 +304,8 @@ impl PythonAstParser {
                         if let Expr::Name(name_expr) = &*attr.value {
                             if name_expr.id.as_str() == "env" {
                                 let var_name = &attr.attr;
-                                if let Some(value) = Self::extract_string_value(&assign.value).ok() {
+                                if let Some(value) = Self::extract_string_value(&assign.value).ok()
+                                {
                                     return Ok(Some(format!("export {}=\"{}\"", var_name, value)));
                                 }
                             }
@@ -292,8 +326,18 @@ impl PythonAstParser {
                                     if let Some(arg) = call.args.first() {
                                         if let Ok(value) = Self::extract_string_value(arg) {
                                             match method.as_str() {
-                                                "append" => return Ok(Some(format!("export {}=\"${{{}}}:{}\"", var_name, var_name, value))),
-                                                "prepend" => return Ok(Some(format!("export {}=\"{}:${{{}}}\"", var_name, value, var_name))),
+                                                "append" => {
+                                                    return Ok(Some(format!(
+                                                        "export {}=\"${{{}}}:{}\"",
+                                                        var_name, var_name, value
+                                                    )))
+                                                }
+                                                "prepend" => {
+                                                    return Ok(Some(format!(
+                                                        "export {}=\"{}:${{{}}}\"",
+                                                        var_name, value, var_name
+                                                    )))
+                                                }
                                                 _ => {}
                                             }
                                         }
@@ -312,14 +356,18 @@ impl PythonAstParser {
 
     /// Build Package from extracted data
     fn build_package(data: PackageData) -> Result<Package, RezCoreError> {
-        let name = data.name.ok_or_else(|| RezCoreError::PackageParse("Missing 'name' field".to_string()))?;
-        
+        let name = data
+            .name
+            .ok_or_else(|| RezCoreError::PackageParse("Missing 'name' field".to_string()))?;
+
         let mut package = Package::new(name);
 
         // Set version
         if let Some(version_str) = data.version {
-            package.version = Some(Version::parse(&version_str)
-                .map_err(|e| RezCoreError::PackageParse(format!("Invalid version: {}", e)))?);
+            package.version = Some(
+                Version::parse(&version_str)
+                    .map_err(|e| RezCoreError::PackageParse(format!("Invalid version: {}", e)))?,
+            );
         }
 
         // Set other fields
@@ -419,7 +467,11 @@ preprocess = "some_preprocess_function"
 "#;
 
         let result = PythonAstParser::parse_package_py(package_py_content);
-        assert!(result.is_ok(), "Failed to parse package.py: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "Failed to parse package.py: {:?}",
+            result.err()
+        );
 
         let package = result.unwrap();
         assert_eq!(package.name, "test_package");
@@ -428,7 +480,10 @@ preprocess = "some_preprocess_function"
         assert_eq!(package.has_plugins, Some(true));
         assert_eq!(package.plugin_for, vec!["maya", "nuke"]);
         assert_eq!(package.format_version, Some(2));
-        assert_eq!(package.preprocess, Some("some_preprocess_function".to_string()));
+        assert_eq!(
+            package.preprocess,
+            Some("some_preprocess_function".to_string())
+        );
     }
 
     #[test]
@@ -441,7 +496,11 @@ has_plugins = False
 "#;
 
         let result = PythonAstParser::parse_package_py(package_py_content);
-        assert!(result.is_ok(), "Failed to parse package.py: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "Failed to parse package.py: {:?}",
+            result.err()
+        );
 
         let package = result.unwrap();
         assert_eq!(package.hashed_variants, Some(false));

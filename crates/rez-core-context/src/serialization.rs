@@ -1,10 +1,10 @@
 //! Context serialization and deserialization
 
 use crate::ResolvedContext;
+use base64::{engine::general_purpose, Engine as _};
 use rez_core_common::RezCoreError;
 use serde_json;
 use std::path::Path;
-use base64::{Engine as _, engine::general_purpose};
 
 /// Context serialization format
 #[derive(Debug, Clone, PartialEq)]
@@ -45,83 +45,105 @@ impl ContextSerializer {
         format: ContextFormat,
     ) -> Result<(), RezCoreError> {
         let content = Self::serialize(context, format)?;
-        
+
         // Create parent directories if they don't exist
         if let Some(parent) = path.parent() {
-            tokio::fs::create_dir_all(parent).await
-                .map_err(|e| RezCoreError::ContextError(
-                    format!("Failed to create directory {}: {}", parent.display(), e)
-                ))?;
+            tokio::fs::create_dir_all(parent).await.map_err(|e| {
+                RezCoreError::ContextError(format!(
+                    "Failed to create directory {}: {}",
+                    parent.display(),
+                    e
+                ))
+            })?;
         }
 
-        tokio::fs::write(path, content).await
-            .map_err(|e| RezCoreError::ContextError(
-                format!("Failed to write context file {}: {}", path.display(), e)
+        tokio::fs::write(path, content).await.map_err(|e| {
+            RezCoreError::ContextError(format!(
+                "Failed to write context file {}: {}",
+                path.display(),
+                e
             ))
+        })
     }
 
     /// Load a resolved context from a file
     pub async fn load_from_file(path: &Path) -> Result<ResolvedContext, RezCoreError> {
-        let format = ContextFormat::from_extension(path)
-            .ok_or_else(|| RezCoreError::ContextError(
-                format!("Unsupported context file format: {}", path.display())
-            ))?;
+        let format = ContextFormat::from_extension(path).ok_or_else(|| {
+            RezCoreError::ContextError(format!(
+                "Unsupported context file format: {}",
+                path.display()
+            ))
+        })?;
 
-        let content = tokio::fs::read(path).await
-            .map_err(|e| RezCoreError::ContextError(
-                format!("Failed to read context file {}: {}", path.display(), e)
-            ))?;
+        let content = tokio::fs::read(path).await.map_err(|e| {
+            RezCoreError::ContextError(format!(
+                "Failed to read context file {}: {}",
+                path.display(),
+                e
+            ))
+        })?;
 
         Self::deserialize(&content, format)
     }
 
     /// Serialize a context to bytes
-    pub fn serialize(context: &ResolvedContext, format: ContextFormat) -> Result<Vec<u8>, RezCoreError> {
+    pub fn serialize(
+        context: &ResolvedContext,
+        format: ContextFormat,
+    ) -> Result<Vec<u8>, RezCoreError> {
         match format {
             ContextFormat::Json => {
-                let json_str = serde_json::to_string_pretty(context)
-                    .map_err(|e| RezCoreError::ContextError(
-                        format!("Failed to serialize context to JSON: {}", e)
-                    ))?;
+                let json_str = serde_json::to_string_pretty(context).map_err(|e| {
+                    RezCoreError::ContextError(format!(
+                        "Failed to serialize context to JSON: {}",
+                        e
+                    ))
+                })?;
                 Ok(json_str.into_bytes())
             }
             ContextFormat::Binary => {
                 // For now, use JSON as binary format (could be replaced with bincode or similar)
-                let json_str = serde_json::to_string(context)
-                    .map_err(|e| RezCoreError::ContextError(
-                        format!("Failed to serialize context to binary: {}", e)
-                    ))?;
+                let json_str = serde_json::to_string(context).map_err(|e| {
+                    RezCoreError::ContextError(format!(
+                        "Failed to serialize context to binary: {}",
+                        e
+                    ))
+                })?;
                 Ok(json_str.into_bytes())
             }
         }
     }
 
     /// Deserialize a context from bytes
-    pub fn deserialize(content: &[u8], format: ContextFormat) -> Result<ResolvedContext, RezCoreError> {
+    pub fn deserialize(
+        content: &[u8],
+        format: ContextFormat,
+    ) -> Result<ResolvedContext, RezCoreError> {
         match format {
             ContextFormat::Json | ContextFormat::Binary => {
-                let json_str = String::from_utf8(content.to_vec())
-                    .map_err(|e| RezCoreError::ContextError(
-                        format!("Invalid UTF-8 in context file: {}", e)
-                    ))?;
+                let json_str = String::from_utf8(content.to_vec()).map_err(|e| {
+                    RezCoreError::ContextError(format!("Invalid UTF-8 in context file: {}", e))
+                })?;
 
-                serde_json::from_str(&json_str)
-                    .map_err(|e| RezCoreError::ContextError(
-                        format!("Failed to deserialize context: {}", e)
-                    ))
+                serde_json::from_str(&json_str).map_err(|e| {
+                    RezCoreError::ContextError(format!("Failed to deserialize context: {}", e))
+                })
             }
         }
     }
 
     /// Save context to string
-    pub fn to_string(context: &ResolvedContext, format: ContextFormat) -> Result<String, RezCoreError> {
+    pub fn to_string(
+        context: &ResolvedContext,
+        format: ContextFormat,
+    ) -> Result<String, RezCoreError> {
         match format {
-            ContextFormat::Json => {
-                serde_json::to_string_pretty(context)
-                    .map_err(|e| RezCoreError::ContextError(
-                        format!("Failed to serialize context to JSON string: {}", e)
-                    ))
-            }
+            ContextFormat::Json => serde_json::to_string_pretty(context).map_err(|e| {
+                RezCoreError::ContextError(format!(
+                    "Failed to serialize context to JSON string: {}",
+                    e
+                ))
+            }),
             ContextFormat::Binary => {
                 // For binary format, return base64 encoded string
                 let bytes = Self::serialize(context, format)?;
@@ -131,20 +153,22 @@ impl ContextSerializer {
     }
 
     /// Load context from string
-    pub fn from_string(content: &str, format: ContextFormat) -> Result<ResolvedContext, RezCoreError> {
+    pub fn from_string(
+        content: &str,
+        format: ContextFormat,
+    ) -> Result<ResolvedContext, RezCoreError> {
         match format {
-            ContextFormat::Json => {
-                serde_json::from_str(content)
-                    .map_err(|e| RezCoreError::ContextError(
-                        format!("Failed to deserialize context from JSON string: {}", e)
-                    ))
-            }
+            ContextFormat::Json => serde_json::from_str(content).map_err(|e| {
+                RezCoreError::ContextError(format!(
+                    "Failed to deserialize context from JSON string: {}",
+                    e
+                ))
+            }),
             ContextFormat::Binary => {
                 // For binary format, expect base64 encoded string
-                let bytes = general_purpose::STANDARD.decode(content)
-                    .map_err(|e| RezCoreError::ContextError(
-                        format!("Failed to decode base64 context: {}", e)
-                    ))?;
+                let bytes = general_purpose::STANDARD.decode(content).map_err(|e| {
+                    RezCoreError::ContextError(format!("Failed to decode base64 context: {}", e))
+                })?;
                 Self::deserialize(&bytes, format)
             }
         }
@@ -165,10 +189,9 @@ impl ContextSerializer {
 
     /// Export context to YAML format
     fn export_to_yaml(context: &ResolvedContext) -> Result<String, RezCoreError> {
-        serde_yaml::to_string(context)
-            .map_err(|e| RezCoreError::ContextError(
-                format!("Failed to export context to YAML: {}", e)
-            ))
+        serde_yaml::to_string(context).map_err(|e| {
+            RezCoreError::ContextError(format!("Failed to export context to YAML: {}", e))
+        })
     }
 
     /// Export context to environment file format
@@ -203,22 +226,27 @@ impl ContextSerializer {
 
     /// Validate a context file
     pub async fn validate_file(path: &Path) -> Result<ContextValidation, RezCoreError> {
-        let format = ContextFormat::from_extension(path)
-            .ok_or_else(|| RezCoreError::ContextError(
-                format!("Unsupported context file format: {}", path.display())
-            ))?;
+        let format = ContextFormat::from_extension(path).ok_or_else(|| {
+            RezCoreError::ContextError(format!(
+                "Unsupported context file format: {}",
+                path.display()
+            ))
+        })?;
 
-        let content = tokio::fs::read(path).await
-            .map_err(|e| RezCoreError::ContextError(
-                format!("Failed to read context file {}: {}", path.display(), e)
-            ))?;
+        let content = tokio::fs::read(path).await.map_err(|e| {
+            RezCoreError::ContextError(format!(
+                "Failed to read context file {}: {}",
+                path.display(),
+                e
+            ))
+        })?;
 
         let validation_start = std::time::Instant::now();
-        
+
         match Self::deserialize(&content, format) {
             Ok(context) => {
                 let validation_time = validation_start.elapsed().as_millis() as u64;
-                
+
                 // Additional validation
                 match context.validate() {
                     Ok(_) => Ok(ContextValidation {
@@ -315,19 +343,23 @@ impl ContextFileUtils {
 
     /// Get context file metadata
     pub async fn get_file_metadata(path: &Path) -> Result<ContextFileMetadata, RezCoreError> {
-        let metadata = tokio::fs::metadata(path).await
-            .map_err(|e| RezCoreError::ContextError(
-                format!("Failed to get file metadata: {}", e)
-            ))?;
+        let metadata = tokio::fs::metadata(path).await.map_err(|e| {
+            RezCoreError::ContextError(format!("Failed to get file metadata: {}", e))
+        })?;
 
         let format = ContextFormat::from_extension(path);
-        
+
         Ok(ContextFileMetadata {
             path: path.to_path_buf(),
             format,
             size_bytes: metadata.len(),
-            modified_time: metadata.modified()
-                .map(|t| t.duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs())
+            modified_time: metadata
+                .modified()
+                .map(|t| {
+                    t.duration_since(std::time::UNIX_EPOCH)
+                        .unwrap_or_default()
+                        .as_secs()
+                })
                 .unwrap_or(0),
         })
     }
@@ -335,16 +367,13 @@ impl ContextFileUtils {
     /// Find all context files in a directory
     pub async fn find_context_files(dir: &Path) -> Result<Vec<std::path::PathBuf>, RezCoreError> {
         let mut context_files = Vec::new();
-        let mut entries = tokio::fs::read_dir(dir).await
-            .map_err(|e| RezCoreError::ContextError(
-                format!("Failed to read directory {}: {}", dir.display(), e)
-            ))?;
+        let mut entries = tokio::fs::read_dir(dir).await.map_err(|e| {
+            RezCoreError::ContextError(format!("Failed to read directory {}: {}", dir.display(), e))
+        })?;
 
-        while let Some(entry) = entries.next_entry().await
-            .map_err(|e| RezCoreError::ContextError(
-                format!("Failed to read directory entry: {}", e)
-            ))? {
-            
+        while let Some(entry) = entries.next_entry().await.map_err(|e| {
+            RezCoreError::ContextError(format!("Failed to read directory entry: {}", e))
+        })? {
             let path = entry.path();
             if path.is_file() && Self::is_context_file(&path) {
                 context_files.push(path);

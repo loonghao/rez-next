@@ -1,5 +1,5 @@
 //! Performance Validation Main Entry Point
-//! 
+//!
 //! This is the main entry point for running performance validation benchmarks
 //! to verify the claimed performance improvements (117x version parsing, 75x Rex parsing).
 

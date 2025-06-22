@@ -1,6 +1,6 @@
 //! Context execution and command spawning
 
-use crate::{ResolvedContext, ShellExecutor, ShellType, CommandResult};
+use crate::{CommandResult, ResolvedContext, ShellExecutor, ShellType};
 use rez_core_common::RezCoreError;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -59,7 +59,7 @@ impl ContextExecutor {
     /// Create a context executor with custom configuration
     pub fn with_config(context: ResolvedContext, config: ExecutionConfig) -> Self {
         let mut environment = context.environment_vars.clone();
-        
+
         // Add additional environment variables
         environment.extend(config.additional_env_vars.clone());
 
@@ -91,12 +91,18 @@ impl ContextExecutor {
     }
 
     /// Execute multiple commands in sequence
-    pub async fn execute_batch(&self, commands: &[String]) -> Result<Vec<CommandResult>, RezCoreError> {
+    pub async fn execute_batch(
+        &self,
+        commands: &[String],
+    ) -> Result<Vec<CommandResult>, RezCoreError> {
         self.shell_executor.execute_batch(commands).await
     }
 
     /// Execute a script file in the context
-    pub async fn execute_script(&self, script_path: &PathBuf) -> Result<CommandResult, RezCoreError> {
+    pub async fn execute_script(
+        &self,
+        script_path: &PathBuf,
+    ) -> Result<CommandResult, RezCoreError> {
         self.shell_executor.execute_script(script_path).await
     }
 
@@ -145,10 +151,9 @@ impl ContextExecutor {
             cmd.stdout(Stdio::inherit()).stderr(Stdio::inherit());
         }
 
-        let child = cmd.spawn()
-            .map_err(|e| RezCoreError::ExecutionError(
-                format!("Failed to spawn process {}: {}", program, e)
-            ))?;
+        let child = cmd.spawn().map_err(|e| {
+            RezCoreError::ExecutionError(format!("Failed to spawn process {}: {}", program, e))
+        })?;
 
         Ok(SpawnedProcess {
             child,
@@ -190,7 +195,10 @@ impl ContextExecutor {
             .with_timeout(self.config.timeout_seconds);
 
         if let Some(ref wd) = self.config.working_directory {
-            self.shell_executor = self.shell_executor.clone().with_working_directory(wd.clone());
+            self.shell_executor = self
+                .shell_executor
+                .clone()
+                .with_working_directory(wd.clone());
         }
     }
 
@@ -202,9 +210,10 @@ impl ContextExecutor {
     ) -> Result<CommandResult, RezCoreError> {
         // Check if package exists in context
         if !self.context.contains_package(package_name) {
-            return Err(RezCoreError::ExecutionError(
-                format!("Package {} not found in context", package_name)
-            ));
+            return Err(RezCoreError::ExecutionError(format!(
+                "Package {} not found in context",
+                package_name
+            )));
         }
 
         // Get package-specific environment
@@ -212,9 +221,10 @@ impl ContextExecutor {
         let package_root = self.context.environment_vars.get(&package_env_var);
 
         if package_root.is_none() {
-            return Err(RezCoreError::ExecutionError(
-                format!("Package root not found for {}", package_name)
-            ));
+            return Err(RezCoreError::ExecutionError(format!(
+                "Package root not found for {}",
+                package_name
+            )));
         }
 
         // Execute the command (could be enhanced to look in package-specific paths)
@@ -254,10 +264,9 @@ impl SpawnedProcess {
 
     /// Wait for the process to complete
     pub async fn wait(mut self) -> Result<ProcessResult, RezCoreError> {
-        let output = self.child.wait_with_output().await
-            .map_err(|e| RezCoreError::ExecutionError(
-                format!("Failed to wait for process: {}", e)
-            ))?;
+        let output = self.child.wait_with_output().await.map_err(|e| {
+            RezCoreError::ExecutionError(format!("Failed to wait for process: {}", e))
+        })?;
 
         let execution_time_ms = self.start_time.elapsed().as_millis() as u64;
 
@@ -273,18 +282,17 @@ impl SpawnedProcess {
 
     /// Kill the process
     pub async fn kill(&mut self) -> Result<(), RezCoreError> {
-        self.child.kill().await
-            .map_err(|e| RezCoreError::ExecutionError(
-                format!("Failed to kill process: {}", e)
-            ))
+        self.child
+            .kill()
+            .await
+            .map_err(|e| RezCoreError::ExecutionError(format!("Failed to kill process: {}", e)))
     }
 
     /// Try to kill the process
     pub fn try_kill(&mut self) -> Result<(), RezCoreError> {
-        self.child.start_kill()
-            .map_err(|e| RezCoreError::ExecutionError(
-                format!("Failed to kill process: {}", e)
-            ))
+        self.child
+            .start_kill()
+            .map_err(|e| RezCoreError::ExecutionError(format!("Failed to kill process: {}", e)))
     }
 }
 

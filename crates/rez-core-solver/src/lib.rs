@@ -9,18 +9,18 @@
 //! - Solver optimization techniques
 
 // Temporarily simplified for compilation
-mod solver;
-mod graph;
 pub mod dependency_resolver;
+mod graph;
+mod solver;
 // mod resolution;
 // mod conflict;
 // mod cache;
 // mod optimized_solver;
 // mod astar;
 
-pub use solver::*;
-pub use graph::*;
 pub use dependency_resolver::*;
+pub use graph::*;
+pub use solver::*;
 // pub use resolution::*;
 // pub use conflict::*;
 // pub use cache::*;

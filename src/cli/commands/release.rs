@@ -8,7 +8,7 @@
 //! - Release deployment
 
 use clap::Args;
-use rez_core_common::{RezCoreError, error::RezCoreResult};
+use rez_core_common::{error::RezCoreResult, RezCoreError};
 use std::path::PathBuf;
 
 /// Release command configuration
@@ -67,32 +67,33 @@ fn parse_variants(variants_str: &str) -> RezCoreResult<Vec<usize>> {
 /// Execute the release command
 pub fn execute(args: ReleaseArgs) -> RezCoreResult<()> {
     println!("🚀 Starting package release process...");
-    
+
     // Set working directory
-    let working_dir = args.working_dir
+    let working_dir = args
+        .working_dir
         .unwrap_or_else(|| std::env::current_dir().unwrap());
-    
+
     println!("📁 Working directory: {}", working_dir.display());
-    
+
     // TODO: Implement the actual release process
     // This is a simplified implementation for now
-    
+
     // 1. Load package from current directory
     println!("📦 Loading package definition...");
     // let package = load_developer_package(&working_dir)?;
-    
+
     // 2. Validate repository state
     if !args.skip_repo_errors {
         println!("🔍 Validating repository state...");
         // validate_repository_state(&working_dir, &args)?;
     }
-    
+
     // 3. Check for existing tags
     if !args.ignore_existing_tag {
         println!("🏷️  Checking for existing tags...");
         // check_existing_tags(&working_dir, &args)?;
     }
-    
+
     // 4. Build package variants
     println!("🔨 Building package variants...");
     if let Some(ref variants_str) = args.variants {
@@ -101,19 +102,17 @@ pub fn execute(args: ReleaseArgs) -> RezCoreResult<()> {
     } else {
         println!("   Building all variants");
     }
-    
+
     // 5. Deploy to release repository
     println!("📤 Deploying to release repository...");
-    
+
     // 6. Create release tag
     println!("🏷️  Creating release tag...");
     if let Some(ref message) = args.message {
         println!("   Release message: {}", message);
     }
-    
+
     println!("✅ Package release completed successfully!");
-    
+
     Ok(())
 }
-
-

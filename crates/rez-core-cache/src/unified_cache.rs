@@ -128,10 +128,11 @@ impl CacheEntryMetadata {
 
     /// Calculate cache retention score for eviction decisions
     pub fn retention_score(&self) -> f64 {
-        let age_factor = 1.0 / (1.0 + (self.last_accessed as f64 - self.created_at as f64) / 3600.0);
+        let age_factor =
+            1.0 / (1.0 + (self.last_accessed as f64 - self.created_at as f64) / 3600.0);
         let frequency_factor = (self.access_count as f64).ln().max(1.0);
         let size_factor = 1.0 / (1.0 + self.size_bytes as f64 / 1024.0);
-        
+
         self.priority_score * frequency_factor * age_factor * size_factor
     }
 }

@@ -7,8 +7,8 @@
 //! - Performance monitoring
 
 use rez_core_cache::{
-    IntelligentCacheManager, UnifiedCacheConfig, UnifiedCache,
-    benchmarks::{CacheBenchmarkSuite, BenchmarkConfig, run_comprehensive_benchmarks},
+    benchmarks::{run_comprehensive_benchmarks, BenchmarkConfig, CacheBenchmarkSuite},
+    IntelligentCacheManager, UnifiedCache, UnifiedCacheConfig,
 };
 use std::{sync::Arc, time::Duration};
 use tokio::time::sleep;
@@ -20,19 +20,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Demo 1: Basic cache operations
     demo_basic_operations().await?;
-    
+
     // Demo 2: Multi-level caching
     demo_multilevel_caching().await?;
-    
+
     // Demo 3: Predictive preheating
     demo_predictive_preheating().await?;
-    
+
     // Demo 4: Adaptive tuning
     demo_adaptive_tuning().await?;
-    
+
     // Demo 5: Performance monitoring
     demo_performance_monitoring().await?;
-    
+
     // Demo 6: Comprehensive benchmarks
     demo_comprehensive_benchmarks().await?;
 
@@ -64,7 +64,10 @@ async fn demo_basic_operations() -> Result<(), Box<dyn std::error::Error>> {
     println!("📊 Cache Stats:");
     println!("  L1 entries: {}", stats.l1_stats.entries);
     println!("  L1 hit rate: {:.2}%", stats.l1_stats.hit_rate * 100.0);
-    println!("  Overall hit rate: {:.2}%", stats.overall_stats.overall_hit_rate * 100.0);
+    println!(
+        "  Overall hit rate: {:.2}%",
+        stats.overall_stats.overall_hit_rate * 100.0
+    );
 
     println!("✅ Basic operations demo completed\n");
     Ok(())
@@ -140,11 +143,11 @@ async fn demo_predictive_preheating() -> Result<(), Box<dyn std::error::Error>> 
             if i % 3 == cycle % 3 {
                 let key = format!("pattern_key_{}", i);
                 let value = format!("pattern_value_{}", i);
-                
+
                 if cache.get(&key).await.is_none() {
                     cache.put(key.clone(), value).await?;
                 }
-                
+
                 // Record access for pattern learning
                 cache.preheater().record_access(&key).await;
             }
@@ -157,7 +160,10 @@ async fn demo_predictive_preheating() -> Result<(), Box<dyn std::error::Error>> 
     println!("📊 Preheating Stats:");
     println!("  Patterns learned: {}", preheating_stats.patterns_learned);
     println!("  Predictions made: {}", preheating_stats.predictions_made);
-    println!("  Average confidence: {:.2}", preheating_stats.avg_confidence);
+    println!(
+        "  Average confidence: {:.2}",
+        preheating_stats.avg_confidence
+    );
 
     // Get preheating recommendations
     let recommendations = cache.preheater().get_preheat_recommendations().await;
@@ -192,7 +198,7 @@ async fn demo_adaptive_tuning() -> Result<(), Box<dyn std::error::Error>> {
     for i in 0..50 {
         let key = format!("random_key_{}", i);
         let value = format!("random_value_{}", i);
-        
+
         // Always miss, then put
         let _ = cache.get(&key).await;
         cache.put(key, value).await?;
@@ -206,8 +212,10 @@ async fn demo_adaptive_tuning() -> Result<(), Box<dyn std::error::Error>> {
     let recommendations = cache.tuner().analyze_and_tune().await;
     println!("🎯 Tuning recommendations: {}", recommendations.len());
     for rec in recommendations.iter().take(3) {
-        println!("  {}: {:.3} -> {:.3} (confidence: {:.2})", 
-            rec.parameter, rec.current_value, rec.recommended_value, rec.confidence);
+        println!(
+            "  {}: {:.3} -> {:.3} (confidence: {:.2})",
+            rec.parameter, rec.current_value, rec.recommended_value, rec.confidence
+        );
     }
 
     // Check tuning statistics
@@ -215,7 +223,10 @@ async fn demo_adaptive_tuning() -> Result<(), Box<dyn std::error::Error>> {
     println!("📊 Tuning Stats:");
     println!("  Operations: {}", tuning_stats.tuning_operations);
     println!("  Success rate: {:.2}%", tuning_stats.success_rate * 100.0);
-    println!("  Current confidence: {:.2}", tuning_stats.current_confidence);
+    println!(
+        "  Current confidence: {:.2}",
+        tuning_stats.current_confidence
+    );
 
     println!("✅ Adaptive tuning demo completed\n");
     Ok(())
@@ -244,9 +255,9 @@ async fn demo_performance_monitoring() -> Result<(), Box<dyn std::error::Error>>
     for i in 0..100 {
         let key = format!("perf_key_{}", i);
         let value = vec![i as u8; 1024]; // 1KB values
-        
+
         cache.put(key.clone(), value).await?;
-        
+
         if i % 3 == 0 {
             let _ = cache.get(&key).await;
         }
@@ -290,24 +301,37 @@ async fn demo_comprehensive_benchmarks() -> Result<(), Box<dyn std::error::Error
 
     println!("🚀 Running benchmark: Sequential Operations");
     let result = suite.benchmark_sequential_operations().await;
-    println!("  Result: {:.2} ops/sec, {:.2}μs avg latency", 
-        result.ops_per_second, result.avg_latency_us);
+    println!(
+        "  Result: {:.2} ops/sec, {:.2}μs avg latency",
+        result.ops_per_second, result.avg_latency_us
+    );
 
     println!("🚀 Running benchmark: Concurrent Operations");
     let result = suite.benchmark_concurrent_operations().await;
-    println!("  Result: {:.2} ops/sec, {:.2}μs avg latency", 
-        result.ops_per_second, result.avg_latency_us);
+    println!(
+        "  Result: {:.2} ops/sec, {:.2}μs avg latency",
+        result.ops_per_second, result.avg_latency_us
+    );
 
     println!("🚀 Running benchmark: Hit Rate Optimization");
     let result = suite.benchmark_hit_rate_optimization().await;
-    println!("  Result: {:.2} ops/sec, hit rate: {:.2}%", 
-        result.ops_per_second, result.hit_rate * 100.0);
+    println!(
+        "  Result: {:.2} ops/sec, hit rate: {:.2}%",
+        result.ops_per_second,
+        result.hit_rate * 100.0
+    );
 
     // Show final cache statistics
     let stats = suite.get_cache_stats().await;
     println!("📊 Final Cache Statistics:");
-    println!("  Overall hit rate: {:.2}%", stats.overall_stats.overall_hit_rate * 100.0);
-    println!("  Efficiency score: {:.2}", stats.overall_stats.efficiency_score);
+    println!(
+        "  Overall hit rate: {:.2}%",
+        stats.overall_stats.overall_hit_rate * 100.0
+    );
+    println!(
+        "  Efficiency score: {:.2}",
+        stats.overall_stats.efficiency_score
+    );
     println!("  Total entries: {}", stats.overall_stats.total_entries);
 
     println!("✅ Comprehensive benchmarks demo completed\n");
@@ -319,11 +343,11 @@ fn format_bytes(bytes: u64) -> String {
     const UNITS: &[&str] = &["B", "KB", "MB", "GB"];
     let mut size = bytes as f64;
     let mut unit_index = 0;
-    
+
     while size >= 1024.0 && unit_index < UNITS.len() - 1 {
         size /= 1024.0;
         unit_index += 1;
     }
-    
+
     format!("{:.2} {}", size, UNITS[unit_index])
 }

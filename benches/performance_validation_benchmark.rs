@@ -1,15 +1,15 @@
 //! Performance Validation Benchmark Suite
-//! 
+//!
 //! This benchmark suite is specifically designed to validate the performance improvements
 //! claimed for rez-core, including the 117x version parsing improvement and 75x Rex improvement.
 
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
-use std::time::{Duration, Instant};
 use std::collections::HashMap;
+use std::time::{Duration, Instant};
 
 // Import rez-core modules
+use rez_core::rex::{OptimizedRexParser, RexParser};
 use rez_core::version::Version;
-use rez_core::rex::{RexParser, OptimizedRexParser};
 
 #[cfg(feature = "flamegraph")]
 use pprof::criterion::{Output, PProfProfiler};
@@ -29,7 +29,7 @@ pub struct ValidationResult {
 /// Validate 117x version parsing improvement
 fn validate_version_parsing_117x(c: &mut Criterion) {
     let mut group = c.benchmark_group("version_parsing_validation");
-    
+
     // Test data representing realistic version strings
     let test_versions = vec![
         "1.2.3",
@@ -43,7 +43,7 @@ fn validate_version_parsing_117x(c: &mut Criterion) {
         "2.1.0-snapshot.20231201",
         "1.0.0+20231201.abcdef",
     ];
-    
+
     // Baseline: Legacy parsing (simulated slower parsing)
     group.bench_function("baseline_legacy_parsing", |b| {
         b.iter(|| {
@@ -54,7 +54,7 @@ fn validate_version_parsing_117x(c: &mut Criterion) {
             }
         });
     });
-    
+
     // Optimized: Current state-machine parser
     group.bench_function("optimized_state_machine_parsing", |b| {
         b.iter(|| {
@@ -64,7 +64,7 @@ fn validate_version_parsing_117x(c: &mut Criterion) {
             }
         });
     });
-    
+
     // High-throughput test for measuring ops/sec
     group.throughput(Throughput::Elements(test_versions.len() as u64));
     group.bench_function("throughput_validation", |b| {
@@ -74,14 +74,14 @@ fn validate_version_parsing_117x(c: &mut Criterion) {
             }
         });
     });
-    
+
     group.finish();
 }
 
 /// Validate 75x Rex parsing improvement
 fn validate_rex_parsing_75x(c: &mut Criterion) {
     let mut group = c.benchmark_group("rex_parsing_validation");
-    
+
     // Test Rex commands representing realistic scenarios
     let test_commands = vec![
         "setenv PATH /usr/bin",
@@ -95,7 +95,7 @@ fn validate_rex_parsing_75x(c: &mut Criterion) {
         "prependenv PKG_CONFIG_PATH /usr/lib/pkgconfig",
         "setenv MAYA_VERSION 2024",
     ];
-    
+
     // Baseline: Basic Rex parser
     let basic_parser = RexParser::new();
     group.bench_function("baseline_basic_rex_parsing", |b| {
@@ -106,7 +106,7 @@ fn validate_rex_parsing_75x(c: &mut Criterion) {
             }
         });
     });
-    
+
     // Optimized: OptimizedRexParser with state machine
     let optimized_parser = OptimizedRexParser::new();
     group.bench_function("optimized_rex_parsing", |b| {
@@ -117,7 +117,7 @@ fn validate_rex_parsing_75x(c: &mut Criterion) {
             }
         });
     });
-    
+
     // High-throughput test for measuring ops/sec
     group.throughput(Throughput::Elements(test_commands.len() as u64));
     group.bench_function("rex_throughput_validation", |b| {
@@ -127,42 +127,49 @@ fn validate_rex_parsing_75x(c: &mut Criterion) {
             }
         });
     });
-    
+
     group.finish();
 }
 
 /// Comprehensive performance validation across all modules
 fn comprehensive_performance_validation(c: &mut Criterion) {
     let mut group = c.benchmark_group("comprehensive_validation");
-    
+
     // Version system validation
     group.bench_function("version_system_comprehensive", |b| {
         let versions = vec![
-            "1.2.3", "2.0.0-alpha.1", "3.1.4-beta.2", "1.0.0-rc.1",
-            "4.5.6", "0.1.0-dev.123", "10.20.30", "1.2.3-snapshot.1"
+            "1.2.3",
+            "2.0.0-alpha.1",
+            "3.1.4-beta.2",
+            "1.0.0-rc.1",
+            "4.5.6",
+            "0.1.0-dev.123",
+            "10.20.30",
+            "1.2.3-snapshot.1",
         ];
-        
+
         b.iter(|| {
             // Parse all versions
-            let parsed: Vec<_> = versions.iter()
+            let parsed: Vec<_> = versions
+                .iter()
                 .map(|v| Version::parse(v).unwrap())
                 .collect();
-            
+
             // Sort them
             let mut sorted = parsed.clone();
             sorted.sort();
-            
+
             // Compare them
             for i in 0..parsed.len() {
-                for j in i+1..parsed.len() {
+                for j in i + 1..parsed.len() {
                     black_box(parsed[i].cmp(&parsed[j]));
                 }
             }
-            
+
             black_box(sorted);
         });
     });
-    
+
     // Rex system validation
     group.bench_function("rex_system_comprehensive", |b| {
         let commands = vec![
@@ -172,9 +179,9 @@ fn comprehensive_performance_validation(c: &mut Criterion) {
             "setenv CC gcc-11",
             "setenv CXX g++-11",
         ];
-        
+
         let parser = OptimizedRexParser::new();
-        
+
         b.iter(|| {
             for command in &commands {
                 let parsed = parser.parse(command).unwrap();
@@ -183,77 +190,84 @@ fn comprehensive_performance_validation(c: &mut Criterion) {
             }
         });
     });
-    
+
     group.finish();
 }
 
 /// Stress test to validate performance under load
 fn stress_test_validation(c: &mut Criterion) {
     let mut group = c.benchmark_group("stress_test_validation");
-    
+
     // Large-scale version parsing stress test
     group.bench_function("version_parsing_stress", |b| {
         let versions: Vec<String> = (0..1000)
             .map(|i| format!("{}.{}.{}", i % 100, (i / 100) % 100, i % 10))
             .collect();
-        
+
         b.iter(|| {
             for version_str in &versions {
                 black_box(Version::parse(version_str).unwrap());
             }
         });
     });
-    
+
     // Large-scale Rex parsing stress test
     group.bench_function("rex_parsing_stress", |b| {
         let commands: Vec<String> = (0..1000)
             .map(|i| format!("setenv VAR_{} value_{}", i, i))
             .collect();
-        
+
         let parser = OptimizedRexParser::new();
-        
+
         b.iter(|| {
             for command in &commands {
                 black_box(parser.parse(command).unwrap());
             }
         });
     });
-    
+
     group.finish();
 }
 
 /// Memory efficiency validation
 fn memory_efficiency_validation(c: &mut Criterion) {
     let mut group = c.benchmark_group("memory_efficiency_validation");
-    
+
     group.bench_function("version_memory_efficiency", |b| {
         let versions = vec![
-            "1.2.3", "2.0.0-alpha.1", "3.1.4-beta.2", "1.0.0-rc.1",
-            "4.5.6", "0.1.0-dev.123", "10.20.30", "1.2.3-snapshot.1"
+            "1.2.3",
+            "2.0.0-alpha.1",
+            "3.1.4-beta.2",
+            "1.0.0-rc.1",
+            "4.5.6",
+            "0.1.0-dev.123",
+            "10.20.30",
+            "1.2.3-snapshot.1",
         ];
-        
+
         b.iter(|| {
-            let parsed_versions: Vec<Version> = versions.iter()
+            let parsed_versions: Vec<Version> = versions
+                .iter()
                 .map(|v| Version::parse(v).unwrap())
                 .collect();
-            
+
             // Simulate memory usage patterns
             for version in &parsed_versions {
                 black_box(version.to_string());
                 black_box(version.clone());
             }
-            
+
             black_box(parsed_versions);
         });
     });
-    
+
     group.finish();
 }
 
 /// Real-world scenario validation
 fn real_world_scenario_validation(c: &mut Criterion) {
     let mut group = c.benchmark_group("real_world_scenarios");
-    
+
     // Simulate a typical package resolution scenario
     group.bench_function("package_resolution_scenario", |b| {
         let package_versions = vec![
@@ -262,20 +276,21 @@ fn real_world_scenario_validation(c: &mut Criterion) {
             ("maya", vec!["2022.1", "2023.2", "2024.0"]),
             ("houdini", vec!["19.5.303", "20.0.547"]),
         ];
-        
+
         b.iter(|| {
             for (package_name, versions) in &package_versions {
-                let parsed_versions: Vec<Version> = versions.iter()
+                let parsed_versions: Vec<Version> = versions
+                    .iter()
                     .map(|v| Version::parse(v).unwrap())
                     .collect();
-                
+
                 // Find latest version
                 let latest = parsed_versions.iter().max().unwrap();
                 black_box((package_name, latest));
             }
         });
     });
-    
+
     group.finish();
 }
 

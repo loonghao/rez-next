@@ -4,14 +4,13 @@
 //! performance metrics and workload characteristics.
 
 use crate::{TuningConfig, UnifiedCacheStats};
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use std::{
     collections::VecDeque,
     sync::{Arc, RwLock},
     time::SystemTime,
 };
 use tokio::time::Interval;
-
 
 /// Cache performance metrics for tuning decisions
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -254,19 +253,29 @@ impl AdaptiveTuner {
     }
 
     /// Analyze hit rate trends
-    fn analyze_hit_rate(&self, history: &VecDeque<PerformanceSnapshot>) -> Option<TuningRecommendation> {
+    fn analyze_hit_rate(
+        &self,
+        history: &VecDeque<PerformanceSnapshot>,
+    ) -> Option<TuningRecommendation> {
         if history.len() < 3 {
             return None;
         }
 
-        let recent_hit_rate = history.iter().rev().take(3).map(|s| s.hit_rate).sum::<f64>() / 3.0;
+        let recent_hit_rate = history
+            .iter()
+            .rev()
+            .take(3)
+            .map(|s| s.hit_rate)
+            .sum::<f64>()
+            / 3.0;
         let older_hit_rate = history.iter().take(3).map(|s| s.hit_rate).sum::<f64>() / 3.0;
 
         // If hit rate is declining, recommend increasing cache size
-        if recent_hit_rate < older_hit_rate - 0.05 && recent_hit_rate < self.config.target_hit_rate {
+        if recent_hit_rate < older_hit_rate - 0.05 && recent_hit_rate < self.config.target_hit_rate
+        {
             let current_params = self.current_params.read().unwrap();
             let new_multiplier = (current_params.l1_size_multiplier * 1.2).min(2.0);
-            
+
             return Some(TuningRecommendation {
                 parameter: "l1_size_multiplier".to_string(),
                 current_value: current_params.l1_size_multiplier,
@@ -281,16 +290,18 @@ impl AdaptiveTuner {
     }
 
     /// Analyze memory usage patterns
-    fn analyze_memory_usage(&self, history: &VecDeque<PerformanceSnapshot>) -> Option<TuningRecommendation> {
-        let avg_memory_usage = history.iter()
-            .map(|s| s.memory_usage_percent)
-            .sum::<f64>() / history.len() as f64;
+    fn analyze_memory_usage(
+        &self,
+        history: &VecDeque<PerformanceSnapshot>,
+    ) -> Option<TuningRecommendation> {
+        let avg_memory_usage =
+            history.iter().map(|s| s.memory_usage_percent).sum::<f64>() / history.len() as f64;
 
         // If memory usage is consistently high, recommend more aggressive eviction
         if avg_memory_usage > 90.0 {
             let current_params = self.current_params.read().unwrap();
             let new_aggressiveness = (current_params.eviction_aggressiveness + 0.1).min(1.0);
-            
+
             return Some(TuningRecommendation {
                 parameter: "eviction_aggressiveness".to_string(),
                 current_value: current_params.eviction_aggressiveness,
@@ -305,7 +316,7 @@ impl AdaptiveTuner {
         if avg_memory_usage < 50.0 {
             let current_params = self.current_params.read().unwrap();
             let new_aggressiveness = (current_params.eviction_aggressiveness - 0.1).max(0.1);
-            
+
             return Some(TuningRecommendation {
                 parameter: "eviction_aggressiveness".to_string(),
                 current_value: current_params.eviction_aggressiveness,
@@ -320,26 +331,41 @@ impl AdaptiveTuner {
     }
 
     /// Analyze latency trends
-    fn analyze_latency(&self, history: &VecDeque<PerformanceSnapshot>) -> Option<TuningRecommendation> {
+    fn analyze_latency(
+        &self,
+        history: &VecDeque<PerformanceSnapshot>,
+    ) -> Option<TuningRecommendation> {
         if history.len() < 5 {
             return None;
         }
 
-        let recent_latency = history.iter().rev().take(3).map(|s| s.avg_get_latency_us).sum::<f64>() / 3.0;
-        let baseline_latency = history.iter().take(3).map(|s| s.avg_get_latency_us).sum::<f64>() / 3.0;
+        let recent_latency = history
+            .iter()
+            .rev()
+            .take(3)
+            .map(|s| s.avg_get_latency_us)
+            .sum::<f64>()
+            / 3.0;
+        let baseline_latency = history
+            .iter()
+            .take(3)
+            .map(|s| s.avg_get_latency_us)
+            .sum::<f64>()
+            / 3.0;
 
         // If latency is increasing significantly, recommend reducing cache size or TTL
         if recent_latency > baseline_latency * 1.5 && recent_latency > 1000.0 {
             let current_params = self.current_params.read().unwrap();
             let new_ttl_multiplier = (current_params.ttl_multiplier * 0.8).max(0.5);
-            
+
             return Some(TuningRecommendation {
                 parameter: "ttl_multiplier".to_string(),
                 current_value: current_params.ttl_multiplier,
                 recommended_value: new_ttl_multiplier,
                 confidence: 0.7,
                 expected_improvement: 0.2,
-                reason: "High latency detected, reducing TTL to improve cache freshness".to_string(),
+                reason: "High latency detected, reducing TTL to improve cache freshness"
+                    .to_string(),
             });
         }
 
@@ -347,16 +373,18 @@ impl AdaptiveTuner {
     }
 
     /// Analyze eviction patterns
-    fn analyze_eviction_patterns(&self, history: &VecDeque<PerformanceSnapshot>) -> Option<TuningRecommendation> {
-        let avg_eviction_rate = history.iter()
-            .map(|s| s.eviction_rate)
-            .sum::<f64>() / history.len() as f64;
+    fn analyze_eviction_patterns(
+        &self,
+        history: &VecDeque<PerformanceSnapshot>,
+    ) -> Option<TuningRecommendation> {
+        let avg_eviction_rate =
+            history.iter().map(|s| s.eviction_rate).sum::<f64>() / history.len() as f64;
 
         // If eviction rate is very high, recommend increasing cache size
         if avg_eviction_rate > 100.0 {
             let current_params = self.current_params.read().unwrap();
             let new_multiplier = (current_params.l2_size_multiplier * 1.3).min(3.0);
-            
+
             return Some(TuningRecommendation {
                 parameter: "l2_size_multiplier".to_string(),
                 current_value: current_params.l2_size_multiplier,
@@ -380,10 +408,16 @@ impl AdaptiveTuner {
                 match rec.parameter.as_str() {
                     "l1_size_multiplier" => params.l1_size_multiplier = rec.recommended_value,
                     "l2_size_multiplier" => params.l2_size_multiplier = rec.recommended_value,
-                    "promotion_threshold" => params.promotion_threshold = rec.recommended_value as u64,
-                    "eviction_aggressiveness" => params.eviction_aggressiveness = rec.recommended_value,
+                    "promotion_threshold" => {
+                        params.promotion_threshold = rec.recommended_value as u64
+                    }
+                    "eviction_aggressiveness" => {
+                        params.eviction_aggressiveness = rec.recommended_value
+                    }
                     "ttl_multiplier" => params.ttl_multiplier = rec.recommended_value,
-                    "preheating_aggressiveness" => params.preheating_aggressiveness = rec.recommended_value,
+                    "preheating_aggressiveness" => {
+                        params.preheating_aggressiveness = rec.recommended_value
+                    }
                     _ => continue,
                 }
 
@@ -401,7 +435,7 @@ impl AdaptiveTuner {
     /// Get tuning statistics
     pub fn get_stats(&self) -> AdaptiveTuningStats {
         let mut stats = self.stats.read().unwrap().clone();
-        
+
         // Calculate success rate
         if stats.tuning_operations > 0 {
             stats.success_rate = stats.successful_tunings as f64 / stats.tuning_operations as f64;
@@ -413,10 +447,11 @@ impl AdaptiveTuner {
     /// Record tuning outcome
     pub async fn record_tuning_outcome(&self, improved: bool, improvement: f64) {
         let mut stats = self.stats.write().unwrap();
-        
+
         if improved {
             stats.successful_tunings += 1;
-            stats.avg_improvement = (stats.avg_improvement * (stats.successful_tunings - 1) as f64 + improvement) 
+            stats.avg_improvement = (stats.avg_improvement * (stats.successful_tunings - 1) as f64
+                + improvement)
                 / stats.successful_tunings as f64;
         } else {
             stats.failed_tunings += 1;
@@ -424,7 +459,8 @@ impl AdaptiveTuner {
 
         // Update confidence based on recent success rate
         if stats.tuning_operations > 0 {
-            stats.current_confidence = stats.successful_tunings as f64 / stats.tuning_operations as f64;
+            stats.current_confidence =
+                stats.successful_tunings as f64 / stats.tuning_operations as f64;
         }
     }
 }

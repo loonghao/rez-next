@@ -15,9 +15,9 @@
 
 // Re-export from workspace crates
 pub use rez_core_common as common;
-pub use rez_core_version as version;
 pub use rez_core_package as package;
 pub use rez_core_solver as solver;
+pub use rez_core_version as version;
 // pub use rez_core_repository as repository;  // Temporarily disabled
 pub use rez_core_context as context;
 

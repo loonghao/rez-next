@@ -4,9 +4,9 @@ use crate::{EnvironmentManager, ShellType};
 use rez_core_common::RezCoreError;
 use rez_core_package::{Package, PackageRequirement};
 // use rez_core_solver::{ResolutionResult, DependencySolver, SolverRequest};
-use rez_core_version::Version;
 #[cfg(feature = "python-bindings")]
 use pyo3::prelude::*;
+use rez_core_version::Version;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -31,19 +31,19 @@ pub struct ResolvedContext {
     /// Context name (non-Python version)
     #[cfg(not(feature = "python-bindings"))]
     pub name: Option<String>,
-    
+
     /// Original requirements that led to this context
     pub requirements: Vec<PackageRequirement>,
-    
+
     /// Resolved packages in dependency order
     pub resolved_packages: Vec<Package>,
-    
+
     /// Environment variables
     pub environment_vars: HashMap<String, String>,
-    
+
     /// Context metadata
     pub metadata: HashMap<String, String>,
-    
+
     /// Context creation timestamp
     #[cfg(feature = "python-bindings")]
     #[pyo3(get)]
@@ -75,10 +75,10 @@ pub struct ResolvedContext {
     /// Architecture information (non-Python version)
     #[cfg(not(feature = "python-bindings"))]
     pub arch: Option<String>,
-    
+
     /// Context status
     pub status: ContextStatus,
-    
+
     /// Context configuration
     pub config: ContextConfig,
 }
@@ -204,7 +204,11 @@ impl ResolvedContext {
 
     /// Get representation
     fn __repr__(&self) -> String {
-        format!("ResolvedContext(id='{}', packages={})", self.id, self.py_package_count())
+        format!(
+            "ResolvedContext(id='{}', packages={})",
+            self.id,
+            self.py_package_count()
+        )
     }
 }
 
@@ -242,7 +246,10 @@ impl ResolvedContext {
 
     /// Get all package names
     pub fn get_package_names(&self) -> Vec<String> {
-        self.resolved_packages.iter().map(|p| p.name.clone()).collect()
+        self.resolved_packages
+            .iter()
+            .map(|p| p.name.clone())
+            .collect()
     }
 
     /// Check if a package is included in the context
@@ -259,7 +266,6 @@ impl ResolvedContext {
     pub fn set_env_var(&mut self, name: String, value: String) {
         self.environment_vars.insert(name, value);
     }
-
 
     // /// Create a resolved context from a resolution result
     // pub fn from_resolution_result(
@@ -316,7 +322,9 @@ impl ResolvedContext {
     /// Generate environment variables for this context
     pub async fn generate_environment(&mut self) -> Result<(), RezCoreError> {
         let env_manager = EnvironmentManager::new(self.config.clone());
-        self.environment_vars = env_manager.generate_environment(&self.resolved_packages).await?;
+        self.environment_vars = env_manager
+            .generate_environment(&self.resolved_packages)
+            .await?;
         Ok(())
     }
 
@@ -333,9 +341,9 @@ impl ResolvedContext {
 
     /// Get package by name and version
     pub fn get_package_by_version(&self, name: &str, version: &Version) -> Option<&Package> {
-        self.resolved_packages.iter().find(|p| {
-            p.name == name && p.version.as_ref() == Some(version)
-        })
+        self.resolved_packages
+            .iter()
+            .find(|p| p.name == name && p.version.as_ref() == Some(version))
     }
 
     /// Check if context satisfies a requirement
@@ -384,17 +392,18 @@ impl ResolvedContext {
         // Check that all requirements are satisfied
         for requirement in &self.requirements {
             if !self.satisfies_requirement(requirement) {
-                return Err(RezCoreError::ContextError(
-                    format!("Requirement not satisfied: {}", requirement.requirement_string())
-                ));
+                return Err(RezCoreError::ContextError(format!(
+                    "Requirement not satisfied: {}",
+                    requirement.requirement_string()
+                )));
             }
         }
 
         // Validate all packages
         for package in &self.resolved_packages {
-            package.validate().map_err(|e| RezCoreError::ContextError(
-                format!("Invalid package {}: {}", package.name, e)
-            ))?;
+            package.validate().map_err(|e| {
+                RezCoreError::ContextError(format!("Invalid package {}: {}", package.name, e))
+            })?;
         }
 
         Ok(())
@@ -414,16 +423,16 @@ impl ResolvedContext {
         use std::hash::{Hash, Hasher};
 
         let mut hasher = DefaultHasher::new();
-        
+
         // Hash requirements
         for req in &self.requirements {
             req.requirement_string().hash(&mut hasher);
         }
-        
+
         // Hash platform and arch
         self.platform.hash(&mut hasher);
         self.arch.hash(&mut hasher);
-        
+
         // Hash configuration
         self.config.inherit_parent_env.hash(&mut hasher);
         format!("{:x}", hasher.finish())

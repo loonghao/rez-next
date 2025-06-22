@@ -3,7 +3,7 @@
 //! Implementation of the `rez config` command for viewing and managing configuration.
 
 use clap::Args;
-use rez_core_common::{RezCoreError, error::RezCoreResult, RezCoreConfig};
+use rez_core_common::{error::RezCoreResult, RezCoreConfig, RezCoreError};
 use serde_json;
 
 /// Arguments for the config command
@@ -72,7 +72,10 @@ fn show_config_field(config: &RezCoreConfig, field: &str, json_output: bool) -> 
     // Use the new get_field method for dot-separated field access
     if let Some(value) = config.get_field(field) {
         if json_output {
-            println!("{}", serde_json::to_string(&value).map_err(RezCoreError::Serde)?);
+            println!(
+                "{}",
+                serde_json::to_string(&value).map_err(RezCoreError::Serde)?
+            );
         } else {
             // Format the output based on the value type
             match &value {
@@ -96,7 +99,10 @@ fn show_config_field(config: &RezCoreConfig, field: &str, json_output: bool) -> 
                 }
                 serde_json::Value::Object(_) => {
                     // For objects, use YAML-like format
-                    println!("{}", serde_json::to_string_pretty(&value).map_err(RezCoreError::Serde)?);
+                    println!(
+                        "{}",
+                        serde_json::to_string_pretty(&value).map_err(RezCoreError::Serde)?
+                    );
                 }
                 serde_json::Value::Null => {
                     println!("null");
@@ -104,7 +110,10 @@ fn show_config_field(config: &RezCoreConfig, field: &str, json_output: bool) -> 
             }
         }
     } else {
-        return Err(RezCoreError::RequirementParse(format!("Unknown configuration field: '{}'", field)));
+        return Err(RezCoreError::RequirementParse(format!(
+            "Unknown configuration field: '{}'",
+            field
+        )));
     }
 
     Ok(())
@@ -114,7 +123,10 @@ fn show_config_field(config: &RezCoreConfig, field: &str, json_output: bool) -> 
 fn show_full_config(config: &RezCoreConfig, json_output: bool) -> RezCoreResult<()> {
     if json_output {
         // Serialize the actual config to JSON
-        println!("{}", serde_json::to_string_pretty(config).map_err(RezCoreError::Serde)?);
+        println!(
+            "{}",
+            serde_json::to_string_pretty(config).map_err(RezCoreError::Serde)?
+        );
     } else {
         // Format the actual config in YAML-like format
         println!("# Rez Core Configuration");
@@ -154,10 +166,16 @@ fn show_full_config(config: &RezCoreConfig, json_output: bool) -> RezCoreResult<
         println!("image_viewer: {}", config.image_viewer);
         println!("browser: {}", config.browser);
         println!("difftool: {}", config.difftool);
-        println!("terminal_emulator_command: {}", config.terminal_emulator_command);
+        println!(
+            "terminal_emulator_command: {}",
+            config.terminal_emulator_command
+        );
 
         println!("cache:");
-        println!("  enable_memory_cache: {}", config.cache.enable_memory_cache);
+        println!(
+            "  enable_memory_cache: {}",
+            config.cache.enable_memory_cache
+        );
         println!("  enable_disk_cache: {}", config.cache.enable_disk_cache);
         println!("  memory_cache_size: {}", config.cache.memory_cache_size);
         println!("  cache_ttl_seconds: {}", config.cache.cache_ttl_seconds);
@@ -179,7 +197,7 @@ mod tests {
             source_list: false,
             field: Some("version".to_string()),
         };
-        
+
         assert!(args.json);
         assert_eq!(args.field, Some("version".to_string()));
     }
@@ -212,8 +230,7 @@ mod tests {
 
         // Should include user home config paths
         let has_home_config = search_paths.iter().any(|p| {
-            p.to_string_lossy().contains(".rezconfig") ||
-            p.to_string_lossy().contains(".rez")
+            p.to_string_lossy().contains(".rezconfig") || p.to_string_lossy().contains(".rez")
         });
         assert!(has_home_config);
     }

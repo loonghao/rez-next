@@ -33,21 +33,18 @@ dashmap = "6.0"
 smallvec = "1.11"
 futures = "0.3"
 
-# Temporarily disable bins that depend on astar module
-[[bin]]
-name = "test_astar"
-path = "src/bin/test_astar.rs"
-required-features = ["astar"]
+# Bins temporarily disabled - astar feature not implemented yet
+# [[bin]]
+# name = "test_astar"
+# path = "src/bin/test_astar.rs"
 
-[[bin]]
-name = "test_heuristics"
-path = "src/bin/test_heuristics.rs"
-required-features = ["astar"]
+# [[bin]]
+# name = "test_heuristics"
+# path = "src/bin/test_heuristics.rs"
 
-[[bin]]
-name = "heuristic_demo"
-path = "src/bin/heuristic_demo.rs"
-required-features = ["astar"]
+# [[bin]]
+# name = "heuristic_demo"
+# path = "src/bin/heuristic_demo.rs"
 
 [dev-dependencies]
 rstest.workspace = true

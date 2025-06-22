@@ -1,10 +1,10 @@
 //! Repository trait and base implementations
 
+#[cfg(feature = "python-bindings")]
+use pyo3::prelude::*;
 use rez_core_common::RezCoreError;
 use rez_core_package::{Package, PackageRequirement};
 use rez_core_version::Version;
-#[cfg(feature = "python-bindings")]
-use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -84,19 +84,34 @@ pub trait Repository: Send + Sync {
     async fn refresh(&mut self) -> Result<(), RezCoreError>;
 
     /// Find packages matching the given criteria
-    async fn find_packages(&self, criteria: &PackageSearchCriteria) -> Result<Vec<Package>, RezCoreError>;
+    async fn find_packages(
+        &self,
+        criteria: &PackageSearchCriteria,
+    ) -> Result<Vec<Package>, RezCoreError>;
 
     /// Get a specific package by name and version
-    async fn get_package(&self, name: &str, version: Option<&Version>) -> Result<Option<Package>, RezCoreError>;
+    async fn get_package(
+        &self,
+        name: &str,
+        version: Option<&Version>,
+    ) -> Result<Option<Package>, RezCoreError>;
 
     /// Get all versions of a package
     async fn get_package_versions(&self, name: &str) -> Result<Vec<Version>, RezCoreError>;
 
     /// Get package variants for a specific package (simplified - returns variant names)
-    async fn get_package_variants(&self, name: &str, version: Option<&Version>) -> Result<Vec<String>, RezCoreError>;
+    async fn get_package_variants(
+        &self,
+        name: &str,
+        version: Option<&Version>,
+    ) -> Result<Vec<String>, RezCoreError>;
 
     /// Check if a package exists
-    async fn package_exists(&self, name: &str, version: Option<&Version>) -> Result<bool, RezCoreError>;
+    async fn package_exists(
+        &self,
+        name: &str,
+        version: Option<&Version>,
+    ) -> Result<bool, RezCoreError>;
 
     /// Get all package names in the repository
     async fn get_package_names(&self) -> Result<Vec<String>, RezCoreError>;
@@ -165,24 +180,30 @@ impl RepositoryManager {
 
 impl RepositoryManager {
     /// Add a repository to the manager
-    pub async fn add_repository(&self, repository: Arc<RwLock<dyn Repository>>) -> Result<(), RezCoreError> {
+    pub async fn add_repository(
+        &self,
+        repository: Arc<RwLock<dyn Repository>>,
+    ) -> Result<(), RezCoreError> {
         let mut repos = self.repositories.write().await;
         let mut cache = self.cache.write().await;
-        
+
         let metadata = {
             let repo = repository.read().await;
             repo.metadata().clone()
         };
-        
+
         // Insert in priority order (higher priority first)
-        let insert_pos = repos.iter().position(|r| {
-            // This is a simplified comparison - in practice you'd need async access
-            false // TODO: Implement proper priority comparison
-        }).unwrap_or(repos.len());
-        
+        let insert_pos = repos
+            .iter()
+            .position(|r| {
+                // This is a simplified comparison - in practice you'd need async access
+                false // TODO: Implement proper priority comparison
+            })
+            .unwrap_or(repos.len());
+
         repos.insert(insert_pos, repository.clone());
         cache.insert(metadata.name.clone(), repository);
-        
+
         Ok(())
     }
 
@@ -190,9 +211,9 @@ impl RepositoryManager {
     pub async fn remove_repository(&self, name: &str) -> Result<bool, RezCoreError> {
         let mut repos = self.repositories.write().await;
         let mut cache = self.cache.write().await;
-        
+
         cache.remove(name);
-        
+
         // Find and remove from repositories list
         if let Some(pos) = repos.iter().position(|r| {
             // TODO: Implement proper name comparison
@@ -212,10 +233,13 @@ impl RepositoryManager {
     }
 
     /// Find packages across all repositories
-    pub async fn find_packages(&self, criteria: &PackageSearchCriteria) -> Result<Vec<Package>, RezCoreError> {
+    pub async fn find_packages(
+        &self,
+        criteria: &PackageSearchCriteria,
+    ) -> Result<Vec<Package>, RezCoreError> {
         let repos = self.repositories.read().await;
         let mut all_packages = Vec::new();
-        
+
         for repo in repos.iter() {
             let repo_guard = repo.read().await;
             if repo_guard.is_initialized() {
@@ -223,20 +247,28 @@ impl RepositoryManager {
                     Ok(mut packages) => all_packages.append(&mut packages),
                     Err(e) => {
                         // Log error but continue with other repositories
-                        eprintln!("Error searching repository {}: {}", repo_guard.metadata().name, e);
+                        eprintln!(
+                            "Error searching repository {}: {}",
+                            repo_guard.metadata().name,
+                            e
+                        );
                     }
                 }
             }
         }
-        
+
         // Remove duplicates and sort by priority/version
         self.deduplicate_packages(all_packages)
     }
 
     /// Get a specific package from the first repository that has it
-    pub async fn get_package(&self, name: &str, version: Option<&Version>) -> Result<Option<Package>, RezCoreError> {
+    pub async fn get_package(
+        &self,
+        name: &str,
+        version: Option<&Version>,
+    ) -> Result<Option<Package>, RezCoreError> {
         let repos = self.repositories.read().await;
-        
+
         for repo in repos.iter() {
             let repo_guard = repo.read().await;
             if repo_guard.is_initialized() {
@@ -245,40 +277,51 @@ impl RepositoryManager {
                 }
             }
         }
-        
+
         Ok(None)
     }
 
     /// Initialize all repositories
     pub async fn initialize_all(&self) -> Result<(), RezCoreError> {
         let repos = self.repositories.read().await;
-        
+
         for repo in repos.iter() {
             let mut repo_guard = repo.write().await;
             if let Err(e) = repo_guard.initialize().await {
-                eprintln!("Failed to initialize repository {}: {}", repo_guard.metadata().name, e);
+                eprintln!(
+                    "Failed to initialize repository {}: {}",
+                    repo_guard.metadata().name,
+                    e
+                );
             }
         }
-        
+
         Ok(())
     }
 
     /// Refresh all repositories
     pub async fn refresh_all(&self) -> Result<(), RezCoreError> {
         let repos = self.repositories.read().await;
-        
+
         for repo in repos.iter() {
             let mut repo_guard = repo.write().await;
             if let Err(e) = repo_guard.refresh().await {
-                eprintln!("Failed to refresh repository {}: {}", repo_guard.metadata().name, e);
+                eprintln!(
+                    "Failed to refresh repository {}: {}",
+                    repo_guard.metadata().name,
+                    e
+                );
             }
         }
-        
+
         Ok(())
     }
 
     /// Remove duplicate packages, keeping the highest priority/version
-    fn deduplicate_packages(&self, mut packages: Vec<Package>) -> Result<Vec<Package>, RezCoreError> {
+    fn deduplicate_packages(
+        &self,
+        mut packages: Vec<Package>,
+    ) -> Result<Vec<Package>, RezCoreError> {
         // Sort by name and version (descending)
         packages.sort_by(|a, b| {
             match a.name.cmp(&b.name) {

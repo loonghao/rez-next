@@ -276,17 +276,17 @@ impl UnifiedCacheStats {
     pub fn update_overall_stats(&mut self) {
         self.overall_stats.total_hits = self.l1_stats.hits + self.l2_stats.hits;
         self.overall_stats.total_misses = self.l1_stats.misses + self.l2_stats.misses;
-        
+
         let total_requests = self.overall_stats.total_hits + self.overall_stats.total_misses;
         if total_requests > 0 {
-            self.overall_stats.overall_hit_rate = 
+            self.overall_stats.overall_hit_rate =
                 self.overall_stats.total_hits as f64 / total_requests as f64;
         }
-        
+
         self.overall_stats.total_entries = self.l1_stats.entries + self.l2_stats.entries;
         self.overall_stats.total_memory_bytes = self.l1_stats.usage_bytes;
         self.overall_stats.total_disk_bytes = self.l2_stats.usage_bytes;
-        
+
         // Calculate efficiency score based on hit rate and resource usage
         let hit_rate_score = self.overall_stats.overall_hit_rate;
         let memory_efficiency = if self.l1_stats.max_usage_bytes > 0 {
@@ -295,7 +295,7 @@ impl UnifiedCacheStats {
             1.0
         };
         self.overall_stats.efficiency_score = (hit_rate_score + memory_efficiency) / 2.0;
-        
+
         // Update timestamp
         self.timestamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -326,9 +326,9 @@ impl UnifiedCacheStats {
 
     /// Check if the cache is performing well based on target metrics
     pub fn is_performing_well(&self, target_hit_rate: f64) -> bool {
-        self.overall_stats.overall_hit_rate >= target_hit_rate &&
-        self.overall_stats.efficiency_score >= 0.7 &&
-        self.tuning_stats.stability_score >= 0.8
+        self.overall_stats.overall_hit_rate >= target_hit_rate
+            && self.overall_stats.efficiency_score >= 0.7
+            && self.tuning_stats.stability_score >= 0.8
     }
 }
 
@@ -344,9 +344,9 @@ mod tests {
         stats.entries = 100;
         stats.capacity = 200;
         stats.usage_bytes = 1024;
-        
+
         stats.update_calculated_fields();
-        
+
         assert_eq!(stats.hit_rate, 0.8);
         assert_eq!(stats.load_factor, 0.5);
         assert_eq!(stats.avg_entry_size, 10.24);
@@ -359,9 +359,9 @@ mod tests {
         stats.l1_stats.misses = 10;
         stats.l2_stats.hits = 20;
         stats.l2_stats.misses = 5;
-        
+
         stats.update_overall_stats();
-        
+
         assert_eq!(stats.overall_stats.total_hits, 90);
         assert_eq!(stats.overall_stats.total_misses, 15);
         assert!((stats.overall_stats.overall_hit_rate - 0.857).abs() < 0.01);
@@ -373,7 +373,7 @@ mod tests {
         stats.overall_stats.overall_hit_rate = 0.95;
         stats.overall_stats.efficiency_score = 0.8;
         stats.tuning_stats.stability_score = 0.9;
-        
+
         assert!(stats.is_performing_well(0.9));
         assert!(!stats.is_performing_well(0.96));
     }

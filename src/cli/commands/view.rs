@@ -3,7 +3,7 @@
 //! Implementation of the `rez view` command for viewing package information.
 
 use clap::Args;
-use rez_core_common::{RezCoreError, error::RezCoreResult};
+use rez_core_common::{error::RezCoreResult, RezCoreError};
 use rez_core_package::{Package, PackageSerializer};
 use std::path::Path;
 
@@ -55,9 +55,11 @@ pub fn execute(args: ViewArgs) -> RezCoreResult<()> {
 fn view_current_package(args: &ViewArgs) -> RezCoreResult<()> {
     // TODO: Implement current context package viewing
     // This requires integration with rez-core-context
-    
+
     eprintln!("Error: not in a resolved environment context.");
-    Err(RezCoreError::Repository("Not in a resolved environment context".to_string()))
+    Err(RezCoreError::Repository(
+        "Not in a resolved environment context".to_string(),
+    ))
 }
 
 /// View a package from repositories
@@ -82,9 +84,10 @@ fn load_package_from_directory(dir_path: &Path) -> RezCoreResult<Package> {
     let package_py_path = dir_path.join("package.py");
 
     if !package_py_path.exists() {
-        return Err(RezCoreError::PackageParse(
-            format!("No package.py found in directory: {}", dir_path.display())
-        ));
+        return Err(RezCoreError::PackageParse(format!(
+            "No package.py found in directory: {}",
+            dir_path.display()
+        )));
     }
 
     // Load the package using PackageSerializer
@@ -94,7 +97,7 @@ fn load_package_from_directory(dir_path: &Path) -> RezCoreResult<Package> {
 /// Create a mock package for demonstration purposes
 fn create_mock_package(name: &str) -> RezCoreResult<Package> {
     // TODO: Replace with actual package loading from repository
-    
+
     // Parse package name and version if provided
     let (pkg_name, version) = if let Some(pos) = name.find('-') {
         let pkg_name = &name[..pos];
@@ -106,17 +109,17 @@ fn create_mock_package(name: &str) -> RezCoreResult<Package> {
 
     // Create a mock package
     let mut package = Package::new(pkg_name.to_string());
-    
+
     if let Some(version_str) = version {
         use rez_core_version::Version;
-        let version = Version::parse(version_str)
-            .map_err(|e| RezCoreError::VersionParse(e.to_string()))?;
+        let version =
+            Version::parse(version_str).map_err(|e| RezCoreError::VersionParse(e.to_string()))?;
         package.set_version(version);
     }
 
     // Add some mock metadata
     package.set_description(format!("Mock package for {}", pkg_name));
-    
+
     Ok(package)
 }
 
@@ -174,7 +177,9 @@ fn display_package_yaml(package: &Package, args: &ViewArgs) -> RezCoreResult<()>
         for variant in &package.variants {
             print!("  - [");
             for (i, req) in variant.iter().enumerate() {
-                if i > 0 { print!(", "); }
+                if i > 0 {
+                    print!(", ");
+                }
                 print!("{}", req);
             }
             println!("]");
@@ -242,7 +247,9 @@ fn display_package_python(package: &Package, args: &ViewArgs) -> RezCoreResult<(
     if !package.authors.is_empty() {
         print!("authors = [");
         for (i, author) in package.authors.iter().enumerate() {
-            if i > 0 { print!(", "); }
+            if i > 0 {
+                print!(", ");
+            }
             print!("\"{}\"", author);
         }
         println!("]");
@@ -251,7 +258,9 @@ fn display_package_python(package: &Package, args: &ViewArgs) -> RezCoreResult<(
     if !package.requires.is_empty() {
         print!("requires = [");
         for (i, req) in package.requires.iter().enumerate() {
-            if i > 0 { print!(", "); }
+            if i > 0 {
+                print!(", ");
+            }
             print!("\"{}\"", req);
         }
         println!("]");
@@ -260,7 +269,9 @@ fn display_package_python(package: &Package, args: &ViewArgs) -> RezCoreResult<(
     if !package.tools.is_empty() {
         print!("tools = [");
         for (i, tool) in package.tools.iter().enumerate() {
-            if i > 0 { print!(", "); }
+            if i > 0 {
+                print!(", ");
+            }
             print!("\"{}\"", tool);
         }
         println!("]");
@@ -271,7 +282,9 @@ fn display_package_python(package: &Package, args: &ViewArgs) -> RezCoreResult<(
         for variant in &package.variants {
             print!("    [");
             for (i, req) in variant.iter().enumerate() {
-                if i > 0 { print!(", "); }
+                if i > 0 {
+                    print!(", ");
+                }
                 print!("\"{}\"", req);
             }
             println!("],");
@@ -324,7 +337,7 @@ mod tests {
             brief: true,
             current: false,
         };
-        
+
         assert_eq!(args.package, "test_package");
         assert!(args.brief);
         assert!(!args.all);

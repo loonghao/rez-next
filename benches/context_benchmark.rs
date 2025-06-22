@@ -8,20 +8,20 @@
 //! - Caching mechanisms
 //! - Execution statistics and performance monitoring
 
-use criterion::{Criterion, BenchmarkId, Throughput, black_box};
+use criterion::{black_box, BenchmarkId, Criterion, Throughput};
+use rez_core_common::RezCoreError;
 use rez_core_context::{
-    ResolvedContext, ContextBuilder, ContextConfig, ContextStatus,
-    EnvironmentManager, ShellExecutor, ShellType, PathStrategy,
-    ContextExecution, ExecutionConfig, ContextSerialization, ContextFormat
+    ContextBuilder, ContextConfig, ContextExecution, ContextFormat, ContextSerialization,
+    ContextStatus, EnvironmentManager, ExecutionConfig, PathStrategy, ResolvedContext,
+    ShellExecutor, ShellType,
 };
 use rez_core_package::{Package, PackageRequirement};
+use rez_core_solver::{DependencySolver, SolverConfig, SolverRequest};
 use rez_core_version::{Version, VersionRange};
-use rez_core_solver::{DependencySolver, SolverRequest, SolverConfig};
-use rez_core_common::RezCoreError;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::time::{Duration, SystemTime};
 use std::path::PathBuf;
-use serde::{Serialize, Deserialize};
+use std::time::{Duration, SystemTime};
 
 /// Context benchmark module implementation
 pub struct ContextBenchmark {
@@ -124,7 +124,7 @@ impl ContextBenchmark {
     pub fn new() -> Self {
         let test_data = Self::generate_test_data();
         let baseline_metrics = Self::create_baseline_metrics();
-        
+
         Self {
             test_data,
             baseline_metrics,
@@ -148,9 +148,10 @@ impl ContextBenchmark {
         vec![
             ContextScenario {
                 name: "single_package_context".to_string(),
-                requirements: vec![
-                    PackageRequirement::new("python".to_string(), Some(VersionRange::new("3.9+".to_string()).unwrap()))
-                ],
+                requirements: vec![PackageRequirement::new(
+                    "python".to_string(),
+                    Some(VersionRange::new("3.9+".to_string()).unwrap()),
+                )],
                 packages: Self::create_python_packages(),
                 config: ContextConfig::default(),
                 expected_env_vars: 5,
@@ -159,7 +160,10 @@ impl ContextBenchmark {
             ContextScenario {
                 name: "basic_dev_environment".to_string(),
                 requirements: vec![
-                    PackageRequirement::new("python".to_string(), Some(VersionRange::new("3.9+".to_string()).unwrap())),
+                    PackageRequirement::new(
+                        "python".to_string(),
+                        Some(VersionRange::new("3.9+".to_string()).unwrap()),
+                    ),
                     PackageRequirement::new("git".to_string(), None),
                 ],
                 packages: Self::create_dev_packages(),
@@ -174,9 +178,10 @@ impl ContextBenchmark {
             },
             ContextScenario {
                 name: "isolated_environment".to_string(),
-                requirements: vec![
-                    PackageRequirement::new("node".to_string(), Some(VersionRange::new("18+".to_string()).unwrap()))
-                ],
+                requirements: vec![PackageRequirement::new(
+                    "node".to_string(),
+                    Some(VersionRange::new("18+".to_string()).unwrap()),
+                )],
                 packages: Self::create_node_packages(),
                 config: ContextConfig {
                     inherit_parent_env: false,
@@ -196,8 +201,14 @@ impl ContextBenchmark {
             ContextScenario {
                 name: "web_development_stack".to_string(),
                 requirements: vec![
-                    PackageRequirement::new("python".to_string(), Some(VersionRange::new("3.9+".to_string()).unwrap())),
-                    PackageRequirement::new("node".to_string(), Some(VersionRange::new("18+".to_string()).unwrap())),
+                    PackageRequirement::new(
+                        "python".to_string(),
+                        Some(VersionRange::new("3.9+".to_string()).unwrap()),
+                    ),
+                    PackageRequirement::new(
+                        "node".to_string(),
+                        Some(VersionRange::new("18+".to_string()).unwrap()),
+                    ),
                     PackageRequirement::new("git".to_string(), None),
                     PackageRequirement::new("docker".to_string(), None),
                 ],
@@ -209,9 +220,15 @@ impl ContextBenchmark {
             ContextScenario {
                 name: "data_science_environment".to_string(),
                 requirements: vec![
-                    PackageRequirement::new("python".to_string(), Some(VersionRange::new("3.9+".to_string()).unwrap())),
+                    PackageRequirement::new(
+                        "python".to_string(),
+                        Some(VersionRange::new("3.9+".to_string()).unwrap()),
+                    ),
                     PackageRequirement::new("jupyter".to_string(), None),
-                    PackageRequirement::new("numpy".to_string(), Some(VersionRange::new("1.20+".to_string()).unwrap())),
+                    PackageRequirement::new(
+                        "numpy".to_string(),
+                        Some(VersionRange::new("1.20+".to_string()).unwrap()),
+                    ),
                     PackageRequirement::new("pandas".to_string(), None),
                 ],
                 packages: Self::create_data_science_packages(),
@@ -376,64 +393,108 @@ impl ContextBenchmark {
 
     // Helper methods for creating test data
     fn create_python_packages() -> Vec<Package> {
-        vec![
-            Package::new("python".to_string(), Version::new("3.9.0".to_string()).unwrap()),
-        ]
+        vec![Package::new(
+            "python".to_string(),
+            Version::new("3.9.0".to_string()).unwrap(),
+        )]
     }
 
     fn create_dev_packages() -> Vec<Package> {
         vec![
-            Package::new("python".to_string(), Version::new("3.9.0".to_string()).unwrap()),
-            Package::new("git".to_string(), Version::new("2.40.0".to_string()).unwrap()),
+            Package::new(
+                "python".to_string(),
+                Version::new("3.9.0".to_string()).unwrap(),
+            ),
+            Package::new(
+                "git".to_string(),
+                Version::new("2.40.0".to_string()).unwrap(),
+            ),
         ]
     }
 
     fn create_node_packages() -> Vec<Package> {
-        vec![
-            Package::new("node".to_string(), Version::new("18.17.0".to_string()).unwrap()),
-        ]
+        vec![Package::new(
+            "node".to_string(),
+            Version::new("18.17.0".to_string()).unwrap(),
+        )]
     }
 
     fn create_web_dev_packages() -> Vec<Package> {
-        (0..12).map(|i| {
-            Package::new(format!("web_pkg_{}", i), Version::new("1.0.0".to_string()).unwrap())
-        }).collect()
+        (0..12)
+            .map(|i| {
+                Package::new(
+                    format!("web_pkg_{}", i),
+                    Version::new("1.0.0".to_string()).unwrap(),
+                )
+            })
+            .collect()
     }
 
     fn create_data_science_packages() -> Vec<Package> {
-        (0..18).map(|i| {
-            Package::new(format!("ds_pkg_{}", i), Version::new("1.0.0".to_string()).unwrap())
-        }).collect()
+        (0..18)
+            .map(|i| {
+                Package::new(
+                    format!("ds_pkg_{}", i),
+                    Version::new("1.0.0".to_string()).unwrap(),
+                )
+            })
+            .collect()
     }
 
     fn create_enterprise_packages() -> Vec<Package> {
-        (0..35).map(|i| {
-            Package::new(format!("enterprise_pkg_{}", i), Version::new("1.0.0".to_string()).unwrap())
-        }).collect()
+        (0..35)
+            .map(|i| {
+                Package::new(
+                    format!("enterprise_pkg_{}", i),
+                    Version::new("1.0.0".to_string()).unwrap(),
+                )
+            })
+            .collect()
     }
 
     fn create_cicd_packages() -> Vec<Package> {
-        (0..25).map(|i| {
-            Package::new(format!("cicd_pkg_{}", i), Version::new("1.0.0".to_string()).unwrap())
-        }).collect()
+        (0..25)
+            .map(|i| {
+                Package::new(
+                    format!("cicd_pkg_{}", i),
+                    Version::new("1.0.0".to_string()).unwrap(),
+                )
+            })
+            .collect()
     }
 
     fn create_path_heavy_packages() -> Vec<Package> {
-        (0..10).map(|i| {
-            Package::new(format!("path_pkg_{}", i), Version::new("1.0.0".to_string()).unwrap())
-        }).collect()
+        (0..10)
+            .map(|i| {
+                Package::new(
+                    format!("path_pkg_{}", i),
+                    Version::new("1.0.0".to_string()).unwrap(),
+                )
+            })
+            .collect()
     }
 
     fn create_variable_expansion_packages() -> Vec<Package> {
-        (0..8).map(|i| {
-            Package::new(format!("var_pkg_{}", i), Version::new("1.0.0".to_string()).unwrap())
-        }).collect()
+        (0..8)
+            .map(|i| {
+                Package::new(
+                    format!("var_pkg_{}", i),
+                    Version::new("1.0.0".to_string()).unwrap(),
+                )
+            })
+            .collect()
     }
 
     fn create_enterprise_requirements() -> Vec<PackageRequirement> {
         vec![
-            PackageRequirement::new("java".to_string(), Some(VersionRange::new("11+".to_string()).unwrap())),
-            PackageRequirement::new("maven".to_string(), Some(VersionRange::new("3.8+".to_string()).unwrap())),
+            PackageRequirement::new(
+                "java".to_string(),
+                Some(VersionRange::new("11+".to_string()).unwrap()),
+            ),
+            PackageRequirement::new(
+                "maven".to_string(),
+                Some(VersionRange::new("3.8+".to_string()).unwrap()),
+            ),
             PackageRequirement::new("docker".to_string(), None),
             PackageRequirement::new("kubernetes".to_string(), None),
         ]
@@ -451,7 +512,10 @@ impl ContextBenchmark {
         let mut vars = HashMap::new();
         vars.insert("JAVA_HOME".to_string(), "/opt/java".to_string());
         vars.insert("MAVEN_HOME".to_string(), "/opt/maven".to_string());
-        vars.insert("DOCKER_HOST".to_string(), "unix:///var/run/docker.sock".to_string());
+        vars.insert(
+            "DOCKER_HOST".to_string(),
+            "unix:///var/run/docker.sock".to_string(),
+        );
         vars
     }
 
@@ -464,9 +528,10 @@ impl ContextBenchmark {
     }
 
     fn create_sample_context() -> ResolvedContext {
-        let requirements = vec![
-            PackageRequirement::new("python".to_string(), Some(VersionRange::new("3.9+".to_string()).unwrap()))
-        ];
+        let requirements = vec![PackageRequirement::new(
+            "python".to_string(),
+            Some(VersionRange::new("3.9+".to_string()).unwrap()),
+        )];
         ResolvedContext::from_requirements(requirements)
     }
 }
@@ -512,21 +577,27 @@ impl crate::comprehensive_benchmark_suite::ModuleBenchmark for ContextBenchmark 
     fn validate(&self) -> Result<(), crate::comprehensive_benchmark_suite::BenchmarkError> {
         // Validate that test data is properly initialized
         if self.test_data.simple_contexts.is_empty() {
-            return Err(crate::comprehensive_benchmark_suite::BenchmarkError::ValidationFailed(
-                "Simple contexts not initialized".to_string()
-            ));
+            return Err(
+                crate::comprehensive_benchmark_suite::BenchmarkError::ValidationFailed(
+                    "Simple contexts not initialized".to_string(),
+                ),
+            );
         }
 
         if self.test_data.env_scenarios.is_empty() {
-            return Err(crate::comprehensive_benchmark_suite::BenchmarkError::ValidationFailed(
-                "Environment scenarios not initialized".to_string()
-            ));
+            return Err(
+                crate::comprehensive_benchmark_suite::BenchmarkError::ValidationFailed(
+                    "Environment scenarios not initialized".to_string(),
+                ),
+            );
         }
 
         if self.test_data.shell_scenarios.is_empty() {
-            return Err(crate::comprehensive_benchmark_suite::BenchmarkError::ValidationFailed(
-                "Shell scenarios not initialized".to_string()
-            ));
+            return Err(
+                crate::comprehensive_benchmark_suite::BenchmarkError::ValidationFailed(
+                    "Shell scenarios not initialized".to_string(),
+                ),
+            );
         }
 
         Ok(())
@@ -614,7 +685,11 @@ impl ContextBenchmark {
 
         // Benchmark different path strategies
         let packages = self.test_data.env_scenarios[0].packages.clone();
-        for strategy in &[PathStrategy::Prepend, PathStrategy::Append, PathStrategy::Replace] {
+        for strategy in &[
+            PathStrategy::Prepend,
+            PathStrategy::Append,
+            PathStrategy::Replace,
+        ] {
             group.bench_with_input(
                 BenchmarkId::new("path_strategy", format!("{:?}", strategy)),
                 strategy,
@@ -624,9 +699,7 @@ impl ContextBenchmark {
                         ..Default::default()
                     };
                     let env_manager = EnvironmentManager::new(config);
-                    b.iter(|| {
-                        black_box(env_manager.generate_environment_sync(&packages))
-                    });
+                    b.iter(|| black_box(env_manager.generate_environment_sync(&packages)));
                 },
             );
         }
@@ -665,9 +738,7 @@ impl ContextBenchmark {
                 shell_type,
                 |b, shell_type| {
                     let executor = ShellExecutor::with_shell(shell_type.clone());
-                    b.iter(|| {
-                        black_box(executor.execute_sync(simple_command))
-                    });
+                    b.iter(|| black_box(executor.execute_sync(simple_command)));
                 },
             );
         }
@@ -682,24 +753,32 @@ impl ContextBenchmark {
         for scenario in &self.test_data.serialization_scenarios {
             // Benchmark serialization
             group.bench_with_input(
-                BenchmarkId::new("serialize", format!("{}_{:?}", scenario.name, scenario.format)),
+                BenchmarkId::new(
+                    "serialize",
+                    format!("{}_{:?}", scenario.name, scenario.format),
+                ),
                 scenario,
                 |b, scenario| {
                     b.iter(|| {
-                        black_box(ContextSerialization::serialize(&scenario.context, scenario.format))
+                        black_box(ContextSerialization::serialize(
+                            &scenario.context,
+                            scenario.format,
+                        ))
                     });
                 },
             );
 
             // Benchmark deserialization
-            let serialized_data = ContextSerialization::serialize(&scenario.context, scenario.format).unwrap();
+            let serialized_data =
+                ContextSerialization::serialize(&scenario.context, scenario.format).unwrap();
             group.bench_with_input(
-                BenchmarkId::new("deserialize", format!("{}_{:?}", scenario.name, scenario.format)),
+                BenchmarkId::new(
+                    "deserialize",
+                    format!("{}_{:?}", scenario.name, scenario.format),
+                ),
                 &(scenario, serialized_data),
                 |b, (scenario, data)| {
-                    b.iter(|| {
-                        black_box(ContextSerialization::deserialize(data, scenario.format))
-                    });
+                    b.iter(|| black_box(ContextSerialization::deserialize(data, scenario.format)));
                 },
             );
         }
@@ -719,14 +798,15 @@ impl ContextBenchmark {
                 .config(context.config)
                 .build();
 
-            b.iter(|| {
-                black_box(resolved_context.get_fingerprint())
-            });
+            b.iter(|| black_box(resolved_context.get_fingerprint()));
         });
 
         // Test context lookup performance
         group.bench_function("context_lookup", |b| {
-            let contexts: Vec<_> = self.test_data.simple_contexts.iter()
+            let contexts: Vec<_> = self
+                .test_data
+                .simple_contexts
+                .iter()
                 .map(|scenario| {
                     ContextBuilder::new()
                         .requirements(scenario.requirements.clone())
@@ -771,9 +851,7 @@ impl ContextBenchmark {
             let config = ExecutionConfig::default();
             let execution = ContextExecution::new(context, config);
 
-            b.iter(|| {
-                black_box(execution.get_execution_stats())
-            });
+            b.iter(|| black_box(execution.get_execution_stats()));
         });
 
         // Test tool availability checking
@@ -785,9 +863,7 @@ impl ContextBenchmark {
             let config = ExecutionConfig::default();
             let execution = ContextExecution::new(context, config);
 
-            b.iter(|| {
-                black_box(execution.get_available_tools())
-            });
+            b.iter(|| black_box(execution.get_available_tools()));
         });
 
         group.finish();
@@ -872,9 +948,7 @@ impl ContextBenchmark {
                 .config(self.test_data.simple_contexts[0].config.clone())
                 .build();
 
-            b.iter(|| {
-                black_box(context.validate())
-            });
+            b.iter(|| black_box(context.validate()));
         });
 
         // Test environment variable validation

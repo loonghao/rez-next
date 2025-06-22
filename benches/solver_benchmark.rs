@@ -8,17 +8,17 @@
 //! - A* heuristic algorithm
 //! - Optimized solver performance
 
-use criterion::{Criterion, BenchmarkId, Throughput, black_box};
-use rez_core_solver::{
-    DependencySolver, SolverConfig, SolverRequest, ConflictStrategy,
-    OptimizedDependencySolver, SolverStats
-};
-use rez_core_package::{Package, PackageRequirement};
-use rez_core_version::{Version, VersionRange};
+use criterion::{black_box, BenchmarkId, Criterion, Throughput};
 use rez_core_common::RezCoreError;
+use rez_core_package::{Package, PackageRequirement};
+use rez_core_solver::{
+    ConflictStrategy, DependencySolver, OptimizedDependencySolver, SolverConfig, SolverRequest,
+    SolverStats,
+};
+use rez_core_version::{Version, VersionRange};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::{Duration, SystemTime};
-use serde::{Serialize, Deserialize};
 
 /// Solver benchmark module implementation
 pub struct SolverBenchmark {
@@ -107,7 +107,7 @@ impl SolverBenchmark {
     pub fn new() -> Self {
         let test_data = Self::generate_test_data();
         let baseline_metrics = Self::create_baseline_metrics();
-        
+
         Self {
             test_data,
             baseline_metrics,
@@ -130,27 +130,30 @@ impl SolverBenchmark {
         vec![
             SolverScenario {
                 name: "single_package".to_string(),
-                requirements: vec![
-                    PackageRequirement::new("python".to_string(), Some(VersionRange::new("3.9+".to_string()).unwrap()))
-                ],
+                requirements: vec![PackageRequirement::new(
+                    "python".to_string(),
+                    Some(VersionRange::new("3.9+".to_string()).unwrap()),
+                )],
                 available_packages: Self::create_python_packages(),
                 expected_packages: 1,
                 complexity_score: 1,
             },
             SolverScenario {
                 name: "linear_chain".to_string(),
-                requirements: vec![
-                    PackageRequirement::new("app".to_string(), Some(VersionRange::new("1.0+".to_string()).unwrap()))
-                ],
+                requirements: vec![PackageRequirement::new(
+                    "app".to_string(),
+                    Some(VersionRange::new("1.0+".to_string()).unwrap()),
+                )],
                 available_packages: Self::create_linear_chain_packages(),
                 expected_packages: 3,
                 complexity_score: 3,
             },
             SolverScenario {
                 name: "simple_diamond".to_string(),
-                requirements: vec![
-                    PackageRequirement::new("top".to_string(), Some(VersionRange::new("1.0+".to_string()).unwrap()))
-                ],
+                requirements: vec![PackageRequirement::new(
+                    "top".to_string(),
+                    Some(VersionRange::new("1.0+".to_string()).unwrap()),
+                )],
                 available_packages: Self::create_diamond_packages(),
                 expected_packages: 4,
                 complexity_score: 4,
@@ -164,8 +167,14 @@ impl SolverBenchmark {
             SolverScenario {
                 name: "web_framework".to_string(),
                 requirements: vec![
-                    PackageRequirement::new("django".to_string(), Some(VersionRange::new("4.0+".to_string()).unwrap())),
-                    PackageRequirement::new("postgres".to_string(), Some(VersionRange::new("13+".to_string()).unwrap())),
+                    PackageRequirement::new(
+                        "django".to_string(),
+                        Some(VersionRange::new("4.0+".to_string()).unwrap()),
+                    ),
+                    PackageRequirement::new(
+                        "postgres".to_string(),
+                        Some(VersionRange::new("13+".to_string()).unwrap()),
+                    ),
                 ],
                 available_packages: Self::create_web_framework_packages(),
                 expected_packages: 12,
@@ -174,8 +183,14 @@ impl SolverBenchmark {
             SolverScenario {
                 name: "data_science_stack".to_string(),
                 requirements: vec![
-                    PackageRequirement::new("numpy".to_string(), Some(VersionRange::new("1.20+".to_string()).unwrap())),
-                    PackageRequirement::new("pandas".to_string(), Some(VersionRange::new("1.3+".to_string()).unwrap())),
+                    PackageRequirement::new(
+                        "numpy".to_string(),
+                        Some(VersionRange::new("1.20+".to_string()).unwrap()),
+                    ),
+                    PackageRequirement::new(
+                        "pandas".to_string(),
+                        Some(VersionRange::new("1.3+".to_string()).unwrap()),
+                    ),
                 ],
                 available_packages: Self::create_data_science_packages(),
                 expected_packages: 18,
@@ -189,9 +204,10 @@ impl SolverBenchmark {
         vec![
             SolverScenario {
                 name: "large_application".to_string(),
-                requirements: vec![
-                    PackageRequirement::new("app".to_string(), Some(VersionRange::new("2.0+".to_string()).unwrap())),
-                ],
+                requirements: vec![PackageRequirement::new(
+                    "app".to_string(),
+                    Some(VersionRange::new("2.0+".to_string()).unwrap()),
+                )],
                 available_packages: Self::create_large_application_packages(),
                 expected_packages: 35,
                 complexity_score: 50,
@@ -199,8 +215,14 @@ impl SolverBenchmark {
             SolverScenario {
                 name: "enterprise_stack".to_string(),
                 requirements: vec![
-                    PackageRequirement::new("microservice".to_string(), Some(VersionRange::new("1.0+".to_string()).unwrap())),
-                    PackageRequirement::new("database".to_string(), Some(VersionRange::new("5.0+".to_string()).unwrap())),
+                    PackageRequirement::new(
+                        "microservice".to_string(),
+                        Some(VersionRange::new("1.0+".to_string()).unwrap()),
+                    ),
+                    PackageRequirement::new(
+                        "database".to_string(),
+                        Some(VersionRange::new("5.0+".to_string()).unwrap()),
+                    ),
                 ],
                 available_packages: Self::create_enterprise_packages(),
                 expected_packages: 50,
@@ -215,8 +237,14 @@ impl SolverBenchmark {
             ConflictScenario {
                 name: "version_conflict".to_string(),
                 conflicting_requirements: vec![
-                    PackageRequirement::new("python".to_string(), Some(VersionRange::new("3.8".to_string()).unwrap())),
-                    PackageRequirement::new("python".to_string(), Some(VersionRange::new("3.9+".to_string()).unwrap())),
+                    PackageRequirement::new(
+                        "python".to_string(),
+                        Some(VersionRange::new("3.8".to_string()).unwrap()),
+                    ),
+                    PackageRequirement::new(
+                        "python".to_string(),
+                        Some(VersionRange::new("3.9+".to_string()).unwrap()),
+                    ),
                 ],
                 available_packages: Self::create_python_packages(),
                 strategy: ConflictStrategy::LatestWins,
@@ -225,8 +253,14 @@ impl SolverBenchmark {
             ConflictScenario {
                 name: "incompatible_versions".to_string(),
                 conflicting_requirements: vec![
-                    PackageRequirement::new("lib".to_string(), Some(VersionRange::new("1.0".to_string()).unwrap())),
-                    PackageRequirement::new("lib".to_string(), Some(VersionRange::new("2.0+".to_string()).unwrap())),
+                    PackageRequirement::new(
+                        "lib".to_string(),
+                        Some(VersionRange::new("1.0".to_string()).unwrap()),
+                    ),
+                    PackageRequirement::new(
+                        "lib".to_string(),
+                        Some(VersionRange::new("2.0+".to_string()).unwrap()),
+                    ),
                 ],
                 available_packages: Self::create_conflicting_lib_packages(),
                 strategy: ConflictStrategy::FailOnConflict,
@@ -271,88 +305,146 @@ impl SolverBenchmark {
     // Helper methods for creating test packages
     fn create_python_packages() -> Vec<Package> {
         vec![
-            Package::new("python".to_string(), Version::new("3.8.0".to_string()).unwrap()),
-            Package::new("python".to_string(), Version::new("3.9.0".to_string()).unwrap()),
-            Package::new("python".to_string(), Version::new("3.10.0".to_string()).unwrap()),
+            Package::new(
+                "python".to_string(),
+                Version::new("3.8.0".to_string()).unwrap(),
+            ),
+            Package::new(
+                "python".to_string(),
+                Version::new("3.9.0".to_string()).unwrap(),
+            ),
+            Package::new(
+                "python".to_string(),
+                Version::new("3.10.0".to_string()).unwrap(),
+            ),
         ]
     }
 
     fn create_linear_chain_packages() -> Vec<Package> {
         // app -> lib -> base
         vec![
-            Package::new("app".to_string(), Version::new("1.0.0".to_string()).unwrap()),
-            Package::new("lib".to_string(), Version::new("1.0.0".to_string()).unwrap()),
-            Package::new("base".to_string(), Version::new("1.0.0".to_string()).unwrap()),
+            Package::new(
+                "app".to_string(),
+                Version::new("1.0.0".to_string()).unwrap(),
+            ),
+            Package::new(
+                "lib".to_string(),
+                Version::new("1.0.0".to_string()).unwrap(),
+            ),
+            Package::new(
+                "base".to_string(),
+                Version::new("1.0.0".to_string()).unwrap(),
+            ),
         ]
     }
 
     fn create_diamond_packages() -> Vec<Package> {
         // top -> left, right -> bottom
         vec![
-            Package::new("top".to_string(), Version::new("1.0.0".to_string()).unwrap()),
-            Package::new("left".to_string(), Version::new("1.0.0".to_string()).unwrap()),
-            Package::new("right".to_string(), Version::new("1.0.0".to_string()).unwrap()),
-            Package::new("bottom".to_string(), Version::new("1.0.0".to_string()).unwrap()),
+            Package::new(
+                "top".to_string(),
+                Version::new("1.0.0".to_string()).unwrap(),
+            ),
+            Package::new(
+                "left".to_string(),
+                Version::new("1.0.0".to_string()).unwrap(),
+            ),
+            Package::new(
+                "right".to_string(),
+                Version::new("1.0.0".to_string()).unwrap(),
+            ),
+            Package::new(
+                "bottom".to_string(),
+                Version::new("1.0.0".to_string()).unwrap(),
+            ),
         ]
     }
 
     fn create_web_framework_packages() -> Vec<Package> {
         // Simplified web framework dependency tree
-        (0..12).map(|i| {
-            Package::new(format!("web_pkg_{}", i), Version::new("1.0.0".to_string()).unwrap())
-        }).collect()
+        (0..12)
+            .map(|i| {
+                Package::new(
+                    format!("web_pkg_{}", i),
+                    Version::new("1.0.0".to_string()).unwrap(),
+                )
+            })
+            .collect()
     }
 
     fn create_data_science_packages() -> Vec<Package> {
         // Simplified data science stack
-        (0..18).map(|i| {
-            Package::new(format!("ds_pkg_{}", i), Version::new("1.0.0".to_string()).unwrap())
-        }).collect()
+        (0..18)
+            .map(|i| {
+                Package::new(
+                    format!("ds_pkg_{}", i),
+                    Version::new("1.0.0".to_string()).unwrap(),
+                )
+            })
+            .collect()
     }
 
     fn create_large_application_packages() -> Vec<Package> {
         // Large application with many dependencies
-        (0..35).map(|i| {
-            Package::new(format!("app_pkg_{}", i), Version::new("1.0.0".to_string()).unwrap())
-        }).collect()
+        (0..35)
+            .map(|i| {
+                Package::new(
+                    format!("app_pkg_{}", i),
+                    Version::new("1.0.0".to_string()).unwrap(),
+                )
+            })
+            .collect()
     }
 
     fn create_enterprise_packages() -> Vec<Package> {
         // Enterprise stack with complex dependencies
-        (0..50).map(|i| {
-            Package::new(format!("enterprise_pkg_{}", i), Version::new("1.0.0".to_string()).unwrap())
-        }).collect()
+        (0..50)
+            .map(|i| {
+                Package::new(
+                    format!("enterprise_pkg_{}", i),
+                    Version::new("1.0.0".to_string()).unwrap(),
+                )
+            })
+            .collect()
     }
 
     fn create_conflicting_lib_packages() -> Vec<Package> {
         vec![
-            Package::new("lib".to_string(), Version::new("1.0.0".to_string()).unwrap()),
-            Package::new("lib".to_string(), Version::new("2.0.0".to_string()).unwrap()),
+            Package::new(
+                "lib".to_string(),
+                Version::new("1.0.0".to_string()).unwrap(),
+            ),
+            Package::new(
+                "lib".to_string(),
+                Version::new("2.0.0".to_string()).unwrap(),
+            ),
         ]
     }
 
     fn create_repeated_simple_requests() -> Vec<SolverRequest> {
         // Create multiple similar simple requests for cache testing
-        (0..10).map(|_| {
-            SolverRequest {
-                requirements: vec![
-                    PackageRequirement::new("python".to_string(), Some(VersionRange::new("3.9+".to_string()).unwrap()))
-                ],
+        (0..10)
+            .map(|_| SolverRequest {
+                requirements: vec![PackageRequirement::new(
+                    "python".to_string(),
+                    Some(VersionRange::new("3.9+".to_string()).unwrap()),
+                )],
                 config: SolverConfig::default(),
-            }
-        }).collect()
+            })
+            .collect()
     }
 
     fn create_similar_complex_requests() -> Vec<SolverRequest> {
         // Create multiple similar complex requests for cache testing
-        (0..5).map(|i| {
-            SolverRequest {
-                requirements: vec![
-                    PackageRequirement::new(format!("app_{}", i), Some(VersionRange::new("1.0+".to_string()).unwrap()))
-                ],
+        (0..5)
+            .map(|i| SolverRequest {
+                requirements: vec![PackageRequirement::new(
+                    format!("app_{}", i),
+                    Some(VersionRange::new("1.0+".to_string()).unwrap()),
+                )],
                 config: SolverConfig::default(),
-            }
-        }).collect()
+            })
+            .collect()
     }
 }
 
@@ -397,21 +489,27 @@ impl crate::comprehensive_benchmark_suite::ModuleBenchmark for SolverBenchmark {
     fn validate(&self) -> Result<(), crate::comprehensive_benchmark_suite::BenchmarkError> {
         // Validate that test data is properly initialized
         if self.test_data.simple_scenarios.is_empty() {
-            return Err(crate::comprehensive_benchmark_suite::BenchmarkError::ValidationFailed(
-                "Simple scenarios not initialized".to_string()
-            ));
+            return Err(
+                crate::comprehensive_benchmark_suite::BenchmarkError::ValidationFailed(
+                    "Simple scenarios not initialized".to_string(),
+                ),
+            );
         }
 
         if self.test_data.medium_scenarios.is_empty() {
-            return Err(crate::comprehensive_benchmark_suite::BenchmarkError::ValidationFailed(
-                "Medium scenarios not initialized".to_string()
-            ));
+            return Err(
+                crate::comprehensive_benchmark_suite::BenchmarkError::ValidationFailed(
+                    "Medium scenarios not initialized".to_string(),
+                ),
+            );
         }
 
         if self.test_data.complex_scenarios.is_empty() {
-            return Err(crate::comprehensive_benchmark_suite::BenchmarkError::ValidationFailed(
-                "Complex scenarios not initialized".to_string()
-            ));
+            return Err(
+                crate::comprehensive_benchmark_suite::BenchmarkError::ValidationFailed(
+                    "Complex scenarios not initialized".to_string(),
+                ),
+            );
         }
 
         Ok(())
@@ -778,7 +876,8 @@ impl SolverBenchmark {
         let mut cache_hits = 0;
 
         for request in &scenario.repeated_requests {
-            for _ in 0..3 {  // Run each request 3 times
+            for _ in 0..3 {
+                // Run each request 3 times
                 let _result = solver.resolve(request.clone());
                 total_requests += 1;
 

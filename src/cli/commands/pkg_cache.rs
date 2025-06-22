@@ -4,13 +4,13 @@
 //! This command provides functionality to view, add, remove, and clean package cache entries.
 
 use clap::Args;
-use rez_core_common::{RezCoreError, error::RezCoreResult};
-use rez_core_cache::{IntelligentCacheManager, UnifiedCacheConfig, UnifiedCache};
+use rez_core_cache::{IntelligentCacheManager, UnifiedCache, UnifiedCacheConfig};
+use rez_core_common::{error::RezCoreResult, RezCoreError};
 use rez_core_repository::Repository;
-use std::path::PathBuf;
 use std::collections::HashMap;
-use tokio::sync::RwLock;
+use std::path::PathBuf;
 use std::sync::Arc;
+use tokio::sync::RwLock;
 
 /// Package cache management arguments
 #[derive(Args, Clone, Debug)]
@@ -109,10 +109,10 @@ impl Default for PkgCacheArgs {
 pub async fn execute(args: PkgCacheArgs) -> RezCoreResult<()> {
     // Determine cache directory
     let cache_dir = determine_cache_directory(&args)?;
-    
+
     // Initialize cache manager
     let cache_manager = initialize_cache_manager(&cache_dir).await?;
-    
+
     // Execute specific operation
     if args.daemon {
         run_daemon(&cache_manager, &cache_dir).await
@@ -139,23 +139,29 @@ fn determine_cache_directory(args: &PkgCacheArgs) -> RezCoreResult<PathBuf> {
         // For now, use a default location
         let home = std::env::var("HOME")
             .or_else(|_| std::env::var("USERPROFILE"))
-            .map_err(|_| RezCoreError::ConfigError("Cannot determine home directory".to_string()))?;
-        
-        Ok(PathBuf::from(home).join(".rez").join("cache").join("packages"))
+            .map_err(|_| {
+                RezCoreError::ConfigError("Cannot determine home directory".to_string())
+            })?;
+
+        Ok(PathBuf::from(home)
+            .join(".rez")
+            .join("cache")
+            .join("packages"))
     }
 }
 
 /// Initialize the cache manager
-async fn initialize_cache_manager(cache_dir: &PathBuf) -> RezCoreResult<IntelligentCacheManager<String, CacheEntry>> {
+async fn initialize_cache_manager(
+    cache_dir: &PathBuf,
+) -> RezCoreResult<IntelligentCacheManager<String, CacheEntry>> {
     let config = UnifiedCacheConfig::default();
     let manager = IntelligentCacheManager::new(config);
-    
+
     // Ensure cache directory exists
     if !cache_dir.exists() {
-        std::fs::create_dir_all(cache_dir)
-            .map_err(|e| RezCoreError::Io(e.into()))?;
+        std::fs::create_dir_all(cache_dir).map_err(|e| RezCoreError::Io(e.into()))?;
     }
-    
+
     Ok(manager)
 }
 
@@ -165,12 +171,12 @@ async fn run_daemon(
     cache_dir: &PathBuf,
 ) -> RezCoreResult<()> {
     println!("Starting package cache daemon for: {}", cache_dir.display());
-    
+
     // TODO: Implement daemon logic
     // - Monitor pending cache operations
     // - Process cache requests
     // - Handle cleanup operations
-    
+
     println!("Cache daemon completed successfully");
     Ok(())
 }
@@ -182,14 +188,14 @@ async fn add_variants(
     args: &PkgCacheArgs,
 ) -> RezCoreResult<()> {
     println!("Adding {} variant(s) to cache:", variant_uris.len());
-    
+
     for uri in variant_uris {
         println!("  Adding variant: {}", uri);
-        
+
         // TODO: Parse variant URI and resolve package
         // TODO: Check if package is cachable (unless --force is used)
         // TODO: Add to cache
-        
+
         let entry = CacheEntry {
             package_name: extract_package_name(uri),
             variant_uri: uri.clone(),
@@ -197,13 +203,15 @@ async fn add_variants(
             cache_path: None,    // TODO: Determine cache path
             status: CacheStatus::Pending,
         };
-        
-        cache_manager.put(uri.clone(), entry).await
+
+        cache_manager
+            .put(uri.clone(), entry)
+            .await
             .map_err(|e| RezCoreError::Cache(format!("Failed to add variant {}: {}", uri, e)))?;
-        
+
         println!("    ✓ Added to cache queue");
     }
-    
+
     Ok(())
 }
 
@@ -213,10 +221,10 @@ async fn remove_variants(
     variant_uris: &[String],
 ) -> RezCoreResult<()> {
     println!("Removing {} variant(s) from cache:", variant_uris.len());
-    
+
     for uri in variant_uris {
         println!("  Removing variant: {}", uri);
-        
+
         let removed = cache_manager.remove(uri).await;
         if removed {
             println!("    ✓ Removed from cache");
@@ -224,7 +232,7 @@ async fn remove_variants(
             println!("    ⚠ Variant not found in cache");
         }
     }
-    
+
     Ok(())
 }
 
@@ -233,48 +241,54 @@ async fn clean_cache(
     cache_manager: &IntelligentCacheManager<String, CacheEntry>,
 ) -> RezCoreResult<()> {
     println!("Cleaning package cache...");
-    
+
     // Get cache statistics before cleaning
     let stats_before = cache_manager.get_stats().await;
-    
+
     // TODO: Implement cache cleaning logic
     // - Remove expired entries
     // - Remove stalled operations
     // - Clean up temporary files
-    
+
     let stats_after = cache_manager.get_stats().await;
-    
+
     println!("Cache cleaning completed:");
     println!("  Entries before: {}", stats_before.l1_stats.entries);
     println!("  Entries after:  {}", stats_after.l1_stats.entries);
-    println!("  Entries removed: {}", stats_before.l1_stats.entries - stats_after.l1_stats.entries);
-    
+    println!(
+        "  Entries removed: {}",
+        stats_before.l1_stats.entries - stats_after.l1_stats.entries
+    );
+
     Ok(())
 }
 
 /// View cache logs
 async fn view_logs(cache_dir: &PathBuf) -> RezCoreResult<()> {
     let log_file = cache_dir.join("cache.log");
-    
+
     if !log_file.exists() {
         println!("No cache logs found at: {}", log_file.display());
         return Ok(());
     }
-    
+
     println!("Cache logs from: {}", log_file.display());
     println!("================");
-    
-    let content = std::fs::read_to_string(&log_file)
-        .map_err(|e| RezCoreError::Io(e.into()))?;
-    
+
+    let content = std::fs::read_to_string(&log_file).map_err(|e| RezCoreError::Io(e.into()))?;
+
     // Show last 50 lines
     let lines: Vec<&str> = content.lines().collect();
-    let start = if lines.len() > 50 { lines.len() - 50 } else { 0 };
-    
+    let start = if lines.len() > 50 {
+        lines.len() - 50
+    } else {
+        0
+    };
+
     for line in &lines[start..] {
         println!("{}", line);
     }
-    
+
     Ok(())
 }
 
@@ -292,8 +306,14 @@ async fn show_cache_status(
     // Show cache statistics
     println!("Cache Statistics:");
     println!("  Total entries: {}", stats.l1_stats.entries);
-    println!("  Hit rate: {:.2}%", stats.overall_stats.overall_hit_rate * 100.0);
-    println!("  Memory usage: {:.2} MB", stats.l1_stats.usage_bytes as f64 / 1024.0 / 1024.0);
+    println!(
+        "  Hit rate: {:.2}%",
+        stats.overall_stats.overall_hit_rate * 100.0
+    );
+    println!(
+        "  Memory usage: {:.2} MB",
+        stats.l1_stats.usage_bytes as f64 / 1024.0 / 1024.0
+    );
     println!("  L1 Cache hits: {}", stats.l1_stats.hits);
     println!("  L1 Cache misses: {}", stats.l1_stats.misses);
     println!("  L2 Cache hits: {}", stats.l2_stats.hits);
@@ -367,11 +387,13 @@ fn print_table_row(entry: &CacheEntry, columns: &[String]) {
             "status" => format_status(&entry.status),
             "package" => entry.package_name.clone(),
             "variant_uri" => entry.variant_uri.clone(),
-            "orig_path" => entry.original_path
+            "orig_path" => entry
+                .original_path
                 .as_ref()
                 .map(|p| p.display().to_string())
                 .unwrap_or_else(|| "-".to_string()),
-            "cache_path" => entry.cache_path
+            "cache_path" => entry
+                .cache_path
                 .as_ref()
                 .map(|p| p.display().to_string())
                 .unwrap_or_else(|| "-".to_string()),

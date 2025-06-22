@@ -239,12 +239,12 @@ impl ShellExecutor {
     /// Execute a command and wait for completion
     pub async fn execute(&self, command: &str) -> Result<CommandResult, RezCoreError> {
         let start_time = std::time::Instant::now();
-        
+
         let mut cmd = AsyncCommand::new(self.shell_type.executable());
         cmd.arg(self.shell_type.command_flag())
-           .arg(command)
-           .stdout(Stdio::piped())
-           .stderr(Stdio::piped());
+            .arg(command)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
 
         // Set working directory
         if let Some(ref wd) = self.working_directory {
@@ -259,8 +259,9 @@ impl ShellExecutor {
         // Execute with timeout
         let output = tokio::time::timeout(
             std::time::Duration::from_secs(self.timeout_seconds),
-            cmd.output()
-        ).await
+            cmd.output(),
+        )
+        .await
         .map_err(|_| RezCoreError::ExecutionError("Command execution timeout".to_string()))?
         .map_err(|e| RezCoreError::ExecutionError(format!("Failed to execute command: {}", e)))?;
 
@@ -278,9 +279,9 @@ impl ShellExecutor {
     pub async fn execute_background(&self, command: &str) -> Result<u32, RezCoreError> {
         let mut cmd = AsyncCommand::new(self.shell_type.executable());
         cmd.arg(self.shell_type.command_flag())
-           .arg(command)
-           .stdout(Stdio::null())
-           .stderr(Stdio::null());
+            .arg(command)
+            .stdout(Stdio::null())
+            .stderr(Stdio::null());
 
         // Set working directory
         if let Some(ref wd) = self.working_directory {
@@ -292,14 +293,18 @@ impl ShellExecutor {
             cmd.env(key, value);
         }
 
-        let child = cmd.spawn()
+        let child = cmd
+            .spawn()
             .map_err(|e| RezCoreError::ExecutionError(format!("Failed to spawn command: {}", e)))?;
 
         Ok(child.id().unwrap_or(0))
     }
 
     /// Execute multiple commands in sequence
-    pub async fn execute_batch(&self, commands: &[String]) -> Result<Vec<CommandResult>, RezCoreError> {
+    pub async fn execute_batch(
+        &self,
+        commands: &[String],
+    ) -> Result<Vec<CommandResult>, RezCoreError> {
         let mut results = Vec::new();
 
         for command in commands {
@@ -316,17 +321,21 @@ impl ShellExecutor {
     }
 
     /// Execute a script file
-    pub async fn execute_script(&self, script_path: &PathBuf) -> Result<CommandResult, RezCoreError> {
+    pub async fn execute_script(
+        &self,
+        script_path: &PathBuf,
+    ) -> Result<CommandResult, RezCoreError> {
         if !script_path.exists() {
-            return Err(RezCoreError::ExecutionError(
-                format!("Script file does not exist: {}", script_path.display())
-            ));
+            return Err(RezCoreError::ExecutionError(format!(
+                "Script file does not exist: {}",
+                script_path.display()
+            )));
         }
 
         let start_time = std::time::Instant::now();
-        
+
         let mut cmd = AsyncCommand::new(self.shell_type.executable());
-        
+
         match self.shell_type {
             ShellType::Bash | ShellType::Zsh => {
                 cmd.arg(script_path);
@@ -356,8 +365,9 @@ impl ShellExecutor {
 
         let output = tokio::time::timeout(
             std::time::Duration::from_secs(self.timeout_seconds),
-            cmd.output()
-        ).await
+            cmd.output(),
+        )
+        .await
         .map_err(|_| RezCoreError::ExecutionError("Script execution timeout".to_string()))?
         .map_err(|e| RezCoreError::ExecutionError(format!("Failed to execute script: {}", e)))?;
 
@@ -374,7 +384,7 @@ impl ShellExecutor {
     /// Start an interactive shell session
     pub async fn start_interactive_shell(&self) -> Result<(), RezCoreError> {
         let mut cmd = AsyncCommand::new(self.shell_type.executable());
-        
+
         // Set interactive flags
         match self.shell_type {
             ShellType::Bash => cmd.arg("-i"),
@@ -396,20 +406,24 @@ impl ShellExecutor {
 
         // Inherit stdio for interactive session
         cmd.stdin(Stdio::inherit())
-           .stdout(Stdio::inherit())
-           .stderr(Stdio::inherit());
+            .stdout(Stdio::inherit())
+            .stderr(Stdio::inherit());
 
-        let mut child = cmd.spawn()
+        let mut child = cmd
+            .spawn()
             .map_err(|e| RezCoreError::ExecutionError(format!("Failed to start shell: {}", e)))?;
 
         // Wait for the shell to exit
-        let status = child.wait().await
+        let status = child
+            .wait()
+            .await
             .map_err(|e| RezCoreError::ExecutionError(format!("Shell execution error: {}", e)))?;
 
         if !status.success() {
-            return Err(RezCoreError::ExecutionError(
-                format!("Shell exited with code: {}", status.code().unwrap_or(-1))
-            ));
+            return Err(RezCoreError::ExecutionError(format!(
+                "Shell exited with code: {}",
+                status.code().unwrap_or(-1)
+            )));
         }
 
         Ok(())
@@ -421,7 +435,9 @@ impl ShellExecutor {
             ShellType::Bash | ShellType::Zsh => format!("command -v {}", command),
             ShellType::Fish => format!("command -v {}", command),
             ShellType::Cmd => format!("where {}", command),
-            ShellType::PowerShell => format!("Get-Command {} -ErrorAction SilentlyContinue", command),
+            ShellType::PowerShell => {
+                format!("Get-Command {} -ErrorAction SilentlyContinue", command)
+            }
         };
 
         match self.execute(&check_command).await {
@@ -441,10 +457,15 @@ impl ShellExecutor {
         };
 
         let result = self.execute(version_command).await?;
-        
+
         Ok(ShellInfo {
             shell_type: self.shell_type.clone(),
-            version: result.stdout.lines().next().unwrap_or("unknown").to_string(),
+            version: result
+                .stdout
+                .lines()
+                .next()
+                .unwrap_or("unknown")
+                .to_string(),
             executable_path: self.shell_type.executable().to_string(),
         })
     }

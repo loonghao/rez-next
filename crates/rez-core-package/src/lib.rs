@@ -10,32 +10,32 @@
 //! - Package management operations
 
 pub mod package;
-pub mod serialization;  // Always available for CLI usage
-pub mod python_ast_parser;  // Advanced Python AST parser
+pub mod python_ast_parser;
+pub mod serialization; // Always available for CLI usage // Advanced Python AST parser
 
-#[cfg(feature = "python-bindings")]
-pub mod variant;
 #[cfg(feature = "python-bindings")]
 pub mod management;
 #[cfg(feature = "python-bindings")]
 pub mod validation;
+#[cfg(feature = "python-bindings")]
+pub mod variant;
 
 pub use package::*;
-pub use serialization::*;  // Always available for CLI usage
-pub use python_ast_parser::*;  // Advanced Python AST parser
+pub use python_ast_parser::*;
+pub use serialization::*; // Always available for CLI usage // Advanced Python AST parser
 
 // Always export requirement types for CLI usage
 pub mod requirement;
 pub use requirement::{Requirement, VersionConstraint};
 
 #[cfg(feature = "python-bindings")]
-pub use variant::*;
-#[cfg(feature = "python-bindings")]
 pub use management::*;
+#[cfg(feature = "python-bindings")]
+pub use requirement::PackageRequirement as PyPackageRequirement;
 #[cfg(feature = "python-bindings")]
 pub use validation::*;
 #[cfg(feature = "python-bindings")]
-pub use requirement::PackageRequirement as PyPackageRequirement;
+pub use variant::*;
 
 #[cfg(feature = "python-bindings")]
 use pyo3::prelude::*;
@@ -124,7 +124,9 @@ mod tests {
         options.dry_run = true;
         options.validate = false;
 
-        let result = manager.install_package(&package, dest_path, Some(options)).unwrap();
+        let result = manager
+            .install_package(&package, dest_path, Some(options))
+            .unwrap();
 
         assert!(result.success);
         assert!(result.message.contains("Would install"));
@@ -148,7 +150,9 @@ mod tests {
         options.install_options.dry_run = true;
         options.install_options.validate = false;
 
-        let result = manager.copy_package(&package, dest_path, Some(options)).unwrap();
+        let result = manager
+            .copy_package(&package, dest_path, Some(options))
+            .unwrap();
 
         assert!(result.success);
     }

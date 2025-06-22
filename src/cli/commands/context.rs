@@ -4,8 +4,8 @@
 //! This command provides complete compatibility with the original rez-context command.
 
 use clap::Args;
-use rez_core_common::{RezCoreError, error::RezCoreResult};
-use rez_core_context::{RezResolvedContext, ResolvedPackage};
+use rez_core_common::{error::RezCoreResult, RezCoreError};
+use rez_core_context::{ResolvedPackage, RezResolvedContext};
 use rez_core_package::{Package, Requirement};
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -163,7 +163,7 @@ pub fn execute(args: ContextArgs) -> RezCoreResult<()> {
 
 /// Create a demonstration context
 fn create_demo_context() -> RezCoreResult<RezResolvedContext> {
-    use rez_core_context::{RezResolvedContext, ResolvedPackage};
+    use rez_core_context::{ResolvedPackage, RezResolvedContext};
     use rez_core_package::{Package, Requirement};
     use std::sync::Arc;
 
@@ -180,7 +180,8 @@ fn create_demo_context() -> RezCoreResult<RezResolvedContext> {
     python_pkg.version = Some(rez_core_version::Version::parse("3.9.0").unwrap());
     python_pkg.description = Some("Python programming language".to_string());
     python_pkg.tools = vec!["python".to_string(), "pip".to_string()];
-    python_pkg.commands = Some("export PYTHON_ROOT=\"{root}\"\nexport PATH=\"${PATH}:{root}/bin\"".to_string());
+    python_pkg.commands =
+        Some("export PYTHON_ROOT=\"{root}\"\nexport PATH=\"${PATH}:{root}/bin\"".to_string());
 
     let mut numpy_pkg = Package::new("numpy".to_string());
     numpy_pkg.version = Some(rez_core_version::Version::parse("1.21.0").unwrap());
@@ -190,13 +191,13 @@ fn create_demo_context() -> RezCoreResult<RezResolvedContext> {
     let python_resolved = ResolvedPackage::new(
         Arc::new(python_pkg),
         PathBuf::from("/packages/python/3.9.0"),
-        true
+        true,
     );
 
     let numpy_resolved = ResolvedPackage::new(
         Arc::new(numpy_pkg),
         PathBuf::from("/packages/numpy/1.21.0"),
-        true
+        true,
     );
 
     context.resolved_packages = vec![python_resolved, numpy_resolved];
@@ -222,13 +223,20 @@ fn print_resolved_packages(context: &RezResolvedContext, args: &ContextArgs) {
     }
 
     for resolved_pkg in &packages {
-        let version_str = resolved_pkg.package.version
+        let version_str = resolved_pkg
+            .package
+            .version
             .as_ref()
             .map(|v| v.as_str())
             .unwrap_or("unknown");
 
         if args.show_uris {
-            println!("  {} {} ({})", resolved_pkg.package.name, version_str, resolved_pkg.root.display());
+            println!(
+                "  {} {} ({})",
+                resolved_pkg.package.name,
+                version_str,
+                resolved_pkg.root.display()
+            );
         } else {
             println!("  {} {}", resolved_pkg.package.name, version_str);
         }
@@ -325,13 +333,21 @@ fn print_context_summary(context: &RezResolvedContext) {
 
     println!("Context Summary:");
     println!("  Packages: {}", summary.num_packages);
-    println!("  Status: {}", if summary.failed { "FAILED" } else { "SUCCESS" });
-    println!("  Created: {}", summary.timestamp.format("%Y-%m-%d %H:%M:%S UTC"));
+    println!(
+        "  Status: {}",
+        if summary.failed { "FAILED" } else { "SUCCESS" }
+    );
+    println!(
+        "  Created: {}",
+        summary.timestamp.format("%Y-%m-%d %H:%M:%S UTC")
+    );
 
     println!("\nPackages:");
     for package_name in &summary.package_names {
         if let Some(resolved_pkg) = context.get_package(package_name) {
-            let version_str = resolved_pkg.package.version
+            let version_str = resolved_pkg
+                .package
+                .version
                 .as_ref()
                 .map(|v| v.as_str())
                 .unwrap_or("unknown");
@@ -366,7 +382,7 @@ mod tests {
             diff: None,
             fetch: false,
         };
-        
+
         assert!(!args.print_request);
         assert!(!args.interpret);
         assert_eq!(args.style, OutputStyle::File);

@@ -1,10 +1,10 @@
 //! Core solver implementation - Simplified for compilation
 
+#[cfg(feature = "python-bindings")]
+use pyo3::prelude::*;
 use rez_core_common::RezCoreError;
 use rez_core_package::{Package, PackageRequirement};
 use rez_core_version::Version;
-#[cfg(feature = "python-bindings")]
-use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -219,7 +219,6 @@ impl DependencySolver {
             metadata: HashMap::new(),
         })
     }
-
 }
 
 impl Default for DependencySolver {

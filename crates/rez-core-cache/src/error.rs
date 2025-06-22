@@ -1,7 +1,7 @@
 //! Error types for the intelligent caching system
 
-use thiserror::Error;
 use std::io;
+use thiserror::Error;
 
 /// Cache-specific error types
 #[derive(Error, Debug)]
@@ -307,7 +307,13 @@ mod tests {
     #[test]
     fn test_cache_error_creation() {
         let error = CacheError::capacity_exceeded(100, 50);
-        assert!(matches!(error, CacheError::CapacityExceeded { current: 100, max: 50 }));
+        assert!(matches!(
+            error,
+            CacheError::CapacityExceeded {
+                current: 100,
+                max: 50
+            }
+        ));
         assert!(error.is_recoverable());
         assert_eq!(error.severity(), ErrorSeverity::Medium);
     }

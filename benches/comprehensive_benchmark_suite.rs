@@ -4,29 +4,29 @@
 //! across all rez-core modules. It includes standardized interfaces, configuration
 //! management, and baseline metrics collection.
 
-use criterion::{Criterion, BenchmarkId, Throughput, criterion_group, criterion_main};
-use serde::{Serialize, Deserialize};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
-use std::path::PathBuf;
 use std::fs;
+use std::path::PathBuf;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 /// Trait for module-specific benchmark implementations
 pub trait ModuleBenchmark: Send + Sync {
     /// Get the name of the benchmark module
     fn name(&self) -> &str;
-    
+
     /// Run all benchmarks for this module
     fn run_benchmarks(&self, c: &mut Criterion);
-    
+
     /// Get baseline metrics for this module
     fn get_baseline_metrics(&self) -> BaselineMetrics;
-    
+
     /// Get module-specific configuration
     fn get_config(&self) -> ModuleBenchmarkConfig {
         ModuleBenchmarkConfig::default()
     }
-    
+
     /// Validate that the module is ready for benchmarking
     fn validate(&self) -> Result<(), BenchmarkError> {
         Ok(())
@@ -241,7 +241,9 @@ pub fn register_core_modules(suite: &mut BenchmarkSuite) -> Result<(), Benchmark
     suite.register_module(Box::new(crate::rex_benchmark::RexBenchmark::new()))?;
 
     // Register Build and Cache module benchmark
-    suite.register_module(Box::new(crate::build_cache_benchmark::BuildCacheBenchmark::new()))?;
+    suite.register_module(Box::new(
+        crate::build_cache_benchmark::BuildCacheBenchmark::new(),
+    ))?;
 
     Ok(())
 }
@@ -251,42 +253,46 @@ impl BenchmarkSuite {
     pub fn new() -> Self {
         Self::with_config(BenchmarkConfig::default())
     }
-    
+
     /// Create a new benchmark suite with custom configuration
     pub fn with_config(config: BenchmarkConfig) -> Self {
         let baseline_storage = BaselineStorage::new(config.baseline.baseline_dir.clone());
-        
+
         Self {
             config,
             modules: Vec::new(),
             baseline_storage,
         }
     }
-    
+
     /// Register a benchmark module
-    pub fn register_module(&mut self, module: Box<dyn ModuleBenchmark>) -> Result<(), BenchmarkError> {
+    pub fn register_module(
+        &mut self,
+        module: Box<dyn ModuleBenchmark>,
+    ) -> Result<(), BenchmarkError> {
         // Validate the module
         module.validate()?;
-        
+
         // Check for duplicate names
         let module_name = module.name();
         if self.modules.iter().any(|m| m.name() == module_name) {
-            return Err(BenchmarkError::ValidationFailed(
-                format!("Module '{}' is already registered", module_name)
-            ));
+            return Err(BenchmarkError::ValidationFailed(format!(
+                "Module '{}' is already registered",
+                module_name
+            )));
         }
-        
+
         self.modules.push(module);
         Ok(())
     }
-    
+
     /// Run all registered benchmarks
     pub fn run_all(&self) -> Result<(), BenchmarkError> {
         let criterion = self.create_criterion();
-        
+
         for module in &self.modules {
             let module_name = module.name();
-            
+
             // Check if module is enabled
             if let Some(module_config) = self.config.modules.get(module_name) {
                 if !module_config.enabled {
@@ -294,32 +300,33 @@ impl BenchmarkSuite {
                     continue;
                 }
             }
-            
+
             println!("Running benchmarks for module: {}", module_name);
             module.run_benchmarks(&criterion);
         }
-        
+
         Ok(())
     }
-    
+
     /// Run benchmarks for specific modules
     pub fn run_modules(&self, module_names: &[&str]) -> Result<(), BenchmarkError> {
         let criterion = self.create_criterion();
-        
+
         for module_name in module_names {
             if let Some(module) = self.modules.iter().find(|m| m.name() == *module_name) {
                 println!("Running benchmarks for module: {}", module_name);
                 module.run_benchmarks(&criterion);
             } else {
-                return Err(BenchmarkError::ValidationFailed(
-                    format!("Module '{}' not found", module_name)
-                ));
+                return Err(BenchmarkError::ValidationFailed(format!(
+                    "Module '{}' not found",
+                    module_name
+                )));
             }
         }
-        
+
         Ok(())
     }
-    
+
     /// Create configured Criterion instance
     fn create_criterion(&self) -> Criterion {
         Criterion::default()
@@ -327,12 +334,12 @@ impl BenchmarkSuite {
             .measurement_time(self.config.global.default_measurement_time)
             .sample_size(self.config.global.default_sample_size)
     }
-    
+
     /// Get list of registered modules
     pub fn list_modules(&self) -> Vec<&str> {
         self.modules.iter().map(|m| m.name()).collect()
     }
-    
+
     /// Get configuration
     pub fn config(&self) -> &BenchmarkConfig {
         &self.config
@@ -348,31 +355,31 @@ impl BaselineStorage {
     pub fn new(baseline_dir: PathBuf) -> Self {
         Self { baseline_dir }
     }
-    
+
     /// Save baseline metrics for a module
     pub fn save_baseline(&self, metrics: &BaselineMetrics) -> Result<(), BenchmarkError> {
         std::fs::create_dir_all(&self.baseline_dir)?;
-        
+
         let filename = format!("{}.json", metrics.module_name);
         let filepath = self.baseline_dir.join(filename);
-        
+
         let json = serde_json::to_string_pretty(metrics)?;
         std::fs::write(filepath, json)?;
-        
+
         Ok(())
     }
-    
+
     /// Load baseline metrics for a module
     pub fn load_baseline(&self, module_name: &str) -> Result<BaselineMetrics, BenchmarkError> {
         let filename = format!("{}.json", module_name);
         let filepath = self.baseline_dir.join(filename);
-        
+
         let json = std::fs::read_to_string(filepath)?;
         let metrics = serde_json::from_str(&json)?;
-        
+
         Ok(metrics)
     }
-    
+
     /// Check if baseline exists for a module
     pub fn has_baseline(&self, module_name: &str) -> bool {
         let filename = format!("{}.json", module_name);
@@ -527,10 +534,7 @@ pub mod environment {
 
     fn detect_compiler_flags() -> Vec<String> {
         // Return common optimization flags
-        vec![
-            "-O3".to_string(),
-            "-C target-cpu=native".to_string(),
-        ]
+        vec!["-O3".to_string(), "-C target-cpu=native".to_string()]
     }
 }
 
@@ -544,7 +548,8 @@ pub mod analysis {
         baseline: &BenchmarkResult,
         threshold: f64,
     ) -> ComparisonResult {
-        let performance_change = (current.mean_time_ns - baseline.mean_time_ns) / baseline.mean_time_ns * 100.0;
+        let performance_change =
+            (current.mean_time_ns - baseline.mean_time_ns) / baseline.mean_time_ns * 100.0;
 
         let status = if performance_change > threshold {
             ComparisonStatus::Regression
@@ -581,8 +586,6 @@ pub mod analysis {
         Regression,
     }
 }
-
-
 
 /// Configuration helpers
 pub mod config_helpers {
@@ -633,7 +636,9 @@ pub fn run_comprehensive_benchmarks() {
 
     // Register version module
     let version_module = Box::new(version_module::VersionModuleBenchmark::new());
-    suite.register_module(version_module).expect("Failed to register version module");
+    suite
+        .register_module(version_module)
+        .expect("Failed to register version module");
 
     println!("✅ Registered {} modules", suite.list_modules().len());
 
@@ -826,23 +831,29 @@ pub mod version_module {
             let mut benchmarks = HashMap::new();
 
             // Add baseline metrics for each benchmark
-            benchmarks.insert("version_parsing".to_string(), BenchmarkResult {
-                name: "version_parsing".to_string(),
-                mean_time_ns: 1000.0,
-                std_dev_ns: 50.0,
-                throughput_ops_per_sec: Some(1_000_000.0),
-                memory_usage_bytes: Some(1024),
-                additional_metrics: HashMap::new(),
-            });
+            benchmarks.insert(
+                "version_parsing".to_string(),
+                BenchmarkResult {
+                    name: "version_parsing".to_string(),
+                    mean_time_ns: 1000.0,
+                    std_dev_ns: 50.0,
+                    throughput_ops_per_sec: Some(1_000_000.0),
+                    memory_usage_bytes: Some(1024),
+                    additional_metrics: HashMap::new(),
+                },
+            );
 
-            benchmarks.insert("version_comparison".to_string(), BenchmarkResult {
-                name: "version_comparison".to_string(),
-                mean_time_ns: 100.0,
-                std_dev_ns: 10.0,
-                throughput_ops_per_sec: Some(10_000_000.0),
-                memory_usage_bytes: Some(512),
-                additional_metrics: HashMap::new(),
-            });
+            benchmarks.insert(
+                "version_comparison".to_string(),
+                BenchmarkResult {
+                    name: "version_comparison".to_string(),
+                    mean_time_ns: 100.0,
+                    std_dev_ns: 10.0,
+                    throughput_ops_per_sec: Some(10_000_000.0),
+                    memory_usage_bytes: Some(512),
+                    additional_metrics: HashMap::new(),
+                },
+            );
 
             BaselineMetrics {
                 module_name: "version".to_string(),
@@ -861,7 +872,10 @@ pub mod version_module {
                 sample_size: 100,
                 parameters: {
                     let mut params = HashMap::new();
-                    params.insert("test_version_count".to_string(), self.test_versions.len().to_string());
+                    params.insert(
+                        "test_version_count".to_string(),
+                        self.test_versions.len().to_string(),
+                    );
                     params
                 },
             }
@@ -870,7 +884,7 @@ pub mod version_module {
         fn validate(&self) -> Result<(), BenchmarkError> {
             if self.test_versions.is_empty() {
                 return Err(BenchmarkError::ValidationFailed(
-                    "No test versions available".to_string()
+                    "No test versions available".to_string(),
                 ));
             }
             Ok(())
@@ -905,7 +919,8 @@ pub mod version_module {
 
         /// Benchmark version comparison performance
         fn benchmark_version_comparison(&self, c: &mut Criterion) {
-            let versions: Vec<MockVersion> = self.test_versions
+            let versions: Vec<MockVersion> = self
+                .test_versions
                 .iter()
                 .map(|v| self.mock_parse_version(v))
                 .collect();
@@ -947,7 +962,8 @@ pub mod version_module {
 
             group.bench_function("batch_parsing", |b| {
                 b.iter(|| {
-                    let versions: Vec<MockVersion> = self.test_versions
+                    let versions: Vec<MockVersion> = self
+                        .test_versions
                         .iter()
                         .map(|v| self.mock_parse_version(black_box(v)))
                         .collect();
@@ -983,7 +999,8 @@ pub mod version_module {
 
         fn mock_compare_versions(&self, a: &MockVersion, b: &MockVersion) -> std::cmp::Ordering {
             // Simulate version comparison
-            a.major.cmp(&b.major)
+            a.major
+                .cmp(&b.major)
                 .then_with(|| a.minor.cmp(&b.minor))
                 .then_with(|| a.patch.cmp(&b.patch))
         }

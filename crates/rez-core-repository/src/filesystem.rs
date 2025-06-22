@@ -1,11 +1,13 @@
 //! Filesystem-based repository implementation
 
-use crate::{Repository, RepositoryMetadata, RepositoryType, RepositoryStats, PackageSearchCriteria};
+use crate::{
+    PackageSearchCriteria, Repository, RepositoryMetadata, RepositoryStats, RepositoryType,
+};
+#[cfg(feature = "python-bindings")]
+use pyo3::prelude::*;
 use rez_core_common::RezCoreError;
 use rez_core_package::Package;
 use rez_core_version::Version;
-#[cfg(feature = "python-bindings")]
-use pyo3::prelude::*;
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -96,12 +98,13 @@ impl Repository for FileSystemRepository {
 
     async fn initialize(&mut self) -> Result<(), RezCoreError> {
         let start_time = std::time::Instant::now();
-        
+
         // Check if repository path exists
         if !self.metadata.path.exists() {
-            return Err(RezCoreError::Repository(
-                format!("Repository path does not exist: {}", self.metadata.path.display())
-            ));
+            return Err(RezCoreError::Repository(format!(
+                "Repository path does not exist: {}",
+                self.metadata.path.display()
+            )));
         }
 
         // Clear existing cache
@@ -114,7 +117,7 @@ impl Repository for FileSystemRepository {
 
         // Scan for packages
         let scan_result = self.scan_packages().await?;
-        
+
         // Update statistics
         {
             let mut stats = self.stats.write().await;
@@ -145,7 +148,10 @@ impl Repository for FileSystemRepository {
         self.initialize().await
     }
 
-    async fn find_packages(&self, criteria: &PackageSearchCriteria) -> Result<Vec<Package>, RezCoreError> {
+    async fn find_packages(
+        &self,
+        criteria: &PackageSearchCriteria,
+    ) -> Result<Vec<Package>, RezCoreError> {
         let package_cache = self.package_cache.read().await;
         let mut results = Vec::new();
 
@@ -206,9 +212,13 @@ impl Repository for FileSystemRepository {
         Ok(results)
     }
 
-    async fn get_package(&self, name: &str, version: Option<&Version>) -> Result<Option<Package>, RezCoreError> {
+    async fn get_package(
+        &self,
+        name: &str,
+        version: Option<&Version>,
+    ) -> Result<Option<Package>, RezCoreError> {
         let package_cache = self.package_cache.read().await;
-        
+
         if let Some(versions) = package_cache.get(name) {
             match version {
                 Some(v) => Ok(versions.get(v.as_str()).cloned()),
@@ -233,12 +243,13 @@ impl Repository for FileSystemRepository {
 
     async fn get_package_versions(&self, name: &str) -> Result<Vec<Version>, RezCoreError> {
         let package_cache = self.package_cache.read().await;
-        
+
         if let Some(versions) = package_cache.get(name) {
-            let mut version_list: Vec<Version> = versions.values()
+            let mut version_list: Vec<Version> = versions
+                .values()
                 .filter_map(|p| p.version.clone())
                 .collect();
-            
+
             version_list.sort_by(|a, b| b.cmp(a)); // Descending order
             Ok(version_list)
         } else {
@@ -246,20 +257,28 @@ impl Repository for FileSystemRepository {
         }
     }
 
-    async fn get_package_variants(&self, name: &str, version: Option<&Version>) -> Result<Vec<String>, RezCoreError> {
+    async fn get_package_variants(
+        &self,
+        name: &str,
+        version: Option<&Version>,
+    ) -> Result<Vec<String>, RezCoreError> {
         let variant_cache = self.variant_cache.read().await;
-        
+
         let key = match version {
             Some(v) => format!("{}-{}", name, v.as_str()),
             None => name.to_string(),
         };
-        
+
         Ok(variant_cache.get(&key).cloned().unwrap_or_default())
     }
 
-    async fn package_exists(&self, name: &str, version: Option<&Version>) -> Result<bool, RezCoreError> {
+    async fn package_exists(
+        &self,
+        name: &str,
+        version: Option<&Version>,
+    ) -> Result<bool, RezCoreError> {
         let package_cache = self.package_cache.read().await;
-        
+
         if let Some(versions) = package_cache.get(name) {
             match version {
                 Some(v) => Ok(versions.contains_key(v.as_str())),
@@ -302,20 +321,20 @@ impl FileSystemRepository {
         let mut variant_cache = self.variant_cache.write().await;
 
         // Walk through the repository directory
-        let mut entries = fs::read_dir(&self.metadata.path).await
-            .map_err(|e| RezCoreError::Repository(
-                format!("Failed to read repository directory: {}", e)
-            ))?;
+        let mut entries = fs::read_dir(&self.metadata.path).await.map_err(|e| {
+            RezCoreError::Repository(format!("Failed to read repository directory: {}", e))
+        })?;
 
-        while let Some(entry) = entries.next_entry().await
-            .map_err(|e| RezCoreError::Repository(
-                format!("Failed to read directory entry: {}", e)
-            ))? {
-            
+        while let Some(entry) = entries.next_entry().await.map_err(|e| {
+            RezCoreError::Repository(format!("Failed to read directory entry: {}", e))
+        })? {
             let path = entry.path();
             if path.is_dir() {
                 // This might be a package directory
-                if let Ok(scan_result) = self.scan_package_directory(&path, &mut package_cache, &mut variant_cache).await {
+                if let Ok(scan_result) = self
+                    .scan_package_directory(&path, &mut package_cache, &mut variant_cache)
+                    .await
+                {
                     package_count += scan_result.packages_found;
                     version_count += scan_result.versions_found;
                     variant_count += scan_result.variants_found;
@@ -357,13 +376,16 @@ impl FileSystemRepository {
                 match self.load_package_from_file(package_file).await {
                     Ok(package) => {
                         let package_name = package.name.clone();
-                        let version_str = package.version.as_ref()
+                        let version_str = package
+                            .version
+                            .as_ref()
                             .map(|v| v.as_str())
                             .unwrap_or("latest")
                             .to_string();
 
                         // Add to package cache
-                        package_cache.entry(package_name.clone())
+                        package_cache
+                            .entry(package_name.clone())
                             .or_insert_with(HashMap::new)
                             .insert(version_str.clone(), package.clone());
 
@@ -391,7 +413,11 @@ impl FileSystemRepository {
                         break; // Found a package file, no need to check others
                     }
                     Err(e) => {
-                        eprintln!("Failed to load package from {}: {}", package_file.display(), e);
+                        eprintln!(
+                            "Failed to load package from {}: {}",
+                            package_file.display(),
+                            e
+                        );
                     }
                 }
             }
@@ -407,22 +433,30 @@ impl FileSystemRepository {
 
     /// Load a package from a file
     async fn load_package_from_file(&self, path: &Path) -> Result<Package, RezCoreError> {
-        let content = fs::read_to_string(path).await
-            .map_err(|e| RezCoreError::Repository(
-                format!("Failed to read package file {}: {}", path.display(), e)
-            ))?;
+        let content = fs::read_to_string(path).await.map_err(|e| {
+            RezCoreError::Repository(format!(
+                "Failed to read package file {}: {}",
+                path.display(),
+                e
+            ))
+        })?;
 
         // Simple YAML parsing for now
-        if path.extension().and_then(|s| s.to_str()) == Some("yaml") ||
-           path.extension().and_then(|s| s.to_str()) == Some("yml") {
-            serde_yaml::from_str(&content)
-                .map_err(|e| RezCoreError::Repository(
-                    format!("Failed to parse YAML package file {}: {}", path.display(), e)
+        if path.extension().and_then(|s| s.to_str()) == Some("yaml")
+            || path.extension().and_then(|s| s.to_str()) == Some("yml")
+        {
+            serde_yaml::from_str(&content).map_err(|e| {
+                RezCoreError::Repository(format!(
+                    "Failed to parse YAML package file {}: {}",
+                    path.display(),
+                    e
                 ))
+            })
         } else {
-            Err(RezCoreError::Repository(
-                format!("Unsupported package file format: {}", path.display())
-            ))
+            Err(RezCoreError::Repository(format!(
+                "Unsupported package file format: {}",
+                path.display()
+            )))
         }
     }
 
@@ -433,10 +467,8 @@ impl FileSystemRepository {
         }
 
         // Simple wildcard matching (supports * and ?)
-        let regex_pattern = pattern
-            .replace("*", ".*")
-            .replace("?", ".");
-        
+        let regex_pattern = pattern.replace("*", ".*").replace("?", ".");
+
         if let Ok(regex) = regex::Regex::new(&format!("^{}$", regex_pattern)) {
             regex.is_match(text)
         } else {

@@ -1,11 +1,11 @@
 //! Build manager and coordination
 
-use crate::{BuildProcess, BuildEnvironment, BuildArtifacts, BuildSystem};
-use rez_core_common::RezCoreError;
-use rez_core_package::Package;
-use rez_core_context::ResolvedContext;
+use crate::{BuildArtifacts, BuildEnvironment, BuildProcess, BuildSystem};
 #[cfg(feature = "python-bindings")]
 use pyo3::prelude::*;
+use rez_core_common::RezCoreError;
+use rez_core_context::ResolvedContext;
+use rez_core_package::Package;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -227,10 +227,12 @@ impl BuildManager {
         let result = tokio::runtime::Runtime::new()
             .unwrap()
             .block_on(self.start_build(request));
-        
+
         match result {
             Ok(build_id) => Ok(build_id),
-            Err(e) => Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string())),
+            Err(e) => Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(
+                e.to_string(),
+            )),
         }
     }
 
@@ -238,7 +240,9 @@ impl BuildManager {
     pub fn get_build_status_py(&self, build_id: &str) -> PyResult<String> {
         match self.get_build_status(build_id) {
             Some(status) => Ok(format!("{:?}", status)),
-            None => Err(PyErr::new::<pyo3::exceptions::PyValueError, _>("Build not found")),
+            None => Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
+                "Build not found",
+            )),
         }
     }
 
@@ -269,7 +273,7 @@ impl BuildManager {
         // Check concurrent build limit
         if self.active_builds.len() >= self.config.max_concurrent_builds {
             return Err(RezCoreError::BuildError(
-                "Maximum concurrent builds reached".to_string()
+                "Maximum concurrent builds reached".to_string(),
             ));
         }
 
@@ -285,12 +289,8 @@ impl BuildManager {
         )?;
 
         // Create build process
-        let mut build_process = BuildProcess::new(
-            build_id.clone(),
-            request,
-            build_env,
-            self.config.clone(),
-        );
+        let mut build_process =
+            BuildProcess::new(build_id.clone(), request, build_env, self.config.clone());
 
         // Start the build
         build_process.start().await?;
@@ -307,7 +307,7 @@ impl BuildManager {
     pub async fn wait_for_build(&mut self, build_id: &str) -> Result<BuildResult, RezCoreError> {
         if let Some(mut build_process) = self.active_builds.remove(build_id) {
             let result = build_process.wait().await?;
-            
+
             // Update statistics
             self.stats.builds_running -= 1;
             if result.success {
@@ -315,18 +315,19 @@ impl BuildManager {
             } else {
                 self.stats.builds_failed += 1;
             }
-            
+
             self.stats.total_build_time_ms += result.duration_ms;
             if self.stats.builds_started > 0 {
-                self.stats.avg_build_time_ms = 
+                self.stats.avg_build_time_ms =
                     self.stats.total_build_time_ms as f64 / self.stats.builds_started as f64;
             }
 
             Ok(result)
         } else {
-            Err(RezCoreError::BuildError(
-                format!("Build {} not found", build_id)
-            ))
+            Err(RezCoreError::BuildError(format!(
+                "Build {} not found",
+                build_id
+            )))
         }
     }
 
@@ -338,15 +339,18 @@ impl BuildManager {
             self.stats.builds_failed += 1;
             Ok(())
         } else {
-            Err(RezCoreError::BuildError(
-                format!("Build {} not found", build_id)
-            ))
+            Err(RezCoreError::BuildError(format!(
+                "Build {} not found",
+                build_id
+            )))
         }
     }
 
     /// Get build status
     pub fn get_build_status(&self, build_id: &str) -> Option<BuildStatus> {
-        self.active_builds.get(build_id).map(|process| process.get_status())
+        self.active_builds
+            .get(build_id)
+            .map(|process| process.get_status())
     }
 
     /// Get all active builds
@@ -357,16 +361,18 @@ impl BuildManager {
     /// Clean build directory
     pub async fn clean_build_dir(&self) -> Result<(), RezCoreError> {
         if self.config.build_dir.exists() {
-            tokio::fs::remove_dir_all(&self.config.build_dir).await
-                .map_err(|e| RezCoreError::BuildError(
-                    format!("Failed to clean build directory: {}", e)
-                ))?;
+            tokio::fs::remove_dir_all(&self.config.build_dir)
+                .await
+                .map_err(|e| {
+                    RezCoreError::BuildError(format!("Failed to clean build directory: {}", e))
+                })?;
         }
-        
-        tokio::fs::create_dir_all(&self.config.build_dir).await
-            .map_err(|e| RezCoreError::BuildError(
-                format!("Failed to create build directory: {}", e)
-            ))?;
+
+        tokio::fs::create_dir_all(&self.config.build_dir)
+            .await
+            .map_err(|e| {
+                RezCoreError::BuildError(format!("Failed to create build directory: {}", e))
+            })?;
 
         Ok(())
     }

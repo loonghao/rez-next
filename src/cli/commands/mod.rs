@@ -5,23 +5,23 @@
 
 pub mod config;
 pub mod context;
-pub mod view;
 pub mod env;
 pub mod release;
 pub mod test;
+pub mod view;
 
 // TODO: Add more commands as they are implemented
 pub mod build;
 // pub mod search;
-pub mod search_v2;
 pub mod bind;
-pub mod depends;
-pub mod solve;
 pub mod cp;
-pub mod mv;
-pub mod rm;
-pub mod status;
+pub mod depends;
 pub mod diff;
 pub mod help;
-pub mod plugins;
+pub mod mv;
 pub mod pkg_cache;
+pub mod plugins;
+pub mod rm;
+pub mod search_v2;
+pub mod solve;
+pub mod status;

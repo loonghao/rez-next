@@ -3,10 +3,9 @@
 #[cfg(test)]
 mod tests {
     use crate::{
-        IntelligentCacheManager, UnifiedCacheConfig, UnifiedCache,
-        L1CacheConfig, PreheatingConfig, TuningConfig, MonitoringConfig,
-        CACHE_VERSION, DEFAULT_L1_CAPACITY, DEFAULT_L2_CAPACITY,
-        DEFAULT_TTL_SECONDS, DEFAULT_MEMORY_LIMIT_MB,
+        IntelligentCacheManager, L1CacheConfig, MonitoringConfig, PreheatingConfig, TuningConfig,
+        UnifiedCache, UnifiedCacheConfig, CACHE_VERSION, DEFAULT_L1_CAPACITY, DEFAULT_L2_CAPACITY,
+        DEFAULT_MEMORY_LIMIT_MB, DEFAULT_TTL_SECONDS,
     };
     use std::time::Duration;
     use tokio::time::sleep;
@@ -30,7 +29,10 @@ mod tests {
         let cache = IntelligentCacheManager::<String, String>::new(config);
 
         // Test put and get
-        cache.put("key1".to_string(), "value1".to_string()).await.unwrap();
+        cache
+            .put("key1".to_string(), "value1".to_string())
+            .await
+            .unwrap();
         let result = cache.get(&"key1".to_string()).await;
         assert_eq!(result, Some("value1".to_string()));
 
@@ -132,7 +134,7 @@ mod tests {
         for i in 0..10 {
             let key = format!("key_{}", i);
             let value = format!("value_{}", i);
-            
+
             let _ = cache.get(&key).await; // Miss
             cache.put(key, value).await.unwrap(); // Put
         }
@@ -143,7 +145,7 @@ mod tests {
 
         // Trigger tuning
         let recommendations = cache.tuner().analyze_and_tune().await;
-        
+
         // Should generate some recommendations
         assert!(recommendations.len() >= 0);
 
@@ -170,7 +172,7 @@ mod tests {
         for i in 0..10 {
             let key = format!("key_{}", i);
             let value = vec![i as u8; 100];
-            
+
             cache.put(key.clone(), value).await.unwrap();
             let _ = cache.get(&key).await;
         }
@@ -276,7 +278,7 @@ mod tests {
                 for i in 0..10 {
                     let key = format!("worker_{}_key_{}", worker_id, i);
                     let value = format!("worker_{}_value_{}", worker_id, i);
-                    
+
                     cache.put(key.clone(), value.clone()).await.unwrap();
                     let result = cache.get(&key).await;
                     assert_eq!(result, Some(value));

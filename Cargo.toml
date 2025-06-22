@@ -8,7 +8,6 @@ members = [
     "crates/rez-core-context",
     "crates/rez-core-build",
     "crates/rez-core-cache",
-    # "crates/rez-core-python",  # Temporarily disabled due to DLL issues
 ]
 resolver = "2"
 
@@ -128,17 +127,7 @@ harness = false
 name = "simple_package_benchmark"
 harness = false
 
-[[bench]]
-name = "package_core_benchmark"
-harness = false
-
-[[bench]]
-name = "standalone_package_benchmark"
-harness = false
-
-[[bench]]
-name = "unified_benchmark_test"
-harness = false
+# Removed redundant benchmarks
 
 [[bench]]
 name = "solver_benchmark"
@@ -148,13 +137,7 @@ harness = false
 name = "solver_benchmark_main"
 harness = false
 
-[[bench]]
-name = "standalone_solver_benchmark"
-harness = false
-
-[[bench]]
-name = "simple_solver_benchmark"
-harness = false
+# Simplified solver benchmarks
 
 [[bench]]
 name = "context_benchmark"
@@ -212,10 +195,10 @@ dead_code = "allow"
 too_many_arguments = "allow"
 module_inception = "allow"
 # Focus on critical issues only
-complexity = "warn"
-correctness = "deny"
-suspicious = "deny"
-perf = "warn"
+complexity = { level = "warn", priority = -1 }
+correctness = { level = "deny", priority = -1 }
+suspicious = { level = "deny", priority = -1 }
+perf = { level = "warn", priority = -1 }
 
 [profile.release]
 opt-level = 3

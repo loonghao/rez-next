@@ -3,8 +3,8 @@
 #[cfg(feature = "python-bindings")]
 use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
 use std::env;
+use std::path::PathBuf;
 
 /// Configuration for rez-core components
 #[cfg_attr(feature = "python-bindings", pyclass(name = "Config"))]
@@ -132,7 +132,12 @@ impl Default for RezCoreConfig {
             image_viewer: if cfg!(windows) { "mspaint" } else { "xdg-open" }.to_string(),
             browser: if cfg!(windows) { "start" } else { "xdg-open" }.to_string(),
             difftool: if cfg!(windows) { "fc" } else { "diff" }.to_string(),
-            terminal_emulator_command: if cfg!(windows) { "cmd /c start cmd" } else { "xterm" }.to_string(),
+            terminal_emulator_command: if cfg!(windows) {
+                "cmd /c start cmd"
+            } else {
+                "xterm"
+            }
+            .to_string(),
         }
     }
 }
@@ -179,7 +184,11 @@ impl RezCoreConfig {
         }
 
         // 4. User home config (unless disabled)
-        if env::var("REZ_DISABLE_HOME_CONFIG").unwrap_or_default().to_lowercase() != "1" {
+        if env::var("REZ_DISABLE_HOME_CONFIG")
+            .unwrap_or_default()
+            .to_lowercase()
+            != "1"
+        {
             if let Ok(home) = env::var("HOME") {
                 let home_path = PathBuf::from(&home);
                 paths.push(home_path.join(".rezconfig"));

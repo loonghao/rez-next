@@ -141,14 +141,15 @@ impl DependencyGraph {
 
         // Check if package is excluded
         if self.exclusions.contains(&package.name) {
-            return Err(RezCoreError::Solver(
-                format!("Package {} is excluded", package.name)
-            ));
+            return Err(RezCoreError::Solver(format!(
+                "Package {} is excluded",
+                package.name
+            )));
         }
 
         let node = GraphNode::new(package);
         self.nodes.insert(key, node);
-        
+
         Ok(())
     }
 
@@ -158,7 +159,7 @@ impl DependencyGraph {
             .entry(requirement.name.clone())
             .or_insert_with(Vec::new)
             .push(requirement);
-        
+
         Ok(())
     }
 
@@ -175,23 +176,29 @@ impl DependencyGraph {
     }
 
     /// Add a dependency edge between two packages
-    pub fn add_dependency_edge(&mut self, from_key: &str, to_key: &str) -> Result<(), RezCoreError> {
+    pub fn add_dependency_edge(
+        &mut self,
+        from_key: &str,
+        to_key: &str,
+    ) -> Result<(), RezCoreError> {
         // Add dependency to the from node
         if let Some(from_node) = self.nodes.get_mut(from_key) {
             from_node.add_dependency(to_key.to_string());
         } else {
-            return Err(RezCoreError::Solver(
-                format!("Package {} not found in graph", from_key)
-            ));
+            return Err(RezCoreError::Solver(format!(
+                "Package {} not found in graph",
+                from_key
+            )));
         }
 
         // Add dependent to the to node
         if let Some(to_node) = self.nodes.get_mut(to_key) {
             to_node.add_dependent(from_key.to_string());
         } else {
-            return Err(RezCoreError::Solver(
-                format!("Package {} not found in graph", to_key)
-            ));
+            return Err(RezCoreError::Solver(format!(
+                "Package {} not found in graph",
+                to_key
+            )));
         }
 
         Ok(())
@@ -226,7 +233,7 @@ impl DependencyGraph {
             if requirements.len() > 1 {
                 // Check if requirements are compatible
                 let mut incompatible_groups = Vec::new();
-                
+
                 for (i, req1) in requirements.iter().enumerate() {
                     for req2 in requirements.iter().skip(i + 1) {
                         // TODO: Implement is_compatible_with method for PackageRequirement
@@ -254,11 +261,14 @@ impl DependencyGraph {
     }
 
     /// Determine the severity of a conflict
-    fn determine_conflict_severity(&self, incompatible_groups: &[(PackageRequirement, PackageRequirement)]) -> ConflictSeverity {
+    fn determine_conflict_severity(
+        &self,
+        incompatible_groups: &[(PackageRequirement, PackageRequirement)],
+    ) -> ConflictSeverity {
         // Simple heuristic: if any requirements are completely incompatible, it's incompatible
         // If major versions differ, it's major
         // Otherwise, it's minor
-        
+
         // TODO: Implement range checking when PackageRequirement has range field
         // for (req1, req2) in incompatible_groups {
         //     if let (Some(range1), Some(range2)) = (&req1.range, &req2.range) {
@@ -290,7 +300,10 @@ impl DependencyGraph {
     }
 
     /// Apply a conflict resolution to the graph
-    pub fn apply_conflict_resolution(&mut self, resolution: ConflictResolution) -> Result<(), RezCoreError> {
+    pub fn apply_conflict_resolution(
+        &mut self,
+        resolution: ConflictResolution,
+    ) -> Result<(), RezCoreError> {
         // Remove packages that were modified
         for package_key in &resolution.modified_packages {
             self.remove_package(package_key)?;
@@ -303,7 +316,7 @@ impl DependencyGraph {
                 // TODO: Implement exact requirement creation when method is available
                 let new_requirement = PackageRequirement::with_version(
                     resolution.package_name.clone(),
-                    version.as_str().to_string()
+                    version.as_str().to_string(),
                 );
                 requirements.clear();
                 requirements.push(new_requirement);
@@ -365,7 +378,7 @@ impl DependencyGraph {
         // Check for cycles
         if result.len() != self.nodes.len() {
             return Err(RezCoreError::Solver(
-                "Circular dependency detected in package graph".to_string()
+                "Circular dependency detected in package graph".to_string(),
             ));
         }
 

@@ -1,16 +1,19 @@
 //! Build process management
 
-use crate::{BuildRequest, BuildResult, BuildConfig, BuildStatus, BuildEnvironment, BuildArtifacts, BuildSystem};
-use rez_core_common::RezCoreError;
-use rez_core_context::ShellExecutor;
+use crate::{
+    BuildArtifacts, BuildConfig, BuildEnvironment, BuildRequest, BuildResult, BuildStatus,
+    BuildSystem,
+};
 #[cfg(feature = "python-bindings")]
 use pyo3::prelude::*;
+use rez_core_common::RezCoreError;
+use rez_core_context::ShellExecutor;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
-use tokio::sync::{RwLock, Mutex};
 use tokio::process::Child;
+use tokio::sync::{Mutex, RwLock};
 
 /// Build process for managing individual package builds
 #[cfg_attr(feature = "python-bindings", pyclass)]
@@ -142,7 +145,8 @@ impl BuildProcess {
                 output.clone(),
                 errors.clone(),
                 child_process.clone(),
-            ).await;
+            )
+            .await;
 
             let mut status_guard = status.write().await;
             *status_guard = match result {
@@ -172,7 +176,8 @@ impl BuildProcess {
         }
 
         // Collect results
-        let duration_ms = self.start_time
+        let duration_ms = self
+            .start_time
             .map(|start| start.elapsed().as_millis() as u64)
             .unwrap_or(0);
 
@@ -261,7 +266,8 @@ impl BuildProcess {
                 environment,
                 config,
                 child_process.clone(),
-            ).await?;
+            )
+            .await?;
 
             // Append output
             {
@@ -281,9 +287,10 @@ impl BuildProcess {
 
             // Stop on failure
             if !step_result.success {
-                return Err(RezCoreError::BuildError(
-                    format!("Build step {:?} failed: {}", step, step_result.errors)
-                ));
+                return Err(RezCoreError::BuildError(format!(
+                    "Build step {:?} failed: {}",
+                    step, step_result.errors
+                )));
             }
         }
 
@@ -323,9 +330,7 @@ impl BuildProcess {
             BuildStep::Installing => {
                 Self::execute_install_step(request, environment, config).await?
             }
-            BuildStep::Cleanup => {
-                Self::execute_cleanup_step(request, environment, config).await?
-            }
+            BuildStep::Cleanup => Self::execute_cleanup_step(request, environment, config).await?,
         };
 
         let duration_ms = start_time.elapsed().as_millis() as u64;
@@ -349,11 +354,13 @@ impl BuildProcess {
         let build_dir = environment.get_build_dir();
         let install_dir = environment.get_install_dir();
 
-        tokio::fs::create_dir_all(build_dir).await
+        tokio::fs::create_dir_all(build_dir)
+            .await
             .map_err(|e| RezCoreError::BuildError(format!("Failed to create build dir: {}", e)))?;
 
-        tokio::fs::create_dir_all(install_dir).await
-            .map_err(|e| RezCoreError::BuildError(format!("Failed to create install dir: {}", e)))?;
+        tokio::fs::create_dir_all(install_dir).await.map_err(|e| {
+            RezCoreError::BuildError(format!("Failed to create install dir: {}", e))
+        })?;
 
         let output = format!(
             "Created build directory: {}\nCreated install directory: {}",
@@ -374,7 +381,11 @@ impl BuildProcess {
         let build_system = BuildSystem::detect_with_package(&request.source_dir, &request.package)?;
         let configure_result = build_system.configure(request, environment).await?;
 
-        Ok((configure_result.success, configure_result.output, configure_result.errors))
+        Ok((
+            configure_result.success,
+            configure_result.output,
+            configure_result.errors,
+        ))
     }
 
     /// Execute compile step
@@ -385,9 +396,15 @@ impl BuildProcess {
         child_process: Arc<Mutex<Option<Child>>>,
     ) -> Result<(bool, String, String), RezCoreError> {
         let build_system = BuildSystem::detect_with_package(&request.source_dir, &request.package)?;
-        let compile_result = build_system.compile(request, environment, child_process).await?;
+        let compile_result = build_system
+            .compile(request, environment, child_process)
+            .await?;
 
-        Ok((compile_result.success, compile_result.output, compile_result.errors))
+        Ok((
+            compile_result.success,
+            compile_result.output,
+            compile_result.errors,
+        ))
     }
 
     /// Execute test step
@@ -398,7 +415,9 @@ impl BuildProcess {
         child_process: Arc<Mutex<Option<Child>>>,
     ) -> Result<(bool, String, String), RezCoreError> {
         let build_system = BuildSystem::detect_with_package(&request.source_dir, &request.package)?;
-        let test_result = build_system.test(request, environment, child_process).await?;
+        let test_result = build_system
+            .test(request, environment, child_process)
+            .await?;
 
         Ok((test_result.success, test_result.output, test_result.errors))
     }
@@ -412,7 +431,11 @@ impl BuildProcess {
         let build_system = BuildSystem::detect_with_package(&request.source_dir, &request.package)?;
         let package_result = build_system.package(request, environment).await?;
 
-        Ok((package_result.success, package_result.output, package_result.errors))
+        Ok((
+            package_result.success,
+            package_result.output,
+            package_result.errors,
+        ))
     }
 
     /// Execute install step
@@ -424,7 +447,11 @@ impl BuildProcess {
         let build_system = BuildSystem::detect_with_package(&request.source_dir, &request.package)?;
         let install_result = build_system.install(request, environment).await?;
 
-        Ok((install_result.success, install_result.output, install_result.errors))
+        Ok((
+            install_result.success,
+            install_result.output,
+            install_result.errors,
+        ))
     }
 
     /// Execute cleanup step
@@ -437,8 +464,9 @@ impl BuildProcess {
         if !config.keep_artifacts {
             let temp_dir = environment.get_temp_dir();
             if temp_dir.exists() {
-                tokio::fs::remove_dir_all(temp_dir).await
-                    .map_err(|e| RezCoreError::BuildError(format!("Failed to clean temp dir: {}", e)))?;
+                tokio::fs::remove_dir_all(temp_dir).await.map_err(|e| {
+                    RezCoreError::BuildError(format!("Failed to clean temp dir: {}", e))
+                })?;
             }
         }
 

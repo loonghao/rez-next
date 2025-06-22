@@ -9,9 +9,9 @@
 //! - Token-based version representation
 //! - Python bindings for version operations
 
-use rez_core_common::RezCoreError;
 #[cfg(feature = "python-bindings")]
 use pyo3::prelude::*;
+use rez_core_common::RezCoreError;
 
 pub mod parser;
 #[cfg(feature = "python-bindings")]
@@ -31,7 +31,7 @@ pub use range::VersionRange;
 pub use token::PyVersionToken;
 pub use version::Version;
 #[cfg(feature = "python-bindings")]
-pub use version_token::{VersionToken, NumericToken, AlphanumericVersionToken};
+pub use version_token::{AlphanumericVersionToken, NumericToken, VersionToken};
 // pub use optimized_parser::{OptimizedVersionParser, BatchVersionParser, ParsedVersionComponents};
 
 // Define a custom error type for version parsing
@@ -60,8 +60,7 @@ pyo3::create_exception!(rez_core, PyVersionParseError, pyo3::exceptions::PyExcep
 #[cfg(feature = "python-bindings")]
 #[pyfunction]
 pub fn parse_version(version_str: &str) -> PyResult<Version> {
-    Version::parse(version_str)
-        .map_err(|e| PyErr::new::<PyVersionParseError, _>(e.to_string()))
+    Version::parse(version_str).map_err(|e| PyErr::new::<PyVersionParseError, _>(e.to_string()))
 }
 
 /// Parse a version range string into a VersionRange object

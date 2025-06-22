@@ -12,22 +12,22 @@ mod context_benchmark;
 mod solver_benchmark;
 mod version_benchmark;
 
-use comprehensive_benchmark_suite::{BenchmarkSuite, ModuleBenchmark, create_comprehensive_suite};
+use comprehensive_benchmark_suite::{create_comprehensive_suite, BenchmarkSuite, ModuleBenchmark};
 use context_benchmark::ContextBenchmark;
 
 /// Run all context benchmarks
 fn run_context_benchmarks(c: &mut Criterion) {
     let context_benchmark = ContextBenchmark::new();
-    
+
     // Validate the benchmark module before running
     if let Err(e) = context_benchmark.validate() {
         eprintln!("Context benchmark validation failed: {}", e);
         return;
     }
-    
+
     println!("Running Context Benchmark Suite...");
     println!("{}", context_benchmark.generate_performance_report());
-    
+
     // Run all context benchmarks
     context_benchmark.run_benchmarks(c);
 }
@@ -35,10 +35,10 @@ fn run_context_benchmarks(c: &mut Criterion) {
 /// Run comprehensive benchmark suite including context
 fn run_comprehensive_benchmarks(c: &mut Criterion) {
     let suite = create_comprehensive_suite();
-    
+
     println!("Running Comprehensive Benchmark Suite...");
     println!("Registered modules: {:?}", suite.list_modules());
-    
+
     // Run all registered benchmarks
     if let Err(e) = suite.run_all() {
         eprintln!("Comprehensive benchmark suite failed: {}", e);
@@ -48,7 +48,7 @@ fn run_comprehensive_benchmarks(c: &mut Criterion) {
 /// Run context-specific performance tests
 fn run_context_performance_tests(c: &mut Criterion) {
     let context_benchmark = ContextBenchmark::new();
-    
+
     // Run specific performance-focused benchmarks
     context_benchmark.benchmark_context_creation(c);
     context_benchmark.benchmark_environment_generation(c);
@@ -60,7 +60,7 @@ fn run_context_performance_tests(c: &mut Criterion) {
 /// Run context memory and resource usage tests
 fn run_context_resource_tests(c: &mut Criterion) {
     let context_benchmark = ContextBenchmark::new();
-    
+
     // Run resource-focused benchmarks
     context_benchmark.benchmark_memory_usage(c);
     context_benchmark.benchmark_validation(c);
@@ -70,7 +70,7 @@ fn run_context_resource_tests(c: &mut Criterion) {
 /// Run context serialization and I/O tests
 fn run_context_serialization_tests(c: &mut Criterion) {
     let context_benchmark = ContextBenchmark::new();
-    
+
     // Run serialization-focused benchmarks
     context_benchmark.benchmark_serialization(c);
 }
@@ -78,10 +78,10 @@ fn run_context_serialization_tests(c: &mut Criterion) {
 /// Quick context benchmark for development
 fn quick_context_benchmark(c: &mut Criterion) {
     let context_benchmark = ContextBenchmark::new();
-    
+
     // Run a subset of benchmarks for quick feedback
     let mut group = c.benchmark_group("quick_context_test");
-    
+
     // Test one simple context creation
     if let Some(scenario) = context_benchmark.test_data.simple_contexts.first() {
         group.bench_function("quick_context_creation", |b| {
@@ -93,7 +93,7 @@ fn quick_context_benchmark(c: &mut Criterion) {
             });
         });
     }
-    
+
     // Test one environment generation
     if let Some(scenario) = context_benchmark.test_data.env_scenarios.first() {
         group.bench_function("quick_env_generation", |b| {
@@ -103,20 +103,23 @@ fn quick_context_benchmark(c: &mut Criterion) {
             });
         });
     }
-    
+
     group.finish();
 }
 
 /// Baseline establishment benchmark
 fn establish_context_baseline(c: &mut Criterion) {
     let context_benchmark = ContextBenchmark::new();
-    
+
     println!("Establishing Context Performance Baseline...");
-    
+
     // Run baseline measurements
     let baseline_metrics = context_benchmark.get_baseline_metrics();
-    println!("Baseline metrics collected for module: {}", baseline_metrics.module_name);
-    
+    println!(
+        "Baseline metrics collected for module: {}",
+        baseline_metrics.module_name
+    );
+
     // Run a representative set of benchmarks for baseline
     context_benchmark.benchmark_context_creation(c);
     context_benchmark.benchmark_environment_generation(c);
@@ -126,9 +129,9 @@ fn establish_context_baseline(c: &mut Criterion) {
 /// Regression testing benchmark
 fn context_regression_test(c: &mut Criterion) {
     let context_benchmark = ContextBenchmark::new();
-    
+
     println!("Running Context Regression Tests...");
-    
+
     // This would compare against saved baselines in a real implementation
     // For now, just run the benchmarks
     context_benchmark.run_benchmarks(c);
@@ -137,15 +140,15 @@ fn context_regression_test(c: &mut Criterion) {
 /// Performance validation benchmark (verify performance improvements)
 fn validate_context_performance(c: &mut Criterion) {
     let context_benchmark = ContextBenchmark::new();
-    
+
     println!("Validating Context Performance Improvements...");
-    
+
     // Run benchmarks that validate performance targets
     context_benchmark.benchmark_context_creation(c);
     context_benchmark.benchmark_environment_generation(c);
     context_benchmark.benchmark_shell_execution(c);
     context_benchmark.benchmark_execution_performance(c);
-    
+
     // TODO: Add actual performance validation logic
     // This would compare results against baseline and verify improvement targets
 }
@@ -153,9 +156,9 @@ fn validate_context_performance(c: &mut Criterion) {
 /// Environment-specific benchmarks
 fn context_environment_benchmarks(c: &mut Criterion) {
     let context_benchmark = ContextBenchmark::new();
-    
+
     println!("Running Context Environment-Specific Benchmarks...");
-    
+
     // Focus on environment generation and management
     context_benchmark.benchmark_environment_generation(c);
     context_benchmark.benchmark_shell_execution(c);
@@ -164,9 +167,9 @@ fn context_environment_benchmarks(c: &mut Criterion) {
 /// Shell execution benchmarks
 fn context_shell_benchmarks(c: &mut Criterion) {
     let context_benchmark = ContextBenchmark::new();
-    
+
     println!("Running Context Shell Execution Benchmarks...");
-    
+
     // Focus on shell execution performance
     context_benchmark.benchmark_shell_execution(c);
     context_benchmark.benchmark_execution_performance(c);
@@ -175,9 +178,9 @@ fn context_shell_benchmarks(c: &mut Criterion) {
 /// Context caching and fingerprinting benchmarks
 fn context_caching_benchmarks(c: &mut Criterion) {
     let context_benchmark = ContextBenchmark::new();
-    
+
     println!("Running Context Caching Benchmarks...");
-    
+
     // Focus on caching mechanisms
     context_benchmark.benchmark_context_caching(c);
 }

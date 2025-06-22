@@ -4,10 +4,10 @@
 //! This command resolves package requirements and spawns a shell with the resolved environment.
 
 use clap::Args;
-use rez_core_common::{RezCoreError, error::RezCoreResult};
+use rez_core_common::{error::RezCoreResult, RezCoreError};
+use rez_core_context::{ContextConfig, EnvironmentManager, ResolvedContext, ShellType};
 use rez_core_package::{Package, PackageRequirement};
 use rez_core_solver::{DependencySolver, SolverRequest};
-use rez_core_context::{ResolvedContext, ContextConfig, EnvironmentManager, ShellType};
 use std::collections::HashMap;
 use std::env;
 use std::process::{Command, Stdio};
@@ -107,7 +107,7 @@ pub fn execute_with_extra_args(mut args: EnvArgs, extra_args: Vec<String>) -> Re
     if !extra_args.is_empty() {
         if args.command.is_some() {
             return Err(RezCoreError::RequirementParse(
-                "Cannot use both --command and arguments after '--'".to_string()
+                "Cannot use both --command and arguments after '--'".to_string(),
             ));
         }
         args.extra_args = extra_args;
@@ -137,12 +137,18 @@ pub fn execute_with_extra_args(mut args: EnvArgs, extra_args: Vec<String>) -> Re
 }
 
 /// Parse package requirement strings into PackageRequirement objects
-fn parse_package_requirements(package_strings: &[String]) -> RezCoreResult<Vec<PackageRequirement>> {
+fn parse_package_requirements(
+    package_strings: &[String],
+) -> RezCoreResult<Vec<PackageRequirement>> {
     let mut requirements = Vec::new();
 
     for pkg_str in package_strings {
-        let requirement = PackageRequirement::parse(pkg_str)
-            .map_err(|e| RezCoreError::RequirementParse(format!("Invalid package requirement '{}': {}", pkg_str, e)))?;
+        let requirement = PackageRequirement::parse(pkg_str).map_err(|e| {
+            RezCoreError::RequirementParse(format!(
+                "Invalid package requirement '{}': {}",
+                pkg_str, e
+            ))
+        })?;
         requirements.push(requirement);
     }
 
@@ -196,7 +202,11 @@ fn print_requested_packages(requirements: &[PackageRequirement]) -> RezCoreResul
 /// Print resolved packages
 fn print_resolved_packages(context: &ResolvedContext) -> RezCoreResult<()> {
     for package in &context.resolved_packages {
-        println!("{}-{}", package.name, package.version.as_ref().map(|v| v.as_str()).unwrap_or(""));
+        println!(
+            "{}-{}",
+            package.name,
+            package.version.as_ref().map(|v| v.as_str()).unwrap_or("")
+        );
     }
     Ok(())
 }
@@ -211,8 +221,7 @@ fn print_environment(context: &ResolvedContext, args: &EnvArgs) -> RezCoreResult
 
     match args.format.as_deref() {
         Some("json") => {
-            let json = serde_json::to_string_pretty(&env_vars)
-                .map_err(RezCoreError::Serde)?;
+            let json = serde_json::to_string_pretty(&env_vars).map_err(RezCoreError::Serde)?;
             println!("{}", json);
         }
         Some("dict") => {
@@ -261,7 +270,11 @@ fn execute_command_in_context(
         println!("Executing command in rez environment: {}", command);
         println!("Resolved packages:");
         for package in &context.resolved_packages {
-            println!("  {}-{}", package.name, package.version.as_ref().map(|v| v.as_str()).unwrap_or(""));
+            println!(
+                "  {}-{}",
+                package.name,
+                package.version.as_ref().map(|v| v.as_str()).unwrap_or("")
+            );
         }
         println!();
     }
@@ -283,7 +296,8 @@ fn execute_command_in_context(
     }
 
     // Execute the command
-    let status = cmd.status()
+    let status = cmd
+        .status()
         .map_err(|e| RezCoreError::ExecutionError(format!("Failed to execute command: {}", e)))?;
 
     std::process::exit(status.code().unwrap_or(1));
@@ -296,7 +310,9 @@ fn execute_extra_args_in_context(
     args: &EnvArgs,
 ) -> RezCoreResult<()> {
     if extra_args.is_empty() {
-        return Err(RezCoreError::ExecutionError("No command specified after '--'".to_string()));
+        return Err(RezCoreError::ExecutionError(
+            "No command specified after '--'".to_string(),
+        ));
     }
 
     // Generate environment variables
@@ -306,10 +322,17 @@ fn execute_extra_args_in_context(
         .block_on(env_manager.generate_environment(&context.resolved_packages))?;
 
     if !args.quiet {
-        println!("Executing command in rez environment: {}", extra_args.join(" "));
+        println!(
+            "Executing command in rez environment: {}",
+            extra_args.join(" ")
+        );
         println!("Resolved packages:");
         for package in &context.resolved_packages {
-            println!("  {}-{}", package.name, package.version.as_ref().map(|v| v.as_str()).unwrap_or(""));
+            println!(
+                "  {}-{}",
+                package.name,
+                package.version.as_ref().map(|v| v.as_str()).unwrap_or("")
+            );
         }
         println!();
     }
@@ -327,12 +350,16 @@ fn execute_extra_args_in_context(
 
     // Set up stdio
     cmd.stdin(Stdio::inherit())
-       .stdout(Stdio::inherit())
-       .stderr(Stdio::inherit());
+        .stdout(Stdio::inherit())
+        .stderr(Stdio::inherit());
 
     // Execute the command
-    let status = cmd.status()
-        .map_err(|e| RezCoreError::ExecutionError(format!("Failed to execute command '{}': {}", extra_args[0], e)))?;
+    let status = cmd.status().map_err(|e| {
+        RezCoreError::ExecutionError(format!(
+            "Failed to execute command '{}': {}",
+            extra_args[0], e
+        ))
+    })?;
 
     std::process::exit(status.code().unwrap_or(1));
 }
@@ -349,7 +376,11 @@ fn spawn_shell_in_context(context: &ResolvedContext, args: &EnvArgs) -> RezCoreR
         println!("Starting shell with rez environment...");
         println!("Resolved packages:");
         for package in &context.resolved_packages {
-            println!("  {}-{}", package.name, package.version.as_ref().map(|v| v.as_str()).unwrap_or(""));
+            println!(
+                "  {}-{}",
+                package.name,
+                package.version.as_ref().map(|v| v.as_str()).unwrap_or("")
+            );
         }
         println!();
     }
@@ -378,11 +409,12 @@ fn spawn_shell_in_context(context: &ResolvedContext, args: &EnvArgs) -> RezCoreR
 
     // Set up stdio
     cmd.stdin(Stdio::inherit())
-       .stdout(Stdio::inherit())
-       .stderr(Stdio::inherit());
+        .stdout(Stdio::inherit())
+        .stderr(Stdio::inherit());
 
     // Execute the shell
-    let status = cmd.status()
+    let status = cmd
+        .status()
         .map_err(|e| RezCoreError::ExecutionError(format!("Failed to start shell: {}", e)))?;
 
     std::process::exit(status.code().unwrap_or(0));

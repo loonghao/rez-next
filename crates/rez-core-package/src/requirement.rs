@@ -10,10 +10,10 @@ use std::str::FromStr;
 pub struct Requirement {
     /// Package name
     pub name: String,
-    
+
     /// Version constraint
     pub version_constraint: Option<VersionConstraint>,
-    
+
     /// Whether this is a weak requirement (optional)
     pub weak: bool,
 }
@@ -23,25 +23,25 @@ pub struct Requirement {
 pub enum VersionConstraint {
     /// Exact version match (==)
     Exact(Version),
-    
+
     /// Greater than (>)
     GreaterThan(Version),
-    
+
     /// Greater than or equal (>=)
     GreaterThanOrEqual(Version),
-    
+
     /// Less than (<)
     LessThan(Version),
-    
+
     /// Less than or equal (<=)
     LessThanOrEqual(Version),
-    
+
     /// Compatible version (~=)
     Compatible(Version),
-    
+
     /// Range constraint (>=min, <max)
     Range(Version, Version),
-    
+
     /// Any version
     Any,
 }
@@ -55,7 +55,7 @@ impl Requirement {
             weak: false,
         }
     }
-    
+
     /// Check if a version satisfies this requirement
     pub fn is_satisfied_by(&self, version: &Version) -> bool {
         match &self.version_constraint {
@@ -63,7 +63,7 @@ impl Requirement {
             Some(constraint) => constraint.is_satisfied_by(version),
         }
     }
-    
+
     /// Get the package name
     pub fn package_name(&self) -> &str {
         &self.name
@@ -91,17 +91,17 @@ impl VersionConstraint {
 
 impl FromStr for Requirement {
     type Err = String;
-    
+
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let s = s.trim();
-        
+
         // Handle weak requirements (starting with ~)
         let (s, weak) = if s.starts_with("~") {
             (&s[1..], true)
         } else {
             (s, false)
         };
-        
+
         // Parse version constraints
         if s.ends_with("+") {
             // Handle "package-1.0+" syntax (equivalent to >=1.0)
@@ -139,13 +139,13 @@ impl fmt::Display for Requirement {
         if self.weak {
             write!(f, "~")?;
         }
-        
+
         write!(f, "{}", self.name)?;
-        
+
         if let Some(ref constraint) = self.version_constraint {
             write!(f, "{}", constraint)?;
         }
-        
+
         Ok(())
     }
 }

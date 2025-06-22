@@ -8,7 +8,7 @@ fn main() {
     println!("============================================");
 
     let parser = StateMachineParser::new();
-    
+
     // Test cases
     let test_versions = vec![
         "1.2.3",
@@ -36,7 +36,7 @@ fn main() {
     // Performance test
     let iterations = 10000;
     let start = Instant::now();
-    
+
     for _ in 0..iterations {
         for version_str in &test_versions {
             match parser.parse_tokens(version_str) {
@@ -52,27 +52,35 @@ fn main() {
             }
         }
     }
-    
+
     let duration = start.elapsed();
     let total_parses = iterations * test_versions.len();
     let parses_per_second = total_parses as f64 / duration.as_secs_f64();
-    
+
     println!("✅ Completed {} parses in {:?}", total_parses, duration);
     println!("🎯 Performance: {:.0} parses/second", parses_per_second);
-    println!("📈 Average time per parse: {:.2} μs", duration.as_micros() as f64 / total_parses as f64);
+    println!(
+        "📈 Average time per parse: {:.2} μs",
+        duration.as_micros() as f64 / total_parses as f64
+    );
 
     // Test individual version parsing
     println!("\n🔍 Individual Version Analysis");
     println!("------------------------------");
-    
+
     for version_str in &test_versions {
         let start = Instant::now();
         match parser.parse_tokens(version_str) {
             Ok((tokens, separators)) => {
                 let duration = start.elapsed();
-                println!("✅ '{}' -> {} tokens, {} separators ({:.2} μs)", 
-                    version_str, tokens.len(), separators.len(), duration.as_micros());
-                
+                println!(
+                    "✅ '{}' -> {} tokens, {} separators ({:.2} μs)",
+                    version_str,
+                    tokens.len(),
+                    separators.len(),
+                    duration.as_micros()
+                );
+
                 // Print token details
                 for (i, token) in tokens.iter().enumerate() {
                     println!("   Token {}: {:?}", i, token);
@@ -87,28 +95,36 @@ fn main() {
     // Test error cases
     println!("\n🚨 Error Handling Test");
     println!("----------------------");
-    
+
     let error_cases = vec![
-        ".1.2.3",           // starts with separator
-        "1.2.3.",           // ends with separator
-        "1.2.3@",           // invalid character
-        "_invalid",         // starts with underscore
-        "invalid_",         // ends with underscore
-        "",                 // empty string (should be OK)
-        "1..2",             // double separator
-        "not",              // reserved word
-        "version",          // reserved word
+        ".1.2.3",   // starts with separator
+        "1.2.3.",   // ends with separator
+        "1.2.3@",   // invalid character
+        "_invalid", // starts with underscore
+        "invalid_", // ends with underscore
+        "",         // empty string (should be OK)
+        "1..2",     // double separator
+        "not",      // reserved word
+        "version",  // reserved word
     ];
 
     for error_case in &error_cases {
         match parser.parse_tokens(error_case) {
             Ok((tokens, separators)) => {
                 if error_case.is_empty() {
-                    println!("✅ '{}' -> {} tokens, {} separators (empty is OK)", 
-                        error_case, tokens.len(), separators.len());
+                    println!(
+                        "✅ '{}' -> {} tokens, {} separators (empty is OK)",
+                        error_case,
+                        tokens.len(),
+                        separators.len()
+                    );
                 } else {
-                    println!("⚠️  '{}' -> {} tokens, {} separators (expected error)", 
-                        error_case, tokens.len(), separators.len());
+                    println!(
+                        "⚠️  '{}' -> {} tokens, {} separators (expected error)",
+                        error_case,
+                        tokens.len(),
+                        separators.len()
+                    );
                 }
             }
             Err(e) => {
@@ -118,11 +134,14 @@ fn main() {
     }
 
     println!("\n🎉 Performance test completed!");
-    
+
     // Performance target check
     if parses_per_second > 5000.0 {
         println!("🎯 SUCCESS: Achieved target of >5000 parses/second!");
     } else {
-        println!("⚠️  Target not met: {} < 5000 parses/second", parses_per_second as u64);
+        println!(
+            "⚠️  Target not met: {} < 5000 parses/second",
+            parses_per_second as u64
+        );
     }
 }

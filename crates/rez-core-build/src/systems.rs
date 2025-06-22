@@ -1,14 +1,14 @@
 //! Build system implementations
 
-use crate::{BuildRequest, BuildEnvironment, BuildStepResult, BuildStep};
+use crate::{BuildEnvironment, BuildRequest, BuildStep, BuildStepResult};
 use rez_core_common::RezCoreError;
 use rez_core_context::ShellExecutor;
 use rez_core_package::Package;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::sync::Arc;
-use tokio::sync::Mutex;
 use tokio::process::Child;
+use tokio::sync::Mutex;
 
 /// Build system types
 #[derive(Debug, Clone, PartialEq)]
@@ -53,7 +53,9 @@ impl BuildSystem {
         let build_scripts = ["build.sh", "build.bat", "build.py", "build"];
         for script in &build_scripts {
             if source_dir.join(script).exists() {
-                return Ok(BuildSystem::Custom(CustomBuildSystem::new(script.to_string())));
+                return Ok(BuildSystem::Custom(CustomBuildSystem::new(
+                    script.to_string(),
+                )));
             }
         }
 
@@ -84,19 +86,28 @@ impl BuildSystem {
 
         // Default to custom build system for packages without explicit build files
         // This allows simple packages to be "built" (essentially just packaged)
-        Ok(BuildSystem::Custom(CustomBuildSystem::new("default".to_string())))
+        Ok(BuildSystem::Custom(CustomBuildSystem::new(
+            "default".to_string(),
+        )))
     }
 
     /// Detect build system from source directory and package definition
-    pub fn detect_with_package(source_dir: &PathBuf, package: &Package) -> Result<Self, RezCoreError> {
+    pub fn detect_with_package(
+        source_dir: &PathBuf,
+        package: &Package,
+    ) -> Result<Self, RezCoreError> {
         // Check for explicit build_command first
         if let Some(ref build_command) = package.build_command {
             if build_command == "false" || build_command.is_empty() {
                 // No build required - just copy files
-                return Ok(BuildSystem::Custom(CustomBuildSystem::new("copy-only".to_string())));
+                return Ok(BuildSystem::Custom(CustomBuildSystem::new(
+                    "copy-only".to_string(),
+                )));
             } else {
                 // Custom build command
-                return Ok(BuildSystem::Custom(CustomBuildSystem::new("build_command".to_string())));
+                return Ok(BuildSystem::Custom(CustomBuildSystem::new(
+                    "build_command".to_string(),
+                )));
             }
         }
 
@@ -108,13 +119,19 @@ impl BuildSystem {
                 "python" => return Ok(BuildSystem::Python(PythonBuildSystem::new())),
                 "nodejs" => return Ok(BuildSystem::NodeJs(NodeJsBuildSystem::new())),
                 "cargo" => return Ok(BuildSystem::Cargo(CargoBuildSystem::new())),
-                _ => return Ok(BuildSystem::Custom(CustomBuildSystem::new(build_system.clone()))),
+                _ => {
+                    return Ok(BuildSystem::Custom(CustomBuildSystem::new(
+                        build_system.clone(),
+                    )))
+                }
             }
         }
 
         // Check for explicit build scripts
         if source_dir.join("rezbuild.py").exists() {
-            return Ok(BuildSystem::Custom(CustomBuildSystem::new("rezbuild.py".to_string())));
+            return Ok(BuildSystem::Custom(CustomBuildSystem::new(
+                "rezbuild.py".to_string(),
+            )));
         }
 
         // Fall back to standard detection
@@ -122,7 +139,11 @@ impl BuildSystem {
     }
 
     /// Configure the build
-    pub async fn configure(&self, request: &BuildRequest, environment: &BuildEnvironment) -> Result<BuildStepResult, RezCoreError> {
+    pub async fn configure(
+        &self,
+        request: &BuildRequest,
+        environment: &BuildEnvironment,
+    ) -> Result<BuildStepResult, RezCoreError> {
         match self {
             BuildSystem::CMake(cmake) => cmake.configure(request, environment).await,
             BuildSystem::Make(make) => make.configure(request, environment).await,
@@ -134,19 +155,35 @@ impl BuildSystem {
     }
 
     /// Compile the project
-    pub async fn compile(&self, request: &BuildRequest, environment: &BuildEnvironment, child_process: Arc<Mutex<Option<Child>>>) -> Result<BuildStepResult, RezCoreError> {
+    pub async fn compile(
+        &self,
+        request: &BuildRequest,
+        environment: &BuildEnvironment,
+        child_process: Arc<Mutex<Option<Child>>>,
+    ) -> Result<BuildStepResult, RezCoreError> {
         match self {
             BuildSystem::CMake(cmake) => cmake.compile(request, environment, child_process).await,
             BuildSystem::Make(make) => make.compile(request, environment, child_process).await,
-            BuildSystem::Python(python) => python.compile(request, environment, child_process).await,
-            BuildSystem::NodeJs(nodejs) => nodejs.compile(request, environment, child_process).await,
+            BuildSystem::Python(python) => {
+                python.compile(request, environment, child_process).await
+            }
+            BuildSystem::NodeJs(nodejs) => {
+                nodejs.compile(request, environment, child_process).await
+            }
             BuildSystem::Cargo(cargo) => cargo.compile(request, environment, child_process).await,
-            BuildSystem::Custom(custom) => custom.compile(request, environment, child_process).await,
+            BuildSystem::Custom(custom) => {
+                custom.compile(request, environment, child_process).await
+            }
         }
     }
 
     /// Run tests
-    pub async fn test(&self, request: &BuildRequest, environment: &BuildEnvironment, child_process: Arc<Mutex<Option<Child>>>) -> Result<BuildStepResult, RezCoreError> {
+    pub async fn test(
+        &self,
+        request: &BuildRequest,
+        environment: &BuildEnvironment,
+        child_process: Arc<Mutex<Option<Child>>>,
+    ) -> Result<BuildStepResult, RezCoreError> {
         match self {
             BuildSystem::CMake(cmake) => cmake.test(request, environment, child_process).await,
             BuildSystem::Make(make) => make.test(request, environment, child_process).await,
@@ -158,7 +195,11 @@ impl BuildSystem {
     }
 
     /// Package the build
-    pub async fn package(&self, request: &BuildRequest, environment: &BuildEnvironment) -> Result<BuildStepResult, RezCoreError> {
+    pub async fn package(
+        &self,
+        request: &BuildRequest,
+        environment: &BuildEnvironment,
+    ) -> Result<BuildStepResult, RezCoreError> {
         match self {
             BuildSystem::CMake(cmake) => cmake.package(request, environment).await,
             BuildSystem::Make(make) => make.package(request, environment).await,
@@ -170,7 +211,11 @@ impl BuildSystem {
     }
 
     /// Install the build
-    pub async fn install(&self, request: &BuildRequest, environment: &BuildEnvironment) -> Result<BuildStepResult, RezCoreError> {
+    pub async fn install(
+        &self,
+        request: &BuildRequest,
+        environment: &BuildEnvironment,
+    ) -> Result<BuildStepResult, RezCoreError> {
         match self {
             BuildSystem::CMake(cmake) => cmake.install(request, environment).await,
             BuildSystem::Make(make) => make.install(request, environment).await,
@@ -191,10 +236,14 @@ impl CMakeBuildSystem {
         Self
     }
 
-    pub async fn configure(&self, request: &BuildRequest, environment: &BuildEnvironment) -> Result<BuildStepResult, RezCoreError> {
+    pub async fn configure(
+        &self,
+        request: &BuildRequest,
+        environment: &BuildEnvironment,
+    ) -> Result<BuildStepResult, RezCoreError> {
         let build_dir = environment.get_build_dir();
         let install_dir = environment.get_install_dir();
-        
+
         let mut args = vec![
             "-S".to_string(),
             request.source_dir.to_string_lossy().to_string(),
@@ -227,9 +276,14 @@ impl CMakeBuildSystem {
         })
     }
 
-    pub async fn compile(&self, request: &BuildRequest, environment: &BuildEnvironment, _child_process: Arc<Mutex<Option<Child>>>) -> Result<BuildStepResult, RezCoreError> {
+    pub async fn compile(
+        &self,
+        request: &BuildRequest,
+        environment: &BuildEnvironment,
+        _child_process: Arc<Mutex<Option<Child>>>,
+    ) -> Result<BuildStepResult, RezCoreError> {
         let build_dir = environment.get_build_dir();
-        
+
         let mut args = vec![
             "--build".to_string(),
             build_dir.to_string_lossy().to_string(),
@@ -255,7 +309,12 @@ impl CMakeBuildSystem {
         })
     }
 
-    pub async fn test(&self, request: &BuildRequest, environment: &BuildEnvironment, _child_process: Arc<Mutex<Option<Child>>>) -> Result<BuildStepResult, RezCoreError> {
+    pub async fn test(
+        &self,
+        request: &BuildRequest,
+        environment: &BuildEnvironment,
+        _child_process: Arc<Mutex<Option<Child>>>,
+    ) -> Result<BuildStepResult, RezCoreError> {
         let build_dir = environment.get_build_dir();
 
         let executor = ShellExecutor::with_shell(rez_core_context::ShellType::detect())
@@ -274,7 +333,11 @@ impl CMakeBuildSystem {
         })
     }
 
-    pub async fn package(&self, _request: &BuildRequest, _environment: &BuildEnvironment) -> Result<BuildStepResult, RezCoreError> {
+    pub async fn package(
+        &self,
+        _request: &BuildRequest,
+        _environment: &BuildEnvironment,
+    ) -> Result<BuildStepResult, RezCoreError> {
         // CMake packaging is typically done during install
         Ok(BuildStepResult {
             step: BuildStep::Packaging,
@@ -285,7 +348,11 @@ impl CMakeBuildSystem {
         })
     }
 
-    pub async fn install(&self, request: &BuildRequest, environment: &BuildEnvironment) -> Result<BuildStepResult, RezCoreError> {
+    pub async fn install(
+        &self,
+        request: &BuildRequest,
+        environment: &BuildEnvironment,
+    ) -> Result<BuildStepResult, RezCoreError> {
         let build_dir = environment.get_build_dir();
 
         let executor = ShellExecutor::with_shell(rez_core_context::ShellType::detect())
@@ -314,7 +381,11 @@ impl MakeBuildSystem {
         Self
     }
 
-    pub async fn configure(&self, _request: &BuildRequest, _environment: &BuildEnvironment) -> Result<BuildStepResult, RezCoreError> {
+    pub async fn configure(
+        &self,
+        _request: &BuildRequest,
+        _environment: &BuildEnvironment,
+    ) -> Result<BuildStepResult, RezCoreError> {
         // Make typically doesn't have a separate configure step
         Ok(BuildStepResult {
             step: BuildStep::Configuring,
@@ -325,7 +396,12 @@ impl MakeBuildSystem {
         })
     }
 
-    pub async fn compile(&self, request: &BuildRequest, environment: &BuildEnvironment, _child_process: Arc<Mutex<Option<Child>>>) -> Result<BuildStepResult, RezCoreError> {
+    pub async fn compile(
+        &self,
+        request: &BuildRequest,
+        environment: &BuildEnvironment,
+        _child_process: Arc<Mutex<Option<Child>>>,
+    ) -> Result<BuildStepResult, RezCoreError> {
         let executor = ShellExecutor::with_shell(rez_core_context::ShellType::detect())
             .with_environment(environment.get_env_vars().clone())
             .with_working_directory(request.source_dir.clone());
@@ -342,7 +418,12 @@ impl MakeBuildSystem {
         })
     }
 
-    pub async fn test(&self, request: &BuildRequest, environment: &BuildEnvironment, _child_process: Arc<Mutex<Option<Child>>>) -> Result<BuildStepResult, RezCoreError> {
+    pub async fn test(
+        &self,
+        request: &BuildRequest,
+        environment: &BuildEnvironment,
+        _child_process: Arc<Mutex<Option<Child>>>,
+    ) -> Result<BuildStepResult, RezCoreError> {
         let executor = ShellExecutor::with_shell(rez_core_context::ShellType::detect())
             .with_environment(environment.get_env_vars().clone())
             .with_working_directory(request.source_dir.clone());
@@ -359,7 +440,11 @@ impl MakeBuildSystem {
         })
     }
 
-    pub async fn package(&self, _request: &BuildRequest, _environment: &BuildEnvironment) -> Result<BuildStepResult, RezCoreError> {
+    pub async fn package(
+        &self,
+        _request: &BuildRequest,
+        _environment: &BuildEnvironment,
+    ) -> Result<BuildStepResult, RezCoreError> {
         Ok(BuildStepResult {
             step: BuildStep::Packaging,
             success: true,
@@ -369,7 +454,11 @@ impl MakeBuildSystem {
         })
     }
 
-    pub async fn install(&self, request: &BuildRequest, environment: &BuildEnvironment) -> Result<BuildStepResult, RezCoreError> {
+    pub async fn install(
+        &self,
+        request: &BuildRequest,
+        environment: &BuildEnvironment,
+    ) -> Result<BuildStepResult, RezCoreError> {
         let executor = ShellExecutor::with_shell(rez_core_context::ShellType::detect())
             .with_environment(environment.get_env_vars().clone())
             .with_working_directory(request.source_dir.clone());
@@ -408,7 +497,11 @@ impl CustomBuildSystem {
         Self { script_name }
     }
 
-    pub async fn configure(&self, _request: &BuildRequest, _environment: &BuildEnvironment) -> Result<BuildStepResult, RezCoreError> {
+    pub async fn configure(
+        &self,
+        _request: &BuildRequest,
+        _environment: &BuildEnvironment,
+    ) -> Result<BuildStepResult, RezCoreError> {
         Ok(BuildStepResult {
             step: BuildStep::Configuring,
             success: true,
@@ -418,7 +511,12 @@ impl CustomBuildSystem {
         })
     }
 
-    pub async fn compile(&self, _request: &BuildRequest, _environment: &BuildEnvironment, _child_process: Arc<Mutex<Option<Child>>>) -> Result<BuildStepResult, RezCoreError> {
+    pub async fn compile(
+        &self,
+        _request: &BuildRequest,
+        _environment: &BuildEnvironment,
+        _child_process: Arc<Mutex<Option<Child>>>,
+    ) -> Result<BuildStepResult, RezCoreError> {
         Ok(BuildStepResult {
             step: BuildStep::Compiling,
             success: true,
@@ -428,7 +526,12 @@ impl CustomBuildSystem {
         })
     }
 
-    pub async fn test(&self, _request: &BuildRequest, _environment: &BuildEnvironment, _child_process: Arc<Mutex<Option<Child>>>) -> Result<BuildStepResult, RezCoreError> {
+    pub async fn test(
+        &self,
+        _request: &BuildRequest,
+        _environment: &BuildEnvironment,
+        _child_process: Arc<Mutex<Option<Child>>>,
+    ) -> Result<BuildStepResult, RezCoreError> {
         Ok(BuildStepResult {
             step: BuildStep::Testing,
             success: true,
@@ -438,7 +541,11 @@ impl CustomBuildSystem {
         })
     }
 
-    pub async fn package(&self, _request: &BuildRequest, _environment: &BuildEnvironment) -> Result<BuildStepResult, RezCoreError> {
+    pub async fn package(
+        &self,
+        _request: &BuildRequest,
+        _environment: &BuildEnvironment,
+    ) -> Result<BuildStepResult, RezCoreError> {
         Ok(BuildStepResult {
             step: BuildStep::Packaging,
             success: true,
@@ -448,7 +555,11 @@ impl CustomBuildSystem {
         })
     }
 
-    pub async fn install(&self, request: &BuildRequest, environment: &BuildEnvironment) -> Result<BuildStepResult, RezCoreError> {
+    pub async fn install(
+        &self,
+        request: &BuildRequest,
+        environment: &BuildEnvironment,
+    ) -> Result<BuildStepResult, RezCoreError> {
         // For custom build systems, we need to handle different cases
         match self.script_name.as_str() {
             "default" | "copy-only" => {
@@ -461,63 +572,76 @@ impl CustomBuildSystem {
             }
             script_name => {
                 // Execute custom build script with install command
-                self.execute_build_script(request, environment, "install").await
+                self.execute_build_script(request, environment, "install")
+                    .await
             }
         }
     }
 
     /// Copy files installation for packages without build scripts
-    async fn copy_files_install(&self, request: &BuildRequest, environment: &BuildEnvironment) -> Result<BuildStepResult, RezCoreError> {
+    async fn copy_files_install(
+        &self,
+        request: &BuildRequest,
+        environment: &BuildEnvironment,
+    ) -> Result<BuildStepResult, RezCoreError> {
         let install_dir = environment.get_install_dir();
         let source_dir = &request.source_dir;
 
         // Create install directory
-        tokio::fs::create_dir_all(install_dir).await
-            .map_err(|e| RezCoreError::BuildError(format!("Failed to create install directory: {}", e)))?;
+        tokio::fs::create_dir_all(install_dir).await.map_err(|e| {
+            RezCoreError::BuildError(format!("Failed to create install directory: {}", e))
+        })?;
 
         // Copy all source files to install directory
         let copy_result = Self::copy_package_files(source_dir, install_dir).await;
 
         match copy_result {
-            Ok(files_copied) => {
-                Ok(BuildStepResult {
-                    step: BuildStep::Installing,
-                    success: true,
-                    output: format!("Installation completed. Copied {} files to {}", files_copied, install_dir.display()),
-                    errors: String::new(),
-                    duration_ms: 0,
-                })
-            }
-            Err(e) => {
-                Ok(BuildStepResult {
-                    step: BuildStep::Installing,
-                    success: false,
-                    output: String::new(),
-                    errors: format!("Installation failed: {}", e),
-                    duration_ms: 0,
-                })
-            }
+            Ok(files_copied) => Ok(BuildStepResult {
+                step: BuildStep::Installing,
+                success: true,
+                output: format!(
+                    "Installation completed. Copied {} files to {}",
+                    files_copied,
+                    install_dir.display()
+                ),
+                errors: String::new(),
+                duration_ms: 0,
+            }),
+            Err(e) => Ok(BuildStepResult {
+                step: BuildStep::Installing,
+                success: false,
+                output: String::new(),
+                errors: format!("Installation failed: {}", e),
+                duration_ms: 0,
+            }),
         }
     }
 
     /// Execute build_command from package definition
-    async fn execute_build_command(&self, request: &BuildRequest, environment: &BuildEnvironment) -> Result<BuildStepResult, RezCoreError> {
+    async fn execute_build_command(
+        &self,
+        request: &BuildRequest,
+        environment: &BuildEnvironment,
+    ) -> Result<BuildStepResult, RezCoreError> {
         let install_dir = environment.get_install_dir();
 
         // Create install directory
-        tokio::fs::create_dir_all(install_dir).await
-            .map_err(|e| RezCoreError::BuildError(format!("Failed to create install directory: {}", e)))?;
+        tokio::fs::create_dir_all(install_dir).await.map_err(|e| {
+            RezCoreError::BuildError(format!("Failed to create install directory: {}", e))
+        })?;
 
         // Get build_command from package
-        let build_command = request.package.build_command.as_ref()
-            .ok_or_else(|| RezCoreError::BuildError("build_command not found in package".to_string()))?;
+        let build_command = request.package.build_command.as_ref().ok_or_else(|| {
+            RezCoreError::BuildError("build_command not found in package".to_string())
+        })?;
 
         let executor = ShellExecutor::with_shell(rez_core_context::ShellType::detect())
             .with_environment(environment.get_env_vars().clone())
             .with_working_directory(request.source_dir.clone());
 
         // Expand variables in build command
-        let expanded_command = self.expand_build_command_variables(build_command, request, environment);
+        let expanded_command =
+            self.expand_build_command_variables(build_command, request, environment);
 
         let result = executor.execute(&expanded_command).await?;
 
@@ -526,24 +650,23 @@ impl CustomBuildSystem {
         if result.is_success() {
             let copy_result = Self::copy_package_files(&request.source_dir, install_dir).await;
             match copy_result {
-                Ok(files_copied) => {
-                    Ok(BuildStepResult {
-                        step: BuildStep::Installing,
-                        success: true,
-                        output: format!("{}\nCopied {} source files to install directory", result.stdout, files_copied),
-                        errors: result.stderr,
-                        duration_ms: result.execution_time_ms,
-                    })
-                }
-                Err(e) => {
-                    Ok(BuildStepResult {
-                        step: BuildStep::Installing,
-                        success: false,
-                        output: result.stdout,
-                        errors: format!("{}\nFailed to copy source files: {}", result.stderr, e),
-                        duration_ms: result.execution_time_ms,
-                    })
-                }
+                Ok(files_copied) => Ok(BuildStepResult {
+                    step: BuildStep::Installing,
+                    success: true,
+                    output: format!(
+                        "{}\nCopied {} source files to install directory",
+                        result.stdout, files_copied
+                    ),
+                    errors: result.stderr,
+                    duration_ms: result.execution_time_ms,
+                }),
+                Err(e) => Ok(BuildStepResult {
+                    step: BuildStep::Installing,
+                    success: false,
+                    output: result.stdout,
+                    errors: format!("{}\nFailed to copy source files: {}", result.stderr, e),
+                    duration_ms: result.execution_time_ms,
+                }),
             }
         } else {
             Ok(BuildStepResult {
@@ -557,7 +680,12 @@ impl CustomBuildSystem {
     }
 
     /// Expand variables in build command
-    fn expand_build_command_variables(&self, command: &str, request: &BuildRequest, environment: &BuildEnvironment) -> String {
+    fn expand_build_command_variables(
+        &self,
+        command: &str,
+        request: &BuildRequest,
+        environment: &BuildEnvironment,
+    ) -> String {
         let mut expanded = command.to_string();
 
         // Replace {root} with source directory
@@ -567,10 +695,16 @@ impl CustomBuildSystem {
         expanded = expanded.replace("{install}", "install");
 
         // Replace {build_path} with build directory
-        expanded = expanded.replace("{build_path}", &environment.get_build_dir().to_string_lossy());
+        expanded = expanded.replace(
+            "{build_path}",
+            &environment.get_build_dir().to_string_lossy(),
+        );
 
         // Replace {install_path} with install directory
-        expanded = expanded.replace("{install_path}", &environment.get_install_dir().to_string_lossy());
+        expanded = expanded.replace(
+            "{install_path}",
+            &environment.get_install_dir().to_string_lossy(),
+        );
 
         // Replace {name} with package name
         expanded = expanded.replace("{name}", &request.package.name);
@@ -589,13 +723,19 @@ impl CustomBuildSystem {
     }
 
     /// Execute build script with specific command
-    async fn execute_build_script(&self, request: &BuildRequest, environment: &BuildEnvironment, command: &str) -> Result<BuildStepResult, RezCoreError> {
+    async fn execute_build_script(
+        &self,
+        request: &BuildRequest,
+        environment: &BuildEnvironment,
+        command: &str,
+    ) -> Result<BuildStepResult, RezCoreError> {
         let script_path = request.source_dir.join(&self.script_name);
         let install_dir = environment.get_install_dir();
 
         // Create install directory
-        tokio::fs::create_dir_all(install_dir).await
-            .map_err(|e| RezCoreError::BuildError(format!("Failed to create install directory: {}", e)))?;
+        tokio::fs::create_dir_all(install_dir).await.map_err(|e| {
+            RezCoreError::BuildError(format!("Failed to create install directory: {}", e))
+        })?;
 
         let executor = ShellExecutor::with_shell(rez_core_context::ShellType::detect())
             .with_environment(environment.get_env_vars().clone())
@@ -624,16 +764,20 @@ impl CustomBuildSystem {
     }
 
     /// Copy package files from source to install directory
-    async fn copy_package_files(source_dir: &PathBuf, install_dir: &PathBuf) -> Result<usize, RezCoreError> {
+    async fn copy_package_files(
+        source_dir: &PathBuf,
+        install_dir: &PathBuf,
+    ) -> Result<usize, RezCoreError> {
         use tokio::fs;
 
         let mut files_copied = 0;
-        let mut entries = fs::read_dir(source_dir).await
-            .map_err(|e| RezCoreError::BuildError(format!("Failed to read source directory: {}", e)))?;
+        let mut entries = fs::read_dir(source_dir).await.map_err(|e| {
+            RezCoreError::BuildError(format!("Failed to read source directory: {}", e))
+        })?;
 
-        while let Some(entry) = entries.next_entry().await
-            .map_err(|e| RezCoreError::BuildError(format!("Failed to read directory entry: {}", e)))? {
-
+        while let Some(entry) = entries.next_entry().await.map_err(|e| {
+            RezCoreError::BuildError(format!("Failed to read directory entry: {}", e))
+        })? {
             let src_path = entry.path();
             let file_name = entry.file_name();
             let dest_path = install_dir.join(&file_name);
@@ -650,8 +794,12 @@ impl CustomBuildSystem {
                 files_copied += dir_files;
             } else {
                 // Copy file
-                fs::copy(&src_path, &dest_path).await
-                    .map_err(|e| RezCoreError::BuildError(format!("Failed to copy file {}: {}", file_name_str, e)))?;
+                fs::copy(&src_path, &dest_path).await.map_err(|e| {
+                    RezCoreError::BuildError(format!(
+                        "Failed to copy file {}: {}",
+                        file_name_str, e
+                    ))
+                })?;
                 files_copied += 1;
             }
         }
@@ -663,16 +811,18 @@ impl CustomBuildSystem {
     async fn copy_dir_recursive(src: PathBuf, dest: PathBuf) -> Result<usize, RezCoreError> {
         use tokio::fs;
 
-        fs::create_dir_all(&dest).await
+        fs::create_dir_all(&dest)
+            .await
             .map_err(|e| RezCoreError::BuildError(format!("Failed to create directory: {}", e)))?;
 
         let mut files_copied = 0;
-        let mut entries = fs::read_dir(&src).await
+        let mut entries = fs::read_dir(&src)
+            .await
             .map_err(|e| RezCoreError::BuildError(format!("Failed to read directory: {}", e)))?;
 
-        while let Some(entry) = entries.next_entry().await
-            .map_err(|e| RezCoreError::BuildError(format!("Failed to read directory entry: {}", e)))? {
-
+        while let Some(entry) = entries.next_entry().await.map_err(|e| {
+            RezCoreError::BuildError(format!("Failed to read directory entry: {}", e))
+        })? {
             let src_path = entry.path();
             let dest_path = dest.join(entry.file_name());
 
@@ -680,7 +830,8 @@ impl CustomBuildSystem {
                 let dir_files = Box::pin(Self::copy_dir_recursive(src_path, dest_path)).await?;
                 files_copied += dir_files;
             } else {
-                fs::copy(&src_path, &dest_path).await
+                fs::copy(&src_path, &dest_path)
+                    .await
                     .map_err(|e| RezCoreError::BuildError(format!("Failed to copy file: {}", e)))?;
                 files_copied += 1;
             }
@@ -692,16 +843,27 @@ impl CustomBuildSystem {
     /// Check if a file should be skipped during installation
     fn should_skip_file(file_name: &str) -> bool {
         // Skip common development files that shouldn't be installed
-        matches!(file_name,
-            ".git" | ".gitignore" | ".gitmodules" |
-            ".hg" | ".hgignore" |
-            ".svn" |
-            "build" | "dist" | "__pycache__" |
-            ".pytest_cache" | ".tox" |
-            "node_modules" |
-            ".DS_Store" | "Thumbs.db" |
-            ".coverage" | "coverage.xml"
-        ) || file_name.ends_with(".pyc") || file_name.ends_with(".pyo") || file_name.ends_with(".log")
+        matches!(
+            file_name,
+            ".git"
+                | ".gitignore"
+                | ".gitmodules"
+                | ".hg"
+                | ".hgignore"
+                | ".svn"
+                | "build"
+                | "dist"
+                | "__pycache__"
+                | ".pytest_cache"
+                | ".tox"
+                | "node_modules"
+                | ".DS_Store"
+                | "Thumbs.db"
+                | ".coverage"
+                | "coverage.xml"
+        ) || file_name.ends_with(".pyc")
+            || file_name.ends_with(".pyo")
+            || file_name.ends_with(".log")
     }
 }
 
@@ -715,7 +877,11 @@ macro_rules! impl_build_system_placeholder {
                 Self {}
             }
 
-            pub async fn configure(&self, _request: &BuildRequest, _environment: &BuildEnvironment) -> Result<BuildStepResult, RezCoreError> {
+            pub async fn configure(
+                &self,
+                _request: &BuildRequest,
+                _environment: &BuildEnvironment,
+            ) -> Result<BuildStepResult, RezCoreError> {
                 Ok(BuildStepResult {
                     step: BuildStep::Configuring,
                     success: true,
@@ -725,7 +891,12 @@ macro_rules! impl_build_system_placeholder {
                 })
             }
 
-            pub async fn compile(&self, _request: &BuildRequest, _environment: &BuildEnvironment, _child_process: Arc<Mutex<Option<Child>>>) -> Result<BuildStepResult, RezCoreError> {
+            pub async fn compile(
+                &self,
+                _request: &BuildRequest,
+                _environment: &BuildEnvironment,
+                _child_process: Arc<Mutex<Option<Child>>>,
+            ) -> Result<BuildStepResult, RezCoreError> {
                 Ok(BuildStepResult {
                     step: BuildStep::Compiling,
                     success: true,
@@ -735,7 +906,12 @@ macro_rules! impl_build_system_placeholder {
                 })
             }
 
-            pub async fn test(&self, _request: &BuildRequest, _environment: &BuildEnvironment, _child_process: Arc<Mutex<Option<Child>>>) -> Result<BuildStepResult, RezCoreError> {
+            pub async fn test(
+                &self,
+                _request: &BuildRequest,
+                _environment: &BuildEnvironment,
+                _child_process: Arc<Mutex<Option<Child>>>,
+            ) -> Result<BuildStepResult, RezCoreError> {
                 Ok(BuildStepResult {
                     step: BuildStep::Testing,
                     success: true,
@@ -745,7 +921,11 @@ macro_rules! impl_build_system_placeholder {
                 })
             }
 
-            pub async fn package(&self, _request: &BuildRequest, _environment: &BuildEnvironment) -> Result<BuildStepResult, RezCoreError> {
+            pub async fn package(
+                &self,
+                _request: &BuildRequest,
+                _environment: &BuildEnvironment,
+            ) -> Result<BuildStepResult, RezCoreError> {
                 Ok(BuildStepResult {
                     step: BuildStep::Packaging,
                     success: true,
@@ -755,14 +935,19 @@ macro_rules! impl_build_system_placeholder {
                 })
             }
 
-            pub async fn install(&self, _request: &BuildRequest, _environment: &BuildEnvironment) -> Result<BuildStepResult, RezCoreError> {
+            pub async fn install(
+                &self,
+                _request: &BuildRequest,
+                _environment: &BuildEnvironment,
+            ) -> Result<BuildStepResult, RezCoreError> {
                 // Placeholder implementations should not be used for actual installation
                 // This is a fallback that should not be reached
                 Ok(BuildStepResult {
                     step: BuildStep::Installing,
                     success: false,
                     output: String::new(),
-                    errors: "Placeholder build system should not be used for installation".to_string(),
+                    errors: "Placeholder build system should not be used for installation"
+                        .to_string(),
                     duration_ms: 0,
                 })
             }

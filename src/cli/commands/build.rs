@@ -3,11 +3,11 @@
 //! Implements the `rez build` command for building packages from source.
 
 use clap::Args;
-use rez_core_common::{RezCoreError, error::RezCoreResult};
-use rez_core_build::{BuildManager, BuildRequest, BuildOptions, BuildStatus};
+use rez_core_build::{BuildManager, BuildOptions, BuildRequest, BuildStatus};
+use rez_core_common::{error::RezCoreResult, RezCoreError};
 use rez_core_package::Package;
-use std::path::{Path, PathBuf};
 use std::collections::HashMap;
+use std::path::{Path, PathBuf};
 
 /// Arguments for the build command
 #[derive(Args, Clone, Debug)]
@@ -103,8 +103,7 @@ pub fn execute(args: BuildArgs) -> RezCoreResult<()> {
         fetch_and_load_remote_source(source_url, &args)?
     } else {
         // Local source (current directory)
-        let working_dir = std::env::current_dir()
-            .map_err(|e| RezCoreError::Io(e))?;
+        let working_dir = std::env::current_dir().map_err(|e| RezCoreError::Io(e))?;
         let package = load_current_package(&working_dir)?;
         (working_dir, package)
     };
@@ -115,9 +114,15 @@ pub fn execute(args: BuildArgs) -> RezCoreResult<()> {
     }
 
     if args.verbose {
-        println!("📦 Building package: {} {}", 
-                package.name, 
-                package.version.as_ref().map(|v| v.as_str()).unwrap_or("unknown"));
+        println!(
+            "📦 Building package: {} {}",
+            package.name,
+            package
+                .version
+                .as_ref()
+                .map(|v| v.as_str())
+                .unwrap_or("unknown")
+        );
     }
 
     // Create build options
@@ -151,8 +156,11 @@ pub fn execute(args: BuildArgs) -> RezCoreResult<()> {
 }
 
 /// Fetch and load package from remote source
-fn fetch_and_load_remote_source(source_url: &str, args: &BuildArgs) -> RezCoreResult<(PathBuf, Package)> {
-    use rez_core_build::{SourceManager, NetworkSource};
+fn fetch_and_load_remote_source(
+    source_url: &str,
+    args: &BuildArgs,
+) -> RezCoreResult<(PathBuf, Package)> {
+    use rez_core_build::{NetworkSource, SourceManager};
     use tempfile::TempDir;
 
     if args.verbose {
@@ -182,7 +190,9 @@ fn fetch_and_load_remote_source(source_url: &str, args: &BuildArgs) -> RezCoreRe
         .map_err(|e| RezCoreError::BuildError(format!("Failed to create async runtime: {}", e)))?;
 
     let source_path = runtime.block_on(async {
-        source_manager.fetch_source(&network_source, &temp_dir.path().to_path_buf()).await
+        source_manager
+            .fetch_source(&network_source, &temp_dir.path().to_path_buf())
+            .await
     })?;
 
     if args.verbose {
@@ -204,19 +214,26 @@ fn copy_to_persistent_location(source_path: &PathBuf, package: &Package) -> RezC
 
     // Create build cache directory
     let cache_dir = std::env::temp_dir().join("rez-core-build-cache");
-    fs::create_dir_all(&cache_dir)
-        .map_err(|e| RezCoreError::BuildError(format!("Failed to create cache directory: {}", e)))?;
+    fs::create_dir_all(&cache_dir).map_err(|e| {
+        RezCoreError::BuildError(format!("Failed to create cache directory: {}", e))
+    })?;
 
     // Create unique directory for this package
-    let package_cache_dir = cache_dir.join(format!("{}-{}",
+    let package_cache_dir = cache_dir.join(format!(
+        "{}-{}",
         package.name,
-        package.version.as_ref().map(|v| v.as_str()).unwrap_or("unknown")
+        package
+            .version
+            .as_ref()
+            .map(|v| v.as_str())
+            .unwrap_or("unknown")
     ));
 
     // Remove existing cache if present
     if package_cache_dir.exists() {
-        fs::remove_dir_all(&package_cache_dir)
-            .map_err(|e| RezCoreError::BuildError(format!("Failed to remove existing cache: {}", e)))?;
+        fs::remove_dir_all(&package_cache_dir).map_err(|e| {
+            RezCoreError::BuildError(format!("Failed to remove existing cache: {}", e))
+        })?;
     }
 
     // Copy source to cache directory
@@ -233,10 +250,11 @@ fn copy_dir_recursive(src: &PathBuf, dest: &PathBuf) -> RezCoreResult<()> {
         .map_err(|e| RezCoreError::BuildError(format!("Failed to create directory: {}", e)))?;
 
     for entry in fs::read_dir(src)
-        .map_err(|e| RezCoreError::BuildError(format!("Failed to read directory: {}", e)))? {
-
-        let entry = entry
-            .map_err(|e| RezCoreError::BuildError(format!("Failed to read directory entry: {}", e)))?;
+        .map_err(|e| RezCoreError::BuildError(format!("Failed to read directory: {}", e)))?
+    {
+        let entry = entry.map_err(|e| {
+            RezCoreError::BuildError(format!("Failed to read directory entry: {}", e))
+        })?;
 
         let src_path = entry.path();
         let dest_path = dest.join(entry.file_name());
@@ -268,12 +286,13 @@ fn load_current_package(working_dir: &PathBuf) -> RezCoreResult<Package> {
 
     if package_yaml.exists() {
         // Use the existing PackageSerializer to load YAML packages
-        return PackageSerializer::load_from_file(&package_yaml)
-            .map_err(|e| RezCoreError::PackageParse(format!("Failed to parse package.yaml: {}", e)));
+        return PackageSerializer::load_from_file(&package_yaml).map_err(|e| {
+            RezCoreError::PackageParse(format!("Failed to parse package.yaml: {}", e))
+        });
     }
 
     Err(RezCoreError::PackageParse(
-        "No package.py or package.yaml found in current directory".to_string()
+        "No package.py or package.yaml found in current directory".to_string(),
     ))
 }
 
@@ -287,23 +306,22 @@ fn parse_build_args(args_str: &Option<String>) -> Vec<String> {
 
 /// View preprocessed package definition
 fn view_preprocessed_package(args: &BuildArgs) -> RezCoreResult<()> {
-    let working_dir = std::env::current_dir()
-        .map_err(|e| RezCoreError::Io(e))?;
+    let working_dir = std::env::current_dir().map_err(|e| RezCoreError::Io(e))?;
 
     let package = load_current_package(&working_dir)?;
-    
+
     // Print package information in Python format
     println!("# Preprocessed package definition");
     println!("name = '{}'", package.name);
-    
+
     if let Some(ref version) = package.version {
         println!("version = '{}'", version.as_str());
     }
-    
+
     if let Some(ref description) = package.description {
         println!("description = '{}'", description);
     }
-    
+
     if !package.requires.is_empty() {
         println!("requires = [");
         for req in &package.requires {
@@ -311,7 +329,7 @@ fn view_preprocessed_package(args: &BuildArgs) -> RezCoreResult<()> {
         }
         println!("]");
     }
-    
+
     if !package.build_requires.is_empty() {
         println!("build_requires = [");
         for req in &package.build_requires {
@@ -357,7 +375,12 @@ fn view_preprocessed_package_with_data(package: &Package) -> RezCoreResult<()> {
 }
 
 /// Execute the build process
-fn execute_build(request: BuildRequest, args: &BuildArgs, package: &Package, source_dir: &PathBuf) -> RezCoreResult<()> {
+fn execute_build(
+    request: BuildRequest,
+    args: &BuildArgs,
+    package: &Package,
+    source_dir: &PathBuf,
+) -> RezCoreResult<()> {
     // Create build manager
     let mut build_manager = BuildManager::new();
 
@@ -369,21 +392,20 @@ fn execute_build(request: BuildRequest, args: &BuildArgs, package: &Package, sou
     let runtime = tokio::runtime::Runtime::new()
         .map_err(|e| RezCoreError::BuildError(format!("Failed to create async runtime: {}", e)))?;
 
-    let build_id: String = runtime.block_on(async {
-        build_manager.start_build(request).await
-    })?;
+    let build_id: String = runtime.block_on(async { build_manager.start_build(request).await })?;
 
     if args.verbose {
         println!("🚀 Build started with ID: {}", build_id);
     }
 
     // Wait for build completion
-    let build_result = runtime.block_on(async {
-        build_manager.wait_for_build(&build_id).await
-    })?;
+    let build_result = runtime.block_on(async { build_manager.wait_for_build(&build_id).await })?;
 
     if !build_result.success {
-        return Err(RezCoreError::BuildError(format!("Build failed: {}", build_result.errors)));
+        return Err(RezCoreError::BuildError(format!(
+            "Build failed: {}",
+            build_result.errors
+        )));
     }
 
     // Installation is handled by the build system's install step
@@ -395,10 +417,6 @@ fn execute_build(request: BuildRequest, args: &BuildArgs, package: &Package, sou
 
     Ok(())
 }
-
-
-
-
 
 /// Expand and normalize path with support for various path formats
 fn expand_path(path: &str) -> RezCoreResult<String> {
@@ -416,8 +434,9 @@ fn expand_path(path: &str) -> RezCoreResult<String> {
         path.to_string()
     } else {
         // Handle relative paths - convert to absolute
-        let current_dir = std::env::current_dir()
-            .map_err(|e| RezCoreError::ConfigError(format!("Cannot get current directory: {}", e)))?;
+        let current_dir = std::env::current_dir().map_err(|e| {
+            RezCoreError::ConfigError(format!("Cannot get current directory: {}", e))
+        })?;
         current_dir.join(path).to_string_lossy().to_string()
     };
 
@@ -433,21 +452,25 @@ fn expand_home_path(path: &str) -> RezCoreResult<String> {
         let expanded = home_path.join(&path[2..]);
         Ok(expanded.to_string_lossy().to_string())
     } else {
-        Err(RezCoreError::ConfigError("Cannot determine home directory".to_string()))
+        Err(RezCoreError::ConfigError(
+            "Cannot determine home directory".to_string(),
+        ))
     }
 }
 
 /// Validate and normalize UNC paths
 fn validate_unc_path(path: &str) -> RezCoreResult<String> {
     if !path.starts_with("\\\\") {
-        return Err(RezCoreError::ConfigError("Invalid UNC path format".to_string()));
+        return Err(RezCoreError::ConfigError(
+            "Invalid UNC path format".to_string(),
+        ));
     }
 
     // Basic UNC path validation: \\server\share\path
     let parts: Vec<&str> = path[2..].split('\\').collect();
     if parts.len() < 2 || parts[0].is_empty() || parts[1].is_empty() {
         return Err(RezCoreError::ConfigError(
-            "UNC path must be in format \\\\server\\share\\path".to_string()
+            "UNC path must be in format \\\\server\\share\\path".to_string(),
         ));
     }
 
@@ -457,13 +480,15 @@ fn validate_unc_path(path: &str) -> RezCoreResult<String> {
 /// Validate and normalize Windows drive paths
 fn validate_drive_path(path: &str) -> RezCoreResult<String> {
     if path.len() < 2 {
-        return Err(RezCoreError::ConfigError("Invalid drive path format".to_string()));
+        return Err(RezCoreError::ConfigError(
+            "Invalid drive path format".to_string(),
+        ));
     }
 
     let drive_char = path.chars().nth(0).unwrap();
     if !drive_char.is_ascii_alphabetic() || path.chars().nth(1) != Some(':') {
         return Err(RezCoreError::ConfigError(
-            "Drive path must start with a letter followed by colon (e.g., C:)".to_string()
+            "Drive path must start with a letter followed by colon (e.g., C:)".to_string(),
         ));
     }
 
@@ -494,7 +519,9 @@ fn normalize_path(path: &str) -> RezCoreResult<String> {
                 }
                 std::path::Component::ParentDir => {
                     // Handle ".." components
-                    if !components.is_empty() && components.last() != Some(&std::path::Component::ParentDir) {
+                    if !components.is_empty()
+                        && components.last() != Some(&std::path::Component::ParentDir)
+                    {
                         components.pop();
                     } else {
                         components.push(component);
@@ -528,8 +555,9 @@ fn get_install_path(args: &BuildArgs) -> RezCoreResult<PathBuf> {
 
 /// Generate package.py content
 fn generate_package_content(package: &Package) -> RezCoreResult<String> {
-    use rez_core_package::serialization::{PackageSerializer, PackageFormat};
+    use rez_core_package::serialization::{PackageFormat, PackageSerializer};
 
-    PackageSerializer::save_to_string(package, PackageFormat::Python)
-        .map_err(|e| RezCoreError::PackageParse(format!("Failed to generate package content: {}", e)))
+    PackageSerializer::save_to_string(package, PackageFormat::Python).map_err(|e| {
+        RezCoreError::PackageParse(format!("Failed to generate package content: {}", e))
+    })
 }

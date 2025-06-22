@@ -1,11 +1,11 @@
 //! Package implementation
 
+#[cfg(feature = "python-bindings")]
+use pyo3::prelude::*;
 use rez_core_common::RezCoreError;
 use rez_core_version::Version;
 #[cfg(feature = "python-bindings")]
 use rez_core_version::VersionRange;
-#[cfg(feature = "python-bindings")]
-use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -123,22 +123,22 @@ pub struct Package {
     /// Package authors (non-Python version)
     #[cfg(not(feature = "python-bindings"))]
     pub authors: Vec<String>,
-    
+
     /// Package requirements
     pub requires: Vec<String>,
-    
+
     /// Build requirements
     pub build_requires: Vec<String>,
-    
+
     /// Private build requirements
     pub private_build_requires: Vec<String>,
-    
+
     /// Package variants
     pub variants: Vec<Vec<String>>,
-    
+
     /// Package tools
     pub tools: Vec<String>,
-    
+
     /// Package commands
     pub commands: Option<String>,
 
@@ -181,49 +181,49 @@ pub struct Package {
     /// Package config (non-Python version)
     #[cfg(not(feature = "python-bindings"))]
     pub config: HashMap<String, String>,
-    
+
     /// Package help
     pub help: Option<String>,
-    
+
     /// Package relocatable flag
     pub relocatable: Option<bool>,
-    
+
     /// Package cachable flag
     pub cachable: Option<bool>,
-    
+
     /// Package timestamp
     pub timestamp: Option<i64>,
-    
+
     /// Package revision
     pub revision: Option<String>,
-    
+
     /// Package changelog
     pub changelog: Option<String>,
-    
+
     /// Package release message
     pub release_message: Option<String>,
-    
+
     /// Previous version
     pub previous_version: Option<Version>,
-    
+
     /// Previous revision
     pub previous_revision: Option<String>,
-    
+
     /// VCS type
     pub vcs: Option<String>,
-    
+
     /// Package format version
     pub format_version: Option<i32>,
-    
+
     /// Package base
     pub base: Option<String>,
-    
+
     /// Package has plugins
     pub has_plugins: Option<bool>,
-    
+
     /// Plugin for packages
     pub plugin_for: Vec<String>,
-    
+
     /// Package hashed variants
     pub hashed_variants: Option<bool>,
 
@@ -235,7 +235,8 @@ pub struct Package {
 impl Clone for Package {
     fn clone(&self) -> Self {
         Python::with_gil(|py| {
-            let cloned_config: HashMap<String, PyObject> = self.config
+            let cloned_config: HashMap<String, PyObject> = self
+                .config
                 .iter()
                 .map(|(k, v)| (k.clone(), v.clone_ref(py)))
                 .collect();
@@ -378,19 +379,47 @@ impl<'de> Deserialize<'de> for Package {
     where
         D: serde::Deserializer<'de>,
     {
-        use serde::de::{self, Deserializer, Visitor, SeqAccess, MapAccess};
+        use serde::de::{self, Deserializer, MapAccess, SeqAccess, Visitor};
         use std::fmt;
 
         #[derive(Deserialize)]
         #[serde(field_identifier, rename_all = "snake_case")]
         enum Field {
-            Name, Version, Description, Authors, Requires, BuildRequires,
-            PrivateBuildRequires, Variants, Tools, Commands, BuildCommand,
-            BuildSystem, PreCommands, PostCommands, PreTestCommands, PreBuildCommands,
-            Tests, RequiresRezVersion, Uuid, Help, Relocatable, Cachable,
-            Timestamp, Revision, Changelog, ReleaseMessage, PreviousVersion,
-            PreviousRevision, Vcs, FormatVersion, Base, HasPlugins, PluginFor,
-            HashedVariants, Preprocess,
+            Name,
+            Version,
+            Description,
+            Authors,
+            Requires,
+            BuildRequires,
+            PrivateBuildRequires,
+            Variants,
+            Tools,
+            Commands,
+            BuildCommand,
+            BuildSystem,
+            PreCommands,
+            PostCommands,
+            PreTestCommands,
+            PreBuildCommands,
+            Tests,
+            RequiresRezVersion,
+            Uuid,
+            Help,
+            Relocatable,
+            Cachable,
+            Timestamp,
+            Revision,
+            Changelog,
+            ReleaseMessage,
+            PreviousVersion,
+            PreviousRevision,
+            Vcs,
+            FormatVersion,
+            Base,
+            HasPlugins,
+            PluginFor,
+            HashedVariants,
+            Preprocess,
         }
 
         struct PackageVisitor;
@@ -700,13 +729,41 @@ impl<'de> Deserialize<'de> for Package {
         }
 
         const FIELDS: &'static [&'static str] = &[
-            "name", "version", "description", "authors", "requires", "build_requires",
-            "private_build_requires", "variants", "tools", "commands", "build_command",
-            "build_system", "pre_commands", "post_commands", "pre_test_commands",
-            "pre_build_commands", "tests", "requires_rez_version", "uuid", "help",
-            "relocatable", "cachable", "timestamp", "revision", "changelog",
-            "release_message", "previous_version", "previous_revision", "vcs",
-            "format_version", "base", "has_plugins", "plugin_for", "hashed_variants", "preprocess",
+            "name",
+            "version",
+            "description",
+            "authors",
+            "requires",
+            "build_requires",
+            "private_build_requires",
+            "variants",
+            "tools",
+            "commands",
+            "build_command",
+            "build_system",
+            "pre_commands",
+            "post_commands",
+            "pre_test_commands",
+            "pre_build_commands",
+            "tests",
+            "requires_rez_version",
+            "uuid",
+            "help",
+            "relocatable",
+            "cachable",
+            "timestamp",
+            "revision",
+            "changelog",
+            "release_message",
+            "previous_version",
+            "previous_revision",
+            "vcs",
+            "format_version",
+            "base",
+            "has_plugins",
+            "plugin_for",
+            "hashed_variants",
+            "preprocess",
         ];
         deserializer.deserialize_struct("Package", FIELDS, PackageVisitor)
     }
@@ -977,40 +1034,55 @@ impl Package {
     pub fn validate(&self) -> Result<(), RezCoreError> {
         // Check required fields
         if self.name.is_empty() {
-            return Err(RezCoreError::PackageParse("Package name cannot be empty".to_string()));
+            return Err(RezCoreError::PackageParse(
+                "Package name cannot be empty".to_string(),
+            ));
         }
 
         // Validate name format (alphanumeric, underscore, hyphen)
-        if !self.name.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '-') {
-            return Err(RezCoreError::PackageParse(
-                format!("Invalid package name '{}': only alphanumeric, underscore, and hyphen allowed", self.name)
-            ));
+        if !self
+            .name
+            .chars()
+            .all(|c| c.is_alphanumeric() || c == '_' || c == '-')
+        {
+            return Err(RezCoreError::PackageParse(format!(
+                "Invalid package name '{}': only alphanumeric, underscore, and hyphen allowed",
+                self.name
+            )));
         }
 
         // Validate version if present
         if let Some(ref version) = self.version {
             // Version validation is handled by the Version type itself
             if version.as_str().is_empty() {
-                return Err(RezCoreError::PackageParse("Package version cannot be empty".to_string()));
+                return Err(RezCoreError::PackageParse(
+                    "Package version cannot be empty".to_string(),
+                ));
             }
         }
 
         // Validate requirements format
         for req in &self.requires {
             if req.is_empty() {
-                return Err(RezCoreError::PackageParse("Requirement cannot be empty".to_string()));
+                return Err(RezCoreError::PackageParse(
+                    "Requirement cannot be empty".to_string(),
+                ));
             }
         }
 
         for req in &self.build_requires {
             if req.is_empty() {
-                return Err(RezCoreError::PackageParse("Build requirement cannot be empty".to_string()));
+                return Err(RezCoreError::PackageParse(
+                    "Build requirement cannot be empty".to_string(),
+                ));
             }
         }
 
         for req in &self.private_build_requires {
             if req.is_empty() {
-                return Err(RezCoreError::PackageParse("Private build requirement cannot be empty".to_string()));
+                return Err(RezCoreError::PackageParse(
+                    "Private build requirement cannot be empty".to_string(),
+                ));
             }
         }
 
@@ -1018,7 +1090,9 @@ impl Package {
         for variant in &self.variants {
             for req in variant {
                 if req.is_empty() {
-                    return Err(RezCoreError::PackageParse("Variant requirement cannot be empty".to_string()));
+                    return Err(RezCoreError::PackageParse(
+                        "Variant requirement cannot be empty".to_string(),
+                    ));
                 }
             }
         }
@@ -1032,7 +1106,8 @@ impl Package {
     /// Create a package from a dictionary/map
     pub fn from_dict(data: HashMap<String, PyObject>) -> Result<Self, RezCoreError> {
         Python::with_gil(|py| {
-            let name = data.get("name")
+            let name = data
+                .get("name")
                 .ok_or_else(|| RezCoreError::PackageParse("Missing 'name' field".to_string()))?
                 .extract::<String>(py)
                 .map_err(|e| RezCoreError::PackageParse(format!("Invalid 'name' field: {}", e)))?;
@@ -1042,8 +1117,9 @@ impl Package {
             // Set version if present
             if let Some(version_obj) = data.get("version") {
                 if let Ok(version_str) = version_obj.extract::<String>(py) {
-                    let version = Version::parse(&version_str)
-                        .map_err(|e| RezCoreError::PackageParse(format!("Invalid version: {}", e)))?;
+                    let version = Version::parse(&version_str).map_err(|e| {
+                        RezCoreError::PackageParse(format!("Invalid version: {}", e))
+                    })?;
                     package.version = Some(version);
                 }
             }
@@ -1098,40 +1174,55 @@ impl Package {
     pub fn validate(&self) -> Result<(), RezCoreError> {
         // Check required fields
         if self.name.is_empty() {
-            return Err(RezCoreError::PackageParse("Package name cannot be empty".to_string()));
+            return Err(RezCoreError::PackageParse(
+                "Package name cannot be empty".to_string(),
+            ));
         }
 
         // Validate name format (alphanumeric, underscore, hyphen)
-        if !self.name.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '-') {
-            return Err(RezCoreError::PackageParse(
-                format!("Invalid package name '{}': only alphanumeric, underscore, and hyphen allowed", self.name)
-            ));
+        if !self
+            .name
+            .chars()
+            .all(|c| c.is_alphanumeric() || c == '_' || c == '-')
+        {
+            return Err(RezCoreError::PackageParse(format!(
+                "Invalid package name '{}': only alphanumeric, underscore, and hyphen allowed",
+                self.name
+            )));
         }
 
         // Validate version if present
         if let Some(ref version) = self.version {
             // Version validation is handled by the Version type itself
             if version.as_str().is_empty() {
-                return Err(RezCoreError::PackageParse("Package version cannot be empty".to_string()));
+                return Err(RezCoreError::PackageParse(
+                    "Package version cannot be empty".to_string(),
+                ));
             }
         }
 
         // Validate requirements format
         for req in &self.requires {
             if req.is_empty() {
-                return Err(RezCoreError::PackageParse("Requirement cannot be empty".to_string()));
+                return Err(RezCoreError::PackageParse(
+                    "Requirement cannot be empty".to_string(),
+                ));
             }
         }
 
         for req in &self.build_requires {
             if req.is_empty() {
-                return Err(RezCoreError::PackageParse("Build requirement cannot be empty".to_string()));
+                return Err(RezCoreError::PackageParse(
+                    "Build requirement cannot be empty".to_string(),
+                ));
             }
         }
 
         for req in &self.private_build_requires {
             if req.is_empty() {
-                return Err(RezCoreError::PackageParse("Private build requirement cannot be empty".to_string()));
+                return Err(RezCoreError::PackageParse(
+                    "Private build requirement cannot be empty".to_string(),
+                ));
             }
         }
 
@@ -1139,7 +1230,9 @@ impl Package {
         for variant in &self.variants {
             for req in variant {
                 if req.is_empty() {
-                    return Err(RezCoreError::PackageParse("Variant requirement cannot be empty".to_string()));
+                    return Err(RezCoreError::PackageParse(
+                        "Variant requirement cannot be empty".to_string(),
+                    ));
                 }
             }
         }

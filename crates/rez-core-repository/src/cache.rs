@@ -39,7 +39,9 @@ impl CacheEntry {
             .modified()
             .map_err(|e| RezCoreError::Cache(format!("Failed to get modification time: {}", e)))?
             .duration_since(UNIX_EPOCH)
-            .map_err(|e| RezCoreError::Cache(format!("Failed to convert modification time: {}", e)))?
+            .map_err(|e| {
+                RezCoreError::Cache(format!("Failed to convert modification time: {}", e))
+            })?
             .as_secs();
 
         Ok(Self {
@@ -107,7 +109,7 @@ impl Default for CacheConfig {
     fn default() -> Self {
         Self {
             cache_dir: PathBuf::from(".rez_cache"),
-            default_ttl: 3600, // 1 hour
+            default_ttl: 3600,                 // 1 hour
             max_size_bytes: 100 * 1024 * 1024, // 100 MB
             max_entries: 10000,
             enable_compression: true,
@@ -168,10 +170,11 @@ impl RepositoryCache {
     pub async fn initialize(&self) -> Result<(), RezCoreError> {
         // Create cache directory if it doesn't exist
         if !self.config.cache_dir.exists() {
-            fs::create_dir_all(&self.config.cache_dir).await
-                .map_err(|e| RezCoreError::Cache(
-                    format!("Failed to create cache directory: {}", e)
-                ))?;
+            fs::create_dir_all(&self.config.cache_dir)
+                .await
+                .map_err(|e| {
+                    RezCoreError::Cache(format!("Failed to create cache directory: {}", e))
+                })?;
         }
 
         // Load existing cache index
@@ -201,9 +204,14 @@ impl RepositoryCache {
     }
 
     /// Put a package into cache
-    pub async fn put(&self, key: &str, package: Package, source_path: PathBuf) -> Result<(), RezCoreError> {
+    pub async fn put(
+        &self,
+        key: &str,
+        package: Package,
+        source_path: PathBuf,
+    ) -> Result<(), RezCoreError> {
         let entry = CacheEntry::new(package, source_path, self.config.default_ttl)?;
-        
+
         // Write to disk
         self.write_cache_file(key, &entry).await?;
 
@@ -235,7 +243,7 @@ impl RepositoryCache {
 
         if removed {
             self.remove_cache_file(key).await?;
-            
+
             let mut stats = self.stats.write().await;
             stats.entries = index.len();
         }
@@ -252,15 +260,17 @@ impl RepositoryCache {
 
         // Remove all cache files
         if self.config.cache_dir.exists() {
-            fs::remove_dir_all(&self.config.cache_dir).await
-                .map_err(|e| RezCoreError::Cache(
-                    format!("Failed to clear cache directory: {}", e)
-                ))?;
-            
-            fs::create_dir_all(&self.config.cache_dir).await
-                .map_err(|e| RezCoreError::Cache(
-                    format!("Failed to recreate cache directory: {}", e)
-                ))?;
+            fs::remove_dir_all(&self.config.cache_dir)
+                .await
+                .map_err(|e| {
+                    RezCoreError::Cache(format!("Failed to clear cache directory: {}", e))
+                })?;
+
+            fs::create_dir_all(&self.config.cache_dir)
+                .await
+                .map_err(|e| {
+                    RezCoreError::Cache(format!("Failed to recreate cache directory: {}", e))
+                })?;
         }
 
         // Reset statistics
@@ -304,7 +314,7 @@ impl RepositoryCache {
                 SystemTime::now()
                     .duration_since(UNIX_EPOCH)
                     .map(|d| d.as_secs())
-                    .unwrap_or(0)
+                    .unwrap_or(0),
             );
         }
 
@@ -336,17 +346,14 @@ impl RepositoryCache {
     /// Load cache index from disk
     async fn load_cache_index(&self) -> Result<(), RezCoreError> {
         let index_path = self.config.cache_dir.join("index.json");
-        
+
         if index_path.exists() {
-            let content = fs::read_to_string(&index_path).await
-                .map_err(|e| RezCoreError::Cache(
-                    format!("Failed to read cache index: {}", e)
-                ))?;
+            let content = fs::read_to_string(&index_path)
+                .await
+                .map_err(|e| RezCoreError::Cache(format!("Failed to read cache index: {}", e)))?;
 
             let cache_index: HashMap<String, CacheEntry> = serde_json::from_str(&content)
-                .map_err(|e| RezCoreError::Cache(
-                    format!("Failed to parse cache index: {}", e)
-                ))?;
+                .map_err(|e| RezCoreError::Cache(format!("Failed to parse cache index: {}", e)))?;
 
             let mut index = self.index.write().await;
             *index = cache_index;
@@ -359,16 +366,13 @@ impl RepositoryCache {
     async fn save_cache_index(&self) -> Result<(), RezCoreError> {
         let index_path = self.config.cache_dir.join("index.json");
         let index = self.index.read().await;
-        
-        let content = serde_json::to_string_pretty(&*index)
-            .map_err(|e| RezCoreError::Cache(
-                format!("Failed to serialize cache index: {}", e)
-            ))?;
 
-        fs::write(&index_path, content).await
-            .map_err(|e| RezCoreError::Cache(
-                format!("Failed to write cache index: {}", e)
-            ))?;
+        let content = serde_json::to_string_pretty(&*index)
+            .map_err(|e| RezCoreError::Cache(format!("Failed to serialize cache index: {}", e)))?;
+
+        fs::write(&index_path, content)
+            .await
+            .map_err(|e| RezCoreError::Cache(format!("Failed to write cache index: {}", e)))?;
 
         Ok(())
     }
@@ -376,16 +380,13 @@ impl RepositoryCache {
     /// Write a cache entry to disk
     async fn write_cache_file(&self, key: &str, entry: &CacheEntry) -> Result<(), RezCoreError> {
         let cache_file = self.config.cache_dir.join(format!("{}.json", key));
-        
-        let content = serde_json::to_string_pretty(entry)
-            .map_err(|e| RezCoreError::Cache(
-                format!("Failed to serialize cache entry: {}", e)
-            ))?;
 
-        fs::write(&cache_file, content).await
-            .map_err(|e| RezCoreError::Cache(
-                format!("Failed to write cache file: {}", e)
-            ))?;
+        let content = serde_json::to_string_pretty(entry)
+            .map_err(|e| RezCoreError::Cache(format!("Failed to serialize cache entry: {}", e)))?;
+
+        fs::write(&cache_file, content)
+            .await
+            .map_err(|e| RezCoreError::Cache(format!("Failed to write cache file: {}", e)))?;
 
         Ok(())
     }
@@ -393,12 +394,11 @@ impl RepositoryCache {
     /// Remove a cache file from disk
     async fn remove_cache_file(&self, key: &str) -> Result<(), RezCoreError> {
         let cache_file = self.config.cache_dir.join(format!("{}.json", key));
-        
+
         if cache_file.exists() {
-            fs::remove_file(&cache_file).await
-                .map_err(|e| RezCoreError::Cache(
-                    format!("Failed to remove cache file: {}", e)
-                ))?;
+            fs::remove_file(&cache_file)
+                .await
+                .map_err(|e| RezCoreError::Cache(format!("Failed to remove cache file: {}", e)))?;
         }
 
         Ok(())

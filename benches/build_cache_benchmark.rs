@@ -9,23 +9,23 @@
 //! - Cache preheating and adaptive tuning performance
 //! - Cache monitoring and performance validation
 
-use criterion::{Criterion, BenchmarkId, Throughput, black_box};
+use criterion::{black_box, BenchmarkId, Criterion, Throughput};
 use rez_core_build::{
-    BuildManager, BuildProcess, BuildEnvironment, BuildSystem, BuildRequest, BuildConfig,
-    BuildOptions, BuildVerbosity, BuildStats
+    BuildConfig, BuildEnvironment, BuildManager, BuildOptions, BuildProcess, BuildRequest,
+    BuildStats, BuildSystem, BuildVerbosity,
 };
 use rez_core_cache::{
-    IntelligentCacheManager, UnifiedCacheConfig, UnifiedCache, PredictivePreheater,
-    AdaptiveTuner, UnifiedPerformanceMonitor, BenchmarkConfig as CacheBenchmarkConfig
+    AdaptiveTuner, BenchmarkConfig as CacheBenchmarkConfig, IntelligentCacheManager,
+    PredictivePreheater, UnifiedCache, UnifiedCacheConfig, UnifiedPerformanceMonitor,
 };
-use rez_core_context::{ResolvedContext, ContextBuilder, ContextConfig};
+use rez_core_common::RezCoreError;
+use rez_core_context::{ContextBuilder, ContextConfig, ResolvedContext};
 use rez_core_package::{Package, PackageRequirement};
 use rez_core_version::{Version, VersionRange};
-use rez_core_common::RezCoreError;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::time::{Duration, SystemTime};
-use serde::{Serialize, Deserialize};
 
 /// Build and Cache benchmark module implementation
 pub struct BuildCacheBenchmark {
@@ -127,7 +127,7 @@ impl BuildCacheBenchmark {
     pub fn new() -> Self {
         let test_data = Self::generate_test_data();
         let baseline_metrics = Self::create_baseline_metrics();
-        
+
         Self {
             test_data,
             baseline_metrics,
@@ -151,9 +151,10 @@ impl BuildCacheBenchmark {
         vec![
             BuildScenario {
                 name: "single_python_package".to_string(),
-                packages: vec![
-                    Package::new("python-lib".to_string(), Version::new("1.0.0".to_string()).unwrap()),
-                ],
+                packages: vec![Package::new(
+                    "python-lib".to_string(),
+                    Version::new("1.0.0".to_string()).unwrap(),
+                )],
                 source_dirs: vec![PathBuf::from("test/python-lib")],
                 build_options: BuildOptions {
                     force_rebuild: false,
@@ -167,9 +168,10 @@ impl BuildCacheBenchmark {
             },
             BuildScenario {
                 name: "simple_cmake_project".to_string(),
-                packages: vec![
-                    Package::new("cmake-lib".to_string(), Version::new("2.1.0".to_string()).unwrap()),
-                ],
+                packages: vec![Package::new(
+                    "cmake-lib".to_string(),
+                    Version::new("2.1.0".to_string()).unwrap(),
+                )],
                 source_dirs: vec![PathBuf::from("test/cmake-lib")],
                 build_options: BuildOptions {
                     force_rebuild: false,
@@ -184,8 +186,14 @@ impl BuildCacheBenchmark {
             BuildScenario {
                 name: "basic_dependency_chain".to_string(),
                 packages: vec![
-                    Package::new("base-lib".to_string(), Version::new("1.0.0".to_string()).unwrap()),
-                    Package::new("dependent-lib".to_string(), Version::new("1.1.0".to_string()).unwrap()),
+                    Package::new(
+                        "base-lib".to_string(),
+                        Version::new("1.0.0".to_string()).unwrap(),
+                    ),
+                    Package::new(
+                        "dependent-lib".to_string(),
+                        Version::new("1.1.0".to_string()).unwrap(),
+                    ),
                 ],
                 source_dirs: vec![
                     PathBuf::from("test/base-lib"),
@@ -234,22 +242,20 @@ impl BuildCacheBenchmark {
 
     /// Generate complex builds (11+ packages)
     fn generate_complex_builds() -> Vec<BuildScenario> {
-        vec![
-            BuildScenario {
-                name: "enterprise_application".to_string(),
-                packages: Self::create_enterprise_packages(),
-                source_dirs: Self::create_enterprise_dirs(),
-                build_options: BuildOptions {
-                    force_rebuild: false,
-                    skip_tests: false,
-                    release_mode: true,
-                    build_args: vec!["--parallel".to_string(), "--optimize".to_string()],
-                    env_vars: Self::create_enterprise_env_vars(),
-                },
-                expected_duration_ms: 180000, // 3 minutes
-                complexity_score: 50,
+        vec![BuildScenario {
+            name: "enterprise_application".to_string(),
+            packages: Self::create_enterprise_packages(),
+            source_dirs: Self::create_enterprise_dirs(),
+            build_options: BuildOptions {
+                force_rebuild: false,
+                skip_tests: false,
+                release_mode: true,
+                build_args: vec!["--parallel".to_string(), "--optimize".to_string()],
+                env_vars: Self::create_enterprise_env_vars(),
             },
-        ]
+            expected_duration_ms: 180000, // 3 minutes
+            complexity_score: 50,
+        }]
     }
 
     /// Generate build system scenarios
@@ -395,11 +401,26 @@ impl BuildCacheBenchmark {
     // Helper methods for creating test data
     fn create_web_stack_packages() -> Vec<Package> {
         vec![
-            Package::new("react".to_string(), Version::new("18.2.0".to_string()).unwrap()),
-            Package::new("webpack".to_string(), Version::new("5.88.0".to_string()).unwrap()),
-            Package::new("babel".to_string(), Version::new("7.22.0".to_string()).unwrap()),
-            Package::new("typescript".to_string(), Version::new("5.1.0".to_string()).unwrap()),
-            Package::new("eslint".to_string(), Version::new("8.44.0".to_string()).unwrap()),
+            Package::new(
+                "react".to_string(),
+                Version::new("18.2.0".to_string()).unwrap(),
+            ),
+            Package::new(
+                "webpack".to_string(),
+                Version::new("5.88.0".to_string()).unwrap(),
+            ),
+            Package::new(
+                "babel".to_string(),
+                Version::new("7.22.0".to_string()).unwrap(),
+            ),
+            Package::new(
+                "typescript".to_string(),
+                Version::new("5.1.0".to_string()).unwrap(),
+            ),
+            Package::new(
+                "eslint".to_string(),
+                Version::new("8.44.0".to_string()).unwrap(),
+            ),
         ]
     }
 
@@ -415,12 +436,30 @@ impl BuildCacheBenchmark {
 
     fn create_data_science_packages() -> Vec<Package> {
         vec![
-            Package::new("numpy".to_string(), Version::new("1.24.0".to_string()).unwrap()),
-            Package::new("pandas".to_string(), Version::new("2.0.0".to_string()).unwrap()),
-            Package::new("scipy".to_string(), Version::new("1.11.0".to_string()).unwrap()),
-            Package::new("matplotlib".to_string(), Version::new("3.7.0".to_string()).unwrap()),
-            Package::new("scikit-learn".to_string(), Version::new("1.3.0".to_string()).unwrap()),
-            Package::new("jupyter".to_string(), Version::new("1.0.0".to_string()).unwrap()),
+            Package::new(
+                "numpy".to_string(),
+                Version::new("1.24.0".to_string()).unwrap(),
+            ),
+            Package::new(
+                "pandas".to_string(),
+                Version::new("2.0.0".to_string()).unwrap(),
+            ),
+            Package::new(
+                "scipy".to_string(),
+                Version::new("1.11.0".to_string()).unwrap(),
+            ),
+            Package::new(
+                "matplotlib".to_string(),
+                Version::new("3.7.0".to_string()).unwrap(),
+            ),
+            Package::new(
+                "scikit-learn".to_string(),
+                Version::new("1.3.0".to_string()).unwrap(),
+            ),
+            Package::new(
+                "jupyter".to_string(),
+                Version::new("1.0.0".to_string()).unwrap(),
+            ),
         ]
     }
 
@@ -436,18 +475,20 @@ impl BuildCacheBenchmark {
     }
 
     fn create_enterprise_packages() -> Vec<Package> {
-        (0..15).map(|i| {
-            Package::new(
-                format!("enterprise-module-{}", i),
-                Version::new(format!("1.{}.0", i)).unwrap()
-            )
-        }).collect()
+        (0..15)
+            .map(|i| {
+                Package::new(
+                    format!("enterprise-module-{}", i),
+                    Version::new(format!("1.{}.0", i)).unwrap(),
+                )
+            })
+            .collect()
     }
 
     fn create_enterprise_dirs() -> Vec<PathBuf> {
-        (0..15).map(|i| {
-            PathBuf::from(format!("test/enterprise-module-{}", i))
-        }).collect()
+        (0..15)
+            .map(|i| PathBuf::from(format!("test/enterprise-module-{}", i)))
+            .collect()
     }
 
     fn create_enterprise_env_vars() -> HashMap<String, String> {
@@ -501,21 +542,27 @@ impl crate::comprehensive_benchmark_suite::ModuleBenchmark for BuildCacheBenchma
     fn validate(&self) -> Result<(), crate::comprehensive_benchmark_suite::BenchmarkError> {
         // Validate that test data is properly initialized
         if self.test_data.simple_builds.is_empty() {
-            return Err(crate::comprehensive_benchmark_suite::BenchmarkError::ValidationFailed(
-                "Simple builds not initialized".to_string()
-            ));
+            return Err(
+                crate::comprehensive_benchmark_suite::BenchmarkError::ValidationFailed(
+                    "Simple builds not initialized".to_string(),
+                ),
+            );
         }
 
         if self.test_data.build_systems.is_empty() {
-            return Err(crate::comprehensive_benchmark_suite::BenchmarkError::ValidationFailed(
-                "Build systems not initialized".to_string()
-            ));
+            return Err(
+                crate::comprehensive_benchmark_suite::BenchmarkError::ValidationFailed(
+                    "Build systems not initialized".to_string(),
+                ),
+            );
         }
 
         if self.test_data.cache_scenarios.is_empty() {
-            return Err(crate::comprehensive_benchmark_suite::BenchmarkError::ValidationFailed(
-                "Cache scenarios not initialized".to_string()
-            ));
+            return Err(
+                crate::comprehensive_benchmark_suite::BenchmarkError::ValidationFailed(
+                    "Cache scenarios not initialized".to_string(),
+                ),
+            );
         }
 
         Ok(())
@@ -529,9 +576,7 @@ impl BuildCacheBenchmark {
 
         // Benchmark build manager creation
         group.bench_function("create_build_manager", |b| {
-            b.iter(|| {
-                black_box(BuildManager::new())
-            });
+            b.iter(|| black_box(BuildManager::new()));
         });
 
         // Benchmark build manager with different configurations
@@ -540,9 +585,7 @@ impl BuildCacheBenchmark {
                 BenchmarkId::new("build_manager_config", &scenario.name),
                 scenario,
                 |b, scenario| {
-                    b.iter(|| {
-                        black_box(BuildManager::with_config(scenario.config.clone()))
-                    });
+                    b.iter(|| black_box(BuildManager::with_config(scenario.config.clone())));
                 },
             );
         }
@@ -583,9 +626,7 @@ impl BuildCacheBenchmark {
                 BenchmarkId::new("detect_build_system", &scenario.name),
                 scenario,
                 |b, scenario| {
-                    b.iter(|| {
-                        black_box(BuildSystem::detect(&scenario.source_dir))
-                    });
+                    b.iter(|| black_box(BuildSystem::detect(&scenario.source_dir)));
                 },
             );
         }
@@ -598,17 +639,18 @@ impl BuildCacheBenchmark {
                 |b, scenario| {
                     if let Ok(build_system) = BuildSystem::detect(&scenario.source_dir) {
                         let request = BuildRequest {
-                            package: Package::new("test".to_string(), Version::new("1.0.0".to_string()).unwrap()),
+                            package: Package::new(
+                                "test".to_string(),
+                                Version::new("1.0.0".to_string()).unwrap(),
+                            ),
                             context: None,
                             source_dir: scenario.source_dir.clone(),
                             variant: None,
                             options: BuildOptions::default(),
                         };
-                        let environment = BuildEnvironment::new(
-                            &request.package,
-                            &PathBuf::from("build"),
-                            None,
-                        ).unwrap();
+                        let environment =
+                            BuildEnvironment::new(&request.package, &PathBuf::from("build"), None)
+                                .unwrap();
 
                         b.iter(|| {
                             // Note: This would be async in real implementation
@@ -636,11 +678,7 @@ impl BuildCacheBenchmark {
 
                     b.iter(|| {
                         for package in &scenario.packages {
-                            black_box(BuildEnvironment::new(
-                                package,
-                                &base_build_dir,
-                                None,
-                            ))
+                            black_box(BuildEnvironment::new(package, &base_build_dir, None))
                         }
                     });
                 },
@@ -649,7 +687,10 @@ impl BuildCacheBenchmark {
 
         // Benchmark environment setup with context
         group.bench_function("environment_with_context", |b| {
-            let package = Package::new("test".to_string(), Version::new("1.0.0".to_string()).unwrap());
+            let package = Package::new(
+                "test".to_string(),
+                Version::new("1.0.0".to_string()).unwrap(),
+            );
             let base_build_dir = PathBuf::from("build");
             let context = self.create_test_context();
 
@@ -678,7 +719,10 @@ impl BuildCacheBenchmark {
                     let mut manager = BuildManager::with_config(scenario.config.clone());
                     let requests: Vec<BuildRequest> = (0..scenario.concurrent_builds)
                         .map(|i| BuildRequest {
-                            package: Package::new(format!("test-{}", i), Version::new("1.0.0".to_string()).unwrap()),
+                            package: Package::new(
+                                format!("test-{}", i),
+                                Version::new("1.0.0".to_string()).unwrap(),
+                            ),
                             context: None,
                             source_dir: PathBuf::from(format!("test-{}", i)),
                             variant: None,
@@ -705,9 +749,7 @@ impl BuildCacheBenchmark {
 
         // Benchmark cache creation
         group.bench_function("create_intelligent_cache", |b| {
-            b.iter(|| {
-                black_box(IntelligentCacheManager::new(UnifiedCacheConfig::default()))
-            });
+            b.iter(|| black_box(IntelligentCacheManager::new(UnifiedCacheConfig::default())));
         });
 
         // Benchmark cache operations for different scenarios
@@ -759,9 +801,7 @@ impl BuildCacheBenchmark {
 
         // Benchmark predictive preheater creation
         group.bench_function("create_predictive_preheater", |b| {
-            b.iter(|| {
-                black_box(PredictivePreheater::new())
-            });
+            b.iter(|| black_box(PredictivePreheater::new()));
         });
 
         // Benchmark preheating operations
@@ -788,9 +828,8 @@ impl BuildCacheBenchmark {
         // Benchmark pattern recognition
         group.bench_function("pattern_recognition", |b| {
             let preheater = PredictivePreheater::new();
-            let access_patterns: Vec<String> = (0..100)
-                .map(|i| format!("pattern_{}", i % 10))
-                .collect();
+            let access_patterns: Vec<String> =
+                (0..100).map(|i| format!("pattern_{}", i % 10)).collect();
 
             b.iter(|| {
                 for pattern in &access_patterns {
@@ -808,9 +847,7 @@ impl BuildCacheBenchmark {
 
         // Benchmark adaptive tuner creation
         group.bench_function("create_adaptive_tuner", |b| {
-            b.iter(|| {
-                black_box(AdaptiveTuner::new())
-            });
+            b.iter(|| black_box(AdaptiveTuner::new()));
         });
 
         // Benchmark tuning operations
@@ -848,9 +885,7 @@ impl BuildCacheBenchmark {
 
         // Benchmark statistics creation
         group.bench_function("create_build_stats", |b| {
-            b.iter(|| {
-                black_box(BuildStats::default())
-            });
+            b.iter(|| black_box(BuildStats::default()));
         });
 
         // Benchmark statistics updates
@@ -861,7 +896,8 @@ impl BuildCacheBenchmark {
                 // Simulate statistics updates
                 stats.builds_started += 1;
                 stats.total_build_time_ms += 1000;
-                stats.avg_build_time_ms = stats.total_build_time_ms as f64 / stats.builds_started as f64;
+                stats.avg_build_time_ms =
+                    stats.total_build_time_ms as f64 / stats.builds_started as f64;
                 black_box(&stats);
             });
         });
@@ -894,11 +930,9 @@ impl BuildCacheBenchmark {
                         for _ in 0..iters {
                             let manager = BuildManager::new();
                             for package in &scenario.packages {
-                                let environment = BuildEnvironment::new(
-                                    package,
-                                    &PathBuf::from("build"),
-                                    None,
-                                ).unwrap();
+                                let environment =
+                                    BuildEnvironment::new(package, &PathBuf::from("build"), None)
+                                        .unwrap();
                                 black_box(environment);
                             }
                             black_box(manager);
@@ -954,11 +988,9 @@ impl BuildCacheBenchmark {
 
                             // Create build environments for all packages
                             for package in &scenario.packages {
-                                let environment = BuildEnvironment::new(
-                                    package,
-                                    &PathBuf::from("build"),
-                                    None,
-                                ).unwrap();
+                                let environment =
+                                    BuildEnvironment::new(package, &PathBuf::from("build"), None)
+                                        .unwrap();
                                 black_box(environment);
                             }
 
@@ -975,8 +1007,14 @@ impl BuildCacheBenchmark {
     // Helper methods
     fn create_test_context(&self) -> ResolvedContext {
         let requirements = vec![
-            PackageRequirement::new("python".to_string(), Some(VersionRange::new("3.9+".to_string()).unwrap())),
-            PackageRequirement::new("cmake".to_string(), Some(VersionRange::new("3.20+".to_string()).unwrap())),
+            PackageRequirement::new(
+                "python".to_string(),
+                Some(VersionRange::new("3.9+".to_string()).unwrap()),
+            ),
+            PackageRequirement::new(
+                "cmake".to_string(),
+                Some(VersionRange::new("3.20+".to_string()).unwrap()),
+            ),
         ];
         ContextBuilder::new()
             .requirements(requirements)

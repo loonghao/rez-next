@@ -1,21 +1,21 @@
 //! High-performance repository scanning utilities with optimized I/O
 
+use ahash::AHashMap;
+use dashmap::DashMap;
+use futures::stream::{self, StreamExt};
+use memmap2::Mmap;
 use rez_core_common::RezCoreError;
 use rez_core_package::Package;
 use serde::{Deserialize, Serialize};
+use smallvec::SmallVec;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::sync::Arc;
-use std::sync::atomic::{AtomicUsize, AtomicU64, Ordering};
+use std::time::{Duration, SystemTime};
 use tokio::fs;
 use tokio::sync::{RwLock, Semaphore};
 use tokio::task::JoinSet;
-use memmap2::Mmap;
-use ahash::AHashMap;
-use smallvec::SmallVec;
-use futures::stream::{self, StreamExt};
-use dashmap::DashMap;
-use std::time::{Duration, SystemTime};
 use tokio::time::{interval, Instant};
 
 /// Enhanced scanner configuration with performance optimizations
@@ -340,7 +340,8 @@ impl RepositoryScanner {
         // Try prefix matching
         for mut cached_entry in self.scan_cache.iter_mut() {
             let cached_path = cached_entry.key();
-            if normalized_path.starts_with(cached_path) || cached_path.starts_with(&normalized_path) {
+            if normalized_path.starts_with(cached_path) || cached_path.starts_with(&normalized_path)
+            {
                 if self.is_cache_entry_valid(&cached_entry.value()) {
                     // Update access statistics for prefix match
                     cached_entry.value_mut().access_count += 1;
@@ -450,15 +451,17 @@ impl RepositoryScanner {
         let start_time = std::time::Instant::now();
 
         if !root_path.exists() {
-            return Err(RezCoreError::Repository(
-                format!("Repository path does not exist: {}", root_path.display())
-            ));
+            return Err(RezCoreError::Repository(format!(
+                "Repository path does not exist: {}",
+                root_path.display()
+            )));
         }
 
         if !root_path.is_dir() {
-            return Err(RezCoreError::Repository(
-                format!("Repository path is not a directory: {}", root_path.display())
-            ));
+            return Err(RezCoreError::Repository(format!(
+                "Repository path is not a directory: {}",
+                root_path.display()
+            )));
         }
 
         // Reset metrics for this scan
@@ -498,11 +501,14 @@ impl RepositoryScanner {
             for result in results {
                 if let Err(e) = result {
                     let error_id = errors.len();
-                    errors.insert(error_id, ScanError {
-                        path: root_path.to_path_buf(),
-                        message: format!("Batch processing error: {}", e),
-                        error_type: ScanErrorType::Other,
-                    });
+                    errors.insert(
+                        error_id,
+                        ScanError {
+                            path: root_path.to_path_buf(),
+                            message: format!("Batch processing error: {}", e),
+                            error_type: ScanErrorType::Other,
+                        },
+                    );
                 }
             }
         }
@@ -510,13 +516,10 @@ impl RepositoryScanner {
         let total_duration_ms = start_time.elapsed().as_millis() as u64;
 
         // Collect results
-        let packages_vec: Vec<PackageScanResult> = packages.iter()
-            .map(|entry| entry.value().clone())
-            .collect();
+        let packages_vec: Vec<PackageScanResult> =
+            packages.iter().map(|entry| entry.value().clone()).collect();
 
-        let errors_vec: Vec<ScanError> = errors.iter()
-            .map(|entry| entry.value().clone())
-            .collect();
+        let errors_vec: Vec<ScanError> = errors.iter().map(|entry| entry.value().clone()).collect();
 
         // Calculate performance metrics
         let total_files = files_examined.load(Ordering::Relaxed);
@@ -552,38 +555,41 @@ impl RepositoryScanner {
         &'a self,
         root_path: &'a Path,
         depth: usize,
-    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<PathBuf>, RezCoreError>> + Send + 'a>> {
+    ) -> std::pin::Pin<
+        Box<dyn std::future::Future<Output = Result<Vec<PathBuf>, RezCoreError>> + Send + 'a>,
+    > {
         Box::pin(async move {
-        let mut directories = Vec::new();
+            let mut directories = Vec::new();
 
-        if depth > self.config.max_depth {
-            return Ok(directories);
-        }
-
-        if self.should_exclude_path(root_path) {
-            return Ok(directories);
-        }
-
-        directories.push(root_path.to_path_buf());
-
-        let mut entries = fs::read_dir(root_path).await
-            .map_err(|e| RezCoreError::Repository(
-                format!("Failed to read directory {}: {}", root_path.display(), e)
-            ))?;
-
-        while let Some(entry) = entries.next_entry().await
-            .map_err(|e| RezCoreError::Repository(
-                format!("Failed to read directory entry: {}", e)
-            ))? {
-
-            let path = entry.path();
-            if path.is_dir() && !self.should_exclude_path(&path) {
-                let subdirs = self.collect_directories_recursive(&path, depth + 1).await?;
-                directories.extend(subdirs);
+            if depth > self.config.max_depth {
+                return Ok(directories);
             }
-        }
 
-        Ok(directories)
+            if self.should_exclude_path(root_path) {
+                return Ok(directories);
+            }
+
+            directories.push(root_path.to_path_buf());
+
+            let mut entries = fs::read_dir(root_path).await.map_err(|e| {
+                RezCoreError::Repository(format!(
+                    "Failed to read directory {}: {}",
+                    root_path.display(),
+                    e
+                ))
+            })?;
+
+            while let Some(entry) = entries.next_entry().await.map_err(|e| {
+                RezCoreError::Repository(format!("Failed to read directory entry: {}", e))
+            })? {
+                let path = entry.path();
+                if path.is_dir() && !self.should_exclude_path(&path) {
+                    let subdirs = self.collect_directories_recursive(&path, depth + 1).await?;
+                    directories.extend(subdirs);
+                }
+            }
+
+            Ok(directories)
         })
     }
 
@@ -617,11 +623,14 @@ impl RepositoryScanner {
             Ok(entries) => entries,
             Err(e) => {
                 let error_id = errors.len();
-                errors.insert(error_id, ScanError {
-                    path: dir_path.to_path_buf(),
-                    message: format!("Failed to read directory: {}", e),
-                    error_type: ScanErrorType::FileSystemError,
-                });
+                errors.insert(
+                    error_id,
+                    ScanError {
+                        path: dir_path.to_path_buf(),
+                        message: format!("Failed to read directory: {}", e),
+                        error_type: ScanErrorType::FileSystemError,
+                    },
+                );
                 self.current_concurrency.fetch_sub(1, Ordering::Relaxed);
                 return Ok(());
             }
@@ -630,11 +639,9 @@ impl RepositoryScanner {
         // Collect package files for batch processing
         let mut package_files = SmallVec::<[PathBuf; 8]>::new();
 
-        while let Some(entry) = entries.next_entry().await
-            .map_err(|e| RezCoreError::Repository(
-                format!("Failed to read directory entry: {}", e)
-            ))? {
-
+        while let Some(entry) = entries.next_entry().await.map_err(|e| {
+            RezCoreError::Repository(format!("Failed to read directory entry: {}", e))
+        })? {
             let path = entry.path();
             if path.is_file() && self.is_package_file(&path) {
                 package_files.push(path);
@@ -661,11 +668,14 @@ impl RepositoryScanner {
                     }
                     Err(e) => {
                         let error_id = errors_clone.len();
-                        errors_clone.insert(error_id, ScanError {
-                            path: package_file,
-                            message: format!("Failed to scan package: {}", e),
-                            error_type: ScanErrorType::PackageParseError,
-                        });
+                        errors_clone.insert(
+                            error_id,
+                            ScanError {
+                                path: package_file,
+                                message: format!("Failed to scan package: {}", e),
+                                error_type: ScanErrorType::PackageParseError,
+                            },
+                        );
                     }
                 }
             }
@@ -723,7 +733,7 @@ impl RepositoryScanner {
             RezCoreError::Repository(format!("Failed to read directory entry: {}", e))
         })? {
             let path = entry.path();
-            
+
             if path.is_dir() {
                 // Recursively scan subdirectory
                 Box::pin(self.scan_directory_recursive(
@@ -734,7 +744,8 @@ impl RepositoryScanner {
                     errors.clone(),
                     directories_scanned.clone(),
                     files_examined.clone(),
-                )).await?;
+                ))
+                .await?;
             } else if path.is_file() {
                 // Check if this is a package file
                 if self.is_package_file(&path) {
@@ -747,7 +758,7 @@ impl RepositoryScanner {
 
                     join_set.spawn(async move {
                         let _permit = semaphore.acquire().await.unwrap();
-                        
+
                         // Increment files examined counter
                         {
                             let mut count = files_examined_clone.write().await;
@@ -777,18 +788,22 @@ impl RepositoryScanner {
     }
 
     /// Optimized package file scanning with caching and memory mapping
-    async fn scan_package_file_optimized(&self, package_file: &Path) -> Result<PackageScanResult, RezCoreError> {
+    async fn scan_package_file_optimized(
+        &self,
+        package_file: &Path,
+    ) -> Result<PackageScanResult, RezCoreError> {
         let start_time = std::time::Instant::now();
         let io_start = std::time::Instant::now();
 
         // Get file metadata
-        let metadata = fs::metadata(package_file).await
-            .map_err(|e| RezCoreError::Repository(
-                format!("Failed to get file metadata: {}", e)
-            ))?;
+        let metadata = fs::metadata(package_file)
+            .await
+            .map_err(|e| RezCoreError::Repository(format!("Failed to get file metadata: {}", e)))?;
 
         let file_size = metadata.len();
-        let mtime = metadata.modified().unwrap_or(std::time::SystemTime::UNIX_EPOCH);
+        let mtime = metadata
+            .modified()
+            .unwrap_or(std::time::SystemTime::UNIX_EPOCH);
 
         // Check cache first if enabled
         if self.config.enable_scan_cache {
@@ -803,37 +818,35 @@ impl RepositoryScanner {
 
         // Determine package format using smart detection if enabled
         let _format = if self.config.smart_file_detection {
-            self.detect_package_format_smart(package_file, file_size).await?
+            self.detect_package_format_smart(package_file, file_size)
+                .await?
         } else {
             "yaml".to_string()
         };
 
         // Read file content using memory mapping for large files
-        let content = if self.config.use_memory_mapping && file_size > self.config.memory_mapping_threshold {
-            self.read_file_memory_mapped(package_file).await?
-        } else {
-            fs::read_to_string(package_file).await
-                .map_err(|e| RezCoreError::Repository(
-                    format!("Failed to read package file: {}", e)
-                ))?
-        };
+        let content =
+            if self.config.use_memory_mapping && file_size > self.config.memory_mapping_threshold {
+                self.read_file_memory_mapped(package_file).await?
+            } else {
+                fs::read_to_string(package_file).await.map_err(|e| {
+                    RezCoreError::Repository(format!("Failed to read package file: {}", e))
+                })?
+            };
 
         let io_time = io_start.elapsed().as_millis() as u64;
         self.io_time.fetch_add(io_time, Ordering::Relaxed);
 
         // Parse package
         let parse_start = std::time::Instant::now();
-        let package: Package = serde_yaml::from_str(&content)
-            .map_err(|e| RezCoreError::Repository(
-                format!("Failed to parse package file: {}", e)
-            ))?;
+        let package: Package = serde_yaml::from_str(&content).map_err(|e| {
+            RezCoreError::Repository(format!("Failed to parse package file: {}", e))
+        })?;
         let parse_time = parse_start.elapsed().as_millis() as u64;
         self.parsing_time.fetch_add(parse_time, Ordering::Relaxed);
 
         let scan_duration_ms = start_time.elapsed().as_millis() as u64;
-        let package_dir = package_file.parent()
-            .unwrap_or(package_file)
-            .to_path_buf();
+        let package_dir = package_file.parent().unwrap_or(package_file).to_path_buf();
 
         let result = PackageScanResult {
             package,
@@ -854,7 +867,8 @@ impl RepositoryScanner {
                 access_count: 1,
                 last_accessed: now,
             };
-            self.scan_cache.insert(package_file.to_path_buf(), cache_entry);
+            self.scan_cache
+                .insert(package_file.to_path_buf(), cache_entry);
 
             // Limit cache size
             if self.scan_cache.len() > self.config.max_cache_size_mb * 1000 {
@@ -870,7 +884,11 @@ impl RepositoryScanner {
     }
 
     /// Smart package format detection
-    async fn detect_package_format_smart(&self, package_file: &Path, file_size: u64) -> Result<String, RezCoreError> {
+    async fn detect_package_format_smart(
+        &self,
+        package_file: &Path,
+        file_size: u64,
+    ) -> Result<String, RezCoreError> {
         // First try extension-based detection
         if let Some(ext) = package_file.extension().and_then(|s| s.to_str()) {
             match ext {
@@ -883,10 +901,12 @@ impl RepositoryScanner {
 
         // For small files, read a sample to detect format
         if file_size < 1024 {
-            let content = fs::read_to_string(package_file).await
-                .map_err(|e| RezCoreError::Repository(
-                    format!("Failed to read package file for format detection: {}", e)
-                ))?;
+            let content = fs::read_to_string(package_file).await.map_err(|e| {
+                RezCoreError::Repository(format!(
+                    "Failed to read package file for format detection: {}",
+                    e
+                ))
+            })?;
 
             // Simple heuristic detection
             if content.trim_start().starts_with('{') {
@@ -904,22 +924,21 @@ impl RepositoryScanner {
 
     /// Read file using memory mapping for better performance
     async fn read_file_memory_mapped(&self, package_file: &Path) -> Result<String, RezCoreError> {
-        let file = std::fs::File::open(package_file)
-            .map_err(|e| RezCoreError::Repository(
-                format!("Failed to open file for memory mapping: {}", e)
-            ))?;
+        let file = std::fs::File::open(package_file).map_err(|e| {
+            RezCoreError::Repository(format!("Failed to open file for memory mapping: {}", e))
+        })?;
 
         let mmap = unsafe { Mmap::map(&file) }
-            .map_err(|e| RezCoreError::Repository(
-                format!("Failed to memory map file: {}", e)
-            ))?;
+            .map_err(|e| RezCoreError::Repository(format!("Failed to memory map file: {}", e)))?;
 
         self.memory_mapped_files.fetch_add(1, Ordering::Relaxed);
 
-        String::from_utf8(mmap.to_vec())
-            .map_err(|e| RezCoreError::Repository(
-                format!("Failed to convert memory mapped file to string: {}", e)
+        String::from_utf8(mmap.to_vec()).map_err(|e| {
+            RezCoreError::Repository(format!(
+                "Failed to convert memory mapped file to string: {}",
+                e
             ))
+        })
     }
 
     /// Legacy package file scanning method (kept for compatibility)
@@ -927,29 +946,24 @@ impl RepositoryScanner {
         let start_time = std::time::Instant::now();
 
         // Get file metadata
-        let metadata = fs::metadata(package_file).await
-            .map_err(|e| RezCoreError::Repository(
-                format!("Failed to get file metadata: {}", e)
-            ))?;
+        let metadata = fs::metadata(package_file)
+            .await
+            .map_err(|e| RezCoreError::Repository(format!("Failed to get file metadata: {}", e)))?;
 
         let file_size = metadata.len();
 
         // Read and parse package file
-        let content = fs::read_to_string(package_file).await
-            .map_err(|e| RezCoreError::Repository(
-                format!("Failed to read package file: {}", e)
-            ))?;
+        let content = fs::read_to_string(package_file)
+            .await
+            .map_err(|e| RezCoreError::Repository(format!("Failed to read package file: {}", e)))?;
 
         // Simple YAML parsing for now
-        let package: Package = serde_yaml::from_str(&content)
-            .map_err(|e| RezCoreError::Repository(
-                format!("Failed to parse package file: {}", e)
-            ))?;
+        let package: Package = serde_yaml::from_str(&content).map_err(|e| {
+            RezCoreError::Repository(format!("Failed to parse package file: {}", e))
+        })?;
 
         let scan_duration_ms = start_time.elapsed().as_millis() as u64;
-        let package_dir = package_file.parent()
-            .unwrap_or(package_file)
-            .to_path_buf();
+        let package_dir = package_file.parent().unwrap_or(package_file).to_path_buf();
 
         Ok(PackageScanResult {
             package,
@@ -963,9 +977,10 @@ impl RepositoryScanner {
     /// Check if a file is a package definition file
     fn is_package_file(&self, path: &Path) -> bool {
         if let Some(filename) = path.file_name().and_then(|n| n.to_str()) {
-            self.config.include_patterns.iter().any(|pattern| {
-                self.matches_pattern(filename, pattern)
-            })
+            self.config
+                .include_patterns
+                .iter()
+                .any(|pattern| self.matches_pattern(filename, pattern))
         } else {
             false
         }
@@ -975,9 +990,10 @@ impl RepositoryScanner {
     fn should_exclude_path(&self, path: &Path) -> bool {
         let path_str = path.to_string_lossy();
 
-        self.config.exclude_patterns.iter().any(|pattern| {
-            self.matches_pattern(&path_str, pattern)
-        })
+        self.config
+            .exclude_patterns
+            .iter()
+            .any(|pattern| self.matches_pattern(&path_str, pattern))
     }
 
     /// Normalize path for consistent cache key generation
@@ -1033,7 +1049,7 @@ impl RepositoryScanner {
             .replace("**", ".*") // ** matches any number of directories
             .replace("*", "[^/]*") // * matches anything except directory separator
             .replace("?", "."); // ? matches any single character
-        
+
         if let Ok(regex) = regex::Regex::new(&format!("^{}$", regex_pattern)) {
             regex.is_match(text)
         } else {

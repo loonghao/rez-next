@@ -4,7 +4,10 @@
 //! integrating with existing cache configurations while adding
 //! intelligent caching features.
 
-use crate::{DEFAULT_L1_CAPACITY, DEFAULT_L2_CAPACITY, DEFAULT_TTL_SECONDS, DEFAULT_MEMORY_LIMIT_MB, EvictionStrategy};
+use crate::{
+    EvictionStrategy, DEFAULT_L1_CAPACITY, DEFAULT_L2_CAPACITY, DEFAULT_MEMORY_LIMIT_MB,
+    DEFAULT_TTL_SECONDS,
+};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::time::Duration;
@@ -66,7 +69,7 @@ impl Default for L1CacheConfig {
             default_ttl: DEFAULT_TTL_SECONDS,
             eviction_strategy: EvictionStrategy::LRU,
             enable_concurrent_access: true,
-            shard_count: 0, // Auto-detect based on CPU cores
+            shard_count: 0,         // Auto-detect based on CPU cores
             promotion_threshold: 3, // Promote after 3 accesses
         }
     }
@@ -95,7 +98,7 @@ impl Default for L2CacheConfig {
     fn default() -> Self {
         Self {
             max_entries: DEFAULT_L2_CAPACITY,
-            max_disk_bytes: 1024 * 1024 * 1024, // 1 GB
+            max_disk_bytes: 1024 * 1024 * 1024,    // 1 GB
             default_ttl: DEFAULT_TTL_SECONDS * 24, // 24 hours for disk cache
             cache_dir: PathBuf::from(".rez_intelligent_cache"),
             enable_compression: true,
@@ -143,8 +146,8 @@ impl Default for PreheatingConfig {
             max_preheat_entries: 100,
             max_concurrent_preheats: 10,
             max_preheat_queue_size: 1000,
-            preheat_interval: 60, // 1 minute
-            preheat_window_seconds: 300, // 5 minutes
+            preheat_interval: 60,         // 1 minute
+            preheat_window_seconds: 300,  // 5 minutes
             pattern_window_seconds: 3600, // 1 hour
             enable_background_preheat: true,
             max_cpu_usage: 0.1, // 10% CPU usage limit
@@ -186,9 +189,9 @@ impl Default for TuningConfig {
     fn default() -> Self {
         Self {
             enable_adaptive_tuning: true,
-            tuning_interval: 300, // 5 minutes
-            target_hit_rate: 0.9, // 90% target hit rate
-            min_hit_rate: 0.8, // 80% minimum hit rate
+            tuning_interval: 300,       // 5 minutes
+            target_hit_rate: 0.9,       // 90% target hit rate
+            min_hit_rate: 0.8,          // 80% minimum hit rate
             max_adjustment_factor: 0.1, // 10% maximum adjustment
             min_confidence_for_auto_tuning: 0.8,
             performance_window_size: 100,
@@ -282,7 +285,7 @@ impl UnifiedCacheConfig {
             },
             tuning_config: TuningConfig {
                 enable_adaptive_tuning: true,
-                tuning_interval: 120, // 2 minutes
+                tuning_interval: 120,        // 2 minutes
                 max_adjustment_factor: 0.15, // 15% adjustment
                 ..Default::default()
             },
@@ -330,19 +333,23 @@ impl UnifiedCacheConfig {
         if self.l1_config.max_entries == 0 {
             return Err("L1 max_entries must be greater than 0".to_string());
         }
-        
+
         if self.l2_config.max_entries == 0 {
             return Err("L2 max_entries must be greater than 0".to_string());
         }
-        
-        if self.preheating_config.min_confidence_threshold < 0.0 || self.preheating_config.min_confidence_threshold > 1.0 {
-            return Err("Preheating min_confidence_threshold must be between 0.0 and 1.0".to_string());
+
+        if self.preheating_config.min_confidence_threshold < 0.0
+            || self.preheating_config.min_confidence_threshold > 1.0
+        {
+            return Err(
+                "Preheating min_confidence_threshold must be between 0.0 and 1.0".to_string(),
+            );
         }
-        
+
         if self.tuning_config.min_hit_rate < 0.0 || self.tuning_config.min_hit_rate > 1.0 {
             return Err("Tuning min_hit_rate must be between 0.0 and 1.0".to_string());
         }
-        
+
         Ok(())
     }
 }

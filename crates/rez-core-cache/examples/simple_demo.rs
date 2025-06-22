@@ -2,9 +2,7 @@
 //!
 //! This example demonstrates basic usage of the intelligent cache system.
 
-use rez_core_cache::{
-    IntelligentCacheManager, UnifiedCacheConfig, UnifiedCache,
-};
+use rez_core_cache::{IntelligentCacheManager, UnifiedCache, UnifiedCacheConfig};
 use std::time::Duration;
 use tokio::time::sleep;
 
@@ -18,12 +16,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cache = IntelligentCacheManager::<String, String>::new(config);
 
     println!("📦 Basic Cache Operations:");
-    
+
     // Put some data
     cache.put("user:1".to_string(), "Alice".to_string()).await?;
     cache.put("user:2".to_string(), "Bob".to_string()).await?;
-    cache.put("user:3".to_string(), "Charlie".to_string()).await?;
-    
+    cache
+        .put("user:3".to_string(), "Charlie".to_string())
+        .await?;
+
     println!("✓ Stored 3 users in cache");
 
     // Get data
@@ -48,8 +48,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("  L1 entries: {}", stats.l1_stats.entries);
     println!("  L1 hit rate: {:.2}%", stats.l1_stats.hit_rate * 100.0);
     println!("  L2 entries: {}", stats.l2_stats.entries);
-    println!("  Overall hit rate: {:.2}%", stats.overall_stats.overall_hit_rate * 100.0);
-    println!("  Efficiency score: {:.2}", stats.overall_stats.efficiency_score);
+    println!(
+        "  Overall hit rate: {:.2}%",
+        stats.overall_stats.overall_hit_rate * 100.0
+    );
+    println!(
+        "  Efficiency score: {:.2}",
+        stats.overall_stats.efficiency_score
+    );
 
     // Performance metrics
     println!("\n⚡ Performance Metrics:");
@@ -63,14 +69,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let preheating_stats = cache.preheater().get_stats();
     println!("  Patterns learned: {}", preheating_stats.patterns_learned);
     println!("  Predictions made: {}", preheating_stats.predictions_made);
-    println!("  Average confidence: {:.2}", preheating_stats.avg_confidence);
+    println!(
+        "  Average confidence: {:.2}",
+        preheating_stats.avg_confidence
+    );
 
     // Adaptive tuning
     println!("\n⚙️ Adaptive Tuning:");
     let tuning_stats = cache.tuner().get_stats();
     println!("  Tuning operations: {}", tuning_stats.tuning_operations);
     println!("  Success rate: {:.2}%", tuning_stats.success_rate * 100.0);
-    println!("  Current confidence: {:.2}", tuning_stats.current_confidence);
+    println!(
+        "  Current confidence: {:.2}",
+        tuning_stats.current_confidence
+    );
 
     // Test cache capacity and eviction
     println!("\n🗂️ Testing Cache Capacity:");
@@ -79,9 +91,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let value = format!("temp_value_{}", i);
         cache.put(key, value).await?;
     }
-    
+
     let final_stats = cache.get_stats().await;
-    println!("  Final total entries: {}", final_stats.overall_stats.total_entries);
+    println!(
+        "  Final total entries: {}",
+        final_stats.overall_stats.total_entries
+    );
     println!("  Promotions: {}", final_stats.overall_stats.promotions);
     println!("  Demotions: {}", final_stats.overall_stats.demotions);
 

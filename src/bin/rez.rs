@@ -4,8 +4,8 @@
 //! built with Rust for optimal performance.
 
 use clap::Parser;
-use std::process;
 use std::env;
+use std::process;
 
 // Import CLI from the library
 use rez_core::cli::{RezCli, RezCommand};
@@ -31,7 +31,8 @@ fn handle_grouped_command(args: Vec<String>) {
     let mut arg_groups = vec![vec![]];
     let mut current_group = 0;
 
-    for arg in args.iter().skip(1) { // Skip program name
+    for arg in args.iter().skip(1) {
+        // Skip program name
         if arg == "--" {
             arg_groups.push(vec![]);
             current_group += 1;
@@ -53,7 +54,7 @@ fn handle_grouped_command(args: Vec<String>) {
                         if arg_groups.len() > 1 && !arg_groups[1].is_empty() {
                             if let Err(e) = rez_core::cli::commands::env::execute_with_extra_args(
                                 env_args.clone(),
-                                arg_groups[1].clone()
+                                arg_groups[1].clone(),
                             ) {
                                 eprintln!("Error: {}", e);
                                 process::exit(1);
@@ -80,5 +81,3 @@ fn handle_grouped_command(args: Vec<String>) {
         }
     }
 }
-
-

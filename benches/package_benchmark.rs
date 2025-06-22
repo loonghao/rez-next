@@ -8,8 +8,8 @@
 //! - Package cloning and memory operations
 //! - Requirements processing performance
 
-use criterion::{black_box, criterion_group, criterion_main, Criterion, BenchmarkId, Throughput};
-use rez_core_package::{Package, PackageSerializer, PackageFormat};
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use rez_core_package::{Package, PackageFormat, PackageSerializer};
 use rez_core_version::Version;
 use std::collections::HashMap;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -129,7 +129,7 @@ impl ModuleBenchmark for PackageBenchmark {
             module_name: "package".to_string(),
             timestamp: SystemTime::now(),
             benchmarks: HashMap::new(), // Would be populated with actual benchmark results
-            overall_score: 100.0, // Placeholder score
+            overall_score: 100.0,       // Placeholder score
             environment: environment::detect_environment(),
         }
     }
@@ -155,7 +155,7 @@ impl ModuleBenchmark for PackageBenchmark {
         let test_package = Package::new("test".to_string());
         if test_package.name != "test" {
             return Err(BenchmarkError::ValidationFailed(
-                "Package creation validation failed".to_string()
+                "Package creation validation failed".to_string(),
             ));
         }
         Ok(())
@@ -166,12 +166,10 @@ impl PackageBenchmark {
     /// Benchmark package creation with different complexity levels
     fn bench_package_creation(&self, c: &mut Criterion) {
         let mut group = c.benchmark_group("package_creation");
-        
+
         // Simple package creation
         group.bench_function("simple_package", |b| {
-            b.iter(|| {
-                black_box(Package::new("test_package".to_string()))
-            })
+            b.iter(|| black_box(Package::new("test_package".to_string())))
         });
 
         // Package with version
@@ -204,7 +202,7 @@ impl PackageBenchmark {
     /// Benchmark package serialization performance across different formats
     fn bench_package_serialization(&self, c: &mut Criterion) {
         let mut group = c.benchmark_group("package_serialization");
-        
+
         // Create test packages of different complexity
         let simple_package = self.create_simple_package();
         let complex_package = self.create_complex_package();
@@ -212,59 +210,41 @@ impl PackageBenchmark {
 
         // YAML serialization benchmarks
         group.bench_function("simple_yaml", |b| {
-            b.iter(|| {
-                black_box(PackageSerializer::save_to_yaml(&simple_package).unwrap())
-            })
+            b.iter(|| black_box(PackageSerializer::save_to_yaml(&simple_package).unwrap()))
         });
 
         group.bench_function("complex_yaml", |b| {
-            b.iter(|| {
-                black_box(PackageSerializer::save_to_yaml(&complex_package).unwrap())
-            })
+            b.iter(|| black_box(PackageSerializer::save_to_yaml(&complex_package).unwrap()))
         });
 
         group.bench_function("large_yaml", |b| {
-            b.iter(|| {
-                black_box(PackageSerializer::save_to_yaml(&large_package).unwrap())
-            })
+            b.iter(|| black_box(PackageSerializer::save_to_yaml(&large_package).unwrap()))
         });
 
         // JSON serialization benchmarks
         group.bench_function("simple_json", |b| {
-            b.iter(|| {
-                black_box(PackageSerializer::save_to_json(&simple_package).unwrap())
-            })
+            b.iter(|| black_box(PackageSerializer::save_to_json(&simple_package).unwrap()))
         });
 
         group.bench_function("complex_json", |b| {
-            b.iter(|| {
-                black_box(PackageSerializer::save_to_json(&complex_package).unwrap())
-            })
+            b.iter(|| black_box(PackageSerializer::save_to_json(&complex_package).unwrap()))
         });
 
         group.bench_function("large_json", |b| {
-            b.iter(|| {
-                black_box(PackageSerializer::save_to_json(&large_package).unwrap())
-            })
+            b.iter(|| black_box(PackageSerializer::save_to_json(&large_package).unwrap()))
         });
 
         // Python serialization benchmarks
         group.bench_function("simple_python", |b| {
-            b.iter(|| {
-                black_box(PackageSerializer::save_to_python(&simple_package).unwrap())
-            })
+            b.iter(|| black_box(PackageSerializer::save_to_python(&simple_package).unwrap()))
         });
 
         group.bench_function("complex_python", |b| {
-            b.iter(|| {
-                black_box(PackageSerializer::save_to_python(&complex_package).unwrap())
-            })
+            b.iter(|| black_box(PackageSerializer::save_to_python(&complex_package).unwrap()))
         });
 
         group.bench_function("large_python", |b| {
-            b.iter(|| {
-                black_box(PackageSerializer::save_to_python(&large_package).unwrap())
-            })
+            b.iter(|| black_box(PackageSerializer::save_to_python(&large_package).unwrap()))
         });
 
         group.finish();
@@ -273,7 +253,7 @@ impl PackageBenchmark {
     /// Benchmark package deserialization performance
     fn bench_package_deserialization(&self, c: &mut Criterion) {
         let mut group = c.benchmark_group("package_deserialization");
-        
+
         // Prepare serialized test data
         let simple_package = self.create_simple_package();
         let complex_package = self.create_complex_package();
@@ -293,59 +273,41 @@ impl PackageBenchmark {
 
         // YAML deserialization benchmarks
         group.bench_function("simple_yaml", |b| {
-            b.iter(|| {
-                black_box(PackageSerializer::load_from_yaml(&simple_yaml).unwrap())
-            })
+            b.iter(|| black_box(PackageSerializer::load_from_yaml(&simple_yaml).unwrap()))
         });
 
         group.bench_function("complex_yaml", |b| {
-            b.iter(|| {
-                black_box(PackageSerializer::load_from_yaml(&complex_yaml).unwrap())
-            })
+            b.iter(|| black_box(PackageSerializer::load_from_yaml(&complex_yaml).unwrap()))
         });
 
         group.bench_function("large_yaml", |b| {
-            b.iter(|| {
-                black_box(PackageSerializer::load_from_yaml(&large_yaml).unwrap())
-            })
+            b.iter(|| black_box(PackageSerializer::load_from_yaml(&large_yaml).unwrap()))
         });
 
         // JSON deserialization benchmarks
         group.bench_function("simple_json", |b| {
-            b.iter(|| {
-                black_box(PackageSerializer::load_from_json(&simple_json).unwrap())
-            })
+            b.iter(|| black_box(PackageSerializer::load_from_json(&simple_json).unwrap()))
         });
 
         group.bench_function("complex_json", |b| {
-            b.iter(|| {
-                black_box(PackageSerializer::load_from_json(&complex_json).unwrap())
-            })
+            b.iter(|| black_box(PackageSerializer::load_from_json(&complex_json).unwrap()))
         });
 
         group.bench_function("large_json", |b| {
-            b.iter(|| {
-                black_box(PackageSerializer::load_from_json(&large_json).unwrap())
-            })
+            b.iter(|| black_box(PackageSerializer::load_from_json(&large_json).unwrap()))
         });
 
         // Python deserialization benchmarks
         group.bench_function("simple_python", |b| {
-            b.iter(|| {
-                black_box(PackageSerializer::load_from_python(&simple_python).unwrap())
-            })
+            b.iter(|| black_box(PackageSerializer::load_from_python(&simple_python).unwrap()))
         });
 
         group.bench_function("complex_python", |b| {
-            b.iter(|| {
-                black_box(PackageSerializer::load_from_python(&complex_python).unwrap())
-            })
+            b.iter(|| black_box(PackageSerializer::load_from_python(&complex_python).unwrap()))
         });
 
         group.bench_function("large_python", |b| {
-            b.iter(|| {
-                black_box(PackageSerializer::load_from_python(&large_python).unwrap())
-            })
+            b.iter(|| black_box(PackageSerializer::load_from_python(&large_python).unwrap()))
         });
 
         group.finish();
@@ -361,27 +323,19 @@ impl PackageBenchmark {
         let invalid_package = self.create_invalid_package();
 
         group.bench_function("simple_valid", |b| {
-            b.iter(|| {
-                black_box(simple_package.validate().is_ok())
-            })
+            b.iter(|| black_box(simple_package.validate().is_ok()))
         });
 
         group.bench_function("complex_valid", |b| {
-            b.iter(|| {
-                black_box(complex_package.validate().is_ok())
-            })
+            b.iter(|| black_box(complex_package.validate().is_ok()))
         });
 
         group.bench_function("large_valid", |b| {
-            b.iter(|| {
-                black_box(large_package.validate().is_ok())
-            })
+            b.iter(|| black_box(large_package.validate().is_ok()))
         });
 
         group.bench_function("invalid_package", |b| {
-            b.iter(|| {
-                black_box(invalid_package.validate().is_err())
-            })
+            b.iter(|| black_box(invalid_package.validate().is_err()))
         });
 
         group.finish();
@@ -402,7 +356,10 @@ impl PackageBenchmark {
                         for i in 0..variant_count {
                             let variant = vec![
                                 format!("python-{}", i % 3 + 3),
-                                format!("platform-{}", if i % 2 == 0 { "linux" } else { "windows" }),
+                                format!(
+                                    "platform-{}",
+                                    if i % 2 == 0 { "linux" } else { "windows" }
+                                ),
                             ];
                             package.add_variant(variant);
                         }
@@ -415,9 +372,7 @@ impl PackageBenchmark {
         // Test variant access performance
         let package_with_variants = self.create_package_with_variants(50);
         group.bench_function("access_variants", |b| {
-            b.iter(|| {
-                black_box(package_with_variants.num_variants())
-            })
+            b.iter(|| black_box(package_with_variants.num_variants()))
         });
 
         group.finish();
@@ -432,21 +387,15 @@ impl PackageBenchmark {
         let large_package = self.create_large_package();
 
         group.bench_function("simple_clone", |b| {
-            b.iter(|| {
-                black_box(simple_package.clone())
-            })
+            b.iter(|| black_box(simple_package.clone()))
         });
 
         group.bench_function("complex_clone", |b| {
-            b.iter(|| {
-                black_box(complex_package.clone())
-            })
+            b.iter(|| black_box(complex_package.clone()))
         });
 
         group.bench_function("large_clone", |b| {
-            b.iter(|| {
-                black_box(large_package.clone())
-            })
+            b.iter(|| black_box(large_package.clone()))
         });
 
         group.finish();
@@ -526,7 +475,10 @@ impl PackageBenchmark {
         // Add variants
         package.add_variant(vec!["python-3.8".to_string(), "platform-linux".to_string()]);
         package.add_variant(vec!["python-3.9".to_string(), "platform-linux".to_string()]);
-        package.add_variant(vec!["python-3.8".to_string(), "platform-windows".to_string()]);
+        package.add_variant(vec![
+            "python-3.8".to_string(),
+            "platform-windows".to_string(),
+        ]);
 
         package
     }
@@ -534,7 +486,9 @@ impl PackageBenchmark {
     fn create_large_package(&self) -> Package {
         let mut package = Package::new("large_package".to_string());
         package.set_version(Version::parse("5.2.1").unwrap());
-        package.set_description("A large test package with many dependencies and variants".to_string());
+        package.set_description(
+            "A large test package with many dependencies and variants".to_string(),
+        );
 
         // Add many authors
         for i in 0..20 {

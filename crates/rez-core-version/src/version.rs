@@ -1,18 +1,18 @@
 //! Version implementation
 
+use super::parser::{StateMachineParser, TokenType};
 #[cfg(feature = "python-bindings")]
 use super::version_token::AlphanumericVersionToken;
-use super::parser::{StateMachineParser, TokenType};
-use rez_core_common::RezCoreError;
+use once_cell::sync::Lazy;
 #[cfg(feature = "python-bindings")]
 use pyo3::prelude::*;
 #[cfg(feature = "python-bindings")]
 use pyo3::types::PyTuple;
+use regex::Regex;
+use rez_core_common::RezCoreError;
+use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::hash::{Hash, Hasher};
-use regex::Regex;
-use once_cell::sync::Lazy;
-use serde::{Serialize, Deserialize};
 
 /// Global state machine parser instance for optimal performance
 static OPTIMIZED_PARSER: Lazy<StateMachineParser> = Lazy::new(|| StateMachineParser::new());
@@ -73,7 +73,8 @@ impl Version {
     /// Create a copy of the version
     pub fn copy(&self) -> Self {
         Python::with_gil(|py| {
-            let cloned_tokens: Vec<PyObject> = self.tokens
+            let cloned_tokens: Vec<PyObject> = self
+                .tokens
                 .iter()
                 .map(|token| token.clone_ref(py))
                 .collect();
@@ -91,9 +92,15 @@ impl Version {
     pub fn trim(&self, len_: usize) -> Self {
         Python::with_gil(|py| {
             let new_tokens: Vec<PyObject> = if len_ >= self.tokens.len() {
-                self.tokens.iter().map(|token| token.clone_ref(py)).collect()
+                self.tokens
+                    .iter()
+                    .map(|token| token.clone_ref(py))
+                    .collect()
             } else {
-                self.tokens[..len_].iter().map(|token| token.clone_ref(py)).collect()
+                self.tokens[..len_]
+                    .iter()
+                    .map(|token| token.clone_ref(py))
+                    .collect()
             };
 
             let new_separators = if len_ <= 1 {
@@ -123,7 +130,8 @@ impl Version {
         }
 
         Python::with_gil(|py| {
-            let mut new_tokens: Vec<PyObject> = self.tokens
+            let mut new_tokens: Vec<PyObject> = self
+                .tokens
                 .iter()
                 .map(|token| token.clone_ref(py))
                 .collect();
@@ -151,7 +159,8 @@ impl Version {
     /// Convert to a tuple of strings
     pub fn as_tuple(&self) -> PyResult<PyObject> {
         Python::with_gil(|py| {
-            let string_tokens: Result<Vec<String>, PyErr> = self.tokens
+            let string_tokens: Result<Vec<String>, PyErr> = self
+                .tokens
                 .iter()
                 .map(|token| {
                     let token_str = token.call_method0(py, "__str__")?;
@@ -238,8 +247,7 @@ impl Version {
     /// Parse a version string (static method)
     #[staticmethod]
     pub fn parse_static(s: &str) -> PyResult<Self> {
-        Self::parse(s)
-            .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(e.to_string()))
+        Self::parse(s).map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(e.to_string()))
     }
 
     fn __lt__(&self, other: &Self) -> bool {
@@ -296,12 +304,18 @@ impl Version {
     fn parse_internal_gil_free(s: &str) -> Result<(Vec<String>, Vec<String>), RezCoreError> {
         // Validate version format - reject obvious invalid patterns
         if s.starts_with('v') || s.starts_with('V') {
-            return Err(RezCoreError::VersionParse(format!("Version prefixes not supported: '{}'", s)));
+            return Err(RezCoreError::VersionParse(format!(
+                "Version prefixes not supported: '{}'",
+                s
+            )));
         }
 
         // Check for invalid characters or patterns
         if s.contains("..") || s.starts_with('.') || s.ends_with('.') {
-            return Err(RezCoreError::VersionParse(format!("Invalid version syntax: '{}'", s)));
+            return Err(RezCoreError::VersionParse(format!(
+                "Invalid version syntax: '{}'",
+                s
+            )));
         }
 
         // Use regex to find tokens (alphanumeric + underscore)
@@ -309,35 +323,56 @@ impl Version {
         let tokens: Vec<&str> = token_regex.find_iter(s).map(|m| m.as_str()).collect();
 
         if tokens.is_empty() {
-            return Err(RezCoreError::VersionParse(format!("Invalid version syntax: '{}'", s)));
+            return Err(RezCoreError::VersionParse(format!(
+                "Invalid version syntax: '{}'",
+                s
+            )));
         }
 
         // Check for too many numeric-only tokens (reject versions like 1.2.3.4.5.6)
-        let numeric_tokens: Vec<_> = tokens.iter().filter(|t| t.chars().all(|c| c.is_ascii_digit())).collect();
+        let numeric_tokens: Vec<_> = tokens
+            .iter()
+            .filter(|t| t.chars().all(|c| c.is_ascii_digit()))
+            .collect();
         if numeric_tokens.len() > 5 {
-            return Err(RezCoreError::VersionParse(format!("Version too complex: '{}'", s)));
+            return Err(RezCoreError::VersionParse(format!(
+                "Version too complex: '{}'",
+                s
+            )));
         }
 
         // Check for too many tokens overall
         if tokens.len() > 10 {
-            return Err(RezCoreError::VersionParse(format!("Version too complex: '{}'", s)));
+            return Err(RezCoreError::VersionParse(format!(
+                "Version too complex: '{}'",
+                s
+            )));
         }
 
         // Extract separators
         let separators: Vec<&str> = token_regex.split(s).collect();
 
         // Validate separators (should be empty at start/end, single char in middle)
-        if !separators[0].is_empty() || !separators[separators.len()-1].is_empty() {
-            return Err(RezCoreError::VersionParse(format!("Invalid version syntax: '{}'", s)));
+        if !separators[0].is_empty() || !separators[separators.len() - 1].is_empty() {
+            return Err(RezCoreError::VersionParse(format!(
+                "Invalid version syntax: '{}'",
+                s
+            )));
         }
 
-        for sep in &separators[1..separators.len()-1] {
+        for sep in &separators[1..separators.len() - 1] {
             if sep.len() > 1 {
-                return Err(RezCoreError::VersionParse(format!("Invalid version syntax: '{}'", s)));
+                return Err(RezCoreError::VersionParse(format!(
+                    "Invalid version syntax: '{}'",
+                    s
+                )));
             }
             // Only allow specific separators
             if !matches!(*sep, "." | "-" | "_" | "+") {
-                return Err(RezCoreError::VersionParse(format!("Invalid separator '{}' in version: '{}'", sep, s)));
+                return Err(RezCoreError::VersionParse(format!(
+                    "Invalid separator '{}' in version: '{}'",
+                    sep, s
+                )));
             }
         }
 
@@ -345,28 +380,40 @@ impl Version {
         for token_str in &tokens {
             // Check if token contains only valid characters
             if !token_str.chars().all(|c| c.is_alphanumeric() || c == '_') {
-                return Err(RezCoreError::VersionParse(format!("Invalid characters in token: '{}'", token_str)));
+                return Err(RezCoreError::VersionParse(format!(
+                    "Invalid characters in token: '{}'",
+                    token_str
+                )));
             }
 
             // Check for invalid patterns
             if token_str.starts_with('_') || token_str.ends_with('_') {
-                return Err(RezCoreError::VersionParse(format!("Invalid token format: '{}'", token_str)));
+                return Err(RezCoreError::VersionParse(format!(
+                    "Invalid token format: '{}'",
+                    token_str
+                )));
             }
 
             // Reject tokens that are purely alphabetic and don't look like version components
             if token_str.chars().all(|c| c.is_alphabetic()) && token_str.len() > 10 {
-                return Err(RezCoreError::VersionParse(format!("Invalid version token: '{}'", token_str)));
+                return Err(RezCoreError::VersionParse(format!(
+                    "Invalid version token: '{}'",
+                    token_str
+                )));
             }
 
             // Reject common invalid patterns
             if *token_str == "not" || *token_str == "version" {
-                return Err(RezCoreError::VersionParse(format!("Invalid version token: '{}'", token_str)));
+                return Err(RezCoreError::VersionParse(format!(
+                    "Invalid version token: '{}'",
+                    token_str
+                )));
             }
         }
 
         // Convert to owned strings
         let token_strings: Vec<String> = tokens.into_iter().map(|s| s.to_string()).collect();
-        let sep_strings: Vec<String> = separators[1..separators.len()-1]
+        let sep_strings: Vec<String> = separators[1..separators.len() - 1]
             .iter()
             .map(|s| s.to_string())
             .collect();
@@ -388,8 +435,10 @@ impl Version {
             // For now, create all tokens as AlphanumericVersionToken
             // TODO: Implement proper NumericToken vs AlphanumericVersionToken distinction
             let alpha_class = py.get_type::<AlphanumericVersionToken>();
-            let py_token = alpha_class.call1((token_str,))
-                .map_err(|e| RezCoreError::PyO3(e))?.into();
+            let py_token = alpha_class
+                .call1((token_str,))
+                .map_err(|e| RezCoreError::PyO3(e))?
+                .into();
             py_tokens.push(py_token);
         }
 
@@ -411,7 +460,8 @@ impl Version {
         }
 
         let token_regex = Regex::new(r"[a-zA-Z0-9_]+").unwrap();
-        token_regex.find_iter(&self.string_repr)
+        token_regex
+            .find_iter(&self.string_repr)
             .map(|m| m.as_str().to_string())
             .collect()
     }
@@ -439,7 +489,11 @@ impl Version {
                     // Check if the extra token indicates a pre-release
                     if let Some(extra_token) = self_tokens.get(i) {
                         // Check if it's a pre-release indicator (starts with alpha)
-                        if extra_token.chars().next().map_or(false, |c| c.is_alphabetic()) {
+                        if extra_token
+                            .chars()
+                            .next()
+                            .map_or(false, |c| c.is_alphabetic())
+                        {
                             return Ordering::Less; // Pre-release is less than release
                         }
                     }
@@ -450,7 +504,11 @@ impl Version {
                     // Check if the extra token indicates a pre-release
                     if let Some(extra_token) = other_tokens.get(i) {
                         // Check if it's a pre-release indicator (starts with alpha)
-                        if extra_token.chars().next().map_or(false, |c| c.is_alphabetic()) {
+                        if extra_token
+                            .chars()
+                            .next()
+                            .map_or(false, |c| c.is_alphabetic())
+                        {
                             return Ordering::Greater; // Release is greater than pre-release
                         }
                     }
@@ -517,9 +575,13 @@ impl Version {
                     if let Ok(s) = token_str.extract::<String>(py) {
                         let s_lower = s.to_lowercase();
                         // Common prerelease indicators
-                        if s_lower.contains("alpha") || s_lower.contains("beta") ||
-                           s_lower.contains("rc") || s_lower.contains("dev") ||
-                           s_lower.contains("pre") || s_lower.contains("snapshot") {
+                        if s_lower.contains("alpha")
+                            || s_lower.contains("beta")
+                            || s_lower.contains("rc")
+                            || s_lower.contains("dev")
+                            || s_lower.contains("pre")
+                            || s_lower.contains("snapshot")
+                        {
                             return true;
                         }
                     }
@@ -540,9 +602,13 @@ impl Version {
         for token in &self.tokens {
             let s_lower = token.to_lowercase();
             // Common prerelease indicators
-            if s_lower.contains("alpha") || s_lower.contains("beta") ||
-               s_lower.contains("rc") || s_lower.contains("dev") ||
-               s_lower.contains("pre") || s_lower.contains("snapshot") {
+            if s_lower.contains("alpha")
+                || s_lower.contains("beta")
+                || s_lower.contains("rc")
+                || s_lower.contains("dev")
+                || s_lower.contains("pre")
+                || s_lower.contains("snapshot")
+            {
                 return true;
             }
         }
@@ -567,12 +633,18 @@ impl Version {
 
         // Validate version format - reject obvious invalid patterns
         if s.starts_with('v') || s.starts_with('V') {
-            return Err(RezCoreError::VersionParse(format!("Version prefixes not supported: '{}'", s)));
+            return Err(RezCoreError::VersionParse(format!(
+                "Version prefixes not supported: '{}'",
+                s
+            )));
         }
 
         // Check for invalid characters or patterns
         if s.contains("..") || s.starts_with('.') || s.ends_with('.') {
-            return Err(RezCoreError::VersionParse(format!("Invalid version syntax: '{}'", s)));
+            return Err(RezCoreError::VersionParse(format!(
+                "Invalid version syntax: '{}'",
+                s
+            )));
         }
 
         // Use the optimized state machine parser
@@ -587,14 +659,18 @@ impl Version {
                     TokenType::Numeric(n) => {
                         // Create numeric token as string for now (rez compatibility)
                         let alpha_class = py.get_type::<AlphanumericVersionToken>();
-                        let py_token = alpha_class.call1((n.to_string(),))
-                            .map_err(|e| RezCoreError::PyO3(e))?.into();
+                        let py_token = alpha_class
+                            .call1((n.to_string(),))
+                            .map_err(|e| RezCoreError::PyO3(e))?
+                            .into();
                         py_tokens.push(py_token);
                     }
                     TokenType::Alphanumeric(s) => {
                         let alpha_class = py.get_type::<AlphanumericVersionToken>();
-                        let py_token = alpha_class.call1((s,))
-                            .map_err(|e| RezCoreError::PyO3(e))?.into();
+                        let py_token = alpha_class
+                            .call1((s,))
+                            .map_err(|e| RezCoreError::PyO3(e))?
+                            .into();
                         py_tokens.push(py_token);
                     }
                     TokenType::Separator(_) => {
@@ -700,12 +776,18 @@ impl Version {
 
         // Validate version format - reject obvious invalid patterns
         if s.starts_with('v') || s.starts_with('V') {
-            return Err(RezCoreError::VersionParse(format!("Version prefixes not supported: '{}'", s)));
+            return Err(RezCoreError::VersionParse(format!(
+                "Version prefixes not supported: '{}'",
+                s
+            )));
         }
 
         // Check for invalid characters or patterns
         if s.contains("..") || s.starts_with('.') || s.ends_with('.') {
-            return Err(RezCoreError::VersionParse(format!("Invalid version syntax: '{}'", s)));
+            return Err(RezCoreError::VersionParse(format!(
+                "Invalid version syntax: '{}'",
+                s
+            )));
         }
 
         Python::with_gil(|py| {
@@ -714,35 +796,56 @@ impl Version {
             let tokens: Vec<&str> = token_regex.find_iter(s).map(|m| m.as_str()).collect();
 
             if tokens.is_empty() {
-                return Err(RezCoreError::VersionParse(format!("Invalid version syntax: '{}'", s)));
+                return Err(RezCoreError::VersionParse(format!(
+                    "Invalid version syntax: '{}'",
+                    s
+                )));
             }
 
             // Check for too many numeric-only tokens (reject versions like 1.2.3.4.5.6)
-            let numeric_tokens: Vec<_> = tokens.iter().filter(|t| t.chars().all(|c| c.is_ascii_digit())).collect();
+            let numeric_tokens: Vec<_> = tokens
+                .iter()
+                .filter(|t| t.chars().all(|c| c.is_ascii_digit()))
+                .collect();
             if numeric_tokens.len() > 5 {
-                return Err(RezCoreError::VersionParse(format!("Version too complex: '{}'", s)));
+                return Err(RezCoreError::VersionParse(format!(
+                    "Version too complex: '{}'",
+                    s
+                )));
             }
 
             // Check for too many tokens overall
             if tokens.len() > 10 {
-                return Err(RezCoreError::VersionParse(format!("Version too complex: '{}'", s)));
+                return Err(RezCoreError::VersionParse(format!(
+                    "Version too complex: '{}'",
+                    s
+                )));
             }
 
             // Extract separators
             let separators: Vec<&str> = token_regex.split(s).collect();
 
             // Validate separators (should be empty at start/end, single char in middle)
-            if !separators[0].is_empty() || !separators[separators.len()-1].is_empty() {
-                return Err(RezCoreError::VersionParse(format!("Invalid version syntax: '{}'", s)));
+            if !separators[0].is_empty() || !separators[separators.len() - 1].is_empty() {
+                return Err(RezCoreError::VersionParse(format!(
+                    "Invalid version syntax: '{}'",
+                    s
+                )));
             }
 
-            for sep in &separators[1..separators.len()-1] {
+            for sep in &separators[1..separators.len() - 1] {
                 if sep.len() > 1 {
-                    return Err(RezCoreError::VersionParse(format!("Invalid version syntax: '{}'", s)));
+                    return Err(RezCoreError::VersionParse(format!(
+                        "Invalid version syntax: '{}'",
+                        s
+                    )));
                 }
                 // Only allow specific separators
                 if !matches!(*sep, "." | "-" | "_" | "+") {
-                    return Err(RezCoreError::VersionParse(format!("Invalid separator '{}' in version: '{}'", sep, s)));
+                    return Err(RezCoreError::VersionParse(format!(
+                        "Invalid separator '{}' in version: '{}'",
+                        sep, s
+                    )));
                 }
             }
 
@@ -750,22 +853,34 @@ impl Version {
             for token_str in &tokens {
                 // Check if token contains only valid characters
                 if !token_str.chars().all(|c| c.is_alphanumeric() || c == '_') {
-                    return Err(RezCoreError::VersionParse(format!("Invalid characters in token: '{}'", token_str)));
+                    return Err(RezCoreError::VersionParse(format!(
+                        "Invalid characters in token: '{}'",
+                        token_str
+                    )));
                 }
 
                 // Check for invalid patterns
                 if token_str.starts_with('_') || token_str.ends_with('_') {
-                    return Err(RezCoreError::VersionParse(format!("Invalid token format: '{}'", token_str)));
+                    return Err(RezCoreError::VersionParse(format!(
+                        "Invalid token format: '{}'",
+                        token_str
+                    )));
                 }
 
                 // Reject tokens that are purely alphabetic and don't look like version components
                 if token_str.chars().all(|c| c.is_alphabetic()) && token_str.len() > 10 {
-                    return Err(RezCoreError::VersionParse(format!("Invalid version token: '{}'", token_str)));
+                    return Err(RezCoreError::VersionParse(format!(
+                        "Invalid version token: '{}'",
+                        token_str
+                    )));
                 }
 
                 // Reject common invalid patterns
                 if *token_str == "not" || *token_str == "version" {
-                    return Err(RezCoreError::VersionParse(format!("Invalid version token: '{}'", token_str)));
+                    return Err(RezCoreError::VersionParse(format!(
+                        "Invalid version token: '{}'",
+                        token_str
+                    )));
                 }
             }
 
@@ -775,12 +890,14 @@ impl Version {
                 // For now, create all tokens as AlphanumericVersionToken
                 // TODO: Implement proper NumericToken vs AlphanumericVersionToken distinction
                 let alpha_class = py.get_type::<AlphanumericVersionToken>();
-                let py_token = alpha_class.call1((token_str,))
-                    .map_err(|e| RezCoreError::PyO3(e))?.into();
+                let py_token = alpha_class
+                    .call1((token_str,))
+                    .map_err(|e| RezCoreError::PyO3(e))?
+                    .into();
                 py_tokens.push(py_token);
             }
 
-            let sep_strings: Vec<String> = separators[1..separators.len()-1]
+            let sep_strings: Vec<String> = separators[1..separators.len() - 1]
                 .iter()
                 .map(|s| s.to_string())
                 .collect();
@@ -839,7 +956,7 @@ impl Version {
                 if i > 0 && i - 1 < separators.len() {
                     result.push_str(&separators[i - 1]);
                 } else if i > 0 {
-                    result.push('.');  // Default separator
+                    result.push('.'); // Default separator
                 }
 
                 if let Ok(token_str) = token.call_method0(py, "__str__") {
@@ -865,7 +982,7 @@ impl Version {
             if i > 0 && i - 1 < separators.len() {
                 result.push_str(&separators[i - 1]);
             } else if i > 0 {
-                result.push('.');  // Default separator
+                result.push('.'); // Default separator
             }
             result.push_str(token);
         }
@@ -936,11 +1053,11 @@ impl Version {
                         // Compare tokens using their less_than method
                         if let (Ok(self_lt_other), Ok(other_lt_self)) = (
                             self_tok.call_method1(py, "less_than", (other_tok,)),
-                            other_tok.call_method1(py, "less_than", (self_tok,))
+                            other_tok.call_method1(py, "less_than", (self_tok,)),
                         ) {
                             if let (Ok(self_lt), Ok(other_lt)) = (
                                 self_lt_other.extract::<bool>(py),
-                                other_lt_self.extract::<bool>(py)
+                                other_lt_self.extract::<bool>(py),
                             ) {
                                 if self_lt {
                                     return Ordering::Less;
@@ -1037,7 +1154,6 @@ impl Version {
         // If all compared tokens are equal, compare lengths
         tokens1.len().cmp(&tokens2.len())
     }
-
 }
 
 impl PartialEq for Version {
@@ -1071,7 +1187,8 @@ impl Hash for Version {
 impl Clone for Version {
     fn clone(&self) -> Self {
         Python::with_gil(|py| {
-            let cloned_tokens: Vec<PyObject> = self.tokens
+            let cloned_tokens: Vec<PyObject> = self
+                .tokens
                 .iter()
                 .map(|token| token.clone_ref(py))
                 .collect();
@@ -1189,7 +1306,7 @@ mod tests {
 
         // Test with __lt__ method
         assert!(!release.__lt__(&prerelease)); // "2" < "2.alpha1" should be false
-        assert!(prerelease.__lt__(&release));  // "2.alpha1" < "2" should be true
+        assert!(prerelease.__lt__(&release)); // "2.alpha1" < "2" should be true
     }
 
     #[test]
@@ -1206,6 +1323,4 @@ mod tests {
         let trimmed = version.trim(2);
         assert_eq!(trimmed.__len__(), 2);
     }
-
-
 }

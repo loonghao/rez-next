@@ -79,7 +79,10 @@ impl SimplifiedParser {
                         current_token.push(c);
                         state = ParseState::InToken;
                     } else {
-                        return Err(format!("Expected token character after separator, found '{}'", c));
+                        return Err(format!(
+                            "Expected token character after separator, found '{}'",
+                            c
+                        ));
                     }
                 }
             }
@@ -129,7 +132,7 @@ fn main() {
     println!("====================================");
 
     let parser = SimplifiedParser::new();
-    
+
     // Test cases
     let test_versions = vec![
         "1.2.3",
@@ -157,7 +160,7 @@ fn main() {
     // Performance test
     let iterations = 100000;
     let start = Instant::now();
-    
+
     for _ in 0..iterations {
         for version_str in &test_versions {
             match parser.parse_tokens(version_str) {
@@ -173,26 +176,34 @@ fn main() {
             }
         }
     }
-    
+
     let duration = start.elapsed();
     let total_parses = iterations * test_versions.len();
     let parses_per_second = total_parses as f64 / duration.as_secs_f64();
-    
+
     println!("✅ Completed {} parses in {:?}", total_parses, duration);
     println!("🎯 Performance: {:.0} parses/second", parses_per_second);
-    println!("📈 Average time per parse: {:.2} μs", duration.as_micros() as f64 / total_parses as f64);
+    println!(
+        "📈 Average time per parse: {:.2} μs",
+        duration.as_micros() as f64 / total_parses as f64
+    );
 
     // Test individual version parsing
     println!("\n🔍 Individual Version Analysis");
     println!("------------------------------");
-    
+
     for version_str in &test_versions {
         let start = Instant::now();
         match parser.parse_tokens(version_str) {
             Ok((tokens, separators)) => {
                 let duration = start.elapsed();
-                println!("✅ '{}' -> {} tokens, {} separators ({:.2} μs)", 
-                    version_str, tokens.len(), separators.len(), duration.as_micros());
+                println!(
+                    "✅ '{}' -> {} tokens, {} separators ({:.2} μs)",
+                    version_str,
+                    tokens.len(),
+                    separators.len(),
+                    duration.as_micros()
+                );
             }
             Err(e) => {
                 println!("❌ '{}' -> Error: {}", version_str, e);
@@ -201,12 +212,18 @@ fn main() {
     }
 
     println!("\n🎉 Performance test completed!");
-    
+
     // Performance target check
     if parses_per_second > 5000.0 {
         println!("🎯 SUCCESS: Achieved target of >5000 parses/second!");
-        println!("🚀 Current performance: {:.0}x faster than target!", parses_per_second / 5000.0);
+        println!(
+            "🚀 Current performance: {:.0}x faster than target!",
+            parses_per_second / 5000.0
+        );
     } else {
-        println!("⚠️  Target not met: {} < 5000 parses/second", parses_per_second as u64);
+        println!(
+            "⚠️  Target not met: {} < 5000 parses/second",
+            parses_per_second as u64
+        );
     }
 }

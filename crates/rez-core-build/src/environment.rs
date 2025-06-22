@@ -1,8 +1,8 @@
 //! Build environment management
 
 use rez_core_common::RezCoreError;
-use rez_core_package::Package;
 use rez_core_context::ResolvedContext;
+use rez_core_package::Package;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -48,7 +48,11 @@ impl BuildEnvironment {
         // Use custom install path or default to build directory
         let install_dir = if let Some(custom_path) = install_path {
             custom_path.join(&package.name).join(
-                package.version.as_ref().map(|v| v.as_str()).unwrap_or("unknown")
+                package
+                    .version
+                    .as_ref()
+                    .map(|v| v.as_str())
+                    .unwrap_or("unknown"),
             )
         } else {
             package_build_dir.join("install")
@@ -58,16 +62,25 @@ impl BuildEnvironment {
 
         // Set up environment variables
         let mut env_vars = HashMap::new();
-        
+
         // Add package-specific variables
         env_vars.insert("REZ_BUILD_PACKAGE_NAME".to_string(), package.name.clone());
-        
+
         if let Some(ref version) = package.version {
-            env_vars.insert("REZ_BUILD_PACKAGE_VERSION".to_string(), version.as_str().to_string());
+            env_vars.insert(
+                "REZ_BUILD_PACKAGE_VERSION".to_string(),
+                version.as_str().to_string(),
+            );
         }
 
-        env_vars.insert("REZ_BUILD_INSTALL_PATH".to_string(), install_dir.to_string_lossy().to_string());
-        env_vars.insert("REZ_BUILD_PATH".to_string(), package_build_dir.to_string_lossy().to_string());
+        env_vars.insert(
+            "REZ_BUILD_INSTALL_PATH".to_string(),
+            install_dir.to_string_lossy().to_string(),
+        );
+        env_vars.insert(
+            "REZ_BUILD_PATH".to_string(),
+            package_build_dir.to_string_lossy().to_string(),
+        );
 
         // Add context environment if available
         if let Some(context) = context {
@@ -129,13 +142,18 @@ impl BuildEnvironment {
     /// Set up build environment directories
     pub async fn setup(&self) -> Result<(), RezCoreError> {
         // Create directories
-        tokio::fs::create_dir_all(&self.build_dir).await
+        tokio::fs::create_dir_all(&self.build_dir)
+            .await
             .map_err(|e| RezCoreError::BuildError(format!("Failed to create build dir: {}", e)))?;
 
-        tokio::fs::create_dir_all(&self.install_dir).await
-            .map_err(|e| RezCoreError::BuildError(format!("Failed to create install dir: {}", e)))?;
+        tokio::fs::create_dir_all(&self.install_dir)
+            .await
+            .map_err(|e| {
+                RezCoreError::BuildError(format!("Failed to create install dir: {}", e))
+            })?;
 
-        tokio::fs::create_dir_all(&self.temp_dir).await
+        tokio::fs::create_dir_all(&self.temp_dir)
+            .await
             .map_err(|e| RezCoreError::BuildError(format!("Failed to create temp dir: {}", e)))?;
 
         Ok(())
@@ -144,8 +162,11 @@ impl BuildEnvironment {
     /// Clean build environment
     pub async fn clean(&self) -> Result<(), RezCoreError> {
         if self.build_dir.exists() {
-            tokio::fs::remove_dir_all(&self.build_dir).await
-                .map_err(|e| RezCoreError::BuildError(format!("Failed to clean build dir: {}", e)))?;
+            tokio::fs::remove_dir_all(&self.build_dir)
+                .await
+                .map_err(|e| {
+                    RezCoreError::BuildError(format!("Failed to clean build dir: {}", e))
+                })?;
         }
         Ok(())
     }
@@ -209,7 +230,9 @@ impl BuildEnvironment {
         } else {
             // Convert relative path to absolute
             std::env::current_dir()
-                .map_err(|e| RezCoreError::BuildError(format!("Cannot get current directory: {}", e)))?
+                .map_err(|e| {
+                    RezCoreError::BuildError(format!("Cannot get current directory: {}", e))
+                })?
                 .join(path)
         };
 
@@ -222,21 +245,25 @@ impl BuildEnvironment {
             let home_path = PathBuf::from(home);
             Ok(home_path.join(&path[2..]))
         } else {
-            Err(RezCoreError::BuildError("Cannot determine home directory".to_string()))
+            Err(RezCoreError::BuildError(
+                "Cannot determine home directory".to_string(),
+            ))
         }
     }
 
     /// Validate UNC paths
     fn validate_unc_path(path: &str) -> Result<(), RezCoreError> {
         if !path.starts_with("\\\\") {
-            return Err(RezCoreError::BuildError("Invalid UNC path format".to_string()));
+            return Err(RezCoreError::BuildError(
+                "Invalid UNC path format".to_string(),
+            ));
         }
 
         // Basic UNC path validation: \\server\share\path
         let parts: Vec<&str> = path[2..].split('\\').collect();
         if parts.len() < 2 || parts[0].is_empty() || parts[1].is_empty() {
             return Err(RezCoreError::BuildError(
-                "UNC path must be in format \\\\server\\share\\path".to_string()
+                "UNC path must be in format \\\\server\\share\\path".to_string(),
             ));
         }
 
@@ -246,13 +273,15 @@ impl BuildEnvironment {
     /// Validate Windows drive paths
     fn validate_drive_path(path: &str) -> Result<(), RezCoreError> {
         if path.len() < 2 {
-            return Err(RezCoreError::BuildError("Invalid drive path format".to_string()));
+            return Err(RezCoreError::BuildError(
+                "Invalid drive path format".to_string(),
+            ));
         }
 
         let drive_char = path.chars().nth(0).unwrap();
         if !drive_char.is_ascii_alphabetic() || path.chars().nth(1) != Some(':') {
             return Err(RezCoreError::BuildError(
-                "Drive path must start with a letter followed by colon (e.g., C:)".to_string()
+                "Drive path must start with a letter followed by colon (e.g., C:)".to_string(),
             ));
         }
 

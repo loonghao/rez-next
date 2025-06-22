@@ -1,6 +1,6 @@
 //! Tests for VersionToken compatibility with rez
 
-use crate::version_token::{SubToken, AlphanumericVersionToken, NumericToken};
+use crate::version_token::{AlphanumericVersionToken, NumericToken, SubToken};
 
 #[cfg(test)]
 mod tests {
@@ -106,10 +106,13 @@ mod tests {
         ];
 
         // Verify ordering: _, A-Z, a-z, then numbers
-        for i in 0..tokens.len()-1 {
-            assert!(tokens[i] < tokens[i+1],
+        for i in 0..tokens.len() - 1 {
+            assert!(
+                tokens[i] < tokens[i + 1],
                 "Expected token {} < token {}",
-                i, i+1);
+                i,
+                i + 1
+            );
         }
     }
 }

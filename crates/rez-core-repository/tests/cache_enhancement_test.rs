@@ -118,7 +118,8 @@ impl MockRepositoryScanner {
 
         // Try prefix matching
         for (cached_path, entry) in self.cache.iter_mut() {
-            if normalized_path.starts_with(cached_path) || cached_path.starts_with(&normalized_path) {
+            if normalized_path.starts_with(cached_path) || cached_path.starts_with(&normalized_path)
+            {
                 entry.access_count += 1;
                 entry.last_accessed = SystemTime::now();
                 self.prefix_hits += 1;
@@ -157,7 +158,7 @@ mod tests {
     fn test_cache_statistics() {
         let config = MockScannerConfig::default();
         let scanner = MockRepositoryScanner::new(config);
-        
+
         let stats = scanner.get_cache_statistics();
         assert_eq!(stats.hits, 0);
         assert_eq!(stats.misses, 0);
@@ -171,20 +172,20 @@ mod tests {
     fn test_prefix_matching_exact_match() {
         let config = MockScannerConfig::default();
         let mut scanner = MockRepositoryScanner::new(config);
-        
+
         let path = PathBuf::from("/test/package.py");
         let result = MockPackageScanResult {
             package_file: path.clone(),
             file_size: 1024,
             scan_duration_ms: 10,
         };
-        
+
         scanner.insert_cache_entry(path.clone(), result);
-        
+
         // Test exact match
         let cached_result = scanner.get_by_prefix(&path);
         assert!(cached_result.is_some());
-        
+
         let stats = scanner.get_cache_statistics();
         assert_eq!(stats.hits, 1);
         assert_eq!(stats.misses, 0);
@@ -196,22 +197,22 @@ mod tests {
     fn test_prefix_matching_prefix_match() {
         let config = MockScannerConfig::default();
         let mut scanner = MockRepositoryScanner::new(config);
-        
+
         let cached_path = PathBuf::from("/test");
         let query_path = PathBuf::from("/test/subdir/package.py");
-        
+
         let result = MockPackageScanResult {
             package_file: cached_path.clone(),
             file_size: 1024,
             scan_duration_ms: 10,
         };
-        
+
         scanner.insert_cache_entry(cached_path, result);
-        
+
         // Test prefix match
         let cached_result = scanner.get_by_prefix(&query_path);
         assert!(cached_result.is_some());
-        
+
         let stats = scanner.get_cache_statistics();
         assert_eq!(stats.hits, 0);
         assert_eq!(stats.misses, 0);
@@ -223,13 +224,13 @@ mod tests {
     fn test_cache_miss() {
         let config = MockScannerConfig::default();
         let mut scanner = MockRepositoryScanner::new(config);
-        
+
         let path = PathBuf::from("/nonexistent/package.py");
-        
+
         // Test cache miss
         let cached_result = scanner.get_by_prefix(&path);
         assert!(cached_result.is_none());
-        
+
         let stats = scanner.get_cache_statistics();
         assert_eq!(stats.hits, 0);
         assert_eq!(stats.misses, 1);
@@ -242,16 +243,16 @@ mod tests {
         let mut config = MockScannerConfig::default();
         config.enable_prefix_matching = false;
         let mut scanner = MockRepositoryScanner::new(config);
-        
+
         let path = PathBuf::from("/test/package.py");
         let result = MockPackageScanResult {
             package_file: path.clone(),
             file_size: 1024,
             scan_duration_ms: 10,
         };
-        
+
         scanner.insert_cache_entry(path.clone(), result);
-        
+
         // Test with prefix matching disabled
         let cached_result = scanner.get_by_prefix(&path);
         assert!(cached_result.is_none());
@@ -261,25 +262,25 @@ mod tests {
     fn test_access_count_tracking() {
         let config = MockScannerConfig::default();
         let mut scanner = MockRepositoryScanner::new(config);
-        
+
         let path = PathBuf::from("/test/package.py");
         let result = MockPackageScanResult {
             package_file: path.clone(),
             file_size: 1024,
             scan_duration_ms: 10,
         };
-        
+
         scanner.insert_cache_entry(path.clone(), result);
-        
+
         // Access the cache entry multiple times
         scanner.get_by_prefix(&path);
         scanner.get_by_prefix(&path);
         scanner.get_by_prefix(&path);
-        
+
         // Check that access count is tracked
         let entry = scanner.cache.get(&path).unwrap();
         assert_eq!(entry.access_count, 4); // 1 initial + 3 accesses
-        
+
         let stats = scanner.get_cache_statistics();
         assert_eq!(stats.hits, 3);
     }

@@ -1,11 +1,11 @@
 //! Version range implementation
 
 use super::Version;
-use rez_core_common::RezCoreError;
 use pyo3::prelude::*;
 use pyo3::types::PyType;
+use rez_core_common::RezCoreError;
+use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
-use serde::{Serialize, Deserialize};
 
 /// Version range representation
 #[pyclass]
@@ -148,28 +148,35 @@ impl VersionRange {
         let (lower_version, lower_inclusive) = match (&self.lower_version, &other.lower_version) {
             (None, None) => (None, true),
             (Some(v), None) | (None, Some(v)) => (Some(v.clone()), true),
-            (Some(v1), Some(v2)) => {
-                match v1.cmp(v2) {
-                    Ordering::Greater => (Some(v1.clone()), self.lower_inclusive),
-                    Ordering::Less => (Some(v2.clone()), other.lower_inclusive),
-                    Ordering::Equal => (Some(v1.clone()), self.lower_inclusive && other.lower_inclusive),
-                }
-            }
+            (Some(v1), Some(v2)) => match v1.cmp(v2) {
+                Ordering::Greater => (Some(v1.clone()), self.lower_inclusive),
+                Ordering::Less => (Some(v2.clone()), other.lower_inclusive),
+                Ordering::Equal => (
+                    Some(v1.clone()),
+                    self.lower_inclusive && other.lower_inclusive,
+                ),
+            },
         };
 
         let (upper_version, upper_inclusive) = match (&self.upper_version, &other.upper_version) {
             (None, None) => (None, true),
             (Some(v), None) | (None, Some(v)) => (Some(v.clone()), true),
-            (Some(v1), Some(v2)) => {
-                match v1.cmp(v2) {
-                    Ordering::Less => (Some(v1.clone()), self.upper_inclusive),
-                    Ordering::Greater => (Some(v2.clone()), other.upper_inclusive),
-                    Ordering::Equal => (Some(v1.clone()), self.upper_inclusive && other.upper_inclusive),
-                }
-            }
+            (Some(v1), Some(v2)) => match v1.cmp(v2) {
+                Ordering::Less => (Some(v1.clone()), self.upper_inclusive),
+                Ordering::Greater => (Some(v2.clone()), other.upper_inclusive),
+                Ordering::Equal => (
+                    Some(v1.clone()),
+                    self.upper_inclusive && other.upper_inclusive,
+                ),
+            },
         };
 
-        let range_str = Self::build_range_string(&lower_version, lower_inclusive, &upper_version, upper_inclusive);
+        let range_str = Self::build_range_string(
+            &lower_version,
+            lower_inclusive,
+            &upper_version,
+            upper_inclusive,
+        );
 
         Some(VersionRange {
             range_str,
@@ -190,27 +197,34 @@ impl VersionRange {
         // Compute the union bounds
         let (lower_version, lower_inclusive) = match (&self.lower_version, &other.lower_version) {
             (None, _) | (_, None) => (None, true), // Any unbounded lower means unbounded result
-            (Some(v1), Some(v2)) => {
-                match v1.cmp(v2) {
-                    Ordering::Less => (Some(v1.clone()), self.lower_inclusive),
-                    Ordering::Greater => (Some(v2.clone()), other.lower_inclusive),
-                    Ordering::Equal => (Some(v1.clone()), self.lower_inclusive || other.lower_inclusive),
-                }
-            }
+            (Some(v1), Some(v2)) => match v1.cmp(v2) {
+                Ordering::Less => (Some(v1.clone()), self.lower_inclusive),
+                Ordering::Greater => (Some(v2.clone()), other.lower_inclusive),
+                Ordering::Equal => (
+                    Some(v1.clone()),
+                    self.lower_inclusive || other.lower_inclusive,
+                ),
+            },
         };
 
         let (upper_version, upper_inclusive) = match (&self.upper_version, &other.upper_version) {
             (None, _) | (_, None) => (None, true), // Any unbounded upper means unbounded result
-            (Some(v1), Some(v2)) => {
-                match v1.cmp(v2) {
-                    Ordering::Greater => (Some(v1.clone()), self.upper_inclusive),
-                    Ordering::Less => (Some(v2.clone()), other.upper_inclusive),
-                    Ordering::Equal => (Some(v1.clone()), self.upper_inclusive || other.upper_inclusive),
-                }
-            }
+            (Some(v1), Some(v2)) => match v1.cmp(v2) {
+                Ordering::Greater => (Some(v1.clone()), self.upper_inclusive),
+                Ordering::Less => (Some(v2.clone()), other.upper_inclusive),
+                Ordering::Equal => (
+                    Some(v1.clone()),
+                    self.upper_inclusive || other.upper_inclusive,
+                ),
+            },
         };
 
-        let range_str = Self::build_range_string(&lower_version, lower_inclusive, &upper_version, upper_inclusive);
+        let range_str = Self::build_range_string(
+            &lower_version,
+            lower_inclusive,
+            &upper_version,
+            upper_inclusive,
+        );
 
         Some(VersionRange {
             range_str,
@@ -252,7 +266,11 @@ impl VersionRange {
 
     /// Create a range from a single version with an operator
     #[classmethod]
-    pub fn from_version(_cls: &Bound<'_, PyType>, version: &Version, op: Option<&str>) -> PyResult<Self> {
+    pub fn from_version(
+        _cls: &Bound<'_, PyType>,
+        version: &Version,
+        op: Option<&str>,
+    ) -> PyResult<Self> {
         let (lower_version, lower_inclusive, upper_version, upper_inclusive) = match op {
             None => {
                 // No operator means "version or greater, but less than next version"
@@ -279,13 +297,19 @@ impl VersionRange {
                 (None, true, Some(version.clone()), true)
             }
             _ => {
-                return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
-                    format!("Unknown bound operation '{}'", op.unwrap_or(""))
-                ));
+                return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
+                    "Unknown bound operation '{}'",
+                    op.unwrap_or("")
+                )));
             }
         };
 
-        let range_str = Self::build_range_string(&lower_version, lower_inclusive, &upper_version, upper_inclusive);
+        let range_str = Self::build_range_string(
+            &lower_version,
+            lower_inclusive,
+            &upper_version,
+            upper_inclusive,
+        );
 
         Ok(VersionRange {
             range_str,
@@ -310,7 +334,12 @@ impl VersionRange {
         let lower_version = lower_version.cloned();
         let upper_version = upper_version.cloned();
 
-        let range_str = Self::build_range_string(&lower_version, lower_inclusive, &upper_version, upper_inclusive);
+        let range_str = Self::build_range_string(
+            &lower_version,
+            lower_inclusive,
+            &upper_version,
+            upper_inclusive,
+        );
 
         Ok(VersionRange {
             range_str,
@@ -327,7 +356,7 @@ impl VersionRange {
         let versions: Vec<Version> = versions.extract()?;
         if versions.is_empty() {
             return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
-                "Cannot create range from empty version list"
+                "Cannot create range from empty version list",
             ));
         }
 
@@ -362,8 +391,7 @@ impl VersionRange {
     /// Parse a version range string (static method)
     #[staticmethod]
     pub fn parse_static(s: &str) -> PyResult<Self> {
-        Self::parse(s)
-            .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(e.to_string()))
+        Self::parse(s).map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(e.to_string()))
     }
 }
 
@@ -438,7 +466,9 @@ impl VersionRange {
         let conditions: Vec<&str> = s.split(',').map(|s| s.trim()).collect();
 
         if conditions.is_empty() {
-            return Err(RezCoreError::VersionParse("Empty compound range".to_string()));
+            return Err(RezCoreError::VersionParse(
+                "Empty compound range".to_string(),
+            ));
         }
 
         let mut lower_version: Option<Version> = None;
@@ -729,8 +759,6 @@ mod tests {
         assert!(!range.contains_version(&version2));
         assert!(range.contains_version(&version3));
     }
-
-
 
     #[test]
     fn test_compound_range_parsing() {

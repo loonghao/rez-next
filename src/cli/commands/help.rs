@@ -3,9 +3,9 @@
 //! Implements the `rez pkg-help` command for displaying package help information.
 
 use clap::Args;
-use rez_core_common::{RezCoreError, error::RezCoreResult};
-use rez_core_repository::simple_repository::{RepositoryManager, SimpleRepository};
+use rez_core_common::{error::RezCoreResult, RezCoreError};
 use rez_core_package::Package;
+use rez_core_repository::simple_repository::{RepositoryManager, SimpleRepository};
 use std::path::PathBuf;
 
 /// Arguments for the pkg-help command
@@ -64,12 +64,9 @@ pub fn execute(args: PkgHelpArgs) -> RezCoreResult<()> {
     }
 
     // Create async runtime for package help
-    let runtime = tokio::runtime::Runtime::new()
-        .map_err(|e| RezCoreError::Io(e.into()))?;
+    let runtime = tokio::runtime::Runtime::new().map_err(|e| RezCoreError::Io(e.into()))?;
 
-    runtime.block_on(async {
-        execute_package_help_async(&args).await
-    })
+    runtime.block_on(async { execute_package_help_async(&args).await })
 }
 
 /// Show rez manual or general help
@@ -196,16 +193,17 @@ async fn find_package_help(
     args: &PkgHelpArgs,
 ) -> RezCoreResult<PackageHelp> {
     let packages = repo_manager.find_packages(package_name).await?;
-    
+
     if packages.is_empty() {
-        return Err(RezCoreError::RequirementParse(
-            format!("Package '{}' not found", package_name)
-        ));
+        return Err(RezCoreError::RequirementParse(format!(
+            "Package '{}' not found",
+            package_name
+        )));
     }
 
     // Find the latest package (first in list)
     let package = packages.into_iter().next().unwrap();
-    
+
     if args.verbose {
         println!("Found package: {}", package.name);
         if let Some(ref version) = package.version {
@@ -215,11 +213,12 @@ async fn find_package_help(
 
     // Extract help information
     let help_sections = extract_help_sections(&package);
-    
+
     if help_sections.is_empty() {
-        return Err(RezCoreError::RequirementParse(
-            format!("No help found for package '{}'", package_name)
-        ));
+        return Err(RezCoreError::RequirementParse(format!(
+            "No help found for package '{}'",
+            package_name
+        )));
     }
 
     Ok(PackageHelp {
@@ -245,19 +244,19 @@ fn extract_help_sections(package: &Package) -> Vec<HelpSection> {
     // Add basic package information
     let mut info_content = String::new();
     info_content.push_str(&format!("Package: {}\n", package.name));
-    
+
     if let Some(ref version) = package.version {
         info_content.push_str(&format!("Version: {}\n", version.as_str()));
     }
-    
+
     if !package.authors.is_empty() {
         info_content.push_str(&format!("Authors: {}\n", package.authors.join(", ")));
     }
-    
+
     if !package.requires.is_empty() {
         info_content.push_str(&format!("Requirements: {}\n", package.requires.join(", ")));
     }
-    
+
     if !package.tools.is_empty() {
         info_content.push_str(&format!("Tools: {}\n", package.tools.join(", ")));
     }
@@ -272,7 +271,7 @@ fn extract_help_sections(package: &Package) -> Vec<HelpSection> {
         "To use this package in an environment:\n  rez env {}\n\nTo view package details:\n  rez view {}",
         package.name, package.name
     );
-    
+
     sections.push(HelpSection {
         name: "Usage".to_string(),
         content: usage_content,
@@ -301,28 +300,32 @@ fn display_help_entries(package_help: &PackageHelp) {
         println!("  {}: {}", i + 1, section.name);
     }
     println!();
-    println!("Use 'rez help {} <section_number>' to view a specific section.", package_help.package_name);
+    println!(
+        "Use 'rez help {} <section_number>' to view a specific section.",
+        package_help.package_name
+    );
 }
 
 /// Display specific help section
 fn display_help_section(package_help: &PackageHelp, section_num: u32) -> RezCoreResult<()> {
     let section_index = (section_num as usize).saturating_sub(1);
-    
+
     if section_index >= package_help.sections.len() {
-        return Err(RezCoreError::RequirementParse(
-            format!("No such help section {}. Available sections: 1-{}", 
-                section_num, package_help.sections.len())
-        ));
+        return Err(RezCoreError::RequirementParse(format!(
+            "No such help section {}. Available sections: 1-{}",
+            section_num,
+            package_help.sections.len()
+        )));
     }
 
     let section = &package_help.sections[section_index];
-    
+
     println!("Help for: {}", package_help.package_name);
     if let Some(ref version) = package_help.package_version {
         println!("Version: {}", version);
     }
     println!();
-    
+
     println!("Section {}: {}", section_num, section.name);
     println!("{}", "=".repeat(50));
     println!();

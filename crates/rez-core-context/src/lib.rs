@@ -10,17 +10,17 @@
 
 mod context;
 mod environment;
-mod shell;
-mod serialization;
 mod execution;
 mod resolved_context;
+mod serialization;
+mod shell;
 
 pub use context::*;
 pub use environment::*;
-pub use shell::*;
-pub use serialization::*;
 pub use execution::*;
 pub use resolved_context::*;
+pub use serialization::*;
+pub use shell::*;
 
 // use pyo3::prelude::*;  // Temporarily disabled due to DLL issues
 

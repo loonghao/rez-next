@@ -86,13 +86,18 @@ impl BuildArtifacts {
     }
 
     /// Recursively scan directory for files
-    async fn scan_directory(&mut self, dir: &PathBuf, relative_path: &PathBuf) -> Result<(), RezCoreError> {
-        let mut entries = tokio::fs::read_dir(dir).await
+    async fn scan_directory(
+        &mut self,
+        dir: &PathBuf,
+        relative_path: &PathBuf,
+    ) -> Result<(), RezCoreError> {
+        let mut entries = tokio::fs::read_dir(dir)
+            .await
             .map_err(|e| RezCoreError::BuildError(format!("Failed to read directory: {}", e)))?;
 
-        while let Some(entry) = entries.next_entry().await
-            .map_err(|e| RezCoreError::BuildError(format!("Failed to read directory entry: {}", e)))? {
-            
+        while let Some(entry) = entries.next_entry().await.map_err(|e| {
+            RezCoreError::BuildError(format!("Failed to read directory entry: {}", e))
+        })? {
             let path = entry.path();
             let file_name = entry.file_name();
             let relative_file_path = relative_path.join(&file_name);
@@ -102,8 +107,9 @@ impl BuildArtifacts {
                 Box::pin(self.scan_directory(&path, &relative_file_path)).await?;
             } else {
                 // Add file to artifacts
-                let metadata = tokio::fs::metadata(&path).await
-                    .map_err(|e| RezCoreError::BuildError(format!("Failed to get file metadata: {}", e)))?;
+                let metadata = tokio::fs::metadata(&path).await.map_err(|e| {
+                    RezCoreError::BuildError(format!("Failed to get file metadata: {}", e))
+                })?;
 
                 let file_type = Self::determine_file_type(&path);
                 let size_bytes = metadata.len();
@@ -162,7 +168,10 @@ impl BuildArtifacts {
         #[cfg(windows)]
         {
             if let Some(extension) = path.extension().and_then(|ext| ext.to_str()) {
-                matches!(extension.to_lowercase().as_str(), "exe" | "bat" | "cmd" | "com")
+                matches!(
+                    extension.to_lowercase().as_str(),
+                    "exe" | "bat" | "cmd" | "com"
+                )
             } else {
                 false
             }
@@ -191,7 +200,10 @@ impl BuildArtifacts {
 
     /// Get files by type
     pub fn get_files_by_type(&self, file_type: ArtifactFileType) -> Vec<&ArtifactFile> {
-        self.files.iter().filter(|f| f.file_type == file_type).collect()
+        self.files
+            .iter()
+            .filter(|f| f.file_type == file_type)
+            .collect()
     }
 
     /// Get total size of all artifacts
@@ -237,15 +249,18 @@ impl BuildArtifacts {
 
         for file in &self.files {
             let full_path = self.install_dir.join(&file.path);
-            
+
             if !full_path.exists() {
-                validation.errors.push(format!("File does not exist: {}", file.path.display()));
+                validation
+                    .errors
+                    .push(format!("File does not exist: {}", file.path.display()));
                 continue;
             }
 
             // Check file size
-            let metadata = tokio::fs::metadata(&full_path).await
-                .map_err(|e| RezCoreError::BuildError(format!("Failed to get file metadata: {}", e)))?;
+            let metadata = tokio::fs::metadata(&full_path).await.map_err(|e| {
+                RezCoreError::BuildError(format!("Failed to get file metadata: {}", e))
+            })?;
 
             if metadata.len() != file.size_bytes {
                 validation.warnings.push(format!(

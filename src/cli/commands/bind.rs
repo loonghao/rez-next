@@ -3,7 +3,7 @@
 //! Implements the `rez bind` command for converting system software into rez packages.
 
 use clap::Args;
-use rez_core_common::{RezCoreError, error::RezCoreResult};
+use rez_core_common::{error::RezCoreResult, RezCoreError};
 use rez_core_package::Package;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -96,7 +96,7 @@ pub fn execute(args: BindArgs) -> RezCoreResult<()> {
             return search_bind_module(package, &args);
         } else {
             return Err(RezCoreError::RequirementParse(
-                "Package name required for search".to_string()
+                "Package name required for search".to_string(),
             ));
         }
     }
@@ -149,7 +149,7 @@ fn execute_quickstart(args: &BindArgs) -> RezCoreResult<()> {
     // Standard packages in dependency order
     let quickstart_packages = vec![
         "platform",
-        "arch", 
+        "arch",
         "os",
         "python",
         "rez",
@@ -162,8 +162,12 @@ fn execute_quickstart(args: &BindArgs) -> RezCoreResult<()> {
     let mut results = Vec::new();
 
     for package_name in quickstart_packages {
-        println!("Binding {} into {}...", package_name, install_path.display());
-        
+        println!(
+            "Binding {} into {}...",
+            package_name,
+            install_path.display()
+        );
+
         match bind_single_package(package_name, &install_path, true, args) {
             Ok(result) => {
                 if result.success {
@@ -172,8 +176,9 @@ fn execute_quickstart(args: &BindArgs) -> RezCoreResult<()> {
                         println!("✅ Successfully bound {}", package_name);
                     }
                 } else {
-                    eprintln!("⚠️  Failed to bind {}: {}", 
-                        package_name, 
+                    eprintln!(
+                        "⚠️  Failed to bind {}: {}",
+                        package_name,
                         result.error.unwrap_or_else(|| "Unknown error".to_string())
                     );
                 }
@@ -202,7 +207,7 @@ fn search_bind_module(package_name: &str, args: &BindArgs) -> RezCoreResult<()> 
     }
 
     let modules = get_bind_modules()?;
-    
+
     if let Some(module) = modules.get(package_name) {
         println!("Found bind module for '{}':", package_name);
         println!("  Path: {}", module.path.display());
@@ -214,7 +219,7 @@ fn search_bind_module(package_name: &str, args: &BindArgs) -> RezCoreResult<()> 
         }
     } else {
         println!("'{}' not found.", package_name);
-        
+
         // Suggest close matches
         let close_matches = find_close_matches(package_name, &modules);
         if !close_matches.is_empty() {
@@ -238,15 +243,15 @@ fn bind_package(package_spec: &str, args: &BindArgs) -> RezCoreResult<()> {
 
     // Parse package specification (name and optional version range)
     let (package_name, _version_range) = parse_package_spec(package_spec)?;
-    
+
     let install_path = get_install_path(args)?;
-    
+
     match bind_single_package(&package_name, &install_path, args.no_deps, args) {
         Ok(result) => {
             if result.success {
                 println!("✅ Successfully bound package '{}'", package_name);
                 println!("   Installed to: {}", result.install_path.display());
-                
+
                 if args.verbose {
                     println!("   Package details:");
                     println!("     Name: {}", result.package.name);
@@ -258,7 +263,8 @@ fn bind_package(package_spec: &str, args: &BindArgs) -> RezCoreResult<()> {
                     }
                 }
             } else {
-                eprintln!("❌ Failed to bind package '{}': {}", 
+                eprintln!(
+                    "❌ Failed to bind package '{}': {}",
                     package_name,
                     result.error.unwrap_or_else(|| "Unknown error".to_string())
                 );
@@ -295,12 +301,19 @@ fn get_bind_modules() -> RezCoreResult<HashMap<String, BindModule>> {
     ];
 
     for (name, description) in builtin_modules {
-        modules.insert(name.to_string(), BindModule {
-            name: name.to_string(),
-            path: PathBuf::from(format!("builtin://{}", name)),
-            description: Some(description.to_string()),
-            platforms: vec!["windows".to_string(), "linux".to_string(), "darwin".to_string()],
-        });
+        modules.insert(
+            name.to_string(),
+            BindModule {
+                name: name.to_string(),
+                path: PathBuf::from(format!("builtin://{}", name)),
+                description: Some(description.to_string()),
+                platforms: vec![
+                    "windows".to_string(),
+                    "linux".to_string(),
+                    "darwin".to_string(),
+                ],
+            },
+        );
     }
 
     // TODO: Scan for external bind modules in bind paths
@@ -327,32 +340,36 @@ fn parse_package_spec(spec: &str) -> RezCoreResult<(String, Option<String>)> {
     if let Some(dash_pos) = spec.rfind('-') {
         let name = spec[..dash_pos].to_string();
         let version = spec[dash_pos + 1..].to_string();
-        
+
         // Check if version part looks like a version
         if version.chars().next().map_or(false, |c| c.is_ascii_digit()) {
             return Ok((name, Some(version)));
         }
     }
-    
+
     Ok((spec.to_string(), None))
 }
 
 /// Bind a single package
 fn bind_single_package(
-    name: &str, 
-    install_path: &Path, 
-    no_deps: bool, 
-    args: &BindArgs
+    name: &str,
+    install_path: &Path,
+    no_deps: bool,
+    args: &BindArgs,
 ) -> RezCoreResult<BindResult> {
     // TODO: Implement actual binding logic
     // For now, create a mock package
-    
+
     let package = Package {
         name: name.to_string(),
         version: Some(rez_core_version::Version::parse("1.0.0")?),
         description: Some(format!("System package: {}", name)),
         authors: vec!["System".to_string()],
-        requires: if no_deps { vec![] } else { get_default_requirements(name) },
+        requires: if no_deps {
+            vec![]
+        } else {
+            get_default_requirements(name)
+        },
         build_requires: vec![],
         private_build_requires: vec![],
         variants: vec![],
@@ -419,15 +436,18 @@ fn get_default_tools(name: &str) -> Vec<String> {
 }
 
 /// Find close matches for a package name
-fn find_close_matches<'a>(name: &str, modules: &'a HashMap<String, BindModule>) -> Vec<(String, &'a BindModule)> {
+fn find_close_matches<'a>(
+    name: &str,
+    modules: &'a HashMap<String, BindModule>,
+) -> Vec<(String, &'a BindModule)> {
     let mut matches = Vec::new();
-    
+
     for (module_name, module) in modules {
         if module_name.contains(name) || name.contains(module_name) {
             matches.push((module_name.clone(), module));
         }
     }
-    
+
     matches.sort_by(|a, b| a.0.cmp(&b.0));
     matches
 }
@@ -436,7 +456,7 @@ fn find_close_matches<'a>(name: &str, modules: &'a HashMap<String, BindModule>) 
 fn print_package_list(results: &[BindResult]) {
     println!("{:<20} {:<50}", "PACKAGE", "URI");
     println!("{:<20} {:<50}", "-------", "---");
-    
+
     for result in results {
         let uri = format!("file://{}", result.install_path.display());
         println!("{:<20} {:<50}", result.package.name, uri);
@@ -453,12 +473,12 @@ mod tests {
             parse_package_spec("python").unwrap(),
             ("python".to_string(), None)
         );
-        
+
         assert_eq!(
             parse_package_spec("python-3.9").unwrap(),
             ("python".to_string(), Some("3.9".to_string()))
         );
-        
+
         assert_eq!(
             parse_package_spec("my-package-name").unwrap(),
             ("my-package-name".to_string(), None)

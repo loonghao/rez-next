@@ -64,7 +64,7 @@ mod astar_standalone {
                 state_id: 0,
                 state_hash: 0,
             };
-            
+
             state.update_hash();
             state.state_id = state.state_hash;
             state
@@ -78,10 +78,10 @@ mod astar_standalone {
         ) -> Self {
             let mut resolved_packages = parent.resolved_packages.clone();
             resolved_packages.insert(resolved_package.name.clone(), resolved_package);
-            
+
             let mut pending_requirements = parent.pending_requirements.clone();
             pending_requirements.extend(new_requirements);
-            
+
             let mut state = Self {
                 resolved_packages,
                 pending_requirements,
@@ -93,7 +93,7 @@ mod astar_standalone {
                 state_id: 0,
                 state_hash: 0,
             };
-            
+
             state.update_hash();
             state.state_id = state.state_hash;
             state
@@ -124,33 +124,36 @@ mod astar_standalone {
         }
 
         pub fn remove_requirement(&mut self, requirement: &PackageRequirement) {
-            self.pending_requirements.retain(|req| req.name != requirement.name);
+            self.pending_requirements
+                .retain(|req| req.name != requirement.name);
             self.update_hash();
         }
 
         fn update_hash(&mut self) {
             use std::collections::hash_map::DefaultHasher;
-            
+
             let mut hasher = DefaultHasher::new();
-            
+
             let mut package_names: Vec<_> = self.resolved_packages.keys().collect();
             package_names.sort();
             for name in package_names {
                 name.hash(&mut hasher);
             }
-            
-            let mut req_strings: Vec<_> = self.pending_requirements.iter()
+
+            let mut req_strings: Vec<_> = self
+                .pending_requirements
+                .iter()
                 .map(|req| &req.requirement_string)
                 .collect();
             req_strings.sort();
             for req_str in req_strings {
                 req_str.hash(&mut hasher);
             }
-            
+
             for conflict in &self.conflicts {
                 conflict.package_name.hash(&mut hasher);
             }
-            
+
             self.state_hash = hasher.finish();
         }
 
@@ -159,9 +162,9 @@ mod astar_standalone {
         }
 
         pub fn calculate_complexity(&self) -> usize {
-            self.resolved_packages.len() + 
-            self.pending_requirements.len() + 
-            self.conflicts.len() * 2
+            self.resolved_packages.len()
+                + self.pending_requirements.len()
+                + self.conflicts.len() * 2
         }
     }
 
@@ -181,7 +184,9 @@ mod astar_standalone {
 
     impl PartialOrd for SearchState {
         fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-            other.estimated_total_cost.partial_cmp(&self.estimated_total_cost)
+            other
+                .estimated_total_cost
+                .partial_cmp(&self.estimated_total_cost)
         }
     }
 
@@ -205,9 +210,9 @@ mod astar_standalone {
         }
 
         pub fn get_state(&mut self) -> SearchState {
-            self.pool.pop().unwrap_or_else(|| {
-                SearchState::new_initial(Vec::new())
-            })
+            self.pool
+                .pop()
+                .unwrap_or_else(|| SearchState::new_initial(Vec::new()))
         }
 
         pub fn return_state(&mut self, mut state: SearchState) {
@@ -221,7 +226,7 @@ mod astar_standalone {
                 state.parent_id = None;
                 state.state_id = 0;
                 state.state_hash = 0;
-                
+
                 self.pool.push(state);
             }
         }
@@ -235,155 +240,155 @@ mod astar_standalone {
     pub fn run_standalone_tests() -> Result<(), String> {
         println!("🧪 Running Standalone A* Search Framework Tests");
         println!("===============================================");
-        
+
         test_search_state_creation()?;
         test_state_pool_functionality()?;
         test_conflict_management()?;
         test_state_hashing()?;
         test_state_transitions()?;
         test_goal_state_detection()?;
-        
+
         println!("===============================================");
         println!("🎉 All standalone tests passed!");
-        
+
         Ok(())
     }
 
     fn test_search_state_creation() -> Result<(), String> {
         println!("Testing SearchState creation...");
-        
+
         let req = PackageRequirement {
             name: "test_package".to_string(),
             requirement_string: "test_package".to_string(),
         };
-        
+
         let state = SearchState::new_initial(vec![req]);
-        
+
         if state.depth != 0 {
             return Err("Initial state should have depth 0".to_string());
         }
-        
+
         if !state.resolved_packages.is_empty() {
             return Err("Initial state should have no resolved packages".to_string());
         }
-        
+
         if !state.conflicts.is_empty() {
             return Err("Initial state should have no conflicts".to_string());
         }
-        
+
         if state.pending_requirements.len() != 1 {
             return Err("Initial state should have 1 pending requirement".to_string());
         }
-        
+
         if state.is_goal() {
             return Err("Initial state with pending requirements should not be goal".to_string());
         }
-        
+
         println!("✅ SearchState creation test passed");
         Ok(())
     }
 
     fn test_state_pool_functionality() -> Result<(), String> {
         println!("Testing StatePool functionality...");
-        
+
         let mut pool = StatePool::new(5);
-        
+
         if pool.size() != 0 {
             return Err("New pool should be empty".to_string());
         }
-        
+
         let state = pool.get_state();
         pool.return_state(state);
         if pool.size() != 1 {
             return Err("Pool should have 1 state after return".to_string());
         }
-        
+
         let _state = pool.get_state();
         if pool.size() != 0 {
             return Err("Pool should be empty after get".to_string());
         }
-        
+
         println!("✅ StatePool functionality test passed");
         Ok(())
     }
 
     fn test_conflict_management() -> Result<(), String> {
         println!("Testing conflict management...");
-        
+
         let mut state = SearchState::new_initial(vec![]);
-        
+
         let version_conflict = DependencyConflict {
             package_name: "test_package".to_string(),
             conflicting_requirements: vec![],
             severity: 80,
             conflict_type: ConflictType::VersionConflict,
         };
-        
+
         state.add_conflict(version_conflict);
-        
+
         if state.conflicts.is_empty() {
             return Err("State should have conflicts after adding one".to_string());
         }
-        
+
         if !state.is_valid() {
             return Err("State with version conflict should still be valid".to_string());
         }
-        
+
         let fatal_conflict = DependencyConflict {
             package_name: "missing_package".to_string(),
             conflicting_requirements: vec![],
             severity: 100,
             conflict_type: ConflictType::MissingPackage,
         };
-        
+
         state.add_conflict(fatal_conflict);
-        
+
         if state.is_valid() {
             return Err("State with missing package should be invalid".to_string());
         }
-        
+
         println!("✅ Conflict management test passed");
         Ok(())
     }
 
     fn test_state_hashing() -> Result<(), String> {
         println!("Testing state hashing and equality...");
-        
+
         let req = PackageRequirement {
             name: "test_package".to_string(),
             requirement_string: "test_package".to_string(),
         };
-        
+
         let state1 = SearchState::new_initial(vec![req.clone()]);
         let state2 = SearchState::new_initial(vec![req]);
-        
+
         if state1 != state2 {
             return Err("States with same content should be equal".to_string());
         }
-        
+
         if state1.get_hash() != state2.get_hash() {
             return Err("States with same content should have same hash".to_string());
         }
-        
+
         println!("✅ State hashing test passed");
         Ok(())
     }
 
     fn test_state_transitions() -> Result<(), String> {
         println!("Testing state transitions...");
-        
+
         let req = PackageRequirement {
             name: "test_package".to_string(),
             requirement_string: "test_package".to_string(),
         };
-        
+
         let parent_state = SearchState::new_initial(vec![req.clone()]);
-        
+
         let package = Package {
             name: "test_package".to_string(),
             requires: vec!["dependency1".to_string(), "dependency2".to_string()],
         };
-        
+
         let new_requirements = vec![
             PackageRequirement {
                 name: "dependency1".to_string(),
@@ -394,64 +399,62 @@ mod astar_standalone {
                 requirement_string: "dependency2".to_string(),
             },
         ];
-        
-        let child_state = SearchState::new_from_parent(
-            &parent_state,
-            package,
-            new_requirements,
-            1,
-        );
-        
+
+        let child_state = SearchState::new_from_parent(&parent_state, package, new_requirements, 1);
+
         if child_state.depth != parent_state.depth + 1 {
             return Err("Child state should have incremented depth".to_string());
         }
-        
+
         if child_state.cost_so_far != parent_state.cost_so_far + 1 {
             return Err("Child state should have accumulated cost".to_string());
         }
-        
+
         if child_state.resolved_packages.len() != 1 {
             return Err("Child state should have 1 resolved package".to_string());
         }
-        
+
         if !child_state.resolved_packages.contains_key("test_package") {
             return Err("Child state should contain resolved package".to_string());
         }
-        
+
         if child_state.parent_id != Some(parent_state.state_id) {
             return Err("Child state should reference parent ID".to_string());
         }
-        
+
         let complexity = child_state.calculate_complexity();
         let expected_complexity = 1 + 3 + 0; // 1 resolved + 3 pending + 0 conflicts
         if complexity != expected_complexity {
-            return Err(format!("Expected complexity {}, got {}", expected_complexity, complexity));
+            return Err(format!(
+                "Expected complexity {}, got {}",
+                expected_complexity, complexity
+            ));
         }
-        
+
         println!("✅ State transitions test passed");
         Ok(())
     }
 
     fn test_goal_state_detection() -> Result<(), String> {
         println!("Testing goal state detection...");
-        
+
         let goal_state = SearchState::new_initial(vec![]);
-        
+
         if !goal_state.is_goal() {
             return Err("State with no pending requirements should be goal".to_string());
         }
-        
+
         let req = PackageRequirement {
             name: "test_package".to_string(),
             requirement_string: "test_package".to_string(),
         };
-        
+
         let non_goal_state = SearchState::new_initial(vec![req]);
-        
+
         if non_goal_state.is_goal() {
             return Err("State with pending requirements should not be goal".to_string());
         }
-        
+
         println!("✅ Goal state detection test passed");
         Ok(())
     }
@@ -460,7 +463,7 @@ mod astar_standalone {
 fn main() {
     println!("A* Search Framework Standalone Test");
     println!("===================================");
-    
+
     match astar_standalone::run_standalone_tests() {
         Ok(()) => {
             println!("✅ All tests completed successfully!");

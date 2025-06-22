@@ -4,14 +4,16 @@
 //! for the intelligent cache system.
 
 use crate::{MonitoringConfig, PerformanceMetrics};
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use std::{
     collections::{HashMap, VecDeque},
-    sync::{Arc, RwLock, atomic::{AtomicU64, Ordering}},
+    sync::{
+        atomic::{AtomicU64, Ordering},
+        Arc, RwLock,
+    },
     time::{Duration, Instant, SystemTime},
 };
 use tokio::time::Interval;
-
 
 /// Real-time performance counters
 #[derive(Debug)]
@@ -153,12 +155,14 @@ impl PerformanceMonitor {
     /// Record a get operation latency
     pub async fn record_get_latency(&self, latency: Duration) {
         let latency_us = latency.as_micros() as u64;
-        
+
         self.counters.get_operations.fetch_add(1, Ordering::Relaxed);
-        self.counters.total_get_latency_us.fetch_add(latency_us, Ordering::Relaxed);
-        
+        self.counters
+            .total_get_latency_us
+            .fetch_add(latency_us, Ordering::Relaxed);
+
         self.update_latency_histogram(latency_us).await;
-        
+
         if self.config.enable_event_logging {
             self.log_event(PerformanceEvent {
                 timestamp: SystemTime::now(),
@@ -166,19 +170,22 @@ impl PerformanceMonitor {
                 latency_us,
                 memory_usage: self.counters.current_memory_usage.load(Ordering::Relaxed),
                 metadata: HashMap::new(),
-            }).await;
+            })
+            .await;
         }
     }
 
     /// Record a put operation latency
     pub async fn record_put_latency(&self, latency: Duration) {
         let latency_us = latency.as_micros() as u64;
-        
+
         self.counters.put_operations.fetch_add(1, Ordering::Relaxed);
-        self.counters.total_put_latency_us.fetch_add(latency_us, Ordering::Relaxed);
-        
+        self.counters
+            .total_put_latency_us
+            .fetch_add(latency_us, Ordering::Relaxed);
+
         self.update_latency_histogram(latency_us).await;
-        
+
         if self.config.enable_event_logging {
             self.log_event(PerformanceEvent {
                 timestamp: SystemTime::now(),
@@ -186,19 +193,24 @@ impl PerformanceMonitor {
                 latency_us,
                 memory_usage: self.counters.current_memory_usage.load(Ordering::Relaxed),
                 metadata: HashMap::new(),
-            }).await;
+            })
+            .await;
         }
     }
 
     /// Record a remove operation latency
     pub async fn record_remove_latency(&self, latency: Duration) {
         let latency_us = latency.as_micros() as u64;
-        
-        self.counters.remove_operations.fetch_add(1, Ordering::Relaxed);
-        self.counters.total_remove_latency_us.fetch_add(latency_us, Ordering::Relaxed);
-        
+
+        self.counters
+            .remove_operations
+            .fetch_add(1, Ordering::Relaxed);
+        self.counters
+            .total_remove_latency_us
+            .fetch_add(latency_us, Ordering::Relaxed);
+
         self.update_latency_histogram(latency_us).await;
-        
+
         if self.config.enable_event_logging {
             self.log_event(PerformanceEvent {
                 timestamp: SystemTime::now(),
@@ -206,25 +218,34 @@ impl PerformanceMonitor {
                 latency_us,
                 memory_usage: self.counters.current_memory_usage.load(Ordering::Relaxed),
                 metadata: HashMap::new(),
-            }).await;
+            })
+            .await;
         }
     }
 
     /// Update memory usage
     pub async fn update_memory_usage(&self, current_usage: u64) {
-        self.counters.current_memory_usage.store(current_usage, Ordering::Relaxed);
-        
+        self.counters
+            .current_memory_usage
+            .store(current_usage, Ordering::Relaxed);
+
         // Update peak if necessary
         let current_peak = self.counters.peak_memory_usage.load(Ordering::Relaxed);
         if current_usage > current_peak {
-            self.counters.peak_memory_usage.store(current_usage, Ordering::Relaxed);
+            self.counters
+                .peak_memory_usage
+                .store(current_usage, Ordering::Relaxed);
         }
     }
 
     /// Record disk I/O
     pub async fn record_disk_io(&self, bytes_read: u64, bytes_written: u64) {
-        self.counters.disk_bytes_read.fetch_add(bytes_read, Ordering::Relaxed);
-        self.counters.disk_bytes_written.fetch_add(bytes_written, Ordering::Relaxed);
+        self.counters
+            .disk_bytes_read
+            .fetch_add(bytes_read, Ordering::Relaxed);
+        self.counters
+            .disk_bytes_written
+            .fetch_add(bytes_written, Ordering::Relaxed);
     }
 
     /// Log a performance event
@@ -235,7 +256,7 @@ impl PerformanceMonitor {
 
         let mut log = self.event_log.write().unwrap();
         log.push_back(event);
-        
+
         // Keep log size manageable
         while log.len() > self.config.max_events_in_memory {
             log.pop_front();
@@ -260,10 +281,10 @@ impl PerformanceMonitor {
         let get_ops = self.counters.get_operations.load(Ordering::Relaxed);
         let put_ops = self.counters.put_operations.load(Ordering::Relaxed);
         let remove_ops = self.counters.remove_operations.load(Ordering::Relaxed);
-        
+
         let total_get_latency = self.counters.total_get_latency_us.load(Ordering::Relaxed);
         let total_put_latency = self.counters.total_put_latency_us.load(Ordering::Relaxed);
-        
+
         let elapsed_secs = self.start_time.elapsed().as_secs_f64();
         let total_ops = get_ops + put_ops + remove_ops;
 
@@ -286,8 +307,10 @@ impl PerformanceMonitor {
             },
             memory_allocation_rate: 0.0, // TODO: Track allocation rate
             disk_io_rate: if elapsed_secs > 0.0 {
-                (self.counters.disk_bytes_read.load(Ordering::Relaxed) + 
-                 self.counters.disk_bytes_written.load(Ordering::Relaxed)) as f64 / elapsed_secs
+                (self.counters.disk_bytes_read.load(Ordering::Relaxed)
+                    + self.counters.disk_bytes_written.load(Ordering::Relaxed))
+                    as f64
+                    / elapsed_secs
             } else {
                 0.0
             },
@@ -303,9 +326,9 @@ impl PerformanceMonitor {
         Fut: std::future::Future<Output = ()>,
     {
         let start_time = Instant::now();
-        let start_ops = self.counters.get_operations.load(Ordering::Relaxed) +
-                       self.counters.put_operations.load(Ordering::Relaxed);
-        
+        let start_ops = self.counters.get_operations.load(Ordering::Relaxed)
+            + self.counters.put_operations.load(Ordering::Relaxed);
+
         // Reset latency histogram for this benchmark
         {
             let mut histogram = self.latency_histogram.write().unwrap();
@@ -316,9 +339,9 @@ impl PerformanceMonitor {
         benchmark_fn().await;
 
         let duration = start_time.elapsed();
-        let end_ops = self.counters.get_operations.load(Ordering::Relaxed) +
-                     self.counters.put_operations.load(Ordering::Relaxed);
-        
+        let end_ops = self.counters.get_operations.load(Ordering::Relaxed)
+            + self.counters.put_operations.load(Ordering::Relaxed);
+
         let ops_performed = end_ops - start_ops;
         let ops_per_second = if duration.as_secs_f64() > 0.0 {
             ops_performed as f64 / duration.as_secs_f64()
@@ -353,13 +376,14 @@ impl PerformanceMonitor {
     /// Calculate latency percentiles from histogram
     async fn calculate_latency_percentiles(&self) -> (f64, f64, f64) {
         let histogram = self.latency_histogram.read().unwrap();
-        
+
         if histogram.is_empty() {
             return (0.0, 0.0, 0.0);
         }
 
         // Convert histogram to sorted vector
-        let mut latencies: Vec<(u64, u64)> = histogram.iter()
+        let mut latencies: Vec<(u64, u64)> = histogram
+            .iter()
             .map(|(&latency, &count)| (latency, count))
             .collect();
         latencies.sort_by_key(|&(latency, _)| latency);
@@ -370,7 +394,8 @@ impl PerformanceMonitor {
         }
 
         // Calculate weighted average
-        let weighted_sum: u64 = latencies.iter()
+        let weighted_sum: u64 = latencies
+            .iter()
             .map(|(latency, count)| latency * count)
             .sum();
         let avg_latency = weighted_sum as f64 / total_samples as f64;
@@ -385,11 +410,11 @@ impl PerformanceMonitor {
 
         for &(latency, count) in &latencies {
             cumulative += count;
-            
+
             if p95_latency == 0.0 && cumulative >= p95_target {
                 p95_latency = latency as f64;
             }
-            
+
             if p99_latency == 0.0 && cumulative >= p99_target {
                 p99_latency = latency as f64;
                 break;
@@ -402,11 +427,7 @@ impl PerformanceMonitor {
     /// Get recent performance events
     pub async fn get_recent_events(&self, limit: usize) -> Vec<PerformanceEvent> {
         let log = self.event_log.read().unwrap();
-        log.iter()
-            .rev()
-            .take(limit)
-            .cloned()
-            .collect()
+        log.iter().rev().take(limit).cloned().collect()
     }
 
     /// Get benchmark history
@@ -420,11 +441,19 @@ impl PerformanceMonitor {
         self.counters.get_operations.store(0, Ordering::Relaxed);
         self.counters.put_operations.store(0, Ordering::Relaxed);
         self.counters.remove_operations.store(0, Ordering::Relaxed);
-        self.counters.total_get_latency_us.store(0, Ordering::Relaxed);
-        self.counters.total_put_latency_us.store(0, Ordering::Relaxed);
-        self.counters.total_remove_latency_us.store(0, Ordering::Relaxed);
+        self.counters
+            .total_get_latency_us
+            .store(0, Ordering::Relaxed);
+        self.counters
+            .total_put_latency_us
+            .store(0, Ordering::Relaxed);
+        self.counters
+            .total_remove_latency_us
+            .store(0, Ordering::Relaxed);
         self.counters.peak_memory_usage.store(0, Ordering::Relaxed);
-        self.counters.current_memory_usage.store(0, Ordering::Relaxed);
+        self.counters
+            .current_memory_usage
+            .store(0, Ordering::Relaxed);
         self.counters.disk_bytes_read.store(0, Ordering::Relaxed);
         self.counters.disk_bytes_written.store(0, Ordering::Relaxed);
 
@@ -433,7 +462,7 @@ impl PerformanceMonitor {
             let mut log = self.event_log.write().unwrap();
             log.clear();
         }
-        
+
         {
             let mut histogram = self.latency_histogram.write().unwrap();
             histogram.clear();

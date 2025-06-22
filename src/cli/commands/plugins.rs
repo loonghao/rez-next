@@ -3,11 +3,11 @@
 //! Implements the `rez plugins` command for listing and managing package plugins.
 
 use clap::Args;
-use rez_core_common::{RezCoreError, error::RezCoreResult};
-use rez_core_repository::simple_repository::{RepositoryManager, SimpleRepository};
+use rez_core_common::{error::RezCoreResult, RezCoreError};
 use rez_core_package::Package;
-use std::path::PathBuf;
+use rez_core_repository::simple_repository::{RepositoryManager, SimpleRepository};
 use std::collections::HashMap;
+use std::path::PathBuf;
 
 /// Arguments for the plugins command
 #[derive(Args, Clone, Debug)]
@@ -52,12 +52,9 @@ pub fn execute(args: PluginsArgs) -> RezCoreResult<()> {
     }
 
     // Create async runtime
-    let runtime = tokio::runtime::Runtime::new()
-        .map_err(|e| RezCoreError::Io(e.into()))?;
+    let runtime = tokio::runtime::Runtime::new().map_err(|e| RezCoreError::Io(e.into()))?;
 
-    runtime.block_on(async {
-        execute_plugins_async(&args).await
-    })
+    runtime.block_on(async { execute_plugins_async(&args).await })
 }
 
 /// Execute plugins discovery asynchronously
@@ -109,11 +106,12 @@ async fn find_package(
     package_name: &str,
 ) -> RezCoreResult<Package> {
     let packages = repo_manager.find_packages(package_name).await?;
-    
+
     if packages.is_empty() {
-        return Err(RezCoreError::RequirementParse(
-            format!("Package '{}' not found", package_name)
-        ));
+        return Err(RezCoreError::RequirementParse(format!(
+            "Package '{}' not found",
+            package_name
+        )));
     }
 
     // Return latest version (first in list)
@@ -187,8 +185,9 @@ fn discover_build_plugins(package: &Package) -> RezCoreResult<Vec<PluginInfo>> {
     ];
 
     for (indicator, description) in &build_indicators {
-        if package.tools.iter().any(|tool| tool.contains(indicator)) ||
-           package.requires.iter().any(|req| req.contains(indicator)) {
+        if package.tools.iter().any(|tool| tool.contains(indicator))
+            || package.requires.iter().any(|req| req.contains(indicator))
+        {
             plugins.push(PluginInfo {
                 name: format!("{}_build", indicator),
                 package_name: package.name.clone(),
@@ -209,7 +208,7 @@ fn discover_shell_plugins(package: &Package) -> RezCoreResult<Vec<PluginInfo>> {
 
     // Check for shell-related tools
     let shell_tools = ["bash", "zsh", "fish", "powershell", "cmd"];
-    
+
     for tool in &package.tools {
         if shell_tools.iter().any(|shell| tool.contains(shell)) {
             plugins.push(PluginInfo {
@@ -260,15 +259,19 @@ fn display_plugins_result(result: &PluginDiscoveryResult, verbose: bool) {
         // Group plugins by type
         let mut plugins_by_type: HashMap<String, Vec<&PluginInfo>> = HashMap::new();
         for plugin in &result.plugins {
-            plugins_by_type.entry(plugin.plugin_type.clone())
+            plugins_by_type
+                .entry(plugin.plugin_type.clone())
                 .or_insert_with(Vec::new)
                 .push(plugin);
         }
 
         for (plugin_type, plugins) in plugins_by_type {
-            println!("🔧 {} Plugins:", plugin_type.replace('_', " ").to_uppercase());
+            println!(
+                "🔧 {} Plugins:",
+                plugin_type.replace('_', " ").to_uppercase()
+            );
             println!("{}", "-".repeat(40));
-            
+
             for plugin in plugins {
                 println!("  • {}", plugin.name);
                 if let Some(ref description) = plugin.description {

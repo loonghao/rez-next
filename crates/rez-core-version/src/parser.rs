@@ -3,9 +3,9 @@
 use super::Version;
 #[cfg(feature = "python-bindings")]
 use super::VersionToken;
-use rez_core_common::RezCoreError;
 use ahash::AHashMap;
 use once_cell::sync::Lazy;
+use rez_core_common::RezCoreError;
 use smallvec::SmallVec;
 use std::sync::RwLock;
 
@@ -105,7 +105,10 @@ impl StateMachineParser {
     }
 
     /// Parse version string using zero-copy state machine
-    pub fn parse_tokens(&self, input: &str) -> Result<(SmallVec<[TokenType; 8]>, SmallVec<[char; 7]>), RezCoreError> {
+    pub fn parse_tokens(
+        &self,
+        input: &str,
+    ) -> Result<(SmallVec<[TokenType; 8]>, SmallVec<[char; 7]>), RezCoreError> {
         if input.is_empty() {
             return Ok((SmallVec::new(), SmallVec::new()));
         }
@@ -128,13 +131,15 @@ impl StateMachineParser {
                         current_token.push(c);
                         state = ParseState::InToken;
                     } else if Self::is_valid_separator(c) {
-                        return Err(RezCoreError::VersionParse(
-                            format!("Version cannot start with separator '{}'", c)
-                        ));
+                        return Err(RezCoreError::VersionParse(format!(
+                            "Version cannot start with separator '{}'",
+                            c
+                        )));
                     } else {
-                        return Err(RezCoreError::VersionParse(
-                            format!("Invalid character '{}' at start of version", c)
-                        ));
+                        return Err(RezCoreError::VersionParse(format!(
+                            "Invalid character '{}' at start of version",
+                            c
+                        )));
                     }
                 }
 
@@ -147,9 +152,10 @@ impl StateMachineParser {
                         separators.push(c);
                         state = ParseState::InSeparator;
                     } else {
-                        return Err(RezCoreError::VersionParse(
-                            format!("Invalid character '{}' in token", c)
-                        ));
+                        return Err(RezCoreError::VersionParse(format!(
+                            "Invalid character '{}' in token",
+                            c
+                        )));
                     }
                 }
 
@@ -158,9 +164,10 @@ impl StateMachineParser {
                         current_token.push(c);
                         state = ParseState::InToken;
                     } else {
-                        return Err(RezCoreError::VersionParse(
-                            format!("Expected token character after separator, found '{}'", c)
-                        ));
+                        return Err(RezCoreError::VersionParse(format!(
+                            "Expected token character after separator, found '{}'",
+                            c
+                        )));
                     }
                 }
 
@@ -175,21 +182,24 @@ impl StateMachineParser {
             self.finalize_token(&mut current_token, &mut tokens, &mut numeric_count)?;
         } else if state == ParseState::InSeparator {
             return Err(RezCoreError::VersionParse(
-                "Version cannot end with separator".to_string()
+                "Version cannot end with separator".to_string(),
             ));
         }
 
         // Validate token counts
         if tokens.len() > self.max_tokens {
-            return Err(RezCoreError::VersionParse(
-                format!("Too many tokens: {} (max: {})", tokens.len(), self.max_tokens)
-            ));
+            return Err(RezCoreError::VersionParse(format!(
+                "Too many tokens: {} (max: {})",
+                tokens.len(),
+                self.max_tokens
+            )));
         }
 
         if numeric_count > self.max_numeric_tokens {
-            return Err(RezCoreError::VersionParse(
-                format!("Too many numeric tokens: {} (max: {})", numeric_count, self.max_numeric_tokens)
-            ));
+            return Err(RezCoreError::VersionParse(format!(
+                "Too many numeric tokens: {} (max: {})",
+                numeric_count, self.max_numeric_tokens
+            )));
         }
 
         Ok((tokens, separators))
@@ -208,23 +218,26 @@ impl StateMachineParser {
 
         // Validate token format
         if current_token.starts_with('_') || current_token.ends_with('_') {
-            return Err(RezCoreError::VersionParse(
-                format!("Invalid token format: '{}'", current_token)
-            ));
+            return Err(RezCoreError::VersionParse(format!(
+                "Invalid token format: '{}'",
+                current_token
+            )));
         }
 
         // Check for invalid patterns
         if current_token == "not" || current_token == "version" {
-            return Err(RezCoreError::VersionParse(
-                format!("Invalid version token: '{}'", current_token)
-            ));
+            return Err(RezCoreError::VersionParse(format!(
+                "Invalid version token: '{}'",
+                current_token
+            )));
         }
 
         // Reject overly long alphabetic tokens
         if current_token.chars().all(|c| c.is_alphabetic()) && current_token.len() > 10 {
-            return Err(RezCoreError::VersionParse(
-                format!("Invalid version token: '{}'", current_token)
-            ));
+            return Err(RezCoreError::VersionParse(format!(
+                "Invalid version token: '{}'",
+                current_token
+            )));
         }
 
         // Try to parse as numeric first (fast path)
@@ -381,7 +394,9 @@ mod tests {
         let (tokens2, _) = parser.parse_tokens("1.0.0-alpha").unwrap();
 
         // String interning should work for alphanumeric tokens
-        if let (TokenType::Alphanumeric(s1), TokenType::Alphanumeric(s2)) = (&tokens1[3], &tokens2[3]) {
+        if let (TokenType::Alphanumeric(s1), TokenType::Alphanumeric(s2)) =
+            (&tokens1[3], &tokens2[3])
+        {
             // Note: We can't directly test pointer equality due to the way we handle interning
             assert_eq!(s1, s2);
         }

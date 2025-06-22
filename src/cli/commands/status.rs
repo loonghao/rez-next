@@ -3,12 +3,12 @@
 //! Implements the `rez status` command for displaying package and repository status.
 
 use clap::Args;
-use rez_core_common::{RezCoreError, error::RezCoreResult};
+use rez_core_common::{error::RezCoreResult, RezCoreError};
 use rez_core_repository::simple_repository::{RepositoryManager, SimpleRepository};
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use std::collections::HashMap;
 
 /// Arguments for the status command
 #[derive(Args, Clone, Debug)]
@@ -73,12 +73,9 @@ pub fn execute(args: StatusArgs) -> RezCoreResult<()> {
     }
 
     // Create async runtime
-    let runtime = tokio::runtime::Runtime::new()
-        .map_err(|e| RezCoreError::Io(e.into()))?;
+    let runtime = tokio::runtime::Runtime::new().map_err(|e| RezCoreError::Io(e.into()))?;
 
-    runtime.block_on(async {
-        execute_status_async(&args).await
-    })
+    runtime.block_on(async { execute_status_async(&args).await })
 }
 
 /// Execute status operation asynchronously
@@ -143,9 +140,16 @@ async fn show_package_status(
     println!();
 
     for (i, package) in packages.iter().enumerate() {
-        println!("Version {}: {}", i + 1, 
-            package.version.as_ref().map(|v| v.as_str()).unwrap_or("unknown"));
-        
+        println!(
+            "Version {}: {}",
+            i + 1,
+            package
+                .version
+                .as_ref()
+                .map(|v| v.as_str())
+                .unwrap_or("unknown")
+        );
+
         if args.detailed {
             if let Some(ref desc) = package.description {
                 println!("  Description: {}", desc);
@@ -180,7 +184,7 @@ async fn show_repository_status(
 
     for path in &paths {
         let status = analyze_repository_status(path).await?;
-        
+
         println!("Repository: {}", status.path.display());
         if status.accessible {
             println!("  Status: ✅ Accessible");
@@ -216,7 +220,10 @@ async fn show_family_status(
     // Group by family
     let mut families: HashMap<String, Vec<_>> = HashMap::new();
     for package in packages {
-        families.entry(package.name.clone()).or_default().push(package);
+        families
+            .entry(package.name.clone())
+            .or_default()
+            .push(package);
     }
 
     if families.is_empty() {
@@ -228,26 +235,33 @@ async fn show_family_status(
     let mut family_names: Vec<_> = families.keys().cloned().collect();
     family_names.sort();
 
-    println!("{:<20} {:<10} {:<15} {:<10}", "FAMILY", "VERSIONS", "LATEST", "VARIANTS");
-    println!("{:<20} {:<10} {:<15} {:<10}", "------", "--------", "------", "--------");
+    println!(
+        "{:<20} {:<10} {:<15} {:<10}",
+        "FAMILY", "VERSIONS", "LATEST", "VARIANTS"
+    );
+    println!(
+        "{:<20} {:<10} {:<15} {:<10}",
+        "------", "--------", "------", "--------"
+    );
 
     for family_name in family_names {
         let packages = families.get(&family_name).unwrap();
         let version_count = packages.len();
-        
+
         // Find latest version (simplified)
-        let latest_version = packages.iter()
+        let latest_version = packages
+            .iter()
             .filter_map(|p| p.version.as_ref())
             .map(|v| v.as_str())
             .max()
             .unwrap_or("unknown");
 
-        let total_variants: usize = packages.iter()
-            .map(|p| p.variants.len().max(1))
-            .sum();
+        let total_variants: usize = packages.iter().map(|p| p.variants.len().max(1)).sum();
 
-        println!("{:<20} {:<10} {:<15} {:<10}", 
-            family_name, version_count, latest_version, total_variants);
+        println!(
+            "{:<20} {:<10} {:<15} {:<10}",
+            family_name, version_count, latest_version, total_variants
+        );
     }
 
     println!();
@@ -317,7 +331,7 @@ async fn show_general_status(
 /// Analyze repository status
 async fn analyze_repository_status(path: &PathBuf) -> RezCoreResult<RepositoryStatus> {
     let accessible = path.exists() && path.is_dir();
-    
+
     if !accessible {
         return Ok(RepositoryStatus {
             path: path.clone(),
@@ -380,7 +394,7 @@ mod tests {
     async fn test_analyze_repository_status() {
         let temp_dir = std::env::temp_dir();
         let status = analyze_repository_status(&temp_dir).await.unwrap();
-        
+
         assert!(status.accessible);
         assert!(status.error.is_none());
     }

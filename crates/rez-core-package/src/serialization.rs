@@ -10,7 +10,7 @@ use std::fs;
 use std::path::Path;
 
 #[cfg(feature = "python-bindings")]
-use crate::{PackageVariant, PackageRequirement};
+use crate::{PackageRequirement, PackageVariant};
 #[cfg(feature = "python-bindings")]
 use pyo3::prelude::*;
 
@@ -52,15 +52,13 @@ pub struct PackageSerializer;
 impl PackageSerializer {
     /// Load a package from a file
     pub fn load_from_file(path: &Path) -> Result<Package, RezCoreError> {
-        let format = PackageFormat::from_extension(path)
-            .ok_or_else(|| RezCoreError::PackageParse(
-                format!("Unsupported file format: {}", path.display())
-            ))?;
+        let format = PackageFormat::from_extension(path).ok_or_else(|| {
+            RezCoreError::PackageParse(format!("Unsupported file format: {}", path.display()))
+        })?;
 
-        let content = fs::read_to_string(path)
-            .map_err(|e| RezCoreError::PackageParse(
-                format!("Failed to read file {}: {}", path.display(), e)
-            ))?;
+        let content = fs::read_to_string(path).map_err(|e| {
+            RezCoreError::PackageParse(format!("Failed to read file {}: {}", path.display(), e))
+        })?;
 
         Self::load_from_string(&content, format)
     }
@@ -77,9 +75,7 @@ impl PackageSerializer {
     /// Load a package from YAML content
     pub fn load_from_yaml(content: &str) -> Result<Package, RezCoreError> {
         let data: HashMap<String, serde_yaml::Value> = serde_yaml::from_str(content)
-            .map_err(|e| RezCoreError::PackageParse(
-                format!("Failed to parse YAML: {}", e)
-            ))?;
+            .map_err(|e| RezCoreError::PackageParse(format!("Failed to parse YAML: {}", e)))?;
 
         Self::load_from_yaml_data(data)
     }
@@ -87,9 +83,7 @@ impl PackageSerializer {
     /// Load a package from JSON content
     pub fn load_from_json(content: &str) -> Result<Package, RezCoreError> {
         let data: HashMap<String, serde_json::Value> = serde_json::from_str(content)
-            .map_err(|e| RezCoreError::PackageParse(
-                format!("Failed to parse JSON: {}", e)
-            ))?;
+            .map_err(|e| RezCoreError::PackageParse(format!("Failed to parse JSON: {}", e)))?;
 
         Self::load_from_data(data)
     }
@@ -101,19 +95,21 @@ impl PackageSerializer {
     }
 
     /// Load a package from generic data
-    fn load_from_data<T>(data: HashMap<String, T>) -> Result<Package, RezCoreError> 
+    fn load_from_data<T>(data: HashMap<String, T>) -> Result<Package, RezCoreError>
     where
         T: Into<serde_json::Value>,
     {
         // Convert to JSON values for easier processing
-        let json_data: HashMap<String, serde_json::Value> = data.into_iter()
-            .map(|(k, v)| (k, v.into()))
-            .collect();
+        let json_data: HashMap<String, serde_json::Value> =
+            data.into_iter().map(|(k, v)| (k, v.into())).collect();
 
         // Extract required name field
-        let name = json_data.get("name")
+        let name = json_data
+            .get("name")
             .and_then(|v| v.as_str())
-            .ok_or_else(|| RezCoreError::PackageParse("Missing or invalid 'name' field".to_string()))?
+            .ok_or_else(|| {
+                RezCoreError::PackageParse("Missing or invalid 'name' field".to_string())
+            })?
             .to_string();
 
         let mut package = Package::new(name);
@@ -135,7 +131,8 @@ impl PackageSerializer {
 
         if let Some(authors_value) = json_data.get("authors") {
             if let Some(authors_array) = authors_value.as_array() {
-                package.authors = authors_array.iter()
+                package.authors = authors_array
+                    .iter()
                     .filter_map(|v| v.as_str())
                     .map(|s| s.to_string())
                     .collect();
@@ -144,7 +141,8 @@ impl PackageSerializer {
 
         if let Some(requires_value) = json_data.get("requires") {
             if let Some(requires_array) = requires_value.as_array() {
-                package.requires = requires_array.iter()
+                package.requires = requires_array
+                    .iter()
                     .filter_map(|v| v.as_str())
                     .map(|s| s.to_string())
                     .collect();
@@ -153,7 +151,8 @@ impl PackageSerializer {
 
         if let Some(build_requires_value) = json_data.get("build_requires") {
             if let Some(build_requires_array) = build_requires_value.as_array() {
-                package.build_requires = build_requires_array.iter()
+                package.build_requires = build_requires_array
+                    .iter()
                     .filter_map(|v| v.as_str())
                     .map(|s| s.to_string())
                     .collect();
@@ -162,10 +161,12 @@ impl PackageSerializer {
 
         if let Some(variants_value) = json_data.get("variants") {
             if let Some(variants_array) = variants_value.as_array() {
-                package.variants = variants_array.iter()
+                package.variants = variants_array
+                    .iter()
                     .filter_map(|v| v.as_array())
                     .map(|variant_array| {
-                        variant_array.iter()
+                        variant_array
+                            .iter()
                             .filter_map(|v| v.as_str())
                             .map(|s| s.to_string())
                             .collect()
@@ -176,7 +177,8 @@ impl PackageSerializer {
 
         if let Some(tools_value) = json_data.get("tools") {
             if let Some(tools_array) = tools_value.as_array() {
-                package.tools = tools_array.iter()
+                package.tools = tools_array
+                    .iter()
                     .filter_map(|v| v.as_str())
                     .map(|s| s.to_string())
                     .collect();
@@ -190,16 +192,22 @@ impl PackageSerializer {
     }
 
     /// Load a package from YAML data
-    fn load_from_yaml_data(data: HashMap<String, serde_yaml::Value>) -> Result<Package, RezCoreError> {
+    fn load_from_yaml_data(
+        data: HashMap<String, serde_yaml::Value>,
+    ) -> Result<Package, RezCoreError> {
         // Convert YAML values to JSON values for easier processing
-        let json_data: HashMap<String, serde_json::Value> = data.into_iter()
+        let json_data: HashMap<String, serde_json::Value> = data
+            .into_iter()
             .map(|(k, v)| (k, yaml_to_json_value(v)))
             .collect();
 
         // Extract required name field
-        let name = json_data.get("name")
+        let name = json_data
+            .get("name")
             .and_then(|v| v.as_str())
-            .ok_or_else(|| RezCoreError::PackageParse("Missing or invalid 'name' field".to_string()))?
+            .ok_or_else(|| {
+                RezCoreError::PackageParse("Missing or invalid 'name' field".to_string())
+            })?
             .to_string();
 
         let mut package = Package::new(name);
@@ -221,7 +229,8 @@ impl PackageSerializer {
 
         if let Some(authors_value) = json_data.get("authors") {
             if let Some(authors_array) = authors_value.as_array() {
-                package.authors = authors_array.iter()
+                package.authors = authors_array
+                    .iter()
                     .filter_map(|v| v.as_str())
                     .map(|s| s.to_string())
                     .collect();
@@ -230,7 +239,8 @@ impl PackageSerializer {
 
         if let Some(requires_value) = json_data.get("requires") {
             if let Some(requires_array) = requires_value.as_array() {
-                package.requires = requires_array.iter()
+                package.requires = requires_array
+                    .iter()
                     .filter_map(|v| v.as_str())
                     .map(|s| s.to_string())
                     .collect();
@@ -239,7 +249,8 @@ impl PackageSerializer {
 
         if let Some(build_requires_value) = json_data.get("build_requires") {
             if let Some(build_requires_array) = build_requires_value.as_array() {
-                package.build_requires = build_requires_array.iter()
+                package.build_requires = build_requires_array
+                    .iter()
                     .filter_map(|v| v.as_str())
                     .map(|s| s.to_string())
                     .collect();
@@ -248,10 +259,12 @@ impl PackageSerializer {
 
         if let Some(variants_value) = json_data.get("variants") {
             if let Some(variants_array) = variants_value.as_array() {
-                package.variants = variants_array.iter()
+                package.variants = variants_array
+                    .iter()
                     .filter_map(|v| v.as_array())
                     .map(|variant_array| {
-                        variant_array.iter()
+                        variant_array
+                            .iter()
                             .filter_map(|v| v.as_str())
                             .map(|s| s.to_string())
                             .collect()
@@ -262,7 +275,8 @@ impl PackageSerializer {
 
         if let Some(tools_value) = json_data.get("tools") {
             if let Some(tools_array) = tools_value.as_array() {
-                package.tools = tools_array.iter()
+                package.tools = tools_array
+                    .iter()
                     .filter_map(|v| v.as_str())
                     .map(|s| s.to_string())
                     .collect();
@@ -276,17 +290,23 @@ impl PackageSerializer {
     }
 
     /// Save a package to a file
-    pub fn save_to_file(package: &Package, path: &Path, format: PackageFormat) -> Result<(), RezCoreError> {
+    pub fn save_to_file(
+        package: &Package,
+        path: &Path,
+        format: PackageFormat,
+    ) -> Result<(), RezCoreError> {
         let content = Self::save_to_string(package, format)?;
-        
-        fs::write(path, content)
-            .map_err(|e| RezCoreError::PackageParse(
-                format!("Failed to write file {}: {}", path.display(), e)
-            ))
+
+        fs::write(path, content).map_err(|e| {
+            RezCoreError::PackageParse(format!("Failed to write file {}: {}", path.display(), e))
+        })
     }
 
     /// Save a package to a string
-    pub fn save_to_string(package: &Package, format: PackageFormat) -> Result<String, RezCoreError> {
+    pub fn save_to_string(
+        package: &Package,
+        format: PackageFormat,
+    ) -> Result<String, RezCoreError> {
         match format {
             PackageFormat::Yaml => Self::save_to_yaml(package),
             PackageFormat::Json => Self::save_to_json(package),
@@ -309,17 +329,17 @@ impl PackageSerializer {
     /// Save a package to Python format (simplified)
     pub fn save_to_python(package: &Package) -> Result<String, RezCoreError> {
         let mut content = String::new();
-        
+
         content.push_str(&format!("name = \"{}\"\n", package.name));
-        
+
         if let Some(ref version) = package.version {
             content.push_str(&format!("version = \"{}\"\n", version.as_str()));
         }
-        
+
         if let Some(ref description) = package.description {
             content.push_str(&format!("description = \"{}\"\n", description));
         }
-        
+
         if !package.authors.is_empty() {
             content.push_str("authors = [\n");
             for author in &package.authors {
@@ -327,7 +347,7 @@ impl PackageSerializer {
             }
             content.push_str("]\n");
         }
-        
+
         if !package.requires.is_empty() {
             content.push_str("requires = [\n");
             for req in &package.requires {
@@ -335,7 +355,7 @@ impl PackageSerializer {
             }
             content.push_str("]\n");
         }
-        
+
         if !package.build_requires.is_empty() {
             content.push_str("build_requires = [\n");
             for req in &package.build_requires {
@@ -343,7 +363,7 @@ impl PackageSerializer {
             }
             content.push_str("]\n");
         }
-        
+
         if !package.variants.is_empty() {
             content.push_str("variants = [\n");
             for variant in &package.variants {
@@ -358,7 +378,7 @@ impl PackageSerializer {
             }
             content.push_str("]\n");
         }
-        
+
         if !package.tools.is_empty() {
             content.push_str("tools = [\n");
             for tool in &package.tools {
@@ -366,7 +386,7 @@ impl PackageSerializer {
             }
             content.push_str("]\n");
         }
-        
+
         Ok(content)
     }
 }
@@ -389,9 +409,8 @@ fn yaml_to_json_value(yaml_value: serde_yaml::Value) -> serde_json::Value {
         }
         serde_yaml::Value::String(s) => serde_json::Value::String(s),
         serde_yaml::Value::Sequence(seq) => {
-            let json_array: Vec<serde_json::Value> = seq.into_iter()
-                .map(yaml_to_json_value)
-                .collect();
+            let json_array: Vec<serde_json::Value> =
+                seq.into_iter().map(yaml_to_json_value).collect();
             serde_json::Value::Array(json_array)
         }
         serde_yaml::Value::Mapping(map) => {

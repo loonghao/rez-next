@@ -30,29 +30,29 @@
 //! └─────────────────────────────────────────────────────────────┘
 //! ```
 
-pub mod unified_cache;
+pub mod adaptive_tuner;
+pub mod benchmarks;
 pub mod cache_config;
 pub mod cache_stats;
 pub mod error;
 pub mod intelligent_manager;
-pub mod predictive_preheater;
-pub mod adaptive_tuner;
 pub mod performance_monitor;
-pub mod benchmarks;
+pub mod predictive_preheater;
+pub mod unified_cache;
 
 #[cfg(test)]
 mod tests;
 
 // Re-export core types
-pub use unified_cache::*;
+pub use adaptive_tuner::*;
+pub use benchmarks::*;
 pub use cache_config::*;
 pub use cache_stats::*;
 pub use error::*;
 pub use intelligent_manager::*;
-pub use predictive_preheater::*;
-pub use adaptive_tuner::*;
 pub use performance_monitor::*;
-pub use benchmarks::*;
+pub use predictive_preheater::*;
+pub use unified_cache::*;
 
 // Re-export existing cache components for compatibility
 // Temporarily disabled due to compilation errors in other crates
@@ -73,8 +73,6 @@ pub enum EvictionStrategy {
     TTL,
 }
 
-
-
 /// Version information for the cache system
 pub const CACHE_VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -83,5 +81,3 @@ pub const DEFAULT_L1_CAPACITY: usize = 10000;
 pub const DEFAULT_L2_CAPACITY: usize = 100000;
 pub const DEFAULT_TTL_SECONDS: u64 = 3600;
 pub const DEFAULT_MEMORY_LIMIT_MB: u64 = 100;
-
-

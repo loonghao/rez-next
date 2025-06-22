@@ -1,7 +1,7 @@
 use pyo3::prelude::*;
 use pyo3::types::PyType;
-use std::cmp::Ordering;
 use regex::Regex;
+use std::cmp::Ordering;
 
 /// Base version token class (abstract in Python, like rez)
 /// This class should not be instantiated directly
@@ -19,7 +19,7 @@ impl VersionToken {
         // In rez, VersionToken is abstract and raises NotImplementedError
         // We'll allow creation but this should typically not be used directly
         Err(PyErr::new::<pyo3::exceptions::PyNotImplementedError, _>(
-            "VersionToken is abstract - use NumericToken or AlphanumericVersionToken instead"
+            "VersionToken is abstract - use NumericToken or AlphanumericVersionToken instead",
         ))
     }
 
@@ -27,27 +27,27 @@ impl VersionToken {
     #[classmethod]
     fn create_random_token_string(_cls: &Bound<'_, PyType>) -> PyResult<String> {
         Err(PyErr::new::<pyo3::exceptions::PyNotImplementedError, _>(
-            "Subclasses must implement create_random_token_string"
+            "Subclasses must implement create_random_token_string",
         ))
     }
 
     /// Compare to another VersionToken
     fn less_than(&self, _other: &Self) -> PyResult<bool> {
         Err(PyErr::new::<pyo3::exceptions::PyNotImplementedError, _>(
-            "Subclasses must implement less_than"
+            "Subclasses must implement less_than",
         ))
     }
 
     /// Returns the next largest token
     fn next(&self) -> PyResult<Self> {
         Err(PyErr::new::<pyo3::exceptions::PyNotImplementedError, _>(
-            "Subclasses must implement next"
+            "Subclasses must implement next",
         ))
     }
 
     fn __str__(&self) -> PyResult<String> {
         Err(PyErr::new::<pyo3::exceptions::PyNotImplementedError, _>(
-            "Subclasses must implement __str__"
+            "Subclasses must implement __str__",
         ))
     }
 
@@ -96,21 +96,20 @@ impl NumericToken {
     fn new(token: String) -> PyResult<(Self, VersionToken)> {
         // Validate that token contains only digits
         if !token.chars().all(|c| c.is_ascii_digit()) {
-            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
-                format!("Invalid version token: '{}'", token)
-            ));
+            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
+                "Invalid version token: '{}'",
+                token
+            )));
         }
 
         let n = token.parse::<u64>().map_err(|_| {
-            PyErr::new::<pyo3::exceptions::PyValueError, _>(
-                format!("Invalid version token: '{}'", token)
-            )
+            PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
+                "Invalid version token: '{}'",
+                token
+            ))
         })?;
 
-        Ok((
-            Self { n },
-            VersionToken { token_str: token },
-        ))
+        Ok((Self { n }, VersionToken { token_str: token }))
     }
 
     /// Create a random token string for testing purposes
@@ -129,7 +128,9 @@ impl NumericToken {
         Python::with_gil(|py| {
             let new_n = self.n + 1;
             let new_token = Self { n: new_n };
-            let base = VersionToken { token_str: new_n.to_string() };
+            let base = VersionToken {
+                token_str: new_n.to_string(),
+            };
             Ok(Py::new(py, (new_token, base))?.into())
         })
     }
@@ -242,17 +243,15 @@ impl AlphanumericVersionToken {
         // Validate token format - only alphanumerics and underscores allowed
         let regex = Regex::new(r"^[a-zA-Z0-9_]+$").unwrap();
         if !regex.is_match(&token) {
-            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
-                format!("Invalid version token: '{}'", token)
-            ));
+            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
+                "Invalid version token: '{}'",
+                token
+            )));
         }
 
         let subtokens = Self::parse_token(&token);
 
-        Ok((
-            Self { subtokens },
-            VersionToken { token_str: token },
-        ))
+        Ok((Self { subtokens }, VersionToken { token_str: token }))
     }
 
     /// Create a random token string for testing purposes
@@ -261,10 +260,12 @@ impl AlphanumericVersionToken {
         use rand::Rng;
         let mut rng = rand::thread_rng();
         let chars = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
-        (0..8).map(|_| {
-            let idx = rng.gen_range(0..chars.len());
-            chars.chars().nth(idx).unwrap()
-        }).collect()
+        (0..8)
+            .map(|_| {
+                let idx = rng.gen_range(0..chars.len());
+                chars.chars().nth(idx).unwrap()
+            })
+            .collect()
     }
 
     fn less_than(&self, other: &Self) -> bool {
@@ -289,7 +290,9 @@ impl AlphanumericVersionToken {
             }
 
             let token_str = new_subtokens.iter().map(|t| t.as_str()).collect::<String>();
-            let new_token = Self { subtokens: new_subtokens };
+            let new_token = Self {
+                subtokens: new_subtokens,
+            };
             let base = VersionToken { token_str };
 
             Ok(Py::new(py, (new_token, base))?.into())
@@ -297,7 +300,10 @@ impl AlphanumericVersionToken {
     }
 
     fn __str__(&self) -> String {
-        self.subtokens.iter().map(|t| t.as_str()).collect::<String>()
+        self.subtokens
+            .iter()
+            .map(|t| t.as_str())
+            .collect::<String>()
     }
 
     fn __repr__(&self) -> String {

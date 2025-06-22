@@ -3,7 +3,7 @@
 //! Implements the `rez cp` command for copying packages between repositories.
 
 use clap::Args;
-use rez_core_common::{RezCoreError, error::RezCoreResult};
+use rez_core_common::{error::RezCoreResult, RezCoreError};
 use rez_core_package::Package;
 use rez_core_repository::simple_repository::{RepositoryManager, SimpleRepository};
 use std::path::PathBuf;
@@ -70,12 +70,9 @@ pub fn execute(args: CpArgs) -> RezCoreResult<()> {
     }
 
     // Create async runtime
-    let runtime = tokio::runtime::Runtime::new()
-        .map_err(|e| RezCoreError::Io(e.into()))?;
+    let runtime = tokio::runtime::Runtime::new().map_err(|e| RezCoreError::Io(e.into()))?;
 
-    runtime.block_on(async {
-        execute_copy_async(&args).await
-    })
+    runtime.block_on(async { execute_copy_async(&args).await })
 }
 
 /// Execute copy operation asynchronously
@@ -84,8 +81,9 @@ async fn execute_copy_async(args: &CpArgs) -> RezCoreResult<()> {
     let (package_name, version_spec) = parse_package_spec(&args.source_package)?;
 
     if args.verbose {
-        println!("Parsed package: {} (version: {})", 
-            package_name, 
+        println!(
+            "Parsed package: {} (version: {})",
+            package_name,
             version_spec.as_deref().unwrap_or("latest")
         );
     }
@@ -105,20 +103,27 @@ async fn execute_copy_async(args: &CpArgs) -> RezCoreResult<()> {
     }
 
     // Find source package
-    let source_package = find_source_package(&repo_manager, &package_name, version_spec.as_deref()).await?;
+    let source_package =
+        find_source_package(&repo_manager, &package_name, version_spec.as_deref()).await?;
 
     if args.verbose {
-        println!("Found source package: {}-{}", 
+        println!(
+            "Found source package: {}-{}",
             source_package.name,
-            source_package.version.as_ref().map(|v| v.as_str()).unwrap_or("unknown")
+            source_package
+                .version
+                .as_ref()
+                .map(|v| v.as_str())
+                .unwrap_or("unknown")
         );
     }
 
     // Check if destination exists
-    if !args.force && package_exists_at_destination(&args.destination_path, &source_package).await? {
-        return Err(RezCoreError::RequirementParse(
-            format!("Package already exists at destination. Use --force to overwrite.")
-        ));
+    if !args.force && package_exists_at_destination(&args.destination_path, &source_package).await?
+    {
+        return Err(RezCoreError::RequirementParse(format!(
+            "Package already exists at destination. Use --force to overwrite."
+        )));
     }
 
     if args.dry_run {
@@ -144,7 +149,8 @@ async fn execute_copy_async(args: &CpArgs) -> RezCoreResult<()> {
             println!("   Variants copied: {}", result.variants_copied);
         }
     } else {
-        eprintln!("❌ Failed to copy package: {}", 
+        eprintln!(
+            "❌ Failed to copy package: {}",
             result.error.unwrap_or_else(|| "Unknown error".to_string())
         );
         std::process::exit(1);
@@ -158,13 +164,13 @@ fn parse_package_spec(spec: &str) -> RezCoreResult<(String, Option<String>)> {
     if let Some(dash_pos) = spec.rfind('-') {
         let name = spec[..dash_pos].to_string();
         let version = spec[dash_pos + 1..].to_string();
-        
+
         // Check if version part looks like a version
         if version.chars().next().map_or(false, |c| c.is_ascii_digit()) {
             return Ok((name, Some(version)));
         }
     }
-    
+
     Ok((spec.to_string(), None))
 }
 
@@ -177,9 +183,10 @@ async fn find_source_package(
     let packages = repo_manager.find_packages(package_name).await?;
 
     if packages.is_empty() {
-        return Err(RezCoreError::RequirementParse(
-            format!("Package '{}' not found", package_name)
-        ));
+        return Err(RezCoreError::RequirementParse(format!(
+            "Package '{}' not found",
+            package_name
+        )));
     }
 
     // Return the first (or latest) package found - convert Arc<Package> to Package
@@ -199,7 +206,7 @@ async fn package_exists_at_destination(
     } else {
         destination_path.join(&package.name)
     };
-    
+
     Ok(package_dir.exists())
 }
 
@@ -211,7 +218,7 @@ async fn copy_package(
 ) -> RezCoreResult<CopyResult> {
     // TODO: Implement actual package copying logic
     // This is a simplified implementation
-    
+
     let package_dir = if let Some(ref version) = source_package.version {
         destination_path.join(format!("{}-{}", source_package.name, version.as_str()))
     } else {
@@ -219,8 +226,7 @@ async fn copy_package(
     };
 
     // Create destination directory
-    std::fs::create_dir_all(&package_dir)
-        .map_err(|e| RezCoreError::Io(e.into()))?;
+    std::fs::create_dir_all(&package_dir).map_err(|e| RezCoreError::Io(e.into()))?;
 
     if args.verbose {
         println!("Created directory: {}", package_dir.display());
@@ -232,12 +238,18 @@ async fn copy_package(
     let yaml_content = format!(
         "name: {}\nversion: {}\ndescription: {}\n",
         source_package.name,
-        source_package.version.as_ref().map(|v| v.as_str()).unwrap_or("1.0.0"),
-        source_package.description.as_deref().unwrap_or("Copied package")
+        source_package
+            .version
+            .as_ref()
+            .map(|v| v.as_str())
+            .unwrap_or("1.0.0"),
+        source_package
+            .description
+            .as_deref()
+            .unwrap_or("Copied package")
     );
-    
-    std::fs::write(&package_yaml, yaml_content)
-        .map_err(|e| RezCoreError::Io(e.into()))?;
+
+    std::fs::write(&package_yaml, yaml_content).map_err(|e| RezCoreError::Io(e.into()))?;
 
     let variants_copied = if args.all_variants {
         source_package.variants.len().max(1)
@@ -264,12 +276,12 @@ mod tests {
             parse_package_spec("python").unwrap(),
             ("python".to_string(), None)
         );
-        
+
         assert_eq!(
             parse_package_spec("python-3.9").unwrap(),
             ("python".to_string(), Some("3.9".to_string()))
         );
-        
+
         assert_eq!(
             parse_package_spec("my-package-name").unwrap(),
             ("my-package-name".to_string(), None)

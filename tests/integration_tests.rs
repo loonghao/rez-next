@@ -99,9 +99,16 @@ mod performance_tests {
             .collect();
 
         let duration = start_time.elapsed();
-        println!("Batch processing of {} items took: {:?}", version_strings.len(), duration);
+        println!(
+            "Batch processing of {} items took: {:?}",
+            version_strings.len(),
+            duration
+        );
 
-        assert!(duration.as_millis() < 1000, "Batch processing should be efficient");
+        assert!(
+            duration.as_millis() < 1000,
+            "Batch processing should be efficient"
+        );
     }
 
     #[test]
@@ -121,14 +128,18 @@ mod performance_tests {
         let matches: Vec<_> = test_files
             .iter()
             .filter(|filename| {
-                filename.ends_with(".py") ||
-                filename.ends_with(".yaml") ||
-                filename.ends_with(".json")
+                filename.ends_with(".py")
+                    || filename.ends_with(".yaml")
+                    || filename.ends_with(".json")
             })
             .collect();
 
         let duration = start_time.elapsed();
-        println!("Pattern matching took: {:?}, found {} matches", duration, matches.len());
+        println!(
+            "Pattern matching took: {:?}, found {} matches",
+            duration,
+            matches.len()
+        );
 
         assert_eq!(matches.len(), 4);
         assert!(duration.as_millis() < 10);
@@ -156,9 +167,7 @@ mod performance_tests {
     fn test_parallel_processing_simulation() {
         println!("Testing parallel processing simulation...");
 
-        let large_dataset: Vec<String> = (0..5000)
-            .map(|i| format!("data_{}", i))
-            .collect();
+        let large_dataset: Vec<String> = (0..5000).map(|i| format!("data_{}", i)).collect();
 
         let start_time = Instant::now();
 
