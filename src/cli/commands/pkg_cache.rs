@@ -4,9 +4,9 @@
 //! This command provides functionality to view, add, remove, and clean package cache entries.
 
 use clap::Args;
-use rez_core_cache::{IntelligentCacheManager, UnifiedCache, UnifiedCacheConfig};
-use rez_core_common::{error::RezCoreResult, RezCoreError};
-use rez_core_repository::Repository;
+use rez_next_cache::{IntelligentCacheManager, UnifiedCache, UnifiedCacheConfig};
+use rez_next_common::{error::RezCoreResult, RezCoreError};
+use rez_next_repository::Repository;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;

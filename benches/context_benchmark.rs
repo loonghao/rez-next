@@ -9,15 +9,15 @@
 //! - Execution statistics and performance monitoring
 
 use criterion::{black_box, BenchmarkId, Criterion, Throughput};
-use rez_core_common::RezCoreError;
-use rez_core_context::{
+use rez_next_common::RezCoreError;
+use rez_next_context::{
     ContextBuilder, ContextConfig, ContextExecution, ContextFormat, ContextSerialization,
     ContextStatus, EnvironmentManager, ExecutionConfig, PathStrategy, ResolvedContext,
     ShellExecutor, ShellType,
 };
-use rez_core_package::{Package, PackageRequirement};
-use rez_core_solver::{DependencySolver, SolverConfig, SolverRequest};
-use rez_core_version::{Version, VersionRange};
+use rez_next_package::{Package, PackageRequirement};
+use rez_next_solver::{DependencySolver, SolverConfig, SolverRequest};
+use rez_next_version::{Version, VersionRange};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;

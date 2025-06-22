@@ -1,0 +1,44 @@
+[package]
+name = "rez-next-build"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+description = "Build system for Rez Core"
+license.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+[features]
+default = []
+# Temporarily disabled Python bindings
+# python-bindings = ["pyo3", "rez-next-common/python-bindings", "rez-next-package/python-bindings"]
+
+[dependencies]
+rez-next-common = { path = "../rez-next-common" }
+rez-next-version = { path = "../rez-next-version" }
+rez-next-package = { path = "../rez-next-package" }
+rez-next-context = { path = "../rez-next-context" }
+# rez-core-rex = { path = "../rez-core-rex" }  # Temporarily disabled due to compilation errors
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+thiserror.workspace = true
+# Temporarily disabled Python bindings
+# pyo3 = { workspace = true, optional = true }
+uuid = { version = "1.17", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+regex = "1.11"
+shellexpand = "3.1"
+serde_yaml = "0.9"
+url = "2.5"
+reqwest = { version = "0.12", features = ["stream"] }
+async-trait = "0.1"
+
+[dev-dependencies]
+rstest.workspace = true
+proptest.workspace = true
+tempfile.workspace = true
+pretty_assertions.workspace = true
+assert_matches.workspace = true
+serial_test.workspace = true

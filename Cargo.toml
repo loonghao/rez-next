@@ -1,13 +1,13 @@
 [workspace]
 members = [
-    "crates/rez-core-common",
-    "crates/rez-core-version",
-    "crates/rez-core-package",
-    "crates/rez-core-solver",
-    "crates/rez-core-repository",
-    "crates/rez-core-context",
-    "crates/rez-core-build",
-    "crates/rez-core-cache",
+    "crates/rez-next-common",
+    "crates/rez-next-version",
+    "crates/rez-next-package",
+    "crates/rez-next-solver",
+    "crates/rez-next-repository",
+    "crates/rez-next-context",
+    "crates/rez-next-build",
+    "crates/rez-next-cache",
 ]
 exclude = [
     "examples/rez-lsp-integration",
@@ -30,29 +30,29 @@ categories = ["development-tools"]
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 serde_yaml = "0.9"
-rayon = "1.7"
+rayon = "1.10"
 lru = "0.14.0"
-tokio = { version = "1.0", features = ["full"] }
-regex = "1.10"
+tokio = { version = "1.45", features = ["full"] }
+regex = "1.11"
 thiserror = "2.0"
-rand = "0.8"
-clap = { version = "4.0", features = ["derive", "env"] }
+rand = "0.9"
+clap = { version = "4.5", features = ["derive", "env"] }
 
 # Dev dependencies
 criterion = { version = "0.6", features = ["html_reports"] }
-proptest = "1.0"
+proptest = "1.7"
 rstest = "0.25"
-tempfile = "3.0"
+tempfile = "3.20"
 assert_matches = "1.5"
 pretty_assertions = "1.4"
-serial_test = "3.0"
+serial_test = "3.2"
 
 [package]
-name = "rez-core"
+name = "rez-next"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
-description = "High-performance core components for Rez package manager (meta-package)"
+description = "Next-generation Rez package manager written in Rust"
 license.workspace = true
 repository.workspace = true
 keywords.workspace = true
@@ -66,29 +66,29 @@ crate-type = ["rlib"]
 default = []
 # Temporarily disabled Python bindings to focus on core Rust functionality
 # python-bindings = [
-#     "rez-core-common/python-bindings",
-#     "rez-core-version/python-bindings",
-#     "rez-core-package/python-bindings",
-#     "rez-core-context/python-bindings",
-#     "rez-core-solver/python-bindings",
+#     "rez-next-common/python-bindings",
+#     "rez-next-version/python-bindings",
+#     "rez-next-package/python-bindings",
+#     "rez-next-context/python-bindings",
+#     "rez-next-solver/python-bindings",
 #     "pyo3"
 # ]
 
 [[bin]]
-name = "rez"
-path = "src/bin/rez.rs"
+name = "rez-next"
+path = "src/bin/rez-next.rs"
 
 [dependencies]
 # Workspace crates
-rez-core-common = { path = "crates/rez-core-common", default-features = false }
-rez-core-version = { path = "crates/rez-core-version", default-features = false }
-rez-core-package = { path = "crates/rez-core-package", default-features = false }
-rez-core-solver = { path = "crates/rez-core-solver", default-features = false }
-rez-core-repository = { path = "crates/rez-core-repository", default-features = false }
-rez-core-context = { path = "crates/rez-core-context", default-features = false }
+rez-next-common = { path = "crates/rez-next-common", default-features = false }
+rez-next-version = { path = "crates/rez-next-version", default-features = false }
+rez-next-package = { path = "crates/rez-next-package", default-features = false }
+rez-next-solver = { path = "crates/rez-next-solver", default-features = false }
+rez-next-repository = { path = "crates/rez-next-repository", default-features = false }
+rez-next-context = { path = "crates/rez-next-context", default-features = false }
 # rez-core-rex = { path = "crates/rez-core-rex" }  # Temporarily disabled due to compilation errors
-rez-core-build = { path = "crates/rez-core-build" }
-rez-core-cache = { path = "crates/rez-core-cache" }
+rez-next-build = { path = "crates/rez-next-build" }
+rez-next-cache = { path = "crates/rez-next-cache" }
 # rez-core-python = { path = "crates/rez-core-python" }  # Temporarily disabled due to DLL issues
 
 # Python bindings - temporarily disabled

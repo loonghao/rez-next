@@ -3,9 +3,9 @@
 //! Implements the `rez diff` command for comparing packages.
 
 use clap::Args;
-use rez_core_common::{error::RezCoreResult, RezCoreError};
-use rez_core_package::Package;
-use rez_core_repository::simple_repository::{RepositoryManager, SimpleRepository};
+use rez_next_common::{error::RezCoreResult, RezCoreError};
+use rez_next_package::Package;
+use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;

@@ -9,8 +9,8 @@
 //! - Requirements processing performance
 
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
-use rez_core_package::{Package, PackageFormat, PackageSerializer};
-use rez_core_version::Version;
+use rez_next_package::{Package, PackageFormat, PackageSerializer};
+use rez_next_version::Version;
 use std::collections::HashMap;
 use std::time::{SystemTime, UNIX_EPOCH};
 use thiserror::Error;

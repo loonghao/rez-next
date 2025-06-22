@@ -1,11 +1,11 @@
 //! Solve command implementation - dependency resolution
 
 use clap::Args;
-use rez_core_common::{error::RezCoreResult, RezCoreError};
-use rez_core_package::Requirement;
-use rez_core_repository::simple_repository::{RepositoryManager, SimpleRepository};
-use rez_core_solver::dependency_resolver::ResolutionResult;
-use rez_core_solver::{ConflictStrategy, DependencyResolver, SolverConfig, SolverStats};
+use rez_next_common::{error::RezCoreResult, RezCoreError};
+use rez_next_package::Requirement;
+use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
+use rez_next_solver::dependency_resolver::ResolutionResult;
+use rez_next_solver::{ConflictStrategy, DependencyResolver, SolverConfig, SolverStats};
 use std::path::PathBuf;
 use std::sync::Arc;
 

@@ -1,9 +1,9 @@
 //! Advanced search command implementation
 
 use clap::Args;
-use rez_core_common::{error::RezCoreResult, RezCoreError};
-use rez_core_package::Package;
-use rez_core_repository::simple_repository::{RepositoryManager, SimpleRepository};
+use rez_next_common::{error::RezCoreResult, RezCoreError};
+use rez_next_package::Package;
+use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
 use serde_json;
 use std::collections::HashMap;
 use std::path::PathBuf;

@@ -3,8 +3,8 @@
 //! Implements the `rez bind` command for converting system software into rez packages.
 
 use clap::Args;
-use rez_core_common::{error::RezCoreResult, RezCoreError};
-use rez_core_package::Package;
+use rez_next_common::{error::RezCoreResult, RezCoreError};
+use rez_next_package::Package;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
@@ -362,7 +362,7 @@ fn bind_single_package(
 
     let package = Package {
         name: name.to_string(),
-        version: Some(rez_core_version::Version::parse("1.0.0")?),
+        version: Some(rez_next_version::Version::parse("1.0.0")?),
         description: Some(format!("System package: {}", name)),
         authors: vec!["System".to_string()],
         requires: if no_deps {

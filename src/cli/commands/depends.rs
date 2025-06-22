@@ -1,11 +1,11 @@
 //! Rez depends command implementation
 
 use clap::Args;
-use rez_core_common::RezCoreError;
-use rez_core_package::{Package, PackageRequirement};
-use rez_core_repository::simple_repository::{RepositoryManager, SimpleRepository};
-use rez_core_solver::DependencyGraph;
-use rez_core_version::Version;
+use rez_next_common::RezCoreError;
+use rez_next_package::{Package, PackageRequirement};
+use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
+use rez_next_solver::DependencyGraph;
+use rez_next_version::Version;
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::path::PathBuf;
 use std::sync::Arc;

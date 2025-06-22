@@ -3,9 +3,9 @@
 //! Implements the `rez rm` command for removing packages from repositories.
 
 use clap::Args;
-use rez_core_common::{error::RezCoreResult, RezCoreError};
-use rez_core_package::Package;
-use rez_core_repository::simple_repository::{RepositoryManager, SimpleRepository};
+use rez_next_common::{error::RezCoreResult, RezCoreError};
+use rez_next_package::Package;
+use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::RwLock;

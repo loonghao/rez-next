@@ -3,9 +3,9 @@
 //! Implements the `rez build` command for building packages from source.
 
 use clap::Args;
-use rez_core_build::{BuildManager, BuildOptions, BuildRequest, BuildStatus};
-use rez_core_common::{error::RezCoreResult, RezCoreError};
-use rez_core_package::Package;
+use rez_next_build::{BuildManager, BuildOptions, BuildRequest, BuildStatus};
+use rez_next_common::{error::RezCoreResult, RezCoreError};
+use rez_next_package::Package;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
@@ -160,7 +160,7 @@ fn fetch_and_load_remote_source(
     source_url: &str,
     args: &BuildArgs,
 ) -> RezCoreResult<(PathBuf, Package)> {
-    use rez_core_build::{NetworkSource, SourceManager};
+    use rez_next_build::{NetworkSource, SourceManager};
     use tempfile::TempDir;
 
     if args.verbose {
@@ -272,7 +272,7 @@ fn copy_dir_recursive(src: &PathBuf, dest: &PathBuf) -> RezCoreResult<()> {
 
 /// Load package from current directory
 fn load_current_package(working_dir: &PathBuf) -> RezCoreResult<Package> {
-    use rez_core_package::serialization::PackageSerializer;
+    use rez_next_package::serialization::PackageSerializer;
 
     // Look for package.py or package.yaml
     let package_py = working_dir.join("package.py");
@@ -540,7 +540,7 @@ fn normalize_path(path: &str) -> RezCoreResult<String> {
 
 /// Get installation path
 fn get_install_path(args: &BuildArgs) -> RezCoreResult<PathBuf> {
-    use rez_core_common::config::RezCoreConfig;
+    use rez_next_common::config::RezCoreConfig;
 
     let install_path_str = if let Some(ref prefix) = args.prefix {
         prefix.clone()
@@ -555,7 +555,7 @@ fn get_install_path(args: &BuildArgs) -> RezCoreResult<PathBuf> {
 
 /// Generate package.py content
 fn generate_package_content(package: &Package) -> RezCoreResult<String> {
-    use rez_core_package::serialization::{PackageFormat, PackageSerializer};
+    use rez_next_package::serialization::{PackageFormat, PackageSerializer};
 
     PackageSerializer::save_to_string(package, PackageFormat::Python).map_err(|e| {
         RezCoreError::PackageParse(format!("Failed to generate package content: {}", e))

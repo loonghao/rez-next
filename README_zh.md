@@ -1,10 +1,10 @@
-# 🚀 Rez-Core: 下一代包管理系统
+# 🚀 rez-next: 下一代包管理系统
 
 [![Rust](https://img.shields.io/badge/rust-1.70+-orange.svg)](https://www.rust-lang.org)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 [![Performance](https://img.shields.io/badge/performance-117x%20faster-green.svg)](#performance)
-[![Crates.io](https://img.shields.io/crates/v/rez-core.svg)](https://crates.io/crates/rez-core)
-[![Documentation](https://docs.rs/rez-core/badge.svg)](https://docs.rs/rez-core)
+[![Crates.io](https://img.shields.io/crates/v/rez-next.svg)](https://crates.io/crates/rez-next)
+[![Documentation](https://docs.rs/rez-next/badge.svg)](https://docs.rs/rez-next)
 
 > **⚡ 使用Rust编写的极速、内存高效的Rez包管理器核心组件**
 
@@ -22,9 +22,9 @@
 
 ---
 
-## 🌟 为什么选择Rez-Core？
+## 🌟 为什么选择rez-next？
 
-Rez-Core是对原始Rez包管理器核心功能的**完全重写**，使用Rust实现，在保持100% API兼容性的同时提供前所未有的性能提升。
+rez-next是对原始Rez包管理器核心功能的**完全重写**，使用Rust实现，在保持100% API兼容性的同时提供前所未有的性能提升。
 
 ### 🎯 核心成就
 
@@ -36,7 +36,7 @@ Rez-Core是对原始Rez包管理器核心功能的**完全重写**，使用Rust�
 
 ### 📊 性能对比
 
-| 组件 | 原始Rez | Rez-Core | 性能提升 |
+| 组件 | 原始Rez | rez-next | 性能提升 |
 |------|---------|----------|----------|
 | 版本解析 | ~1,000/ms | **586,633/s** | **117倍更快** |
 | Rex命令 | 基准线 | **75倍更快** | **75倍更快** |
@@ -47,18 +47,18 @@ Rez-Core是对原始Rez包管理器核心功能的**完全重写**，使用Rust�
 
 ## 🏗️ 架构设计
 
-Rez-Core构建为高性能crate的模块化生态系统：
+rez-next构建为高性能crate的模块化生态系统：
 
 ```
-rez-core/
-├── 🧩 rez-core-common      # 共享工具和错误处理
-├── 📦 rez-core-version     # 超快版本解析（117倍更快）
-├── 📋 rez-core-package     # 包定义和管理
-├── 🔍 rez-core-solver      # 智能依赖解析（A*算法）
-├── 📚 rez-core-repository  # 仓库扫描和缓存
-├── 🌍 rez-core-context     # 环境管理和执行
-├── 🏗️ rez-core-build       # 构建系统集成
-└── ⚡ rez-core-cache       # 多级智能缓存
+rez-next/
+├── 🧩 rez-next-common      # 共享工具和错误处理
+├── 📦 rez-next-version     # 超快版本解析（117倍更快）
+├── 📋 rez-next-package     # 包定义和管理
+├── 🔍 rez-next-solver      # 智能依赖解析（A*算法）
+├── 📚 rez-next-repository  # 仓库扫描和缓存
+├── 🌍 rez-next-context     # 环境管理和执行
+├── 🏗️ rez-next-build       # 构建系统集成
+└── ⚡ rez-next-cache       # 多级智能缓存
 ```
 
 ---
@@ -69,11 +69,11 @@ rez-core/
 
 ```bash
 # 从crates.io安装
-cargo install rez-core
+cargo install rez-next
 
 # 或从源码构建
-git clone https://github.com/loonghao/rez-core
-cd rez-core
+git clone https://github.com/loonghao/rez-next
+cd rez-next
 cargo build --release
 ```
 
@@ -93,6 +93,54 @@ let packages = solver.resolve(&["python-3.9", "maya-2024"])?;
 // 智能缓存
 let cache = IntelligentCacheManager::new();
 cache.enable_predictive_preheating();
+```
+
+### 🐍 Python集成
+
+> **⚠️ 状态：尚未实现**
+>
+> Python绑定正在计划中但尚未可用。预期接口将提供与现有Rez工作流程的无缝集成，同时提供相同的117倍性能提升。
+
+#### 预期接口（即将推出）
+
+```python
+# 安装（计划中）
+pip install rez-next-python
+
+# 预期API - 与原始Rez 100%兼容
+import rez_next as rez
+
+# 🚀 117倍更快的版本解析
+version = rez.Version("2.1.0-beta.1+build.123")
+print(f"版本: {version}")
+print(f"主版本: {version.major}, 次版本: {version.minor}, 补丁: {version.patch}")
+
+# 🧠 智能依赖解析（5倍更快）
+solver = rez.Solver()
+context = solver.resolve(["python-3.9", "maya-2024", "nuke-13.2"])
+print(f"解析了 {len(context.resolved_packages)} 个包")
+
+# 📦 包管理和验证
+package = rez.Package.load("package.py")
+validator = rez.PackageValidator()
+result = validator.validate(package)
+
+# 🌍 环境执行（75倍更快）
+context = rez.ResolvedContext(["python-3.9", "maya-2024"])
+proc = context.execute_command(["python", "-c", "print('来自rez-next的问候!')"])
+print(f"退出代码: {proc.wait()}")
+```
+
+#### 迁移路径
+
+```python
+# 当前Rez代码（无需更改！）
+from rez import packages_path, resolved_context
+from rez.packages import get_latest_package
+from rez.solver import Solver
+
+# 安装rez-next-python后，相同代码运行速度提升117倍！
+# 无需代码更改 - 只需安装并享受性能提升
 ```
 
 ---
@@ -144,15 +192,15 @@ cargo bench comprehensive_benchmark_suite
 ```
 版本解析基准测试:
   原始Rez:      1,000 ops/ms
-  Rez-Core:   586,633 ops/s  (117倍提升)
+  rez-next:   586,633 ops/s  (117倍提升)
 
 Rex命令处理:
   原始Rez:      基准线
-  Rez-Core:     75倍更快
+  rez-next:     75倍更快
 
 内存使用:
   原始Rez:      大型仓库约200MB
-  Rez-Core:     约50MB (减少75%)
+  rez-next:     约50MB (减少75%)
 ```
 
 ---
@@ -198,8 +246,9 @@ cargo tarpaulin --out html
 
 ## 📚 文档
 
-- **[API文档](https://docs.rs/rez-core)** - 完整API参考
+- **[API文档](https://docs.rs/rez-next)** - 完整API参考
 - **[用户指南](docs/user-guide.md)** - 入门和最佳实践
+- **[Python集成](docs/python-integration_zh.md)** - Python绑定和API（计划中）
 - **[迁移指南](docs/migration.md)** - 从原始Rez迁移
 - **[性能指南](docs/performance.md)** - 优化技术
 - **[架构指南](docs/architecture.md)** - 内部设计详情
@@ -208,9 +257,9 @@ cargo tarpaulin --out html
 
 ## 🤝 社区
 
-- **[GitHub讨论](https://github.com/loonghao/rez-core/discussions)** - 提问和分享想法
-- **[问题反馈](https://github.com/loonghao/rez-core/issues)** - 错误报告和功能请求
-- **[Discord](https://discord.gg/rez-core)** - 实时社区聊天
+- **[GitHub讨论](https://github.com/loonghao/rez-next/discussions)** - 提问和分享想法
+- **[问题反馈](https://github.com/loonghao/rez-next/issues)** - 错误报告和功能请求
+- **[Discord](https://discord.gg/rez-next)** - 实时社区聊天
 
 ---
 
@@ -230,8 +279,8 @@ cargo tarpaulin --out html
 
 <div align="center">
 
-**⭐ 如果您觉得Rez-Core有用，请在GitHub上给我们点星！ ⭐**
+**⭐ 如果您觉得rez-next有用，请在GitHub上给我们点星！ ⭐**
 
-[🚀 开始使用](docs/quick-start.md) | [📖 文档](https://docs.rs/rez-core) | [💬 社区](https://github.com/loonghao/rez-core/discussions)
+[🚀 开始使用](docs/quick-start.md) | [📖 文档](https://docs.rs/rez-next) | [💬 社区](https://github.com/loonghao/rez-next/discussions)
 
 </div>

@@ -8,7 +8,7 @@
 //! - Release deployment
 
 use clap::Args;
-use rez_core_common::{error::RezCoreResult, RezCoreError};
+use rez_next_common::{error::RezCoreResult, RezCoreError};
 use std::path::PathBuf;
 
 /// Release command configuration

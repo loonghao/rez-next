@@ -8,7 +8,7 @@
 //! - Test filtering and selection
 
 use clap::Args;
-use rez_core_common::{error::RezCoreResult, RezCoreError};
+use rez_next_common::{error::RezCoreResult, RezCoreError};
 use std::path::PathBuf;
 
 /// Test command configuration

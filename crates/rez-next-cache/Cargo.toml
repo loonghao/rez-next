@@ -1,0 +1,50 @@
+[package]
+name = "rez-next-cache"
+version = "0.1.0"
+edition = "2021"
+authors = ["Long Hao <hal.long@outlook.com>"]
+description = "Intelligent caching system for rez-core with multi-level cache and predictive preheating"
+license = "Apache-2.0"
+repository = "https://github.com/longhao/rez-core"
+keywords = ["rez", "cache", "performance", "intelligent", "multi-level"]
+categories = ["caching", "development-tools"]
+
+[dependencies]
+# Core dependencies
+tokio = { version = "1.45", features = ["full"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# High-performance dependencies
+ahash = "0.8"
+dashmap = "6.1"
+lru = "0.14"
+
+# Async and concurrency
+futures = "0.3"
+async-trait = "0.1"
+
+# Error handling
+thiserror = "2.0"
+
+# System utilities
+num_cpus = "1.17"
+rand = "0.9"
+
+# Internal dependencies
+rez-next-common = { path = "../rez-next-common" }
+# Temporarily disabled due to compilation errors in other crates
+# rez-next-solver = { path = "../rez-next-solver" }
+# rez-next-repository = { path = "../rez-next-repository" }
+# rez-core-rex = { path = "../rez-core-rex" }
+# rez-next-package = { path = "../rez-next-package" }
+
+[dev-dependencies]
+criterion = { version = "0.6", features = ["html_reports"] }
+tokio-test = "0.4"
+
+[features]
+default = ["multi-level", "predictive"]
+multi-level = []
+predictive = []
+monitoring = []

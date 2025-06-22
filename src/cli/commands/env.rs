@@ -4,10 +4,10 @@
 //! This command resolves package requirements and spawns a shell with the resolved environment.
 
 use clap::Args;
-use rez_core_common::{error::RezCoreResult, RezCoreError};
-use rez_core_context::{ContextConfig, EnvironmentManager, ResolvedContext, ShellType};
-use rez_core_package::{Package, PackageRequirement};
-use rez_core_solver::{DependencySolver, SolverRequest};
+use rez_next_common::{error::RezCoreResult, RezCoreError};
+use rez_next_context::{ContextConfig, EnvironmentManager, ResolvedContext, ShellType};
+use rez_next_package::{Package, PackageRequirement};
+use rez_next_solver::{DependencySolver, SolverRequest};
 use std::collections::HashMap;
 use std::env;
 use std::process::{Command, Stdio};

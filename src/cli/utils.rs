@@ -2,7 +2,7 @@
 //!
 //! Common utilities and helper functions for CLI commands.
 
-use rez_core_common::{error::RezCoreResult, RezCoreError};
+use rez_next_common::{error::RezCoreResult, RezCoreError};
 use std::io::{self, Write};
 
 /// Print formatted output with proper error handling

@@ -4,9 +4,9 @@
 //! This command provides complete compatibility with the original rez-context command.
 
 use clap::Args;
-use rez_core_common::{error::RezCoreResult, RezCoreError};
-use rez_core_context::{ResolvedPackage, RezResolvedContext};
-use rez_core_package::{Package, Requirement};
+use rez_next_common::{error::RezCoreResult, RezCoreError};
+use rez_next_context::{ResolvedPackage, RezResolvedContext};
+use rez_next_package::{Package, Requirement};
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -122,23 +122,23 @@ impl Default for OutputFormat {
     }
 }
 
-// impl From<OutputFormat> for rez_core_context::ShellType {
+// impl From<OutputFormat> for rez_next_context::ShellType {
 //     fn from(format: OutputFormat) -> Self {
 //         match format {
-//             OutputFormat::Bash => rez_core_context::ShellType::Bash,
-//             OutputFormat::Zsh => rez_core_context::ShellType::Zsh,
-//             OutputFormat::Fish => rez_core_context::ShellType::Fish,
-//             OutputFormat::Cmd => rez_core_context::ShellType::Cmd,
-//             OutputFormat::PowerShell => rez_core_context::ShellType::PowerShell,
+//             OutputFormat::Bash => rez_next_context::ShellType::Bash,
+//             OutputFormat::Zsh => rez_next_context::ShellType::Zsh,
+//             OutputFormat::Fish => rez_next_context::ShellType::Fish,
+//             OutputFormat::Cmd => rez_next_context::ShellType::Cmd,
+//             OutputFormat::PowerShell => rez_next_context::ShellType::PowerShell,
 //             // For non-shell formats, default to current shell
-//             _ => rez_core_context::ShellType::detect(),
+//             _ => rez_next_context::ShellType::detect(),
 //         }
 //     }
 // }
 
 /// Execute the context command
 pub fn execute(args: ContextArgs) -> RezCoreResult<()> {
-    use rez_core_context::RezResolvedContext;
+    use rez_next_context::RezResolvedContext;
 
     // For demonstration, create a mock context
     let context = create_demo_context()?;
@@ -163,8 +163,8 @@ pub fn execute(args: ContextArgs) -> RezCoreResult<()> {
 
 /// Create a demonstration context
 fn create_demo_context() -> RezCoreResult<RezResolvedContext> {
-    use rez_core_context::{ResolvedPackage, RezResolvedContext};
-    use rez_core_package::{Package, Requirement};
+    use rez_next_context::{ResolvedPackage, RezResolvedContext};
+    use rez_next_package::{Package, Requirement};
     use std::sync::Arc;
 
     // Create some demo requirements
@@ -177,14 +177,14 @@ fn create_demo_context() -> RezCoreResult<RezResolvedContext> {
 
     // Create demo resolved packages
     let mut python_pkg = Package::new("python".to_string());
-    python_pkg.version = Some(rez_core_version::Version::parse("3.9.0").unwrap());
+    python_pkg.version = Some(rez_next_version::Version::parse("3.9.0").unwrap());
     python_pkg.description = Some("Python programming language".to_string());
     python_pkg.tools = vec!["python".to_string(), "pip".to_string()];
     python_pkg.commands =
         Some("export PYTHON_ROOT=\"{root}\"\nexport PATH=\"${PATH}:{root}/bin\"".to_string());
 
     let mut numpy_pkg = Package::new("numpy".to_string());
-    numpy_pkg.version = Some(rez_core_version::Version::parse("1.21.0").unwrap());
+    numpy_pkg.version = Some(rez_next_version::Version::parse("1.21.0").unwrap());
     numpy_pkg.description = Some("Numerical computing library".to_string());
     numpy_pkg.commands = Some("export PYTHONPATH=\"${PYTHONPATH}:{root}/lib/python\"".to_string());
 

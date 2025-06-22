@@ -84,11 +84,11 @@ fn quick_solver_benchmark(c: &mut Criterion) {
     // Test one simple scenario
     if let Some(scenario) = solver_benchmark.test_data.simple_scenarios.first() {
         group.bench_function("quick_simple_resolution", |b| {
-            let solver = rez_core_solver::DependencySolver::new();
+            let solver = rez_next_solver::DependencySolver::new();
             b.iter(|| {
-                let request = rez_core_solver::SolverRequest {
+                let request = rez_next_solver::SolverRequest {
                     requirements: scenario.requirements.clone(),
-                    config: rez_core_solver::SolverConfig::default(),
+                    config: rez_next_solver::SolverConfig::default(),
                 };
                 criterion::black_box(solver.resolve(criterion::black_box(request)))
             });
@@ -98,11 +98,11 @@ fn quick_solver_benchmark(c: &mut Criterion) {
     // Test one conflict scenario
     if let Some(scenario) = solver_benchmark.test_data.conflict_scenarios.first() {
         group.bench_function("quick_conflict_resolution", |b| {
-            let solver = rez_core_solver::DependencySolver::new();
+            let solver = rez_next_solver::DependencySolver::new();
             b.iter(|| {
-                let request = rez_core_solver::SolverRequest {
+                let request = rez_next_solver::SolverRequest {
                     requirements: scenario.conflicting_requirements.clone(),
-                    config: rez_core_solver::SolverConfig::default(),
+                    config: rez_next_solver::SolverConfig::default(),
                 };
                 criterion::black_box(solver.resolve(criterion::black_box(request)))
             });

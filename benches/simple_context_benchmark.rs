@@ -4,12 +4,12 @@
 //! without complex dependencies. This focuses on core context operations.
 
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
-use rez_core_context::{
+use rez_next_context::{
     ContextBuilder, ContextConfig, ContextFormat, ContextSerialization, EnvironmentManager,
     PathStrategy, ResolvedContext, ShellExecutor, ShellType,
 };
-use rez_core_package::{Package, PackageRequirement};
-use rez_core_version::{Version, VersionRange};
+use rez_next_package::{Package, PackageRequirement};
+use rez_next_version::{Version, VersionRange};
 use std::collections::HashMap;
 use std::time::Duration;
 

@@ -10,18 +10,18 @@
 //! - Cache monitoring and performance validation
 
 use criterion::{black_box, BenchmarkId, Criterion, Throughput};
-use rez_core_build::{
+use rez_next_build::{
     BuildConfig, BuildEnvironment, BuildManager, BuildOptions, BuildProcess, BuildRequest,
     BuildStats, BuildSystem, BuildVerbosity,
 };
-use rez_core_cache::{
+use rez_next_cache::{
     AdaptiveTuner, BenchmarkConfig as CacheBenchmarkConfig, IntelligentCacheManager,
     PredictivePreheater, UnifiedCache, UnifiedCacheConfig, UnifiedPerformanceMonitor,
 };
-use rez_core_common::RezCoreError;
-use rez_core_context::{ContextBuilder, ContextConfig, ResolvedContext};
-use rez_core_package::{Package, PackageRequirement};
-use rez_core_version::{Version, VersionRange};
+use rez_next_common::RezCoreError;
+use rez_next_context::{ContextBuilder, ContextConfig, ResolvedContext};
+use rez_next_package::{Package, PackageRequirement};
+use rez_next_version::{Version, VersionRange};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;

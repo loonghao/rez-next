@@ -3,9 +3,9 @@
 //! Implements the `rez plugins` command for listing and managing package plugins.
 
 use clap::Args;
-use rez_core_common::{error::RezCoreResult, RezCoreError};
-use rez_core_package::Package;
-use rez_core_repository::simple_repository::{RepositoryManager, SimpleRepository};
+use rez_next_common::{error::RezCoreResult, RezCoreError};
+use rez_next_package::Package;
+use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
 use std::collections::HashMap;
 use std::path::PathBuf;
 
@@ -311,7 +311,7 @@ mod tests {
 
     #[test]
     fn test_discover_command_plugins() {
-        use rez_core_version::Version;
+        use rez_next_version::Version;
 
         let mut package = Package::new("python".to_string());
         package.version = Some(Version::parse("3.9.0").unwrap());
@@ -328,7 +328,7 @@ mod tests {
 
     #[test]
     fn test_discover_build_plugins() {
-        use rez_core_version::Version;
+        use rez_next_version::Version;
 
         let mut package = Package::new("cmake".to_string());
         package.version = Some(Version::parse("3.20.0").unwrap());

@@ -1,12 +1,12 @@
-# 🚀 Rez-Core: Next-Generation Package Management
+# 🚀 rez-next: Next-Generation Package Management
 
 [![Rust](https://img.shields.io/badge/rust-1.70+-orange.svg)](https://www.rust-lang.org)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 [![Performance](https://img.shields.io/badge/performance-117x%20faster-green.svg)](#-performance-benchmarks)
-[![Crates.io](https://img.shields.io/crates/v/rez-core.svg)](https://crates.io/crates/rez-core)
-[![Documentation](https://docs.rs/rez-core/badge.svg)](https://docs.rs/rez-core)
-[![CI](https://img.shields.io/github/actions/workflow/status/loonghao/rez-core/ci.yml?branch=main)](https://github.com/loonghao/rez-core/actions)
-[![Coverage](https://img.shields.io/codecov/c/github/loonghao/rez-core)](https://codecov.io/gh/loonghao/rez-core)
+[![Crates.io](https://img.shields.io/crates/v/rez-next.svg)](https://crates.io/crates/rez-next)
+[![Documentation](https://docs.rs/rez-next/badge.svg)](https://docs.rs/rez-next)
+[![CI](https://img.shields.io/github/actions/workflow/status/loonghao/rez-next/ci.yml?branch=main)](https://github.com/loonghao/rez-next/actions)
+[![Coverage](https://img.shields.io/codecov/c/github/loonghao/rez-next)](https://codecov.io/gh/loonghao/rez-next)
 
 > **⚡ Blazing-fast, memory-efficient core components for the Rez package manager, written in Rust**
 >
@@ -26,9 +26,9 @@
 
 ---
 
-## 🌟 Why Rez-Core?
+## 🌟 Why rez-next?
 
-Rez-Core is a **complete rewrite** of the original Rez package manager's core functionality in Rust, delivering unprecedented performance improvements while maintaining 100% API compatibility.
+rez-next is a **complete rewrite** of the original Rez package manager's core functionality in Rust, delivering unprecedented performance improvements while maintaining 100% API compatibility.
 
 > **"From Python to Rust: A journey of 117x performance gains"** 🚀
 
@@ -59,7 +59,7 @@ real    0m8.234s    # 8+ seconds for environment setup
 user    0m2.156s
 sys     0m1.234s
 
-# After: Rez-Core (Rust)
+# After: rez-next (Rust)
 $ time rez-env python maya -- echo "Ready"
 real    0m0.109s    # Sub-second environment setup! 🚀
 user    0m0.045s
@@ -70,7 +70,7 @@ sys     0m0.032s
 
 ### 🏆 Benchmark Results
 
-| Component | Original Rez | Rez-Core | Real Impact |
+| Component | Original Rez | rez-next | Real Impact |
 |-----------|-------------|----------|-------------|
 | **Version Parsing** | 1,000/ms | **586,633/s** | **117x faster** ⚡ |
 | **Environment Setup** | 8.2 seconds | **0.109 seconds** | **75x faster** 🚀 |
@@ -86,15 +86,15 @@ sys     0m0.032s
 
 ```bash
 # 🦀 Install from crates.io (recommended)
-cargo install rez-core
+cargo install rez-next
 
 # 🔧 Or build from source for latest features
-git clone https://github.com/loonghao/rez-core
-cd rez-core
+git clone https://github.com/loonghao/rez-next
+cd rez-next
 cargo build --release --all-features
 
 # 🐍 Python bindings (optional)
-pip install rez-core-python
+pip install rez-next-python
 ```
 
 ### 🎯 Drop-in Replacement
@@ -103,8 +103,8 @@ pip install rez-core-python
 # 1. Backup your current rez installation
 mv /usr/local/bin/rez /usr/local/bin/rez-python-backup
 
-# 2. Install rez-core
-cargo install rez-core
+# 2. Install rez-next
+cargo install rez-next
 
 # 3. Enjoy 117x faster performance! 🚀
 rez-env python maya -- echo "Lightning fast!"
@@ -137,34 +137,85 @@ let result = validator.validate(&package)?;
 
 ### 🐍 Python Integration
 
+> **⚠️ Status: Not Yet Implemented**
+>
+> Python bindings are planned but not yet available. The expected interface will provide seamless integration with existing Rez workflows while delivering the same 117x performance improvements.
+
+#### Expected Interface (Coming Soon)
+
 ```python
-import rez_core
+# Installation (planned)
+pip install rez-next-python
 
-# Same blazing performance in Python!
-solver = rez_core.Solver()
-packages = solver.resolve(["python-3.9", "maya-2024"])
+# Expected API - 100% compatible with original Rez
+import rez_next as rez
 
-# 117x faster version parsing
-version = rez_core.Version("2.1.0-beta.1")
-print(f"Major: {version.major}, Minor: {version.minor}")
+# 🚀 117x faster version parsing
+version = rez.Version("2.1.0-beta.1+build.123")
+print(f"Version: {version}")  # Full semantic version support
+print(f"Major: {version.major}, Minor: {version.minor}, Patch: {version.patch}")
+
+# 🧠 Smart dependency resolution (5x faster)
+solver = rez.Solver()
+context = solver.resolve(["python-3.9", "maya-2024", "nuke-13.2"])
+print(f"Resolved {len(context.resolved_packages)} packages")
+
+# 📦 Package management with validation
+package = rez.Package.load("package.py")
+validator = rez.PackageValidator()
+result = validator.validate(package)
+
+# 🌍 Environment execution (75x faster)
+context = rez.ResolvedContext(["python-3.9", "maya-2024"])
+proc = context.execute_command(["python", "-c", "print('Hello from rez-next!')"])
+print(f"Exit code: {proc.wait()}")
+
+# ⚡ Intelligent caching with ML-based preheating
+cache = rez.IntelligentCacheManager()
+cache.enable_predictive_preheating()
+cache.enable_adaptive_tuning()
+
+# 📚 Repository scanning and management
+repo_manager = rez.RepositoryManager()
+packages = repo_manager.find_packages("maya", version_range=">=2020")
+```
+
+#### Planned Features
+
+- **🔄 Drop-in Replacement** - 100% API compatibility with original Rez
+- **⚡ Zero-Copy Performance** - Direct access to Rust's optimized data structures
+- **🧠 Smart Type Hints** - Full Python typing support for better IDE experience
+- **🛡️ Memory Safety** - Rust's ownership system prevents crashes in Python
+- **📊 Performance Monitoring** - Built-in profiling and benchmarking tools
+
+#### Migration Path
+
+```python
+# Current Rez code (no changes needed!)
+from rez import packages_path, resolved_context
+from rez.packages import get_latest_package
+from rez.solver import Solver
+
+# After installing rez-next-python, same code runs 117x faster!
+# No code changes required - just install and enjoy the performance boost
 ```
 
 ---
 
 ## 🏗️ Architecture
 
-Rez-Core is built as a modular ecosystem of high-performance crates:
+rez-next is built as a modular ecosystem of high-performance crates:
 
 ```
-rez-core/
-├── 🧩 rez-core-common      # Shared utilities and error handling
-├── 📦 rez-core-version     # Ultra-fast version parsing (117x faster)
-├── 📋 rez-core-package     # Package definition and management
-├── 🔍 rez-core-solver      # Smart dependency resolution with A*
-├── 📚 rez-core-repository  # Repository scanning and caching
-├── 🌍 rez-core-context     # Environment management and execution
-├── 🏗️ rez-core-build       # Build system integration
-└── ⚡ rez-core-cache       # Multi-level intelligent caching
+rez-next/
+├── 🧩 rez-next-common      # Shared utilities and error handling
+├── 📦 rez-next-version     # Ultra-fast version parsing (117x faster)
+├── 📋 rez-next-package     # Package definition and management
+├── 🔍 rez-next-solver      # Smart dependency resolution with A*
+├── 📚 rez-next-repository  # Repository scanning and caching
+├── 🌍 rez-next-context     # Environment management and execution
+├── 🏗️ rez-next-build       # Build system integration
+└── ⚡ rez-next-cache       # Multi-level intelligent caching
 ```
 
 ## 🎯 Features
@@ -214,15 +265,15 @@ cargo bench comprehensive_benchmark_suite
 ```
 Version Parsing Benchmark:
   Original Rez:     1,000 ops/ms
-  Rez-Core:       586,633 ops/s  (117x improvement)
+  rez-next:       586,633 ops/s  (117x improvement)
 
 Rex Command Processing:
   Original Rez:     Baseline
-  Rez-Core:         75x faster
+  rez-next:         75x faster
 
 Memory Usage:
   Original Rez:     ~200MB for large repos
-  Rez-Core:         ~50MB (75% reduction)
+  rez-next:         ~50MB (75% reduction)
 ```
 
 ---
@@ -268,8 +319,9 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
 
 ## 📚 Documentation
 
-- **[API Documentation](https://docs.rs/rez-core)** - Complete API reference
+- **[API Documentation](https://docs.rs/rez-next)** - Complete API reference
 - **[User Guide](docs/user-guide.md)** - Getting started and best practices
+- **[Python Integration](docs/python-integration.md)** - Python bindings and API (planned)
 - **[Migration Guide](docs/migration.md)** - Migrating from original Rez
 - **[Performance Guide](docs/performance.md)** - Optimization techniques
 - **[Architecture Guide](docs/architecture.md)** - Internal design details
@@ -278,9 +330,9 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
 
 ## 🤝 Community
 
-- **[GitHub Discussions](https://github.com/loonghao/rez-core/discussions)** - Ask questions and share ideas
-- **[Issues](https://github.com/loonghao/rez-core/issues)** - Bug reports and feature requests
-- **[Discord](https://discord.gg/rez-core)** - Real-time community chat
+- **[GitHub Discussions](https://github.com/loonghao/rez-next/discussions)** - Ask questions and share ideas
+- **[Issues](https://github.com/loonghao/rez-next/issues)** - Bug reports and feature requests
+- **[Discord](https://discord.gg/rez-next)** - Real-time community chat
 
 ---
 
@@ -300,8 +352,8 @@ Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) for detai
 
 <div align="center">
 
-**⭐ Star us on GitHub if you find Rez-Core useful! ⭐**
+**⭐ Star us on GitHub if you find rez-next useful! ⭐**
 
-[🚀 Get Started](docs/quick-start.md) | [📖 Documentation](https://docs.rs/rez-core) | [💬 Community](https://github.com/loonghao/rez-core/discussions)
+[🚀 Get Started](docs/quick-start.md) | [📖 Documentation](https://docs.rs/rez-next) | [💬 Community](https://github.com/loonghao/rez-next/discussions)
 
 </div>

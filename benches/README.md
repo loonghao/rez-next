@@ -1,6 +1,6 @@
 # Comprehensive Benchmark Suite
 
-This directory contains the comprehensive benchmark suite for rez-core, providing unified performance testing across all core modules.
+This directory contains the comprehensive benchmark suite for rez-next, providing unified performance testing across all core modules.
 
 ## 🏗️ Architecture
 
@@ -197,7 +197,7 @@ cargo bench --bench simple_build_cache_benchmark
 
 ## 🧩 Solver Benchmark Details ✨ NEW
 
-The solver benchmark suite provides comprehensive testing for the rez-core dependency resolution system:
+The solver benchmark suite provides comprehensive testing for the rez-next dependency resolution system:
 
 ### Core Functionality Tests
 - **Basic Resolution**: Simple, medium, and complex dependency scenarios
@@ -234,7 +234,7 @@ The solver benchmark suite provides comprehensive testing for the rez-core depen
 
 ## 🏗️ Context Benchmark Details ✨ NEW
 
-The context benchmark suite provides comprehensive testing for the rez-core context management system:
+The context benchmark suite provides comprehensive testing for the rez-next context management system:
 
 ### Core Functionality Tests
 - **Context Creation**: Simple, medium, and complex context building scenarios
@@ -276,7 +276,7 @@ The context benchmark suite provides comprehensive testing for the rez-core cont
 
 ## ⚡ Rex Benchmark Details ✨ NEW
 
-The Rex benchmark suite provides comprehensive testing for the rez-core Rex command system:
+The Rex benchmark suite provides comprehensive testing for the rez-next Rex command system:
 
 ### Core Functionality Tests
 - **Rex Parsing**: Basic vs optimized parser performance comparison
@@ -320,7 +320,7 @@ The Rex benchmark suite provides comprehensive testing for the rez-core Rex comm
 
 ## 🏗️ Build and Cache Benchmark Details ✨ NEW
 
-The Build and Cache benchmark suite provides comprehensive testing for the rez-core Build and Cache systems:
+The Build and Cache benchmark suite provides comprehensive testing for the rez-next Build and Cache systems:
 
 ### Build System Tests
 - **Build Manager Performance**: Build manager creation, configuration, and request processing
@@ -365,7 +365,7 @@ The Build and Cache benchmark suite provides comprehensive testing for the rez-c
 
 ## 🚀 CI Integration and Performance Regression Detection ✨ NEW
 
-The rez-core project includes comprehensive CI integration for automated performance monitoring:
+The rez-next project includes comprehensive CI integration for automated performance monitoring:
 
 ### GitHub Actions Workflow
 - **Automated Benchmarks**: Runs on every push and pull request

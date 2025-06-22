@@ -3,7 +3,7 @@
 //! Implementation of the `rez config` command for viewing and managing configuration.
 
 use clap::Args;
-use rez_core_common::{error::RezCoreResult, RezCoreConfig, RezCoreError};
+use rez_next_common::{error::RezCoreResult, RezCoreConfig, RezCoreError};
 use serde_json;
 
 /// Arguments for the config command

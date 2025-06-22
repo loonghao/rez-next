@@ -86,7 +86,7 @@ fn quick_context_benchmark(c: &mut Criterion) {
     if let Some(scenario) = context_benchmark.test_data.simple_contexts.first() {
         group.bench_function("quick_context_creation", |b| {
             b.iter(|| {
-                let builder = rez_core_context::ContextBuilder::new()
+                let builder = rez_next_context::ContextBuilder::new()
                     .requirements(scenario.requirements.clone())
                     .config(scenario.config.clone());
                 criterion::black_box(builder.build())
@@ -97,7 +97,7 @@ fn quick_context_benchmark(c: &mut Criterion) {
     // Test one environment generation
     if let Some(scenario) = context_benchmark.test_data.env_scenarios.first() {
         group.bench_function("quick_env_generation", |b| {
-            let env_manager = rez_core_context::EnvironmentManager::new(scenario.config.clone());
+            let env_manager = rez_next_context::EnvironmentManager::new(scenario.config.clone());
             b.iter(|| {
                 criterion::black_box(env_manager.generate_environment_sync(&scenario.packages))
             });

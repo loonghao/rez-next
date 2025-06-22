@@ -3,8 +3,8 @@
 //! Implementation of the `rez view` command for viewing package information.
 
 use clap::Args;
-use rez_core_common::{error::RezCoreResult, RezCoreError};
-use rez_core_package::{Package, PackageSerializer};
+use rez_next_common::{error::RezCoreResult, RezCoreError};
+use rez_next_package::{Package, PackageSerializer};
 use std::path::Path;
 
 /// Arguments for the view command
@@ -111,7 +111,7 @@ fn create_mock_package(name: &str) -> RezCoreResult<Package> {
     let mut package = Package::new(pkg_name.to_string());
 
     if let Some(version_str) = version {
-        use rez_core_version::Version;
+        use rez_next_version::Version;
         let version =
             Version::parse(version_str).map_err(|e| RezCoreError::VersionParse(e.to_string()))?;
         package.set_version(version);

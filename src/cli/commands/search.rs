@@ -3,10 +3,10 @@
 //! Implements the `rez search` command for searching packages in repositories.
 
 use clap::Args;
-use rez_core_common::{error::RezCoreResult, RezCoreError};
-use rez_core_package::Package;
-use rez_core_repository::simple_repository::RepositoryManager;
-use rez_core_repository::PackageSearchCriteria;
+use rez_next_common::{error::RezCoreResult, RezCoreError};
+use rez_next_package::Package;
+use rez_next_repository::simple_repository::RepositoryManager;
+use rez_next_repository::PackageSearchCriteria;
 use std::collections::HashMap;
 
 /// Arguments for the search command

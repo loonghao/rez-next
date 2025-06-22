@@ -7,7 +7,7 @@
 //! using clap for argument parsing and integrating with all rez-core modules.
 
 use clap::{CommandFactory, Parser, Subcommand};
-use rez_core_common::{error::RezCoreResult, RezCoreError};
+use rez_next_common::{error::RezCoreResult, RezCoreError};
 
 pub mod commands;
 pub mod utils;
@@ -186,7 +186,7 @@ impl RezCli {
 
     /// Parse version command (development utility)
     fn parse_version_command(&self, version_str: &str) -> RezCoreResult<()> {
-        use rez_core_version::Version;
+        use rez_next_version::Version;
 
         match Version::parse(version_str) {
             Ok(version) => {
@@ -248,7 +248,7 @@ impl RezCli {
 
     /// Test version parsing functionality
     fn test_version_parsing(&self) -> RezCoreResult<()> {
-        use rez_core_version::Version;
+        use rez_next_version::Version;
 
         let test_cases = vec!["1.0.0", "2.1.3", "1.0.0-alpha1", "3.2.1-beta.2", "1.0", "1"];
 

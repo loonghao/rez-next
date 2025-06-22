@@ -1,0 +1,43 @@
+[package]
+name = "rez-next-package"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+description = "Advanced package management with complete package.py parsing and 100% Rez compatibility"
+license.workspace = true
+repository.workspace = true
+homepage = "https://github.com/loonghao/rez-core"
+documentation = "https://docs.rs/rez-next-package"
+readme = "README.md"
+keywords = ["package", "rez", "parsing", "management", "python"]
+categories = ["development-tools", "parsing", "filesystem"]
+exclude = ["tests/fixtures/", "examples/"]
+
+[features]
+default = []
+# Temporarily disabled Python bindings
+# python-bindings = ["pyo3"]
+
+[dependencies]
+rez-next-common = { path = "../rez-next-common", default-features = false }
+rez-next-version = { path = "../rez-next-version", default-features = false }
+# Temporarily disabled Python bindings
+# pyo3 = { workspace = true, optional = true }
+serde.workspace = true
+serde_json.workspace = true
+serde_yaml.workspace = true
+regex.workspace = true
+thiserror.workspace = true
+tempfile.workspace = true
+rustpython-parser = "0.4"
+rustpython-ast = "0.4"
+
+[dev-dependencies]
+rstest.workspace = true
+proptest.workspace = true
+pretty_assertions.workspace = true
+assert_matches.workspace = true
+
+[lib]
+name = "rez_next_package"
+crate-type = ["rlib"]

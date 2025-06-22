@@ -3,8 +3,8 @@
 //! A standalone benchmark for the Package system without external dependencies
 
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
-use rez_core_package::{Package, PackageFormat, PackageSerializer};
-use rez_core_version::Version;
+use rez_next_package::{Package, PackageFormat, PackageSerializer};
+use rez_next_version::Version;
 
 /// Benchmark package creation with different complexity levels
 fn bench_package_creation(c: &mut Criterion) {

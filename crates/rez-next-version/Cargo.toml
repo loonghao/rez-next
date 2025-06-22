@@ -1,0 +1,45 @@
+[package]
+name = "rez-next-version"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+description = "Ultra-fast version parsing and comparison with 117x performance improvement - core component of Rez-Core"
+license.workspace = true
+repository.workspace = true
+homepage = "https://github.com/loonghao/rez-core"
+documentation = "https://docs.rs/rez-next-version"
+readme = "README.md"
+keywords = ["version", "parsing", "semver", "rez", "performance"]
+categories = ["development-tools", "parsing", "data-structures"]
+exclude = ["benches/", "tests/fixtures/"]
+
+[features]
+default = []
+# Temporarily disabled Python bindings
+# python-bindings = ["pyo3", "rez-next-common/python-bindings"]
+
+[lib]
+name = "rez_next_version"
+crate-type = ["rlib"]
+
+[dependencies]
+rez-next-common = { path = "../rez-next-common", default-features = false }
+serde.workspace = true
+serde_json.workspace = true
+regex.workspace = true
+thiserror.workspace = true
+# Temporarily disabled Python bindings
+# pyo3 = { workspace = true, optional = true }
+lru.workspace = true
+rand.workspace = true
+# Performance optimization dependencies
+ahash = "0.8"
+smallvec = "1.15"
+once_cell = "1.21"
+
+[dev-dependencies]
+rstest.workspace = true
+proptest.workspace = true
+tempfile.workspace = true
+pretty_assertions.workspace = true
+assert_matches.workspace = true

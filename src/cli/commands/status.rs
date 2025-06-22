@@ -3,8 +3,8 @@
 //! Implements the `rez status` command for displaying package and repository status.
 
 use clap::Args;
-use rez_core_common::{error::RezCoreResult, RezCoreError};
-use rez_core_repository::simple_repository::{RepositoryManager, SimpleRepository};
+use rez_next_common::{error::RezCoreResult, RezCoreError};
+use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;

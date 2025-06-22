@@ -9,13 +9,13 @@
 //! - Optimized solver performance
 
 use criterion::{black_box, BenchmarkId, Criterion, Throughput};
-use rez_core_common::RezCoreError;
-use rez_core_package::{Package, PackageRequirement};
-use rez_core_solver::{
+use rez_next_common::RezCoreError;
+use rez_next_package::{Package, PackageRequirement};
+use rez_next_solver::{
     ConflictStrategy, DependencySolver, OptimizedDependencySolver, SolverConfig, SolverRequest,
     SolverStats,
 };
-use rez_core_version::{Version, VersionRange};
+use rez_next_version::{Version, VersionRange};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::{Duration, SystemTime};
