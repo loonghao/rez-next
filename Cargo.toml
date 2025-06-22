@@ -20,7 +20,7 @@ edition = "2021"
 authors = ["LongHao <hal.long@outlook.com>"]
 license = "Apache-2.0"
 repository = "https://github.com/loonghao/rez-next"
-keywords = ["rez", "package-manager", "dependency-resolution", "version-management"]
+keywords = ["rez", "package-manager", "dependencies", "version-management"]
 categories = ["development-tools"]
 
 [workspace.dependencies]
