@@ -178,13 +178,13 @@ impl CacheBenchmarkSuite {
 
                 // Phase 2: Access pattern simulation (80/20 rule)
                 for _ in 0..self.config.operations_count {
-                    let mut rng = rand::thread_rng();
-                    let key_index = if rng.gen::<f64>() < 0.8 {
+                    let mut rng = rand::rng();
+                    let key_index = if rng.random::<f64>() < 0.8 {
                         // 80% access to hot data
-                        rng.gen_range(0..hot_data_size)
+                        rng.random_range(0..hot_data_size)
                     } else {
                         // 20% access to cold data
-                        hot_data_size + rng.gen_range(0..(test_data.len() - hot_data_size))
+                        hot_data_size + rng.random_range(0..(test_data.len() - hot_data_size))
                     };
 
                     let (key, value) = &test_data[key_index];
@@ -259,8 +259,8 @@ impl CacheBenchmarkSuite {
 
                 // Phase 1: Low hit rate workload
                 for _ in 0..1000 {
-                    let mut rng = rand::thread_rng();
-                    let key_index = rng.gen_range(0..test_data.len());
+                    let mut rng = rand::rng();
+                    let key_index = rng.random_range(0..test_data.len());
                     let (key, value) = &test_data[key_index];
 
                     if self.cache.get(key).await.is_none() {
@@ -274,8 +274,8 @@ impl CacheBenchmarkSuite {
                 // Phase 2: High hit rate workload
                 let hot_keys: Vec<_> = test_data.iter().take(100).collect();
                 for _ in 0..1000 {
-                    let mut rng = rand::thread_rng();
-                    let (key, value) = hot_keys[rng.gen_range(0..hot_keys.len())];
+                    let mut rng = rand::rng();
+                    let (key, value) = hot_keys[rng.random_range(0..hot_keys.len())];
 
                     if self.cache.get(key).await.is_none() {
                         let _ = self.cache.put(key.clone(), value.clone()).await;
@@ -304,14 +304,14 @@ impl CacheBenchmarkSuite {
                     let handle = tokio::spawn(async move {
                         for _ in 0..1000 {
                             let key_index = {
-                                let mut rng = rand::thread_rng();
-                                rng.gen_range(0..hot_keys.len())
+                                let mut rng = rand::rng();
+                                rng.random_range(0..hot_keys.len())
                             };
                             let key = &hot_keys[key_index];
 
                             let is_read = {
-                                let mut rng = rand::thread_rng();
-                                rng.gen::<bool>()
+                                let mut rng = rand::rng();
+                                rng.random::<bool>()
                             };
 
                             if is_read {
