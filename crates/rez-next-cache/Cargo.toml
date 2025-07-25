@@ -40,7 +40,7 @@ rez-next-common = { version = "0.1.0", path = "../rez-next-common" }
 # rez-next-package = { version = "0.1.0", path = "../rez-next-package" }
 
 [dev-dependencies]
-criterion = { version = "0.6", features = ["html_reports"] }
+criterion = { version = "0.7", features = ["html_reports"] }
 tokio-test = "0.4"
 
 [features]
