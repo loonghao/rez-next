@@ -120,7 +120,7 @@ jobs:
         mkdir -p benchmark-reports
     
     - name: Download previous baselines
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v5
       with:
         name: benchmark-baselines
         path: benchmark-baselines
@@ -316,7 +316,7 @@ jobs:
         pip install pandas matplotlib seaborn plotly
     
     - name: Download benchmark results
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v5
       with:
         name: benchmark-results-${{ github.sha }}
         path: benchmark-results
