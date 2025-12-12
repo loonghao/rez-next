@@ -47,7 +47,7 @@ jobs:
           key: coverage-v1
 
       - name: cache uv
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cache/uv
@@ -160,7 +160,7 @@ jobs:
           key: test-os-v1-${{ matrix.os }}
 
       - name: cache uv
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cache/uv
@@ -200,7 +200,7 @@ jobs:
           key: test-rust-v1
 
       - name: cache uv
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cache/uv
@@ -237,7 +237,7 @@ jobs:
           key: lint-v1
 
       - name: cache uv
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cache/uv
@@ -272,7 +272,7 @@ jobs:
           key: audit-v1
 
       - name: cache cargo-audit
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.cargo/bin/cargo-audit
           key: cargo-audit-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
