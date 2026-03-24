@@ -70,11 +70,6 @@ jobs:
         with:
           targets: ${{ matrix.target }}
 
-      - name: Setup build cache
-        uses: Swatinem/rust-cache@v2
-        with:
-          key: release-${{ matrix.target }}
-
       - name: Install cross (for cross-compilation targets)
         if: matrix.use-cross == true
         run: cargo install cross --git https://github.com/cross-rs/cross
@@ -152,8 +147,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            artifacts/**/*.tar.gz
-            artifacts/**/*.zip
+            artifacts/**/*
             checksums-sha256.txt
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
