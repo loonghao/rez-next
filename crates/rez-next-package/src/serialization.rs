@@ -7,13 +7,18 @@ use serde_json;
 use serde_yaml;
 use std::collections::HashMap;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use std::io::{self, Write, BufWriter};
+use flate2::write::GzEncoder;
+use flate2::Compression;
+use chrono::{DateTime, Utc};
+use serde::{Serialize, Deserialize};
 
 // PackageRequirement and PackageVariant imports removed as they're not used in this module
 // PyO3 imports removed as they're not used in this module
 
 /// Package serialization format
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PackageFormat {
     /// YAML format (package.yaml)
     Yaml,
@@ -21,15 +26,88 @@ pub enum PackageFormat {
     Json,
     /// Python format (package.py)
     Python,
+    /// Compressed YAML format (package.yaml.gz)
+    YamlCompressed,
+    /// Compressed JSON format (package.json.gz)
+    JsonCompressed,
+    /// Binary format (package.bin)
+    Binary,
+    /// TOML format (package.toml)
+    Toml,
+    /// XML format (package.xml)
+    Xml,
+}
+
+/// Serialization options
+#[cfg_attr(feature = "python-bindings", pyclass)]
+#[derive(Debug, Clone)]
+pub struct SerializationOptions {
+    /// Pretty print output
+    pub pretty_print: bool,
+    /// Include metadata
+    pub include_metadata: bool,
+    /// Include timestamps
+    pub include_timestamps: bool,
+    /// Compression level (0-9, only for compressed formats)
+    pub compression_level: u32,
+    /// Custom field filters
+    pub field_filters: Vec<String>,
+    /// Include only specified fields
+    pub include_only: Option<Vec<String>>,
+    /// Exclude specified fields
+    pub exclude_fields: Option<Vec<String>>,
+    /// Custom serialization rules
+    pub custom_rules: HashMap<String, String>,
+}
+
+/// Package metadata for serialization
+#[cfg_attr(feature = "python-bindings", pyclass)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PackageMetadata {
+    /// Serialization timestamp
+    pub serialized_at: String,
+    /// Serialization format
+    pub format: String,
+    /// Serializer version
+    pub serializer_version: String,
+    /// Original file path
+    pub original_path: Option<String>,
+    /// Checksum
+    pub checksum: Option<String>,
+    /// Custom metadata
+    pub custom: HashMap<String, String>,
+}
+
+/// Enhanced package container with metadata
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PackageContainer {
+    /// Package data
+    pub package: Package,
+    /// Metadata
+    pub metadata: PackageMetadata,
+    /// Schema version
+    pub schema_version: String,
 }
 
 impl PackageFormat {
     /// Detect format from file extension
     pub fn from_extension(path: &Path) -> Option<Self> {
+        let path_str = path.to_string_lossy();
+
+        if path_str.ends_with(".yaml.gz") || path_str.ends_with(".yml.gz") {
+            return Some(Self::YamlCompressed);
+        }
+        if path_str.ends_with(".json.gz") {
+            return Some(Self::JsonCompressed);
+        }
+
         match path.extension()?.to_str()? {
             "yaml" | "yml" => Some(Self::Yaml),
             "json" => Some(Self::Json),
             "py" => Some(Self::Python),
+            "bin" => Some(Self::Binary),
+            "toml" => Some(Self::Toml),
+            "xml" => Some(Self::Xml),
             _ => None,
         }
     }
@@ -40,33 +118,196 @@ impl PackageFormat {
             Self::Yaml => "package.yaml",
             Self::Json => "package.json",
             Self::Python => "package.py",
+            Self::YamlCompressed => "package.yaml.gz",
+            Self::JsonCompressed => "package.json.gz",
+            Self::Binary => "package.bin",
+            Self::Toml => "package.toml",
+            Self::Xml => "package.xml",
+        }
+    }
+
+    /// Check if format supports compression
+    pub fn supports_compression(&self) -> bool {
+        matches!(self, Self::YamlCompressed | Self::JsonCompressed)
+    }
+
+    /// Check if format is text-based
+    pub fn is_text_format(&self) -> bool {
+        !matches!(self, Self::Binary)
+    }
+
+    /// Get MIME type for the format
+    pub fn mime_type(&self) -> &'static str {
+        match self {
+            Self::Yaml | Self::YamlCompressed => "application/x-yaml",
+            Self::Json | Self::JsonCompressed => "application/json",
+            Self::Python => "text/x-python",
+            Self::Binary => "application/octet-stream",
+            Self::Toml => "application/toml",
+            Self::Xml => "application/xml",
         }
     }
 }
 
-/// Package serializer/deserializer
+impl SerializationOptions {
+    /// Create default serialization options
+    pub fn new() -> Self {
+        Self {
+            pretty_print: true,
+            include_metadata: true,
+            include_timestamps: true,
+            compression_level: 6,
+            field_filters: Vec::new(),
+            include_only: None,
+            exclude_fields: None,
+            custom_rules: HashMap::new(),
+        }
+    }
+
+    /// Create minimal serialization options
+    pub fn minimal() -> Self {
+        Self {
+            pretty_print: false,
+            include_metadata: false,
+            include_timestamps: false,
+            compression_level: 1,
+            field_filters: Vec::new(),
+            include_only: None,
+            exclude_fields: None,
+            custom_rules: HashMap::new(),
+        }
+    }
+
+    /// Create compact serialization options
+    pub fn compact() -> Self {
+        Self {
+            pretty_print: false,
+            include_metadata: true,
+            include_timestamps: false,
+            compression_level: 9,
+            field_filters: Vec::new(),
+            include_only: None,
+            exclude_fields: Some(vec![
+                "description".to_string(),
+                "help".to_string(),
+            ]),
+            custom_rules: HashMap::new(),
+        }
+    }
+
+    /// Add field filter
+    pub fn add_field_filter(&mut self, filter: String) {
+        self.field_filters.push(filter);
+    }
+
+    /// Set include only fields
+    pub fn set_include_only(&mut self, fields: Vec<String>) {
+        self.include_only = Some(fields);
+    }
+
+    /// Set exclude fields
+    pub fn set_exclude_fields(&mut self, fields: Vec<String>) {
+        self.exclude_fields = Some(fields);
+    }
+
+    /// Add custom rule
+    pub fn add_custom_rule(&mut self, field: String, rule: String) {
+        self.custom_rules.insert(field, rule);
+    }
+}
+
+impl PackageMetadata {
+    /// Create new metadata
+    pub fn new(format: String) -> Self {
+        Self {
+            serialized_at: Utc::now().to_rfc3339(),
+            format,
+            serializer_version: env!("CARGO_PKG_VERSION").to_string(),
+            original_path: None,
+            checksum: None,
+            custom: HashMap::new(),
+        }
+    }
+
+    /// Set original path
+    pub fn set_original_path(&mut self, path: String) {
+        self.original_path = Some(path);
+    }
+
+    /// Set checksum
+    pub fn set_checksum(&mut self, checksum: String) {
+        self.checksum = Some(checksum);
+    }
+
+    /// Add custom metadata
+    pub fn add_custom(&mut self, key: String, value: String) {
+        self.custom.insert(key, value);
+    }
+}
+
+impl PackageContainer {
+    /// Create new container
+    pub fn new(package: Package, format: String) -> Self {
+        Self {
+            package,
+            metadata: PackageMetadata::new(format),
+            schema_version: "1.0".to_string(),
+        }
+    }
+
+    /// Create container with metadata
+    pub fn with_metadata(package: Package, metadata: PackageMetadata) -> Self {
+        Self {
+            package,
+            metadata,
+            schema_version: "1.0".to_string(),
+        }
+    }
+}
+
+/// Enhanced package serializer/deserializer
 pub struct PackageSerializer;
 
 impl PackageSerializer {
-    /// Load a package from a file
-    pub fn load_from_file(path: &Path) -> Result<Package, RezCoreError> {
+    /// Load a package from a file with options
+    pub fn load_from_file_with_options(
+        path: &Path,
+        options: Option<SerializationOptions>,
+    ) -> Result<PackageContainer, RezCoreError> {
         let format = PackageFormat::from_extension(path).ok_or_else(|| {
             RezCoreError::PackageParse(format!("Unsupported file format: {}", path.display()))
         })?;
 
-        let content = fs::read_to_string(path).map_err(|e| {
-            RezCoreError::PackageParse(format!("Failed to read file {}: {}", path.display(), e))
-        })?;
+        let content = if format.supports_compression() {
+            Self::read_compressed_file(path)?
+        } else {
+            fs::read_to_string(path).map_err(|e| {
+                RezCoreError::PackageParse(format!("Failed to read file {}: {}", path.display(), e))
+            })?
+        };
 
-        Self::load_from_string(&content, format)
+        let package = Self::load_from_string(&content, format)?;
+        let mut metadata = PackageMetadata::new(format.default_filename().to_string());
+        metadata.set_original_path(path.to_string_lossy().to_string());
+
+        Ok(PackageContainer::with_metadata(package, metadata))
+    }
+
+    /// Load a package from a file (legacy method)
+    pub fn load_from_file(path: &Path) -> Result<Package, RezCoreError> {
+        let container = Self::load_from_file_with_options(path, None)?;
+        Ok(container.package)
     }
 
     /// Load a package from a string
     pub fn load_from_string(content: &str, format: PackageFormat) -> Result<Package, RezCoreError> {
         match format {
-            PackageFormat::Yaml => Self::load_from_yaml(content),
-            PackageFormat::Json => Self::load_from_json(content),
+            PackageFormat::Yaml | PackageFormat::YamlCompressed => Self::load_from_yaml(content),
+            PackageFormat::Json | PackageFormat::JsonCompressed => Self::load_from_json(content),
             PackageFormat::Python => Self::load_from_python(content),
+            PackageFormat::Binary => Self::load_from_binary(content),
+            PackageFormat::Toml => Self::load_from_toml(content),
+            PackageFormat::Xml => Self::load_from_xml(content),
         }
     }
 
@@ -287,17 +528,44 @@ impl PackageSerializer {
         Ok(package)
     }
 
-    /// Save a package to a file
+    /// Save a package to a file with options
+    pub fn save_to_file_with_options(
+        package: &Package,
+        path: &Path,
+        format: PackageFormat,
+        options: Option<SerializationOptions>,
+    ) -> Result<(), RezCoreError> {
+        let opts = options.unwrap_or_else(SerializationOptions::new);
+
+        // Create container with metadata if requested
+        let container = if opts.include_metadata {
+            let mut metadata = PackageMetadata::new(format.default_filename().to_string());
+            metadata.set_original_path(path.to_string_lossy().to_string());
+            PackageContainer::with_metadata(package.clone(), metadata)
+        } else {
+            PackageContainer::new(package.clone(), format.default_filename().to_string())
+        };
+
+        let content = Self::save_container_to_string(&container, format, &opts)?;
+
+        if format.supports_compression() {
+            Self::write_compressed_file(path, &content, opts.compression_level)?;
+        } else {
+            fs::write(path, content).map_err(|e| {
+                RezCoreError::PackageParse(format!("Failed to write file {}: {}", path.display(), e))
+            })?;
+        }
+
+        Ok(())
+    }
+
+    /// Save a package to a file (legacy method)
     pub fn save_to_file(
         package: &Package,
         path: &Path,
         format: PackageFormat,
     ) -> Result<(), RezCoreError> {
-        let content = Self::save_to_string(package, format)?;
-
-        fs::write(path, content).map_err(|e| {
-            RezCoreError::PackageParse(format!("Failed to write file {}: {}", path.display(), e))
-        })
+        Self::save_to_file_with_options(package, path, format, None)
     }
 
     /// Save a package to a string
@@ -306,9 +574,12 @@ impl PackageSerializer {
         format: PackageFormat,
     ) -> Result<String, RezCoreError> {
         match format {
-            PackageFormat::Yaml => Self::save_to_yaml(package),
-            PackageFormat::Json => Self::save_to_json(package),
+            PackageFormat::Yaml | PackageFormat::YamlCompressed => Self::save_to_yaml(package),
+            PackageFormat::Json | PackageFormat::JsonCompressed => Self::save_to_json(package),
             PackageFormat::Python => Self::save_to_python(package),
+            PackageFormat::Binary => Self::save_to_binary(package),
+            PackageFormat::Toml => Self::save_to_toml(package, &SerializationOptions::new()),
+            PackageFormat::Xml => Self::save_to_xml(package, &SerializationOptions::new()),
         }
     }
 
@@ -387,6 +658,55 @@ impl PackageSerializer {
 
         Ok(content)
     }
+
+    /// Load a package from binary content
+    pub fn load_from_binary(content: &str) -> Result<Package, RezCoreError> {
+        // Decode from base64
+        let binary_data = base64::decode(content)
+            .map_err(|e| RezCoreError::PackageParse(format!("Failed to decode base64: {}", e)))?;
+
+        // Deserialize from binary
+        bincode::deserialize(&binary_data)
+            .map_err(|e| RezCoreError::PackageParse(format!("Failed to deserialize from binary: {}", e)))
+    }
+
+    /// Load a package from TOML content
+    pub fn load_from_toml(content: &str) -> Result<Package, RezCoreError> {
+        toml::from_str(content)
+            .map_err(|e| RezCoreError::PackageParse(format!("Failed to parse TOML: {}", e)))
+    }
+
+    /// Load a package from XML content (simplified)
+    pub fn load_from_xml(content: &str) -> Result<Package, RezCoreError> {
+        // This is a very simplified XML parser
+        // In a real implementation, you'd use a proper XML parser like quick-xml
+
+        let name_start = content.find("<name>").ok_or_else(|| {
+            RezCoreError::PackageParse("Missing <name> tag in XML".to_string())
+        })?;
+        let name_end = content.find("</name>").ok_or_else(|| {
+            RezCoreError::PackageParse("Missing </name> tag in XML".to_string())
+        })?;
+
+        let name = content[name_start + 6..name_end].to_string();
+        let mut package = Package::new(name);
+
+        // Extract version if present
+        if let (Some(version_start), Some(version_end)) = (content.find("<version>"), content.find("</version>")) {
+            let version_str = &content[version_start + 9..version_end];
+            if let Ok(version) = Version::parse(version_str) {
+                package.version = Some(version);
+            }
+        }
+
+        // Extract description if present
+        if let (Some(desc_start), Some(desc_end)) = (content.find("<description>"), content.find("</description>")) {
+            let description = content[desc_start + 13..desc_end].to_string();
+            package.description = Some(description);
+        }
+
+        Ok(package)
+    }
 }
 
 /// Convert YAML value to JSON value
@@ -421,5 +741,334 @@ fn yaml_to_json_value(yaml_value: serde_yaml::Value) -> serde_json::Value {
             serde_json::Value::Object(json_object)
         }
         serde_yaml::Value::Tagged(_) => serde_json::Value::Null, // Ignore tagged values
+    }
+}
+
+impl PackageSerializer {
+    /// Save container to string with options
+    pub fn save_container_to_string(
+        container: &PackageContainer,
+        format: PackageFormat,
+        options: &SerializationOptions,
+    ) -> Result<String, RezCoreError> {
+        // Apply field filters if specified
+        let filtered_package = if options.include_only.is_some() || options.exclude_fields.is_some() {
+            Self::apply_field_filters(&container.package, options)?
+        } else {
+            container.package.clone()
+        };
+
+        match format {
+            PackageFormat::Yaml | PackageFormat::YamlCompressed => {
+                if options.include_metadata {
+                    let container_with_filtered = PackageContainer {
+                        package: filtered_package,
+                        metadata: container.metadata.clone(),
+                        schema_version: container.schema_version.clone(),
+                    };
+                    Self::save_container_to_yaml(&container_with_filtered, options)
+                } else {
+                    Self::save_to_yaml_with_options(&filtered_package, options)
+                }
+            }
+            PackageFormat::Json | PackageFormat::JsonCompressed => {
+                if options.include_metadata {
+                    let container_with_filtered = PackageContainer {
+                        package: filtered_package,
+                        metadata: container.metadata.clone(),
+                        schema_version: container.schema_version.clone(),
+                    };
+                    Self::save_container_to_json(&container_with_filtered, options)
+                } else {
+                    Self::save_to_json_with_options(&filtered_package, options)
+                }
+            }
+            PackageFormat::Python => Self::save_to_python_with_options(&filtered_package, options),
+            PackageFormat::Binary => Self::save_to_binary(&filtered_package),
+            PackageFormat::Toml => Self::save_to_toml(&filtered_package, options),
+            PackageFormat::Xml => Self::save_to_xml(&filtered_package, options),
+        }
+    }
+
+    /// Apply field filters to package
+    fn apply_field_filters(
+        package: &Package,
+        options: &SerializationOptions,
+    ) -> Result<Package, RezCoreError> {
+        let mut filtered = package.clone();
+
+        // Apply exclude filters
+        if let Some(ref exclude_fields) = options.exclude_fields {
+            for field in exclude_fields {
+                match field.as_str() {
+                    "description" => filtered.description = None,
+                    "help" => filtered.help = None,
+                    "authors" => filtered.authors.clear(),
+                    "tools" => filtered.tools.clear(),
+                    _ => {} // Ignore unknown fields
+                }
+            }
+        }
+
+        // Apply include only filters
+        if let Some(ref include_only) = options.include_only {
+            let mut new_package = Package::new(filtered.name.clone());
+
+            for field in include_only {
+                match field.as_str() {
+                    "name" => {}, // Always included
+                    "version" => new_package.version = filtered.version.clone(),
+                    "description" => new_package.description = filtered.description.clone(),
+                    "authors" => new_package.authors = filtered.authors.clone(),
+                    "requires" => new_package.requires = filtered.requires.clone(),
+                    "build_requires" => new_package.build_requires = filtered.build_requires.clone(),
+                    "variants" => new_package.variants = filtered.variants.clone(),
+                    "tools" => new_package.tools = filtered.tools.clone(),
+                    _ => {} // Ignore unknown fields
+                }
+            }
+
+            filtered = new_package;
+        }
+
+        Ok(filtered)
+    }
+
+    /// Save container to YAML with options
+    fn save_container_to_yaml(
+        container: &PackageContainer,
+        options: &SerializationOptions,
+    ) -> Result<String, RezCoreError> {
+        if options.pretty_print {
+            serde_yaml::to_string(container)
+        } else {
+            // YAML doesn't have a compact mode, so use regular serialization
+            serde_yaml::to_string(container)
+        }
+        .map_err(|e| RezCoreError::PackageParse(format!("Failed to serialize container to YAML: {}", e)))
+    }
+
+    /// Save container to JSON with options
+    fn save_container_to_json(
+        container: &PackageContainer,
+        options: &SerializationOptions,
+    ) -> Result<String, RezCoreError> {
+        if options.pretty_print {
+            serde_json::to_string_pretty(container)
+        } else {
+            serde_json::to_string(container)
+        }
+        .map_err(|e| RezCoreError::PackageParse(format!("Failed to serialize container to JSON: {}", e)))
+    }
+
+    /// Save package to YAML with options
+    fn save_to_yaml_with_options(
+        package: &Package,
+        options: &SerializationOptions,
+    ) -> Result<String, RezCoreError> {
+        if options.pretty_print {
+            serde_yaml::to_string(package)
+        } else {
+            serde_yaml::to_string(package)
+        }
+        .map_err(|e| RezCoreError::PackageParse(format!("Failed to serialize to YAML: {}", e)))
+    }
+
+    /// Save package to JSON with options
+    fn save_to_json_with_options(
+        package: &Package,
+        options: &SerializationOptions,
+    ) -> Result<String, RezCoreError> {
+        if options.pretty_print {
+            serde_json::to_string_pretty(package)
+        } else {
+            serde_json::to_string(package)
+        }
+        .map_err(|e| RezCoreError::PackageParse(format!("Failed to serialize to JSON: {}", e)))
+    }
+
+    /// Save package to Python with options
+    fn save_to_python_with_options(
+        package: &Package,
+        options: &SerializationOptions,
+    ) -> Result<String, RezCoreError> {
+        let mut content = String::new();
+
+        // Add header comment if metadata is included
+        if options.include_metadata && options.include_timestamps {
+            content.push_str(&format!(
+                "# Generated by rez-next serializer at {}\n",
+                Utc::now().to_rfc3339()
+            ));
+            content.push_str("# Do not edit manually\n\n");
+        }
+
+        content.push_str(&format!("name = \"{}\"\n", package.name));
+
+        if let Some(ref version) = package.version {
+            content.push_str(&format!("version = \"{}\"\n", version.as_str()));
+        }
+
+        if let Some(ref description) = package.description {
+            content.push_str(&format!("description = \"{}\"\n", description));
+        }
+
+        if !package.authors.is_empty() {
+            content.push_str("authors = [\n");
+            for author in &package.authors {
+                content.push_str(&format!("    \"{}\",\n", author));
+            }
+            content.push_str("]\n");
+        }
+
+        if !package.requires.is_empty() {
+            content.push_str("requires = [\n");
+            for req in &package.requires {
+                content.push_str(&format!("    \"{}\",\n", req));
+            }
+            content.push_str("]\n");
+        }
+
+        if !package.build_requires.is_empty() {
+            content.push_str("build_requires = [\n");
+            for req in &package.build_requires {
+                content.push_str(&format!("    \"{}\",\n", req));
+            }
+            content.push_str("]\n");
+        }
+
+        if !package.variants.is_empty() {
+            content.push_str("variants = [\n");
+            for variant in &package.variants {
+                content.push_str("    [");
+                for (i, req) in variant.iter().enumerate() {
+                    if i > 0 {
+                        content.push_str(", ");
+                    }
+                    content.push_str(&format!("\"{}\"", req));
+                }
+                content.push_str("],\n");
+            }
+            content.push_str("]\n");
+        }
+
+        if !package.tools.is_empty() {
+            content.push_str("tools = [\n");
+            for tool in &package.tools {
+                content.push_str(&format!("    \"{}\",\n", tool));
+            }
+            content.push_str("]\n");
+        }
+
+        Ok(content)
+    }
+
+    /// Save package to binary format
+    fn save_to_binary(package: &Package) -> Result<String, RezCoreError> {
+        // For binary format, we'll use bincode serialization
+        let binary_data = bincode::serialize(package)
+            .map_err(|e| RezCoreError::PackageParse(format!("Failed to serialize to binary: {}", e)))?;
+
+        // Convert to base64 for text representation
+        Ok(base64::encode(binary_data))
+    }
+
+    /// Save package to TOML format
+    fn save_to_toml(
+        package: &Package,
+        _options: &SerializationOptions,
+    ) -> Result<String, RezCoreError> {
+        toml::to_string(package)
+            .map_err(|e| RezCoreError::PackageParse(format!("Failed to serialize to TOML: {}", e)))
+    }
+
+    /// Save package to XML format
+    fn save_to_xml(
+        package: &Package,
+        options: &SerializationOptions,
+    ) -> Result<String, RezCoreError> {
+        let mut content = String::new();
+
+        if options.pretty_print {
+            content.push_str("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
+        }
+
+        content.push_str("<package>\n");
+        content.push_str(&format!("  <name>{}</name>\n", package.name));
+
+        if let Some(ref version) = package.version {
+            content.push_str(&format!("  <version>{}</version>\n", version.as_str()));
+        }
+
+        if let Some(ref description) = package.description {
+            content.push_str(&format!("  <description>{}</description>\n", description));
+        }
+
+        if !package.authors.is_empty() {
+            content.push_str("  <authors>\n");
+            for author in &package.authors {
+                content.push_str(&format!("    <author>{}</author>\n", author));
+            }
+            content.push_str("  </authors>\n");
+        }
+
+        if !package.requires.is_empty() {
+            content.push_str("  <requires>\n");
+            for req in &package.requires {
+                content.push_str(&format!("    <requirement>{}</requirement>\n", req));
+            }
+            content.push_str("  </requires>\n");
+        }
+
+        content.push_str("</package>\n");
+
+        Ok(content)
+    }
+
+    /// Read compressed file
+    fn read_compressed_file(path: &Path) -> Result<String, RezCoreError> {
+        use flate2::read::GzDecoder;
+        use std::io::Read;
+
+        let file = fs::File::open(path).map_err(|e| {
+            RezCoreError::PackageParse(format!("Failed to open compressed file {}: {}", path.display(), e))
+        })?;
+
+        let mut decoder = GzDecoder::new(file);
+        let mut content = String::new();
+        decoder.read_to_string(&mut content).map_err(|e| {
+            RezCoreError::PackageParse(format!("Failed to decompress file {}: {}", path.display(), e))
+        })?;
+
+        Ok(content)
+    }
+
+    /// Write compressed file
+    fn write_compressed_file(
+        path: &Path,
+        content: &str,
+        compression_level: u32,
+    ) -> Result<(), RezCoreError> {
+        let file = fs::File::create(path).map_err(|e| {
+            RezCoreError::PackageParse(format!("Failed to create compressed file {}: {}", path.display(), e))
+        })?;
+
+        let compression = Compression::new(compression_level);
+        let mut encoder = GzEncoder::new(file, compression);
+        encoder.write_all(content.as_bytes()).map_err(|e| {
+            RezCoreError::PackageParse(format!("Failed to write compressed file {}: {}", path.display(), e))
+        })?;
+
+        encoder.finish().map_err(|e| {
+            RezCoreError::PackageParse(format!("Failed to finish compressed file {}: {}", path.display(), e))
+        })?;
+
+        Ok(())
+    }
+}
+
+impl Default for SerializationOptions {
+    fn default() -> Self {
+        Self::new()
     }
 }

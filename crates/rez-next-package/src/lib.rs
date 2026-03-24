@@ -19,6 +19,12 @@ pub mod management;
 pub mod validation;
 #[cfg(feature = "python-bindings")]
 pub mod variant;
+#[cfg(feature = "python-bindings")]
+pub mod dependency;
+#[cfg(feature = "python-bindings")]
+pub mod cache;
+#[cfg(feature = "python-bindings")]
+pub mod batch;
 
 pub use package::*;
 pub use python_ast_parser::*;
@@ -36,6 +42,12 @@ pub use package::PackageRequirement as PyPackageRequirement;
 pub use validation::*;
 #[cfg(feature = "python-bindings")]
 pub use variant::*;
+#[cfg(feature = "python-bindings")]
+pub use dependency::*;
+#[cfg(feature = "python-bindings")]
+pub use cache::*;
+#[cfg(feature = "python-bindings")]
+pub use batch::*;
 
 #[cfg(feature = "python-bindings")]
 use pyo3::prelude::*;
@@ -44,16 +56,54 @@ use pyo3::prelude::*;
 #[cfg(feature = "python-bindings")]
 #[pymodule]
 fn rez_next_package(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    // Core package types
     m.add_class::<Package>()?;
     m.add_class::<PackageVariant>()?;
     m.add_class::<PyPackageRequirement>()?;
+
+    // Validation
     m.add_class::<PackageValidator>()?;
     m.add_class::<PackageValidationResult>()?;
     m.add_class::<PackageValidationOptions>()?;
+
+    // Management
     m.add_class::<PackageManager>()?;
     m.add_class::<PackageInstallOptions>()?;
     m.add_class::<PackageCopyOptions>()?;
     m.add_class::<PackageOperationResult>()?;
+    m.add_class::<PackageBackupOptions>()?;
+    m.add_class::<PackageMigrationOptions>()?;
+    m.add_class::<PackageUpdateOptions>()?;
+    m.add_class::<PackageBackup>()?;
+
+    // Dependency resolution
+    m.add_class::<DependencyResolver>()?;
+    m.add_class::<DependencyResolutionOptions>()?;
+    m.add_class::<DependencyResolutionResult>()?;
+    m.add_class::<DependencyNode>()?;
+    m.add_class::<DependencyConflict>()?;
+
+    // Caching
+    m.add_class::<PackageCacheManager>()?;
+    m.add_class::<CacheConfig>()?;
+    m.add_class::<CacheStatistics>()?;
+
+    // Batch operations
+    m.add_class::<BatchPackageProcessor>()?;
+    m.add_class::<BatchConfig>()?;
+    m.add_class::<BatchProgress>()?;
+    m.add_class::<BatchParseOptions>()?;
+    m.add_class::<BatchValidationOptions>()?;
+    m.add_class::<BatchInstallOptions>()?;
+
+    // Serialization
+    m.add_class::<SerializationOptions>()?;
+    m.add_class::<PackageMetadata>()?;
+    m.add_class::<PackageContainer>()?;
+
+    // Variant management
+    m.add_class::<VariantManager>()?;
+
     Ok(())
 }
 

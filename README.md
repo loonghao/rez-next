@@ -84,18 +84,38 @@ sys     0m0.032s
 
 ### ⚡ Installation (30 seconds to blazing speed)
 
+**One-line install (recommended):**
+
 ```bash
-# 🦀 Install from crates.io (recommended)
+# Linux / macOS
+curl -fsSL https://raw.githubusercontent.com/loonghao/rez-next/main/install.sh | sh
+```
+
+```powershell
+# Windows (PowerShell)
+irm https://raw.githubusercontent.com/loonghao/rez-next/main/install.ps1 | iex
+```
+
+**Other methods:**
+
+```bash
+# 🦀 Install from crates.io
 cargo install rez-next
 
 # 🔧 Or build from source for latest features
 git clone https://github.com/loonghao/rez-next
 cd rez-next
-cargo build --release --all-features
-
-# 🐍 Python bindings (optional)
-pip install rez-next-python
+cargo build --release
 ```
+
+**Environment variables for install scripts:**
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `REZ_NEXT_VERSION` | Specific version to install | `latest` |
+| `REZ_NEXT_INSTALL` | Installation directory | `~/.rez-next/bin` |
+| `REZ_NEXT_MUSL` | (Linux) Set to `1` for musl build | auto-detect |
+| `REZ_NEXT_NO_PATH` | (Windows) Set to `1` to skip PATH | auto-add |
 
 ### 🎯 Drop-in Replacement
 

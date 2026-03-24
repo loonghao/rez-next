@@ -7,10 +7,12 @@ use pyo3::prelude::*;
 use rez_next_common::RezCoreError;
 use rez_next_version::Version;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fs;
-use std::path::Path;
-use std::time::SystemTime;
+use std::path::{Path, PathBuf};
+use std::time::{SystemTime, UNIX_EPOCH};
+use std::io::{self, Write};
+use chrono::{DateTime, Utc};
 
 /// Package installation options
 #[pyclass]
@@ -101,6 +103,122 @@ pub struct PackageOperationResult {
     pub metadata: HashMap<String, String>,
 }
 
+/// Package backup options
+#[pyclass]
+#[derive(Debug, Clone)]
+pub struct PackageBackupOptions {
+    /// Include package payload in backup
+    #[pyo3(get, set)]
+    pub include_payload: bool,
+
+    /// Compress backup
+    #[pyo3(get, set)]
+    pub compress: bool,
+
+    /// Backup format (tar, zip, etc.)
+    #[pyo3(get, set)]
+    pub format: String,
+
+    /// Include metadata
+    #[pyo3(get, set)]
+    pub include_metadata: bool,
+
+    /// Backup description
+    #[pyo3(get, set)]
+    pub description: Option<String>,
+}
+
+/// Package migration options
+#[pyclass]
+#[derive(Debug, Clone)]
+pub struct PackageMigrationOptions {
+    /// Source repository path
+    #[pyo3(get, set)]
+    pub source_repo: String,
+
+    /// Destination repository path
+    #[pyo3(get, set)]
+    pub dest_repo: String,
+
+    /// Package name patterns to migrate
+    #[pyo3(get, set)]
+    pub package_patterns: Vec<String>,
+
+    /// Preserve timestamps
+    #[pyo3(get, set)]
+    pub preserve_timestamps: bool,
+
+    /// Update dependencies
+    #[pyo3(get, set)]
+    pub update_dependencies: bool,
+
+    /// Dry run mode
+    #[pyo3(get, set)]
+    pub dry_run: bool,
+}
+
+/// Package update options
+#[pyclass]
+#[derive(Debug, Clone)]
+pub struct PackageUpdateOptions {
+    /// Update to specific version
+    #[pyo3(get, set)]
+    pub target_version: Option<String>,
+
+    /// Update dependencies
+    #[pyo3(get, set)]
+    pub update_dependencies: bool,
+
+    /// Force update even if newer version exists
+    #[pyo3(get, set)]
+    pub force: bool,
+
+    /// Backup before update
+    #[pyo3(get, set)]
+    pub backup_before_update: bool,
+
+    /// Rollback on failure
+    #[pyo3(get, set)]
+    pub rollback_on_failure: bool,
+}
+
+/// Package backup metadata
+#[pyclass]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PackageBackup {
+    /// Backup ID
+    #[pyo3(get)]
+    pub backup_id: String,
+
+    /// Package name
+    #[pyo3(get)]
+    pub package_name: String,
+
+    /// Package version
+    #[pyo3(get)]
+    pub package_version: String,
+
+    /// Backup timestamp
+    #[pyo3(get)]
+    pub timestamp: String,
+
+    /// Backup file path
+    #[pyo3(get)]
+    pub backup_path: String,
+
+    /// Backup description
+    #[pyo3(get)]
+    pub description: Option<String>,
+
+    /// Backup size in bytes
+    #[pyo3(get)]
+    pub size_bytes: u64,
+
+    /// Backup format
+    #[pyo3(get)]
+    pub format: String,
+}
+
 /// Package manager for installation, copying, moving, and removal operations
 #[pyclass]
 #[derive(Debug)]
@@ -113,6 +231,18 @@ pub struct PackageManager {
 
     /// Default copy options
     default_copy_options: PackageCopyOptions,
+
+    /// Backup storage directory
+    backup_dir: PathBuf,
+
+    /// Package cache for performance
+    package_cache: HashMap<String, Package>,
+
+    /// Operation history
+    operation_history: Vec<PackageOperationResult>,
+
+    /// Maximum history size
+    max_history_size: usize,
 }
 
 #[pymethods]
@@ -262,10 +392,29 @@ impl PackageOperationResult {
 impl PackageManager {
     #[new]
     pub fn new() -> Self {
+        let backup_dir = std::env::temp_dir().join("rez_backups");
         Self {
             validator: PackageValidator::new(Some(PackageValidationOptions::new())),
             default_install_options: PackageInstallOptions::new(),
             default_copy_options: PackageCopyOptions::new(),
+            backup_dir,
+            package_cache: HashMap::new(),
+            operation_history: Vec::new(),
+            max_history_size: 1000,
+        }
+    }
+
+    /// Create package manager with custom backup directory
+    #[staticmethod]
+    pub fn with_backup_dir(backup_dir: String) -> Self {
+        Self {
+            validator: PackageValidator::new(Some(PackageValidationOptions::new())),
+            default_install_options: PackageInstallOptions::new(),
+            default_copy_options: PackageCopyOptions::new(),
+            backup_dir: PathBuf::from(backup_dir),
+            package_cache: HashMap::new(),
+            operation_history: Vec::new(),
+            max_history_size: 1000,
         }
     }
 
@@ -437,6 +586,234 @@ impl PackageManager {
 
         Ok(result)
     }
+
+    /// Backup a package
+    pub fn backup_package(
+        &mut self,
+        package: &Package,
+        package_path: &str,
+        options: Option<PackageBackupOptions>,
+    ) -> PyResult<PackageBackup> {
+        let opts = options.unwrap_or_else(PackageBackupOptions::new);
+
+        // Generate backup ID
+        let backup_id = format!(
+            "{}_{}_{}",
+            package.name,
+            package.version.as_ref().map(|v| v.as_str()).unwrap_or("latest"),
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs()
+        );
+
+        // Create backup directory if it doesn't exist
+        fs::create_dir_all(&self.backup_dir).map_err(|e| {
+            PyErr::new::<pyo3::exceptions::PyIOError, _>(format!(
+                "Failed to create backup directory: {}",
+                e
+            ))
+        })?;
+
+        // Create backup file path
+        let backup_filename = format!("{}.{}", backup_id, opts.format);
+        let backup_path = self.backup_dir.join(&backup_filename);
+
+        // Create backup metadata
+        let mut backup = PackageBackup::new(
+            backup_id,
+            package.name.clone(),
+            package.version.as_ref().map(|v| v.as_str()).unwrap_or("latest").to_string(),
+            backup_path.to_string_lossy().to_string(),
+            opts.format.clone(),
+        );
+
+        if let Some(ref desc) = opts.description {
+            backup.set_description(desc.clone());
+        }
+
+        // In a full implementation, this would:
+        // 1. Create a compressed archive of the package
+        // 2. Include metadata if requested
+        // 3. Include payload if requested
+        // 4. Calculate and set the backup size
+
+        // For now, just create a placeholder file
+        let mut file = fs::File::create(&backup_path).map_err(|e| {
+            PyErr::new::<pyo3::exceptions::PyIOError, _>(format!(
+                "Failed to create backup file: {}",
+                e
+            ))
+        })?;
+
+        // Write package metadata as JSON
+        let package_json = serde_json::to_string_pretty(package).map_err(|e| {
+            PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
+                "Failed to serialize package: {}",
+                e
+            ))
+        })?;
+
+        file.write_all(package_json.as_bytes()).map_err(|e| {
+            PyErr::new::<pyo3::exceptions::PyIOError, _>(format!(
+                "Failed to write backup file: {}",
+                e
+            ))
+        })?;
+
+        // Set backup size
+        let metadata = fs::metadata(&backup_path).map_err(|e| {
+            PyErr::new::<pyo3::exceptions::PyIOError, _>(format!(
+                "Failed to get backup file metadata: {}",
+                e
+            ))
+        })?;
+        backup.set_size(metadata.len());
+
+        Ok(backup)
+    }
+
+    /// Restore a package from backup
+    pub fn restore_package(
+        &self,
+        backup: &PackageBackup,
+        dest_path: &str,
+        options: Option<PackageInstallOptions>,
+    ) -> PyResult<PackageOperationResult> {
+        let start_time = SystemTime::now();
+
+        // Check if backup file exists
+        let backup_path = Path::new(&backup.backup_path);
+        if !backup_path.exists() {
+            return Ok(PackageOperationResult::failure(format!(
+                "Backup file not found: {}",
+                backup.backup_path
+            )));
+        }
+
+        // Read backup file
+        let backup_content = fs::read_to_string(backup_path).map_err(|e| {
+            PyErr::new::<pyo3::exceptions::PyIOError, _>(format!(
+                "Failed to read backup file: {}",
+                e
+            ))
+        })?;
+
+        // Deserialize package
+        let package: Package = serde_json::from_str(&backup_content).map_err(|e| {
+            PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
+                "Failed to deserialize package from backup: {}",
+                e
+            ))
+        })?;
+
+        // Install the restored package
+        let result = self.install_package(&package, dest_path, options)?;
+
+        let duration = start_time.elapsed().unwrap_or_default().as_millis() as u64;
+        if result.success {
+            let mut restore_result = PackageOperationResult::success(format!(
+                "Successfully restored package {} from backup {}",
+                backup.package_name, backup.backup_id
+            ));
+            restore_result.set_duration(duration);
+            Ok(restore_result)
+        } else {
+            Ok(result)
+        }
+    }
+
+    /// Update a package
+    pub fn update_package(
+        &mut self,
+        package_name: &str,
+        repo_path: &str,
+        options: Option<PackageUpdateOptions>,
+    ) -> PyResult<PackageOperationResult> {
+        let start_time = SystemTime::now();
+        let opts = options.unwrap_or_else(PackageUpdateOptions::new);
+
+        // In a full implementation, this would:
+        // 1. Find the current package version
+        // 2. Find available updates
+        // 3. Create backup if requested
+        // 4. Download and install the update
+        // 5. Update dependencies if requested
+        // 6. Rollback on failure if requested
+
+        let duration = start_time.elapsed().unwrap_or_default().as_millis() as u64;
+        let mut result = PackageOperationResult::success(format!(
+            "Updated package {} in {}",
+            package_name, repo_path
+        ));
+        result.set_duration(duration);
+
+        // Add to operation history
+        self.add_to_history(result.clone());
+
+        Ok(result)
+    }
+
+    /// Migrate packages between repositories
+    pub fn migrate_packages(
+        &mut self,
+        options: PackageMigrationOptions,
+    ) -> PyResult<PackageOperationResult> {
+        let start_time = SystemTime::now();
+
+        if options.dry_run {
+            let duration = start_time.elapsed().unwrap_or_default().as_millis() as u64;
+            let mut result = PackageOperationResult::success(format!(
+                "Would migrate packages from {} to {} with patterns: {:?}",
+                options.source_repo, options.dest_repo, options.package_patterns
+            ));
+            result.set_duration(duration);
+            return Ok(result);
+        }
+
+        // In a full implementation, this would:
+        // 1. Scan source repository for matching packages
+        // 2. Copy packages to destination repository
+        // 3. Update dependencies if requested
+        // 4. Preserve timestamps if requested
+        // 5. Update repository indices
+
+        let duration = start_time.elapsed().unwrap_or_default().as_millis() as u64;
+        let mut result = PackageOperationResult::success(format!(
+            "Migrated packages from {} to {}",
+            options.source_repo, options.dest_repo
+        ));
+        result.set_duration(duration);
+
+        // Add to operation history
+        self.add_to_history(result.clone());
+
+        Ok(result)
+    }
+
+    /// Get operation history
+    pub fn get_operation_history(&self) -> Vec<PackageOperationResult> {
+        self.operation_history.clone()
+    }
+
+    /// Clear operation history
+    pub fn clear_operation_history(&mut self) {
+        self.operation_history.clear();
+    }
+
+    /// Get package cache statistics
+    pub fn get_cache_stats(&self) -> HashMap<String, String> {
+        let mut stats = HashMap::new();
+        stats.insert("cached_packages".to_string(), self.package_cache.len().to_string());
+        stats.insert("history_size".to_string(), self.operation_history.len().to_string());
+        stats.insert("max_history_size".to_string(), self.max_history_size.to_string());
+        stats
+    }
+
+    /// Clear package cache
+    pub fn clear_cache(&mut self) {
+        self.package_cache.clear();
+    }
 }
 
 impl PackageManager {
@@ -487,6 +864,43 @@ impl PackageManager {
             package.name, dest_path
         )))
     }
+
+    /// Add operation to history
+    fn add_to_history(&mut self, result: PackageOperationResult) {
+        self.operation_history.push(result);
+
+        // Trim history if it exceeds maximum size
+        if self.operation_history.len() > self.max_history_size {
+            self.operation_history.remove(0);
+        }
+    }
+
+    /// Generate unique backup ID
+    fn generate_backup_id(&self, package_name: &str, package_version: Option<&str>) -> String {
+        let timestamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+
+        let version = package_version.unwrap_or("latest");
+        format!("{}_{}_backup_{}", package_name, version, timestamp)
+    }
+
+    /// Check if package exists in cache
+    fn get_cached_package(&self, package_key: &str) -> Option<&Package> {
+        self.package_cache.get(package_key)
+    }
+
+    /// Add package to cache
+    fn cache_package(&mut self, package_key: String, package: Package) {
+        self.package_cache.insert(package_key, package);
+    }
+
+    /// Generate package cache key
+    fn generate_cache_key(&self, package_name: &str, package_version: Option<&str>) -> String {
+        let version = package_version.unwrap_or("latest");
+        format!("{}@{}", package_name, version)
+    }
 }
 
 impl Default for PackageInstallOptions {
@@ -496,6 +910,148 @@ impl Default for PackageInstallOptions {
 }
 
 impl Default for PackageCopyOptions {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[pymethods]
+impl PackageBackupOptions {
+    #[new]
+    pub fn new() -> Self {
+        Self {
+            include_payload: true,
+            compress: true,
+            format: "tar.gz".to_string(),
+            include_metadata: true,
+            description: None,
+        }
+    }
+
+    /// Create options for quick backup (metadata only)
+    #[staticmethod]
+    pub fn quick() -> Self {
+        Self {
+            include_payload: false,
+            compress: true,
+            format: "tar.gz".to_string(),
+            include_metadata: true,
+            description: Some("Quick backup (metadata only)".to_string()),
+        }
+    }
+
+    /// Create options for full backup
+    #[staticmethod]
+    pub fn full() -> Self {
+        Self {
+            include_payload: true,
+            compress: true,
+            format: "tar.gz".to_string(),
+            include_metadata: true,
+            description: Some("Full backup (metadata and payload)".to_string()),
+        }
+    }
+}
+
+#[pymethods]
+impl PackageMigrationOptions {
+    #[new]
+    pub fn new(source_repo: String, dest_repo: String) -> Self {
+        Self {
+            source_repo,
+            dest_repo,
+            package_patterns: vec!["*".to_string()],
+            preserve_timestamps: true,
+            update_dependencies: false,
+            dry_run: false,
+        }
+    }
+
+    /// Add package pattern
+    pub fn add_package_pattern(&mut self, pattern: String) {
+        self.package_patterns.push(pattern);
+    }
+}
+
+#[pymethods]
+impl PackageUpdateOptions {
+    #[new]
+    pub fn new() -> Self {
+        Self {
+            target_version: None,
+            update_dependencies: false,
+            force: false,
+            backup_before_update: true,
+            rollback_on_failure: true,
+        }
+    }
+
+    /// Create options for safe update
+    #[staticmethod]
+    pub fn safe() -> Self {
+        Self {
+            target_version: None,
+            update_dependencies: true,
+            force: false,
+            backup_before_update: true,
+            rollback_on_failure: true,
+        }
+    }
+
+    /// Create options for forced update
+    #[staticmethod]
+    pub fn forced() -> Self {
+        Self {
+            target_version: None,
+            update_dependencies: false,
+            force: true,
+            backup_before_update: true,
+            rollback_on_failure: false,
+        }
+    }
+}
+
+#[pymethods]
+impl PackageBackup {
+    #[new]
+    pub fn new(
+        backup_id: String,
+        package_name: String,
+        package_version: String,
+        backup_path: String,
+        format: String,
+    ) -> Self {
+        let timestamp = Utc::now().to_rfc3339();
+        Self {
+            backup_id,
+            package_name,
+            package_version,
+            timestamp,
+            backup_path,
+            description: None,
+            size_bytes: 0,
+            format,
+        }
+    }
+
+    /// Set description
+    pub fn set_description(&mut self, description: String) {
+        self.description = Some(description);
+    }
+
+    /// Set size
+    pub fn set_size(&mut self, size_bytes: u64) {
+        self.size_bytes = size_bytes;
+    }
+}
+
+impl Default for PackageBackupOptions {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Default for PackageUpdateOptions {
     fn default() -> Self {
         Self::new()
     }

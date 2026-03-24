@@ -3,6 +3,7 @@ name: Release-plz
 permissions:
   pull-requests: write
   contents: write
+  actions: write
 
 on:
   push:
@@ -10,16 +11,19 @@ on:
       - main
 
 jobs:
-  # Release unpublished packages to crates.io
+  # Release unpublished packages to crates.io and create GitHub releases
   release-plz-release:
     name: Release-plz release
     runs-on: ubuntu-latest
     if: ${{ github.repository_owner == 'loonghao' }}
     permissions:
       contents: write
+    outputs:
+      tag: ${{ steps.release.outputs.tag }}
+      releases_created: ${{ steps.release.outputs.releases_created }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
           # Use PAT to allow triggering other workflows (like release.yml)
@@ -29,13 +33,60 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Run release-plz
+        id: release
         uses: release-plz/action@v0.5
         with:
           command: release
         env:
-          # Use PAT to allow triggering other workflows, ensure no whitespace
+          # Use PAT to allow triggering other workflows
           GITHUB_TOKEN: ${{ secrets.RELEASE_PLZ_TOKEN || secrets.GITHUB_TOKEN }}
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+
+  # Trigger the release build workflow after a release is created.
+  # Tags created by GITHUB_TOKEN do not trigger other workflows (GitHub limitation).
+  # This job explicitly dispatches release.yml via the API to work around this.
+  trigger-release-build:
+    name: Trigger Release Build
+    needs: release-plz-release
+    runs-on: ubuntu-latest
+    if: ${{ needs.release-plz-release.outputs.releases_created == 'true' }}
+    steps:
+      - name: Wait for tag to propagate
+        run: sleep 15
+
+      - name: Dispatch release workflow
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.RELEASE_PLZ_TOKEN || secrets.GITHUB_TOKEN }}
+          script: |
+            const tag = '${{ needs.release-plz-release.outputs.tag }}';
+            const maxRetries = 3;
+            const baseDelay = 15000; // 15 seconds
+
+            for (let attempt = 1; attempt <= maxRetries; attempt++) {
+              try {
+                console.log(`Attempt ${attempt}/${maxRetries}: Dispatching release.yml for tag ${tag}`);
+                await github.rest.actions.createWorkflowDispatch({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  workflow_id: 'release.yml',
+                  ref: tag,
+                  inputs: {
+                    tag: tag,
+                  },
+                });
+                console.log(`✅ Successfully dispatched release.yml for tag: ${tag}`);
+                return;
+              } catch (error) {
+                console.log(`❌ Attempt ${attempt} failed: ${error.message}`);
+                if (attempt === maxRetries) {
+                  throw new Error(`Failed to dispatch release.yml after ${maxRetries} attempts: ${error.message}`);
+                }
+                const delay = baseDelay * attempt;
+                console.log(`⏳ Waiting ${delay / 1000}s before retry (tag may still be propagating)...`);
+                await new Promise(resolve => setTimeout(resolve, delay));
+              }
+            }
 
   # Create a PR with the new versions and changelog, preparing the next release
   release-plz-pr:
@@ -50,7 +101,7 @@ jobs:
       cancel-in-progress: false
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
           # Use PAT to allow triggering CI workflows on the release PR
@@ -64,6 +115,6 @@ jobs:
         with:
           command: release-pr
         env:
-          # Use PAT to allow triggering CI workflows on the release PR, ensure no whitespace
+          # Use PAT to allow triggering CI workflows on the release PR
           GITHUB_TOKEN: ${{ secrets.RELEASE_PLZ_TOKEN || secrets.GITHUB_TOKEN }}
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
