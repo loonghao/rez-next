@@ -77,18 +77,10 @@ fn optimized_vs_legacy_parsing_benchmark(c: &mut Criterion) {
         "1.2.3-alpha1.beta2.gamma3",
     ];
 
-    group.bench_function("legacy_parsing", |b| {
+    group.bench_function("standard_parsing", |b| {
         b.iter(|| {
             for version_str in &test_versions {
                 black_box(Version::parse(black_box(version_str)).unwrap());
-            }
-        });
-    });
-
-    group.bench_function("optimized_parsing", |b| {
-        b.iter(|| {
-            for version_str in &test_versions {
-                black_box(Version::parse_optimized(black_box(version_str)).unwrap());
             }
         });
     });

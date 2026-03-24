@@ -21,6 +21,7 @@ pub use config::RezCoreConfig;
 pub use error::RezCoreError;
 #[cfg(feature = "python-bindings")]
 pub use error::{PyRezCoreError, RezCoreError};
+pub use error::RezCoreResult;
 
 /// Python module for rez_core.common
 #[cfg(feature = "python-bindings")]

@@ -42,7 +42,7 @@ jobs:
       - name: Run benchmarks
         run: |
           echo "Running benchmarks..."
-          cargo bench 2>&1 | tee benchmark-output.txt
+          cargo bench --bench version_benchmark --bench package_benchmark --bench simple_package_benchmark 2>&1 | tee benchmark-output.txt
 
       - name: Upload benchmark results
         uses: actions/upload-artifact@v6

@@ -57,6 +57,9 @@ license.workspace = true
 repository.workspace = true
 keywords.workspace = true
 categories.workspace = true
+# Disable auto-discovery for benchmarks — only explicitly listed [[bench]] entries are compiled.
+# This prevents broken bench files in benches/ from causing compilation errors.
+autobenches = false
 
 [lib]
 name = "rez_core"
@@ -121,10 +124,6 @@ name = "version_benchmark"
 harness = false
 
 [[bench]]
-name = "comprehensive_benchmark_suite"
-harness = false
-
-[[bench]]
 name = "package_benchmark"
 harness = false
 
@@ -132,19 +131,19 @@ harness = false
 name = "simple_package_benchmark"
 harness = false
 
-# Removed redundant benchmarks
+# Temporarily disabled benchmarks due to API changes
+# [[bench]]
+# name = "comprehensive_benchmark_suite"
+# harness = false
 
-[[bench]]
-name = "solver_benchmark"
-harness = false
+# [[bench]]
+# name = "solver_benchmark"
+# harness = false
 
-[[bench]]
-name = "solver_benchmark_main"
-harness = false
+# [[bench]]
+# name = "solver_benchmark_main"
+# harness = false
 
-# Simplified solver benchmarks
-
-# Temporarily disabled context benchmarks due to API changes
 # [[bench]]
 # name = "context_benchmark"
 # harness = false
@@ -153,12 +152,10 @@ harness = false
 # name = "context_benchmark_main"
 # harness = false
 
-# Temporarily disabled benchmarks due to API changes
 # [[bench]]
 # name = "simple_context_benchmark"
 # harness = false
 
-# Rex System Benchmarks - Temporarily disabled
 # [[bench]]
 # name = "rex_benchmark_main"
 # harness = false
@@ -167,7 +164,6 @@ harness = false
 # name = "simple_rex_benchmark"
 # harness = false
 
-# Build and Cache System Benchmarks - Temporarily disabled
 # [[bench]]
 # name = "build_cache_benchmark_main"
 # harness = false
@@ -176,14 +172,13 @@ harness = false
 # name = "simple_build_cache_benchmark"
 # harness = false
 
-# Performance Validation Benchmarks
-[[bench]]
-name = "performance_validation_benchmark"
-harness = false
+# [[bench]]
+# name = "performance_validation_benchmark"
+# harness = false
 
-[[bench]]
-name = "performance_validation_main"
-harness = false
+# [[bench]]
+# name = "performance_validation_main"
+# harness = false
 
 # [build-dependencies]
 # pyo3-build-config = "0.25"  # Only needed for Python bindings
