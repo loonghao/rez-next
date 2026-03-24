@@ -1,10 +1,12 @@
 //! Package validation functionality
 
-use crate::Package;
+use crate::{Package, requirement::Requirement};
 use pyo3::prelude::*;
 use rez_next_version::Version;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
+use std::path::Path;
+use regex::Regex;
 
 /// Package validation result
 #[pyclass]
@@ -37,6 +39,30 @@ pub struct PackageValidationResult {
     /// File structure validation
     #[pyo3(get)]
     pub structure_valid: bool,
+
+    /// Version compatibility validation
+    #[pyo3(get)]
+    pub version_compatibility_valid: bool,
+
+    /// Platform compatibility validation
+    #[pyo3(get)]
+    pub platform_compatibility_valid: bool,
+
+    /// Package integrity validation
+    #[pyo3(get)]
+    pub integrity_valid: bool,
+
+    /// Security validation
+    #[pyo3(get)]
+    pub security_valid: bool,
+
+    /// Performance validation
+    #[pyo3(get)]
+    pub performance_valid: bool,
+
+    /// Validation details for each category
+    #[pyo3(get)]
+    pub validation_details: HashMap<String, Vec<String>>,
 }
 
 /// Package validation options
@@ -66,6 +92,34 @@ pub struct PackageValidationOptions {
     /// Strict validation mode
     #[pyo3(get, set)]
     pub strict_mode: bool,
+
+    /// Check version compatibility
+    #[pyo3(get, set)]
+    pub check_version_compatibility: bool,
+
+    /// Check platform compatibility
+    #[pyo3(get, set)]
+    pub check_platform_compatibility: bool,
+
+    /// Check package integrity
+    #[pyo3(get, set)]
+    pub check_package_integrity: bool,
+
+    /// Check for deprecated features
+    #[pyo3(get, set)]
+    pub check_deprecated_features: bool,
+
+    /// Check for security issues
+    #[pyo3(get, set)]
+    pub check_security_issues: bool,
+
+    /// Maximum dependency depth to check
+    #[pyo3(get, set)]
+    pub max_dependency_depth: usize,
+
+    /// Allowed platforms (empty means all platforms allowed)
+    #[pyo3(get, set)]
+    pub allowed_platforms: Vec<String>,
 }
 
 /// Package validator
@@ -91,6 +145,12 @@ impl PackageValidationResult {
             dependencies_valid: true,
             variants_valid: true,
             structure_valid: true,
+            version_compatibility_valid: true,
+            platform_compatibility_valid: true,
+            integrity_valid: true,
+            security_valid: true,
+            performance_valid: true,
+            validation_details: HashMap::new(),
         }
     }
 
@@ -166,6 +226,13 @@ impl PackageValidationOptions {
             check_structure: true,
             check_circular_deps: true,
             strict_mode: false,
+            check_version_compatibility: true,
+            check_platform_compatibility: true,
+            check_package_integrity: true,
+            check_deprecated_features: true,
+            check_security_issues: true,
+            max_dependency_depth: 10,
+            allowed_platforms: Vec::new(),
         }
     }
 
@@ -179,6 +246,13 @@ impl PackageValidationOptions {
             check_structure: false,
             check_circular_deps: false,
             strict_mode: false,
+            check_version_compatibility: false,
+            check_platform_compatibility: false,
+            check_package_integrity: false,
+            check_deprecated_features: false,
+            check_security_issues: false,
+            max_dependency_depth: 3,
+            allowed_platforms: Vec::new(),
         }
     }
 
@@ -192,6 +266,33 @@ impl PackageValidationOptions {
             check_structure: true,
             check_circular_deps: true,
             strict_mode: true,
+            check_version_compatibility: true,
+            check_platform_compatibility: true,
+            check_package_integrity: true,
+            check_deprecated_features: true,
+            check_security_issues: true,
+            max_dependency_depth: 20,
+            allowed_platforms: Vec::new(),
+        }
+    }
+
+    /// Create options for security-focused validation
+    #[staticmethod]
+    pub fn security() -> Self {
+        Self {
+            check_metadata: true,
+            check_dependencies: true,
+            check_variants: false,
+            check_structure: true,
+            check_circular_deps: true,
+            strict_mode: true,
+            check_version_compatibility: true,
+            check_platform_compatibility: false,
+            check_package_integrity: true,
+            check_deprecated_features: true,
+            check_security_issues: true,
+            max_dependency_depth: 15,
+            allowed_platforms: Vec::new(),
         }
     }
 }
@@ -249,6 +350,31 @@ impl PackageValidator {
         // Check circular dependencies
         if self.options.check_circular_deps {
             self.check_circular_dependencies(package, &mut result);
+        }
+
+        // Check version compatibility
+        if self.options.check_version_compatibility {
+            self.validate_version_compatibility(package, &mut result);
+        }
+
+        // Check platform compatibility
+        if self.options.check_platform_compatibility {
+            self.validate_platform_compatibility(package, &mut result);
+        }
+
+        // Check package integrity
+        if self.options.check_package_integrity {
+            self.validate_package_integrity(package, &mut result);
+        }
+
+        // Check for deprecated features
+        if self.options.check_deprecated_features {
+            self.check_deprecated_features(package, &mut result);
+        }
+
+        // Check for security issues
+        if self.options.check_security_issues {
+            self.check_security_issues(package, &mut result);
         }
 
         Ok(result)
@@ -395,12 +521,11 @@ impl PackageValidator {
             return Err("Requirement cannot be empty".to_string());
         }
 
-        // Basic validation - a full implementation would parse the requirement
-        if req.contains("  ") {
-            return Err("Requirement contains multiple spaces".to_string());
+        // Try to parse as a proper requirement
+        match req.parse::<Requirement>() {
+            Ok(_) => Ok(()),
+            Err(e) => Err(format!("Invalid requirement format: {}", e)),
         }
-
-        Ok(())
     }
 
     /// Check for circular dependencies (simplified)
@@ -425,6 +550,234 @@ impl PackageValidator {
         visited.remove(package_name);
         false
     }
+
+    /// Validate version compatibility
+    fn validate_version_compatibility(&self, package: &Package, result: &mut PackageValidationResult) {
+        let mut details = Vec::new();
+
+        // Check if version follows semantic versioning
+        if let Some(ref version) = package.version {
+            if !self.is_semantic_version(version.as_str()) {
+                result.add_warning(format!(
+                    "Package version '{}' does not follow semantic versioning",
+                    version.as_str()
+                ));
+                details.push(format!("Non-semantic version: {}", version.as_str()));
+            }
+        }
+
+        // Check version compatibility with dependencies
+        for req_str in &package.requires {
+            if let Ok(req) = req_str.parse::<Requirement>() {
+                if let Some(known_versions) = self.known_packages.get(req.package_name()) {
+                    let compatible_versions: Vec<_> = known_versions
+                        .iter()
+                        .filter(|v| req.is_satisfied_by(v))
+                        .collect();
+
+                    if compatible_versions.is_empty() {
+                        result.add_error(format!(
+                            "No compatible versions found for requirement '{}'",
+                            req_str
+                        ));
+                        result.version_compatibility_valid = false;
+                        details.push(format!("No compatible versions: {}", req_str));
+                    } else if compatible_versions.len() == 1 {
+                        result.add_warning(format!(
+                            "Only one compatible version found for requirement '{}': {}",
+                            req_str,
+                            compatible_versions[0].as_str()
+                        ));
+                        details.push(format!("Single compatible version: {}", req_str));
+                    }
+                }
+            }
+        }
+
+        if !details.is_empty() {
+            result.validation_details.insert("version_compatibility".to_string(), details);
+        }
+    }
+
+    /// Validate platform compatibility
+    fn validate_platform_compatibility(&self, package: &Package, result: &mut PackageValidationResult) {
+        let mut details = Vec::new();
+
+        // Check if package specifies platform requirements
+        let has_platform_reqs = package.requires.iter()
+            .chain(package.build_requires.iter())
+            .chain(package.private_build_requires.iter())
+            .any(|req| req.contains("platform") || req.contains("arch"));
+
+        if !has_platform_reqs && self.options.strict_mode {
+            result.add_warning("Package does not specify platform requirements".to_string());
+            details.push("No platform requirements specified".to_string());
+        }
+
+        // Check against allowed platforms
+        if !self.options.allowed_platforms.is_empty() {
+            for req_str in &package.requires {
+                if req_str.contains("platform") {
+                    let platform_found = self.options.allowed_platforms.iter()
+                        .any(|platform| req_str.contains(platform));
+
+                    if !platform_found {
+                        result.add_error(format!(
+                            "Platform requirement '{}' not in allowed platforms: {:?}",
+                            req_str,
+                            self.options.allowed_platforms
+                        ));
+                        result.platform_compatibility_valid = false;
+                        details.push(format!("Disallowed platform: {}", req_str));
+                    }
+                }
+            }
+        }
+
+        if !details.is_empty() {
+            result.validation_details.insert("platform_compatibility".to_string(), details);
+        }
+    }
+
+    /// Validate package integrity
+    fn validate_package_integrity(&self, package: &Package, result: &mut PackageValidationResult) {
+        let mut details = Vec::new();
+
+        // Check for required fields consistency
+        if package.name.is_empty() {
+            result.add_error("Package name is required for integrity".to_string());
+            result.integrity_valid = false;
+            details.push("Missing package name".to_string());
+        }
+
+        // Check for version consistency
+        if package.version.is_none() && !package.variants.is_empty() {
+            result.add_warning("Package has variants but no version specified".to_string());
+            details.push("Variants without version".to_string());
+        }
+
+        // Check for build system consistency
+        if !package.build_requires.is_empty() && package.build_command.is_none() {
+            result.add_warning("Package has build requirements but no build command".to_string());
+            details.push("Build requirements without build command".to_string());
+        }
+
+        // Check for tools consistency
+        if !package.tools.is_empty() && package.commands_function.is_none() {
+            result.add_warning("Package defines tools but has no commands function".to_string());
+            details.push("Tools without commands function".to_string());
+        }
+
+        // Check for UUID format if present
+        if let Some(ref uuid) = package.uuid {
+            if !self.is_valid_uuid(uuid) {
+                result.add_error(format!("Invalid UUID format: '{}'", uuid));
+                result.integrity_valid = false;
+                details.push(format!("Invalid UUID: {}", uuid));
+            }
+        }
+
+        if !details.is_empty() {
+            result.validation_details.insert("package_integrity".to_string(), details);
+        }
+    }
+
+    /// Check for deprecated features
+    fn check_deprecated_features(&self, package: &Package, result: &mut PackageValidationResult) {
+        let mut details = Vec::new();
+
+        // Check for deprecated fields or patterns
+        if package.format_version.is_some() && package.format_version.unwrap() < 2 {
+            result.add_warning("Package uses deprecated format version".to_string());
+            details.push(format!("Deprecated format version: {}", package.format_version.unwrap()));
+        }
+
+        // Check for deprecated requirement patterns
+        for req in &package.requires {
+            if req.contains("~") && !req.starts_with("~") {
+                result.add_warning(format!("Deprecated requirement syntax: '{}'", req));
+                details.push(format!("Deprecated syntax: {}", req));
+            }
+        }
+
+        // Check for deprecated build patterns
+        if let Some(ref build_cmd) = package.build_command {
+            if build_cmd.contains("python setup.py") {
+                result.add_warning("Package uses deprecated 'python setup.py' build command".to_string());
+                details.push("Deprecated build command: python setup.py".to_string());
+            }
+        }
+
+        if !details.is_empty() {
+            result.validation_details.insert("deprecated_features".to_string(), details);
+        }
+    }
+
+    /// Check for security issues
+    fn check_security_issues(&self, package: &Package, result: &mut PackageValidationResult) {
+        let mut details = Vec::new();
+
+        // Check for potentially unsafe commands
+        if let Some(ref commands) = package.commands_function {
+            let unsafe_patterns = [
+                "rm -rf",
+                "sudo",
+                "chmod 777",
+                "eval",
+                "exec",
+                "system(",
+                "shell=True",
+            ];
+
+            for pattern in &unsafe_patterns {
+                if commands.contains(pattern) {
+                    result.add_warning(format!(
+                        "Potentially unsafe command pattern found: '{}'",
+                        pattern
+                    ));
+                    details.push(format!("Unsafe pattern: {}", pattern));
+                }
+            }
+        }
+
+        // Check for insecure URLs in requirements
+        for req in &package.requires {
+            if req.contains("http://") {
+                result.add_warning(format!(
+                    "Insecure HTTP URL in requirement: '{}'",
+                    req
+                ));
+                details.push(format!("Insecure URL: {}", req));
+            }
+        }
+
+        // Check for overly permissive version constraints
+        for req in &package.requires {
+            if req.contains(">=") && !req.contains("<") && !req.contains("~=") {
+                result.add_warning(format!(
+                    "Overly permissive version constraint: '{}'",
+                    req
+                ));
+                details.push(format!("Permissive constraint: {}", req));
+            }
+        }
+
+        if !details.is_empty() {
+            result.validation_details.insert("security_issues".to_string(), details);
+        }
+    }
+
+    /// Check if version follows semantic versioning
+    fn is_semantic_version(&self, version: &str) -> bool {
+        let semver_regex = Regex::new(r"^\d+\.\d+\.\d+(-[a-zA-Z0-9\-\.]+)?(\+[a-zA-Z0-9\-\.]+)?$").unwrap();
+        semver_regex.is_match(version)
+    }
+
+    /// Check if UUID is valid
+    fn is_valid_uuid(&self, uuid: &str) -> bool {
+        let uuid_regex = Regex::new(r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$").unwrap();
+        uuid_regex.is_match(uuid)
+    }
 }
 
 impl Default for PackageValidationResult {
@@ -436,5 +789,192 @@ impl Default for PackageValidationResult {
 impl Default for PackageValidationOptions {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn create_test_package() -> Package {
+        Package {
+            name: "test_package".to_string(),
+            version: Some(Version::parse("1.0.0").unwrap()),
+            description: Some("Test package".to_string()),
+            authors: vec!["Test Author".to_string()],
+            requires: vec!["python>=3.8".to_string()],
+            build_requires: vec!["cmake".to_string()],
+            private_build_requires: vec![],
+            tools: vec!["test_tool".to_string()],
+            variants: vec![
+                vec!["python-3.8".to_string()],
+                vec!["python-3.9".to_string()],
+            ],
+            commands_function: Some("env.PATH.append('/usr/local/bin')".to_string()),
+            build_command: Some("cmake --build .".to_string()),
+            build_system: Some("cmake".to_string()),
+            uuid: Some("550e8400-e29b-41d4-a716-446655440000".to_string()),
+            relocatable: Some(true),
+            cachable: Some(true),
+            base: None,
+            hashed_variants: Some(false),
+            has_plugins: Some(false),
+            plugin_for: vec![],
+            format_version: Some(2),
+            preprocess: None,
+            pre_commands: None,
+            post_commands: None,
+            pre_test_commands: None,
+            pre_build_commands: None,
+            requires_rez_version: None,
+            help: None,
+        }
+    }
+
+    #[test]
+    fn test_basic_validation() {
+        let package = create_test_package();
+        let validator = PackageValidator::new(None);
+        let result = validator.validate_package(&package).unwrap();
+
+        assert!(result.is_valid);
+        assert_eq!(result.errors.len(), 0);
+    }
+
+    #[test]
+    fn test_invalid_package_name() {
+        let mut package = create_test_package();
+        package.name = "invalid@name".to_string();
+
+        let validator = PackageValidator::new(None);
+        let result = validator.validate_package(&package).unwrap();
+
+        assert!(!result.is_valid);
+        assert!(result.errors.iter().any(|e| e.contains("Invalid package name format")));
+    }
+
+    #[test]
+    fn test_empty_package_name() {
+        let mut package = create_test_package();
+        package.name = String::new();
+
+        let validator = PackageValidator::new(None);
+        let result = validator.validate_package(&package).unwrap();
+
+        assert!(!result.is_valid);
+        assert!(result.errors.iter().any(|e| e.contains("Package name is required")));
+    }
+
+    #[test]
+    fn test_invalid_requirement() {
+        let mut package = create_test_package();
+        package.requires = vec!["".to_string()]; // Empty requirement
+
+        let validator = PackageValidator::new(None);
+        let result = validator.validate_package(&package).unwrap();
+
+        assert!(!result.is_valid);
+        assert!(result.errors.iter().any(|e| e.contains("Invalid requirement")));
+    }
+
+    #[test]
+    fn test_duplicate_variants() {
+        let mut package = create_test_package();
+        package.variants = vec![
+            vec!["python-3.8".to_string()],
+            vec!["python-3.8".to_string()], // Duplicate
+        ];
+
+        let validator = PackageValidator::new(None);
+        let result = validator.validate_package(&package).unwrap();
+
+        assert!(!result.is_valid);
+        assert!(result.errors.iter().any(|e| e.contains("Duplicate variant")));
+    }
+
+    #[test]
+    fn test_security_validation() {
+        let mut package = create_test_package();
+        package.commands_function = Some("rm -rf /important/data".to_string());
+
+        let mut options = PackageValidationOptions::new();
+        options.check_security_issues = true;
+
+        let validator = PackageValidator::new(Some(options));
+        let result = validator.validate_package(&package).unwrap();
+
+        // Should still be valid but have warnings
+        assert!(result.is_valid);
+        assert!(result.warnings.iter().any(|w| w.contains("unsafe command pattern")));
+    }
+
+    #[test]
+    fn test_version_compatibility() {
+        let package = create_test_package();
+
+        let mut options = PackageValidationOptions::new();
+        options.check_version_compatibility = true;
+
+        let mut validator = PackageValidator::new(Some(options));
+
+        // Add known packages
+        let mut known_packages = HashMap::new();
+        known_packages.insert("python".to_string(), vec!["3.7.0".to_string(), "3.8.0".to_string(), "3.9.0".to_string()]);
+        validator.add_known_packages(known_packages).unwrap();
+
+        let result = validator.validate_package(&package).unwrap();
+
+        // Should be valid since we have compatible Python versions
+        assert!(result.is_valid);
+    }
+
+    #[test]
+    fn test_validation_options() {
+        let quick_options = PackageValidationOptions::quick();
+        assert!(quick_options.check_metadata);
+        assert!(!quick_options.check_dependencies);
+        assert!(!quick_options.strict_mode);
+
+        let full_options = PackageValidationOptions::full();
+        assert!(full_options.check_metadata);
+        assert!(full_options.check_dependencies);
+        assert!(full_options.check_security_issues);
+        assert!(full_options.strict_mode);
+
+        let security_options = PackageValidationOptions::security();
+        assert!(security_options.check_security_issues);
+        assert!(security_options.check_package_integrity);
+        assert!(security_options.strict_mode);
+    }
+
+    #[test]
+    fn test_uuid_validation() {
+        let mut package = create_test_package();
+        package.uuid = Some("invalid-uuid".to_string());
+
+        let mut options = PackageValidationOptions::new();
+        options.check_package_integrity = true;
+
+        let validator = PackageValidator::new(Some(options));
+        let result = validator.validate_package(&package).unwrap();
+
+        assert!(!result.is_valid);
+        assert!(result.errors.iter().any(|e| e.contains("Invalid UUID format")));
+    }
+
+    #[test]
+    fn test_semantic_version_validation() {
+        let mut package = create_test_package();
+        package.version = Some(Version::parse("1.0").unwrap()); // Not semantic
+
+        let mut options = PackageValidationOptions::new();
+        options.check_version_compatibility = true;
+
+        let validator = PackageValidator::new(Some(options));
+        let result = validator.validate_package(&package).unwrap();
+
+        // Should be valid but have warnings about non-semantic version
+        assert!(result.is_valid);
+        assert!(result.warnings.iter().any(|w| w.contains("does not follow semantic versioning")));
     }
 }

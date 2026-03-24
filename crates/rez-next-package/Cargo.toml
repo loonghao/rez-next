@@ -6,7 +6,7 @@ authors.workspace = true
 description = "Advanced package management with complete package.py parsing and 100% Rez compatibility"
 license.workspace = true
 repository.workspace = true
-homepage = "https://github.com/loonghao/rez-core"
+homepage = "https://github.com/loonghao/rez-next"
 documentation = "https://docs.rs/rez-next-package"
 readme = "README.md"
 keywords = ["package", "rez", "parsing", "management", "python"]
@@ -31,6 +31,14 @@ thiserror.workspace = true
 tempfile.workspace = true
 rustpython-parser = "0.4"
 rustpython-ast = "0.4"
+flate2 = "1.0"
+chrono = { version = "0.4", features = ["serde"] }
+bincode = "1.3"
+base64 = "0.21"
+toml = "0.8"
+lru = "0.12"
+rayon = "1.8"
+num_cpus = "1.16"
 
 [dev-dependencies]
 rstest.workspace = true

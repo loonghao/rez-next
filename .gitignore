@@ -1,7 +1,7 @@
 # Rust
 */target/
 target/
-Cargo.lock
+# Note: Cargo.lock is tracked for reproducible binary builds (cargo build --locked)
 
 # IDE
 .vscode/
@@ -82,3 +82,11 @@ htmlcov/
 # Platform specific
 *.exe
 *.pdb
+
+# Local testing scripts (not committed)
+local-test.ps1
+local-*.ps1
+*-local.*
+debug-extension.ps1
+fix-extension.ps1
+simple_lsp_test.ps1

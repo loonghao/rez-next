@@ -5,7 +5,9 @@ use pyo3::prelude::*;
 use rez_next_common::RezCoreError;
 use rez_next_version::Version;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
+use std::fmt;
+use crate::requirement::Requirement;
 
 /// Package variant representation
 #[cfg_attr(feature = "python-bindings", pyclass)]
@@ -459,5 +461,437 @@ impl PackageVariant {
             Some(version) => format!("{}=={}", self.name, version.as_str()),
             None => self.name.clone(),
         }
+    }
+
+    /// Check if this variant is compatible with another variant
+    pub fn is_compatible_with(&self, other: &PackageVariant) -> bool {
+        // Same package name and version
+        if self.name != other.name || self.version != other.version {
+            return false;
+        }
+
+        // Check for conflicting requirements
+        let self_reqs: HashSet<_> = self.requires.iter().collect();
+        let other_reqs: HashSet<_> = other.requires.iter().collect();
+
+        // If they have different requirements, they might be incompatible
+        // This is a simplified check - in reality, we'd need to resolve requirements
+        self_reqs == other_reqs
+    }
+
+    /// Get the variant's effective requirements (including inherited ones)
+    pub fn effective_requirements(&self, parent_requirements: &[String]) -> Vec<String> {
+        let mut effective = parent_requirements.to_vec();
+        effective.extend(self.requires.clone());
+        effective.sort();
+        effective.dedup();
+        effective
+    }
+
+    /// Check if this variant satisfies the given requirement
+    pub fn satisfies_requirement(&self, requirement: &Requirement) -> bool {
+        // Check package name
+        if self.name != requirement.package_name() {
+            return false;
+        }
+
+        // Check version constraint
+        if let Some(ref version) = self.version {
+            requirement.is_satisfied_by(version)
+        } else {
+            // No version means any version constraint is satisfied
+            true
+        }
+    }
+
+    /// Get variant hash for caching and comparison
+    pub fn variant_hash(&self) -> String {
+        use std::collections::hash_map::DefaultHasher;
+        use std::hash::{Hash, Hasher};
+
+        let mut hasher = DefaultHasher::new();
+        self.name.hash(&mut hasher);
+        self.version.hash(&mut hasher);
+        self.index.hash(&mut hasher);
+        self.requires.hash(&mut hasher);
+        self.build_requires.hash(&mut hasher);
+        self.private_build_requires.hash(&mut hasher);
+
+        format!("{:x}", hasher.finish())
+    }
+
+    /// Create a variant from variant definition list
+    pub fn from_variant_list(
+        package_name: String,
+        package_version: Option<Version>,
+        variant_index: usize,
+        variant_list: &[Vec<String>],
+    ) -> Result<Self, RezCoreError> {
+        if variant_index >= variant_list.len() {
+            return Err(RezCoreError::PackageParse(format!(
+                "Variant index {} out of bounds for {} variants",
+                variant_index,
+                variant_list.len()
+            )));
+        }
+
+        let variant_requirements = variant_list[variant_index].clone();
+
+        Ok(Self {
+            name: package_name,
+            version: package_version,
+            index: Some(variant_index),
+            requires: variant_requirements,
+            build_requires: Vec::new(),
+            private_build_requires: Vec::new(),
+            commands: None,
+            root: None,
+            subpath: None,
+            metadata: HashMap::new(),
+        })
+    }
+}
+
+/// Variant manager for handling multiple variants
+#[derive(Debug, Clone)]
+pub struct VariantManager {
+    /// All variants for a package
+    variants: Vec<PackageVariant>,
+    /// Variant index mapping
+    index_map: HashMap<usize, usize>, // variant_index -> position in variants vec
+}
+
+impl VariantManager {
+    /// Create a new variant manager
+    pub fn new() -> Self {
+        Self {
+            variants: Vec::new(),
+            index_map: HashMap::new(),
+        }
+    }
+
+    /// Add a variant
+    pub fn add_variant(&mut self, variant: PackageVariant) -> Result<(), RezCoreError> {
+        // Validate the variant
+        variant.validate()?;
+
+        // Check for duplicate indices
+        if let Some(index) = variant.index {
+            if self.index_map.contains_key(&index) {
+                return Err(RezCoreError::PackageParse(format!(
+                    "Variant with index {} already exists",
+                    index
+                )));
+            }
+            self.index_map.insert(index, self.variants.len());
+        }
+
+        self.variants.push(variant);
+        Ok(())
+    }
+
+    /// Get variant by index
+    pub fn get_variant(&self, index: usize) -> Option<&PackageVariant> {
+        self.index_map.get(&index).and_then(|&pos| self.variants.get(pos))
+    }
+
+    /// Get all variants
+    pub fn get_all_variants(&self) -> &[PackageVariant] {
+        &self.variants
+    }
+
+    /// Filter variants by requirements
+    pub fn filter_by_requirements(&self, requirements: &[String]) -> Vec<&PackageVariant> {
+        self.variants
+            .iter()
+            .filter(|variant| variant.matches_requirements(requirements))
+            .collect()
+    }
+
+    /// Get compatible variants for a given variant
+    pub fn get_compatible_variants(&self, target: &PackageVariant) -> Vec<&PackageVariant> {
+        self.variants
+            .iter()
+            .filter(|variant| variant.is_compatible_with(target))
+            .collect()
+    }
+
+    /// Get the number of variants
+    pub fn variant_count(&self) -> usize {
+        self.variants.len()
+    }
+
+    /// Check if manager has any variants
+    pub fn is_empty(&self) -> bool {
+        self.variants.is_empty()
+    }
+
+    /// Remove variant by index
+    pub fn remove_variant(&mut self, index: usize) -> Result<PackageVariant, RezCoreError> {
+        if let Some(&pos) = self.index_map.get(&index) {
+            self.index_map.remove(&index);
+
+            // Update index map for remaining variants
+            for (_, position) in self.index_map.iter_mut() {
+                if *position > pos {
+                    *position -= 1;
+                }
+            }
+
+            Ok(self.variants.remove(pos))
+        } else {
+            Err(RezCoreError::PackageParse(format!(
+                "Variant with index {} not found",
+                index
+            )))
+        }
+    }
+
+    /// Clear all variants
+    pub fn clear(&mut self) {
+        self.variants.clear();
+        self.index_map.clear();
+    }
+
+    /// Create variants from variant definition matrix
+    pub fn from_variant_matrix(
+        package_name: String,
+        package_version: Option<Version>,
+        variant_matrix: &[Vec<String>],
+    ) -> Result<Self, RezCoreError> {
+        let mut manager = Self::new();
+
+        for (index, variant_def) in variant_matrix.iter().enumerate() {
+            let variant = PackageVariant::from_variant_list(
+                package_name.clone(),
+                package_version.clone(),
+                index,
+                variant_matrix,
+            )?;
+            manager.add_variant(variant)?;
+        }
+
+        Ok(manager)
+    }
+}
+
+impl Default for VariantManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl fmt::Display for VariantManager {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "VariantManager({} variants)", self.variants.len())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_package_variant_creation() {
+        let variant = PackageVariant::from_package_and_variant(
+            "test_package".to_string(),
+            Some(Version::parse("1.0.0").unwrap()),
+            Some(0),
+            vec!["python-3.8".to_string(), "platform-linux".to_string()],
+        );
+
+        assert_eq!(variant.name, "test_package");
+        assert_eq!(variant.index, Some(0));
+        assert_eq!(variant.requires.len(), 2);
+        assert!(variant.requires.contains(&"python-3.8".to_string()));
+        assert!(variant.requires.contains(&"platform-linux".to_string()));
+    }
+
+    #[test]
+    fn test_variant_validation() {
+        let mut variant = PackageVariant::from_package_and_variant(
+            "test_package".to_string(),
+            Some(Version::parse("1.0.0").unwrap()),
+            Some(0),
+            vec!["python-3.8".to_string()],
+        );
+
+        // Valid variant should pass validation
+        assert!(variant.validate().is_ok());
+
+        // Empty name should fail validation
+        variant.name = String::new();
+        assert!(variant.validate().is_err());
+
+        // Invalid name characters should fail validation
+        variant.name = "test@package".to_string();
+        assert!(variant.validate().is_err());
+
+        // Valid name should pass
+        variant.name = "test_package-v2".to_string();
+        assert!(variant.validate().is_ok());
+    }
+
+    #[test]
+    fn test_variant_qualified_name() {
+        let variant = PackageVariant::from_package_and_variant(
+            "test_package".to_string(),
+            Some(Version::parse("1.0.0").unwrap()),
+            Some(0),
+            vec!["python-3.8".to_string()],
+        );
+
+        // Test basic properties
+        assert_eq!(variant.name, "test_package");
+        assert_eq!(variant.index, Some(0));
+
+        // Note: qualified_name() method is only available with Python bindings
+        #[cfg(feature = "python-bindings")]
+        {
+            assert_eq!(variant.qualified_name(), "test_package-1.0.0[0]");
+            assert_eq!(variant.qualified_package_name(), "test_package-1.0.0");
+        }
+    }
+
+    #[test]
+    fn test_variant_compatibility() {
+        let variant1 = PackageVariant::from_package_and_variant(
+            "test_package".to_string(),
+            Some(Version::parse("1.0.0").unwrap()),
+            Some(0),
+            vec!["python-3.8".to_string()],
+        );
+
+        let variant2 = PackageVariant::from_package_and_variant(
+            "test_package".to_string(),
+            Some(Version::parse("1.0.0").unwrap()),
+            Some(1),
+            vec!["python-3.8".to_string()],
+        );
+
+        let variant3 = PackageVariant::from_package_and_variant(
+            "test_package".to_string(),
+            Some(Version::parse("1.0.0").unwrap()),
+            Some(2),
+            vec!["python-3.9".to_string()],
+        );
+
+        // Same requirements should be compatible
+        assert!(variant1.is_compatible_with(&variant2));
+
+        // Different requirements should not be compatible
+        assert!(!variant1.is_compatible_with(&variant3));
+    }
+
+    #[test]
+    fn test_variant_manager() {
+        let mut manager = VariantManager::new();
+        assert!(manager.is_empty());
+        assert_eq!(manager.variant_count(), 0);
+
+        let variant1 = PackageVariant::from_package_and_variant(
+            "test_package".to_string(),
+            Some(Version::parse("1.0.0").unwrap()),
+            Some(0),
+            vec!["python-3.8".to_string()],
+        );
+
+        let variant2 = PackageVariant::from_package_and_variant(
+            "test_package".to_string(),
+            Some(Version::parse("1.0.0").unwrap()),
+            Some(1),
+            vec!["python-3.9".to_string()],
+        );
+
+        // Add variants
+        assert!(manager.add_variant(variant1).is_ok());
+        assert!(manager.add_variant(variant2).is_ok());
+
+        assert!(!manager.is_empty());
+        assert_eq!(manager.variant_count(), 2);
+
+        // Get variant by index
+        let retrieved = manager.get_variant(0);
+        assert!(retrieved.is_some());
+        assert_eq!(retrieved.unwrap().index, Some(0));
+
+        // Filter by requirements
+        let filtered = manager.filter_by_requirements(&["python-3.8".to_string()]);
+        assert_eq!(filtered.len(), 1);
+        assert_eq!(filtered[0].index, Some(0));
+    }
+
+    #[test]
+    fn test_variant_from_matrix() {
+        let variant_matrix = vec![
+            vec!["python-3.8".to_string(), "platform-linux".to_string()],
+            vec!["python-3.9".to_string(), "platform-linux".to_string()],
+            vec!["python-3.8".to_string(), "platform-windows".to_string()],
+        ];
+
+        let manager = VariantManager::from_variant_matrix(
+            "test_package".to_string(),
+            Some(Version::parse("1.0.0").unwrap()),
+            &variant_matrix,
+        ).unwrap();
+
+        assert_eq!(manager.variant_count(), 3);
+
+        let variant0 = manager.get_variant(0).unwrap();
+        assert_eq!(variant0.requires.len(), 2);
+        assert!(variant0.requires.contains(&"python-3.8".to_string()));
+        assert!(variant0.requires.contains(&"platform-linux".to_string()));
+
+        let variant2 = manager.get_variant(2).unwrap();
+        assert!(variant2.requires.contains(&"python-3.8".to_string()));
+        assert!(variant2.requires.contains(&"platform-windows".to_string()));
+    }
+
+    #[test]
+    fn test_variant_hash() {
+        let variant1 = PackageVariant::from_package_and_variant(
+            "test_package".to_string(),
+            Some(Version::parse("1.0.0").unwrap()),
+            Some(0),
+            vec!["python-3.8".to_string()],
+        );
+
+        let variant2 = PackageVariant::from_package_and_variant(
+            "test_package".to_string(),
+            Some(Version::parse("1.0.0").unwrap()),
+            Some(0),
+            vec!["python-3.8".to_string()],
+        );
+
+        let variant3 = PackageVariant::from_package_and_variant(
+            "test_package".to_string(),
+            Some(Version::parse("1.0.0").unwrap()),
+            Some(0),
+            vec!["python-3.9".to_string()],
+        );
+
+        // Same variants should have same hash
+        assert_eq!(variant1.variant_hash(), variant2.variant_hash());
+
+        // Different variants should have different hashes
+        assert_ne!(variant1.variant_hash(), variant3.variant_hash());
+    }
+
+    #[test]
+    fn test_effective_requirements() {
+        let variant = PackageVariant::from_package_and_variant(
+            "test_package".to_string(),
+            Some(Version::parse("1.0.0").unwrap()),
+            Some(0),
+            vec!["python-3.8".to_string()],
+        );
+
+        let parent_requirements = vec!["cmake".to_string(), "gcc".to_string()];
+        let effective = variant.effective_requirements(&parent_requirements);
+
+        assert_eq!(effective.len(), 3);
+        assert!(effective.contains(&"cmake".to_string()));
+        assert!(effective.contains(&"gcc".to_string()));
+        assert!(effective.contains(&"python-3.8".to_string()));
     }
 }

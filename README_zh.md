@@ -67,8 +67,22 @@ rez-next/
 
 ### 安装
 
+**一键安装（推荐）：**
+
 ```bash
-# 从crates.io安装
+# Linux / macOS
+curl -fsSL https://raw.githubusercontent.com/loonghao/rez-next/main/install.sh | sh
+```
+
+```powershell
+# Windows (PowerShell)
+irm https://raw.githubusercontent.com/loonghao/rez-next/main/install.ps1 | iex
+```
+
+**其他安装方式：**
+
+```bash
+# 从 crates.io 安装
 cargo install rez-next
 
 # 或从源码构建
@@ -76,6 +90,15 @@ git clone https://github.com/loonghao/rez-next
 cd rez-next
 cargo build --release
 ```
+
+**安装脚本环境变量：**
+
+| 变量 | 说明 | 默认值 |
+|------|------|--------|
+| `REZ_NEXT_VERSION` | 指定安装版本 | `latest` |
+| `REZ_NEXT_INSTALL` | 安装目录 | `~/.rez-next/bin` |
+| `REZ_NEXT_MUSL` | (Linux) 设为 `1` 使用 musl 构建 | 自动检测 |
+| `REZ_NEXT_NO_PATH` | (Windows) 设为 `1` 跳过 PATH 配置 | 自动添加 |
 
 ### 基本用法
 
