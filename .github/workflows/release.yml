@@ -9,11 +9,6 @@ on:
     tags:
       - "v*"
   workflow_dispatch:
-    inputs:
-      tag:
-        description: "Tag to build (e.g. v0.1.0)"
-        required: false
-        type: string
 
 permissions:
   contents: write
@@ -123,7 +118,7 @@ jobs:
           path: ${{ env.ASSET }}
           retention-days: 1
 
-  upload-release-assets:
+  upload:
     name: Upload Release Assets
     needs: build
     runs-on: ubuntu-22.04
@@ -156,11 +151,9 @@ jobs:
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ inputs.tag || github.ref_name }}
           files: |
-            artifacts/**/*
+            artifacts/**/*.tar.gz
+            artifacts/**/*.zip
             checksums-sha256.txt
-          generate_release_notes: true
-          fail_on_unmatched_files: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

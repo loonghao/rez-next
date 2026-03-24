@@ -1,3 +1,12 @@
+# Automated release management using release-plz
+# - On push to main: creates/updates a release PR with version bump and changelog
+# - When release PR is merged: creates GitHub release with tag
+# - After release is created: dispatches release.yml to build cross-platform binaries
+#
+# Note: Tags created by GITHUB_TOKEN do not trigger other workflows (GitHub limitation).
+# This workflow explicitly dispatches release.yml via the API to work around this.
+# If RELEASE_PLZ_TOKEN (a PAT) is configured, the tag push will also trigger release.yml
+# directly, but the dispatch acts as a reliable fallback.
 name: Release-plz
 
 permissions:
@@ -71,9 +80,6 @@ jobs:
                   repo: context.repo.repo,
                   workflow_id: 'release.yml',
                   ref: tag,
-                  inputs: {
-                    tag: tag,
-                  },
                 });
                 console.log(`✅ Successfully dispatched release.yml for tag: ${tag}`);
                 return;
