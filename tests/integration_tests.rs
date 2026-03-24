@@ -16,25 +16,6 @@ fn test_version_range_creation() {
 }
 
 #[test]
-fn test_version_token_creation() {
-    let numeric_token = VersionToken::from_str("123");
-    assert_eq!(numeric_token, VersionToken::Numeric(123));
-
-    let alpha_token = VersionToken::from_str("alpha");
-    assert_eq!(alpha_token, VersionToken::Alphanumeric("alpha".to_string()));
-}
-
-#[test]
-fn test_version_token_comparison() {
-    let num1 = VersionToken::Numeric(1);
-    let num2 = VersionToken::Numeric(2);
-    let alpha = VersionToken::Alphanumeric("alpha".to_string());
-
-    assert!(num1 < num2);
-    assert!(num1 < alpha);
-}
-
-#[test]
 fn test_config_defaults() {
     let config = RezCoreConfig::default();
     assert!(config.use_rust_version);

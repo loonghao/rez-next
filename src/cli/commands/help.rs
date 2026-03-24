@@ -361,9 +361,9 @@ mod tests {
         let package = Package::new("test-package".to_string());
 
         let sections = extract_help_sections(&package);
-        assert_eq!(sections.len(), 3);
-        assert_eq!(sections[0].name, "Description");
-        assert_eq!(sections[1].name, "Package Information");
-        assert_eq!(sections[2].name, "Usage");
+        // Package::new creates a package with no description, so only 2 sections
+        assert_eq!(sections.len(), 2);
+        assert_eq!(sections[0].name, "Package Information");
+        assert_eq!(sections[1].name, "Usage");
     }
 }

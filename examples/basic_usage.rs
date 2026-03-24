@@ -12,34 +12,22 @@ fn main() -> RezCoreResult<()> {
 
     // Create and display versions
     println!("\n📦 Version Examples:");
-    let v1 = Version::new("1.2.3")?;
-    let v2 = Version::new("2.0.0")?;
+    let v1 = Version::parse("1.2.3")?;
+    let v2 = Version::parse("2.0.0")?;
 
     println!("Version 1: {}", v1.as_str());
     println!("Version 2: {}", v2.as_str());
 
-    // Compare versions (placeholder implementation)
+    // Compare versions
     println!("Comparison: v1 < v2 = {}", v1 < v2);
 
     // Create version ranges
     println!("\n📊 Version Range Examples:");
-    let range1 = VersionRange::new("1.0.0..2.0.0")?;
-    let range2 = VersionRange::new("1.5.0+")?;
+    let range1 = VersionRange::parse("1.0.0..2.0.0")?;
+    let range2 = VersionRange::parse("1.5.0+")?;
 
     println!("Range 1: {}", range1.as_str());
     println!("Range 2: {}", range2.as_str());
-
-    // Test version tokens
-    println!("\n🔤 Version Token Examples:");
-    let numeric_token = VersionToken::from_str("123");
-    let alpha_token = VersionToken::from_str("alpha");
-
-    println!("Numeric token: {}", numeric_token.as_str());
-    println!("Alpha token: {}", alpha_token.as_str());
-    println!(
-        "Token comparison: numeric < alpha = {}",
-        numeric_token < alpha_token
-    );
 
     // Show configuration
     println!("\n⚙️ Configuration:");

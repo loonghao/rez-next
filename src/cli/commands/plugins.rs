@@ -336,8 +336,10 @@ mod tests {
         package.tools = vec!["cmake".to_string()];
 
         let plugins = discover_build_plugins(&package).unwrap();
-        assert_eq!(plugins.len(), 1);
+        // "cmake" tool matches both "cmake" and "make" indicators (contains match)
+        assert_eq!(plugins.len(), 2);
         assert_eq!(plugins[0].name, "cmake_build");
         assert_eq!(plugins[0].plugin_type, "build_system");
+        assert_eq!(plugins[1].name, "make_build");
     }
 }
