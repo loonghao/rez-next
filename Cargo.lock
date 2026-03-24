@@ -568,9 +568,9 @@ checksum = "3f9eec918d3f24069decb9af1554cad7c880e2da24a9afd88aca000531ab82c1"
 
 [[package]]
 name = "foldhash"
-version = "0.1.5"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d9c4f5dac5e15c24eb999c26181a6ca40b39fe946cbe4c263c7209467bc83af2"
+checksum = "77ce24cb58228fbb8aa041425bb1050850ac19177686ea6e0f41a70416f56fdb"
 
 [[package]]
 name = "foreign-types"
@@ -778,6 +778,12 @@ name = "hashbrown"
 version = "0.15.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5971ac85611da7067dbfcabef3c70ebb5606018acd9e2a3903a0da507521e0d5"
+
+[[package]]
+name = "hashbrown"
+version = "0.16.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "841d1cc9bed7f9236f321df977030373f4a4163ae1a7dbfe1a51a2c1a51d9100"
 dependencies = [
  "allocator-api2",
  "equivalent",
@@ -1196,20 +1202,11 @@ checksum = "13dc2df351e3202783a1fe0d44375f7295ffb4049267b0f3018346dc122a1d94"
 
 [[package]]
 name = "lru"
-version = "0.12.5"
+version = "0.16.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "234cf4f4a04dc1f57e24b96cc0cd600cf2af460d4161ac5ecdd0af8e1f3b2a38"
+checksum = "a1dc47f592c06f33f8e3aea9591776ec7c9f9e4124778ff8a3c3b87159f7e593"
 dependencies = [
- "hashbrown 0.15.4",
-]
-
-[[package]]
-name = "lru"
-version = "0.14.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9f8cc7106155f10bdf99a6f379688f543ad6596a415375b36a59a054ceda1198"
-dependencies = [
- "hashbrown 0.15.4",
+ "hashbrown 0.16.1",
 ]
 
 [[package]]
@@ -1890,7 +1887,7 @@ dependencies = [
  "criterion",
  "dashmap",
  "futures",
- "lru 0.14.0",
+ "lru",
  "num_cpus",
  "rand 0.9.1",
  "rez-next-common",
@@ -1949,7 +1946,7 @@ dependencies = [
  "bincode",
  "chrono",
  "flate2",
- "lru 0.12.5",
+ "lru",
  "num_cpus",
  "pretty_assertions",
  "proptest",
@@ -1978,7 +1975,7 @@ dependencies = [
  "chrono",
  "dashmap",
  "futures",
- "lru 0.14.0",
+ "lru",
  "memmap2",
  "num_cpus",
  "parking_lot",
@@ -2030,7 +2027,7 @@ version = "0.1.0"
 dependencies = [
  "ahash",
  "assert_matches",
- "lru 0.14.0",
+ "lru",
  "once_cell",
  "pretty_assertions",
  "proptest",
