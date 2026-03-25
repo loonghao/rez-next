@@ -271,13 +271,11 @@ rez-next/
 Run the comprehensive benchmark suite:
 
 ```bash
-# Run all benchmarks
-cargo bench
+# Run benchmarks
+vx just bench
 
-# Specific performance tests
-cargo bench version_benchmark
-cargo bench solver_benchmark
-cargo bench comprehensive_benchmark_suite
+# Or run specific benchmarks directly
+vx cargo bench --bench version_benchmark
 ```
 
 ### Sample Results
@@ -303,26 +301,36 @@ Memory Usage:
 ### Prerequisites
 
 - Rust 1.70+ with Cargo
-- Python 3.8+ (for Python bindings)
+- [just](https://github.com/casey/just) command runner
+- [vx](https://github.com/loonghao/vx) environment manager
 - Git
 
 ### Building
 
 ```bash
 # Development build
-cargo build
+vx just build
 
 # Release build with optimizations
-cargo build --release
+vx just build-release
 
-# With Python bindings
-cargo build --features python-bindings
+# Run all tests
+vx just test
 
-# Run tests
-cargo test
+# Run clippy lints
+vx just lint
 
-# Run with coverage
-cargo tarpaulin --out html
+# Format code
+vx just fmt
+
+# Run all CI checks locally
+vx just ci
+
+# Run benchmarks
+vx just bench
+
+# Install locally
+vx just install
 ```
 
 ### Contributing
