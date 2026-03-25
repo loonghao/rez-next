@@ -1,0 +1,50 @@
+# Auto-merge PRs from trusted bots (release-plz, renovate)
+# Enables auto-merge on PRs created by these bots so they merge automatically
+# once all required checks pass.
+name: Auto Merge
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  auto-merge:
+    name: Enable Auto Merge
+    runs-on: ubuntu-latest
+    if: >-
+      github.event.pull_request.user.login == 'github-actions[bot]' ||
+      github.event.pull_request.user.login == 'release-plz[bot]' ||
+      github.event.pull_request.user.login == 'renovate[bot]'
+    steps:
+      - name: Enable auto-merge
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            console.log(`Enabling auto-merge for PR #${pr.number}: ${pr.title}`);
+            try {
+              await github.graphql(`
+                mutation($pullRequestId: ID!) {
+                  enablePullRequestAutoMerge(input: {
+                    pullRequestId: $pullRequestId,
+                    mergeMethod: SQUASH
+                  }) {
+                    pullRequest {
+                      autoMergeRequest {
+                        enabledAt
+                      }
+                    }
+                  }
+                }
+              `, {
+                pullRequestId: pr.node_id,
+              });
+              console.log(`✅ Auto-merge enabled for PR #${pr.number}`);
+            } catch (error) {
+              console.log(`⚠️ Could not enable auto-merge: ${error.message}`);
+              console.log('This may be expected if auto-merge is not enabled in repo settings.');
+            }

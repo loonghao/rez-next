@@ -24,7 +24,7 @@ jobs:
   release-plz-release:
     name: Release-plz release
     runs-on: ubuntu-latest
-    if: ${{ github.repository_owner == 'loonghao' }}
+    if: ${{ github.event.repository.fork == false }}
     permissions:
       contents: write
     outputs:
@@ -98,7 +98,7 @@ jobs:
   release-plz-pr:
     name: Release-plz PR
     runs-on: ubuntu-latest
-    if: ${{ github.repository_owner == 'loonghao' }}
+    if: ${{ github.event.repository.fork == false }}
     permissions:
       contents: write
       pull-requests: write
