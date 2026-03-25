@@ -3,7 +3,7 @@
 use crate::Package;
 use rez_next_common::RezCoreError;
 use rez_next_version::Version;
-use rustpython_ast::{Constant, Expr, Stmt, Suite, Operator, UnaryOp, CmpOp, BoolOp};
+use rustpython_ast::{BoolOp, CmpOp, Constant, Expr, Operator, Stmt, Suite, UnaryOp};
 use rustpython_parser::Parse;
 use std::collections::HashMap;
 
@@ -70,7 +70,11 @@ impl PythonAstParser {
     }
 
     /// Process a single AST statement
-    fn process_statement(&mut self, stmt: &Stmt, package_data: &mut PackageData) -> Result<(), RezCoreError> {
+    fn process_statement(
+        &mut self,
+        stmt: &Stmt,
+        package_data: &mut PackageData,
+    ) -> Result<(), RezCoreError> {
         match stmt {
             Stmt::Assign(assign) => {
                 // Handle variable assignments like: name = "value"
@@ -125,30 +129,48 @@ impl PythonAstParser {
     }
 
     /// Process import statements
-    fn process_import_statement(&mut self, import: &rustpython_ast::StmtImport) -> Result<(), RezCoreError> {
+    fn process_import_statement(
+        &mut self,
+        import: &rustpython_ast::StmtImport,
+    ) -> Result<(), RezCoreError> {
         for alias in &import.names {
             let module_name = alias.name.as_str();
-            let alias_name = alias.asname.as_ref().map(|s| s.as_str()).unwrap_or(module_name);
-            self.context.imports.insert(alias_name.to_string(), module_name.to_string());
+            let alias_name = alias
+                .asname
+                .as_ref()
+                .map(|s| s.as_str())
+                .unwrap_or(module_name);
+            self.context
+                .imports
+                .insert(alias_name.to_string(), module_name.to_string());
         }
         Ok(())
     }
 
     /// Process from import statements
-    fn process_import_from_statement(&mut self, import_from: &rustpython_ast::StmtImportFrom) -> Result<(), RezCoreError> {
+    fn process_import_from_statement(
+        &mut self,
+        import_from: &rustpython_ast::StmtImportFrom,
+    ) -> Result<(), RezCoreError> {
         if let Some(module) = &import_from.module {
             for alias in &import_from.names {
                 let name = alias.name.as_str();
                 let alias_name = alias.asname.as_ref().map(|s| s.as_str()).unwrap_or(name);
                 let full_name = format!("{}.{}", module, name);
-                self.context.imports.insert(alias_name.to_string(), full_name);
+                self.context
+                    .imports
+                    .insert(alias_name.to_string(), full_name);
             }
         }
         Ok(())
     }
 
     /// Process function definitions
-    fn process_function_definition(&mut self, func_def: &rustpython_ast::StmtFunctionDef, package_data: &mut PackageData) -> Result<(), RezCoreError> {
+    fn process_function_definition(
+        &mut self,
+        func_def: &rustpython_ast::StmtFunctionDef,
+        package_data: &mut PackageData,
+    ) -> Result<(), RezCoreError> {
         self.context.function_scope.push(func_def.name.to_string());
 
         match func_def.name.as_str() {
@@ -163,7 +185,10 @@ impl PythonAstParser {
             }
             _ => {
                 // Store other function definitions for potential late binding
-                package_data.functions.insert(func_def.name.to_string(), self.function_to_string(func_def)?);
+                package_data.functions.insert(
+                    func_def.name.to_string(),
+                    self.function_to_string(func_def)?,
+                );
             }
         }
 
@@ -172,7 +197,11 @@ impl PythonAstParser {
     }
 
     /// Process conditional statements
-    fn process_if_statement(&mut self, if_stmt: &rustpython_ast::StmtIf, package_data: &mut PackageData) -> Result<(), RezCoreError> {
+    fn process_if_statement(
+        &mut self,
+        if_stmt: &rustpython_ast::StmtIf,
+        package_data: &mut PackageData,
+    ) -> Result<(), RezCoreError> {
         // Evaluate the condition if possible
         if let Ok(condition_result) = self.evaluate_expression(&if_stmt.test) {
             match condition_result {
@@ -220,7 +249,9 @@ impl PythonAstParser {
     ) -> Result<(), RezCoreError> {
         // First, try to evaluate the expression and store in context
         if let Ok(python_value) = self.evaluate_expression(value) {
-            self.context.variables.insert(var_name.to_string(), python_value.clone());
+            self.context
+                .variables
+                .insert(var_name.to_string(), python_value.clone());
         }
 
         match var_name {
@@ -316,7 +347,11 @@ impl PythonAstParser {
     }
 
     /// Process for loops
-    fn process_for_statement(&mut self, for_stmt: &rustpython_ast::StmtFor, package_data: &mut PackageData) -> Result<(), RezCoreError> {
+    fn process_for_statement(
+        &mut self,
+        for_stmt: &rustpython_ast::StmtFor,
+        package_data: &mut PackageData,
+    ) -> Result<(), RezCoreError> {
         // For now, we'll process the body without iteration
         // In a full implementation, we'd need to evaluate the iterator
         for stmt in &for_stmt.body {
@@ -326,7 +361,11 @@ impl PythonAstParser {
     }
 
     /// Process while loops
-    fn process_while_statement(&mut self, while_stmt: &rustpython_ast::StmtWhile, package_data: &mut PackageData) -> Result<(), RezCoreError> {
+    fn process_while_statement(
+        &mut self,
+        while_stmt: &rustpython_ast::StmtWhile,
+        package_data: &mut PackageData,
+    ) -> Result<(), RezCoreError> {
         // For now, we'll process the body once
         // In a full implementation, we'd need to evaluate the condition
         for stmt in &while_stmt.body {
@@ -336,7 +375,11 @@ impl PythonAstParser {
     }
 
     /// Process try/except blocks
-    fn process_try_statement(&mut self, try_stmt: &rustpython_ast::StmtTry, package_data: &mut PackageData) -> Result<(), RezCoreError> {
+    fn process_try_statement(
+        &mut self,
+        try_stmt: &rustpython_ast::StmtTry,
+        package_data: &mut PackageData,
+    ) -> Result<(), RezCoreError> {
         // Process the try body
         for stmt in &try_stmt.body {
             self.process_statement(stmt, package_data)?;
@@ -363,7 +406,11 @@ impl PythonAstParser {
     }
 
     /// Process with statements
-    fn process_with_statement(&mut self, with_stmt: &rustpython_ast::StmtWith, package_data: &mut PackageData) -> Result<(), RezCoreError> {
+    fn process_with_statement(
+        &mut self,
+        with_stmt: &rustpython_ast::StmtWith,
+        package_data: &mut PackageData,
+    ) -> Result<(), RezCoreError> {
         // Process the with body
         for stmt in &with_stmt.body {
             self.process_statement(stmt, package_data)?;
@@ -372,7 +419,11 @@ impl PythonAstParser {
     }
 
     /// Process expression statements
-    fn process_expression_statement(&mut self, expr: &Expr, _package_data: &mut PackageData) -> Result<(), RezCoreError> {
+    fn process_expression_statement(
+        &mut self,
+        expr: &Expr,
+        _package_data: &mut PackageData,
+    ) -> Result<(), RezCoreError> {
         // Evaluate the expression for side effects
         let _ = self.evaluate_expression(expr);
         Ok(())
@@ -387,7 +438,10 @@ impl PythonAstParser {
                 if let Some(value) = self.context.variables.get(name.id.as_str()) {
                     Ok(value.clone())
                 } else {
-                    Err(RezCoreError::PackageParse(format!("Undefined variable: {}", name.id)))
+                    Err(RezCoreError::PackageParse(format!(
+                        "Undefined variable: {}",
+                        name.id
+                    )))
                 }
             }
             Expr::BinOp(binop) => self.evaluate_binary_operation(binop),
@@ -474,7 +528,10 @@ impl PythonAstParser {
                             Constant::Int(i) => {
                                 // Convert BigInt to i32 safely
                                 i.to_string().parse::<i32>().map_err(|e| {
-                                    RezCoreError::PackageParse(format!("Integer too large for i32: {}", e))
+                                    RezCoreError::PackageParse(format!(
+                                        "Integer too large for i32: {}",
+                                        e
+                                    ))
                                 })
                             }
                             _ => Err(RezCoreError::PackageParse(format!(
@@ -503,7 +560,11 @@ impl PythonAstParser {
                         PythonValue::Integer(i) => result.push(i.to_string()),
                         PythonValue::Float(f) => result.push(f.to_string()),
                         PythonValue::Boolean(b) => result.push(b.to_string()),
-                        _ => return Err(RezCoreError::PackageParse("List contains non-string values".to_string())),
+                        _ => {
+                            return Err(RezCoreError::PackageParse(
+                                "List contains non-string values".to_string(),
+                            ))
+                        }
                     }
                 }
                 Ok(result)
@@ -592,7 +653,11 @@ impl PythonAstParser {
     }
 
     /// Process pre_commands function
-    fn process_pre_commands_function(&mut self, body: &[Stmt], package_data: &mut PackageData) -> Result<(), RezCoreError> {
+    fn process_pre_commands_function(
+        &mut self,
+        body: &[Stmt],
+        package_data: &mut PackageData,
+    ) -> Result<(), RezCoreError> {
         let mut commands = Vec::new();
         for stmt in body {
             if let Some(command) = self.extract_command_from_statement(stmt)? {
@@ -606,7 +671,11 @@ impl PythonAstParser {
     }
 
     /// Process post_commands function
-    fn process_post_commands_function(&mut self, body: &[Stmt], package_data: &mut PackageData) -> Result<(), RezCoreError> {
+    fn process_post_commands_function(
+        &mut self,
+        body: &[Stmt],
+        package_data: &mut PackageData,
+    ) -> Result<(), RezCoreError> {
         let mut commands = Vec::new();
         for stmt in body {
             if let Some(command) = self.extract_command_from_statement(stmt)? {
@@ -620,7 +689,10 @@ impl PythonAstParser {
     }
 
     /// Convert function definition to string representation
-    fn function_to_string(&self, func_def: &rustpython_ast::StmtFunctionDef) -> Result<String, RezCoreError> {
+    fn function_to_string(
+        &self,
+        func_def: &rustpython_ast::StmtFunctionDef,
+    ) -> Result<String, RezCoreError> {
         // This is a simplified implementation
         // In a full implementation, we'd reconstruct the Python code
         Ok(format!("def {}(): ...", func_def.name))
@@ -658,8 +730,7 @@ impl PythonAstParser {
                         if let Expr::Name(name_expr) = &*attr.value {
                             if name_expr.id.as_str() == "env" {
                                 let var_name = &attr.attr;
-                                if let Some(value) = self.extract_string_value(&assign.value).ok()
-                                {
+                                if let Some(value) = self.extract_string_value(&assign.value).ok() {
                                     return Ok(Some(format!("export {}=\"{}\"", var_name, value)));
                                 }
                             }
@@ -810,19 +881,27 @@ impl PythonAstParser {
         match constant {
             Constant::Str(s) => Ok(PythonValue::String(s.clone())),
             Constant::Int(i) => {
-                let int_val = i.to_string().parse::<i64>()
+                let int_val = i
+                    .to_string()
+                    .parse::<i64>()
                     .map_err(|_| RezCoreError::PackageParse("Integer too large".to_string()))?;
                 Ok(PythonValue::Integer(int_val))
             }
             Constant::Float(f) => Ok(PythonValue::Float(*f)),
             Constant::Bool(b) => Ok(PythonValue::Boolean(*b)),
             Constant::None => Ok(PythonValue::None),
-            _ => Err(RezCoreError::PackageParse(format!("Unsupported constant: {:?}", constant))),
+            _ => Err(RezCoreError::PackageParse(format!(
+                "Unsupported constant: {:?}",
+                constant
+            ))),
         }
     }
 
     /// Evaluate binary operations
-    fn evaluate_binary_operation(&self, binop: &rustpython_ast::ExprBinOp) -> Result<PythonValue, RezCoreError> {
+    fn evaluate_binary_operation(
+        &self,
+        binop: &rustpython_ast::ExprBinOp,
+    ) -> Result<PythonValue, RezCoreError> {
         let left = self.evaluate_expression(&binop.left)?;
         let right = self.evaluate_expression(&binop.right)?;
 
@@ -850,12 +929,18 @@ impl PythonAstParser {
             (PythonValue::String(l), Operator::Mult, PythonValue::Integer(r)) => {
                 Ok(PythonValue::String(l.repeat(*r as usize)))
             }
-            _ => Ok(PythonValue::Expression(format!("{:?} {:?} {:?}", left, binop.op, right))),
+            _ => Ok(PythonValue::Expression(format!(
+                "{:?} {:?} {:?}",
+                left, binop.op, right
+            ))),
         }
     }
 
     /// Evaluate unary operations
-    fn evaluate_unary_operation(&self, unaryop: &rustpython_ast::ExprUnaryOp) -> Result<PythonValue, RezCoreError> {
+    fn evaluate_unary_operation(
+        &self,
+        unaryop: &rustpython_ast::ExprUnaryOp,
+    ) -> Result<PythonValue, RezCoreError> {
         let operand = self.evaluate_expression(&unaryop.operand)?;
 
         match (&unaryop.op, &operand) {
@@ -864,12 +949,18 @@ impl PythonAstParser {
             (UnaryOp::USub, PythonValue::Integer(i)) => Ok(PythonValue::Integer(-i)),
             (UnaryOp::UAdd, PythonValue::Float(f)) => Ok(PythonValue::Float(*f)),
             (UnaryOp::USub, PythonValue::Float(f)) => Ok(PythonValue::Float(-f)),
-            _ => Ok(PythonValue::Expression(format!("{:?} {:?}", unaryop.op, operand))),
+            _ => Ok(PythonValue::Expression(format!(
+                "{:?} {:?}",
+                unaryop.op, operand
+            ))),
         }
     }
 
     /// Evaluate comparison operations
-    fn evaluate_comparison(&self, compare: &rustpython_ast::ExprCompare) -> Result<PythonValue, RezCoreError> {
+    fn evaluate_comparison(
+        &self,
+        compare: &rustpython_ast::ExprCompare,
+    ) -> Result<PythonValue, RezCoreError> {
         let left = self.evaluate_expression(&compare.left)?;
 
         if compare.ops.len() != compare.comparators.len() {
@@ -885,7 +976,12 @@ impl PythonAstParser {
                 (PythonValue::Boolean(l), CmpOp::Eq, PythonValue::Boolean(r)) => l == r,
                 (PythonValue::Integer(l), CmpOp::Lt, PythonValue::Integer(r)) => l < r,
                 (PythonValue::Integer(l), CmpOp::Gt, PythonValue::Integer(r)) => l > r,
-                _ => return Ok(PythonValue::Expression(format!("{:?} {:?} {:?}", left, op, right))),
+                _ => {
+                    return Ok(PythonValue::Expression(format!(
+                        "{:?} {:?} {:?}",
+                        left, op, right
+                    )))
+                }
             };
 
             if !result {
@@ -897,7 +993,10 @@ impl PythonAstParser {
     }
 
     /// Evaluate boolean operations
-    fn evaluate_boolean_operation(&self, boolop: &rustpython_ast::ExprBoolOp) -> Result<PythonValue, RezCoreError> {
+    fn evaluate_boolean_operation(
+        &self,
+        boolop: &rustpython_ast::ExprBoolOp,
+    ) -> Result<PythonValue, RezCoreError> {
         match &boolop.op {
             BoolOp::And => {
                 for value in &boolop.values {
@@ -930,7 +1029,10 @@ impl PythonAstParser {
     }
 
     /// Evaluate tuple expressions
-    fn evaluate_tuple(&self, tuple: &rustpython_ast::ExprTuple) -> Result<PythonValue, RezCoreError> {
+    fn evaluate_tuple(
+        &self,
+        tuple: &rustpython_ast::ExprTuple,
+    ) -> Result<PythonValue, RezCoreError> {
         let mut result = Vec::new();
         for elt in &tuple.elts {
             result.push(self.evaluate_expression(elt)?);
@@ -949,7 +1051,9 @@ impl PythonAstParser {
                 if let PythonValue::String(key_str) = key_val {
                     result.insert(key_str, value_val);
                 } else {
-                    return Err(RezCoreError::PackageParse("Dictionary keys must be strings".to_string()));
+                    return Err(RezCoreError::PackageParse(
+                        "Dictionary keys must be strings".to_string(),
+                    ));
                 }
             }
         }
@@ -957,21 +1061,30 @@ impl PythonAstParser {
     }
 
     /// Evaluate function calls
-    fn evaluate_function_call(&self, call: &rustpython_ast::ExprCall) -> Result<PythonValue, RezCoreError> {
+    fn evaluate_function_call(
+        &self,
+        call: &rustpython_ast::ExprCall,
+    ) -> Result<PythonValue, RezCoreError> {
         // For now, return as expression string
         // In a full implementation, we'd handle built-in functions
         Ok(PythonValue::Expression(format!("{:?}", call)))
     }
 
     /// Evaluate attribute access
-    fn evaluate_attribute(&self, attr: &rustpython_ast::ExprAttribute) -> Result<PythonValue, RezCoreError> {
+    fn evaluate_attribute(
+        &self,
+        attr: &rustpython_ast::ExprAttribute,
+    ) -> Result<PythonValue, RezCoreError> {
         // For now, return as expression string
         // In a full implementation, we'd handle module attributes
         Ok(PythonValue::Expression(format!("{:?}", attr)))
     }
 
     /// Evaluate subscript operations
-    fn evaluate_subscript(&self, subscript: &rustpython_ast::ExprSubscript) -> Result<PythonValue, RezCoreError> {
+    fn evaluate_subscript(
+        &self,
+        subscript: &rustpython_ast::ExprSubscript,
+    ) -> Result<PythonValue, RezCoreError> {
         // For now, return as expression string
         // In a full implementation, we'd handle list/dict indexing
         Ok(PythonValue::Expression(format!("{:?}", subscript)))

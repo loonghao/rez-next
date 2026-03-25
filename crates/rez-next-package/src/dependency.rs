@@ -1,6 +1,6 @@
 //! Package dependency resolution and analysis
 
-use crate::{Package, requirement::Requirement};
+use crate::{requirement::Requirement, Package};
 #[cfg(feature = "python-bindings")]
 use pyo3::prelude::*;
 use rez_next_common::RezCoreError;
@@ -373,7 +373,10 @@ impl DependencyResolver {
     }
 
     /// Resolve dependencies for a package
-    pub fn resolve_dependencies(&mut self, package: &Package) -> Result<DependencyResolutionResult, RezCoreError> {
+    pub fn resolve_dependencies(
+        &mut self,
+        package: &Package,
+    ) -> Result<DependencyResolutionResult, RezCoreError> {
         let start_time = std::time::Instant::now();
 
         // Check cache first
@@ -436,7 +439,9 @@ impl DependencyResolver {
                 resolution_queue.push_back(node);
                 result.statistics.direct_dependencies += 1;
             } else {
-                result.warnings.push(format!("Invalid requirement format: {}", req_str));
+                result
+                    .warnings
+                    .push(format!("Invalid requirement format: {}", req_str));
             }
         }
 
@@ -449,15 +454,16 @@ impl DependencyResolver {
             if node.depth > self.options.max_depth {
                 result.warnings.push(format!(
                     "Maximum dependency depth ({}) exceeded for package: {}",
-                    self.options.max_depth,
-                    node.package_name
+                    self.options.max_depth, node.package_name
                 ));
                 continue;
             }
 
             // Check if package is excluded
             if self.options.excluded_packages.contains(&node.package_name) {
-                result.warnings.push(format!("Package excluded: {}", node.package_name));
+                result
+                    .warnings
+                    .push(format!("Package excluded: {}", node.package_name));
                 continue;
             }
 
@@ -469,7 +475,10 @@ impl DependencyResolver {
                     // Add transitive dependencies if we have package info
                     if let Some(packages) = self.available_packages.get(&node.package_name) {
                         if let Some(resolved_package) = packages.iter().find(|p| {
-                            p.version.as_ref().map(|v| v == &node.version.as_ref().unwrap()).unwrap_or(false)
+                            p.version
+                                .as_ref()
+                                .map(|v| v == &node.version.as_ref().unwrap())
+                                .unwrap_or(false)
                         }) {
                             // Add transitive dependencies
                             for req_str in &resolved_package.requires {
@@ -490,12 +499,17 @@ impl DependencyResolver {
                     }
 
                     visited.insert(node.package_name.clone());
-                    result.statistics.max_depth_reached = result.statistics.max_depth_reached.max(node.depth);
-                    result.dependency_graph.insert(node.package_name.clone(), node);
+                    result.statistics.max_depth_reached =
+                        result.statistics.max_depth_reached.max(node.depth);
+                    result
+                        .dependency_graph
+                        .insert(node.package_name.clone(), node);
                 }
                 Err(e) => {
                     result.success = false;
-                    result.warnings.push(format!("Failed to resolve {}: {}", node.package_name, e));
+                    result
+                        .warnings
+                        .push(format!("Failed to resolve {}: {}", node.package_name, e));
                 }
             }
         }
@@ -534,13 +548,15 @@ impl DependencyResolver {
         })?;
 
         // Get available packages
-        let available_packages = self.available_packages.get(&node.package_name)
-            .ok_or_else(|| {
-                RezCoreError::DependencyResolution(format!(
-                    "No packages available for: {}",
-                    node.package_name
-                ))
-            })?;
+        let available_packages =
+            self.available_packages
+                .get(&node.package_name)
+                .ok_or_else(|| {
+                    RezCoreError::DependencyResolution(format!(
+                        "No packages available for: {}",
+                        node.package_name
+                    ))
+                })?;
 
         // Filter compatible versions
         let mut compatible_versions: Vec<&Version> = available_packages
@@ -601,7 +617,10 @@ impl DependencyResolver {
     }
 
     /// Perform topological sort on dependency graph
-    fn topological_sort(&self, graph: &HashMap<String, DependencyNode>) -> Result<Vec<String>, RezCoreError> {
+    fn topological_sort(
+        &self,
+        graph: &HashMap<String, DependencyNode>,
+    ) -> Result<Vec<String>, RezCoreError> {
         let mut result = Vec::new();
         let mut visited = HashSet::new();
         let mut temp_visited = HashSet::new();
@@ -646,13 +665,7 @@ impl DependencyResolver {
 
         if let Some(node) = graph.get(node_name) {
             for child_name in &node.children {
-                self.topological_sort_visit(
-                    child_name,
-                    graph,
-                    visited,
-                    temp_visited,
-                    result,
-                )?;
+                self.topological_sort_visit(child_name, graph, visited, temp_visited, result)?;
             }
         }
 
@@ -695,8 +708,14 @@ impl DependencyResolver {
     /// Get cache statistics
     pub fn get_cache_stats(&self) -> HashMap<String, usize> {
         let mut stats = HashMap::new();
-        stats.insert("cached_resolutions".to_string(), self.resolution_cache.len());
-        stats.insert("available_packages".to_string(), self.available_packages.len());
+        stats.insert(
+            "cached_resolutions".to_string(),
+            self.resolution_cache.len(),
+        );
+        stats.insert(
+            "available_packages".to_string(),
+            self.available_packages.len(),
+        );
         stats
     }
 }

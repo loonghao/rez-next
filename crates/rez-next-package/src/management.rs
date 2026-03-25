@@ -3,16 +3,16 @@
 use crate::{
     Package, PackageFormat, PackageSerializer, PackageValidationOptions, PackageValidator,
 };
+use chrono::{DateTime, Utc};
 use pyo3::prelude::*;
 use rez_next_common::RezCoreError;
 use rez_next_version::Version;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::fs;
+use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
-use std::io::{self, Write};
-use chrono::{DateTime, Utc};
 
 /// Package installation options
 #[pyclass]
@@ -600,7 +600,11 @@ impl PackageManager {
         let backup_id = format!(
             "{}_{}_{}",
             package.name,
-            package.version.as_ref().map(|v| v.as_str()).unwrap_or("latest"),
+            package
+                .version
+                .as_ref()
+                .map(|v| v.as_str())
+                .unwrap_or("latest"),
             SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .unwrap_or_default()
@@ -623,7 +627,12 @@ impl PackageManager {
         let mut backup = PackageBackup::new(
             backup_id,
             package.name.clone(),
-            package.version.as_ref().map(|v| v.as_str()).unwrap_or("latest").to_string(),
+            package
+                .version
+                .as_ref()
+                .map(|v| v.as_str())
+                .unwrap_or("latest")
+                .to_string(),
             backup_path.to_string_lossy().to_string(),
             opts.format.clone(),
         );
@@ -804,9 +813,18 @@ impl PackageManager {
     /// Get package cache statistics
     pub fn get_cache_stats(&self) -> HashMap<String, String> {
         let mut stats = HashMap::new();
-        stats.insert("cached_packages".to_string(), self.package_cache.len().to_string());
-        stats.insert("history_size".to_string(), self.operation_history.len().to_string());
-        stats.insert("max_history_size".to_string(), self.max_history_size.to_string());
+        stats.insert(
+            "cached_packages".to_string(),
+            self.package_cache.len().to_string(),
+        );
+        stats.insert(
+            "history_size".to_string(),
+            self.operation_history.len().to_string(),
+        );
+        stats.insert(
+            "max_history_size".to_string(),
+            self.max_history_size.to_string(),
+        );
         stats
     }
 

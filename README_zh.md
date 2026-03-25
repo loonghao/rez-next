@@ -198,16 +198,14 @@ from rez.solver import Solver
 
 ## 📈 基准测试
 
-运行全面的基准测试套件：
+运行基准测试套件：
 
 ```bash
-# 运行所有基准测试
-cargo bench
+# 运行基准测试
+vx just bench
 
-# 特定性能测试
-cargo bench version_benchmark
-cargo bench solver_benchmark
-cargo bench comprehensive_benchmark_suite
+# 或直接运行特定基准测试
+vx cargo bench --bench version_benchmark
 ```
 
 ### 示例结果
@@ -233,26 +231,36 @@ Rex命令处理:
 ### 前置要求
 
 - Rust 1.70+ 和 Cargo
-- Python 3.8+（用于Python绑定）
+- [just](https://github.com/casey/just) 命令运行器
+- [vx](https://github.com/loonghao/vx) 环境管理器
 - Git
 
 ### 构建
 
 ```bash
 # 开发构建
-cargo build
+vx just build
 
 # 优化发布构建
-cargo build --release
+vx just build-release
 
-# 包含Python绑定
-cargo build --features python-bindings
+# 运行所有测试
+vx just test
 
-# 运行测试
-cargo test
+# 运行 clippy 检查
+vx just lint
 
-# 运行覆盖率测试
-cargo tarpaulin --out html
+# 格式化代码
+vx just fmt
+
+# 本地运行所有 CI 检查
+vx just ci
+
+# 运行基准测试
+vx just bench
+
+# 本地安装
+vx just install
 ```
 
 ### 贡献

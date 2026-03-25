@@ -1,19 +1,18 @@
 //! Batch package operations for high-performance bulk processing
 
 use crate::{
-    Package, PackageValidationResult, PackageValidationOptions, PackageValidator,
-    PackageManager, PackageInstallOptions, PackageOperationResult,
-    cache::PackageCacheManager,
+    cache::PackageCacheManager, Package, PackageInstallOptions, PackageManager,
+    PackageOperationResult, PackageValidationOptions, PackageValidationResult, PackageValidator,
 };
 #[cfg(feature = "python-bindings")]
 use pyo3::prelude::*;
+use rayon::prelude::*;
 use rez_next_common::RezCoreError;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
-use std::time::{SystemTime, Instant};
-use rayon::prelude::*;
+use std::time::{Instant, SystemTime};
 
 /// Batch operation configuration
 #[cfg_attr(feature = "python-bindings", pyclass)]
@@ -161,7 +160,7 @@ impl Default for BatchConfig {
             progress_reporting: true,
             continue_on_failure: true,
             max_memory_per_worker: 100 * 1024 * 1024, // 100MB
-            operation_timeout: 300, // 5 minutes
+            operation_timeout: 300,                   // 5 minutes
             enable_caching: true,
             cache_config: None,
         }
@@ -185,7 +184,7 @@ impl BatchConfig {
             progress_reporting: true,
             continue_on_failure: true,
             max_memory_per_worker: 50 * 1024 * 1024, // 50MB
-            operation_timeout: 120, // 2 minutes
+            operation_timeout: 120,                  // 2 minutes
             enable_caching: true,
             cache_config: Some(crate::cache::CacheConfig::development()),
         }
@@ -199,7 +198,7 @@ impl BatchConfig {
             progress_reporting: false,
             continue_on_failure: true,
             max_memory_per_worker: 200 * 1024 * 1024, // 200MB
-            operation_timeout: 600, // 10 minutes
+            operation_timeout: 600,                   // 10 minutes
             enable_caching: true,
             cache_config: Some(crate::cache::CacheConfig::production()),
         }
@@ -233,7 +232,11 @@ impl BatchConfig {
 impl Default for BatchParseOptions {
     fn default() -> Self {
         Self {
-            include_patterns: vec!["*.py".to_string(), "*.yaml".to_string(), "*.json".to_string()],
+            include_patterns: vec![
+                "*.py".to_string(),
+                "*.yaml".to_string(),
+                "*.json".to_string(),
+            ],
             exclude_patterns: vec![".*".to_string(), "__pycache__".to_string()],
             recursive: true,
             follow_symlinks: false,
@@ -269,12 +272,18 @@ impl BatchProgress {
     }
 
     /// Update progress
-    pub fn update(&mut self, completed: usize, failed: usize, in_progress: usize, operation: String) {
+    pub fn update(
+        &mut self,
+        completed: usize,
+        failed: usize,
+        in_progress: usize,
+        operation: String,
+    ) {
         self.completed_items = completed;
         self.failed_items = failed;
         self.in_progress_items = in_progress;
         self.current_operation = operation;
-        
+
         let total_processed = completed + failed;
         if self.total_items > 0 {
             self.progress_percentage = (total_processed as f64 / self.total_items as f64) * 100.0;
@@ -323,7 +332,10 @@ impl<T> BatchOperationResult<T> {
 
     /// Get successful results
     pub fn get_successes(&self) -> Vec<&T> {
-        self.results.iter().filter_map(|r| r.as_ref().ok()).collect()
+        self.results
+            .iter()
+            .filter_map(|r| r.as_ref().ok())
+            .collect()
     }
 
     /// Get failure count
@@ -353,7 +365,7 @@ impl BatchPackageProcessor {
     pub fn new(config: BatchConfig) -> Self {
         let cache_manager = if config.enable_caching {
             Some(PackageCacheManager::new(
-                config.cache_config.clone().unwrap_or_default()
+                config.cache_config.clone().unwrap_or_default(),
             ))
         } else {
             None
@@ -399,9 +411,7 @@ impl BatchPackageProcessor {
             file_paths
                 .par_iter()
                 .enumerate()
-                .map(|(index, path)| {
-                    self.parse_single_file(path, &options, index)
-                })
+                .map(|(index, path)| self.parse_single_file(path, &options, index))
                 .collect()
         });
 
@@ -441,7 +451,8 @@ impl BatchPackageProcessor {
         // Update statistics
         result.statistics.total_time_ms = start_time.elapsed().as_millis() as u64;
         if !file_paths.is_empty() {
-            result.statistics.avg_time_per_item_ms = result.statistics.total_time_ms / file_paths.len() as u64;
+            result.statistics.avg_time_per_item_ms =
+                result.statistics.total_time_ms / file_paths.len() as u64;
             result.statistics.throughput_items_per_second =
                 file_paths.len() as f64 / (result.statistics.total_time_ms as f64 / 1000.0);
         }
@@ -484,9 +495,7 @@ impl BatchPackageProcessor {
             packages
                 .par_iter()
                 .enumerate()
-                .map(|(index, package)| {
-                    self.validate_single_package(package, &validator, index)
-                })
+                .map(|(index, package)| self.validate_single_package(package, &validator, index))
                 .collect()
         });
 
@@ -532,7 +541,11 @@ impl BatchPackageProcessor {
                     completed,
                     failed,
                     0,
-                    format!("Validated {}/{} packages", completed + failed, packages.len()),
+                    format!(
+                        "Validated {}/{} packages",
+                        completed + failed,
+                        packages.len()
+                    ),
                 );
 
                 if let Some(ref callback) = self.progress_callback {
@@ -544,7 +557,8 @@ impl BatchPackageProcessor {
         // Update statistics
         result.statistics.total_time_ms = start_time.elapsed().as_millis() as u64;
         if !packages.is_empty() {
-            result.statistics.avg_time_per_item_ms = result.statistics.total_time_ms / packages.len() as u64;
+            result.statistics.avg_time_per_item_ms =
+                result.statistics.total_time_ms / packages.len() as u64;
             result.statistics.throughput_items_per_second =
                 packages.len() as f64 / (result.statistics.total_time_ms as f64 / 1000.0);
         }
@@ -590,7 +604,9 @@ impl BatchPackageProcessor {
         if let Some(ref cache_manager) = self.cache_manager {
             let package_hash = cache_manager.generate_package_hash(package);
             let options_hash = cache_manager.generate_validation_options_hash("default");
-            let cache_key = cache_manager.validation_cache.generate_key(&package_hash, &options_hash);
+            let cache_key = cache_manager
+                .validation_cache
+                .generate_key(&package_hash, &options_hash);
 
             if let Some(cached_result) = cache_manager.validation_cache.get(&cache_key) {
                 return Ok(cached_result);
@@ -604,8 +620,12 @@ impl BatchPackageProcessor {
         if let Some(ref cache_manager) = self.cache_manager {
             let package_hash = cache_manager.generate_package_hash(package);
             let options_hash = cache_manager.generate_validation_options_hash("default");
-            let cache_key = cache_manager.validation_cache.generate_key(&package_hash, &options_hash);
-            cache_manager.validation_cache.put(cache_key, validation_result.clone());
+            let cache_key = cache_manager
+                .validation_cache
+                .generate_key(&package_hash, &options_hash);
+            cache_manager
+                .validation_cache
+                .put(cache_key, validation_result.clone());
         }
 
         Ok(validation_result)
@@ -625,7 +645,9 @@ impl BatchPackageProcessor {
 
     /// Get cache statistics
     pub fn get_cache_statistics(&self) -> Option<HashMap<String, crate::cache::CacheStatistics>> {
-        self.cache_manager.as_ref().map(|cm| cm.get_combined_statistics())
+        self.cache_manager
+            .as_ref()
+            .map(|cm| cm.get_combined_statistics())
     }
 }
 
@@ -690,7 +712,10 @@ mod tests {
 
         result.add_success(package1);
         result.add_success(package2);
-        result.add_failure("pkg3".to_string(), RezCoreError::PackageParse("Test error".to_string()));
+        result.add_failure(
+            "pkg3".to_string(),
+            RezCoreError::PackageParse("Test error".to_string()),
+        );
 
         assert!(!result.success);
         assert_eq!(result.success_count(), 2);

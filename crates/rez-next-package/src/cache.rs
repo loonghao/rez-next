@@ -1,18 +1,18 @@
 //! Package caching system for improved performance
 
-use crate::{Package, PackageValidationResult, dependency::DependencyResolutionResult};
+use crate::{dependency::DependencyResolutionResult, Package, PackageValidationResult};
+use lru::LruCache;
 #[cfg(feature = "python-bindings")]
 use pyo3::prelude::*;
 use rez_next_common::RezCoreError;
 use rez_next_version::Version;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use lru::LruCache;
-use std::hash::{Hash, Hasher, DefaultHasher};
-use std::path::{Path, PathBuf};
-use std::time::{SystemTime, UNIX_EPOCH, Duration};
 use std::fs;
+use std::hash::{DefaultHasher, Hash, Hasher};
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 /// Cache entry with metadata
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -220,7 +220,7 @@ impl<T> CacheEntry<T> {
             .duration_since(UNIX_EPOCH)
             .unwrap_or_default()
             .as_secs();
-        
+
         now > self.timestamp + self.ttl
     }
 
@@ -239,7 +239,7 @@ impl<T> CacheEntry<T> {
             .duration_since(UNIX_EPOCH)
             .unwrap_or_default()
             .as_secs();
-        
+
         now.saturating_sub(self.timestamp)
     }
 }
@@ -280,7 +280,10 @@ impl PackageParseCache {
     /// Create a new package parse cache
     pub fn new(config: CacheConfig) -> Self {
         Self {
-            cache: Arc::new(RwLock::new(LruCache::new(std::num::NonZeroUsize::new(config.max_entries).unwrap_or(std::num::NonZeroUsize::new(1000).unwrap())))),
+            cache: Arc::new(RwLock::new(LruCache::new(
+                std::num::NonZeroUsize::new(config.max_entries)
+                    .unwrap_or(std::num::NonZeroUsize::new(1000).unwrap()),
+            ))),
             config,
             stats: Arc::new(RwLock::new(CacheStatistics::default())),
             last_cleanup: Arc::new(RwLock::new(SystemTime::now())),
@@ -290,7 +293,7 @@ impl PackageParseCache {
     /// Get package from cache
     pub fn get(&self, key: &str) -> Option<Package> {
         let start_time = std::time::Instant::now();
-        
+
         let result = {
             let mut cache = self.cache.write().unwrap();
             if let Some(entry) = cache.get_mut(key) {
@@ -308,13 +311,13 @@ impl PackageParseCache {
 
         let elapsed = start_time.elapsed().as_micros() as u64;
         let mut stats = self.stats.write().unwrap();
-        
+
         if result.is_some() {
             stats.record_hit();
         } else {
             stats.record_miss();
         }
-        
+
         stats.avg_access_time_us = (stats.avg_access_time_us + elapsed) / 2;
 
         result
@@ -323,7 +326,7 @@ impl PackageParseCache {
     /// Put package in cache
     pub fn put(&self, key: String, package: Package) {
         let entry = CacheEntry::new(package, key.clone(), self.config.default_ttl);
-        
+
         {
             let mut cache = self.cache.write().unwrap();
             cache.put(key, entry);
@@ -337,11 +340,11 @@ impl PackageParseCache {
     pub fn generate_key(&self, path: &Path, content_hash: Option<&str>) -> String {
         let mut hasher = DefaultHasher::new();
         path.hash(&mut hasher);
-        
+
         if let Some(hash) = content_hash {
             hash.hash(&mut hasher);
         }
-        
+
         format!("parse_{:x}", hasher.finish())
     }
 
@@ -349,7 +352,7 @@ impl PackageParseCache {
     pub fn clear(&self) {
         let mut cache = self.cache.write().unwrap();
         cache.clear();
-        
+
         let mut stats = self.stats.write().unwrap();
         stats.reset();
     }
@@ -363,7 +366,7 @@ impl PackageParseCache {
     fn update_memory_stats(&self) {
         let cache = self.cache.read().unwrap();
         let mut stats = self.stats.write().unwrap();
-        
+
         stats.total_entries = cache.len();
         // Estimate memory usage (simplified)
         stats.memory_usage_bytes = cache.len() * 1024; // Rough estimate
@@ -387,19 +390,19 @@ impl PackageParseCache {
     fn cleanup_expired(&self) {
         let mut cache = self.cache.write().unwrap();
         let mut expired_keys = Vec::new();
-        
+
         // Collect expired keys (we can't modify while iterating)
         for (key, entry) in cache.iter() {
             if entry.is_expired() {
                 expired_keys.push(key.clone());
             }
         }
-        
+
         // Remove expired entries
         for key in expired_keys {
             cache.pop(&key);
         }
-        
+
         self.update_memory_stats();
     }
 }
@@ -408,7 +411,10 @@ impl PackageValidationCache {
     /// Create a new package validation cache
     pub fn new(config: CacheConfig) -> Self {
         Self {
-            cache: Arc::new(RwLock::new(LruCache::new(std::num::NonZeroUsize::new(config.max_entries).unwrap_or(std::num::NonZeroUsize::new(1000).unwrap())))),
+            cache: Arc::new(RwLock::new(LruCache::new(
+                std::num::NonZeroUsize::new(config.max_entries)
+                    .unwrap_or(std::num::NonZeroUsize::new(1000).unwrap()),
+            ))),
             config,
             stats: Arc::new(RwLock::new(CacheStatistics::default())),
             last_cleanup: Arc::new(RwLock::new(SystemTime::now())),
@@ -526,7 +532,10 @@ impl DependencyResolutionCache {
     /// Create a new dependency resolution cache
     pub fn new(config: CacheConfig) -> Self {
         Self {
-            cache: Arc::new(RwLock::new(LruCache::new(std::num::NonZeroUsize::new(config.max_entries).unwrap_or(std::num::NonZeroUsize::new(1000).unwrap())))),
+            cache: Arc::new(RwLock::new(LruCache::new(
+                std::num::NonZeroUsize::new(config.max_entries)
+                    .unwrap_or(std::num::NonZeroUsize::new(1000).unwrap()),
+            ))),
             config,
             stats: Arc::new(RwLock::new(CacheStatistics::default())),
             last_cleanup: Arc::new(RwLock::new(SystemTime::now())),
@@ -672,8 +681,14 @@ impl PackageCacheManager {
     pub fn get_combined_statistics(&self) -> HashMap<String, CacheStatistics> {
         let mut stats = HashMap::new();
         stats.insert("parse".to_string(), self.parse_cache.get_statistics());
-        stats.insert("validation".to_string(), self.validation_cache.get_statistics());
-        stats.insert("dependency".to_string(), self.dependency_cache.get_statistics());
+        stats.insert(
+            "validation".to_string(),
+            self.validation_cache.get_statistics(),
+        );
+        stats.insert(
+            "dependency".to_string(),
+            self.dependency_cache.get_statistics(),
+        );
         stats
     }
 
@@ -690,9 +705,9 @@ impl PackageCacheManager {
         let validation_stats = self.validation_cache.get_statistics();
         let dependency_stats = self.dependency_cache.get_statistics();
 
-        parse_stats.memory_usage_bytes +
-        validation_stats.memory_usage_bytes +
-        dependency_stats.memory_usage_bytes
+        parse_stats.memory_usage_bytes
+            + validation_stats.memory_usage_bytes
+            + dependency_stats.memory_usage_bytes
     }
 
     /// Get total cache entries across all caches
@@ -701,9 +716,7 @@ impl PackageCacheManager {
         let validation_stats = self.validation_cache.get_statistics();
         let dependency_stats = self.dependency_cache.get_statistics();
 
-        parse_stats.total_entries +
-        validation_stats.total_entries +
-        dependency_stats.total_entries
+        parse_stats.total_entries + validation_stats.total_entries + dependency_stats.total_entries
     }
 
     /// Get overall hit ratio across all caches

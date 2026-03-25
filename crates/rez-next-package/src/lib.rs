@@ -14,17 +14,17 @@ pub mod python_ast_parser;
 pub mod serialization; // Always available for CLI usage // Advanced Python AST parser
 
 #[cfg(feature = "python-bindings")]
+pub mod batch;
+#[cfg(feature = "python-bindings")]
+pub mod cache;
+#[cfg(feature = "python-bindings")]
+pub mod dependency;
+#[cfg(feature = "python-bindings")]
 pub mod management;
 #[cfg(feature = "python-bindings")]
 pub mod validation;
 #[cfg(feature = "python-bindings")]
 pub mod variant;
-#[cfg(feature = "python-bindings")]
-pub mod dependency;
-#[cfg(feature = "python-bindings")]
-pub mod cache;
-#[cfg(feature = "python-bindings")]
-pub mod batch;
 
 pub use package::*;
 pub use python_ast_parser::*;
@@ -35,6 +35,12 @@ pub mod requirement;
 pub use requirement::{Requirement, VersionConstraint};
 
 #[cfg(feature = "python-bindings")]
+pub use batch::*;
+#[cfg(feature = "python-bindings")]
+pub use cache::*;
+#[cfg(feature = "python-bindings")]
+pub use dependency::*;
+#[cfg(feature = "python-bindings")]
 pub use management::*;
 #[cfg(feature = "python-bindings")]
 pub use package::PackageRequirement as PyPackageRequirement;
@@ -42,12 +48,6 @@ pub use package::PackageRequirement as PyPackageRequirement;
 pub use validation::*;
 #[cfg(feature = "python-bindings")]
 pub use variant::*;
-#[cfg(feature = "python-bindings")]
-pub use dependency::*;
-#[cfg(feature = "python-bindings")]
-pub use cache::*;
-#[cfg(feature = "python-bindings")]
-pub use batch::*;
 
 #[cfg(feature = "python-bindings")]
 use pyo3::prelude::*;

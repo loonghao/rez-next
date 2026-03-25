@@ -1,0 +1,75 @@
+# Automated release management using release-please
+# - On push to main: creates/updates a release PR with version bump and changelog
+# - When release PR is merged: creates GitHub release with tag
+# - After release is created: dispatches release.yml to build cross-platform binaries
+#
+# Note: Tags created by GITHUB_TOKEN do not trigger other workflows (GitHub limitation).
+# This workflow explicitly dispatches release.yml via the API to work around this.
+# If RELEASE_PLZ_TOKEN (a PAT) is configured, the tag push will also trigger release.yml
+# directly, but the dispatch acts as a reliable fallback.
+# See: https://github.com/googleapis/release-please-action
+name: Release Please
+permissions:
+  contents: write
+  pull-requests: write
+  actions: write
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  release-please:
+    name: Release Please
+    runs-on: ubuntu-latest
+    if: ${{ github.event.repository.fork == false }}
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+      version: ${{ steps.release.outputs.version }}
+    steps:
+      - name: Run release-please
+        id: release
+        uses: googleapis/release-please-action@v4
+        with:
+          token: ${{ secrets.RELEASE_PLZ_TOKEN || secrets.GITHUB_TOKEN }}
+
+  trigger-release-build:
+    name: Trigger Release Build
+    needs: release-please
+    runs-on: ubuntu-latest
+    if: ${{ needs.release-please.outputs.release_created == 'true' }}
+    steps:
+      - name: Wait for tag to propagate
+        run: sleep 15
+
+      - name: Dispatch release workflow
+        uses: actions/github-script@v8
+        with:
+          github-token: ${{ secrets.RELEASE_PLZ_TOKEN || secrets.GITHUB_TOKEN }}
+          script: |
+            const tag = '${{ needs.release-please.outputs.tag_name }}';
+            const maxRetries = 3;
+            const baseDelay = 15000; // 15 seconds
+
+            for (let attempt = 1; attempt <= maxRetries; attempt++) {
+              try {
+                console.log(`Attempt ${attempt}/${maxRetries}: Dispatching release.yml for tag ${tag}`);
+                await github.rest.actions.createWorkflowDispatch({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  workflow_id: 'release.yml',
+                  ref: tag,
+                });
+                console.log(`✅ Successfully dispatched release.yml for tag: ${tag}`);
+                return;
+              } catch (error) {
+                console.log(`❌ Attempt ${attempt} failed: ${error.message}`);
+                if (attempt === maxRetries) {
+                  throw new Error(`Failed to dispatch release.yml after ${maxRetries} attempts: ${error.message}`);
+                }
+                const delay = baseDelay * attempt;
+                console.log(`⏳ Waiting ${delay / 1000}s before retry (tag may still be propagating)...`);
+                await new Promise(resolve => setTimeout(resolve, delay));
+              }
+            }
