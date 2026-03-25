@@ -1,18 +1,18 @@
 //! Package serialization and deserialization
 
 use crate::{Package, PythonAstParser};
+use chrono::{DateTime, Utc};
+use flate2::write::GzEncoder;
+use flate2::Compression;
 use rez_next_common::RezCoreError;
 use rez_next_version::Version;
+use serde::{Deserialize, Serialize};
 use serde_json;
 use serde_yaml;
 use std::collections::HashMap;
 use std::fs;
+use std::io::{self, BufWriter, Write};
 use std::path::{Path, PathBuf};
-use std::io::{self, Write, BufWriter};
-use flate2::write::GzEncoder;
-use flate2::Compression;
-use chrono::{DateTime, Utc};
-use serde::{Serialize, Deserialize};
 
 // PackageRequirement and PackageVariant imports removed as they're not used in this module
 // PyO3 imports removed as they're not used in this module
@@ -187,10 +187,7 @@ impl SerializationOptions {
             compression_level: 9,
             field_filters: Vec::new(),
             include_only: None,
-            exclude_fields: Some(vec![
-                "description".to_string(),
-                "help".to_string(),
-            ]),
+            exclude_fields: Some(vec!["description".to_string(), "help".to_string()]),
             custom_rules: HashMap::new(),
         }
     }
@@ -552,7 +549,11 @@ impl PackageSerializer {
             Self::write_compressed_file(path, &content, opts.compression_level)?;
         } else {
             fs::write(path, content).map_err(|e| {
-                RezCoreError::PackageParse(format!("Failed to write file {}: {}", path.display(), e))
+                RezCoreError::PackageParse(format!(
+                    "Failed to write file {}: {}",
+                    path.display(),
+                    e
+                ))
             })?;
         }
 
@@ -666,8 +667,9 @@ impl PackageSerializer {
             .map_err(|e| RezCoreError::PackageParse(format!("Failed to decode base64: {}", e)))?;
 
         // Deserialize from binary
-        bincode::deserialize(&binary_data)
-            .map_err(|e| RezCoreError::PackageParse(format!("Failed to deserialize from binary: {}", e)))
+        bincode::deserialize(&binary_data).map_err(|e| {
+            RezCoreError::PackageParse(format!("Failed to deserialize from binary: {}", e))
+        })
     }
 
     /// Load a package from TOML content
@@ -681,18 +683,20 @@ impl PackageSerializer {
         // This is a very simplified XML parser
         // In a real implementation, you'd use a proper XML parser like quick-xml
 
-        let name_start = content.find("<name>").ok_or_else(|| {
-            RezCoreError::PackageParse("Missing <name> tag in XML".to_string())
-        })?;
-        let name_end = content.find("</name>").ok_or_else(|| {
-            RezCoreError::PackageParse("Missing </name> tag in XML".to_string())
-        })?;
+        let name_start = content
+            .find("<name>")
+            .ok_or_else(|| RezCoreError::PackageParse("Missing <name> tag in XML".to_string()))?;
+        let name_end = content
+            .find("</name>")
+            .ok_or_else(|| RezCoreError::PackageParse("Missing </name> tag in XML".to_string()))?;
 
         let name = content[name_start + 6..name_end].to_string();
         let mut package = Package::new(name);
 
         // Extract version if present
-        if let (Some(version_start), Some(version_end)) = (content.find("<version>"), content.find("</version>")) {
+        if let (Some(version_start), Some(version_end)) =
+            (content.find("<version>"), content.find("</version>"))
+        {
             let version_str = &content[version_start + 9..version_end];
             if let Ok(version) = Version::parse(version_str) {
                 package.version = Some(version);
@@ -700,7 +704,10 @@ impl PackageSerializer {
         }
 
         // Extract description if present
-        if let (Some(desc_start), Some(desc_end)) = (content.find("<description>"), content.find("</description>")) {
+        if let (Some(desc_start), Some(desc_end)) = (
+            content.find("<description>"),
+            content.find("</description>"),
+        ) {
             let description = content[desc_start + 13..desc_end].to_string();
             package.description = Some(description);
         }
@@ -752,7 +759,8 @@ impl PackageSerializer {
         options: &SerializationOptions,
     ) -> Result<String, RezCoreError> {
         // Apply field filters if specified
-        let filtered_package = if options.include_only.is_some() || options.exclude_fields.is_some() {
+        let filtered_package = if options.include_only.is_some() || options.exclude_fields.is_some()
+        {
             Self::apply_field_filters(&container.package, options)?
         } else {
             container.package.clone()
@@ -816,12 +824,14 @@ impl PackageSerializer {
 
             for field in include_only {
                 match field.as_str() {
-                    "name" => {}, // Always included
+                    "name" => {} // Always included
                     "version" => new_package.version = filtered.version.clone(),
                     "description" => new_package.description = filtered.description.clone(),
                     "authors" => new_package.authors = filtered.authors.clone(),
                     "requires" => new_package.requires = filtered.requires.clone(),
-                    "build_requires" => new_package.build_requires = filtered.build_requires.clone(),
+                    "build_requires" => {
+                        new_package.build_requires = filtered.build_requires.clone()
+                    }
                     "variants" => new_package.variants = filtered.variants.clone(),
                     "tools" => new_package.tools = filtered.tools.clone(),
                     _ => {} // Ignore unknown fields
@@ -845,7 +855,9 @@ impl PackageSerializer {
             // YAML doesn't have a compact mode, so use regular serialization
             serde_yaml::to_string(container)
         }
-        .map_err(|e| RezCoreError::PackageParse(format!("Failed to serialize container to YAML: {}", e)))
+        .map_err(|e| {
+            RezCoreError::PackageParse(format!("Failed to serialize container to YAML: {}", e))
+        })
     }
 
     /// Save container to JSON with options
@@ -858,7 +870,9 @@ impl PackageSerializer {
         } else {
             serde_json::to_string(container)
         }
-        .map_err(|e| RezCoreError::PackageParse(format!("Failed to serialize container to JSON: {}", e)))
+        .map_err(|e| {
+            RezCoreError::PackageParse(format!("Failed to serialize container to JSON: {}", e))
+        })
     }
 
     /// Save package to YAML with options
@@ -966,8 +980,9 @@ impl PackageSerializer {
     /// Save package to binary format
     fn save_to_binary(package: &Package) -> Result<String, RezCoreError> {
         // For binary format, we'll use bincode serialization
-        let binary_data = bincode::serialize(package)
-            .map_err(|e| RezCoreError::PackageParse(format!("Failed to serialize to binary: {}", e)))?;
+        let binary_data = bincode::serialize(package).map_err(|e| {
+            RezCoreError::PackageParse(format!("Failed to serialize to binary: {}", e))
+        })?;
 
         // Convert to base64 for text representation
         Ok(base64::encode(binary_data))
@@ -1031,13 +1046,21 @@ impl PackageSerializer {
         use std::io::Read;
 
         let file = fs::File::open(path).map_err(|e| {
-            RezCoreError::PackageParse(format!("Failed to open compressed file {}: {}", path.display(), e))
+            RezCoreError::PackageParse(format!(
+                "Failed to open compressed file {}: {}",
+                path.display(),
+                e
+            ))
         })?;
 
         let mut decoder = GzDecoder::new(file);
         let mut content = String::new();
         decoder.read_to_string(&mut content).map_err(|e| {
-            RezCoreError::PackageParse(format!("Failed to decompress file {}: {}", path.display(), e))
+            RezCoreError::PackageParse(format!(
+                "Failed to decompress file {}: {}",
+                path.display(),
+                e
+            ))
         })?;
 
         Ok(content)
@@ -1050,17 +1073,29 @@ impl PackageSerializer {
         compression_level: u32,
     ) -> Result<(), RezCoreError> {
         let file = fs::File::create(path).map_err(|e| {
-            RezCoreError::PackageParse(format!("Failed to create compressed file {}: {}", path.display(), e))
+            RezCoreError::PackageParse(format!(
+                "Failed to create compressed file {}: {}",
+                path.display(),
+                e
+            ))
         })?;
 
         let compression = Compression::new(compression_level);
         let mut encoder = GzEncoder::new(file, compression);
         encoder.write_all(content.as_bytes()).map_err(|e| {
-            RezCoreError::PackageParse(format!("Failed to write compressed file {}: {}", path.display(), e))
+            RezCoreError::PackageParse(format!(
+                "Failed to write compressed file {}: {}",
+                path.display(),
+                e
+            ))
         })?;
 
         encoder.finish().map_err(|e| {
-            RezCoreError::PackageParse(format!("Failed to finish compressed file {}: {}", path.display(), e))
+            RezCoreError::PackageParse(format!(
+                "Failed to finish compressed file {}: {}",
+                path.display(),
+                e
+            ))
         })?;
 
         Ok(())

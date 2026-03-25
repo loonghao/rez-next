@@ -1,11 +1,11 @@
 //! Package requirement parsing and handling
 
+use regex::Regex;
 use rez_next_version::Version;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::fmt;
 use std::str::FromStr;
-use std::collections::HashMap;
-use regex::Regex;
 
 /// A package requirement specification
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -150,7 +150,10 @@ impl Requirement {
 
         for condition in &self.platform_conditions {
             let platform_match = condition.platform == platform;
-            let arch_match = condition.arch.as_ref().map_or(true, |a| arch.map_or(false, |arch| arch == a));
+            let arch_match = condition
+                .arch
+                .as_ref()
+                .map_or(true, |a| arch.map_or(false, |arch| arch == a));
 
             let condition_satisfied = platform_match && arch_match;
 
@@ -179,7 +182,9 @@ impl Requirement {
         for condition in &self.env_conditions {
             let var_exists = env_vars.contains_key(&condition.var_name);
             let value_match = if let Some(expected) = &condition.expected_value {
-                env_vars.get(&condition.var_name).map_or(false, |v| v == expected)
+                env_vars
+                    .get(&condition.var_name)
+                    .map_or(false, |v| v == expected)
             } else {
                 var_exists
             };
@@ -222,7 +227,12 @@ impl Requirement {
     }
 
     /// Add an environment condition
-    pub fn add_env_condition(&mut self, var_name: String, expected_value: Option<String>, negate: bool) {
+    pub fn add_env_condition(
+        &mut self,
+        var_name: String,
+        expected_value: Option<String>,
+        negate: bool,
+    ) {
         self.env_conditions.push(EnvCondition {
             var_name,
             expected_value,
@@ -267,7 +277,7 @@ impl VersionConstraint {
                     let last_idx = constraint_parts.len() - 1;
                     if let (Ok(v_part), Ok(c_part)) = (
                         version_parts[last_idx].parse::<u32>(),
-                        constraint_parts[last_idx].parse::<u32>()
+                        constraint_parts[last_idx].parse::<u32>(),
                     ) {
                         // Version must be >= constraint version
                         if v_part < c_part {
@@ -349,9 +359,7 @@ impl VersionConstraint {
                 constraints.insert(0, self_constraint);
                 VersionConstraint::Multiple(constraints)
             }
-            (self_constraint, other) => {
-                VersionConstraint::Multiple(vec![self_constraint, other])
-            }
+            (self_constraint, other) => VersionConstraint::Multiple(vec![self_constraint, other]),
         }
     }
 
@@ -449,7 +457,10 @@ impl RequirementParser {
     }
 
     /// Parse platform and environment conditions from brackets
-    fn parse_conditions(&self, s: &str) -> Result<(String, Vec<PlatformCondition>, Vec<EnvCondition>), String> {
+    fn parse_conditions(
+        &self,
+        s: &str,
+    ) -> Result<(String, Vec<PlatformCondition>, Vec<EnvCondition>), String> {
         let mut platform_conditions = Vec::new();
         let mut env_conditions = Vec::new();
         let mut remaining = s.to_string();
@@ -487,14 +498,18 @@ impl RequirementParser {
         // Simple parsing for now - can be enhanced with proper expression parsing
         if let Some(platform_start) = condition.find("'") {
             if let Some(platform_end) = condition[platform_start + 1..].find("'") {
-                let platform = condition[platform_start + 1..platform_start + 1 + platform_end].to_string();
+                let platform =
+                    condition[platform_start + 1..platform_start + 1 + platform_end].to_string();
 
                 // Check for architecture condition
                 let arch = if condition.contains("arch") {
                     if let Some(arch_start) = condition.rfind("'") {
                         if arch_start > platform_start + 1 + platform_end {
                             if let Some(arch_end) = condition[arch_start + 1..].find("'") {
-                                Some(condition[arch_start + 1..arch_start + 1 + arch_end].to_string())
+                                Some(
+                                    condition[arch_start + 1..arch_start + 1 + arch_end]
+                                        .to_string(),
+                                )
                             } else {
                                 None
                             }
@@ -562,7 +577,10 @@ impl RequirementParser {
     }
 
     /// Parse package name and version constraint
-    fn parse_name_and_version(&self, s: &str) -> Result<(String, Option<VersionConstraint>), String> {
+    fn parse_name_and_version(
+        &self,
+        s: &str,
+    ) -> Result<(String, Option<VersionConstraint>), String> {
         // Handle various version constraint formats
         if let Some(captures) = self.patterns.wildcard.captures(s) {
             let name = captures.get(1).unwrap().as_str().to_string();
@@ -617,7 +635,10 @@ impl RequirementParser {
     }
 
     /// Parse complex version constraints (e.g., ">=1.0,<2.0")
-    fn parse_version_constraints(&self, constraints_str: &str) -> Result<VersionConstraint, String> {
+    fn parse_version_constraints(
+        &self,
+        constraints_str: &str,
+    ) -> Result<VersionConstraint, String> {
         let parts: Vec<&str> = constraints_str.split(',').collect();
         if parts.len() == 1 {
             return self.parse_single_constraint(parts[0]);
@@ -712,8 +733,15 @@ impl fmt::Display for Requirement {
 impl fmt::Display for PlatformCondition {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let op = if self.negate { "!=" } else { "==" };
-        write!(f, "platform{}'{}'{}", op, self.platform,
-               self.arch.as_ref().map_or(String::new(), |a| format!(" and arch=='{}'", a)))
+        write!(
+            f,
+            "platform{}'{}'{}",
+            op,
+            self.platform,
+            self.arch
+                .as_ref()
+                .map_or(String::new(), |a| format!(" and arch=='{}'", a))
+        )
     }
 }
 
@@ -738,15 +766,20 @@ impl fmt::Display for VersionConstraint {
             VersionConstraint::Compatible(v) => write!(f, "~={}", v.as_str()),
             VersionConstraint::Range(min, max) => write!(f, ">={},<{}", min.as_str(), max.as_str()),
             VersionConstraint::Multiple(constraints) => {
-                let constraint_strs: Vec<String> = constraints.iter().map(|c| c.to_string()).collect();
+                let constraint_strs: Vec<String> =
+                    constraints.iter().map(|c| c.to_string()).collect();
                 write!(f, "{}", constraint_strs.join(","))
             }
             VersionConstraint::Alternative(constraints) => {
-                let constraint_strs: Vec<String> = constraints.iter().map(|c| c.to_string()).collect();
+                let constraint_strs: Vec<String> =
+                    constraints.iter().map(|c| c.to_string()).collect();
                 write!(f, "({})", constraint_strs.join(" || "))
             }
             VersionConstraint::Exclude(versions) => {
-                let version_strs: Vec<String> = versions.iter().map(|v| format!("!={}", v.as_str())).collect();
+                let version_strs: Vec<String> = versions
+                    .iter()
+                    .map(|v| format!("!={}", v.as_str()))
+                    .collect();
                 write!(f, "{}", version_strs.join(","))
             }
             VersionConstraint::Wildcard(pattern) => write!(f, "=={}", pattern),
@@ -772,7 +805,10 @@ mod tests {
     fn test_version_constraint_parsing() {
         let req: Requirement = "python>=3.8".parse().unwrap();
         assert_eq!(req.name, "python");
-        assert!(matches!(req.version_constraint, Some(VersionConstraint::GreaterThanOrEqual(_))));
+        assert!(matches!(
+            req.version_constraint,
+            Some(VersionConstraint::GreaterThanOrEqual(_))
+        ));
     }
 
     #[test]
@@ -794,7 +830,10 @@ mod tests {
     fn test_wildcard_version() {
         let req: Requirement = "python==3.8.*".parse().unwrap();
         assert_eq!(req.name, "python");
-        assert!(matches!(req.version_constraint, Some(VersionConstraint::Wildcard(_))));
+        assert!(matches!(
+            req.version_constraint,
+            Some(VersionConstraint::Wildcard(_))
+        ));
 
         let version = Version::parse("3.8.5").unwrap();
         assert!(req.is_satisfied_by(&version));
@@ -807,7 +846,10 @@ mod tests {
     fn test_range_constraint() {
         let req: Requirement = "python>=3.8,<4.0".parse().unwrap();
         assert_eq!(req.name, "python");
-        assert!(matches!(req.version_constraint, Some(VersionConstraint::Multiple(_))));
+        assert!(matches!(
+            req.version_constraint,
+            Some(VersionConstraint::Multiple(_))
+        ));
 
         let version = Version::parse("3.9.0").unwrap();
         assert!(req.is_satisfied_by(&version));

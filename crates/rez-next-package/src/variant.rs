@@ -1,5 +1,6 @@
 //! Package variant implementation
 
+use crate::requirement::Requirement;
 #[cfg(feature = "python-bindings")]
 use pyo3::prelude::*;
 use rez_next_common::RezCoreError;
@@ -7,7 +8,6 @@ use rez_next_version::Version;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::fmt;
-use crate::requirement::Requirement;
 
 /// Package variant representation
 #[cfg_attr(feature = "python-bindings", pyclass)]
@@ -592,7 +592,9 @@ impl VariantManager {
 
     /// Get variant by index
     pub fn get_variant(&self, index: usize) -> Option<&PackageVariant> {
-        self.index_map.get(&index).and_then(|&pos| self.variants.get(pos))
+        self.index_map
+            .get(&index)
+            .and_then(|&pos| self.variants.get(pos))
     }
 
     /// Get all variants
@@ -833,7 +835,8 @@ mod tests {
             "test_package".to_string(),
             Some(Version::parse("1.0.0").unwrap()),
             &variant_matrix,
-        ).unwrap();
+        )
+        .unwrap();
 
         assert_eq!(manager.variant_count(), 3);
 

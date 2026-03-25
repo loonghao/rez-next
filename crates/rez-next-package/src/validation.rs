@@ -1,12 +1,12 @@
 //! Package validation functionality
 
-use crate::{Package, requirement::Requirement};
+use crate::{requirement::Requirement, Package};
 use pyo3::prelude::*;
+use regex::Regex;
 use rez_next_version::Version;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
-use regex::Regex;
 
 /// Package validation result
 #[pyclass]
@@ -552,7 +552,11 @@ impl PackageValidator {
     }
 
     /// Validate version compatibility
-    fn validate_version_compatibility(&self, package: &Package, result: &mut PackageValidationResult) {
+    fn validate_version_compatibility(
+        &self,
+        package: &Package,
+        result: &mut PackageValidationResult,
+    ) {
         let mut details = Vec::new();
 
         // Check if version follows semantic versioning
@@ -595,16 +599,24 @@ impl PackageValidator {
         }
 
         if !details.is_empty() {
-            result.validation_details.insert("version_compatibility".to_string(), details);
+            result
+                .validation_details
+                .insert("version_compatibility".to_string(), details);
         }
     }
 
     /// Validate platform compatibility
-    fn validate_platform_compatibility(&self, package: &Package, result: &mut PackageValidationResult) {
+    fn validate_platform_compatibility(
+        &self,
+        package: &Package,
+        result: &mut PackageValidationResult,
+    ) {
         let mut details = Vec::new();
 
         // Check if package specifies platform requirements
-        let has_platform_reqs = package.requires.iter()
+        let has_platform_reqs = package
+            .requires
+            .iter()
             .chain(package.build_requires.iter())
             .chain(package.private_build_requires.iter())
             .any(|req| req.contains("platform") || req.contains("arch"));
@@ -618,14 +630,16 @@ impl PackageValidator {
         if !self.options.allowed_platforms.is_empty() {
             for req_str in &package.requires {
                 if req_str.contains("platform") {
-                    let platform_found = self.options.allowed_platforms.iter()
+                    let platform_found = self
+                        .options
+                        .allowed_platforms
+                        .iter()
                         .any(|platform| req_str.contains(platform));
 
                     if !platform_found {
                         result.add_error(format!(
                             "Platform requirement '{}' not in allowed platforms: {:?}",
-                            req_str,
-                            self.options.allowed_platforms
+                            req_str, self.options.allowed_platforms
                         ));
                         result.platform_compatibility_valid = false;
                         details.push(format!("Disallowed platform: {}", req_str));
@@ -635,7 +649,9 @@ impl PackageValidator {
         }
 
         if !details.is_empty() {
-            result.validation_details.insert("platform_compatibility".to_string(), details);
+            result
+                .validation_details
+                .insert("platform_compatibility".to_string(), details);
         }
     }
 
@@ -678,7 +694,9 @@ impl PackageValidator {
         }
 
         if !details.is_empty() {
-            result.validation_details.insert("package_integrity".to_string(), details);
+            result
+                .validation_details
+                .insert("package_integrity".to_string(), details);
         }
     }
 
@@ -689,7 +707,10 @@ impl PackageValidator {
         // Check for deprecated fields or patterns
         if package.format_version.is_some() && package.format_version.unwrap() < 2 {
             result.add_warning("Package uses deprecated format version".to_string());
-            details.push(format!("Deprecated format version: {}", package.format_version.unwrap()));
+            details.push(format!(
+                "Deprecated format version: {}",
+                package.format_version.unwrap()
+            ));
         }
 
         // Check for deprecated requirement patterns
@@ -703,13 +724,17 @@ impl PackageValidator {
         // Check for deprecated build patterns
         if let Some(ref build_cmd) = package.build_command {
             if build_cmd.contains("python setup.py") {
-                result.add_warning("Package uses deprecated 'python setup.py' build command".to_string());
+                result.add_warning(
+                    "Package uses deprecated 'python setup.py' build command".to_string(),
+                );
                 details.push("Deprecated build command: python setup.py".to_string());
             }
         }
 
         if !details.is_empty() {
-            result.validation_details.insert("deprecated_features".to_string(), details);
+            result
+                .validation_details
+                .insert("deprecated_features".to_string(), details);
         }
     }
 
@@ -743,10 +768,7 @@ impl PackageValidator {
         // Check for insecure URLs in requirements
         for req in &package.requires {
             if req.contains("http://") {
-                result.add_warning(format!(
-                    "Insecure HTTP URL in requirement: '{}'",
-                    req
-                ));
+                result.add_warning(format!("Insecure HTTP URL in requirement: '{}'", req));
                 details.push(format!("Insecure URL: {}", req));
             }
         }
@@ -754,28 +776,31 @@ impl PackageValidator {
         // Check for overly permissive version constraints
         for req in &package.requires {
             if req.contains(">=") && !req.contains("<") && !req.contains("~=") {
-                result.add_warning(format!(
-                    "Overly permissive version constraint: '{}'",
-                    req
-                ));
+                result.add_warning(format!("Overly permissive version constraint: '{}'", req));
                 details.push(format!("Permissive constraint: {}", req));
             }
         }
 
         if !details.is_empty() {
-            result.validation_details.insert("security_issues".to_string(), details);
+            result
+                .validation_details
+                .insert("security_issues".to_string(), details);
         }
     }
 
     /// Check if version follows semantic versioning
     fn is_semantic_version(&self, version: &str) -> bool {
-        let semver_regex = Regex::new(r"^\d+\.\d+\.\d+(-[a-zA-Z0-9\-\.]+)?(\+[a-zA-Z0-9\-\.]+)?$").unwrap();
+        let semver_regex =
+            Regex::new(r"^\d+\.\d+\.\d+(-[a-zA-Z0-9\-\.]+)?(\+[a-zA-Z0-9\-\.]+)?$").unwrap();
         semver_regex.is_match(version)
     }
 
     /// Check if UUID is valid
     fn is_valid_uuid(&self, uuid: &str) -> bool {
-        let uuid_regex = Regex::new(r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$").unwrap();
+        let uuid_regex = Regex::new(
+            r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+        )
+        .unwrap();
         uuid_regex.is_match(uuid)
     }
 }
@@ -850,7 +875,10 @@ mod tests {
         let result = validator.validate_package(&package).unwrap();
 
         assert!(!result.is_valid);
-        assert!(result.errors.iter().any(|e| e.contains("Invalid package name format")));
+        assert!(result
+            .errors
+            .iter()
+            .any(|e| e.contains("Invalid package name format")));
     }
 
     #[test]
@@ -862,7 +890,10 @@ mod tests {
         let result = validator.validate_package(&package).unwrap();
 
         assert!(!result.is_valid);
-        assert!(result.errors.iter().any(|e| e.contains("Package name is required")));
+        assert!(result
+            .errors
+            .iter()
+            .any(|e| e.contains("Package name is required")));
     }
 
     #[test]
@@ -874,7 +905,10 @@ mod tests {
         let result = validator.validate_package(&package).unwrap();
 
         assert!(!result.is_valid);
-        assert!(result.errors.iter().any(|e| e.contains("Invalid requirement")));
+        assert!(result
+            .errors
+            .iter()
+            .any(|e| e.contains("Invalid requirement")));
     }
 
     #[test]
@@ -889,7 +923,10 @@ mod tests {
         let result = validator.validate_package(&package).unwrap();
 
         assert!(!result.is_valid);
-        assert!(result.errors.iter().any(|e| e.contains("Duplicate variant")));
+        assert!(result
+            .errors
+            .iter()
+            .any(|e| e.contains("Duplicate variant")));
     }
 
     #[test]
@@ -905,7 +942,10 @@ mod tests {
 
         // Should still be valid but have warnings
         assert!(result.is_valid);
-        assert!(result.warnings.iter().any(|w| w.contains("unsafe command pattern")));
+        assert!(result
+            .warnings
+            .iter()
+            .any(|w| w.contains("unsafe command pattern")));
     }
 
     #[test]
@@ -919,7 +959,14 @@ mod tests {
 
         // Add known packages
         let mut known_packages = HashMap::new();
-        known_packages.insert("python".to_string(), vec!["3.7.0".to_string(), "3.8.0".to_string(), "3.9.0".to_string()]);
+        known_packages.insert(
+            "python".to_string(),
+            vec![
+                "3.7.0".to_string(),
+                "3.8.0".to_string(),
+                "3.9.0".to_string(),
+            ],
+        );
         validator.add_known_packages(known_packages).unwrap();
 
         let result = validator.validate_package(&package).unwrap();
@@ -959,7 +1006,10 @@ mod tests {
         let result = validator.validate_package(&package).unwrap();
 
         assert!(!result.is_valid);
-        assert!(result.errors.iter().any(|e| e.contains("Invalid UUID format")));
+        assert!(result
+            .errors
+            .iter()
+            .any(|e| e.contains("Invalid UUID format")));
     }
 
     #[test]
@@ -975,6 +1025,9 @@ mod tests {
 
         // Should be valid but have warnings about non-semantic version
         assert!(result.is_valid);
-        assert!(result.warnings.iter().any(|w| w.contains("does not follow semantic versioning")));
+        assert!(result
+            .warnings
+            .iter()
+            .any(|w| w.contains("does not follow semantic versioning")));
     }
 }
