@@ -27,7 +27,6 @@ enum ParseState {
     Start,
     InToken,
     InSeparator,
-    End,
 }
 
 /// High-performance version parser with state machine and zero-copy optimization
@@ -105,6 +104,7 @@ impl StateMachineParser {
     }
 
     /// Parse version string using zero-copy state machine
+    #[allow(clippy::type_complexity)]
     pub fn parse_tokens(
         &self,
         input: &str,
@@ -170,8 +170,6 @@ impl StateMachineParser {
                         )));
                     }
                 }
-
-                ParseState::End => break,
             }
 
             i += 1;
@@ -263,14 +261,14 @@ impl StateMachineParser {
 
 /// Legacy VersionParser for backward compatibility
 pub struct VersionParser {
-    inner: StateMachineParser,
+    _inner: StateMachineParser,
 }
 
 impl VersionParser {
     /// Create a new parser
     pub fn new() -> Self {
         Self {
-            inner: StateMachineParser::new(),
+            _inner: StateMachineParser::new(),
         }
     }
 

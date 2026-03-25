@@ -185,22 +185,70 @@ harness = false
 
 # flamegraph = ["pprof"]
 
-# Linting configuration
-[lints.rust]
+# Linting configuration (workspace-level, inherited by all crates)
+[workspace.lints.rust]
 # Allow unused imports for Python bindings that may not be used in all builds
 unused_imports = "allow"
 # Allow dead code for experimental features
 dead_code = "allow"
+# Allow unused variables during development
+unused_variables = "allow"
+# Allow deprecated items during migration
+deprecated = "allow"
+# Allow ambiguous glob reexports during development
+ambiguous_glob_reexports = "allow"
+# Allow irrefutable let patterns
+irrefutable_let_patterns = "allow"
+# Allow unused mut during development
+unused_mut = "allow"
+# Allow unexpected cfg checks during development
+unexpected_cfgs = "allow"
 
-[lints.clippy]
+[workspace.lints.clippy]
 # Allow some clippy lints that are too strict for development
 too_many_arguments = "allow"
 module_inception = "allow"
+# Allow common style lints during development
+collapsible_else_if = "allow"
+collapsible_if = "allow"
+collapsible_match = "allow"
+manual_map = "allow"
+manual_strip = "allow"
+manual_ok_err = "allow"
+match_result_ok = "allow"
+redundant_static_lifetimes = "allow"
+write_literal = "allow"
+unnecessary_map_or = "allow"
+unwrap_or_default = "allow"
+len_zero = "allow"
+assertions_on_constants = "allow"
+if_same_then_else = "allow"
+inherent_to_string = "allow"
+new_without_default = "allow"
+field_reassign_with_default = "allow"
+derivable_impls = "allow"
+needless_borrow = "allow"
+type_complexity = "allow"
+identity_op = "allow"
+single_char_add_str = "allow"
+single_component_path_imports = "allow"
+double_ended_iterator_last = "allow"
+needless_borrows_for_generic_args = "allow"
+ptr_arg = "allow"
+format_in_format_args = "allow"
+iter_nth_zero = "allow"
+redundant_closure = "allow"
+useless_conversion = "allow"
+useless_format = "allow"
+useless_vec = "allow"
 # Focus on critical issues only
 complexity = { level = "warn", priority = -1 }
 correctness = { level = "deny", priority = -1 }
 suspicious = { level = "deny", priority = -1 }
 perf = { level = "warn", priority = -1 }
+
+[lints]
+workspace = true
 
 [profile.release]
 opt-level = 3

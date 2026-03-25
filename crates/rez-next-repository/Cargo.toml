@@ -46,3 +46,6 @@ tempfile.workspace = true
 pretty_assertions.workspace = true
 assert_matches.workspace = true
 serial_test.workspace = true
+
+[lints]
+workspace = true

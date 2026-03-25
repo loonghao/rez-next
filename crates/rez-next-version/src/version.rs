@@ -1,6 +1,6 @@
 //! Version implementation
 
-use super::parser::{StateMachineParser, TokenType};
+use super::parser::StateMachineParser;
 #[cfg(feature = "python-bindings")]
 use super::version_token::AlphanumericVersionToken;
 use once_cell::sync::Lazy;
@@ -15,7 +15,8 @@ use std::cmp::Ordering;
 use std::hash::{Hash, Hasher};
 
 /// Global state machine parser instance for optimal performance
-static OPTIMIZED_PARSER: Lazy<StateMachineParser> = Lazy::new(|| StateMachineParser::new());
+#[allow(dead_code)]
+static OPTIMIZED_PARSER: Lazy<StateMachineParser> = Lazy::new(StateMachineParser::new);
 
 /// High-performance version representation compatible with rez
 #[cfg_attr(feature = "python-bindings", pyclass)]
@@ -251,27 +252,27 @@ impl Version {
     }
 
     fn __lt__(&self, other: &Self) -> bool {
-        self.cmp(other) == Ordering::Less
+        self.compare_rez(other) == Ordering::Less
     }
 
     fn __le__(&self, other: &Self) -> bool {
-        matches!(self.cmp(other), Ordering::Less | Ordering::Equal)
+        matches!(self.compare_rez(other), Ordering::Less | Ordering::Equal)
     }
 
     fn __eq__(&self, other: &Self) -> bool {
-        self.cmp(other) == Ordering::Equal
+        self.compare_rez(other) == Ordering::Equal
     }
 
     fn __ne__(&self, other: &Self) -> bool {
-        self.cmp(other) != Ordering::Equal
+        self.compare_rez(other) != Ordering::Equal
     }
 
     fn __gt__(&self, other: &Self) -> bool {
-        self.cmp(other) == Ordering::Greater
+        self.compare_rez(other) == Ordering::Greater
     }
 
     fn __ge__(&self, other: &Self) -> bool {
-        matches!(self.cmp(other), Ordering::Greater | Ordering::Equal)
+        matches!(self.compare_rez(other), Ordering::Greater | Ordering::Equal)
     }
 
     fn __hash__(&self) -> u64 {
@@ -972,6 +973,7 @@ impl Version {
 
     /// Reconstruct string representation from tokens and separators (non-Python version)
     #[cfg(not(feature = "python-bindings"))]
+    #[allow(dead_code)]
     fn reconstruct_string(tokens: &[String], separators: &[String]) -> String {
         if tokens.is_empty() {
             return "".to_string();
@@ -1023,7 +1025,7 @@ impl Version {
 
     /// Compare two versions using rez-compatible rules
     #[cfg(feature = "python-bindings")]
-    pub fn cmp(&self, other: &Self) -> Ordering {
+    fn compare_rez(&self, other: &Self) -> Ordering {
         // Handle infinite versions (inf is largest)
         match (self.is_inf(), other.is_inf()) {
             (true, true) => return Ordering::Equal,
@@ -1108,7 +1110,7 @@ impl Version {
 
     /// Compare two versions using rez-compatible rules (non-Python version)
     #[cfg(not(feature = "python-bindings"))]
-    pub fn cmp(&self, other: &Self) -> Ordering {
+    fn compare_rez(&self, other: &Self) -> Ordering {
         // Handle infinite versions (inf is largest)
         match (self.is_inf(), other.is_inf()) {
             (true, true) => return Ordering::Equal,
@@ -1159,22 +1161,21 @@ impl Version {
 
 impl PartialEq for Version {
     fn eq(&self, other: &Self) -> bool {
-        self.cmp(other) == Ordering::Equal
+        self.compare_rez(other) == Ordering::Equal
     }
 }
 
 impl Eq for Version {}
 
-impl PartialOrd for Version {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
+impl Ord for Version {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.compare_rez(other)
     }
 }
 
-impl Ord for Version {
-    fn cmp(&self, other: &Self) -> Ordering {
-        // Call the Version::cmp method, not the trait method
-        Version::cmp(self, other)
+impl PartialOrd for Version {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
     }
 }
 
@@ -1306,7 +1307,7 @@ mod tests {
         assert_eq!(prerelease.cmp(&release), Ordering::Less);
 
         // Test with comparison operators
-        assert!(!(release < prerelease)); // "2" < "2.alpha1" should be false
+        assert!(release >= prerelease); // "2" < "2.alpha1" should be false
         assert!(prerelease < release); // "2.alpha1" < "2" should be true
     }
 

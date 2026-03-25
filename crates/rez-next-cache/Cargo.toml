@@ -48,3 +48,6 @@ default = ["multi-level", "predictive"]
 multi-level = []
 predictive = []
 monitoring = []
+
+[lints]
+workspace = true
