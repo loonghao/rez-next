@@ -239,16 +239,17 @@ impl Hash for SearchState {
 
 impl PartialOrd for SearchState {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        // For priority queue (min-heap), we want states with lower f(n) to have higher priority
-        other
-            .estimated_total_cost
-            .partial_cmp(&self.estimated_total_cost)
+        Some(self.cmp(other))
     }
 }
 
 impl Ord for SearchState {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.partial_cmp(other).unwrap_or(std::cmp::Ordering::Equal)
+        // For priority queue (min-heap), we want states with lower f(n) to have higher priority
+        other
+            .estimated_total_cost
+            .partial_cmp(&self.estimated_total_cost)
+            .unwrap_or(std::cmp::Ordering::Equal)
     }
 }
 

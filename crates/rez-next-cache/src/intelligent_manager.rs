@@ -170,10 +170,7 @@ where
         let mut patterns = self.access_patterns.write().unwrap();
         let now = SystemTime::now();
 
-        patterns
-            .entry(key.clone())
-            .or_insert_with(Vec::new)
-            .push(now);
+        patterns.entry(key.clone()).or_default().push(now);
 
         // Keep only recent accesses for pattern analysis
         let cutoff =

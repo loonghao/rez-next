@@ -43,3 +43,6 @@ proptest.workspace = true
 tempfile.workspace = true
 pretty_assertions.workspace = true
 assert_matches.workspace = true
+
+[lints]
+workspace = true

@@ -338,12 +338,14 @@ mod tests {
 
     #[test]
     fn test_cache_level_stats() {
-        let mut stats = CacheLevelStats::default();
-        stats.hits = 80;
-        stats.misses = 20;
-        stats.entries = 100;
-        stats.capacity = 200;
-        stats.usage_bytes = 1024;
+        let mut stats = CacheLevelStats {
+            hits: 80,
+            misses: 20,
+            entries: 100,
+            capacity: 200,
+            usage_bytes: 1024,
+            ..Default::default()
+        };
 
         stats.update_calculated_fields();
 
