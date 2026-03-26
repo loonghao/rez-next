@@ -7,10 +7,10 @@
 //! - Performance monitoring
 
 use rez_next_cache::{
-    benchmarks::{run_comprehensive_benchmarks, BenchmarkConfig, CacheBenchmarkSuite},
+    benchmarks::{BenchmarkConfig, CacheBenchmarkSuite},
     IntelligentCacheManager, UnifiedCache, UnifiedCacheConfig,
 };
-use std::{sync::Arc, time::Duration};
+use std::time::Duration;
 use tokio::time::sleep;
 
 #[tokio::main]
@@ -336,18 +336,4 @@ async fn demo_comprehensive_benchmarks() -> Result<(), Box<dyn std::error::Error
 
     println!("✅ Comprehensive benchmarks demo completed\n");
     Ok(())
-}
-
-/// Helper function to format bytes
-fn format_bytes(bytes: u64) -> String {
-    const UNITS: &[&str] = &["B", "KB", "MB", "GB"];
-    let mut size = bytes as f64;
-    let mut unit_index = 0;
-
-    while size >= 1024.0 && unit_index < UNITS.len() - 1 {
-        size /= 1024.0;
-        unit_index += 1;
-    }
-
-    format!("{:.2} {}", size, UNITS[unit_index])
 }

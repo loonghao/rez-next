@@ -49,3 +49,6 @@ assert_matches.workspace = true
 [lib]
 name = "rez_next_package"
 crate-type = ["rlib"]
+
+[lints]
+workspace = true

@@ -9,6 +9,9 @@ use rez_next_common::RezCoreError;
 use smallvec::SmallVec;
 use std::sync::RwLock;
 
+/// Result type for parsed tokens: (tokens, separators)
+pub type ParseResult = Result<(SmallVec<[TokenType; 8]>, SmallVec<[char; 7]>), RezCoreError>;
+
 /// String interning pool for reducing memory allocations
 static STRING_INTERN_POOL: Lazy<RwLock<AHashMap<String, &'static str>>> =
     Lazy::new(|| RwLock::new(AHashMap::new()));
@@ -27,7 +30,6 @@ enum ParseState {
     Start,
     InToken,
     InSeparator,
-    End,
 }
 
 /// High-performance version parser with state machine and zero-copy optimization
@@ -105,10 +107,7 @@ impl StateMachineParser {
     }
 
     /// Parse version string using zero-copy state machine
-    pub fn parse_tokens(
-        &self,
-        input: &str,
-    ) -> Result<(SmallVec<[TokenType; 8]>, SmallVec<[char; 7]>), RezCoreError> {
+    pub fn parse_tokens(&self, input: &str) -> ParseResult {
         if input.is_empty() {
             return Ok((SmallVec::new(), SmallVec::new()));
         }
@@ -170,8 +169,6 @@ impl StateMachineParser {
                         )));
                     }
                 }
-
-                ParseState::End => break,
             }
 
             i += 1;
@@ -263,6 +260,7 @@ impl StateMachineParser {
 
 /// Legacy VersionParser for backward compatibility
 pub struct VersionParser {
+    #[allow(dead_code)]
     inner: StateMachineParser,
 }
 
@@ -319,8 +317,7 @@ mod tests {
     fn test_parser_creation() {
         let _parser = VersionParser::new();
         let _state_machine_parser = StateMachineParser::new();
-        // Basic test to ensure parsers can be created
-        assert!(true);
+        // Basic test to ensure parsers can be created without panic
     }
 
     #[test]

@@ -157,7 +157,7 @@ fn parse_package_requirements(
 
 /// Resolve environment using the solver
 fn resolve_environment(
-    solver: &DependencySolver,
+    _solver: &DependencySolver,
     requirements: &[PackageRequirement],
     args: &EnvArgs,
 ) -> RezCoreResult<ResolvedContext> {

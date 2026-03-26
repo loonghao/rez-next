@@ -355,7 +355,7 @@ fn bind_single_package(
     name: &str,
     install_path: &Path,
     no_deps: bool,
-    args: &BindArgs,
+    _args: &BindArgs,
 ) -> RezCoreResult<BindResult> {
     // TODO: Implement actual binding logic
     // For now, create a mock package

@@ -208,7 +208,7 @@ async fn show_repository_status(
 /// Show package family status
 async fn show_family_status(
     repo_manager: &RepositoryManager,
-    args: &StatusArgs,
+    _args: &StatusArgs,
 ) -> RezCoreResult<()> {
     println!("Package Family Status");
     println!("====================");

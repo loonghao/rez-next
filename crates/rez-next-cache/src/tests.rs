@@ -1,6 +1,7 @@
 //! Tests for the intelligent cache system
 
 #[cfg(test)]
+#[allow(clippy::module_inception)]
 mod tests {
     use crate::{
         IntelligentCacheManager, L1CacheConfig, MonitoringConfig, PreheatingConfig, TuningConfig,
@@ -17,10 +18,10 @@ mod tests {
 
     #[test]
     fn test_default_constants() {
-        assert!(DEFAULT_L1_CAPACITY > 0);
+        assert_ne!(DEFAULT_L1_CAPACITY, 0);
         assert!(DEFAULT_L2_CAPACITY > DEFAULT_L1_CAPACITY);
-        assert!(DEFAULT_TTL_SECONDS > 0);
-        assert!(DEFAULT_MEMORY_LIMIT_MB > 0);
+        assert_ne!(DEFAULT_TTL_SECONDS, 0);
+        assert_ne!(DEFAULT_MEMORY_LIMIT_MB, 0);
     }
 
     #[tokio::test]
@@ -186,7 +187,7 @@ mod tests {
 
         // Check events
         let events = monitor.get_recent_events(5).await;
-        assert!(events.len() > 0);
+        assert!(!events.is_empty());
     }
 
     #[tokio::test]

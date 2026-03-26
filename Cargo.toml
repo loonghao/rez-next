@@ -23,6 +23,70 @@ repository = "https://github.com/loonghao/rez-next"
 keywords = ["rez", "package-manager", "dependencies", "version-management"]
 categories = ["development-tools"]
 
+[workspace.lints.rust]
+# Allow unused imports for Python bindings that may not be used in all builds
+unused_imports = "allow"
+# Allow dead code for experimental features
+dead_code = "allow"
+# Allow deprecated usages during migration
+deprecated = "allow"
+# Allow unused variables in experimental code
+unused_variables = "allow"
+# Allow unused mut in experimental code
+unused_mut = "allow"
+# Allow unexpected cfg during development
+unexpected_cfgs = "allow"
+# Allow ambiguous glob re-exports in experimental code
+ambiguous_glob_reexports = "allow"
+# Allow irrefutable let patterns
+irrefutable_let_patterns = "allow"
+
+[workspace.lints.clippy]
+# Allow some clippy lints that are too strict for development
+too_many_arguments = "allow"
+module_inception = "allow"
+# Allow common patterns in experimental code
+type_complexity = "allow"
+field_reassign_with_default = "allow"
+new_without_default = "allow"
+derivable_impls = "allow"
+manual_map = "allow"
+collapsible_if = "allow"
+collapsible_match = "allow"
+collapsible_else_if = "allow"
+redundant_closure = "allow"
+should_implement_trait = "allow"
+len_zero = "allow"
+assertions_on_constants = "allow"
+# Style lints — allowed during active development
+inherent_to_string = "allow"
+manual_strip = "allow"
+match_result_ok = "allow"
+redundant_static_lifetimes = "allow"
+unnecessary_map_or = "allow"
+unwrap_or_default = "allow"
+write_literal = "allow"
+if_same_then_else = "allow"
+manual_ok_err = "allow"
+needless_borrow = "allow"
+single_component_path_imports = "allow"
+identity_op = "allow"
+non_canonical_partial_ord_impl = "allow"
+single_char_add_str = "allow"
+ptr_arg = "allow"
+needless_borrows_for_generic_args = "allow"
+double_ended_iterator_last = "allow"
+useless_conversion = "allow"
+useless_format = "allow"
+useless_vec = "allow"
+iter_nth_zero = "allow"
+format_in_format_args = "allow"
+# Focus on critical issues only
+complexity = { level = "warn", priority = -1 }
+correctness = { level = "deny", priority = -1 }
+suspicious = { level = "deny", priority = -1 }
+perf = { level = "warn", priority = -1 }
+
 [workspace.dependencies]
 # External dependencies
 # Temporarily disabled Python bindings
@@ -185,22 +249,9 @@ harness = false
 
 # flamegraph = ["pprof"]
 
-# Linting configuration
-[lints.rust]
-# Allow unused imports for Python bindings that may not be used in all builds
-unused_imports = "allow"
-# Allow dead code for experimental features
-dead_code = "allow"
-
-[lints.clippy]
-# Allow some clippy lints that are too strict for development
-too_many_arguments = "allow"
-module_inception = "allow"
-# Focus on critical issues only
-complexity = { level = "warn", priority = -1 }
-correctness = { level = "deny", priority = -1 }
-suspicious = { level = "deny", priority = -1 }
-perf = { level = "warn", priority = -1 }
+# Linting configuration — inherited from workspace
+[lints]
+workspace = true
 
 [profile.release]
 opt-level = 3

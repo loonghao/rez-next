@@ -16,7 +16,7 @@ use std::time::Duration;
 ///
 /// This configuration integrates settings for multi-level caching,
 /// predictive preheating, and adaptive tuning.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct UnifiedCacheConfig {
     /// L1 cache configuration (memory cache)
     pub l1_config: L1CacheConfig,
@@ -28,18 +28,6 @@ pub struct UnifiedCacheConfig {
     pub tuning_config: TuningConfig,
     /// Monitoring and statistics configuration
     pub monitoring_config: MonitoringConfig,
-}
-
-impl Default for UnifiedCacheConfig {
-    fn default() -> Self {
-        Self {
-            l1_config: L1CacheConfig::default(),
-            l2_config: L2CacheConfig::default(),
-            preheating_config: PreheatingConfig::default(),
-            tuning_config: TuningConfig::default(),
-            monitoring_config: MonitoringConfig::default(),
-        }
-    }
 }
 
 /// L1 (memory) cache configuration

@@ -1,8 +1,10 @@
 //! Version implementation
 
-use super::parser::{StateMachineParser, TokenType};
+#[cfg(feature = "python-bindings")]
+use super::parser::StateMachineParser;
 #[cfg(feature = "python-bindings")]
 use super::version_token::AlphanumericVersionToken;
+#[cfg(feature = "python-bindings")]
 use once_cell::sync::Lazy;
 #[cfg(feature = "python-bindings")]
 use pyo3::prelude::*;
@@ -15,7 +17,8 @@ use std::cmp::Ordering;
 use std::hash::{Hash, Hasher};
 
 /// Global state machine parser instance for optimal performance
-static OPTIMIZED_PARSER: Lazy<StateMachineParser> = Lazy::new(|| StateMachineParser::new());
+#[cfg(feature = "python-bindings")]
+static OPTIMIZED_PARSER: Lazy<StateMachineParser> = Lazy::new(StateMachineParser::new);
 
 /// High-performance version representation compatible with rez
 #[cfg_attr(feature = "python-bindings", pyclass)]
@@ -972,6 +975,7 @@ impl Version {
 
     /// Reconstruct string representation from tokens and separators (non-Python version)
     #[cfg(not(feature = "python-bindings"))]
+    #[allow(dead_code)]
     fn reconstruct_string(tokens: &[String], separators: &[String]) -> String {
         if tokens.is_empty() {
             return "".to_string();
@@ -1108,7 +1112,7 @@ impl Version {
 
     /// Compare two versions using rez-compatible rules (non-Python version)
     #[cfg(not(feature = "python-bindings"))]
-    pub fn cmp(&self, other: &Self) -> Ordering {
+    fn compare(&self, other: &Self) -> Ordering {
         // Handle infinite versions (inf is largest)
         match (self.is_inf(), other.is_inf()) {
             (true, true) => return Ordering::Equal,
@@ -1159,7 +1163,7 @@ impl Version {
 
 impl PartialEq for Version {
     fn eq(&self, other: &Self) -> bool {
-        self.cmp(other) == Ordering::Equal
+        self.compare(other) == Ordering::Equal
     }
 }
 
@@ -1167,14 +1171,13 @@ impl Eq for Version {}
 
 impl PartialOrd for Version {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
+        Some(std::cmp::Ord::cmp(self, other))
     }
 }
 
 impl Ord for Version {
     fn cmp(&self, other: &Self) -> Ordering {
-        // Call the Version::cmp method, not the trait method
-        Version::cmp(self, other)
+        self.compare(other)
     }
 }
 
@@ -1306,7 +1309,7 @@ mod tests {
         assert_eq!(prerelease.cmp(&release), Ordering::Less);
 
         // Test with comparison operators
-        assert!(!(release < prerelease)); // "2" < "2.alpha1" should be false
+        assert!(release >= prerelease); // "2" < "2.alpha1" should be false
         assert!(prerelease < release); // "2.alpha1" < "2" should be true
     }
 

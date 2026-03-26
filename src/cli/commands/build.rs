@@ -305,7 +305,7 @@ fn parse_build_args(args_str: &Option<String>) -> Vec<String> {
 }
 
 /// View preprocessed package definition
-fn view_preprocessed_package(args: &BuildArgs) -> RezCoreResult<()> {
+fn view_preprocessed_package(_args: &BuildArgs) -> RezCoreResult<()> {
     let working_dir = std::env::current_dir().map_err(|e| RezCoreError::Io(e))?;
 
     let package = load_current_package(&working_dir)?;
@@ -378,8 +378,8 @@ fn view_preprocessed_package_with_data(package: &Package) -> RezCoreResult<()> {
 fn execute_build(
     request: BuildRequest,
     args: &BuildArgs,
-    package: &Package,
-    source_dir: &PathBuf,
+    _package: &Package,
+    _source_dir: &PathBuf,
 ) -> RezCoreResult<()> {
     // Create build manager
     let mut build_manager = BuildManager::new();

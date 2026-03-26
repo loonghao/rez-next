@@ -185,7 +185,7 @@ async fn run_daemon(
 async fn add_variants(
     cache_manager: &IntelligentCacheManager<String, CacheEntry>,
     variant_uris: &[String],
-    args: &PkgCacheArgs,
+    _args: &PkgCacheArgs,
 ) -> RezCoreResult<()> {
     println!("Adding {} variant(s) to cache:", variant_uris.len());
 
@@ -328,7 +328,7 @@ async fn show_cache_status(
 
 /// Show cache entries in a formatted table
 async fn show_cache_entries_table(
-    cache_manager: &IntelligentCacheManager<String, CacheEntry>,
+    _cache_manager: &IntelligentCacheManager<String, CacheEntry>,
     args: &PkgCacheArgs,
 ) -> RezCoreResult<()> {
     // TODO: In a real implementation, we would need to add methods to enumerate cache entries
