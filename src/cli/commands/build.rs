@@ -75,10 +75,10 @@ pub struct BuildArgs {
     /// Package source (directory, URL, or Git repository)
     /// Examples:
     /// - Local directory: ./my-package or /path/to/package
-    /// - Git repository: https://github.com/user/repo
-    /// - Git with branch/tag: https://github.com/user/repo@main
-    /// - HTTP archive: https://example.com/package.tar.gz
-    /// - SSH Git: git@github.com:user/repo.git
+    /// - Git repository: `https://github.com/user/repo`
+    /// - Git with branch/tag: `https://github.com/user/repo@main`
+    /// - HTTP archive: `https://example.com/package.tar.gz`
+    /// - SSH Git: `git@github.com:user/repo.git`
     #[arg(value_name = "SOURCE")]
     pub source: Option<String>,
 

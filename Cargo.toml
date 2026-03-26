@@ -25,8 +25,6 @@ categories = ["development-tools"]
 
 [workspace.dependencies]
 # External dependencies
-# Temporarily disabled Python bindings
-# pyo3 = { version = "0.25", features = ["extension-module", "abi3-py38"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 serde_yaml = "0.9"
@@ -67,15 +65,6 @@ crate-type = ["rlib"]
 
 [features]
 default = []
-# Python bindings feature (currently disabled but defined to avoid warnings)
-python-bindings = [
-    "rez-next-common/python-bindings",
-    "rez-next-version/python-bindings",
-    "rez-next-package/python-bindings",
-    "rez-next-context/python-bindings",
-    "rez-next-solver/python-bindings",
-    # "pyo3"  # Temporarily disabled
-]
 
 [[bin]]
 name = "rez-next"
@@ -93,9 +82,6 @@ rez-next-context = { version = "0.1.0", path = "crates/rez-next-context", defaul
 rez-next-build = { version = "0.1.0", path = "crates/rez-next-build" }
 rez-next-cache = { version = "0.1.0", path = "crates/rez-next-cache" }
 # rez-core-python = { path = "crates/rez-core-python" }  # Temporarily disabled due to DLL issues
-
-# Python bindings - temporarily disabled
-# pyo3 = { workspace = true, optional = true }
 
 # CLI dependencies
 clap.workspace = true
@@ -179,9 +165,6 @@ harness = false
 # [[bench]]
 # name = "performance_validation_main"
 # harness = false
-
-# [build-dependencies]
-# pyo3-build-config = "0.25"  # Only needed for Python bindings
 
 # flamegraph = ["pprof"]
 
