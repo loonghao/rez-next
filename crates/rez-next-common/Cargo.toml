@@ -9,11 +9,6 @@ repository.workspace = true
 keywords.workspace = true
 categories.workspace = true
 
-[features]
-default = []
-# Python bindings feature (defined to avoid warnings)
-python-bindings = []  # No dependencies for now
-
 [lib]
 name = "rez_next_common"
 crate-type = ["rlib"]
