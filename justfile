@@ -20,9 +20,9 @@ test:
 test-verbose:
     vx cargo test --workspace -- --nocapture
 
-# Run clippy lints
+# Run clippy lints (mirrors CI: --all-features --all-targets -D warnings)
 lint:
-    vx cargo clippy --workspace --all-targets -- -D warnings
+    vx cargo clippy --workspace --all-targets --all-features -- -D warnings
 
 # Format code
 fmt:

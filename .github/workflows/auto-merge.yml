@@ -1,4 +1,4 @@
-# Auto-merge PRs from trusted bots (release-plz, renovate)
+# Auto-merge PRs from trusted bots (release-please, renovate, dependabot)
 # Enables auto-merge on PRs created by these bots so they merge automatically
 # once all required checks pass.
 name: Auto Merge
@@ -18,8 +18,28 @@ jobs:
     if: >-
       github.event.pull_request.user.login == 'github-actions[bot]' ||
       github.event.pull_request.user.login == 'release-please[bot]' ||
-      github.event.pull_request.user.login == 'renovate[bot]'
+      github.event.pull_request.user.login == 'renovate[bot]' ||
+      github.event.pull_request.user.login == 'dependabot[bot]'
     steps:
+      - name: Approve PR
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            console.log(`Approving PR #${pr.number}: ${pr.title}`);
+            try {
+              await github.rest.pulls.createReview({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: pr.number,
+                event: 'APPROVE',
+                body: 'Auto-approved: trusted bot PR'
+              });
+              console.log(`✅ Approved PR #${pr.number}`);
+            } catch (error) {
+              console.log(`⚠️ Could not approve PR: ${error.message}`);
+            }
+
       - name: Enable auto-merge
         uses: actions/github-script@v8
         with:

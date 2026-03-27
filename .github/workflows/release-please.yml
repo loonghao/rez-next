@@ -5,8 +5,6 @@
 #
 # Note: Tags created by GITHUB_TOKEN do not trigger other workflows (GitHub limitation).
 # This workflow explicitly dispatches release.yml via the API to work around this.
-# If RELEASE_PLZ_TOKEN (a PAT) is configured, the tag push will also trigger release.yml
-# directly, but the dispatch acts as a reliable fallback.
 # See: https://github.com/googleapis/release-please-action
 name: Release Please
 permissions:
