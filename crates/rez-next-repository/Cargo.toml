@@ -34,11 +34,6 @@ rayon.workspace = true
 parking_lot = "0.12"
 num_cpus = "1.17"
 
-[features]
-default = []
-# Python bindings feature (defined to avoid warnings)
-python-bindings = []  # No dependencies for now
-
 [dev-dependencies]
 rstest.workspace = true
 proptest.workspace = true

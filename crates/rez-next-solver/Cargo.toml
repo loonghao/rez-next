@@ -13,11 +13,6 @@ keywords = ["solver", "dependency", "resolution", "algorithm", "rez"]
 categories = ["development-tools", "algorithms", "data-structures"]
 exclude = ["benches/", "examples/"]
 
-[features]
-default = []
-# Python bindings feature (defined to avoid warnings)
-python-bindings = ["rez-next-common/python-bindings", "rez-next-package/python-bindings", "rez-next-version/python-bindings"]
-
 [dependencies]
 rez-next-common = { version = "0.1.0", path = "../rez-next-common" }
 rez-next-version = { version = "0.1.0", path = "../rez-next-version" }

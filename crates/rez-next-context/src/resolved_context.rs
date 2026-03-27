@@ -316,7 +316,7 @@ impl ResolvedPackage {
     }
 }
 
-/// Custom serialization for Arc<Package>
+/// Custom serialization for `Arc<Package>`
 mod arc_package_serde {
     use super::*;
     use serde::{Deserialize, Deserializer, Serialize, Serializer};

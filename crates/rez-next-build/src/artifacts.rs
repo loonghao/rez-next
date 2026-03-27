@@ -158,27 +158,25 @@ impl BuildArtifacts {
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
-            if let Ok(metadata) = std::fs::metadata(path) {
-                let permissions = metadata.permissions();
-                return permissions.mode() & 0o111 != 0;
-            }
+            std::fs::metadata(path)
+                .map(|m| m.permissions().mode() & 0o111 != 0)
+                .unwrap_or(false)
         }
 
         // On Windows, check file extension
         #[cfg(windows)]
         {
-            if let Some(extension) = path.extension().and_then(|ext| ext.to_str()) {
-                matches!(
-                    extension.to_lowercase().as_str(),
-                    "exe" | "bat" | "cmd" | "com"
-                )
-            } else {
-                false
-            }
+            path.extension()
+                .and_then(|ext| ext.to_str())
+                .map(|ext| matches!(ext.to_lowercase().as_str(), "exe" | "bat" | "cmd" | "com"))
+                .unwrap_or(false)
         }
 
         #[cfg(not(any(unix, windows)))]
-        false
+        {
+            let _ = path;
+            false
+        }
     }
 
     /// Get file permissions

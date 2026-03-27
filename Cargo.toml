@@ -67,15 +67,6 @@ crate-type = ["rlib"]
 
 [features]
 default = []
-# Python bindings feature (currently disabled but defined to avoid warnings)
-python-bindings = [
-    "rez-next-common/python-bindings",
-    "rez-next-version/python-bindings",
-    "rez-next-package/python-bindings",
-    "rez-next-context/python-bindings",
-    "rez-next-solver/python-bindings",
-    # "pyo3"  # Temporarily disabled
-]
 
 [[bin]]
 name = "rez-next"
