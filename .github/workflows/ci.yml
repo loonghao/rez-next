@@ -74,7 +74,7 @@ jobs:
 
   test-win-msvc:
     name: Test - win-msvc
-    runs-on: windows-2022
+    runs-on: windows-2025
     steps:
       - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@stable
@@ -85,7 +85,7 @@ jobs:
 
   test-win-gnu:
     name: Test - win-gnu
-    runs-on: windows-2022
+    runs-on: windows-2025
     steps:
       - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@stable
