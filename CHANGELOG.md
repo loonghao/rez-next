@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.2](https://github.com/loonghao/rez-next/compare/v0.1.1...v0.1.2) (2026-03-28)
+
+
+### 🐛 Bug Fixes
+
+* replace reusable CI with custom workflow and add trigger-release-build ([6700dbc](https://github.com/loonghao/rez-next/commit/6700dbcf1e475089eb1d60d5c57a1b886784b098)), closes [#71](https://github.com/loonghao/rez-next/issues/71)
+* resolve security audit vulnerabilities (RUSTSEC-2026-0007, RUSTSEC-2026-0002) ([8c92f1b](https://github.com/loonghao/rez-next/commit/8c92f1bd1002cfa8d390cbad01bbf535396dcdef))
+
 ## [0.1.1](https://github.com/loonghao/rez-next/compare/v0.1.0...v0.1.1) (2026-03-27)
 
 
