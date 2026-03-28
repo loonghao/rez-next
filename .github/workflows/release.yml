@@ -1,10 +1,13 @@
 # Release workflow — build cross-platform binaries and upload to GitHub Release
 # Triggered by:
-#   1. Tag push matching v*
-#   2. Workflow dispatch from release-plz.yml after creating a GitHub Release
+#   1. GitHub Release published (primary — from release-please)
+#   2. Tag push matching v* (fallback)
+#   3. Manual workflow dispatch
 name: Release
 
 on:
+  release:
+    types: [published]
   push:
     tags:
       - "v*"
