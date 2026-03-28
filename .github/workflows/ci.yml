@@ -21,6 +21,4 @@ jobs:
       # Disable release build consistency test in CI
       # (release builds are validated by the release workflow itself)
       test-release-builds: false
-      # Skip musl target test (known flaky in cross-compilation CI)
-      skip-musl-test: true
     secrets: inherit
