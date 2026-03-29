@@ -45,7 +45,7 @@ jobs:
           cargo bench --bench version_benchmark --bench package_benchmark --bench simple_package_benchmark 2>&1 | tee benchmark-output.txt
 
       - name: Upload benchmark results
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: benchmark-results-${{ github.sha }}
           path: |
