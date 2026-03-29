@@ -46,7 +46,7 @@ jobs:
         run: sleep 15
 
       - name: Dispatch release workflow
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const tag = '${{ needs.release-please.outputs.tag_name }}';
