@@ -8,12 +8,11 @@
 //! - Package selection strategies
 //! - Solver optimization techniques
 
-// Temporarily simplified for compilation
 pub mod dependency_resolver;
 mod graph;
 mod solver;
-// mod resolution;
-// mod conflict;
+pub mod resolution;
+pub mod conflict;
 // mod cache;
 // mod optimized_solver;
 // mod astar;
@@ -21,8 +20,8 @@ mod solver;
 pub use dependency_resolver::*;
 pub use graph::*;
 pub use solver::*;
-// pub use resolution::*;
-// pub use conflict::*;
+pub use resolution::*;
+pub use conflict::*;
 // pub use cache::*;
 // pub use optimized_solver::*;
 // pub use astar::*;

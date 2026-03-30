@@ -1,12 +1,15 @@
-//! Core solver implementation - Simplified for compilation
+//! Core solver implementation
 
 #[cfg(feature = "python-bindings")]
 use pyo3::prelude::*;
+use crate::dependency_resolver::DependencyResolver;
 use rez_next_common::RezCoreError;
-use rez_next_package::{Package, PackageRequirement};
+use rez_next_package::{Package, PackageRequirement, Requirement};
+use rez_next_repository::simple_repository::RepositoryManager;
 use rez_next_version::Version;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::sync::Arc;
 
 /// Resolution result
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -128,14 +131,24 @@ impl SolverRequest {
     }
 }
 
-/// High-performance dependency solver - Simplified
+/// High-performance dependency solver
 #[cfg_attr(feature = "python-bindings", pyclass)]
-#[derive(Debug)]
 pub struct DependencySolver {
     /// Solver configuration
     config: SolverConfig,
     /// Solver statistics
     stats: SolverStats,
+    /// Repository manager for package discovery
+    repository_manager: Option<Arc<RepositoryManager>>,
+}
+
+impl std::fmt::Debug for DependencySolver {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("DependencySolver")
+            .field("config", &self.config)
+            .field("has_repository", &self.repository_manager.is_some())
+            .finish()
+    }
 }
 
 /// Solver statistics
@@ -198,6 +211,7 @@ impl DependencySolver {
         Self {
             config,
             stats: SolverStats::default(),
+            repository_manager: None,
         }
     }
 
@@ -206,18 +220,66 @@ impl DependencySolver {
         Self {
             config,
             stats: SolverStats::default(),
+            repository_manager: None,
         }
     }
 
-    /// Resolve dependencies for a given request - Simplified implementation
-    pub fn resolve(&self, _request: SolverRequest) -> Result<ResolutionResult, RezCoreError> {
-        // Simplified implementation for compilation
-        Ok(ResolutionResult {
-            packages: Vec::new(),
-            conflicts_resolved: false,
-            resolution_time_ms: 0,
-            metadata: HashMap::new(),
-        })
+    /// Set repository manager for package discovery
+    pub fn with_repository_manager(mut self, manager: Arc<RepositoryManager>) -> Self {
+        self.repository_manager = Some(manager);
+        self
+    }
+
+    /// Set repository manager in place
+    pub fn set_repository_manager(&mut self, manager: Arc<RepositoryManager>) {
+        self.repository_manager = Some(manager);
+    }
+
+    /// Resolve dependencies for a given request using DependencyResolver when possible
+    pub fn resolve(&self, request: SolverRequest) -> Result<ResolutionResult, RezCoreError> {
+        if let Some(ref repo_manager) = self.repository_manager {
+            // Use the real DependencyResolver backed by repositories
+            let rt = tokio::runtime::Runtime::new()
+                .map_err(|e| RezCoreError::Solver(format!("Failed to create runtime: {}", e)))?;
+
+            // Convert PackageRequirement -> Requirement via string parsing
+            let requirements: Vec<Requirement> = request
+                .requirements
+                .into_iter()
+                .map(|pr| {
+                    let req_str = pr.to_string();
+                    req_str.parse::<Requirement>().unwrap_or_else(|_| {
+                        Requirement::new(pr.name.clone())
+                    })
+                })
+                .collect();
+
+            let mut resolver =
+                DependencyResolver::new(Arc::clone(repo_manager), self.config.clone());
+
+            let result = rt.block_on(resolver.resolve(requirements))?;
+
+            let packages: Vec<Package> = result
+                .resolved_packages
+                .into_iter()
+                .map(|info| (*info.package).clone())
+                .collect();
+
+            Ok(ResolutionResult {
+                packages,
+                conflicts_resolved: !result.conflicts.is_empty(),
+                resolution_time_ms: result.stats.resolution_time_ms,
+                metadata: HashMap::new(),
+            })
+        } else {
+            // No repository configured: return empty result (packages must be resolved externally)
+            Ok(ResolutionResult {
+                packages: Vec::new(),
+                conflicts_resolved: false,
+                resolution_time_ms: 0,
+                metadata: HashMap::new(),
+            })
+        }
     }
 }
 

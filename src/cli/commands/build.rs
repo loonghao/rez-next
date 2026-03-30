@@ -545,9 +545,14 @@ fn get_install_path(args: &BuildArgs) -> RezCoreResult<PathBuf> {
     let install_path_str = if let Some(ref prefix) = args.prefix {
         prefix.clone()
     } else {
-        // Use default local packages path
-        let config = RezCoreConfig::default();
-        expand_path(&config.local_packages_path)?
+        let config = RezCoreConfig::load();
+        if args.release {
+            // Release builds go to release_packages_path
+            expand_path(&config.release_packages_path)?
+        } else {
+            // Local builds go to local_packages_path
+            expand_path(&config.local_packages_path)?
+        }
     };
 
     Ok(PathBuf::from(install_path_str))

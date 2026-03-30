@@ -288,11 +288,19 @@ async fn remove_ignored_since(args: &RmArgs) -> RezCoreResult<()> {
 
 /// Setup repository manager
 async fn setup_repositories(args: &RmArgs) -> RezCoreResult<RepositoryManager> {
+    use rez_next_common::config::RezCoreConfig;
+
     let mut repo_manager = RepositoryManager::new();
-    let paths = if args.paths.is_empty() {
-        vec![PathBuf::from("./local_packages")]
-    } else {
+    let paths: Vec<PathBuf> = if !args.paths.is_empty() {
         args.paths.clone()
+    } else {
+        let config = RezCoreConfig::load();
+        config
+            .packages_path
+            .iter()
+            .map(|p| expand_home_dir(p))
+            .filter(|p| p.exists())
+            .collect()
     };
 
     for (i, path) in paths.iter().enumerate() {
@@ -304,30 +312,90 @@ async fn setup_repositories(args: &RmArgs) -> RezCoreResult<RepositoryManager> {
     Ok(repo_manager)
 }
 
-/// Find packages to remove
+fn expand_home_dir(p: &str) -> PathBuf {
+    if p.starts_with("~/") || p == "~" {
+        if let Some(home) = std::env::var_os("USERPROFILE").or_else(|| std::env::var_os("HOME")) {
+            return PathBuf::from(home).join(&p[2..]);
+        }
+    }
+    PathBuf::from(p)
+}
+
+/// Find packages to remove (with version filter)
 async fn find_packages_to_remove(
     repo_manager: &RepositoryManager,
     package_name: &str,
-    _version_spec: Option<&str>,
+    version_spec: Option<&str>,
     _args: &RmArgs,
 ) -> RezCoreResult<Vec<Package>> {
     let packages = repo_manager.find_packages(package_name).await?;
 
-    // Convert Arc<Package> to Package
-    let packages: Vec<Package> = packages.into_iter().map(|p| (*p).clone()).collect();
-    Ok(packages)
+    let result: Vec<Package> = packages
+        .into_iter()
+        .filter(|p| {
+            version_spec.map_or(true, |ver| {
+                p.version.as_ref().map_or(false, |v| v.as_str() == ver)
+            })
+        })
+        .map(|p| (*p).clone())
+        .collect();
+
+    Ok(result)
 }
 
-/// Remove a single package
+/// Remove a single package from disk
 async fn remove_single_package(package: &Package, args: &RmArgs) -> RezCoreResult<RemoveResult> {
-    // TODO: Implement actual package removal logic
-    // This is a simplified implementation
+    use rez_next_common::config::RezCoreConfig;
 
-    let package_path = PathBuf::from("./local_packages").join(&package.name);
+    let config = RezCoreConfig::load();
+    let ver_str = package.version.as_ref().map(|v| v.as_str()).unwrap_or("unknown");
+
+    // Try to find actual path
+    let mut package_path: Option<PathBuf> = None;
+    let search_paths: Vec<PathBuf> = if !args.paths.is_empty() {
+        args.paths.clone()
+    } else {
+        config
+            .packages_path
+            .iter()
+            .map(|p| expand_home_dir(p))
+            .collect()
+    };
+
+    for base in &search_paths {
+        let candidate = base.join(&package.name).join(ver_str);
+        if candidate.exists() {
+            package_path = Some(candidate);
+            break;
+        }
+    }
+
+    let pkg_path = match package_path {
+        Some(p) => p,
+        None => {
+            return Ok(RemoveResult {
+                package: package.clone(),
+                package_path: PathBuf::new(),
+                success: false,
+                error: Some(format!(
+                    "Package directory not found for {}-{}",
+                    package.name, ver_str
+                )),
+                variants_removed: 0,
+            });
+        }
+    };
 
     if args.verbose {
-        println!("Would remove package at: {}", package_path.display());
+        println!("Removing: {}", pkg_path.display());
     }
+
+    std::fs::remove_dir_all(&pkg_path).map_err(|e| {
+        RezCoreError::Io(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            format!("Failed to remove {}: {}", pkg_path.display(), e),
+        ))
+    })?;
 
     let variants_removed = if args.all_variants {
         package.variants.len().max(1)
@@ -337,7 +405,7 @@ async fn remove_single_package(package: &Package, args: &RmArgs) -> RezCoreResul
 
     Ok(RemoveResult {
         package: package.clone(),
-        package_path,
+        package_path: pkg_path,
         success: true,
         error: None,
         variants_removed,

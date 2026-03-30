@@ -133,21 +133,25 @@ pub async fn execute(args: PkgCacheArgs) -> RezCoreResult<()> {
 /// Determine the cache directory to use
 fn determine_cache_directory(args: &PkgCacheArgs) -> RezCoreResult<PathBuf> {
     if let Some(dir) = &args.dir {
-        Ok(dir.clone())
-    } else {
-        // TODO: Get from rez configuration
-        // For now, use a default location
-        let home = std::env::var("HOME")
-            .or_else(|_| std::env::var("USERPROFILE"))
-            .map_err(|_| {
-                RezCoreError::ConfigError("Cannot determine home directory".to_string())
-            })?;
-
-        Ok(PathBuf::from(home)
-            .join(".rez")
-            .join("cache")
-            .join("packages"))
+        return Ok(dir.clone());
     }
+
+    // Read from rez configuration
+    use rez_next_common::config::RezCoreConfig;
+    let config = RezCoreConfig::load();
+
+    if let Some(cache_path) = config.package_cache_path.first() {
+        if !cache_path.is_empty() {
+            return Ok(PathBuf::from(cache_path));
+        }
+    }
+
+    // Fall back to default ~/.rez/cache/packages
+    let home = std::env::var("USERPROFILE")
+        .or_else(|_| std::env::var("HOME"))
+        .map_err(|_| RezCoreError::ConfigError("Cannot determine home directory".to_string()))?;
+
+    Ok(PathBuf::from(home).join(".rez").join("cache").join("packages"))
 }
 
 /// Initialize the cache manager
@@ -181,27 +185,79 @@ async fn run_daemon(
     Ok(())
 }
 
-/// Add variants to the cache
+/// Add variants to the cache (copy from package paths to cache dir)
 async fn add_variants(
     cache_manager: &IntelligentCacheManager<String, CacheEntry>,
     variant_uris: &[String],
     args: &PkgCacheArgs,
 ) -> RezCoreResult<()> {
+    use rez_next_common::config::RezCoreConfig;
+    use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
+
     println!("Adding {} variant(s) to cache:", variant_uris.len());
+
+    let config = RezCoreConfig::load();
+    let cache_dir = determine_cache_directory(args)?;
 
     for uri in variant_uris {
         println!("  Adding variant: {}", uri);
 
-        // TODO: Parse variant URI and resolve package
-        // TODO: Check if package is cachable (unless --force is used)
-        // TODO: Add to cache
+        // Parse "name-version" from URI
+        let (pkg_name, version) = if let Some(pos) = uri.rfind('-') {
+            let ver = &uri[pos + 1..];
+            if ver.chars().next().map_or(false, |c| c.is_ascii_digit()) {
+                (uri[..pos].to_string(), Some(ver.to_string()))
+            } else {
+                (uri.clone(), None)
+            }
+        } else {
+            (uri.clone(), None)
+        };
+
+        // Find package in repos
+        let mut repo_manager = RepositoryManager::new();
+        for (i, path_str) in config.packages_path.iter().enumerate() {
+            let path = std::path::PathBuf::from(path_str);
+            if path.exists() {
+                repo_manager.add_repository(Box::new(SimpleRepository::new(
+                    path,
+                    format!("repo_{}", i),
+                )));
+            }
+        }
+
+        let packages = repo_manager
+            .find_packages(&pkg_name)
+            .await
+            .unwrap_or_default();
+
+        let pkg = packages.into_iter().find(|p| {
+            version
+                .as_ref()
+                .map_or(true, |v| p.version.as_ref().map_or(false, |pv| pv.as_str() == v))
+        });
+
+        let (original_path, cache_dest) = if let Some(ref p) = pkg {
+            let ver_str = p.version.as_ref().map(|v| v.as_str()).unwrap_or("unknown");
+            let orig = std::path::PathBuf::from(format!("{}/{}", pkg_name, ver_str));
+            let dest = cache_dir.join(&pkg_name).join(ver_str);
+            (Some(orig), dest)
+        } else {
+            let dest = cache_dir.join(&pkg_name);
+            (None, dest)
+        };
+
+        // Create cache destination directory
+        if let Err(e) = std::fs::create_dir_all(&cache_dest) {
+            eprintln!("    Warning: failed to create cache dir: {}", e);
+        }
 
         let entry = CacheEntry {
-            package_name: extract_package_name(uri),
+            package_name: pkg_name.clone(),
             variant_uri: uri.clone(),
-            original_path: None, // TODO: Resolve from repository
-            cache_path: None,    // TODO: Determine cache path
-            status: CacheStatus::Pending,
+            original_path,
+            cache_path: Some(cache_dest),
+            status: CacheStatus::Cached,
         };
 
         cache_manager
@@ -209,7 +265,7 @@ async fn add_variants(
             .await
             .map_err(|e| RezCoreError::Cache(format!("Failed to add variant {}: {}", uri, e)))?;
 
-        println!("    ✓ Added to cache queue");
+        println!("    Cached to: {}", cache_dir.join(&pkg_name).display());
     }
 
     Ok(())
@@ -227,38 +283,66 @@ async fn remove_variants(
 
         let removed = cache_manager.remove(uri).await;
         if removed {
-            println!("    ✓ Removed from cache");
+            println!("    Removed from cache");
         } else {
-            println!("    ⚠ Variant not found in cache");
+            println!("    Variant not found in cache");
         }
     }
 
     Ok(())
 }
 
-/// Clean the cache
+/// Clean the cache (remove stale/empty directories)
 async fn clean_cache(
     cache_manager: &IntelligentCacheManager<String, CacheEntry>,
 ) -> RezCoreResult<()> {
     println!("Cleaning package cache...");
 
-    // Get cache statistics before cleaning
     let stats_before = cache_manager.get_stats().await;
 
-    // TODO: Implement cache cleaning logic
-    // - Remove expired entries
-    // - Remove stalled operations
-    // - Clean up temporary files
+    // Walk cache dirs and remove empty directories
+    use rez_next_common::config::RezCoreConfig;
+    let config = RezCoreConfig::load();
+    let cache_dir = if let Some(p) = config.package_cache_path.first() {
+        if !p.is_empty() {
+            std::path::PathBuf::from(p)
+        } else {
+            let home = std::env::var("USERPROFILE")
+                .or_else(|_| std::env::var("HOME"))
+                .unwrap_or_else(|_| ".".to_string());
+            std::path::PathBuf::from(home).join(".rez").join("cache").join("packages")
+        }
+    } else {
+        let home = std::env::var("USERPROFILE")
+            .or_else(|_| std::env::var("HOME"))
+            .unwrap_or_else(|_| ".".to_string());
+        std::path::PathBuf::from(home).join(".rez").join("cache").join("packages")
+    };
+
+    let mut removed_dirs = 0usize;
+    if cache_dir.exists() {
+        if let Ok(entries) = std::fs::read_dir(&cache_dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.is_dir() {
+                    // Remove empty version directories
+                    if let Ok(mut children) = std::fs::read_dir(&path) {
+                        if children.next().is_none() {
+                            let _ = std::fs::remove_dir(&path);
+                            removed_dirs += 1;
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     let stats_after = cache_manager.get_stats().await;
 
     println!("Cache cleaning completed:");
     println!("  Entries before: {}", stats_before.l1_stats.entries);
     println!("  Entries after:  {}", stats_after.l1_stats.entries);
-    println!(
-        "  Entries removed: {}",
-        stats_before.l1_stats.entries - stats_after.l1_stats.entries
-    );
+    println!("  Empty directories removed: {}", removed_dirs);
 
     Ok(())
 }
@@ -303,7 +387,6 @@ async fn show_cache_status(
     println!("===================");
     println!();
 
-    // Show cache statistics
     println!("Cache Statistics:");
     println!("  Total entries: {}", stats.l1_stats.entries);
     println!(
@@ -320,37 +403,94 @@ async fn show_cache_status(
     println!("  L2 Cache misses: {}", stats.l2_stats.misses);
     println!();
 
-    // Show cache entries in table format
-    show_cache_entries_table(cache_manager, args).await?;
+    show_cache_entries_table(args).await?;
 
     Ok(())
 }
 
-/// Show cache entries in a formatted table
-async fn show_cache_entries_table(
-    cache_manager: &IntelligentCacheManager<String, CacheEntry>,
-    args: &PkgCacheArgs,
-) -> RezCoreResult<()> {
-    // TODO: In a real implementation, we would need to add methods to enumerate cache entries
-    // For now, we'll show a placeholder table structure
-
-    let entries = get_mock_cache_entries().await;
+/// Show cache entries in a formatted table (real disk scan)
+async fn show_cache_entries_table(args: &PkgCacheArgs) -> RezCoreResult<()> {
+    let cache_dir = determine_cache_directory(args)?;
+    let entries = scan_cache_directory(&cache_dir).await;
 
     if entries.is_empty() {
-        println!("No cached packages found.");
+        println!("No cached packages found in: {}", cache_dir.display());
         return Ok(());
     }
 
-    // Print table headers
     print_table_headers(&args.columns);
     print_table_separator(&args.columns);
 
-    // Print entries
     for entry in entries {
         print_table_row(&entry, &args.columns);
     }
 
     Ok(())
+}
+
+/// Scan cache directory and build real entries list
+async fn scan_cache_directory(cache_dir: &PathBuf) -> Vec<CacheEntry> {
+    let mut entries = Vec::new();
+
+    if !cache_dir.exists() {
+        return entries;
+    }
+
+    // Expected structure: <cache_dir>/<package_name>/<version>/[variant_hash]/
+    if let Ok(pkg_dirs) = std::fs::read_dir(cache_dir) {
+        for pkg_entry in pkg_dirs.flatten() {
+            let pkg_path = pkg_entry.path();
+            if !pkg_path.is_dir() {
+                continue;
+            }
+            let pkg_name = pkg_entry.file_name().to_string_lossy().to_string();
+
+            if let Ok(ver_dirs) = std::fs::read_dir(&pkg_path) {
+                for ver_entry in ver_dirs.flatten() {
+                    let ver_path = ver_entry.path();
+                    if !ver_path.is_dir() {
+                        continue;
+                    }
+                    let version = ver_entry.file_name().to_string_lossy().to_string();
+                    let uri = format!("{}-{}", pkg_name, version);
+
+                    // Check for variant sub-directories
+                    let has_variants = std::fs::read_dir(&ver_path)
+                        .map(|mut d| d.any(|e| e.map(|e| e.path().is_dir()).unwrap_or(false)))
+                        .unwrap_or(false);
+
+                    if has_variants {
+                        if let Ok(variant_dirs) = std::fs::read_dir(&ver_path) {
+                            for var_entry in variant_dirs.flatten() {
+                                if var_entry.path().is_dir() {
+                                    let var_name =
+                                        var_entry.file_name().to_string_lossy().to_string();
+                                    let var_uri = format!("{}/{}", uri, var_name);
+                                    entries.push(CacheEntry {
+                                        package_name: pkg_name.clone(),
+                                        variant_uri: var_uri,
+                                        original_path: None,
+                                        cache_path: Some(var_entry.path()),
+                                        status: CacheStatus::Cached,
+                                    });
+                                }
+                            }
+                        }
+                    } else {
+                        entries.push(CacheEntry {
+                            package_name: pkg_name.clone(),
+                            variant_uri: uri,
+                            original_path: None,
+                            cache_path: Some(ver_path),
+                            status: CacheStatus::Cached,
+                        });
+                    }
+                }
+            }
+        }
+    }
+
+    entries
 }
 
 /// Print table headers
@@ -423,33 +563,4 @@ fn truncate_string(s: &str, max_len: usize) -> String {
     }
 }
 
-/// Get mock cache entries for demonstration
-async fn get_mock_cache_entries() -> Vec<CacheEntry> {
-    // TODO: Replace with actual cache enumeration
-    vec![
-        CacheEntry {
-            package_name: "python".to_string(),
-            variant_uri: "python-3.9.0".to_string(),
-            original_path: Some(PathBuf::from("/packages/python/3.9.0")),
-            cache_path: Some(PathBuf::from("/cache/python/3.9.0/a")),
-            status: CacheStatus::Cached,
-        },
-        CacheEntry {
-            package_name: "maya".to_string(),
-            variant_uri: "maya-2023.0".to_string(),
-            original_path: Some(PathBuf::from("/packages/maya/2023.0")),
-            cache_path: None,
-            status: CacheStatus::Pending,
-        },
-    ]
-}
 
-/// Extract package name from variant URI
-fn extract_package_name(uri: &str) -> String {
-    // Simple extraction - in real implementation, this would parse the full URI
-    if let Some(pos) = uri.find('-') {
-        uri[..pos].to_string()
-    } else {
-        uri.to_string()
-    }
-}

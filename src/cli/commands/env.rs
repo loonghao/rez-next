@@ -4,13 +4,17 @@
 //! This command resolves package requirements and spawns a shell with the resolved environment.
 
 use clap::Args;
-use rez_next_common::{error::RezCoreResult, RezCoreError};
+use rez_next_common::{config::RezCoreConfig, error::RezCoreResult, RezCoreError};
 use rez_next_context::{ContextConfig, EnvironmentManager, ResolvedContext, ShellType};
-use rez_next_package::{Package, PackageRequirement};
-use rez_next_solver::{DependencySolver, SolverRequest};
+use rez_next_package::{Package, PackageRequirement, Requirement};
+use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
+use rez_next_rex::{generate_shell_script, RexEnvironment, ShellType as RexShellType};
+use rez_next_solver::{DependencyResolver, SolverConfig};
 use std::collections::HashMap;
 use std::env;
+use std::path::PathBuf;
 use std::process::{Command, Stdio};
+use std::sync::Arc;
 
 /// Arguments for the env command
 #[derive(Args, Clone)]
@@ -71,6 +75,10 @@ pub struct EnvArgs {
     #[arg(long)]
     pub print_env: bool,
 
+    /// Print shell activation script and exit (shell format determined by --shell)
+    #[arg(long)]
+    pub print_script: bool,
+
     /// Output format for environment (dict, json, shell)
     #[arg(long, value_name = "FORMAT")]
     pub format: Option<String>,
@@ -120,9 +128,8 @@ pub fn execute_with_extra_args(mut args: EnvArgs, extra_args: Vec<String>) -> Re
         return print_requested_packages(&requirements);
     }
 
-    // Create solver and resolve context
-    let solver = DependencySolver::new();
-    let context = resolve_environment(&solver, &requirements, &args)?;
+    // Resolve context using the real dependency resolver
+    let context = resolve_environment(&requirements, &args)?;
 
     if args.print_resolve {
         return print_resolved_packages(&context);
@@ -132,8 +139,28 @@ pub fn execute_with_extra_args(mut args: EnvArgs, extra_args: Vec<String>) -> Re
         return print_environment(&context, &args);
     }
 
+    if args.print_script {
+        return print_shell_script(&context, &args);
+    }
+
+    // Save resolved context to a .rxt file in a temp location
+    // and set REZ_CONTEXT_FILE so subprocesses can access it
+    let rxt_path = save_context_to_rxt(&context)?;
+    if let Some(ref path) = rxt_path {
+        std::env::set_var("REZ_CONTEXT_FILE", path);
+    }
+
     // Execute shell or command
     execute_in_context(&context, &args)
+}
+
+/// Save resolved context to a temporary .rxt file
+/// Returns the path if successful
+fn save_context_to_rxt(context: &ResolvedContext) -> RezCoreResult<Option<PathBuf>> {
+    let json = serde_json::to_string_pretty(context).map_err(RezCoreError::Serde)?;
+    let rxt_path = std::env::temp_dir().join(format!("rez_context_{}.rxt", &context.id[..8]));
+    std::fs::write(&rxt_path, &json).map_err(|e| RezCoreError::Io(e.into()))?;
+    Ok(Some(rxt_path))
 }
 
 /// Parse package requirement strings into PackageRequirement objects
@@ -155,15 +182,12 @@ fn parse_package_requirements(
     Ok(requirements)
 }
 
-/// Resolve environment using the solver
+/// Resolve environment using the real dependency resolver
 fn resolve_environment(
-    solver: &DependencySolver,
     requirements: &[PackageRequirement],
     args: &EnvArgs,
 ) -> RezCoreResult<ResolvedContext> {
     let mut config = ContextConfig::default();
-
-    // Configure solver options
     config.inherit_parent_env = true;
 
     // Set shell type based on args
@@ -174,19 +198,79 @@ fn resolve_environment(
             "fish" => ShellType::Fish,
             "cmd" => ShellType::Cmd,
             "powershell" | "pwsh" => ShellType::PowerShell,
-            _ => ShellType::Bash, // Default
+            _ => ShellType::Bash,
         };
     }
 
-    // Create solver request and resolve
-    // let request = SolverRequest::new(requirements.to_vec());
-    // let resolution = solver.resolve(request)?;
+    // Setup repository manager from config or args
+    let mut repo_manager = RepositoryManager::new();
+    let rez_config = RezCoreConfig::load();
 
-    // Create resolved context from resolution result
-    // let context = ResolvedContext::from_resolution_result(requirements.to_vec(), resolution);
+    // Add configured package paths as repositories
+    let package_paths: Vec<PathBuf> = if let Some(ref paths_str) = args.paths {
+        paths_str
+            .split(std::path::MAIN_SEPARATOR)
+            .map(PathBuf::from)
+            .collect()
+    } else {
+        rez_config
+            .packages_path
+            .iter()
+            .map(|p| {
+                // Expand ~ on all platforms
+                let expanded = if p.starts_with("~/") || p == "~" {
+                    if let Ok(home) = std::env::var("USERPROFILE")
+                        .or_else(|_| std::env::var("HOME"))
+                    {
+                        p.replacen("~", &home, 1)
+                    } else {
+                        p.clone()
+                    }
+                } else {
+                    p.clone()
+                };
+                PathBuf::from(expanded)
+            })
+            .collect()
+    };
 
-    // For now, create a simple context
-    let context = ResolvedContext::from_requirements(requirements.to_vec());
+    for (i, path) in package_paths.iter().enumerate() {
+        if path.exists() {
+            let repo = SimpleRepository::new(path.clone(), format!("repo_{}", i));
+            repo_manager.add_repository(Box::new(repo));
+        }
+    }
+
+    let repo_arc = Arc::new(repo_manager);
+
+    // Convert PackageRequirement -> Requirement via string parsing
+    let resolver_reqs: Vec<Requirement> = requirements
+        .iter()
+        .map(|pr| {
+            let req_str = pr.to_string();
+            req_str.parse::<Requirement>().unwrap_or_else(|_| {
+                Requirement::new(pr.name.clone())
+            })
+        })
+        .collect();
+
+    // Run the dependency resolver
+    let rt = tokio::runtime::Runtime::new().map_err(|e| RezCoreError::Io(e.into()))?;
+    let solver_config = SolverConfig {
+        max_time_seconds: args.max_solve_time.unwrap_or(300),
+        ..SolverConfig::default()
+    };
+    let mut resolver = DependencyResolver::new(Arc::clone(&repo_arc), solver_config);
+    let resolution = rt.block_on(resolver.resolve(resolver_reqs))?;
+
+    // Build context from resolution result
+    let mut context = ResolvedContext::from_requirements(requirements.to_vec());
+    context.resolved_packages = resolution
+        .resolved_packages
+        .into_iter()
+        .map(|info| (*info.package).clone())
+        .collect();
+    context.status = rez_next_context::ContextStatus::Resolved;
 
     Ok(context)
 }
@@ -237,6 +321,35 @@ fn print_environment(context: &ResolvedContext, args: &EnvArgs) -> RezCoreResult
         }
     }
 
+    Ok(())
+}
+
+/// Print shell activation script for the resolved environment
+fn print_shell_script(context: &ResolvedContext, args: &EnvArgs) -> RezCoreResult<()> {
+    let env_manager = EnvironmentManager::new(context.config.clone());
+    let env_vars = tokio::runtime::Runtime::new()
+        .map_err(|e| RezCoreError::Io(e.into()))?
+        .block_on(env_manager.generate_environment(&context.resolved_packages))?;
+
+    // Determine shell type
+    let shell_str = args.shell.as_deref().unwrap_or({
+        if cfg!(windows) { "powershell" } else { "bash" }
+    });
+
+    let rex_shell = match shell_str {
+        "bash" | "sh" => RexShellType::Bash,
+        "zsh" => RexShellType::Zsh,
+        "fish" => RexShellType::Fish,
+        "cmd" => RexShellType::Cmd,
+        "powershell" | "pwsh" => RexShellType::PowerShell,
+        _ => RexShellType::Bash,
+    };
+
+    let mut rex_env = RexEnvironment::new();
+    rex_env.vars = env_vars;
+
+    let script = generate_shell_script(&rex_env, &rex_shell);
+    println!("{}", script);
     Ok(())
 }
 
@@ -441,6 +554,7 @@ mod tests {
             print_resolve: false,
             print_request: false,
             print_env: false,
+            print_script: false,
             format: None,
             paths: None,
             verbose: 0,

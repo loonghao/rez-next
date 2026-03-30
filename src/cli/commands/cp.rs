@@ -88,12 +88,19 @@ async fn execute_copy_async(args: &CpArgs) -> RezCoreResult<()> {
         );
     }
 
-    // Setup source repositories
+    // Setup source repositories from config or provided paths
     let mut repo_manager = RepositoryManager::new();
-    let source_paths = if args.source_paths.is_empty() {
-        vec![PathBuf::from("./local_packages")]
-    } else {
+    let source_paths: Vec<PathBuf> = if !args.source_paths.is_empty() {
         args.source_paths.clone()
+    } else {
+        use rez_next_common::config::RezCoreConfig;
+        let config = RezCoreConfig::load();
+        config
+            .packages_path
+            .iter()
+            .map(|p| expand_home_dir(p))
+            .filter(|p| p.exists())
+            .collect()
     };
 
     for (i, path) in source_paths.iter().enumerate() {
@@ -103,8 +110,8 @@ async fn execute_copy_async(args: &CpArgs) -> RezCoreResult<()> {
     }
 
     // Find source package
-    let source_package =
-        find_source_package(&repo_manager, &package_name, version_spec.as_deref()).await?;
+    let (source_package, source_root) =
+        find_source_package_with_path(&repo_manager, &package_name, version_spec.as_deref(), &source_paths).await?;
 
     if args.verbose {
         println!(
@@ -116,14 +123,23 @@ async fn execute_copy_async(args: &CpArgs) -> RezCoreResult<()> {
                 .map(|v| v.as_str())
                 .unwrap_or("unknown")
         );
+        println!("Source path: {}", source_root.display());
     }
 
+    // Determine destination package directory (rez layout: dest/<name>/<version>/)
+    let dest_pkg_dir = args.destination_path.join(&source_package.name).join(
+        source_package
+            .version
+            .as_ref()
+            .map(|v| v.as_str())
+            .unwrap_or("unknown"),
+    );
+
     // Check if destination exists
-    if !args.force && package_exists_at_destination(&args.destination_path, &source_package).await?
-    {
-        return Err(RezCoreError::RequirementParse(format!(
-            "Package already exists at destination. Use --force to overwrite."
-        )));
+    if !args.force && dest_pkg_dir.exists() {
+        return Err(RezCoreError::RequirementParse(
+            "Package already exists at destination. Use --force to overwrite.".to_string(),
+        ));
     }
 
     if args.dry_run {
@@ -132,31 +148,39 @@ async fn execute_copy_async(args: &CpArgs) -> RezCoreResult<()> {
         if let Some(ref version) = source_package.version {
             println!("  Version: {}", version.as_str());
         }
-        println!("  To: {}", args.destination_path.display());
-        if args.all_variants {
-            println!("  Variants: All variants would be copied");
-        }
+        println!("  From: {}", source_root.display());
+        println!("  To:   {}", dest_pkg_dir.display());
         return Ok(());
     }
 
     // Perform the copy
-    let result = copy_package(&source_package, &args.destination_path, args).await?;
+    let result = copy_package_directory(&source_root, &dest_pkg_dir, &source_package, args).await?;
 
     if result.success {
-        println!("✅ Successfully copied package '{}'", source_package.name);
+        println!("Successfully copied package '{}'", source_package.name);
         println!("   Destination: {}", result.destination_path.display());
         if args.all_variants && result.variants_copied > 1 {
             println!("   Variants copied: {}", result.variants_copied);
         }
     } else {
         eprintln!(
-            "❌ Failed to copy package: {}",
+            "Failed to copy package: {}",
             result.error.unwrap_or_else(|| "Unknown error".to_string())
         );
         std::process::exit(1);
     }
 
     Ok(())
+}
+
+/// Expand ~ in path
+fn expand_home_dir(p: &str) -> PathBuf {
+    if p.starts_with("~/") || p == "~" {
+        if let Some(home) = std::env::var_os("USERPROFILE").or_else(|| std::env::var_os("HOME")) {
+            return PathBuf::from(home).join(&p[2..]);
+        }
+    }
+    PathBuf::from(p)
 }
 
 /// Parse package specification into name and optional version
@@ -174,82 +198,89 @@ fn parse_package_spec(spec: &str) -> RezCoreResult<(String, Option<String>)> {
     Ok((spec.to_string(), None))
 }
 
-/// Find source package in repositories
-async fn find_source_package(
+/// Find source package and its root directory
+async fn find_source_package_with_path(
     repo_manager: &RepositoryManager,
     package_name: &str,
-    _version_spec: Option<&str>,
-) -> RezCoreResult<Package> {
+    version_spec: Option<&str>,
+    source_paths: &[PathBuf],
+) -> RezCoreResult<(Package, PathBuf)> {
     let packages = repo_manager.find_packages(package_name).await?;
 
     if packages.is_empty() {
         return Err(RezCoreError::RequirementParse(format!(
-            "Package '{}' not found",
+            "Package '{}' not found in any source repository",
             package_name
         )));
     }
 
-    // Return the first (or latest) package found - convert Arc<Package> to Package
-    let package_arc = packages.into_iter().next().unwrap();
-    Ok((*package_arc).clone())
+    let pkg = if let Some(ver) = version_spec {
+        packages
+            .into_iter()
+            .find(|p| p.version.as_ref().map_or(false, |v| v.as_str() == ver))
+            .ok_or_else(|| {
+                RezCoreError::RequirementParse(format!(
+                    "Package '{}-{}' not found",
+                    package_name, ver
+                ))
+            })?
+    } else {
+        // Latest version
+        let mut sorted = packages;
+        sorted.sort_by(|a, b| {
+            b.version
+                .as_ref()
+                .and_then(|bv| a.version.as_ref().map(|av| av.cmp(bv)))
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
+        sorted.into_iter().next().unwrap()
+    };
+
+    // Find the actual filesystem path
+    let ver_str = pkg.version.as_ref().map(|v| v.as_str()).unwrap_or("unknown");
+    for base_path in source_paths {
+        // rez layout: <base>/<name>/<version>/
+        let pkg_dir = base_path.join(&pkg.name).join(ver_str);
+        if pkg_dir.exists() {
+            return Ok(((*pkg).clone(), pkg_dir));
+        }
+        // Alternative: <base>/<name>-<version>/
+        let pkg_dir2 = base_path.join(format!("{}-{}", pkg.name, ver_str));
+        if pkg_dir2.exists() {
+            return Ok(((*pkg).clone(), pkg_dir2));
+        }
+    }
+
+    Err(RezCoreError::RequirementParse(format!(
+        "Package '{}' found in index but filesystem directory not located",
+        package_name
+    )))
 }
 
-/// Check if package already exists at destination
+/// Check if package already exists at destination (rez layout)
 async fn package_exists_at_destination(
     destination_path: &PathBuf,
     package: &Package,
 ) -> RezCoreResult<bool> {
-    // TODO: Implement proper package existence check
-    // For now, just check if the directory exists
-    let package_dir = if let Some(ref version) = package.version {
-        destination_path.join(format!("{}-{}", package.name, version.as_str()))
-    } else {
-        destination_path.join(&package.name)
-    };
-
-    Ok(package_dir.exists())
+    let ver_str = package.version.as_ref().map(|v| v.as_str()).unwrap_or("unknown");
+    let pkg_dir = destination_path.join(&package.name).join(ver_str);
+    Ok(pkg_dir.exists())
 }
 
-/// Copy package to destination
-async fn copy_package(
+/// Copy entire package directory recursively
+async fn copy_package_directory(
+    source_root: &PathBuf,
+    dest_root: &PathBuf,
     source_package: &Package,
-    destination_path: &PathBuf,
     args: &CpArgs,
 ) -> RezCoreResult<CopyResult> {
-    // TODO: Implement actual package copying logic
-    // This is a simplified implementation
-
-    let package_dir = if let Some(ref version) = source_package.version {
-        destination_path.join(format!("{}-{}", source_package.name, version.as_str()))
-    } else {
-        destination_path.join(&source_package.name)
-    };
-
-    // Create destination directory
-    std::fs::create_dir_all(&package_dir).map_err(|e| RezCoreError::Io(e.into()))?;
-
-    if args.verbose {
-        println!("Created directory: {}", package_dir.display());
+    // Remove existing destination if force
+    if args.force && dest_root.exists() {
+        std::fs::remove_dir_all(dest_root).map_err(|e| RezCoreError::Io(e.into()))?;
     }
 
-    // TODO: Copy package files, metadata, variants, etc.
-    // For now, just create a basic package.yaml
-    let package_yaml = package_dir.join("package.yaml");
-    let yaml_content = format!(
-        "name: {}\nversion: {}\ndescription: {}\n",
-        source_package.name,
-        source_package
-            .version
-            .as_ref()
-            .map(|v| v.as_str())
-            .unwrap_or("1.0.0"),
-        source_package
-            .description
-            .as_deref()
-            .unwrap_or("Copied package")
-    );
-
-    std::fs::write(&package_yaml, yaml_content).map_err(|e| RezCoreError::Io(e.into()))?;
+    // Recursively copy directory
+    copy_dir_recursive(source_root, dest_root)?;
 
     let variants_copied = if args.all_variants {
         source_package.variants.len().max(1)
@@ -259,11 +290,30 @@ async fn copy_package(
 
     Ok(CopyResult {
         source_package: source_package.clone(),
-        destination_path: package_dir,
+        destination_path: dest_root.clone(),
         success: true,
         error: None,
         variants_copied,
     })
+}
+
+/// Recursively copy a directory
+fn copy_dir_recursive(src: &PathBuf, dest: &PathBuf) -> RezCoreResult<()> {
+    std::fs::create_dir_all(dest).map_err(|e| RezCoreError::Io(e.into()))?;
+
+    for entry in std::fs::read_dir(src).map_err(|e| RezCoreError::Io(e.into()))? {
+        let entry = entry.map_err(|e| RezCoreError::Io(e.into()))?;
+        let src_path = entry.path();
+        let dest_path = dest.join(entry.file_name());
+
+        if src_path.is_dir() {
+            copy_dir_recursive(&src_path, &dest_path)?;
+        } else {
+            std::fs::copy(&src_path, &dest_path).map_err(|e| RezCoreError::Io(e.into()))?;
+        }
+    }
+
+    Ok(())
 }
 
 #[cfg(test)]

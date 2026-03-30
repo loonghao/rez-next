@@ -400,4 +400,136 @@ mod tests {
             Some(1393014494)
         );
     }
+
+    // ── Phase 109: additional search tests ──────────────────────────────────
+
+    /// apply_latest_filter keeps only the highest version per package
+    #[test]
+    fn test_apply_latest_filter_keeps_newest() {
+        use rez_next_version::Version;
+        let mut p1 = Package::new("python".to_string());
+        p1.version = Some(Version::parse("3.9").unwrap());
+        let mut p2 = Package::new("python".to_string());
+        p2.version = Some(Version::parse("3.11").unwrap());
+        let mut p3 = Package::new("maya".to_string());
+        p3.version = Some(Version::parse("2024").unwrap());
+
+        let results = apply_latest_filter(vec![p1, p2, p3]);
+        assert_eq!(results.len(), 2, "Should have 2 package families");
+        let python_pkg = results.iter().find(|p| p.name == "python").unwrap();
+        assert_eq!(python_pkg.version.as_ref().unwrap().as_str(), "3.11");
+    }
+
+    /// apply_latest_filter: single package passes through unchanged
+    #[test]
+    fn test_apply_latest_filter_single_pkg() {
+        use rez_next_version::Version;
+        let mut pkg = Package::new("houdini".to_string());
+        pkg.version = Some(Version::parse("20.5").unwrap());
+        let results = apply_latest_filter(vec![pkg]);
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].name, "houdini");
+    }
+
+    /// apply_latest_filter: empty input returns empty
+    #[test]
+    fn test_apply_latest_filter_empty() {
+        let results = apply_latest_filter(vec![]);
+        assert!(results.is_empty());
+    }
+
+    /// format_package replaces {name}, {version}, {qualified_name}
+    #[test]
+    fn test_format_package_all_fields() {
+        use rez_next_version::Version;
+        let mut pkg = Package::new("requests".to_string());
+        pkg.version = Some(Version::parse("2.28.0").unwrap());
+        pkg.description = Some("HTTP library".to_string());
+
+        let formatted = format_package(&pkg, "{name}-{version} ({description})").unwrap();
+        assert!(formatted.contains("requests"), "Should have name");
+        assert!(formatted.contains("2.28.0"), "Should have version");
+        assert!(formatted.contains("HTTP library"), "Should have description");
+
+        let qname = format_package(&pkg, "{qualified_name}").unwrap();
+        assert!(qname.contains("requests-2.28.0"), "qualified_name should combine name+version");
+    }
+
+    /// format_package: no version falls back gracefully
+    #[test]
+    fn test_format_package_no_version() {
+        let pkg = Package::new("base".to_string());
+        let formatted = format_package(&pkg, "{name} {version}").unwrap();
+        assert!(formatted.contains("base"), "Name should still appear");
+        // version replaced by empty string
+        assert!(!formatted.contains("{version}"), "Template placeholder should be replaced");
+    }
+
+    /// create_search_criteria with latest flag sets limit = 1
+    #[test]
+    fn test_create_search_criteria_latest_flag() {
+        let args = SearchArgs {
+            package: Some("python".to_string()),
+            resource_type: "auto".to_string(),
+            no_local: false,
+            validate: false,
+            paths: None,
+            format: None,
+            no_newlines: false,
+            latest: true,
+            errors: false,
+            no_warnings: false,
+            before: "0".to_string(),
+            after: "0".to_string(),
+            verbose: false,
+        };
+        let criteria = create_search_criteria(&args, None, None).unwrap();
+        assert_eq!(criteria.limit, Some(1));
+        assert_eq!(criteria.name_pattern, Some("python".to_string()));
+    }
+
+    /// resource_type auto with glob pattern → "packages"
+    #[test]
+    fn test_determine_resource_type_auto_glob() {
+        assert_eq!(
+            determine_resource_type("auto", &Some("python*".to_string())),
+            "packages"
+        );
+        assert_eq!(
+            determine_resource_type("auto", &Some("py?hon".to_string())),
+            "packages"
+        );
+    }
+
+    /// parse_time_constraint negative epoch value
+    #[test]
+    fn test_parse_time_constraint_negative() {
+        // negative epoch (e.g., before 1970) should still parse
+        let result = parse_time_constraint("-100").unwrap();
+        assert_eq!(result, Some(-100));
+    }
+
+    /// SearchArgs no_newlines flag
+    #[test]
+    fn test_search_args_no_newlines_flag() {
+        let args = SearchArgs {
+            package: None,
+            resource_type: "package".to_string(),
+            no_local: true,
+            validate: true,
+            paths: Some("/packages".to_string()),
+            format: Some("{name}".to_string()),
+            no_newlines: true,
+            latest: false,
+            errors: false,
+            no_warnings: true,
+            before: "0".to_string(),
+            after: "0".to_string(),
+            verbose: false,
+        };
+        assert!(args.no_newlines);
+        assert!(args.no_local);
+        assert!(args.no_warnings);
+        assert_eq!(args.format, Some("{name}".to_string()));
+    }
 }

@@ -215,11 +215,40 @@ impl RezCoreConfig {
             .collect()
     }
 
-    /// Load configuration from files
+    /// Load configuration from files (reads actual rezconfig files)
     pub fn load() -> Self {
-        // For now, return default config
-        // TODO: Implement actual file loading with YAML/JSON parsing
-        Self::default()
+        let mut config = Self::default();
+
+        // Try to load from config files in priority order
+        for path in Self::get_search_paths() {
+            if path.exists() {
+                if let Ok(content) = std::fs::read_to_string(&path) {
+                    // Try YAML format
+                    if let Ok(loaded) = serde_yaml::from_str::<RezCoreConfig>(&content) {
+                        config = loaded;
+                        break;
+                    }
+                    // Try JSON format
+                    if let Ok(loaded) = serde_json::from_str::<RezCoreConfig>(&content) {
+                        config = loaded;
+                        break;
+                    }
+                }
+            }
+        }
+
+        // Override with environment variables
+        if let Ok(packages_path) = env::var("REZ_PACKAGES_PATH") {
+            config.packages_path = packages_path.split(':').map(|s| s.to_string()).collect();
+        }
+        if let Ok(local_path) = env::var("REZ_LOCAL_PACKAGES_PATH") {
+            config.local_packages_path = local_path;
+        }
+        if let Ok(release_path) = env::var("REZ_RELEASE_PACKAGES_PATH") {
+            config.release_packages_path = release_path;
+        }
+
+        config
     }
 
     /// Get a configuration field by dot-separated path
@@ -235,5 +264,126 @@ impl RezCoreConfig {
         }
 
         Some(current.clone())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_default_config_has_sensible_values() {
+        let cfg = RezCoreConfig::default();
+        assert!(cfg.use_rust_solver);
+        assert!(cfg.use_rust_version);
+        assert!(cfg.use_rust_repository);
+        assert!(cfg.rust_fallback);
+        assert!(!cfg.packages_path.is_empty());
+        assert!(!cfg.local_packages_path.is_empty());
+        assert!(!cfg.release_packages_path.is_empty());
+        assert!(!cfg.version.is_empty());
+    }
+
+    #[test]
+    fn test_default_cache_config() {
+        let cfg = RezCoreConfig::default();
+        assert!(cfg.cache.enable_memory_cache);
+        assert!(cfg.cache.enable_disk_cache);
+        assert!(cfg.cache.memory_cache_size > 0);
+        assert!(cfg.cache.cache_ttl_seconds > 0);
+    }
+
+    #[test]
+    fn test_get_field_simple() {
+        let cfg = RezCoreConfig::default();
+        let v = cfg.get_field("version");
+        assert!(v.is_some());
+        if let Some(serde_json::Value::String(s)) = v {
+            assert!(!s.is_empty());
+        }
+    }
+
+    #[test]
+    fn test_get_field_packages_path() {
+        let cfg = RezCoreConfig::default();
+        let v = cfg.get_field("packages_path");
+        assert!(v.is_some());
+        if let Some(serde_json::Value::Array(arr)) = v {
+            assert!(!arr.is_empty());
+        }
+    }
+
+    #[test]
+    fn test_get_field_nested() {
+        let cfg = RezCoreConfig::default();
+        let v = cfg.get_field("cache.enable_memory_cache");
+        assert!(v.is_some());
+        assert_eq!(v, Some(serde_json::Value::Bool(true)));
+    }
+
+    #[test]
+    fn test_get_field_nested_numeric() {
+        let cfg = RezCoreConfig::default();
+        let v = cfg.get_field("cache.memory_cache_size");
+        assert!(v.is_some());
+    }
+
+    #[test]
+    fn test_get_field_nonexistent() {
+        let cfg = RezCoreConfig::default();
+        assert!(cfg.get_field("nonexistent_field").is_none());
+        assert!(cfg.get_field("cache.nonexistent").is_none());
+    }
+
+    #[test]
+    fn test_get_search_paths_not_empty() {
+        let paths = RezCoreConfig::get_search_paths();
+        assert!(!paths.is_empty());
+    }
+
+    #[test]
+    fn test_get_search_paths_contain_home_config() {
+        let paths = RezCoreConfig::get_search_paths();
+        let has_home = paths.iter().any(|p| {
+            p.to_string_lossy().contains(".rezconfig")
+                || p.to_string_lossy().contains(".rez")
+        });
+        assert!(has_home);
+    }
+
+    #[test]
+    fn test_load_returns_config() {
+        // Should not panic, even if no config file exists
+        let cfg = RezCoreConfig::load();
+        assert!(!cfg.version.is_empty());
+    }
+
+    #[test]
+    fn test_env_override_packages_path() {
+        // Only safe to test if env var is not already set
+        if std::env::var("REZ_PACKAGES_PATH").is_err() {
+            std::env::set_var("REZ_PACKAGES_PATH", "/tmp/test_pkgs:/tmp/other_pkgs");
+            let cfg = RezCoreConfig::load();
+            assert!(cfg.packages_path.contains(&"/tmp/test_pkgs".to_string()));
+            std::env::remove_var("REZ_PACKAGES_PATH");
+        }
+    }
+
+    #[test]
+    fn test_config_serialization_roundtrip() {
+        let cfg = RezCoreConfig::default();
+        let json = serde_json::to_string(&cfg).unwrap();
+        let restored: RezCoreConfig = serde_json::from_str(&json).unwrap();
+        assert_eq!(cfg.version, restored.version);
+        assert_eq!(cfg.packages_path, restored.packages_path);
+        assert_eq!(cfg.cache.memory_cache_size, restored.cache.memory_cache_size);
+    }
+
+    #[test]
+    fn test_config_clone() {
+        let cfg = RezCoreConfig::default();
+        let cloned = cfg.clone();
+        assert_eq!(cfg.version, cloned.version);
+        assert_eq!(cfg.packages_path, cloned.packages_path);
     }
 }

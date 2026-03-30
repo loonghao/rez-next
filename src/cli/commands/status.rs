@@ -3,7 +3,7 @@
 //! Implements the `rez status` command for displaying package and repository status.
 
 use clap::Args;
-use rez_next_common::{error::RezCoreResult, RezCoreError};
+use rez_next_common::{config::RezCoreConfig, error::RezCoreResult, RezCoreError};
 use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -103,8 +103,28 @@ async fn execute_status_async(args: &StatusArgs) -> RezCoreResult<()> {
 /// Setup repository manager
 async fn setup_repositories(args: &StatusArgs) -> RezCoreResult<RepositoryManager> {
     let mut repo_manager = RepositoryManager::new();
-    let paths = if args.paths.is_empty() {
-        vec![PathBuf::from("./local_packages")]
+
+    let paths: Vec<PathBuf> = if args.paths.is_empty() {
+        // Use configured packages_path from rez config
+        let config = RezCoreConfig::load();
+        config
+            .packages_path
+            .iter()
+            .map(|p| {
+                let expanded = if p.starts_with("~/") || p == "~" {
+                    if let Ok(home) = std::env::var("USERPROFILE")
+                        .or_else(|_| std::env::var("HOME"))
+                    {
+                        p.replacen("~", &home, 1)
+                    } else {
+                        p.clone()
+                    }
+                } else {
+                    p.clone()
+                };
+                PathBuf::from(expanded)
+            })
+            .collect()
     } else {
         args.paths.clone()
     };
@@ -177,7 +197,23 @@ async fn show_repository_status(
     println!();
 
     let paths = if args.paths.is_empty() {
-        vec![PathBuf::from("./local_packages")]
+        let config = RezCoreConfig::load();
+        let mut all_paths: Vec<PathBuf> = config
+            .packages_path
+            .iter()
+            .map(|p| {
+                if p.starts_with("~/") || p == "~" {
+                    if let Ok(home) =
+                        std::env::var("USERPROFILE").or_else(|_| std::env::var("HOME"))
+                    {
+                        return PathBuf::from(p.replacen("~", &home, 1));
+                    }
+                }
+                PathBuf::from(p)
+            })
+            .collect();
+        all_paths.push(PathBuf::from(expand_home_str(&config.local_packages_path)));
+        all_paths
     } else {
         args.paths.clone()
     };
@@ -187,14 +223,14 @@ async fn show_repository_status(
 
         println!("Repository: {}", status.path.display());
         if status.accessible {
-            println!("  Status: ✅ Accessible");
+            println!("  Status: OK");
             println!("  Packages: {}", status.package_count);
             println!("  Families: {}", status.family_count);
             if args.detailed {
                 println!("  Total size: {} bytes", status.total_size);
             }
         } else {
-            println!("  Status: ❌ Inaccessible");
+            println!("  Status: Inaccessible");
             if let Some(ref error) = status.error {
                 println!("  Error: {}", error);
             }
@@ -275,6 +311,8 @@ async fn show_general_status(
     repo_manager: &RepositoryManager,
     args: &StatusArgs,
 ) -> RezCoreResult<()> {
+    let config = RezCoreConfig::load();
+
     println!("Rez Status Overview");
     println!("==================");
     println!();
@@ -292,40 +330,59 @@ async fn show_general_status(
         total_variants += package.variants.len().max(1);
     }
 
-    println!("📦 Package Statistics:");
+    println!("Package Statistics:");
     println!("  Total packages: {}", total_packages);
     println!("  Package families: {}", families.len());
     println!("  Total variants: {}", total_variants);
     println!();
 
-    // Repository information
+    // Repository information from config
     let paths = if args.paths.is_empty() {
-        vec![PathBuf::from("./local_packages")]
+        config
+            .packages_path
+            .iter()
+            .map(|p| {
+                if p.starts_with("~/") || p == "~" {
+                    if let Ok(home) =
+                        std::env::var("USERPROFILE").or_else(|_| std::env::var("HOME"))
+                    {
+                        return PathBuf::from(p.replacen("~", &home, 1));
+                    }
+                }
+                PathBuf::from(p)
+            })
+            .collect::<Vec<_>>()
     } else {
         args.paths.clone()
     };
 
-    println!("📁 Repository Information:");
+    println!("Repository Paths:");
     for path in &paths {
-        println!("  {}", path.display());
+        let exists_marker = if path.exists() { "OK" } else { "missing" };
+        println!("  {} ({})", path.display(), exists_marker);
     }
     println!();
 
-    if args.recent.is_some() {
-        println!("📅 Recent packages: Feature not yet implemented");
-        println!();
-    }
-
-    if args.issues {
-        println!("⚠️  Package issues: Feature not yet implemented");
-        println!();
-    }
+    println!("Config:");
+    println!("  Local packages path : {}", expand_home_str(&config.local_packages_path));
+    println!("  Release packages path: {}", expand_home_str(&config.release_packages_path));
+    println!();
 
     if args.verbose {
-        println!("✅ Status check completed");
+        println!("Status check completed");
     }
 
     Ok(())
+}
+
+/// Expand ~ in path strings
+fn expand_home_str(p: &str) -> String {
+    if p.starts_with("~/") || p == "~" {
+        if let Ok(home) = std::env::var("USERPROFILE").or_else(|_| std::env::var("HOME")) {
+            return p.replacen("~", &home, 1);
+        }
+    }
+    p.to_string()
 }
 
 /// Analyze repository status
@@ -398,4 +455,145 @@ mod tests {
         assert!(status.accessible);
         assert!(status.error.is_none());
     }
+
+    // ── Phase 102: rez status repository state tests ────────────────────────
+
+    #[tokio::test]
+    async fn test_analyze_nonexistent_repository() {
+        let path = PathBuf::from("/this/path/does/not/exist/ever");
+        let status = analyze_repository_status(&path).await.unwrap();
+        assert!(!status.accessible, "Non-existent path should be inaccessible");
+        assert!(status.error.is_some(), "Should have error message");
+        assert_eq!(status.package_count, 0);
+        assert_eq!(status.family_count, 0);
+    }
+
+    #[tokio::test]
+    async fn test_analyze_empty_repository() {
+        use tempfile::TempDir;
+        let temp_dir = TempDir::new().unwrap();
+        let status = analyze_repository_status(&temp_dir.path().to_path_buf()).await.unwrap();
+        assert!(status.accessible);
+        assert!(status.error.is_none());
+        assert_eq!(status.package_count, 0, "Empty directory has no packages");
+    }
+
+    #[tokio::test]
+    async fn test_analyze_repository_with_packages() {
+        use tempfile::TempDir;
+        let temp_dir = TempDir::new().unwrap();
+        // Create some package family directories
+        for family in &["python", "maya", "houdini"] {
+            std::fs::create_dir(temp_dir.path().join(family)).unwrap();
+        }
+        let status = analyze_repository_status(&temp_dir.path().to_path_buf()).await.unwrap();
+        assert!(status.accessible);
+        assert_eq!(status.package_count, 3, "Should count 3 family directories");
+        assert_eq!(status.family_count, 3);
+    }
+
+    #[test]
+    fn test_repository_status_struct() {
+        let status = RepositoryStatus {
+            path: PathBuf::from("/some/path"),
+            package_count: 42,
+            family_count: 15,
+            total_size: 1024 * 1024,
+            accessible: true,
+            error: None,
+        };
+        assert_eq!(status.package_count, 42);
+        assert_eq!(status.family_count, 15);
+        assert!(status.accessible);
+        assert!(status.error.is_none());
+    }
+
+    #[test]
+    fn test_family_status_struct() {
+        let family = FamilyStatus {
+            name: "python".to_string(),
+            version_count: 5,
+            latest_version: Some("3.11.0".to_string()),
+            total_variants: 3,
+        };
+        assert_eq!(family.name, "python");
+        assert_eq!(family.version_count, 5);
+        assert_eq!(family.latest_version.as_deref(), Some("3.11.0"));
+        assert_eq!(family.total_variants, 3);
+    }
+
+    #[test]
+    fn test_status_args_with_package() {
+        let args = StatusArgs {
+            package: Some("mypackage".to_string()),
+            paths: vec![PathBuf::from("/packages")],
+            detailed: true,
+            repos: false,
+            families: false,
+            recent: Some(7),
+            issues: false,
+            verbose: true,
+        };
+        assert_eq!(args.package.as_deref(), Some("mypackage"));
+        assert!(args.detailed);
+        assert_eq!(args.recent, Some(7));
+        assert!(args.verbose);
+        assert_eq!(args.paths.len(), 1);
+    }
+
+    #[test]
+    fn test_status_args_repos_and_families_flags() {
+        let repos_args = StatusArgs {
+            package: None,
+            paths: vec![],
+            detailed: false,
+            repos: true,
+            families: false,
+            recent: None,
+            issues: false,
+            verbose: false,
+        };
+        let families_args = StatusArgs {
+            package: None,
+            paths: vec![],
+            detailed: false,
+            repos: false,
+            families: true,
+            recent: None,
+            issues: false,
+            verbose: false,
+        };
+        assert!(repos_args.repos);
+        assert!(!repos_args.families);
+        assert!(families_args.families);
+        assert!(!families_args.repos);
+    }
+
+    #[tokio::test]
+    async fn test_setup_repositories_with_paths() {
+        use tempfile::TempDir;
+        let dir1 = TempDir::new().unwrap();
+        let dir2 = TempDir::new().unwrap();
+        let args = StatusArgs {
+            package: None,
+            paths: vec![dir1.path().to_path_buf(), dir2.path().to_path_buf()],
+            detailed: false, repos: false, families: false,
+            recent: None, issues: false, verbose: false,
+        };
+        let manager = setup_repositories(&args).await.unwrap();
+        assert_eq!(manager.repository_count(), 2);
+    }
+
+    #[test]
+    fn test_expand_home_path_in_status() {
+        let p = "/absolute/path";
+        let result = expand_home_str(p);
+        assert_eq!(result, "/absolute/path");
+
+        // Relative path without tilde stays as-is
+        let p2 = "relative/path";
+        let result2 = expand_home_str(p2);
+        assert_eq!(result2, "relative/path");
+    }
 }
+

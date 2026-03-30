@@ -397,3 +397,207 @@ pub struct ContextFileMetadata {
     /// Last modified time (Unix timestamp)
     pub modified_time: u64,
 }
+
+// ── Phase 77: Context serialization / deserialization round-trip tests ────────
+
+#[cfg(test)]
+mod serialization_tests {
+    use super::*;
+    use crate::{ContextStatus, ResolvedContext};
+    use rez_next_package::PackageRequirement;
+
+    fn make_context_with_packages() -> ResolvedContext {
+        use rez_next_package::Package;
+        use rez_next_version::Version;
+
+        let reqs = vec![
+            PackageRequirement::parse("python-3.11").unwrap(),
+            PackageRequirement::parse("maya-2024").unwrap(),
+        ];
+        let mut ctx = ResolvedContext::from_requirements(reqs);
+        ctx.status = ContextStatus::Resolved;
+        ctx.name = Some("test_context".to_string());
+
+        // Add some resolved packages
+        let mut python = Package::new("python".to_string());
+        python.version = Some(Version::parse("3.11.0").unwrap());
+        ctx.resolved_packages.push(python);
+
+        let mut maya = Package::new("maya".to_string());
+        maya.version = Some(Version::parse("2024.1").unwrap());
+        ctx.resolved_packages.push(maya);
+
+        // Add environment vars
+        ctx.environment_vars.insert("PYTHONHOME".to_string(), "/opt/python/3.11".to_string());
+        ctx.environment_vars.insert("MAYA_ROOT".to_string(), "/opt/maya/2024.1".to_string());
+
+        ctx
+    }
+
+    // ── JSON round-trip ───────────────────────────────────────────────
+
+    #[test]
+    fn test_json_serialize_returns_bytes() {
+        let ctx = make_context_with_packages();
+        let result = ContextSerializer::serialize(&ctx, ContextFormat::Json);
+        assert!(result.is_ok());
+        let bytes = result.unwrap();
+        assert!(!bytes.is_empty());
+        // Should be valid UTF-8 JSON
+        let s = String::from_utf8(bytes).unwrap();
+        assert!(s.contains("{"));
+    }
+
+    #[test]
+    fn test_json_deserialize_roundtrip() {
+        let original = make_context_with_packages();
+        let bytes = ContextSerializer::serialize(&original, ContextFormat::Json).unwrap();
+        let restored = ContextSerializer::deserialize(&bytes, ContextFormat::Json).unwrap();
+
+        assert_eq!(restored.id, original.id);
+        assert_eq!(restored.status, original.status);
+        assert_eq!(restored.name, original.name);
+        assert_eq!(restored.resolved_packages.len(), original.resolved_packages.len());
+    }
+
+    #[test]
+    fn test_json_deserialize_restores_env_vars() {
+        let original = make_context_with_packages();
+        let bytes = ContextSerializer::serialize(&original, ContextFormat::Json).unwrap();
+        let restored = ContextSerializer::deserialize(&bytes, ContextFormat::Json).unwrap();
+
+        assert_eq!(
+            restored.environment_vars.get("PYTHONHOME"),
+            Some(&"/opt/python/3.11".to_string())
+        );
+        assert_eq!(
+            restored.environment_vars.get("MAYA_ROOT"),
+            Some(&"/opt/maya/2024.1".to_string())
+        );
+    }
+
+    #[test]
+    fn test_to_string_and_from_string_roundtrip() {
+        let original = make_context_with_packages();
+        let json_str = ContextSerializer::to_string(&original, ContextFormat::Json).unwrap();
+        let restored = ContextSerializer::from_string(&json_str, ContextFormat::Json).unwrap();
+
+        assert_eq!(restored.id, original.id);
+        assert_eq!(restored.requirements.len(), original.requirements.len());
+    }
+
+    #[test]
+    fn test_json_string_is_pretty_printed() {
+        let ctx = make_context_with_packages();
+        let json_str = ContextSerializer::to_string(&ctx, ContextFormat::Json).unwrap();
+        // Pretty-printed JSON contains newlines
+        assert!(json_str.contains('\n'), "JSON output should be pretty-printed");
+    }
+
+    #[test]
+    fn test_deserialize_invalid_bytes_returns_error() {
+        let bad_bytes = b"not valid json {{{";
+        let result = ContextSerializer::deserialize(bad_bytes, ContextFormat::Json);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_deserialize_invalid_utf8_returns_error() {
+        let bad_bytes = vec![0xFF, 0xFE, 0x00]; // not valid UTF-8
+        let result = ContextSerializer::deserialize(&bad_bytes, ContextFormat::Json);
+        assert!(result.is_err());
+    }
+
+    // ── ContextFormat ──────────────────────────────────────────────────
+
+    #[test]
+    fn test_format_extension() {
+        assert_eq!(ContextFormat::Json.extension(), "rxt");
+        assert_eq!(ContextFormat::Binary.extension(), "rxtb");
+    }
+
+    #[test]
+    fn test_format_from_extension_rxt() {
+        let path = std::path::Path::new("my_context.rxt");
+        let fmt = ContextFormat::from_extension(path);
+        assert_eq!(fmt, Some(ContextFormat::Json));
+    }
+
+    #[test]
+    fn test_format_from_extension_rxtb() {
+        let path = std::path::Path::new("my_context.rxtb");
+        let fmt = ContextFormat::from_extension(path);
+        assert_eq!(fmt, Some(ContextFormat::Binary));
+    }
+
+    #[test]
+    fn test_format_from_extension_unknown() {
+        let path = std::path::Path::new("context.yaml");
+        let fmt = ContextFormat::from_extension(path);
+        assert!(fmt.is_none());
+    }
+
+    // ── ContextFileUtils ──────────────────────────────────────────────
+
+    #[test]
+    fn test_is_context_file_rxt() {
+        assert!(ContextFileUtils::is_context_file(std::path::Path::new("ctx.rxt")));
+    }
+
+    #[test]
+    fn test_is_context_file_rxtb() {
+        assert!(ContextFileUtils::is_context_file(std::path::Path::new("ctx.rxtb")));
+    }
+
+    #[test]
+    fn test_is_context_file_non_context() {
+        assert!(!ContextFileUtils::is_context_file(std::path::Path::new("ctx.json")));
+        assert!(!ContextFileUtils::is_context_file(std::path::Path::new("readme.md")));
+    }
+
+    #[test]
+    fn test_get_default_filename_with_name() {
+        let mut ctx = ResolvedContext::from_requirements(vec![]);
+        ctx.name = Some("My Context".to_string());
+        let filename = ContextFileUtils::get_default_filename(&ctx);
+        assert_eq!(filename, "my_context.rxt");
+    }
+
+    #[test]
+    fn test_get_default_filename_without_name() {
+        let ctx = ResolvedContext::from_requirements(vec![]);
+        let filename = ContextFileUtils::get_default_filename(&ctx);
+        assert!(filename.starts_with("context_"));
+        assert!(filename.ends_with(".rxt"));
+    }
+
+    // ── ContextValidation helpers ─────────────────────────────────────
+
+    #[test]
+    fn test_context_validation_no_issues() {
+        let validation = ContextValidation {
+            is_valid: true,
+            errors: vec![],
+            warnings: vec![],
+            context_id: Some("abc123".to_string()),
+            package_count: 3,
+            validation_time_ms: 5,
+        };
+        assert!(!validation.has_issues());
+        assert_eq!(validation.issue_count(), 0);
+    }
+
+    #[test]
+    fn test_context_validation_with_errors() {
+        let validation = ContextValidation {
+            is_valid: false,
+            errors: vec!["Package conflict".to_string()],
+            warnings: vec!["Deprecated version".to_string()],
+            context_id: None,
+            package_count: 0,
+            validation_time_ms: 2,
+        };
+        assert!(validation.has_issues());
+        assert_eq!(validation.issue_count(), 2);
+    }
+}

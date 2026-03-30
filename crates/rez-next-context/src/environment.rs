@@ -3,7 +3,7 @@
 use crate::{ContextConfig, PathStrategy, ShellType};
 use rez_next_common::RezCoreError;
 use rez_next_package::Package;
-// use pyo3::prelude::*;  // Temporarily disabled due to DLL issues
+use rez_next_rex::{RexExecutor, RexEnvironment};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::env;
@@ -127,7 +127,7 @@ impl EnvironmentManager {
         Ok(env_vars)
     }
 
-    /// Extract environment variable definitions from a package
+    /// Extract environment variable definitions from a package using Rex executor
     fn extract_package_env_definitions(
         &self,
         package: &Package,
@@ -135,10 +135,11 @@ impl EnvironmentManager {
     ) -> Result<Vec<EnvVarDefinition>, RezCoreError> {
         let mut definitions = Vec::new();
 
-        // Set package-specific environment variables
+        // Always set package root and version variables
+        let package_root = format!("/packages/{}", package.name);
         definitions.push(EnvVarDefinition {
             name: format!("{}_ROOT", package.name.to_uppercase()),
-            operation: EnvOperation::Set(format!("/packages/{}", package.name)),
+            operation: EnvOperation::Set(package_root.clone()),
             source_package: Some(package.name.clone()),
             priority,
         });
@@ -152,13 +153,45 @@ impl EnvironmentManager {
             });
         }
 
-        // Add tools to PATH (will be handled separately in apply_path_modifications)
-
-        // Parse commands for environment variable operations
+        // Use Rex executor to parse package commands
         if let Some(ref commands) = package.commands {
-            let command_env_defs =
-                self.parse_commands_for_env_vars(commands, &package.name, priority)?;
-            definitions.extend(command_env_defs);
+            let mut executor = RexExecutor::new();
+
+            // Set context variables for this package
+            executor.set_context_var("root", &package_root);
+            if let Some(ref version) = package.version {
+                executor.set_context_var("version", version.as_str());
+            }
+            executor.set_context_var("name", &package.name);
+
+            // Execute commands to get actions
+            if let Ok(rex_env) = executor.execute_commands(
+                commands,
+                &package.name,
+                Some(&package_root),
+                package.version.as_ref().map(|v| v.as_str()),
+            ) {
+                // Convert Rex env vars to definitions
+                for (name, value) in rex_env.vars {
+                    definitions.push(EnvVarDefinition {
+                        name,
+                        operation: EnvOperation::Set(value),
+                        source_package: Some(package.name.clone()),
+                        priority: priority + 1, // Rex-defined vars have slightly higher priority
+                    });
+                }
+            }
+        }
+
+        // Add tools to PATH
+        if !package.tools.is_empty() {
+            let tool_path = format!("{}/bin", package_root);
+            definitions.push(EnvVarDefinition {
+                name: "PATH".to_string(),
+                operation: EnvOperation::Prepend(tool_path, get_path_separator()),
+                source_package: Some(package.name.clone()),
+                priority: priority + 2,
+            });
         }
 
         Ok(definitions)
@@ -497,5 +530,14 @@ impl EnvDiff {
     /// Get the total number of changes
     pub fn change_count(&self) -> usize {
         self.added.len() + self.modified.len() + self.removed.len()
+    }
+}
+
+/// Get platform-appropriate path separator
+fn get_path_separator() -> String {
+    if cfg!(windows) {
+        ";".to_string()
+    } else {
+        ":".to_string()
     }
 }

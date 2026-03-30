@@ -1090,6 +1090,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "indoc"
+version = "2.0.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "79cf5c93f93228cf8efb3ba362535fb11199ac548a09ce117c9b1adc3030d706"
+dependencies = [
+ "rustversion",
+]
+
+[[package]]
 name = "ipnet"
 version = "2.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1365,6 +1374,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "memoffset"
+version = "0.9.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "488016bfae457b036d996092f6cb448677611ce4449e970ceaf42695203f218a"
+dependencies = [
+ "autocfg",
+]
+
+[[package]]
 name = "mime"
 version = "0.3.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1579,6 +1597,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "portable-atomic"
+version = "1.13.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c33a9471896f1c69cecef8d20cbe2f7accd12527ce60845ff44c153bb2a21b49"
+
+[[package]]
 name = "potential_utf"
 version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1651,6 +1675,68 @@ dependencies = [
  "rusty-fork",
  "tempfile",
  "unarray",
+]
+
+[[package]]
+name = "pyo3"
+version = "0.25.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8970a78afe0628a3e3430376fc5fd76b6b45c4d43360ffd6cdd40bdde72b682a"
+dependencies = [
+ "indoc",
+ "libc",
+ "memoffset",
+ "once_cell",
+ "portable-atomic",
+ "pyo3-build-config",
+ "pyo3-ffi",
+ "pyo3-macros",
+ "unindent",
+]
+
+[[package]]
+name = "pyo3-build-config"
+version = "0.25.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "458eb0c55e7ece017adeba38f2248ff3ac615e53660d7c71a238d7d2a01c7598"
+dependencies = [
+ "once_cell",
+ "target-lexicon",
+]
+
+[[package]]
+name = "pyo3-ffi"
+version = "0.25.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7114fe5457c61b276ab77c5055f206295b812608083644a5c5b2640c3102565c"
+dependencies = [
+ "libc",
+ "pyo3-build-config",
+]
+
+[[package]]
+name = "pyo3-macros"
+version = "0.25.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a8725c0a622b374d6cb051d11a0983786448f7785336139c3c94f5aa6bef7e50"
+dependencies = [
+ "proc-macro2",
+ "pyo3-macros-backend",
+ "quote",
+ "syn",
+]
+
+[[package]]
+name = "pyo3-macros-backend"
+version = "0.25.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4109984c22491085343c05b0dbc54ddc405c3cf7b4374fc533f5c3313a572ccc"
+dependencies = [
+ "heck",
+ "proc-macro2",
+ "pyo3-build-config",
+ "quote",
+ "syn",
 ]
 
 [[package]]
@@ -1934,6 +2020,7 @@ name = "rez-next"
 version = "0.1.0"
 dependencies = [
  "assert_matches",
+ "chrono",
  "clap",
  "criterion",
  "pretty_assertions",
@@ -1945,7 +2032,9 @@ dependencies = [
  "rez-next-context",
  "rez-next-package",
  "rez-next-repository",
+ "rez-next-rex",
  "rez-next-solver",
+ "rez-next-suites",
  "rez-next-version",
  "rstest",
  "serde",
@@ -2013,6 +2102,7 @@ dependencies = [
  "rstest",
  "serde",
  "serde_json",
+ "serde_yaml",
  "tempfile",
  "thiserror 2.0.18",
 ]
@@ -2029,6 +2119,7 @@ dependencies = [
  "regex",
  "rez-next-common",
  "rez-next-package",
+ "rez-next-rex",
  "rez-next-solver",
  "rez-next-version",
  "rstest",
@@ -2073,6 +2164,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "rez-next-python"
+version = "0.1.0"
+dependencies = [
+ "pyo3",
+ "rez-next-build",
+ "rez-next-common",
+ "rez-next-context",
+ "rez-next-package",
+ "rez-next-repository",
+ "rez-next-rex",
+ "rez-next-solver",
+ "rez-next-suites",
+ "rez-next-version",
+ "serde",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
 name = "rez-next-repository"
 version = "0.1.0"
 dependencies = [
@@ -2105,6 +2215,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "rez-next-rex"
+version = "0.1.0"
+dependencies = [
+ "regex",
+ "rez-next-common",
+ "rez-next-version",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+]
+
+[[package]]
 name = "rez-next-solver"
 version = "0.1.0"
 dependencies = [
@@ -2123,6 +2245,27 @@ dependencies = [
  "serde",
  "serde_json",
  "smallvec",
+ "tempfile",
+ "thiserror 2.0.18",
+ "tokio",
+]
+
+[[package]]
+name = "rez-next-suites"
+version = "0.1.0"
+dependencies = [
+ "pretty_assertions",
+ "regex",
+ "rez-next-common",
+ "rez-next-context",
+ "rez-next-package",
+ "rez-next-repository",
+ "rez-next-solver",
+ "rez-next-version",
+ "rstest",
+ "serde",
+ "serde_json",
+ "serde_yaml",
  "tempfile",
  "thiserror 2.0.18",
  "tokio",
@@ -2677,6 +2820,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "target-lexicon"
+version = "0.13.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "adb6935a6f5c20170eeceb1a3835a49e12e19d792f6dd344ccc76a985ca5a6ca"
+
+[[package]]
 name = "tempfile"
 version = "3.27.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3064,6 +3213,12 @@ dependencies = [
  "phf_codegen",
  "rand 0.8.5",
 ]
+
+[[package]]
+name = "unindent"
+version = "0.2.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7264e107f553ccae879d21fbea1d6724ac785e8c3bfc762137959b5802826ef3"
 
 [[package]]
 name = "unsafe-libyaml"

@@ -104,6 +104,34 @@ pub enum RezCommand {
     #[command(name = "pkg-cache")]
     PkgCache(commands::pkg_cache::PkgCacheArgs),
 
+    /// Manage suites (collections of resolved contexts)
+    Suites(commands::suites::SuitesArgs),
+
+    /// Create a self-contained bundle from a resolved context
+    Bundle(commands::bundle::BundleArgs),
+
+    /// Install Python packages via pip into a rez repository
+    Pip(commands::pip::PipArgs),
+
+    /// Shell tab completion support
+    Complete(commands::complete::CompleteArgs),
+
+    /// Forward rez commands to rez_next (compatibility shim)
+    Forward(commands::forward::ForwardArgs),
+
+    /// Launch rez GUI (generates HTML status report)
+    Gui {
+        /// Output HTML file (default: rez-status.html)
+        #[arg(short, long)]
+        output: Option<String>,
+        /// Open in browser after generating
+        #[arg(long)]
+        open: bool,
+        /// Filter to specific package
+        #[arg(short, long)]
+        package: Option<String>,
+    },
+
     /// Parse and validate version strings (development command)
     ParseVersion {
         /// Version string to parse
@@ -179,6 +207,22 @@ impl RezCli {
             RezCommand::PkgCache(args) => tokio::runtime::Runtime::new()
                 .map_err(|e| RezCoreError::Io(e.into()))?
                 .block_on(commands::pkg_cache::execute(args.clone())),
+            RezCommand::Suites(args) => commands::suites::execute(args.clone()),
+            RezCommand::Bundle(args) => commands::bundle::execute(args.clone()),
+            RezCommand::Pip(args) => commands::pip::execute(args.clone()),
+            RezCommand::Complete(args) => commands::complete::execute(args.clone()),
+            RezCommand::Forward(args) => commands::forward::execute(args.clone()),
+            RezCommand::Gui { output, open, package } => {
+                let args = commands::gui::GuiArgs {
+                    output: output.clone(),
+                    open: *open,
+                    package: package.clone(),
+                };
+                tokio::runtime::Runtime::new()
+                    .map_err(|e| RezCoreError::Io(e.into()))?
+                    .block_on(commands::gui::execute(&args))
+                    .map_err(|e| RezCoreError::Solver(e.to_string()))
+            }
             RezCommand::ParseVersion { version } => self.parse_version_command(version),
             RezCommand::SelfTest => self.run_tests(),
         }
@@ -210,38 +254,98 @@ impl RezCli {
 
     /// Run basic functionality tests (development utility)
     fn run_tests(&self) -> RezCoreResult<()> {
-        println!("🧪 Running rez-core functionality tests...");
+        println!("Running rez-core functionality tests...");
         println!();
 
         let mut passed = 0;
         let mut failed = 0;
 
-        // Test 1: Version parsing
-        print!("Test 1: Version parsing... ");
-        match self.test_version_parsing() {
-            Ok(_) => {
-                println!("✅ PASSED");
-                passed += 1;
-            }
-            Err(e) => {
-                println!("❌ FAILED: {}", e);
-                failed += 1;
-            }
+        macro_rules! run_test {
+            ($name:expr, $body:expr) => {{
+                print!("Test: {}... ", $name);
+                match $body {
+                    Ok(_) => {
+                        println!("PASSED");
+                        passed += 1;
+                    }
+                    Err(e) => {
+                        println!("FAILED: {}", e);
+                        failed += 1;
+                    }
+                }
+            }};
         }
 
+        // Test 1: Version parsing
+        run_test!("version parsing", self.test_version_parsing());
+
+        // Test 2: Version comparison
+        run_test!("version comparison", {
+            use rez_next_version::Version;
+            let v1 = Version::parse("1.0.0").map_err(|e| RezCoreError::VersionParse(e.to_string()))?;
+            let v2 = Version::parse("2.0.0").map_err(|e| RezCoreError::VersionParse(e.to_string()))?;
+            if v1 < v2 { Ok(()) } else {
+                Err(RezCoreError::VersionParse("1.0.0 should be < 2.0.0".to_string()))
+            }
+        });
+
+        // Test 3: Version range parsing
+        run_test!("version range parsing", {
+            use rez_next_version::VersionRange;
+            VersionRange::parse(">=1.0.0").map(|_| ())
+                .map_err(|e| RezCoreError::VersionParse(format!("{:?}", e)))
+        });
+
+        // Test 4: Package requirement parsing
+        run_test!("package requirement parsing", {
+            use rez_next_package::PackageRequirement;
+            PackageRequirement::parse("python-3.9").map(|_| ())
+        });
+
+        // Test 5: Config loading
+        run_test!("config loading", {
+            let config = rez_next_common::config::RezCoreConfig::load();
+            if !config.version.is_empty() { Ok(()) } else {
+                Err(RezCoreError::RequirementParse("config.version is empty".to_string()))
+            }
+        });
+
+        // Test 6: Config field access
+        run_test!("config field access", {
+            let config = rez_next_common::config::RezCoreConfig::default();
+            config.get_field("version")
+                .ok_or_else(|| RezCoreError::RequirementParse("version field not found".to_string()))
+                .map(|_| ())
+        });
+
+        // Test 7: Config nested field access
+        run_test!("config nested field access", {
+            let config = rez_next_common::config::RezCoreConfig::default();
+            config.get_field("cache.enable_memory_cache")
+                .ok_or_else(|| RezCoreError::RequirementParse("cache.enable_memory_cache not found".to_string()))
+                .map(|_| ())
+        });
+
+        // Test 8: Package creation and validation
+        run_test!("package creation and validation", {
+            use rez_next_package::Package;
+            let pkg = Package::new("test_pkg".to_string());
+            pkg.validate()
+        });
+
         println!();
-        println!("📊 Test Results:");
-        println!("   Passed: {}", passed);
-        println!("   Failed: {}", failed);
-        println!("   Total:  {}", passed + failed);
+        println!("Test Results:");
+        println!("  Passed: {}", passed);
+        println!("  Failed: {}", failed);
+        println!("  Total:  {}", passed + failed);
 
         if failed > 0 {
             println!();
-            println!("❌ Some tests failed!");
+            println!("Some tests failed!");
             Err(RezCoreError::Python("Tests failed".to_string()))
         } else {
             println!();
-            println!("🎉 All tests passed!");
+            println!("All tests passed!");
             Ok(())
         }
     }

@@ -148,11 +148,34 @@ async fn execute_diff_async(args: &DiffArgs) -> RezCoreResult<()> {
 
 /// Setup repository manager
 async fn setup_repositories(args: &DiffArgs) -> RezCoreResult<RepositoryManager> {
+    use rez_next_common::config::RezCoreConfig;
+
     let mut repo_manager = RepositoryManager::new();
-    let paths = if args.paths.is_empty() {
-        vec![PathBuf::from("./local_packages")]
-    } else {
+
+    let paths: Vec<PathBuf> = if !args.paths.is_empty() {
         args.paths.clone()
+    } else {
+        // Use configured package paths
+        let config = RezCoreConfig::load();
+        config
+            .packages_path
+            .iter()
+            .map(|p| {
+                let expanded = if p.starts_with("~/") {
+                    if let Some(home) =
+                        std::env::var_os("USERPROFILE").or_else(|| std::env::var_os("HOME"))
+                    {
+                        std::path::PathBuf::from(home).join(&p[2..])
+                    } else {
+                        PathBuf::from(p)
+                    }
+                } else {
+                    PathBuf::from(p)
+                };
+                expanded
+            })
+            .filter(|p| p.exists())
+            .collect()
     };
 
     for (i, path) in paths.iter().enumerate() {
