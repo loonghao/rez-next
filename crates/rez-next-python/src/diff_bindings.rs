@@ -4,7 +4,6 @@
 
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList};
-use crate::package_bindings::PyPackage;
 use rez_next_package::Package;
 use rez_next_version::Version;
 

@@ -3,10 +3,10 @@
 //! Mirrors `rez search` CLI and `rez.packages_.iter_packages` / family listing.
 
 use pyo3::prelude::*;
-use pyo3::types::{PyDict, PyList};
+use pyo3::types::PyList;
 use rez_next_search::{
     PackageSearcher, SearchOptions, SearchScope,
-    SearchFilter, FilterMode, SearchResult, SearchResultSet,
+    SearchFilter, SearchResult,
 };
 use std::path::PathBuf;
 
@@ -97,7 +97,7 @@ impl PyPackageSearcher {
             filter = filter.with_limit(self.limit);
         }
 
-        let mut opts = SearchOptions {
+        let opts = SearchOptions {
             paths: self.paths.as_ref().map(|p| p.iter().map(PathBuf::from).collect()),
             scope,
             filter,
@@ -154,7 +154,7 @@ pub fn search_package_names(
     pattern: &str,
     paths: Option<Vec<String>>,
 ) -> PyResult<Vec<String>> {
-    let mut filter = SearchFilter::new(pattern);
+    let filter = SearchFilter::new(pattern);
     let opts = SearchOptions {
         paths: paths.map(|p| p.into_iter().map(PathBuf::from).collect()),
         scope: SearchScope::Families,

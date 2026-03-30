@@ -7,7 +7,6 @@
 //! - Default configuration templates
 
 use pyo3::prelude::*;
-use std::collections::HashMap;
 
 /// Embedded completion script for bash
 const BASH_COMPLETE: &str = r#"# rez-next bash completion

@@ -159,11 +159,13 @@ pub fn register_all_exceptions(m: &Bound<'_, PyModule>) -> PyResult<()> {
 // ─── Helper: raise typed exceptions from Rust errors ─────────────────────────
 
 /// Convert a generic solve error string into a typed `ResolveError`.
+#[allow(dead_code)]
 pub fn raise_resolve_error(msg: impl Into<String>) -> PyErr {
     ResolveError::new_err(msg.into())
 }
 
 /// Convert a package-not-found error string into `PackageNotFound`.
+#[allow(dead_code)]
 pub fn raise_package_not_found(name: &str, version: Option<&str>) -> PyErr {
     let msg = match version {
         Some(ver) => format!("Package '{}-{}' not found", name, ver),
@@ -173,16 +175,19 @@ pub fn raise_package_not_found(name: &str, version: Option<&str>) -> PyErr {
 }
 
 /// Convert a configuration error string into `ConfigurationError`.
+#[allow(dead_code)]
 pub fn raise_config_error(msg: impl Into<String>) -> PyErr {
     ConfigurationError::new_err(msg.into())
 }
 
 /// Convert a build error string into `RezBuildError`.
+#[allow(dead_code)]
 pub fn raise_build_error(msg: impl Into<String>) -> PyErr {
     RezBuildError::new_err(msg.into())
 }
 
 /// Convert a Rex error string into `RexError`.
+#[allow(dead_code)]
 pub fn raise_rex_error(msg: impl Into<String>) -> PyErr {
     RexError::new_err(msg.into())
 }

@@ -9,6 +9,7 @@ use rez_next_rex::{RexEnvironment, ShellType, generate_shell_script};
 use std::path::PathBuf;
 
 /// Supported activation modes matching rez's `rez source` command.
+#[allow(dead_code)]
 #[derive(Debug, Clone, PartialEq)]
 pub enum SourceMode {
     /// Write activation script to a temp file and print path
