@@ -124,6 +124,10 @@ rez-next-common = { version = "0.1.0", path = "crates/rez-next-common", default-
 
 
 [[bench]]
+name = "solver_real_repo_bench"
+harness = false
+
+[[bench]]
 name = "version_benchmark"
 harness = false
 
