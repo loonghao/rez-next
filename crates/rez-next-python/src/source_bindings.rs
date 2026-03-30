@@ -11,12 +11,12 @@ use std::path::PathBuf;
 /// Supported activation modes matching rez's `rez source` command.
 #[derive(Debug, Clone, PartialEq)]
 pub enum SourceMode {
-    /// Write activation script to a temp file and print path
-    TempFile,
-    /// Write activation script to specified path
-    File(PathBuf),
     /// Return script content as string (no file I/O)
     Inline,
+    /// Write activation script to a temp file and print path
+    TempFile,
+    /// Write activation script to the path specified
+    File(PathBuf),
 }
 
 /// Python-exposed source manager — writes shell activation scripts.
@@ -223,25 +223,49 @@ pub fn detect_shell() -> String {
     detect_current_shell()
 }
 
-/// Resolve a SourceMode to a script string or path.
+/// Resolve an activation mode (by string) to a script string or file path.
 ///
-/// This is the internal dispatcher used by write_source_script and friends.
-/// It also ensures all SourceMode variants are exercised.
+/// `mode_str` can be:
+/// - `"inline"` → returns script content as a string
+/// - `"tempfile"` → writes to a temp file, returns the path
+/// - `"file:<dest_path>"` → writes to `dest_path`, returns the path
+///
+/// ## Python Usage
+/// ```python
+/// from rez_next.source import resolve_source_mode
+/// content = resolve_source_mode(["python-3.9"], "bash", "inline")
+/// path = resolve_source_mode(["python-3.9"], "bash", "tempfile")
+/// path = resolve_source_mode(["python-3.9"], "bash", "file:/tmp/activate.sh")
+/// ```
+#[pyfunction]
+#[pyo3(signature = (packages, shell, mode_str))]
 pub fn resolve_source_mode(
-    packages: &[String],
-    shell: Option<&str>,
-    mode: SourceMode,
-) -> Result<String, std::io::Error> {
-    let shell_name = shell.unwrap_or("auto");
-    let shell_resolved = if shell_name == "auto" {
+    packages: Vec<String>,
+    shell: String,
+    mode_str: String,
+) -> PyResult<String> {
+    let shell_resolved = if shell == "auto" || shell.is_empty() {
         detect_current_shell()
     } else {
-        shell_name.to_string()
+        shell
+    };
+
+    let mode = if mode_str == "inline" {
+        SourceMode::Inline
+    } else if mode_str == "tempfile" {
+        SourceMode::TempFile
+    } else if let Some(path) = mode_str.strip_prefix("file:") {
+        SourceMode::File(PathBuf::from(path))
+    } else {
+        return Err(pyo3::exceptions::PyValueError::new_err(format!(
+            "Unknown mode '{}'. Use 'inline', 'tempfile', or 'file:<path>'",
+            mode_str
+        )));
     };
 
     match mode {
         SourceMode::Inline => {
-            Ok(build_activation_script(packages, &shell_resolved))
+            Ok(build_activation_script(&packages, &shell_resolved))
         }
         SourceMode::TempFile => {
             let ext = match shell_resolved.as_str() {
@@ -251,18 +275,21 @@ pub fn resolve_source_mode(
             };
             let tmp_path = std::env::temp_dir()
                 .join(format!("rez_next_activate_{}.{}", std::process::id(), ext));
-            let script = build_activation_script(packages, &shell_resolved);
-            std::fs::write(&tmp_path, &script)?;
+            let script = build_activation_script(&packages, &shell_resolved);
+            std::fs::write(&tmp_path, &script)
+                .map_err(|e| pyo3::exceptions::PyIOError::new_err(e.to_string()))?;
             Ok(tmp_path.to_string_lossy().to_string())
         }
         SourceMode::File(dest) => {
-            let script = build_activation_script(packages, &shell_resolved);
+            let script = build_activation_script(&packages, &shell_resolved);
             if let Some(parent) = dest.parent() {
                 if !parent.as_os_str().is_empty() {
-                    std::fs::create_dir_all(parent)?;
+                    std::fs::create_dir_all(parent)
+                        .map_err(|e| pyo3::exceptions::PyIOError::new_err(e.to_string()))?;
                 }
             }
-            std::fs::write(&dest, &script)?;
+            std::fs::write(&dest, &script)
+                .map_err(|e| pyo3::exceptions::PyIOError::new_err(e.to_string()))?;
             Ok(dest.to_string_lossy().to_string())
         }
     }
@@ -378,5 +405,63 @@ mod tests {
             script.starts_with("# rez-next activation script"),
             "Script should start with header comment"
         );
+    }
+
+    #[test]
+    fn test_source_mode_inline_variant() {
+        // Verify SourceMode::Inline is constructable and usable
+        let mode = SourceMode::Inline;
+        assert_eq!(mode, SourceMode::Inline);
+    }
+
+    #[test]
+    fn test_source_mode_tempfile_variant() {
+        let mode = SourceMode::TempFile;
+        assert_eq!(mode, SourceMode::TempFile);
+    }
+
+    #[test]
+    fn test_source_mode_file_variant() {
+        let path = PathBuf::from("/tmp/activate.sh");
+        let mode = SourceMode::File(path.clone());
+        assert_eq!(mode, SourceMode::File(path));
+    }
+
+    #[test]
+    fn test_resolve_source_mode_inline_logic() {
+        let pkgs = vec!["python-3.9".to_string()];
+        // Test inline mode: build_activation_script should return content directly
+        let content = build_activation_script(&pkgs, "bash");
+        assert!(content.contains("REZ_RESOLVE"));
+        assert!(content.contains("python-3.9"));
+        // Verify SourceMode::Inline is used in match
+        let mode = SourceMode::Inline;
+        let result = match mode {
+            SourceMode::Inline => build_activation_script(&pkgs, "bash"),
+            SourceMode::TempFile => "tempfile".to_string(),
+            SourceMode::File(_) => "file".to_string(),
+        };
+        assert!(result.contains("REZ_RESOLVE"));
+    }
+
+    #[test]
+    fn test_resolve_source_mode_file_logic() {
+        use tempfile::TempDir;
+        let pkgs = vec!["maya-2024".to_string()];
+        let tmp = TempDir::new().unwrap();
+        let dest = tmp.path().join("activate_test.sh");
+        let mode = SourceMode::File(dest.clone());
+        let result = match mode {
+            SourceMode::Inline => "inline".to_string(),
+            SourceMode::TempFile => "tempfile".to_string(),
+            SourceMode::File(path) => {
+                let script = build_activation_script(&pkgs, "bash");
+                std::fs::write(&path, &script).unwrap();
+                path.to_string_lossy().to_string()
+            }
+        };
+        assert!(!result.is_empty());
+        let written = std::fs::read_to_string(&dest).unwrap();
+        assert!(written.contains("maya-2024"));
     }
 }

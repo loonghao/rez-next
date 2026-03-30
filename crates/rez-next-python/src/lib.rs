@@ -302,11 +302,13 @@ fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
     source_mod.add_function(wrap_pyfunction!(source_bindings::write_source_script, &source_mod)?)?;
     source_mod.add_function(wrap_pyfunction!(source_bindings::get_source_script, &source_mod)?)?;
     source_mod.add_function(wrap_pyfunction!(source_bindings::detect_shell, &source_mod)?)?;
+    source_mod.add_function(wrap_pyfunction!(source_bindings::resolve_source_mode, &source_mod)?)?;
     m.add_submodule(&source_mod)?;
     // Top-level source helpers
     m.add_function(wrap_pyfunction!(source_bindings::write_source_script, m)?)?;
     m.add_function(wrap_pyfunction!(source_bindings::get_source_script, m)?)?;
     m.add_function(wrap_pyfunction!(source_bindings::detect_shell, m)?)?;
+    m.add_function(wrap_pyfunction!(source_bindings::resolve_source_mode, m)?)?;
 
     // Submodule: rez.data (built-in data resources: completions, examples, config templates)
     let data_mod = PyModule::new(m.py(), "data")?;
