@@ -294,6 +294,12 @@ impl PythonAstParser {
             "tests" => {
                 package_data.tests = self.extract_tests(value)?;
             }
+            "commands" => {
+                // commands = "..." inline string assignment
+                if let Ok(s) = self.extract_string_value(value) {
+                    package_data.commands_function = Some(s);
+                }
+            }
             "pre_commands" => {
                 package_data.pre_commands = Some(self.extract_string_value(value)?);
             }
@@ -720,48 +726,124 @@ impl PythonAstParser {
         Ok(())
     }
 
-    /// Extract command from a statement in commands function
+    /// Extract command from a statement in commands function.
+    /// Supports the full Rex DSL: env.setenv/prepend_path/append_path/unsetenv/setenv_if_empty,
+    /// alias, command, source, info, error, stop, resetenv.
     fn extract_command_from_statement(&self, stmt: &Stmt) -> Result<Option<String>, RezCoreError> {
         match stmt {
-            // Handle env.VAR = "value" or env.VAR.append("value")
+            // Handle `env.VAR = "value"` (attribute assignment shorthand)
             Stmt::Assign(assign) => {
                 if let Some(target) = assign.targets.first() {
                     if let Expr::Attribute(attr) = target {
                         if let Expr::Name(name_expr) = &*attr.value {
                             if name_expr.id.as_str() == "env" {
-                                let var_name = &attr.attr;
-                                if let Some(value) = self.extract_string_value(&assign.value).ok() {
-                                    return Ok(Some(format!("export {}=\"{}\"", var_name, value)));
+                                let var_name = attr.attr.as_str();
+                                if let Ok(value) = self.extract_string_value(&assign.value) {
+                                    return Ok(Some(format!(
+                                        "env.setenv('{}', '{}')",
+                                        var_name, value
+                                    )));
                                 }
                             }
                         }
                     }
                 }
             }
-            // Handle env.PATH.append("value") or env.VAR.prepend("value")
+
+            // Handle function calls: env.method(...) and top-level alias/command/source/...
             Stmt::Expr(expr_stmt) => {
                 if let Expr::Call(call) = &*expr_stmt.value {
+                    // ─── env.setenv('VAR', 'value') ───────────────────────────
                     if let Expr::Attribute(attr) = &*call.func {
-                        if let Expr::Attribute(env_attr) = &*attr.value {
-                            if let Expr::Name(name_expr) = &*env_attr.value {
-                                if name_expr.id.as_str() == "env" {
-                                    let var_name = &env_attr.attr;
-                                    let method = &attr.attr;
+                        if let Expr::Name(obj) = &*attr.value {
+                            if obj.id.as_str() == "env" {
+                                let method = attr.attr.as_str();
+                                match method {
+                                    "setenv" => {
+                                        if call.args.len() >= 2 {
+                                            if let (Ok(k), Ok(v)) = (
+                                                self.extract_string_value(&call.args[0]),
+                                                self.extract_string_value(&call.args[1]),
+                                            ) {
+                                                return Ok(Some(format!("env.setenv('{}', '{}')", k, v)));
+                                            }
+                                        }
+                                    }
+                                    "unsetenv" => {
+                                        if let Some(arg) = call.args.first() {
+                                            if let Ok(k) = self.extract_string_value(arg) {
+                                                return Ok(Some(format!("env.unsetenv('{}')", k)));
+                                            }
+                                        }
+                                    }
+                                    "prepend_path" => {
+                                        if call.args.len() >= 2 {
+                                            if let (Ok(k), Ok(v)) = (
+                                                self.extract_string_value(&call.args[0]),
+                                                self.extract_string_value(&call.args[1]),
+                                            ) {
+                                                return Ok(Some(format!("env.prepend_path('{}', '{}')", k, v)));
+                                            }
+                                        }
+                                    }
+                                    "append_path" => {
+                                        if call.args.len() >= 2 {
+                                            if let (Ok(k), Ok(v)) = (
+                                                self.extract_string_value(&call.args[0]),
+                                                self.extract_string_value(&call.args[1]),
+                                            ) {
+                                                return Ok(Some(format!("env.append_path('{}', '{}')", k, v)));
+                                            }
+                                        }
+                                    }
+                                    "setenv_if_empty" => {
+                                        if call.args.len() >= 2 {
+                                            if let (Ok(k), Ok(v)) = (
+                                                self.extract_string_value(&call.args[0]),
+                                                self.extract_string_value(&call.args[1]),
+                                            ) {
+                                                return Ok(Some(format!("env.setenv_if_empty('{}', '{}')", k, v)));
+                                            }
+                                        }
+                                    }
+                                    // env.PATH.prepend / env.PATH.append via attribute chain
+                                    _ => {}
+                                }
+                            }
+                        }
 
+                        // ─── env.VAR.prepend / env.VAR.append ─────────────────
+                        if let Expr::Attribute(env_attr) = &*attr.value {
+                            if let Expr::Name(obj) = &*env_attr.value {
+                                if obj.id.as_str() == "env" {
+                                    let var_name = env_attr.attr.as_str();
+                                    let method = attr.attr.as_str();
                                     if let Some(arg) = call.args.first() {
                                         if let Ok(value) = self.extract_string_value(arg) {
-                                            match method.as_str() {
-                                                "append" => {
-                                                    return Ok(Some(format!(
-                                                        "export {}=\"${{{}}}:{}\"",
-                                                        var_name, var_name, value
-                                                    )))
-                                                }
+                                            match method {
                                                 "prepend" => {
                                                     return Ok(Some(format!(
-                                                        "export {}=\"{}:${{{}}}\"",
-                                                        var_name, value, var_name
-                                                    )))
+                                                        "env.prepend_path('{}', '{}')",
+                                                        var_name, value
+                                                    )));
+                                                }
+                                                "append" => {
+                                                    return Ok(Some(format!(
+                                                        "env.append_path('{}', '{}')",
+                                                        var_name, value
+                                                    )));
+                                                }
+                                                "set" => {
+                                                    return Ok(Some(format!(
+                                                        "env.setenv('{}', '{}')",
+                                                        var_name, value
+                                                    )));
+                                                }
+                                                "unset" => {
+                                                    return Ok(Some(format!(
+                                                        "env.unsetenv('{}')",
+                                                        var_name
+                                                    )));
                                                 }
                                                 _ => {}
                                             }
@@ -769,6 +851,103 @@ impl PythonAstParser {
                                     }
                                 }
                             }
+                        }
+                    }
+
+                    // ─── Top-level Rex calls: alias, command, source, info, error, stop, resetenv ──
+                    if let Expr::Name(func_name) = &*call.func {
+                        match func_name.id.as_str() {
+                            "alias" => {
+                                if call.args.len() >= 2 {
+                                    if let (Ok(name), Ok(cmd)) = (
+                                        self.extract_string_value(&call.args[0]),
+                                        self.extract_string_value(&call.args[1]),
+                                    ) {
+                                        return Ok(Some(format!("alias('{}', '{}')", name, cmd)));
+                                    }
+                                }
+                            }
+                            "command" => {
+                                if let Some(arg) = call.args.first() {
+                                    if let Ok(cmd) = self.extract_string_value(arg) {
+                                        return Ok(Some(format!("command('{}')", cmd)));
+                                    }
+                                }
+                            }
+                            "source" => {
+                                if let Some(arg) = call.args.first() {
+                                    if let Ok(path) = self.extract_string_value(arg) {
+                                        return Ok(Some(format!("source('{}')", path)));
+                                    }
+                                }
+                            }
+                            "info" => {
+                                if let Some(arg) = call.args.first() {
+                                    if let Ok(msg) = self.extract_string_value(arg) {
+                                        return Ok(Some(format!("info('{}')", msg)));
+                                    }
+                                }
+                            }
+                            "error" => {
+                                if let Some(arg) = call.args.first() {
+                                    if let Ok(msg) = self.extract_string_value(arg) {
+                                        return Ok(Some(format!("error('{}')", msg)));
+                                    }
+                                }
+                            }
+                            "stop" => {
+                                if call.args.is_empty() {
+                                    return Ok(Some("stop()".to_string()));
+                                } else if let Ok(msg) = self.extract_string_value(&call.args[0]) {
+                                    return Ok(Some(format!("stop('{}')", msg)));
+                                }
+                            }
+                            "resetenv" => {
+                                if let Some(arg) = call.args.first() {
+                                    if let Ok(var) = self.extract_string_value(arg) {
+                                        return Ok(Some(format!("resetenv('{}')", var)));
+                                    }
+                                }
+                            }
+                            // setenv / prependenv / appendenv / unsetenv shorthand
+                            "setenv" => {
+                                if call.args.len() >= 2 {
+                                    if let (Ok(k), Ok(v)) = (
+                                        self.extract_string_value(&call.args[0]),
+                                        self.extract_string_value(&call.args[1]),
+                                    ) {
+                                        return Ok(Some(format!("setenv('{}', '{}')", k, v)));
+                                    }
+                                }
+                            }
+                            "prependenv" => {
+                                if call.args.len() >= 2 {
+                                    if let (Ok(k), Ok(v)) = (
+                                        self.extract_string_value(&call.args[0]),
+                                        self.extract_string_value(&call.args[1]),
+                                    ) {
+                                        return Ok(Some(format!("prependenv('{}', '{}')", k, v)));
+                                    }
+                                }
+                            }
+                            "appendenv" => {
+                                if call.args.len() >= 2 {
+                                    if let (Ok(k), Ok(v)) = (
+                                        self.extract_string_value(&call.args[0]),
+                                        self.extract_string_value(&call.args[1]),
+                                    ) {
+                                        return Ok(Some(format!("appendenv('{}', '{}')", k, v)));
+                                    }
+                                }
+                            }
+                            "unsetenv" => {
+                                if let Some(arg) = call.args.first() {
+                                    if let Ok(k) = self.extract_string_value(arg) {
+                                        return Ok(Some(format!("unsetenv('{}')", k)));
+                                    }
+                                }
+                            }
+                            _ => {}
                         }
                     }
                 }

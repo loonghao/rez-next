@@ -1,41 +1,47 @@
 # rez-next auto-improve 执行记录
 
-## 最新执行 (2026-03-30 09:17)
+## 最新执行 (2026-03-30 10:34)
 
 ### 执行摘要
-本次执行完成了 A* 求解器模块完整启用（替换临时类型为真实类型）、repository/filesystem 多个 TODO 修复、CLI build 变体选择实现，新增 75 个测试（共 808），全部通过，推送了 1 次提交（620e93f）。
+本次执行完成了 Rex DSL 增强（新增 resetenv/info/error/stop 4 个命令）、Python 绑定 selftest 扩充（4→15 个兼容性测试）、新增 rex_benchmark 和 solver_bench_v2 两个 criterion 性能基准。共推送 3 个提交。
 
 ### 已完成的工作
 
-#### 1. A* 求解器模块完整启用
-- `lib.rs`：取消注释 `mod astar`，导出 `AStarSearch`、`SearchStats`、所有 heuristics 类型
-- `search_state.rs`：完全重写，删除临时 `Package`/`PackageRequirement` 本地类型，改用 `rez_next_package` 真实类型；`DependencyConflict.severity_bits: u64` 替代 `f64`（规避序列化问题）
-- `astar_search.rs`：完全重写，使用真实类型；实现版本冲突检测（通过 `VersionRange::contains`）和循环依赖检测；修复借用检查（先收集冲突 Vec 再 batch add）
-- `heuristics.rs`：更新 import，使用 `rez_next_package` 真实类型，修复 `severity()` 方法访问
-- `standalone_test.rs`、`test_framework.rs`：完全重写，使用真实类型
-- `heuristic_integration_test.rs`：完全重写，新增 5 个集成测试
-- `heuristic_benchmark.rs`：完全重写，增加 `benchmark_heuristic_dyn` 支持 `Box<dyn>`
+#### 1. Rex DSL 增强 (commit: 92e5aa6)
+- `actions.rs`：新增 `Resetenv`、`Info`、`Error`、`Stop` 4 种动作类型
+- `lib.rs`：`RexEnvironment` 新增 `info_messages`、`stopped`、`stop_message` 字段；`apply_action` 处理新动作
+- `parser.rs`：新增 4 组 regex 和解析分支，支持 `resetenv()`、`env.resetenv()`、`info()`、`error()`、`stop()` / `stop("msg")`
+- `executor.rs`：`expand_action_vars` 新增 Info/Error/Stop 的变量展开
+- `shell.rs`：bash 脚本生成器末尾追加 info_messages 注释输出
+- 新增 10 个测试，Rex 测试总数：**80 个**（全部通过）
 
-#### 2. Repository TODO 修复
-- `repository.rs`：`repository_count()` 改用 `AtomicUsize`（sync-safe）；`add_repository()` 实现真正的 priority 排序（降序插入）；`remove_repository()` 实现真正按名字查找删除
-- `filesystem.rs`：`is_initialized()` 改用 `AtomicBool`，不再硬编码 `false`
+#### 2. Rex & Solver Benchmark (commit: a19a7ef)
+- `benches/rex_benchmark.rs`（新建）：parser 构造/解析/执行 benchmark，含 maya/python/houdini/large_pkg 4 种典型 commands 场景，multi-package 累积测试（2/5/10/20 包）
+- `benches/solver_bench_v2.rs`（新建）：基于 `DependencyResolver::new(Arc<RepositoryManager>, SolverConfig)` API，resolver 构造/空 resolve/单包/多包/config 变化 5 类 benchmark
+- 旧 `simple_solver_benchmark.rs` 保持注释（API 已过时）
 
-#### 3. CLI build 变体选择
-- `build.rs`：实现 `--variants` 参数，验证索引范围，逐 variant 构建；无 variants flag 时自动为所有 variants 构建；variant index 转换为 `Option<String>` 的描述性名字
+#### 3. Python 绑定 selftest 扩充 (commit: 9657d17)
+- `selftest()` 从 4 个测试扩展到 **15 个**，覆盖：version 解析、range 解析、比较、range.contains、config、package_requirement、satisfied_by、package 字段、rex 解析/执行/新命令（resetenv+info+stop）、shell 脚本生成（bash+PowerShell）、suite 创建+保存+roundtrip、repository 构造
+- `rez-next-python/Cargo.toml`：添加 `tempfile` 依赖
 
 ### 当前项目状态
 
-**分支**: `auto-improve`（已推送到 `origin/auto-improve`，最新 commit: `620e93f`）
+**分支**: `auto-improve`（已推送到 `origin/auto-improve`，最新 commit: `a19a7ef`）
 
-**测试总计**: 808 个测试，全部通过（exit=0）
-- rez-next-solver: 62 tests（A* 新增约 30 个）
-- rez-next-repository: 70 tests（新增 2 个）
+**测试总计**: ~818 个（全部通过，exitCode=0）
+- rez-next-rex: **80 tests**（含新增 resetenv/info/error/stop 10 个）
 - 其他 crates: 保持不变
 
+**Benchmarks 已启用**（Cargo.toml `[[bench]]`）:
+- `version_benchmark`, `package_benchmark`, `simple_package_benchmark`（原有）
+- `rex_benchmark`（新）：Rex parser/executor 全场景性能
+- `solver_bench_v2`（新）：DependencyResolver 性能
+
 **已完成模块**（11个 crates）:
-- rez-next-common, rez-next-version, rez-next-package, rez-next-solver（**A* 完全启用**）
-- rez-next-repository（**is_initialized 修复**）, rez-next-context, rez-next-build, rez-next-cache
-- rez-next-rex, rez-next-suites, rez-next-python（lib: rez_next_bindings）
+- rez-next-common, rez-next-version, rez-next-package, rez-next-solver（A* 完全启用）
+- rez-next-repository（is_initialized 修复）, rez-next-context, rez-next-build, rez-next-cache
+- rez-next-rex（**resetenv/info/error/stop 完整 DSL**）
+- rez-next-suites, rez-next-python（lib: rez_next_bindings，selftest 15 checks）
 
 **Python 绑定**:
 - Crate: `crates/rez-next-python/`
@@ -44,15 +50,14 @@
 
 ### 下一阶段待实现功能（按优先级）
 
-1. **Python 绑定 PySolver.resolve() 更新**：集成 A* 求解器到 Python binding 的 `PySolver.solve()`
-2. **filesystem 扫描支持 package.py 解析**：当前 `scan_package_directory()` 只支持 YAML，需要支持 `package.py` 文件（通过 `PackageSerializer`）
-3. **优化 solver 性能 benchmark**：与原 rez 进行性能对比测试（benches/ 目录已存在）
-4. **context 模块完善**：ResolvedContext 的 apply/restore env 实际执行
-5. **cache 和 optimized_solver**：`lib.rs` 中仍注释的两个模块
+1. **Rex 变量展开增强**：支持 `{this.root}` / `{this.version}` rez 风格上下文变量
+2. **package.py AST 解析增强**：`commands` 字段支持多行 Python 函数语法（`def commands(): ...`）
+3. **Context 模块 env 生成完善**：基于真实包路径（非硬编码 `/packages/<name>`）的 root 推导
+4. **solver benchmark 对比**：待有实际包仓库时与原 rez Python solver 进行 A*/greedy 性能对比
+5. **Python bindings 测试**：maturin 构建后的 Python-level smoke tests
 
 ### 注意事项
-- Windows PowerShell：cargo stderr 需重定向到文件才能 Select-String
-- A* `DependencyConflict` 用 `severity_bits: u64` 存储 f64（规避 serde 比较问题）
-- `Package.requires: Vec<String>`，不是 `Vec<PackageRequirement>`（与 solver 内部用法不同）
-- 借用检查：在循环中修改 state 时，先 collect conflicts 到局部 Vec，再 batch add
-- `git push --force-with-lease` 优于 `--force`（更安全）
+- Windows PowerShell：`tail` 不可用，用 `Select-Object -Last N`；`findstr` 无法从 CLIXML 中过滤
+- Rex `stopped`/`stop_message` 不阻断命令序列（非严格模式），只记录状态
+- `solver_bench_v2` 用空仓库，所有 resolve 快速返回（无包可找），测量的是 overhead
+- `git push` 成功时 stderr 会有 "NativeCommandError" 信息，但 exitCode=0 且包含推送确认行
