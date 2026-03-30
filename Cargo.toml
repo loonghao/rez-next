@@ -139,6 +139,10 @@ harness = false
 name = "rex_benchmark"
 harness = false
 
+[[bench]]
+name = "solver_bench_v2"
+harness = false
+
 # Temporarily disabled benchmarks due to API changes
 # [[bench]]
 # name = "comprehensive_benchmark_suite"
