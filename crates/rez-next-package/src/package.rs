@@ -127,25 +127,17 @@ impl PackageRequirement {
 
         let ver_str = ver_str.trim();
         if let Ok(constraint_ver) = Version::parse(ver_str) {
-            match op {
-                ">=" => version >= &constraint_ver,
-                "<=" => version <= &constraint_ver,
-                ">" => version > &constraint_ver,
-                "<" => version < &constraint_ver,
-                "!=" => version != &constraint_ver,
-                "~=" => {
-                    // Compatible release: >= version but < next major
-                    let parts: Vec<&str> = ver_str.split('.').collect();
-                    if parts.len() >= 2 {
-                        let prefix = parts[..parts.len() - 1].join(".");
-                        version >= &constraint_ver
-                            && version.as_str().starts_with(&format!("{}.", prefix))
-                    } else {
-                        version >= &constraint_ver
-                    }
-                }
-                _ => version == &constraint_ver,
-            }
+            use crate::requirement::VersionConstraint;
+            let constraint = match op {
+                ">=" => VersionConstraint::GreaterThanOrEqual(constraint_ver),
+                "<=" => VersionConstraint::LessThanOrEqual(constraint_ver),
+                ">" => VersionConstraint::GreaterThan(constraint_ver),
+                "<" => VersionConstraint::LessThan(constraint_ver),
+                "!=" => VersionConstraint::Exclude(vec![constraint_ver]),
+                "~=" => VersionConstraint::Compatible(constraint_ver),
+                _ => VersionConstraint::Exact(constraint_ver),
+            };
+            constraint.is_satisfied_by(version)
         } else {
             // Could not parse version spec as a version — exact string match
             version.as_str() == ver_str
