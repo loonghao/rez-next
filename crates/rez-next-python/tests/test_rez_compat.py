@@ -446,6 +446,88 @@ class TestUtilsModule:
             get_resource_string("nonexistent_resource_xyz_12345")
 
 
+class TestPluginsModule:
+    """Verify rez.plugins plugin manager API."""
+
+    def test_plugins_submodule_exists(self):
+        import rez_next.plugins as plugins
+        assert hasattr(plugins, "get_plugin_manager")
+        assert hasattr(plugins, "get_shell_types")
+        assert hasattr(plugins, "get_build_system_types")
+        assert hasattr(plugins, "is_shell_supported")
+        assert hasattr(plugins, "plugin_manager")
+
+    def test_plugin_manager_singleton(self):
+        import rez_next.plugins as plugins
+        mgr = plugins.plugin_manager
+        assert mgr is not None
+
+    def test_get_plugin_manager_function(self):
+        import rez_next.plugins as plugins
+        mgr = plugins.get_plugin_manager()
+        assert mgr is not None
+        assert mgr.count > 0
+
+    def test_get_shell_types(self):
+        import rez_next.plugins as plugins
+        shells = plugins.get_shell_types()
+        assert isinstance(shells, list)
+        assert "bash" in shells
+        assert "powershell" in shells
+        assert "fish" in shells
+        assert "cmd" in shells
+
+    def test_get_build_system_types(self):
+        import rez_next.plugins as plugins
+        build_systems = plugins.get_build_system_types()
+        assert isinstance(build_systems, list)
+        assert "cmake" in build_systems
+        assert "python_rezbuild" in build_systems
+
+    def test_is_shell_supported(self):
+        import rez_next.plugins as plugins
+        assert plugins.is_shell_supported("bash")
+        assert plugins.is_shell_supported("powershell")
+        assert not plugins.is_shell_supported("nonexistent_xyz")
+
+    def test_plugin_manager_get_plugins(self):
+        import rez_next.plugins as plugins
+        mgr = plugins.get_plugin_manager()
+        shell_plugins = mgr.get_plugins("shell")
+        assert isinstance(shell_plugins, list)
+        assert len(shell_plugins) > 0
+
+    def test_plugin_manager_has_plugin(self):
+        import rez_next.plugins as plugins
+        mgr = plugins.get_plugin_manager()
+        assert mgr.has_plugin("shell", "bash")
+        assert mgr.has_plugin("build_system", "cmake")
+        assert not mgr.has_plugin("shell", "nonexistent")
+
+    def test_plugin_manager_plugin_types(self):
+        import rez_next.plugins as plugins
+        mgr = plugins.get_plugin_manager()
+        types = mgr.plugin_types()
+        assert "shell" in types
+        assert "build_system" in types
+        assert "release_hook" in types
+
+    def test_plugin_object_attributes(self):
+        import rez_next.plugins as plugins
+        mgr = plugins.get_plugin_manager()
+        plugin = mgr.get_plugin("shell", "bash")
+        assert plugin is not None
+        assert plugin.name == "bash"
+        assert plugin.plugin_type == "shell"
+        assert plugin.description
+
+    def test_top_level_get_plugin_manager(self):
+        """get_plugin_manager accessible at top level."""
+        assert callable(rez.get_plugin_manager)
+        mgr = rez.get_plugin_manager()
+        assert mgr is not None
+
+
 class TestPipModule:
     """Verify rez.pip submodule API — pip-to-rez package conversion."""
 

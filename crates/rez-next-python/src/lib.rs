@@ -16,6 +16,7 @@ mod suite_bindings;
 mod system_bindings;
 mod shell_bindings;
 mod pip_bindings;
+mod plugins_bindings;
 
 use version_bindings::{PyVersion, PyVersionRange};
 use package_bindings::{PyPackage, PyPackageRequirement};
@@ -27,6 +28,7 @@ use suite_bindings::{PySuite, PySuiteManager};
 use system_bindings::PySystem;
 use shell_bindings::PyShell;
 use pip_bindings::PyPipPackage;
+use plugins_bindings::{PyPlugin, PyRezPluginManager};
 
 /// Main Python module `rez_next` — drop-in replacement for `rez`
 #[pymodule(name = "rez_next")]
@@ -63,6 +65,10 @@ fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
     // Pip package conversion class
     m.add_class::<PyPipPackage>()?;
+
+    // Plugin system classes
+    m.add_class::<PyPlugin>()?;
+    m.add_class::<PyRezPluginManager>()?;
 
     // Top-level convenience functions (matching rez's public API)
     m.add_function(wrap_pyfunction!(get_latest_package, m)?)?;
@@ -192,6 +198,20 @@ fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_submodule(&pip_mod)?;
     // Also expose pip_install at top level for convenience
     m.add_function(wrap_pyfunction!(pip_bindings::pip_install, m)?)?;
+
+    // Submodule: rez.plugins (plugin manager)
+    let plugins_mod = PyModule::new(m.py(), "plugins")?;
+    plugins_mod.add_class::<PyPlugin>()?;
+    plugins_mod.add_class::<PyRezPluginManager>()?;
+    plugins_mod.add_function(wrap_pyfunction!(plugins_bindings::get_plugin_manager, &plugins_mod)?)?;
+    plugins_mod.add_function(wrap_pyfunction!(plugins_bindings::get_shell_types, &plugins_mod)?)?;
+    plugins_mod.add_function(wrap_pyfunction!(plugins_bindings::get_build_system_types, &plugins_mod)?)?;
+    plugins_mod.add_function(wrap_pyfunction!(plugins_bindings::is_shell_supported, &plugins_mod)?)?;
+    // plugin_manager singleton (rez.plugins.plugin_manager)
+    plugins_mod.add("plugin_manager", plugins_bindings::get_plugin_manager())?;
+    m.add_submodule(&plugins_mod)?;
+    // Also expose at top level
+    m.add_function(wrap_pyfunction!(plugins_bindings::get_plugin_manager, m)?)?;
 
     Ok(())
 }
