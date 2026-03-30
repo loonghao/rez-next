@@ -2,16 +2,15 @@
 
 use crate::context_bindings::PyResolvedContext;
 use pyo3::prelude::*;
-use rez_next_package::{PackageRequirement, Requirement};
-use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
-use rez_next_solver::{DependencyResolver, SolverConfig};
+use rez_next_solver::SolverConfig;
 use std::path::PathBuf;
-use std::sync::Arc;
 
 /// Python-accessible Solver class, compatible with rez.solver.Solver
 #[pyclass(name = "Solver")]
 pub struct PySolver {
+    #[allow(dead_code)]
     config: SolverConfig,
+    #[allow(dead_code)]
     paths: Vec<PathBuf>,
 }
 

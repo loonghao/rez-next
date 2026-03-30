@@ -2,9 +2,7 @@
 
 use crate::version_bindings::PyVersion;
 use pyo3::prelude::*;
-use pyo3::types::PyList;
 use rez_next_package::{Package, PackageRequirement};
-use std::collections::HashMap;
 
 /// Python-accessible Package class, compatible with rez.packages.Package
 #[pyclass(name = "Package")]

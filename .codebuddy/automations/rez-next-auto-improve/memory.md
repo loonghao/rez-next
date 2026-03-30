@@ -1,63 +1,88 @@
 # rez-next auto-improve 执行记录
 
-## 最新执行 (2026-03-30 10:34)
+## 最新执行 (2026-03-30 14:20)
 
 ### 执行摘要
-本次执行完成了 Rex DSL 增强（新增 resetenv/info/error/stop 4 个命令）、Python 绑定 selftest 扩充（4→15 个兼容性测试）、新增 rex_benchmark 和 solver_bench_v2 两个 criterion 性能基准。共推送 3 个提交。
+本次执行完成了以下改进：
+1. 新建 `tests/rez_solver_advanced_tests.rs`：22 个高级 Solver 测试
+2. 扩展 `tests/rez_compat_tests.rs`：+12 新兼容性测试（共 82 个）
+3. 增强 Python bindings：新增 `rez.bundles`、`rez.cli`、`rez.utils.resources` 子模块
+4. 更新 `test_rez_compat.py`：+15 个 Python API 测试
 
-### 已完成的工作
+### 已推送 Commits（本次）
+- `2b89d59` feat(compat): add advanced solver tests, extend rez_compat tests, add Python bundles/cli/utils modules
 
-#### 1. Rex DSL 增强 (commit: 92e5aa6)
-- `actions.rs`：新增 `Resetenv`、`Info`、`Error`、`Stop` 4 种动作类型
-- `lib.rs`：`RexEnvironment` 新增 `info_messages`、`stopped`、`stop_message` 字段；`apply_action` 处理新动作
-- `parser.rs`：新增 4 组 regex 和解析分支，支持 `resetenv()`、`env.resetenv()`、`info()`、`error()`、`stop()` / `stop("msg")`
-- `executor.rs`：`expand_action_vars` 新增 Info/Error/Stop 的变量展开
-- `shell.rs`：bash 脚本生成器末尾追加 info_messages 注释输出
-- 新增 10 个测试，Rex 测试总数：**80 个**（全部通过）
+### 新增内容详情
 
-#### 2. Rex & Solver Benchmark (commit: a19a7ef)
-- `benches/rex_benchmark.rs`（新建）：parser 构造/解析/执行 benchmark，含 maya/python/houdini/large_pkg 4 种典型 commands 场景，multi-package 累积测试（2/5/10/20 包）
-- `benches/solver_bench_v2.rs`（新建）：基于 `DependencyResolver::new(Arc<RepositoryManager>, SolverConfig)` API，resolver 构造/空 resolve/单包/多包/config 变化 5 类 benchmark
-- 旧 `simple_solver_benchmark.rs` 保持注释（API 已过时）
+#### tests/rez_solver_advanced_tests.rs（22 tests）
+- Diamond dependency 兼容性（compatible、unify）
+- DependencyGraph conflict 检测（disjoint、overlapping、partial）
+- 多层传递依赖解析（5层链式 A->B->C->D->E）
+- 多根需求共享依赖去重（pandas+matplotlib 共享 numpy）
+- VFX pipeline 场景（maya+houdini 共享 python）
+- VersionConstraint 边界测试（LTE、GT、Range、Any）
+- Requirement.from_str 格式（下划线名、连字符名、rez-native +、+<max、point release）
 
-#### 3. Python 绑定 selftest 扩充 (commit: 9657d17)
-- `selftest()` 从 4 个测试扩展到 **15 个**，覆盖：version 解析、range 解析、比较、range.contains、config、package_requirement、satisfied_by、package 字段、rex 解析/执行/新命令（resetenv+info+stop）、shell 脚本生成（bash+PowerShell）、suite 创建+保存+roundtrip、repository 构造
-- `rez-next-python/Cargo.toml`：添加 `tempfile` 依赖
+#### rez_compat_tests.rs 新增（+12 tests）
+- `test_rez_weak_requirement_with_version`：弱需求 + 版本约束
+- `test_rez_weak_requirement_no_version`：弱需求无版本
+- `test_rez_namespace_requirement`：命名空间需求（studio::python）
+- `test_rez_platform_condition_requirement`：平台条件（正向+否定）
+- `test_rez_version_exclude_constraint`：Exclude 约束
+- `test_rez_multiple_constraint_and_logic`：AND 逻辑组合
+- `test_rez_alternative_constraint_or_logic`：OR 逻辑组合
+- `test_package_yaml_complex_fields`：YAML 复杂字段
+- `test_package_yaml_roundtrip_full_fields`：YAML 完整往返
+- `test_requirement_display_roundtrip`：Display → parse 稳定性
+- `test_solver_diamond_dependency_conflict_detection`：图中钻石冲突
+- `test_version_range_chained_intersections`：链式 intersect
+
+#### Python 绑定新增模块
+- `rez.bundles`：`bundle_context()`, `unbundle_context()`, `list_bundles()`
+- `rez.cli`：`cli_run()`, `cli_main()` — CLI 命令兼容层
+- `rez.utils.resources`：`get_resource_string()` — 资源访问
+- 顶层 `rez.bundle_context` — API 便捷访问
+
+### 测试计数（截至本次）
+- `rez_solver_advanced_tests.rs`: **22 tests** (NEW)
+- `rez_compat_tests.rs`: **82 tests** (was 70, +12)
+- `real_repo_integration.rs`: 19 tests
+- `integration_tests.rs`: 4 tests
+- 所有 workspace 测试：**全部通过**（exit code 0）
+- Python `test_rez_compat.py`: +15 新测试（bundles/cli/utils）
 
 ### 当前项目状态
+**分支**: `auto-improve`（已推送到 `origin/auto-improve`，最新 commit: `2b89d59`）
 
-**分支**: `auto-improve`（已推送到 `origin/auto-improve`，最新 commit: `a19a7ef`）
+**已完成模块**（12个 crates + Python bindings）:
+- rez-next-common, rez-next-version, rez-next-package（rez 格式解析）
+- rez-next-solver（A* 完全启用，传递依赖、diamond deps 测试）
+- rez-next-repository, rez-next-context（Rex 集成、rxt/rxtb 序列化）
+- rez-next-build, rez-next-cache
+- rez-next-rex（完整 DSL）
+- rez-next-suites, rez-next-python
 
-**测试总计**: ~818 个（全部通过，exitCode=0）
-- rez-next-rex: **80 tests**（含新增 resetenv/info/error/stop 10 个）
-- 其他 crates: 保持不变
+**Python 绑定子模块**（完整）:
+- `rez.version`, `rez.packages_`, `rez.resolved_context`
+- `rez.suite`, `rez.config`, `rez.system`
+- `rez.vendor.version`, `rez.build_`, `rez.rex`, `rez.shell`
+- `rez.exceptions`, `rez.bundles` (NEW), `rez.cli` (NEW)
+- `rez.utils.resources` (NEW)
 
-**Benchmarks 已启用**（Cargo.toml `[[bench]]`）:
-- `version_benchmark`, `package_benchmark`, `simple_package_benchmark`（原有）
-- `rex_benchmark`（新）：Rex parser/executor 全场景性能
-- `solver_bench_v2`（新）：DependencyResolver 性能
-
-**已完成模块**（11个 crates）:
-- rez-next-common, rez-next-version, rez-next-package, rez-next-solver（A* 完全启用）
-- rez-next-repository（is_initialized 修复）, rez-next-context, rez-next-build, rez-next-cache
-- rez-next-rex（**resetenv/info/error/stop 完整 DSL**）
-- rez-next-suites, rez-next-python（lib: rez_next_bindings，selftest 15 checks）
-
-**Python 绑定**:
-- Crate: `crates/rez-next-python/`
-- Python 模块名: `rez_next`（完整 rez drop-in replacement）
-- 构建: `cd crates/rez-next-python && maturin develop`
+**Benchmarks**:
+- `solver_real_repo_bench`, `rex_benchmark`, `solver_bench_v2`
+- `version_benchmark`, `package_benchmark`, `simple_package_benchmark`
 
 ### 下一阶段待实现功能（按优先级）
+1. **Python bindings 打包测试**：maturin develop + pytest tests/test_rez_compat.py
+2. **Context 激活脚本完整测试**：env var generation → bash/powershell 脚本验证
+3. **Solver benchmark 性能对比**：与原版 rez Python 实现的性能对比数据
+4. **rez.pip 子模块**：pip install → rez package conversion compat
+5. **rez-next-context CLI**：`rez env`、`rez context` 命令真实场景测试
 
-1. **Rex 变量展开增强**：支持 `{this.root}` / `{this.version}` rez 风格上下文变量
-2. **package.py AST 解析增强**：`commands` 字段支持多行 Python 函数语法（`def commands(): ...`）
-3. **Context 模块 env 生成完善**：基于真实包路径（非硬编码 `/packages/<name>`）的 root 推导
-4. **solver benchmark 对比**：待有实际包仓库时与原 rez Python solver 进行 A*/greedy 性能对比
-5. **Python bindings 测试**：maturin 构建后的 Python-level smoke tests
-
-### 注意事项
-- Windows PowerShell：`tail` 不可用，用 `Select-Object -Last N`；`findstr` 无法从 CLIXML 中过滤
-- Rex `stopped`/`stop_message` 不阻断命令序列（非严格模式），只记录状态
-- `solver_bench_v2` 用空仓库，所有 resolve 快速返回（无包可找），测量的是 overhead
-- `git push` 成功时 stderr 会有 "NativeCommandError" 信息，但 exitCode=0 且包含推送确认行
+### 重要技术笔记
+- **rez 版本语义**：更短版本字符串 = 更高 epoch（`1.0 > 1.0.0`）
+- **深度截断比较**：`>=3` 对 `3.11.0` = True；`>1.0` 对 `1.0.1` = False（rez 语义）
+- `D-1+` means `>=1`（单 token 深度截断），所以 D-2.0.0 也满足
+- PyO3 `signature` macro 参数名必须与函数参数名完全一致（不能用 `_` 前缀）
+- Windows PowerShell：`git push` stderr 包含 NativeCommandError 但 exitCode=0 = 成功

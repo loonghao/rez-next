@@ -1,6 +1,6 @@
 //! Python bindings for ResolvedContext
 
-use crate::package_bindings::{PyPackage, PyPackageRequirement};
+use crate::package_bindings::PyPackage;
 use crate::expand_home;
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
@@ -8,7 +8,6 @@ use rez_next_context::{ContextStatus, ResolvedContext};
 use rez_next_package::{PackageRequirement, Requirement};
 use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
 use rez_next_solver::{DependencyResolver, SolverConfig};
-use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -17,6 +16,7 @@ use std::sync::Arc;
 pub struct PyResolvedContext {
     inner: ResolvedContext,
     /// Paths used for resolution
+    #[allow(dead_code)]
     paths: Vec<PathBuf>,
 }
 
@@ -184,6 +184,8 @@ impl PyResolvedContext {
         stdout: Option<bool>,
         stderr: Option<bool>,
     ) -> PyResult<i32> {
+        let _ = stdout;
+        let _ = stderr;
         let rt = tokio::runtime::Runtime::new()
             .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
 
@@ -389,7 +391,6 @@ impl PyResolvedContext {
 
 #[cfg(test)]
 mod context_bindings_tests {
-    use crate::package_bindings::PyPackage;
     use rez_next_context::{ContextStatus, ResolvedContext};
     use rez_next_package::{Package, PackageRequirement};
     use rez_next_version::Version;

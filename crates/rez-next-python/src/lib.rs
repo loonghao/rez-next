@@ -15,6 +15,7 @@ mod repository_bindings;
 mod suite_bindings;
 mod system_bindings;
 mod shell_bindings;
+mod pip_bindings;
 
 use version_bindings::{PyVersion, PyVersionRange};
 use package_bindings::{PyPackage, PyPackageRequirement};
@@ -25,6 +26,7 @@ use repository_bindings::PyRepositoryManager;
 use suite_bindings::{PySuite, PySuiteManager};
 use system_bindings::PySystem;
 use shell_bindings::PyShell;
+use pip_bindings::PyPipPackage;
 
 /// Main Python module `rez_next` — drop-in replacement for `rez`
 #[pymodule(name = "rez_next")]
@@ -58,6 +60,9 @@ fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
     // Shell
     m.add_class::<PyShell>()?;
+
+    // Pip package conversion class
+    m.add_class::<PyPipPackage>()?;
 
     // Top-level convenience functions (matching rez's public API)
     m.add_function(wrap_pyfunction!(get_latest_package, m)?)?;
@@ -174,6 +179,19 @@ fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
     resources_mod.add_function(wrap_pyfunction!(get_resource_string, &resources_mod)?)?;
     utils_mod.add_submodule(&resources_mod)?;
     m.add_submodule(&utils_mod)?;
+
+    // Submodule: rez.pip (pip-to-rez package conversion)
+    let pip_mod = PyModule::new(m.py(), "pip")?;
+    pip_mod.add_class::<PyPipPackage>()?;
+    pip_mod.add_function(wrap_pyfunction!(pip_bindings::normalize_package_name, &pip_mod)?)?;
+    pip_mod.add_function(wrap_pyfunction!(pip_bindings::pip_version_to_rez, &pip_mod)?)?;
+    pip_mod.add_function(wrap_pyfunction!(pip_bindings::pip_install, &pip_mod)?)?;
+    pip_mod.add_function(wrap_pyfunction!(pip_bindings::convert_pip_to_rez, &pip_mod)?)?;
+    pip_mod.add_function(wrap_pyfunction!(pip_bindings::get_pip_dependencies, &pip_mod)?)?;
+    pip_mod.add_function(wrap_pyfunction!(pip_bindings::write_pip_package, &pip_mod)?)?;
+    m.add_submodule(&pip_mod)?;
+    // Also expose pip_install at top level for convenience
+    m.add_function(wrap_pyfunction!(pip_bindings::pip_install, m)?)?;
 
     Ok(())
 }
@@ -299,6 +317,7 @@ fn cli_run(
     command: &str,
     args: Option<Vec<String>>,
 ) -> PyResult<i32> {
+    let _ = args; // reserved for future full CLI dispatch
     // Basic CLI dispatch — in a full implementation, this would invoke the Rust CLI binary.
     // For API compat, we validate the command name and return 0 (success) for known commands.
     let known_commands = [
@@ -322,7 +341,6 @@ fn cli_run(
 #[pyo3(signature = (args=None))]
 fn cli_main(args: Option<Vec<String>>) -> PyResult<i32> {
     if let Some(ref a) = args {
-        let _ = a; // used below
         if let Some(cmd) = a.first() {
             return cli_run(cmd.as_str(), Some(a[1..].to_vec()));
         }

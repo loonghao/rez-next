@@ -446,5 +446,106 @@ class TestUtilsModule:
             get_resource_string("nonexistent_resource_xyz_12345")
 
 
+class TestPipModule:
+    """Verify rez.pip submodule API — pip-to-rez package conversion."""
+
+    def test_pip_submodule_exists(self):
+        import rez_next.pip as pip
+        assert hasattr(pip, "normalize_package_name")
+        assert hasattr(pip, "pip_version_to_rez")
+        assert hasattr(pip, "pip_install")
+        assert hasattr(pip, "convert_pip_to_rez")
+        assert hasattr(pip, "PipPackage")
+
+    def test_normalize_package_name(self):
+        import rez_next.pip as pip
+        assert pip.normalize_package_name("NumPy") == "numpy"
+        assert pip.normalize_package_name("Pillow") == "pillow"
+        assert pip.normalize_package_name("scikit_learn") == "scikit-learn"
+        assert pip.normalize_package_name("PyYAML") == "pyyaml"
+
+    def test_pip_version_to_rez_exact(self):
+        import rez_next.pip as pip
+        assert pip.pip_version_to_rez("==1.2.3") == "1.2.3"
+
+    def test_pip_version_to_rez_gte(self):
+        import rez_next.pip as pip
+        result = pip.pip_version_to_rez(">=3.9")
+        assert "3.9" in result
+
+    def test_pip_version_to_rez_range(self):
+        import rez_next.pip as pip
+        result = pip.pip_version_to_rez(">=1.0,<2.0")
+        assert "1.0" in result and "2.0" in result
+
+    def test_pip_install_returns_list(self):
+        import rez_next.pip as pip
+        result = pip.pip_install(["numpy==1.25.0", "scipy==1.11.0"])
+        assert isinstance(result, list)
+        assert len(result) == 2
+
+    def test_pip_install_name_normalization(self):
+        import rez_next.pip as pip
+        result = pip.pip_install(["PyYAML==6.0"])
+        assert result[0].startswith("pyyaml")
+
+    def test_convert_pip_to_rez(self):
+        import rez_next.pip as pip
+        pkg = pip.convert_pip_to_rez(
+            "numpy", "1.25.0",
+            requires=["python>=3.8"],
+            description="Numerical Python"
+        )
+        assert pkg.name == "numpy"
+        assert pkg.version == "1.25.0"
+        assert pkg.description == "Numerical Python"
+
+    def test_pip_package_to_package_py(self):
+        import rez_next.pip as pip
+        pkg = pip.PipPackage("numpy", "1.25.0", description="Numerical Python")
+        content = pkg.to_package_py()
+        assert 'name = "numpy"' in content
+        assert 'version = "1.25.0"' in content
+        assert "PYTHONPATH" in content
+
+    def test_pip_package_with_requires(self):
+        import rez_next.pip as pip
+        pkg = pip.PipPackage("scipy", "1.11.0", requires=["numpy-1.25+"])
+        content = pkg.to_package_py()
+        assert "requires" in content
+        assert "numpy" in content
+
+    def test_write_pip_package(self, tmp_path):
+        import rez_next.pip as pip
+        pkg = pip.PipPackage("mylib", "2.0.0", description="Test lib")
+        result = pip.write_pip_package(pkg, str(tmp_path))
+        import os
+        assert os.path.isdir(result)
+        assert os.path.exists(os.path.join(result, "package.py"))
+
+    def test_write_pip_package_overwrite_false(self, tmp_path):
+        import rez_next.pip as pip
+        pkg = pip.PipPackage("mylib", "2.0.0")
+        pip.write_pip_package(pkg, str(tmp_path))
+        # Second write without overwrite should raise
+        with pytest.raises(FileExistsError):
+            pip.write_pip_package(pkg, str(tmp_path), overwrite=False)
+
+    def test_write_pip_package_overwrite_true(self, tmp_path):
+        import rez_next.pip as pip
+        pkg = pip.PipPackage("mylib", "2.0.0")
+        pip.write_pip_package(pkg, str(tmp_path))
+        # Overwrite should succeed
+        result = pip.write_pip_package(pkg, str(tmp_path), overwrite=True)
+        assert result
+
+    def test_pip_install_top_level(self):
+        """pip_install also accessible at top level."""
+        assert callable(rez.pip_install)
+        result = rez.pip_install(["requests==2.31.0"])
+        assert len(result) == 1
+        assert "requests" in result[0]
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

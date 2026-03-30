@@ -1,7 +1,6 @@
 //! Python bindings for rez configuration
 
 use pyo3::prelude::*;
-use pyo3::types::PyList;
 use rez_next_common::config::RezCoreConfig;
 
 /// Python-accessible Config class, compatible with rez.config
