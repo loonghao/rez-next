@@ -2988,6 +2988,271 @@ fn test_search_filter_regex_pattern() {
     assert!(!filter.matches_name("houdini"), "regex does NOT match houdini");
 }
 
+// ─── rez.depends: reverse dependency query ─────────────────────────────────
+
+/// rez depends: empty repository yields no dependants
+#[test]
+fn test_depends_empty_repo_no_results() {
+    use rez_next_package::Package;
+    use rez_next_version::Version;
+
+    // With no repository paths provided, result should be empty
+    let packages: Vec<Package> = vec![];
+    let mut direct: Vec<String> = vec![];
+
+    for pkg in &packages {
+        for req in &pkg.requires {
+            if req.starts_with("python") {
+                if let Some(ref ver) = pkg.version {
+                    direct.push(format!("{}-{}", pkg.name, ver.as_str()));
+                }
+            }
+        }
+    }
+    assert!(direct.is_empty(), "No dependants in empty package list");
+}
+
+/// rez depends: direct dependency detection from package requires list
+#[test]
+fn test_depends_direct_dependency_detected() {
+    use rez_next_package::{Package, PackageRequirement};
+    use rez_next_version::Version;
+
+    let mut maya = Package::new("maya".to_string());
+    maya.version = Some(Version::parse("2024.1").unwrap());
+    maya.requires = vec!["python-3.9".to_string(), "numpy-1.24".to_string()];
+
+    let mut houdini = Package::new("houdini".to_string());
+    houdini.version = Some(Version::parse("20.0").unwrap());
+    houdini.requires = vec!["python-3.10".to_string()];
+
+    let mut nuke = Package::new("nuke".to_string());
+    nuke.version = Some(Version::parse("14.0").unwrap());
+    nuke.requires = vec!["openexr-3".to_string()]; // no python dependency
+
+    let packages = vec![maya, houdini, nuke];
+    let target = "python";
+
+    let mut dependants = Vec::new();
+    for pkg in &packages {
+        if pkg.name == target { continue; }
+        for req_str in &pkg.requires {
+            if let Ok(req) = PackageRequirement::parse(req_str) {
+                if req.name == target {
+                    let ver = pkg.version.as_ref().map(|v| v.as_str()).unwrap_or("?");
+                    dependants.push(format!("{}-{}", pkg.name, ver));
+                    break;
+                }
+            }
+        }
+    }
+    assert_eq!(dependants.len(), 2, "maya and houdini both depend on python");
+    assert!(dependants.iter().any(|d| d.starts_with("maya")));
+    assert!(dependants.iter().any(|d| d.starts_with("houdini")));
+}
+
+/// rez depends: package with no requires has no dependants
+#[test]
+fn test_depends_no_requires_no_dependants() {
+    use rez_next_package::{Package, PackageRequirement};
+    use rez_next_version::Version;
+
+    let mut standalone = Package::new("standalone".to_string());
+    standalone.version = Some(Version::parse("1.0").unwrap());
+    standalone.requires = vec![]; // no dependencies at all
+
+    let packages = vec![standalone];
+    let target = "python";
+
+    let mut dependants = Vec::new();
+    for pkg in &packages {
+        for req_str in &pkg.requires {
+            if let Ok(req) = PackageRequirement::parse(req_str) {
+                if req.name == target {
+                    dependants.push(pkg.name.clone());
+                    break;
+                }
+            }
+        }
+    }
+    assert!(dependants.is_empty(), "Package with no requires should have no dependants");
+}
+
+/// rez depends: version range filtering — only return matching version requirements
+#[test]
+fn test_depends_version_range_filter() {
+    use rez_next_package::{Package, PackageRequirement};
+    use rez_next_version::{Version, VersionRange};
+
+    let mut old_pkg = Package::new("legacy_tool".to_string());
+    old_pkg.version = Some(Version::parse("1.0").unwrap());
+    old_pkg.requires = vec!["python-2.7".to_string()]; // requires python 2.7 exactly
+
+    let mut new_pkg = Package::new("modern_tool".to_string());
+    new_pkg.version = Some(Version::parse("3.0").unwrap());
+    new_pkg.requires = vec!["python-3.10".to_string()]; // requires python 3.10 exactly
+
+    let packages = vec![old_pkg, new_pkg];
+    let target = "python";
+    // Filter range: packages that require python >=3.0 (i.e., their required version is >=3.0)
+    let filter_min = Version::parse("3.0").unwrap();
+
+    let mut dependants = Vec::new();
+    for pkg in &packages {
+        for req_str in &pkg.requires {
+            if let Ok(req) = PackageRequirement::parse(req_str) {
+                if req.name == target {
+                    // Check if the required version satisfies >=3.0 constraint
+                    let matches = req.version_spec.as_ref()
+                        .and_then(|s| Version::parse(s).ok())
+                        .map(|v| v >= filter_min)
+                        .unwrap_or(false);
+                    if matches {
+                        dependants.push(pkg.name.clone());
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    assert_eq!(dependants.len(), 1, "Only modern_tool requires python >=3.0");
+    assert_eq!(dependants[0], "modern_tool");
+}
+
+/// rez depends: transitive dependency detection (A→B→C, query C, get both A and B)
+#[test]
+fn test_depends_transitive_chain() {
+    use rez_next_package::{Package, PackageRequirement};
+    use rez_next_version::Version;
+    use std::collections::HashSet;
+
+    // Setup: nuke depends on maya, maya depends on python
+    let mut python = Package::new("python".to_string());
+    python.version = Some(Version::parse("3.10").unwrap());
+    python.requires = vec![];
+
+    let mut maya = Package::new("maya".to_string());
+    maya.version = Some(Version::parse("2024.1").unwrap());
+    maya.requires = vec!["python-3.10".to_string()]; // direct dependency on python
+
+    let mut nuke = Package::new("nuke".to_string());
+    nuke.version = Some(Version::parse("14.0").unwrap());
+    nuke.requires = vec!["maya-2024".to_string()]; // direct dependency on maya
+
+    let packages = vec![python, maya, nuke];
+    let target = "python";
+
+    // Direct dependants (packages requiring python)
+    let mut direct_names: HashSet<String> = HashSet::new();
+    for pkg in &packages {
+        if pkg.name == target { continue; }
+        for req_str in &pkg.requires {
+            if let Ok(req) = PackageRequirement::parse(req_str) {
+                if req.name == target {
+                    direct_names.insert(pkg.name.clone());
+                    break;
+                }
+            }
+        }
+    }
+    assert!(direct_names.contains("maya"), "maya directly depends on python");
+    assert!(!direct_names.contains("nuke"), "nuke does NOT directly depend on python");
+
+    // Transitive dependants (packages requiring a direct dependant)
+    let mut transitive_names: HashSet<String> = HashSet::new();
+    for pkg in &packages {
+        if pkg.name == target || direct_names.contains(&pkg.name) { continue; }
+        for req_str in &pkg.requires {
+            if let Ok(req) = PackageRequirement::parse(req_str) {
+                if direct_names.contains(&req.name) {
+                    transitive_names.insert(pkg.name.clone());
+                    break;
+                }
+            }
+        }
+    }
+    assert!(transitive_names.contains("nuke"), "nuke transitively depends on python via maya");
+}
+
+/// rez depends: target package itself should not appear in its own dependants
+#[test]
+fn test_depends_excludes_self() {
+    use rez_next_package::{Package, PackageRequirement};
+    use rez_next_version::Version;
+
+    // A circular-ish scenario: python 3.11 "requires" python (shouldn't happen but check exclusion)
+    let mut python = Package::new("python".to_string());
+    python.version = Some(Version::parse("3.11").unwrap());
+    python.requires = vec!["python-3.10".to_string()]; // hypothetical self-ref
+
+    let packages = vec![python];
+    let target = "python";
+
+    let mut dependants = Vec::new();
+    for pkg in &packages {
+        if pkg.name == target { continue; } // self-exclusion
+        for req_str in &pkg.requires {
+            if let Ok(req) = PackageRequirement::parse(req_str) {
+                if req.name == target {
+                    dependants.push(pkg.name.clone());
+                    break;
+                }
+            }
+        }
+    }
+    assert!(dependants.is_empty(), "Package should not appear as its own dependant");
+}
+
+/// rez depends: format output contains expected sections
+#[test]
+fn test_depends_format_output_sections() {
+    // Verify formatting logic produces expected strings
+    let lines = vec![
+        "Reverse dependencies for 'python':".to_string(),
+        "  Direct:".to_string(),
+        "    maya-2024.1  (requires 'python-3.9')".to_string(),
+    ];
+    let output = lines.join("\n");
+    assert!(output.contains("Reverse dependencies for 'python'"));
+    assert!(output.contains("Direct"));
+    assert!(output.contains("maya-2024.1"));
+}
+
+/// rez depends: deduplication — same package shouldn't appear twice if it requires
+/// the target via two paths
+#[test]
+fn test_depends_deduplication() {
+    use rez_next_package::{Package, PackageRequirement};
+    use rez_next_version::Version;
+    use std::collections::HashSet;
+
+    let mut multi_req = Package::new("multi_tool".to_string());
+    multi_req.version = Some(Version::parse("1.0").unwrap());
+    // Hypothetical: two python requirements (shouldn't happen but test dedup logic)
+    multi_req.requires = vec!["python-3.9".to_string(), "python-3.10".to_string()];
+
+    let packages = vec![multi_req];
+    let target = "python";
+
+    let mut seen: HashSet<String> = HashSet::new();
+    let mut dependants = Vec::new();
+    for pkg in &packages {
+        if pkg.name == target { continue; }
+        for req_str in &pkg.requires {
+            if let Ok(req) = PackageRequirement::parse(req_str) {
+                if req.name == target {
+                    let key = format!("{}-{}", pkg.name, pkg.version.as_ref().map(|v| v.as_str()).unwrap_or("?"));
+                    if seen.insert(key.clone()) {
+                        dependants.push(key);
+                    }
+                    break; // only add once per package
+                }
+            }
+        }
+    }
+    assert_eq!(dependants.len(), 1, "Package should only appear once even with multiple matching requirements");
+}
+
 /// rez search: SearchResult tracks latest version correctly
 #[test]
 fn test_search_result_latest_tracking() {

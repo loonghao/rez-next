@@ -27,6 +27,7 @@ mod search_bindings;
 mod completion_bindings;
 mod diff_bindings;
 mod status_bindings;
+mod depends_bindings;
 
 use version_bindings::{PyVersion, PyVersionRange};
 use package_bindings::{PyPackage, PyPackageRequirement};
@@ -372,6 +373,19 @@ fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Top-level status helpers
     m.add_function(wrap_pyfunction!(status_bindings::is_in_rez_context, m)?)?;
     m.add_function(wrap_pyfunction!(status_bindings::get_current_status, m)?)?;
+
+    // Submodule: rez.depends (reverse dependency query)
+    let depends_mod = PyModule::new(m.py(), "depends")?;
+    depends_mod.add_class::<depends_bindings::PyDependsEntry>()?;
+    depends_mod.add_class::<depends_bindings::PyDependsResult>()?;
+    depends_mod.add_function(wrap_pyfunction!(depends_bindings::get_reverse_dependencies, &depends_mod)?)?;
+    depends_mod.add_function(wrap_pyfunction!(depends_bindings::get_dependants, &depends_mod)?)?;
+    depends_mod.add_function(wrap_pyfunction!(depends_bindings::print_depends, &depends_mod)?)?;
+    m.add_submodule(&depends_mod)?;
+    // Top-level depends helpers
+    m.add_function(wrap_pyfunction!(depends_bindings::get_reverse_dependencies, m)?)?;
+    m.add_function(wrap_pyfunction!(depends_bindings::get_dependants, m)?)?;
+    m.add_function(wrap_pyfunction!(depends_bindings::print_depends, m)?)?;
 
     Ok(())
 }
