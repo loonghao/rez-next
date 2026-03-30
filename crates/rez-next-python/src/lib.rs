@@ -25,6 +25,8 @@ mod data_bindings;
 mod bind_bindings;
 mod search_bindings;
 mod completion_bindings;
+mod diff_bindings;
+mod status_bindings;
 
 use version_bindings::{PyVersion, PyVersionRange};
 use package_bindings::{PyPackage, PyPackageRequirement};
@@ -344,6 +346,32 @@ fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_submodule(&complete_mod)?;
     // Top-level completion
     m.add_function(wrap_pyfunction!(completion_bindings::get_completion_script, m)?)?;
+
+    // Submodule: rez.diff (context diffing)
+    let diff_mod = PyModule::new(m.py(), "diff")?;
+    diff_mod.add_class::<diff_bindings::PyPackageDiff>()?;
+    diff_mod.add_class::<diff_bindings::PyContextDiff>()?;
+    diff_mod.add_function(wrap_pyfunction!(diff_bindings::diff_contexts, &diff_mod)?)?;
+    diff_mod.add_function(wrap_pyfunction!(diff_bindings::diff_context_files, &diff_mod)?)?;
+    diff_mod.add_function(wrap_pyfunction!(diff_bindings::format_diff, &diff_mod)?)?;
+    m.add_submodule(&diff_mod)?;
+    // Top-level diff helpers
+    m.add_function(wrap_pyfunction!(diff_bindings::diff_contexts, m)?)?;
+    m.add_function(wrap_pyfunction!(diff_bindings::diff_context_files, m)?)?;
+    m.add_function(wrap_pyfunction!(diff_bindings::format_diff, m)?)?;
+
+    // Submodule: rez.status (current context status)
+    let status_mod = PyModule::new(m.py(), "status")?;
+    status_mod.add_class::<status_bindings::PyRezStatus>()?;
+    status_mod.add_function(wrap_pyfunction!(status_bindings::get_current_status, &status_mod)?)?;
+    status_mod.add_function(wrap_pyfunction!(status_bindings::is_in_rez_context, &status_mod)?)?;
+    status_mod.add_function(wrap_pyfunction!(status_bindings::get_context_file, &status_mod)?)?;
+    status_mod.add_function(wrap_pyfunction!(status_bindings::get_resolved_package_names, &status_mod)?)?;
+    status_mod.add_function(wrap_pyfunction!(status_bindings::get_rez_env_var, &status_mod)?)?;
+    m.add_submodule(&status_mod)?;
+    // Top-level status helpers
+    m.add_function(wrap_pyfunction!(status_bindings::is_in_rez_context, m)?)?;
+    m.add_function(wrap_pyfunction!(status_bindings::get_current_status, m)?)?;
 
     Ok(())
 }

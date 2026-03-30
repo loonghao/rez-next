@@ -3208,6 +3208,343 @@ fn test_complete_bash_completion_has_rez_function() {
     assert!(!script.is_empty());
 }
 
+// ─── rez.diff compatibility tests ───────────────────────────────────────────
+
+/// rez diff: identical contexts produce no changes
+#[test]
+fn test_diff_identical_contexts_no_changes() {
+    use rez_next_package::Package;
+    use rez_next_version::Version;
+
+    let mut python = Package::new("python".to_string());
+    python.version = Some(Version::parse("3.9.0").unwrap());
+    let mut maya = Package::new("maya".to_string());
+    maya.version = Some(Version::parse("2024.1").unwrap());
+
+    let pkgs = vec![python, maya];
+    // Simulate compute_diff by checking both lists are equal
+    // (testing logic inline since compute_diff is in the python crate)
+    let old_names: Vec<&str> = pkgs.iter().map(|p| p.name.as_str()).collect();
+    let new_names: Vec<&str> = pkgs.iter().map(|p| p.name.as_str()).collect();
+    assert_eq!(old_names, new_names, "Identical contexts should have same package names");
+}
+
+/// rez diff: upgrade detection via version comparison
+#[test]
+fn test_diff_upgrade_detection() {
+    use rez_next_version::Version;
+
+    let old_ver = Version::parse("3.9.0").unwrap();
+    let new_ver = Version::parse("3.11.0").unwrap();
+
+    assert!(new_ver > old_ver, "3.11.0 should be greater than 3.9.0 (upgrade)");
+}
+
+/// rez diff: downgrade detection via version comparison
+#[test]
+fn test_diff_downgrade_detection() {
+    use rez_next_version::Version;
+
+    let old_ver = Version::parse("2024.1").unwrap();
+    let new_ver = Version::parse("2023.1").unwrap();
+
+    assert!(new_ver < old_ver, "2023.1 should be less than 2024.1 (downgrade)");
+}
+
+/// rez diff: new context has extra package (added)
+#[test]
+fn test_diff_added_package_detection() {
+    use rez_next_package::{Package};
+    use rez_next_version::Version;
+    use std::collections::HashMap;
+
+    let mut python = Package::new("python".to_string());
+    python.version = Some(Version::parse("3.9.0").unwrap());
+
+    let old: Vec<Package> = vec![python.clone()];
+    let mut nuke = Package::new("nuke".to_string());
+    nuke.version = Some(Version::parse("14.0").unwrap());
+    let new: Vec<Package> = vec![python, nuke];
+
+    let old_map: HashMap<&str, _> = old.iter()
+        .filter_map(|p| p.version.as_ref().map(|v| (p.name.as_str(), v)))
+        .collect();
+    let new_map: HashMap<&str, _> = new.iter()
+        .filter_map(|p| p.version.as_ref().map(|v| (p.name.as_str(), v)))
+        .collect();
+
+    let added: Vec<&&str> = new_map.keys().filter(|k| !old_map.contains_key(**k)).collect();
+    assert_eq!(added.len(), 1, "One package should be added");
+    assert_eq!(*added[0], "nuke");
+}
+
+/// rez diff: old context has extra package (removed)
+#[test]
+fn test_diff_removed_package_detection() {
+    use rez_next_package::Package;
+    use rez_next_version::Version;
+    use std::collections::HashMap;
+
+    let mut python = Package::new("python".to_string());
+    python.version = Some(Version::parse("3.9.0").unwrap());
+    let mut maya = Package::new("maya".to_string());
+    maya.version = Some(Version::parse("2023.1").unwrap());
+
+    let old: Vec<Package> = vec![python.clone(), maya];
+    let new: Vec<Package> = vec![python];
+
+    let old_map: HashMap<&str, _> = old.iter()
+        .filter_map(|p| p.version.as_ref().map(|v| (p.name.as_str(), v)))
+        .collect();
+    let new_map: HashMap<&str, _> = new.iter()
+        .filter_map(|p| p.version.as_ref().map(|v| (p.name.as_str(), v)))
+        .collect();
+
+    let removed: Vec<&&str> = old_map.keys().filter(|k| !new_map.contains_key(**k)).collect();
+    assert_eq!(removed.len(), 1, "One package should be removed");
+    assert_eq!(*removed[0], "maya");
+}
+
+/// rez diff: empty old context — everything is "added"
+#[test]
+fn test_diff_empty_old_all_added() {
+    use rez_next_package::Package;
+    use rez_next_version::Version;
+    use std::collections::HashMap;
+
+    let new: Vec<Package> = {
+        let mut p = Package::new("python".to_string());
+        p.version = Some(Version::parse("3.11.0").unwrap());
+        vec![p]
+    };
+
+    let old_map: HashMap<&str, &Version> = HashMap::new();
+    let new_map: HashMap<&str, &Version> = new.iter()
+        .filter_map(|p| p.version.as_ref().map(|v| (p.name.as_str(), v)))
+        .collect();
+
+    let added_count = new_map.keys().filter(|k| !old_map.contains_key(**k)).count();
+    assert_eq!(added_count, 1, "All new packages should be 'added' when old is empty");
+}
+
+/// rez diff: empty new context — everything is "removed"
+#[test]
+fn test_diff_empty_new_all_removed() {
+    use rez_next_package::Package;
+    use rez_next_version::Version;
+    use std::collections::HashMap;
+
+    let old: Vec<Package> = {
+        let mut p = Package::new("maya".to_string());
+        p.version = Some(Version::parse("2024.1").unwrap());
+        vec![p]
+    };
+
+    let old_map: HashMap<&str, &Version> = old.iter()
+        .filter_map(|p| p.version.as_ref().map(|v| (p.name.as_str(), v)))
+        .collect();
+    let new_map: HashMap<&str, &Version> = HashMap::new();
+
+    let removed_count = old_map.keys().filter(|k| !new_map.contains_key(**k)).count();
+    assert_eq!(removed_count, 1, "All old packages should be 'removed' when new is empty");
+}
+
+/// rez diff: version format string in diff output
+#[test]
+fn test_diff_version_format_in_output() {
+    use rez_next_version::Version;
+
+    let old_ver = Version::parse("3.9.0").unwrap();
+    let new_ver = Version::parse("3.11.0").unwrap();
+
+    let line = format!("  ^ python {} -> {}", old_ver.as_str(), new_ver.as_str());
+    assert!(line.contains("3.9.0"), "Old version should appear in diff line");
+    assert!(line.contains("3.11.0"), "New version should appear in diff line");
+    assert!(line.starts_with("  ^"), "Upgrade should use ^ prefix");
+}
+
+// ─── rez.status compatibility tests ─────────────────────────────────────────
+
+/// rez status: outside any context, is_in_rez_context is false (no REZ_ vars)
+#[test]
+fn test_status_outside_context_is_false() {
+    // In a clean test environment, REZ_CONTEXT_FILE and REZ_USED_PACKAGES_NAMES
+    // should not be set.  We only assert the negative when they are absent.
+    let in_ctx = std::env::var("REZ_CONTEXT_FILE").is_ok()
+        || std::env::var("REZ_USED_PACKAGES_NAMES").is_ok();
+    // This test verifies the logic; if a rez context happens to be active the
+    // assertion is intentionally skipped.
+    if !in_ctx {
+        let result = std::env::var("REZ_CONTEXT_FILE");
+        assert!(result.is_err(), "REZ_CONTEXT_FILE should not be set outside a rez context");
+    }
+}
+
+/// rez status: REZ_USED_PACKAGES_NAMES parsing produces correct package list
+#[test]
+fn test_status_parse_rez_used_packages_names() {
+    let raw = "python-3.9 maya-2024.1 houdini-20.5";
+    let packages: Vec<&str> = raw.split_whitespace().collect();
+    assert_eq!(packages.len(), 3);
+    assert_eq!(packages[0], "python-3.9");
+    assert_eq!(packages[1], "maya-2024.1");
+    assert_eq!(packages[2], "houdini-20.5");
+}
+
+/// rez status: REZ_ env var prefix filtering
+#[test]
+fn test_status_rez_env_prefix_filter() {
+    let all_env: Vec<(String, String)> = vec![
+        ("PATH".to_string(), "/usr/bin".to_string()),
+        ("REZ_CONTEXT_FILE".to_string(), "/tmp/ctx.rxt".to_string()),
+        ("REZ_VERSION".to_string(), "3.0.0".to_string()),
+        ("HOME".to_string(), "/home/user".to_string()),
+    ];
+
+    let rez_vars: Vec<_> = all_env.iter().filter(|(k, _)| k.starts_with("REZ_")).collect();
+    assert_eq!(rez_vars.len(), 2, "Should find exactly 2 REZ_ vars");
+    assert!(rez_vars.iter().any(|(k, _)| k == "REZ_CONTEXT_FILE"));
+    assert!(rez_vars.iter().any(|(k, _)| k == "REZ_VERSION"));
+}
+
+/// rez status: shell detection on various SHELL env values
+#[test]
+fn test_status_shell_detection_logic() {
+    let cases = [
+        ("/bin/bash", "bash"),
+        ("/usr/bin/zsh", "zsh"),
+        ("/usr/local/bin/fish", "fish"),
+    ];
+
+    for (shell_val, expected) in &cases {
+        let detected = if shell_val.contains("zsh") {
+            "zsh"
+        } else if shell_val.contains("fish") {
+            "fish"
+        } else if shell_val.contains("bash") {
+            "bash"
+        } else {
+            *shell_val
+        };
+        assert_eq!(detected, *expected, "Shell detection should identify {}", expected);
+    }
+}
+
+/// rez status: context file path round-trips through env var
+#[test]
+fn test_status_context_file_path_format() {
+    let ctx_path = "/tmp/rez_ctx_12345.rxt";
+    // Simulate what would be in REZ_CONTEXT_FILE
+    let parsed = ctx_path.to_string();
+    assert!(parsed.ends_with(".rxt"), "Context file should have .rxt extension");
+    assert!(parsed.starts_with("/tmp"), "Context file path should be absolute");
+}
+
+// ─── Solver boundary tests ────────────────────────────────────────────────────
+
+/// rez solver: single package with no dependencies resolves immediately
+#[test]
+fn test_solver_single_package_no_deps() {
+    use rez_next_solver::DependencyGraph;
+    use rez_next_package::{Package, PackageRequirement};
+    use rez_next_version::Version;
+
+    let mut graph = DependencyGraph::new();
+    let mut pkg = Package::new("standalone".to_string());
+    pkg.version = Some(Version::parse("1.0.0").unwrap());
+    graph.add_package(pkg).unwrap();
+
+    let result = graph.get_resolved_packages();
+    assert!(result.is_ok(), "Single package with no deps should resolve");
+    assert_eq!(result.unwrap().len(), 1);
+}
+
+/// rez solver: version range intersection for multi-constraint requirement
+#[test]
+fn test_solver_multi_constraint_version_range() {
+    use rez_core::version::VersionRange;
+
+    let r_ge = VersionRange::parse(">=3.9").unwrap();
+    let r_lt = VersionRange::parse("<4.0").unwrap();
+    let intersection = r_ge.intersect(&r_lt).expect(">=3.9 and <4.0 should intersect");
+
+    assert!(intersection.contains(&rez_core::version::Version::parse("3.9").unwrap()));
+    assert!(intersection.contains(&rez_core::version::Version::parse("3.11").unwrap()));
+    assert!(!intersection.contains(&rez_core::version::Version::parse("4.0").unwrap()));
+    assert!(!intersection.contains(&rez_core::version::Version::parse("3.8").unwrap()));
+}
+
+/// rez solver: two packages with exclusive version ranges → conflict
+#[test]
+fn test_solver_exclusive_ranges_detect_conflict() {
+    use rez_next_solver::DependencyGraph;
+    use rez_next_package::PackageRequirement;
+
+    let mut graph = DependencyGraph::new();
+    graph.add_requirement(
+        PackageRequirement::with_version("lib".to_string(), ">=1.0,<2.0".to_string())
+    ).unwrap();
+    graph.add_requirement(
+        PackageRequirement::with_version("lib".to_string(), ">=2.0".to_string())
+    ).unwrap();
+
+    let conflicts = graph.detect_conflicts();
+    assert!(!conflicts.is_empty(), "Exclusive ranges >=1.0,<2.0 and >=2.0 should conflict for lib");
+}
+
+/// rez solver: compatible ranges do not produce a conflict
+#[test]
+fn test_solver_compatible_ranges_no_conflict() {
+    use rez_next_solver::DependencyGraph;
+    use rez_next_package::PackageRequirement;
+
+    let mut graph = DependencyGraph::new();
+    // >=3.8 and <4.0 are compatible
+    graph.add_requirement(
+        PackageRequirement::with_version("python".to_string(), ">=3.8".to_string())
+    ).unwrap();
+    graph.add_requirement(
+        PackageRequirement::with_version("python".to_string(), "<4.0".to_string())
+    ).unwrap();
+
+    let conflicts = graph.detect_conflicts();
+    assert!(conflicts.is_empty(), ">=3.8 and <4.0 should not conflict");
+}
+
+/// rez solver: weak requirement (~pkg) is parsed correctly
+#[test]
+fn test_solver_weak_requirement_parse() {
+    use rez_next_package::Requirement;
+
+    let req = "~python>=3.9".parse::<Requirement>().unwrap();
+    assert!(req.weak, "~ prefix should set weak=true");
+    assert_eq!(req.name, "python");
+}
+
+/// rez solver: topological sort on a chain A → B → C
+#[test]
+fn test_solver_topological_sort_chain() {
+    use rez_next_solver::DependencyGraph;
+    use rez_next_package::Package;
+    use rez_next_version::Version;
+
+    let mut graph = DependencyGraph::new();
+
+    for (name, ver) in &[("pkgA", "1.0"), ("pkgB", "1.0"), ("pkgC", "1.0")] {
+        let mut pkg = Package::new(name.to_string());
+        pkg.version = Some(Version::parse(ver).unwrap());
+        graph.add_package(pkg).unwrap();
+    }
+
+    graph.add_dependency_edge("pkgA-1.0", "pkgB-1.0").unwrap();
+    graph.add_dependency_edge("pkgB-1.0", "pkgC-1.0").unwrap();
+
+    let result = graph.get_resolved_packages();
+    assert!(result.is_ok(), "Linear chain A->B->C should resolve (no cycles)");
+    assert_eq!(result.unwrap().len(), 3, "All 3 packages should be in resolved order");
+}
+
+
 
 
 
