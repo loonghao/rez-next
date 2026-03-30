@@ -28,6 +28,7 @@ mod completion_bindings;
 mod diff_bindings;
 mod status_bindings;
 mod depends_bindings;
+mod exceptions_bindings;
 
 use version_bindings::{PyVersion, PyVersionRange};
 use package_bindings::{PyPackage, PyPackageRequirement};
@@ -133,8 +134,14 @@ fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
     // Submodule: rez.exceptions (common exception classes)
     let exceptions = PyModule::new(m.py(), "exceptions")?;
-    register_exceptions(&exceptions)?;
+    exceptions_bindings::register_all_exceptions(&exceptions)?;
     m.add_submodule(&exceptions)?;
+    // Also register custom exception types at top level for `from rez_next import RezError`
+    m.add("RezError", m.py().get_type::<exceptions_bindings::RezError>())?;
+    m.add("PackageNotFound", m.py().get_type::<exceptions_bindings::PackageNotFound>())?;
+    m.add("ResolveError", m.py().get_type::<exceptions_bindings::ResolveError>())?;
+    m.add("RezBuildError", m.py().get_type::<exceptions_bindings::RezBuildError>())?;
+    m.add("ConfigurationError", m.py().get_type::<exceptions_bindings::ConfigurationError>())?;
 
     // Submodule: rez.packages_ (package iteration API)
     let packages_ = PyModule::new(m.py(), "packages_")?;
@@ -1230,21 +1237,6 @@ fn walk_packages(
     }
 
     Ok(result_list.into())
-}
-
-/// Register rez exception classes in the exceptions submodule
-fn register_exceptions(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add("PackageNotFound", m.py().get_type::<pyo3::exceptions::PyLookupError>())?;
-    m.add("PackageVersionConflict", m.py().get_type::<pyo3::exceptions::PyValueError>())?;
-    m.add("ResolveError", m.py().get_type::<pyo3::exceptions::PyRuntimeError>())?;
-    m.add("RezBuildError", m.py().get_type::<pyo3::exceptions::PyRuntimeError>())?;
-    m.add("ConfigurationError", m.py().get_type::<pyo3::exceptions::PyValueError>())?;
-    m.add("PackageParseError", m.py().get_type::<pyo3::exceptions::PyValueError>())?;
-    m.add("ContextBundleError", m.py().get_type::<pyo3::exceptions::PyRuntimeError>())?;
-    m.add("SuiteError", m.py().get_type::<pyo3::exceptions::PyRuntimeError>())?;
-    m.add("RexError", m.py().get_type::<pyo3::exceptions::PyRuntimeError>())?;
-    m.add("RezSystemError", m.py().get_type::<pyo3::exceptions::PySystemError>())?;
-    Ok(())
 }
 
 /// Run basic self-tests and return (passed, failed, total) counts.
