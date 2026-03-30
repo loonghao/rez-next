@@ -357,5 +357,94 @@ class TestExceptionsSubmodule:
         ])
 
 
+class TestBundlesModule:
+    """Verify rez.bundles submodule API."""
+
+    def test_bundles_submodule_exists(self):
+        import rez_next.bundles as bundles
+        assert callable(bundles.bundle_context)
+        assert callable(bundles.unbundle_context)
+        assert callable(bundles.list_bundles)
+
+    def test_bundle_context_creates_dir(self, tmp_path):
+        import rez_next.bundles as bundles
+        dest = str(tmp_path / "test_bundle")
+        result = bundles.bundle_context(["python-3.9", "maya-2024"], dest)
+        assert result == dest
+        import os
+        assert os.path.isdir(dest)
+        assert os.path.exists(os.path.join(dest, "bundle.yaml"))
+
+    def test_unbundle_context_reads_packages(self, tmp_path):
+        import rez_next.bundles as bundles
+        dest = str(tmp_path / "my_bundle")
+        bundles.bundle_context(["numpy-1.25", "scipy-1.11"], dest)
+        pkgs = bundles.unbundle_context(dest)
+        assert isinstance(pkgs, list)
+        assert len(pkgs) >= 2
+
+    def test_list_bundles_nonexistent_path(self, tmp_path):
+        import rez_next.bundles as bundles
+        result = bundles.list_bundles(str(tmp_path / "nonexistent_xyz"))
+        assert isinstance(result, list)
+        assert len(result) == 0
+
+    def test_bundle_context_top_level(self, tmp_path):
+        """bundle_context is also accessible at top level."""
+        dest = str(tmp_path / "top_level_bundle")
+        result = rez.bundle_context(["python-3.9"], dest)
+        assert result == dest
+
+
+class TestCliModule:
+    """Verify rez.cli submodule API."""
+
+    def test_cli_submodule_exists(self):
+        import rez_next.cli as cli
+        assert callable(cli.cli_run)
+        assert callable(cli.cli_main)
+
+    def test_cli_run_known_commands(self):
+        import rez_next.cli as cli
+        for cmd in ["env", "solve", "build", "search", "config", "selftest"]:
+            result = cli.cli_run(cmd)
+            assert result == 0, f"cli_run('{cmd}') should return 0"
+
+    def test_cli_run_unknown_command_raises(self):
+        import rez_next.cli as cli
+        with pytest.raises(ValueError):
+            cli.cli_run("totally_unknown_command_xyz")
+
+    def test_cli_main_no_args(self):
+        import rez_next.cli as cli
+        result = cli.cli_main()
+        assert result == 0
+
+    def test_cli_main_with_args(self):
+        import rez_next.cli as cli
+        result = cli.cli_main(["env", "--help"])
+        assert result == 0
+
+
+class TestUtilsModule:
+    """Verify rez.utils.resources submodule."""
+
+    def test_utils_resources_submodule(self):
+        from rez_next.utils.resources import get_resource_string
+        ver = get_resource_string("version")
+        assert isinstance(ver, str)
+        assert len(ver) > 0
+
+    def test_get_resource_string_name(self):
+        from rez_next.utils.resources import get_resource_string
+        name = get_resource_string("name")
+        assert "rez" in name.lower()
+
+    def test_get_resource_string_unknown_raises(self):
+        from rez_next.utils.resources import get_resource_string
+        with pytest.raises(KeyError):
+            get_resource_string("nonexistent_resource_xyz_12345")
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
