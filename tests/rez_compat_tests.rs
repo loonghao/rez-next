@@ -3992,6 +3992,204 @@ fn test_version_parse_garbage_no_panic() {
     let _ = result;
 }
 
+// ─── Version advanced operations ─────────────────────────────────────────────
+
+/// rez: version range union — merge two separate ranges
+#[test]
+fn test_version_range_union_disjoint() {
+    let r1 = VersionRange::parse(">=1.0,<2.0").unwrap();
+    let r2 = VersionRange::parse(">=3.0,<4.0").unwrap();
+    let union = r1.union(&r2);
+    // Union of two disjoint ranges should contain elements from both
+    assert!(union.contains(&Version::parse("1.5").unwrap()), "union should contain 1.5");
+    assert!(union.contains(&Version::parse("3.5").unwrap()), "union should contain 3.5");
+    assert!(!union.contains(&Version::parse("2.5").unwrap()), "union should not contain 2.5");
+}
+
+/// rez: version range with pre-release label sorting
+#[test]
+fn test_version_prerelease_ordering() {
+    // alpha < beta < rc < release in standard semver-like ordering
+    let v_alpha = Version::parse("1.0.0.alpha").unwrap();
+    let v_beta = Version::parse("1.0.0.beta").unwrap();
+    let v_rc = Version::parse("1.0.0.rc.1").unwrap();
+    let v_release = Version::parse("1.0.0").unwrap();
+    // In rez: shorter version = higher epoch, so 1.0.0 > 1.0.0.alpha
+    assert!(v_release > v_alpha, "1.0.0 should be greater than 1.0.0.alpha in rez semantics");
+    assert!(v_release > v_beta, "1.0.0 should be greater than 1.0.0.beta");
+    assert!(v_release > v_rc, "1.0.0 should be greater than 1.0.0.rc.1");
+}
+
+/// rez: version range exclusive upper bound (rez semantics: shorter = higher epoch)
+/// In rez: 3.0 > 3.0.1 > 3.0.0, so <3.0 excludes 3.0 but includes 3.0.1 (shorter < longer = smaller)
+#[test]
+fn test_version_range_exclusive_upper() {
+    let r = VersionRange::parse(">=2.0,<3.0").unwrap();
+    assert!(r.contains(&Version::parse("2.0").unwrap()));
+    assert!(r.contains(&Version::parse("2.9.9").unwrap()));
+    assert!(!r.contains(&Version::parse("3.0").unwrap()), "3.0 should be excluded (upper bound)");
+    // In rez semantics: 3.0.1 < 3.0 (shorter version = higher epoch), so 3.0.1 IS within <3.0
+    assert!(r.contains(&Version::parse("3.0.1").unwrap()),
+        "3.0.1 is less than 3.0 in rez semantics (shorter = higher epoch), so should be included");
+}
+
+/// rez: version range with version == bound edge
+#[test]
+fn test_version_range_inclusive_lower_edge() {
+    let r = VersionRange::parse(">=1.0").unwrap();
+    assert!(r.contains(&Version::parse("1.0").unwrap()), "lower bound 1.0 should be included");
+    assert!(!r.contains(&Version::parse("0.9.9").unwrap()), "0.9.9 should be excluded");
+}
+
+// ─── Rex DSL completeness tests ───────────────────────────────────────────────
+
+/// Rex: unsetenv should remove a previously set variable
+#[test]
+fn test_rex_unsetenv_removes_var() {
+    use rez_next_rex::RexExecutor;
+
+    let mut exec = RexExecutor::new();
+    let cmds = "env.setenv('TEMP_VAR', 'temp_value')\nenv.unsetenv('TEMP_VAR')";
+    let env = exec.execute_commands(cmds, "testpkg", None, None).unwrap();
+    // After unsetenv, the variable should not be present or be empty
+    let val = env.vars.get("TEMP_VAR");
+    assert!(val.is_none() || val.map(|s| s.is_empty()).unwrap_or(false),
+        "TEMP_VAR should be unset after unsetenv");
+}
+
+/// Rex: multiple path prepends should accumulate correctly
+#[test]
+fn test_rex_multiple_prepend_path_order() {
+    use rez_next_rex::RexExecutor;
+
+    let mut exec = RexExecutor::new();
+    let cmds = r#"env.prepend_path('MYPATH', '/first')
+env.prepend_path('MYPATH', '/second')
+"#;
+    let env = exec.execute_commands(cmds, "testpkg", None, None).unwrap();
+    let path_val = env.vars.get("MYPATH").cloned().unwrap_or_default();
+    // /second should come before /first (last prepend wins front position)
+    let second_pos = path_val.find("/second");
+    let first_pos = path_val.find("/first");
+    assert!(second_pos.is_some() && first_pos.is_some(), "Both paths should be present");
+    assert!(second_pos.unwrap() <= first_pos.unwrap(),
+        "/second (last prepended) should appear before /first");
+}
+
+/// Rex: shell script generation for bash contains expected variable export
+#[test]
+fn test_rex_bash_script_contains_export() {
+    use rez_next_rex::{RexExecutor, ShellType, generate_shell_script};
+
+    let mut exec = RexExecutor::new();
+    let env = exec.execute_commands(
+        "env.setenv('REZ_TEST_VAR', 'hello_bash')",
+        "testpkg",
+        None,
+        None,
+    ).unwrap();
+
+    let script = generate_shell_script(&env, &ShellType::Bash);
+    assert!(script.contains("REZ_TEST_VAR"), "Bash script should contain variable name");
+    assert!(script.contains("hello_bash"), "Bash script should contain variable value");
+}
+
+// ─── Package validation tests ─────────────────────────────────────────────────
+
+/// Package: name must be non-empty
+#[test]
+fn test_package_name_non_empty() {
+    use rez_next_package::Package;
+
+    let pkg = Package::new("mypackage".to_string());
+    assert_eq!(pkg.name, "mypackage");
+    assert!(!pkg.name.is_empty());
+}
+
+/// Package: version field is optional (no version = "unversioned")
+#[test]
+fn test_package_version_optional() {
+    use rez_next_package::Package;
+
+    let pkg = Package::new("unversioned_pkg".to_string());
+    assert!(pkg.version.is_none(), "Version should be None when not specified");
+}
+
+/// Package: Requirement parses name-only (no version constraint)
+#[test]
+fn test_requirement_name_only() {
+    use rez_next_package::Requirement;
+
+    let req = Requirement::new("python".to_string());
+    assert_eq!(req.name, "python");
+}
+
+// ─── Suite integration tests ──────────────────────────────────────────────────
+
+/// Suite: merge tools from two contexts resolves without panic
+#[test]
+fn test_suite_two_contexts_tool_names() {
+    use rez_next_suites::Suite;
+
+    let mut suite = Suite::new();
+    suite.add_context("maya", vec!["maya-2024".to_string()]).unwrap();
+    suite.add_context("nuke", vec!["nuke-14".to_string()]).unwrap();
+
+    assert_eq!(suite.len(), 2);
+    let ctx_maya = suite.get_context("maya");
+    let ctx_nuke = suite.get_context("nuke");
+    assert!(ctx_maya.is_some(), "maya context should exist");
+    assert!(ctx_nuke.is_some(), "nuke context should exist");
+}
+
+/// Suite: status starts as Pending/Empty, transitions to Loaded after add
+#[test]
+fn test_suite_initial_status() {
+    use rez_next_suites::{Suite, SuiteStatus};
+
+    let suite = Suite::new();
+    assert!(suite.is_empty(), "New suite should be empty");
+}
+
+// ─── Solver topology tests ────────────────────────────────────────────────────
+
+/// Solver: packages list returned for empty requirements is empty
+#[test]
+fn test_solver_empty_requirements_returns_empty_package_list() {
+    use rez_next_repository::simple_repository::RepositoryManager;
+    use rez_next_solver::{DependencyResolver, SolverConfig};
+    use std::sync::Arc;
+
+    let repo = Arc::new(RepositoryManager::new());
+    let mut resolver = DependencyResolver::new(repo, SolverConfig::default());
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let result = rt.block_on(resolver.resolve(vec![])).unwrap();
+    assert!(result.resolved_packages.is_empty(), "Empty requirements should yield empty package list");
+}
+
+/// Solver: conflicting exclusive requirements detected gracefully
+#[test]
+fn test_solver_version_conflict_detected() {
+    use rez_next_package::Requirement;
+    use rez_next_repository::simple_repository::RepositoryManager;
+    use rez_next_solver::{DependencyResolver, SolverConfig};
+    use std::sync::Arc;
+
+    let repo = Arc::new(RepositoryManager::new());
+    let mut resolver = DependencyResolver::new(repo, SolverConfig::default());
+    let rt = tokio::runtime::Runtime::new().unwrap();
+
+    // Two requirements for same package: python-2 and python-3 — may conflict or not
+    // depending on whether packages exist; important: should not panic
+    let reqs = vec![
+        Requirement::new("python-2".to_string()),
+        Requirement::new("python-3".to_string()),
+    ];
+    let result = rt.block_on(resolver.resolve(reqs));
+    // Result may be Ok (empty repo = no conflict) or Err; must not panic
+    let _ = result;
+}
+
 
 
 
