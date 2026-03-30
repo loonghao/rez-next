@@ -18,6 +18,8 @@ mod shell_bindings;
 mod pip_bindings;
 mod plugins_bindings;
 mod env_bindings;
+mod forward_bindings;
+mod release_bindings;
 
 use version_bindings::{PyVersion, PyVersionRange};
 use package_bindings::{PyPackage, PyPackageRequirement};
@@ -31,6 +33,8 @@ use shell_bindings::PyShell;
 use pip_bindings::PyPipPackage;
 use plugins_bindings::{PyPlugin, PyRezPluginManager};
 use env_bindings::{PyRezEnv, PyPackageFamily};
+use forward_bindings::PyRezForward;
+use release_bindings::{PyReleaseManager, PyReleaseResult};
 
 /// Main Python module `rez_next` — drop-in replacement for `rez`
 #[pymodule(name = "rez_next")]
@@ -75,6 +79,11 @@ fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // RezEnv and PackageFamily
     m.add_class::<PyRezEnv>()?;
     m.add_class::<PyPackageFamily>()?;
+
+    // Forward and Release
+    m.add_class::<PyRezForward>()?;
+    m.add_class::<PyReleaseManager>()?;
+    m.add_class::<PyReleaseResult>()?;
 
     // Top-level convenience functions (matching rez's public API)
     m.add_function(wrap_pyfunction!(get_latest_package, m)?)?;
@@ -237,6 +246,25 @@ fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
     packages_mod.add_class::<PyPackage>()?;
     packages_mod.add_class::<PyPackageRequirement>()?;
     m.add_submodule(&packages_mod)?;
+
+    // Submodule: rez.forward (shell forward function compatibility)
+    let forward_mod = PyModule::new(m.py(), "forward")?;
+    forward_mod.add_class::<PyRezForward>()?;
+    forward_mod.add_function(wrap_pyfunction!(forward_bindings::resolve_forward_tool, &forward_mod)?)?;
+    forward_mod.add_function(wrap_pyfunction!(forward_bindings::generate_forward_script, &forward_mod)?)?;
+    m.add_submodule(&forward_mod)?;
+    // Top-level forward helpers
+    m.add_function(wrap_pyfunction!(forward_bindings::resolve_forward_tool, m)?)?;
+    m.add_function(wrap_pyfunction!(forward_bindings::generate_forward_script, m)?)?;
+
+    // Submodule: rez.release (package release flow)
+    let release_mod = PyModule::new(m.py(), "release")?;
+    release_mod.add_class::<PyReleaseManager>()?;
+    release_mod.add_class::<PyReleaseResult>()?;
+    release_mod.add_function(wrap_pyfunction!(release_bindings::release_package, &release_mod)?)?;
+    m.add_submodule(&release_mod)?;
+    // Top-level release function
+    m.add_function(wrap_pyfunction!(release_bindings::release_package, m)?)?;
 
     Ok(())
 }
