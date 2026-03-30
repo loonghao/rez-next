@@ -4113,6 +4113,222 @@ fn test_solver_diamond_dependency_no_conflict() {
     assert_eq!(resolved.len(), 4, "Diamond dependency should include all 4 packages exactly once");
 }
 
+// ─── Package is_valid() / validate() tests (Phase 93) ─────────────────────
+
+/// rez package: valid package passes is_valid()
+#[test]
+fn test_package_is_valid_basic() {
+    use rez_next_package::Package;
+    use rez_next_version::Version;
+
+    let mut pkg = Package::new("mypkg".to_string());
+    pkg.version = Some(Version::parse("1.0.0").unwrap());
+    assert!(pkg.is_valid(), "Package with valid name and version should be valid");
+}
+
+/// rez package: empty name fails is_valid()
+#[test]
+fn test_package_is_valid_empty_name() {
+    use rez_next_package::Package;
+
+    let pkg = Package::new("".to_string());
+    assert!(!pkg.is_valid(), "Package with empty name should not be valid");
+}
+
+/// rez package: invalid name chars fails validate()
+#[test]
+fn test_package_validate_invalid_name_chars() {
+    use rez_next_package::Package;
+
+    let pkg = Package::new("bad@pkg!name".to_string());
+    assert!(pkg.validate().is_err(), "Package with special chars in name should fail validate()");
+    let err_msg = pkg.validate().unwrap_err().to_string();
+    assert!(err_msg.contains("Invalid package name"), "Error should mention invalid name: {}", err_msg);
+}
+
+/// rez package: empty requirement in requires fails validate()
+#[test]
+fn test_package_validate_empty_requirement() {
+    use rez_next_package::Package;
+    use rez_next_version::Version;
+
+    let mut pkg = Package::new("mypkg".to_string());
+    pkg.version = Some(Version::parse("1.0.0").unwrap());
+    pkg.requires.push("".to_string()); // Empty requirement
+    assert!(pkg.validate().is_err(), "Package with empty requirement should fail validate()");
+    assert!(!pkg.is_valid(), "is_valid() should return false for package with empty requirement");
+}
+
+/// rez package: valid name formats (hyphen, underscore) pass is_valid()
+#[test]
+fn test_package_is_valid_name_variants() {
+    use rez_next_package::Package;
+
+    for name in &["my-pkg", "my_pkg", "MyPkg2", "pkg123"] {
+        let pkg = Package::new(name.to_string());
+        assert!(pkg.is_valid(), "Package name '{}' should be valid", name);
+    }
+}
+
+/// rez package: empty build_requires entry fails validate()
+#[test]
+fn test_package_validate_empty_build_requirement() {
+    use rez_next_package::Package;
+
+    let mut pkg = Package::new("buildpkg".to_string());
+    pkg.build_requires.push("cmake".to_string());
+    pkg.build_requires.push("".to_string()); // invalid entry
+    let result = pkg.validate();
+    assert!(result.is_err(), "Empty build requirement should fail validation");
+}
+
+// ─── VersionRange advanced tests (Phase 93) ───────────────────────────────
+
+/// rez version range: negation "!=" (exclude single version)
+#[test]
+fn test_version_range_exclude_single() {
+    use rez_core::version::{Version, VersionRange};
+
+    let r = VersionRange::parse("!=2.0").unwrap();
+    assert!(!r.contains(&Version::parse("2.0").unwrap()), "2.0 should be excluded");
+    assert!(r.contains(&Version::parse("1.9").unwrap()), "1.9 should be included");
+    assert!(r.contains(&Version::parse("2.1").unwrap()), "2.1 should be included");
+}
+
+/// rez version range: upper-inclusive "<=2.0"
+#[test]
+fn test_version_range_le() {
+    use rez_core::version::{Version, VersionRange};
+
+    let r = VersionRange::parse("<=2.0").unwrap();
+    assert!(r.contains(&Version::parse("2.0").unwrap()), "2.0 should be included in <=2.0");
+    assert!(r.contains(&Version::parse("1.5").unwrap()), "1.5 should be included in <=2.0");
+    assert!(!r.contains(&Version::parse("2.1").unwrap()), "2.1 should not be in <=2.0");
+}
+
+/// rez version range: ">1.0" (strict lower bound, exclusive)
+#[test]
+fn test_version_range_gt_exclusive() {
+    use rez_core::version::{Version, VersionRange};
+
+    let r = VersionRange::parse(">1.0").unwrap();
+    assert!(!r.contains(&Version::parse("1.0").unwrap()), "1.0 should be excluded from >1.0");
+    assert!(r.contains(&Version::parse("1.1").unwrap()), "1.1 should be included in >1.0");
+}
+
+/// rez version range: combined ">1.0,<=2.0"
+#[test]
+fn test_version_range_combined_gt_le() {
+    use rez_core::version::{Version, VersionRange};
+
+    let r = VersionRange::parse(">1.0,<=2.0").unwrap();
+    assert!(!r.contains(&Version::parse("1.0").unwrap()), "1.0 excluded (strict >)");
+    assert!(r.contains(&Version::parse("1.5").unwrap()), "1.5 included");
+    assert!(r.contains(&Version::parse("2.0").unwrap()), "2.0 included (<=)");
+    assert!(!r.contains(&Version::parse("2.1").unwrap()), "2.1 excluded");
+}
+
+/// rez version range: is_superset_of semantics
+#[test]
+fn test_version_range_is_superset() {
+    use rez_core::version::VersionRange;
+
+    let broad = VersionRange::parse(">=1.0").unwrap();
+    let narrow = VersionRange::parse(">=1.5,<2.0").unwrap();
+    assert!(broad.is_superset_of(&narrow), ">=1.0 should be superset of >=1.5,<2.0");
+    assert!(!narrow.is_superset_of(&broad), ">=1.5,<2.0 should NOT be superset of >=1.0");
+}
+
+
+// ─── Rex DSL advanced command semantics (Phase 93) ────────────────────────
+
+/// rez rex: info() records a diagnostic message (does not affect env vars)
+#[test]
+fn test_rex_info_does_not_affect_env() {
+    use rez_next_rex::RexExecutor;
+
+    let mut exec = RexExecutor::new();
+    let env = exec.execute_commands(
+        r#"info("Loading package mypkg")"#,
+        "mypkg", None, None,
+    ).unwrap();
+    // info() should not create any env vars
+    assert!(env.vars.is_empty(), "info() should not set any env var; vars: {:?}", env.vars);
+}
+
+/// rez rex: setenv_if_empty only sets var when absent (not overwrite)
+#[test]
+fn test_rex_setenv_if_empty_absent_sets_value() {
+    use rez_next_rex::RexExecutor;
+
+    let mut exec = RexExecutor::new();
+    let env = exec.execute_commands(
+        r#"env.setenv_if_empty("NEW_VAR", "initial")"#,
+        "mypkg", None, None,
+    ).unwrap();
+    assert_eq!(
+        env.vars.get("NEW_VAR").map(String::as_str),
+        Some("initial"),
+        "setenv_if_empty should set value when variable is absent"
+    );
+}
+
+/// rez rex: mixed setenv + append_path in single commands string
+#[test]
+fn test_rex_mixed_setenv_and_append_path() {
+    use rez_next_rex::RexExecutor;
+
+    let mut exec = RexExecutor::new();
+    let cmds = r#"
+env.setenv('PKG_HOME', '/opt/pkg/2.0')
+env.append_path('PATH', '/opt/pkg/2.0/bin')
+env.append_path('LD_LIBRARY_PATH', '/opt/pkg/2.0/lib')
+"#;
+    let env = exec.execute_commands(cmds, "pkg", Some("/opt/pkg/2.0"), Some("2.0")).unwrap();
+    assert_eq!(env.vars.get("PKG_HOME").map(String::as_str), Some("/opt/pkg/2.0"));
+    assert!(env.vars.get("PATH").map(|v| v.contains("/opt/pkg/2.0/bin")).unwrap_or(false),
+        "PATH should contain the bin dir");
+    assert!(env.vars.get("LD_LIBRARY_PATH").map(|v| v.contains("/opt/pkg/2.0/lib")).unwrap_or(false),
+        "LD_LIBRARY_PATH should contain the lib dir");
+}
+
+/// rez rex: context var {name} expansion for package name
+#[test]
+fn test_rex_context_var_name_expansion() {
+    use rez_next_rex::RexExecutor;
+
+    let mut exec = RexExecutor::new();
+    let env = exec.execute_commands(
+        r#"env.setenv("ACTIVE_PKG", "{name}")"#,
+        "myspecialpkg", None, None,
+    ).unwrap();
+    assert_eq!(
+        env.vars.get("ACTIVE_PKG").map(String::as_str),
+        Some("myspecialpkg"),
+        "{{name}} should expand to the package name"
+    );
+}
+
+/// rez rex: three-pkg sequential PATH accumulation preserves order
+#[test]
+fn test_rex_three_pkg_path_order() {
+    use rez_next_rex::RexExecutor;
+
+    let mut exec = RexExecutor::new();
+    exec.execute_commands(r#"env.prepend_path("PATH", "/pkg_c/bin")"#, "pkgC", None, None).unwrap();
+    exec.execute_commands(r#"env.prepend_path("PATH", "/pkg_b/bin")"#, "pkgB", None, None).unwrap();
+    let env = exec.execute_commands(
+        r#"env.prepend_path("PATH", "/pkg_a/bin")"#, "pkgA", None, None,
+    ).unwrap();
+    let path = env.vars.get("PATH").cloned().unwrap_or_default();
+    // Each prepend goes to front, so: pkgA < pkgB < pkgC (position-wise)
+    let pos_a = path.find("/pkg_a/bin").unwrap_or(999);
+    let pos_b = path.find("/pkg_b/bin").unwrap_or(999);
+    let pos_c = path.find("/pkg_c/bin").unwrap_or(999);
+    assert!(pos_a < pos_b, "pkgA (last prepended) should precede pkgB; PATH={}", path);
+    assert!(pos_b < pos_c, "pkgB should precede pkgC; PATH={}", path);
+}
+
 // ─── Exception type / message tests ─────────────────────────────────────────
 
 /// rez.exceptions: PackageRequirement parse is lenient — documents actual behavior.

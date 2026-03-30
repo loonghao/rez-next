@@ -1087,6 +1087,11 @@ impl Package {
         self.commands = Some(commands);
     }
 
+    /// Check if the package definition is valid (convenience bool version of validate())
+    pub fn is_valid(&self) -> bool {
+        self.validate().is_ok()
+    }
+
     /// Validate the package definition
     pub fn validate(&self) -> Result<(), RezCoreError> {
         // Check required fields
@@ -1225,6 +1230,11 @@ impl Package {
 
             Ok(package)
         })
+    }
+
+    /// Check if the package definition is valid (convenience bool version of validate())
+    pub fn is_valid(&self) -> bool {
+        self.validate().is_ok()
     }
 
     /// Validate the package definition

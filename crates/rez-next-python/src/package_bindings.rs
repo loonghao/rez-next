@@ -175,6 +175,11 @@ impl PyPackage {
             .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))
     }
 
+    /// Check if the package definition is valid without raising exceptions
+    fn is_valid(&self) -> bool {
+        self.0.is_valid()
+    }
+
     /// Get the format version
     #[getter]
     fn format_version(&self) -> Option<i32> {
