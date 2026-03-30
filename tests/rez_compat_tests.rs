@@ -4190,6 +4190,148 @@ fn test_solver_version_conflict_detected() {
     let _ = result;
 }
 
+// ─── Context serialization round-trip tests ───────────────────────────────────
+
+/// rez context: JSON serialization round-trip preserves context ID
+#[test]
+fn test_context_json_roundtrip_preserves_id() {
+    use rez_next_context::{ContextSerializer, ContextFormat, ResolvedContext};
+
+    let original = ResolvedContext::from_requirements(vec![]);
+    let bytes = ContextSerializer::serialize(&original, ContextFormat::Json).unwrap();
+    let restored = ContextSerializer::deserialize(&bytes, ContextFormat::Json).unwrap();
+    assert_eq!(restored.id, original.id, "JSON round-trip must preserve context ID");
+}
+
+/// rez context: JSON serialization output is valid UTF-8 and non-empty
+#[test]
+fn test_context_json_output_is_valid_utf8() {
+    use rez_next_context::{ContextSerializer, ContextFormat, ResolvedContext};
+
+    let ctx = ResolvedContext::from_requirements(vec![]);
+    let bytes = ContextSerializer::serialize(&ctx, ContextFormat::Json).unwrap();
+    assert!(!bytes.is_empty(), "Serialized context must not be empty");
+    let s = String::from_utf8(bytes);
+    assert!(s.is_ok(), "Serialized context must be valid UTF-8");
+}
+
+/// rez context: deserialization of corrupt bytes returns Err, not panic
+#[test]
+fn test_context_deserialize_corrupt_no_panic() {
+    use rez_next_context::{ContextSerializer, ContextFormat};
+
+    let result = ContextSerializer::deserialize(b"{broken json{{{{", ContextFormat::Json);
+    assert!(result.is_err(), "Corrupt JSON must return Err");
+}
+
+/// rez context: environment_vars are preserved across JSON round-trip
+#[test]
+fn test_context_env_vars_roundtrip() {
+    use rez_next_context::{ContextSerializer, ContextFormat, ResolvedContext};
+
+    let mut ctx = ResolvedContext::from_requirements(vec![]);
+    ctx.environment_vars.insert("MY_TOOL_ROOT".to_string(), "/opt/my_tool/1.0".to_string());
+    ctx.environment_vars.insert("PYTHONPATH".to_string(), "/opt/python/lib".to_string());
+
+    let bytes = ContextSerializer::serialize(&ctx, ContextFormat::Json).unwrap();
+    let restored = ContextSerializer::deserialize(&bytes, ContextFormat::Json).unwrap();
+
+    assert_eq!(
+        restored.environment_vars.get("MY_TOOL_ROOT"),
+        Some(&"/opt/my_tool/1.0".to_string()),
+        "MY_TOOL_ROOT must survive JSON round-trip"
+    );
+    assert_eq!(
+        restored.environment_vars.get("PYTHONPATH"),
+        Some(&"/opt/python/lib".to_string()),
+        "PYTHONPATH must survive JSON round-trip"
+    );
+}
+
+// ─── Version boundary tests (additional) ─────────────────────────────────────
+
+/// rez version: very large numeric components parse without panic
+#[test]
+fn test_version_large_component_no_panic() {
+    use rez_core::version::Version;
+
+    let result = Version::parse("999999.999999.999999");
+    // Should not panic; result may be Ok or Err depending on limits
+    let _ = result;
+}
+
+/// rez version: single-component version "5" parses correctly
+#[test]
+fn test_version_single_component() {
+    use rez_core::version::Version;
+
+    let v = Version::parse("5").unwrap();
+    assert_eq!(v.as_str(), "5");
+}
+
+/// rez version: two single-component versions compare correctly
+#[test]
+fn test_version_single_component_ordering() {
+    use rez_core::version::Version;
+
+    let v10 = Version::parse("10").unwrap();
+    let v9 = Version::parse("9").unwrap();
+    assert!(v10 > v9, "10 should be greater than 9 as single-component versions");
+}
+
+/// rez version: range "any" (empty string or "*") contains all versions
+#[test]
+fn test_version_range_any_contains_all() {
+    use rez_core::version::{Version, VersionRange};
+
+    // Empty string "" means "any version" in rez semantics
+    let r = VersionRange::parse("").unwrap();
+    assert!(r.contains(&Version::parse("1.0.0").unwrap()), "any range should contain 1.0.0");
+    assert!(r.contains(&Version::parse("999.0").unwrap()), "any range should contain 999.0");
+}
+
+// ─── Rex DSL boundary tests (additional) ──────────────────────────────────────
+
+/// Rex: executing empty commands block returns empty env, does not error
+#[test]
+fn test_rex_empty_commands_no_error() {
+    use rez_next_rex::RexExecutor;
+
+    let mut exec = RexExecutor::new();
+    let result = exec.execute_commands("", "empty_pkg", None, None);
+    assert!(result.is_ok(), "Empty commands block should not produce an error");
+}
+
+/// Rex: setenv then prepend_path on same var accumulates correctly
+#[test]
+fn test_rex_setenv_then_prepend_path() {
+    use rez_next_rex::RexExecutor;
+
+    let mut exec = RexExecutor::new();
+    let cmds = r#"env.setenv('MYPATH', '/base')
+env.prepend_path('MYPATH', '/extra')
+"#;
+    let env = exec.execute_commands(cmds, "testpkg", None, None).unwrap();
+    let val = env.vars.get("MYPATH").cloned().unwrap_or_default();
+    assert!(val.contains("/extra"), "MYPATH should contain /extra after prepend");
+    assert!(val.contains("/base"), "MYPATH should still contain /base after prepend");
+}
+
+/// Rex: alias command produces correct name → path mapping
+#[test]
+fn test_rex_alias_name_path_mapping() {
+    use rez_next_rex::RexExecutor;
+
+    let mut exec = RexExecutor::new();
+    let cmds = "alias('mytool', '/opt/mytool/1.0/bin/mytool')";
+    let env = exec.execute_commands(cmds, "mytoolpkg", None, None).unwrap();
+    assert_eq!(
+        env.aliases.get("mytool"),
+        Some(&"/opt/mytool/1.0/bin/mytool".to_string()),
+        "alias should map 'mytool' → '/opt/mytool/1.0/bin/mytool'"
+    );
+}
+
 
 
 

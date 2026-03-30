@@ -1,8 +1,8 @@
 [package]
 name = "rez-next-cache"
-version = "0.2.0"
-edition = "2021"
-authors = ["Long Hao <hal.long@outlook.com>"]
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
 description = "Intelligent caching system for rez-next with multi-level cache and predictive preheating"
 license = "Apache-2.0"
 repository = "https://github.com/loonghao/rez-next"

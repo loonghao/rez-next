@@ -155,6 +155,10 @@ harness = false
 name = "pip_conversion_benchmark"
 harness = false
 
+[[bench]]
+name = "context_operations_benchmark"
+harness = false
+
 # Temporarily disabled benchmarks due to API changes
 # [[bench]]
 # name = "comprehensive_benchmark_suite"
