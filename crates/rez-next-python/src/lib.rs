@@ -17,6 +17,7 @@ mod system_bindings;
 mod shell_bindings;
 mod pip_bindings;
 mod plugins_bindings;
+mod env_bindings;
 
 use version_bindings::{PyVersion, PyVersionRange};
 use package_bindings::{PyPackage, PyPackageRequirement};
@@ -29,6 +30,7 @@ use system_bindings::PySystem;
 use shell_bindings::PyShell;
 use pip_bindings::PyPipPackage;
 use plugins_bindings::{PyPlugin, PyRezPluginManager};
+use env_bindings::{PyRezEnv, PyPackageFamily};
 
 /// Main Python module `rez_next` — drop-in replacement for `rez`
 #[pymodule(name = "rez_next")]
@@ -69,6 +71,10 @@ fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Plugin system classes
     m.add_class::<PyPlugin>()?;
     m.add_class::<PyRezPluginManager>()?;
+
+    // RezEnv and PackageFamily
+    m.add_class::<PyRezEnv>()?;
+    m.add_class::<PyPackageFamily>()?;
 
     // Top-level convenience functions (matching rez's public API)
     m.add_function(wrap_pyfunction!(get_latest_package, m)?)?;
@@ -212,6 +218,25 @@ fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_submodule(&plugins_mod)?;
     // Also expose at top level
     m.add_function(wrap_pyfunction!(plugins_bindings::get_plugin_manager, m)?)?;
+
+    // Submodule: rez.env (environment creation and activation)
+    let env_mod = PyModule::new(m.py(), "env")?;
+    env_mod.add_class::<PyRezEnv>()?;
+    env_mod.add_class::<PyPackageFamily>()?;
+    env_mod.add_function(wrap_pyfunction!(env_bindings::create_env, &env_mod)?)?;
+    env_mod.add_function(wrap_pyfunction!(env_bindings::get_activation_script, &env_mod)?)?;
+    env_mod.add_function(wrap_pyfunction!(env_bindings::apply_env, &env_mod)?)?;
+    m.add_submodule(&env_mod)?;
+    // Top-level env functions
+    m.add_function(wrap_pyfunction!(env_bindings::create_env, m)?)?;
+    m.add_function(wrap_pyfunction!(env_bindings::get_activation_script, m)?)?;
+
+    // Submodule: rez.packages (PackageFamily, iterable package API)
+    let packages_mod = PyModule::new(m.py(), "packages")?;
+    packages_mod.add_class::<PyPackageFamily>()?;
+    packages_mod.add_class::<PyPackage>()?;
+    packages_mod.add_class::<PyPackageRequirement>()?;
+    m.add_submodule(&packages_mod)?;
 
     Ok(())
 }

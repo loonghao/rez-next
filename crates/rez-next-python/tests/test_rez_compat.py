@@ -446,6 +446,83 @@ class TestUtilsModule:
             get_resource_string("nonexistent_resource_xyz_12345")
 
 
+class TestEnvModule:
+    """Verify rez.env — environment creation and activation API."""
+
+    def test_env_submodule_exists(self):
+        import rez_next.env as env
+        assert hasattr(env, "RezEnv")
+        assert hasattr(env, "create_env")
+        assert hasattr(env, "get_activation_script")
+        assert hasattr(env, "apply_env")
+
+    def test_create_env_empty(self):
+        import rez_next.env as env
+        rez_env = env.create_env([])
+        assert rez_env is not None
+
+    def test_rez_env_empty_packages(self):
+        env_obj = rez.RezEnv([])
+        assert env_obj is not None
+        assert env_obj.packages == []
+
+    def test_rez_env_unknown_pkg_fails_gracefully(self):
+        """Unknown packages should fail gracefully, not raise."""
+        env_obj = rez.RezEnv(
+            ["nonexistent_pkg_xyz_999"],
+            paths=["/nonexistent/path_xyz"]
+        )
+        assert env_obj is not None
+        # Either success=False or success=True (empty repos → no resolution)
+
+    def test_rez_env_get_environ_returns_dict(self):
+        env_obj = rez.RezEnv([])
+        environ = env_obj.get_environ()
+        assert isinstance(environ, dict)
+
+    def test_rez_env_num_resolved_packages(self):
+        env_obj = rez.RezEnv([])
+        assert isinstance(env_obj.num_resolved_packages, int)
+        assert env_obj.num_resolved_packages >= 0
+
+    def test_get_activation_script_bash(self):
+        result = rez.get_activation_script(
+            [],  # empty packages = trivial activation
+            shell="bash",
+            paths=["/nonexistent/path_xyz"]
+        )
+        assert isinstance(result, str)
+
+    def test_top_level_create_env(self):
+        assert callable(rez.create_env)
+        env_obj = rez.create_env([])
+        assert env_obj is not None
+
+
+class TestPackagesModule:
+    """Verify rez.packages — PackageFamily API."""
+
+    def test_packages_submodule_exists(self):
+        import rez_next.packages as pkgs
+        assert hasattr(pkgs, "PackageFamily")
+        assert hasattr(pkgs, "Package")
+        assert hasattr(pkgs, "PackageRequirement")
+
+    def test_package_family_create(self):
+        import rez_next.packages as pkgs
+        family = pkgs.PackageFamily("python")
+        assert family.name == "python"
+        assert family.num_versions == 0
+
+    def test_rez_env_class_at_top_level(self):
+        assert rez.RezEnv is not None
+
+    def test_package_family_class_at_top_level(self):
+        assert rez.PackageFamily is not None
+        family = rez.PackageFamily("maya")
+        assert family.name == "maya"
+
+
 class TestPluginsModule:
     """Verify rez.plugins plugin manager API."""
 
