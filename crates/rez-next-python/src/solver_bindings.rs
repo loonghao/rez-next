@@ -8,9 +8,7 @@ use std::path::PathBuf;
 /// Python-accessible Solver class, compatible with rez.solver.Solver
 #[pyclass(name = "Solver")]
 pub struct PySolver {
-    #[allow(dead_code)]
     config: SolverConfig,
-    #[allow(dead_code)]
     paths: Vec<PathBuf>,
 }
 
@@ -54,7 +52,12 @@ impl PySolver {
     }
 
     fn __repr__(&self) -> String {
-        "Solver()".to_string()
+        format!(
+            "Solver(paths={}, max_attempts={}, prefer_latest={})",
+            self.paths.len(),
+            self.config.max_attempts,
+            self.config.prefer_latest,
+        )
     }
 
     /// Resolve a list of package requirements into a ResolvedContext.

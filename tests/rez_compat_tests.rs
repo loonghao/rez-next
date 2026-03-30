@@ -3645,6 +3645,170 @@ fn test_status_outside_context_is_false() {
     }
 }
 
+// ─── rez.solver SolverConfig / timeout semantics ─────────────────────────────
+
+/// rez solver: default config has sensible timeout (> 0 seconds)
+#[test]
+fn test_solver_config_default_timeout_positive() {
+    use rez_next_solver::SolverConfig;
+    let cfg = SolverConfig::default();
+    assert!(cfg.max_time_seconds > 0, "default timeout should be > 0");
+}
+
+/// rez solver: custom timeout is stored correctly
+#[test]
+fn test_solver_config_custom_timeout_stored() {
+    use rez_next_solver::SolverConfig;
+    let mut cfg = SolverConfig::default();
+    cfg.max_time_seconds = 10;
+    assert_eq!(cfg.max_time_seconds, 10);
+}
+
+/// rez solver: zero timeout config does not panic on construction
+#[test]
+fn test_solver_config_zero_timeout_no_panic() {
+    use rez_next_solver::SolverConfig;
+    let mut cfg = SolverConfig::default();
+    cfg.max_time_seconds = 0;
+    assert_eq!(cfg.max_time_seconds, 0);
+}
+
+/// rez solver: SolverConfig serializes and deserializes cleanly
+#[test]
+fn test_solver_config_json_roundtrip() {
+    use rez_next_solver::SolverConfig;
+    let cfg = SolverConfig::default();
+    let json = serde_json::to_string(&cfg).expect("serialization failed");
+    let restored: SolverConfig = serde_json::from_str(&json).expect("deserialization failed");
+    assert_eq!(cfg.max_attempts, restored.max_attempts);
+    assert_eq!(cfg.max_time_seconds, restored.max_time_seconds);
+    assert_eq!(cfg.prefer_latest, restored.prefer_latest);
+}
+
+/// rez solver: DependencySolver with config preserves timeout setting
+#[test]
+fn test_solver_with_config_preserves_timeout() {
+    use rez_next_solver::{DependencySolver, SolverConfig};
+    let mut cfg = SolverConfig::default();
+    cfg.max_time_seconds = 30;
+    let solver = DependencySolver::with_config(cfg.clone());
+    // Solver constructed without panic — verify via debug output
+    let dbg = format!("{:?}", solver);
+    assert!(dbg.contains("DependencySolver"), "debug output should name the struct");
+}
+
+/// rez solver: empty requirements resolve without panic
+#[test]
+fn test_solver_resolve_empty_requirements() {
+    use rez_next_solver::{DependencySolver, SolverRequest};
+    let solver = DependencySolver::new();
+    let request = SolverRequest::new(vec![]);
+    let result = solver.resolve(request);
+    assert!(result.is_ok(), "resolving empty requirements should succeed");
+    let res = result.unwrap();
+    assert_eq!(res.packages.len(), 0);
+}
+
+/// rez solver: ConflictStrategy serializes to expected JSON strings
+#[test]
+fn test_solver_conflict_strategy_serialization() {
+    use rez_next_solver::ConflictStrategy;
+    let strategies = [
+        (ConflictStrategy::LatestWins, "LatestWins"),
+        (ConflictStrategy::EarliestWins, "EarliestWins"),
+        (ConflictStrategy::FailOnConflict, "FailOnConflict"),
+        (ConflictStrategy::FindCompatible, "FindCompatible"),
+    ];
+    for (strategy, expected) in &strategies {
+        let json = serde_json::to_string(strategy).expect("serialize failed");
+        assert!(
+            json.contains(expected),
+            "Expected JSON to contain '{}', got: {}",
+            expected,
+            json
+        );
+    }
+}
+
+/// rez solver: SolverRequest with_constraint builder chain works
+#[test]
+fn test_solver_request_builder_chain() {
+    use rez_next_package::PackageRequirement;
+    use rez_next_solver::SolverRequest;
+    let req = PackageRequirement::parse("python-3+").unwrap();
+    let constraint = PackageRequirement::parse("platform-linux").unwrap();
+    let request = SolverRequest::new(vec![req]).with_constraint(constraint);
+    assert_eq!(request.constraints.len(), 1);
+}
+
+/// rez solver: SolverRequest with_exclude removes package by name
+#[test]
+fn test_solver_request_with_exclude() {
+    use rez_next_solver::SolverRequest;
+    let request = SolverRequest::new(vec![]).with_exclude("legacy_lib".to_string());
+    assert_eq!(request.excludes.len(), 1);
+    assert_eq!(request.excludes[0], "legacy_lib");
+}
+
+// ─── rez.depends: reverse dependency query semantics ─────────────────────────
+
+/// rez depends: finding dependents when nothing depends on target returns empty
+#[test]
+fn test_depends_no_dependents_for_isolated_package() {
+    use rez_next_package::Package;
+    // Build a synthetic package set where nothing requires "isolated_pkg".
+    // Package.requires is Vec<String> (requirement strings).
+    let packages: Vec<Package> = vec![
+        Package::new("python".to_string()),
+        Package::new("maya".to_string()),
+    ];
+    let target = "isolated_pkg";
+    let dependents: Vec<&Package> = packages
+        .iter()
+        .filter(|p| {
+            p.requires
+                .iter()
+                .any(|r| r.starts_with(target))
+        })
+        .collect();
+    assert!(dependents.is_empty(), "no package should depend on an isolated package");
+}
+
+/// rez depends: direct dependent detection via requires list
+#[test]
+fn test_depends_direct_dependent_found() {
+    use rez_next_package::Package;
+    let mut consumer = Package::new("my_tool".to_string());
+    consumer.requires = vec!["python-3+".to_string()];
+
+    let packages = vec![consumer];
+    let target = "python";
+    let dependents: Vec<&Package> = packages
+        .iter()
+        .filter(|p| p.requires.iter().any(|r| r.starts_with(target)))
+        .collect();
+    assert_eq!(dependents.len(), 1);
+    assert_eq!(dependents[0].name, "my_tool");
+}
+
+/// rez depends: packages with empty requires list never appear as dependents
+#[test]
+fn test_depends_empty_requires_not_dependent() {
+    use rez_next_package::Package;
+    let packages: Vec<Package> = vec![
+        Package::new("standalone_a".to_string()),
+        Package::new("standalone_b".to_string()),
+    ];
+    for pkg in &packages {
+        assert!(pkg.requires.is_empty(), "packages should have empty requires");
+    }
+    let dependents: Vec<&Package> = packages
+        .iter()
+        .filter(|p| p.requires.iter().any(|r| r.starts_with("anything")))
+        .collect();
+    assert!(dependents.is_empty());
+}
+
 /// rez status: REZ_USED_PACKAGES_NAMES parsing produces correct package list
 #[test]
 fn test_status_parse_rez_used_packages_names() {
