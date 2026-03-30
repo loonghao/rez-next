@@ -1,4 +1,4 @@
-FROM rust:1.85-bookworm
+FROM rust:1.94-bookworm
 
 # Install cargo-audit and git
 RUN cargo install cargo-audit \
