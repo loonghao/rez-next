@@ -994,7 +994,8 @@ impl PythonAstParser {
         package.help = data.help;
         package.relocatable = data.relocatable;
         package.cachable = data.cachable;
-        package.commands = data.commands_function;
+        package.commands = data.commands_function.clone();
+        package.commands_function = data.commands_function;
 
         // Set new fields for complete rez compatibility
         package.base = data.base;

@@ -790,6 +790,7 @@ fn bind_single_package(
         private_build_requires: vec![],
         variants: vec![],
         commands: commands.clone(),
+        commands_function: commands.clone(),
         build_command: None,
         build_system: None,
         pre_commands: None,

@@ -196,8 +196,11 @@ pub struct Package {
     /// Package tools
     pub tools: Vec<String>,
 
-    /// Package commands
+    /// Package commands (rex script string, set from `def commands():` body)
     pub commands: Option<String>,
+
+    /// Package commands function body (alias for commands; used by validation layer)
+    pub commands_function: Option<String>,
 
     /// Build command for custom builds
     pub build_command: Option<String>,
@@ -309,6 +312,7 @@ impl Clone for Package {
                 variants: self.variants.clone(),
                 tools: self.tools.clone(),
                 commands: self.commands.clone(),
+                commands_function: self.commands_function.clone(),
                 build_command: self.build_command.clone(),
                 build_system: self.build_system.clone(),
                 pre_commands: self.pre_commands.clone(),
@@ -354,6 +358,7 @@ impl Clone for Package {
             variants: self.variants.clone(),
             tools: self.tools.clone(),
             commands: self.commands.clone(),
+            commands_function: self.commands_function.clone(),
             build_command: self.build_command.clone(),
             build_system: self.build_system.clone(),
             pre_commands: self.pre_commands.clone(),
@@ -755,6 +760,7 @@ impl<'de> Deserialize<'de> for Package {
                     variants: variants.unwrap_or_default(),
                     tools: tools.unwrap_or_default(),
                     commands: commands.unwrap_or(None),
+                    commands_function: None, // Not stored in serialized form; set during parse
                     build_command: build_command.unwrap_or(None),
                     build_system: build_system.unwrap_or(None),
                     pre_commands: pre_commands.unwrap_or(None),
@@ -842,6 +848,7 @@ impl Package {
             variants: Vec::new(),
             tools: Vec::new(),
             commands: None,
+            commands_function: None,
             build_command: None,
             build_system: None,
             pre_commands: None,
@@ -982,6 +989,7 @@ impl Package {
             variants: Vec::new(),
             tools: Vec::new(),
             commands: None,
+            commands_function: None,
             build_command: None,
             build_system: None,
             pre_commands: None,
