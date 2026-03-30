@@ -1,0 +1,25 @@
+[package]
+name = "rez-next-bind"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+description = "rez bind implementation for rez-next - bind system tools as rez packages"
+license.workspace = true
+repository.workspace = true
+keywords = ["rez", "bind", "package-manager"]
+
+[dependencies]
+rez-next-common = { version = "0.1.0", path = "../rez-next-common" }
+rez-next-version = { version = "0.1.0", path = "../rez-next-version" }
+rez-next-package = { version = "0.1.0", path = "../rez-next-package" }
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
+thiserror.workspace = true
+regex.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+rstest.workspace = true
+
+[lints]
+workspace = true

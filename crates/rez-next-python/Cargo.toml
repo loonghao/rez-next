@@ -26,6 +26,7 @@ rez-next-context = { version = "0.1.0", path = "../rez-next-context" }
 rez-next-build = { version = "0.1.0", path = "../rez-next-build" }
 rez-next-rex = { version = "0.1.0", path = "../rez-next-rex" }
 rez-next-suites = { version = "0.1.0", path = "../rez-next-suites" }
+rez-next-bind = { version = "0.1.0", path = "../rez-next-bind" }
 pyo3 = { version = "0.25", features = ["extension-module", "abi3-py38"] }
 serde = { workspace = true }
 serde_json = { workspace = true }

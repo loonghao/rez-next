@@ -2026,6 +2026,7 @@ dependencies = [
  "pretty_assertions",
  "proptest",
  "regex",
+ "rez-next-bind",
  "rez-next-build",
  "rez-next-cache",
  "rez-next-common",
@@ -2044,6 +2045,21 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.18",
  "tokio",
+]
+
+[[package]]
+name = "rez-next-bind"
+version = "0.1.0"
+dependencies = [
+ "regex",
+ "rez-next-common",
+ "rez-next-package",
+ "rez-next-version",
+ "rstest",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.18",
 ]
 
 [[package]]
@@ -2168,6 +2184,7 @@ name = "rez-next-python"
 version = "0.1.0"
 dependencies = [
  "pyo3",
+ "rez-next-bind",
  "rez-next-build",
  "rez-next-common",
  "rez-next-context",

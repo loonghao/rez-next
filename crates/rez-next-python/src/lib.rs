@@ -22,6 +22,7 @@ mod forward_bindings;
 mod release_bindings;
 mod source_bindings;
 mod data_bindings;
+mod bind_bindings;
 
 use version_bindings::{PyVersion, PyVersionRange};
 use package_bindings::{PyPackage, PyPackageRequirement};
@@ -39,6 +40,7 @@ use forward_bindings::PyRezForward;
 use release_bindings::{PyReleaseManager, PyReleaseResult};
 use source_bindings::PySourceManager;
 use data_bindings::PyRezData;
+use bind_bindings::{PyBindManager, PyBindResult};
 
 /// Main Python module `rez_next` — drop-in replacement for `rez`
 #[pymodule(name = "rez_next")]
@@ -94,6 +96,10 @@ fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
     // Data resources manager
     m.add_class::<PyRezData>()?;
+
+    // Bind manager
+    m.add_class::<PyBindManager>()?;
+    m.add_class::<PyBindResult>()?;
 
     // Top-level convenience functions (matching rez's public API)
     m.add_function(wrap_pyfunction!(get_latest_package, m)?)?;
@@ -297,6 +303,22 @@ fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // data singleton instance
     data_mod.add("data", PyRezData::new())?;
     m.add_submodule(&data_mod)?;
+
+    // Submodule: rez.bind (system tool binding)
+    let bind_mod = PyModule::new(m.py(), "bind")?;
+    bind_mod.add_class::<PyBindManager>()?;
+    bind_mod.add_class::<PyBindResult>()?;
+    bind_mod.add_function(wrap_pyfunction!(bind_bindings::bind_tool, &bind_mod)?)?;
+    bind_mod.add_function(wrap_pyfunction!(bind_bindings::list_binders, &bind_mod)?)?;
+    bind_mod.add_function(wrap_pyfunction!(bind_bindings::detect_version, &bind_mod)?)?;
+    bind_mod.add_function(wrap_pyfunction!(bind_bindings::find_tool, &bind_mod)?)?;
+    bind_mod.add_function(wrap_pyfunction!(bind_bindings::extract_version, &bind_mod)?)?;
+    // bind_manager singleton
+    bind_mod.add("bind_manager", PyBindManager::new())?;
+    m.add_submodule(&bind_mod)?;
+    // Top-level bind convenience function
+    m.add_function(wrap_pyfunction!(bind_bindings::bind_tool, m)?)?;
+    m.add_function(wrap_pyfunction!(bind_bindings::list_binders, m)?)?;
 
     Ok(())
 }
