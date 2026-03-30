@@ -157,6 +157,8 @@ pub struct RepositoryManager {
     repositories: Arc<RwLock<Vec<Arc<RwLock<dyn Repository>>>>>,
     /// Repository cache
     cache: Arc<RwLock<HashMap<String, Arc<RwLock<dyn Repository>>>>>,
+    /// Sync-accessible count (kept in sync with repositories)
+    count: Arc<std::sync::atomic::AtomicUsize>,
 }
 
 #[cfg_attr(feature = "python-bindings", pymethods)]
@@ -166,15 +168,14 @@ impl RepositoryManager {
         Self {
             repositories: Arc::new(RwLock::new(Vec::new())),
             cache: Arc::new(RwLock::new(HashMap::new())),
+            count: Arc::new(std::sync::atomic::AtomicUsize::new(0)),
         }
     }
 
-    /// Get the number of repositories
+    /// Get the number of repositories (sync-safe via atomic counter)
     #[cfg_attr(feature = "python-bindings", getter)]
     pub fn repository_count(&self) -> usize {
-        // This is a simplified sync version for Python binding
-        // In async context, use the async methods
-        0 // TODO: Implement sync version
+        self.count.load(std::sync::atomic::Ordering::Acquire)
     }
 }
 
@@ -192,17 +193,23 @@ impl RepositoryManager {
             repo.metadata().clone()
         };
 
-        // Insert in priority order (higher priority first)
-        let insert_pos = repos
+        let new_priority = metadata.priority;
+
+        // Insert in priority-descending order (higher priority first)
+        // Collect priorities without holding read locks simultaneously
+        let mut priorities = Vec::with_capacity(repos.len());
+        for r in repos.iter() {
+            let p = r.read().await.metadata().priority;
+            priorities.push(p);
+        }
+        let insert_pos = priorities
             .iter()
-            .position(|r| {
-                // This is a simplified comparison - in practice you'd need async access
-                false // TODO: Implement proper priority comparison
-            })
-            .unwrap_or(repos.len());
+            .position(|&p| p < new_priority)
+            .unwrap_or(priorities.len());
 
         repos.insert(insert_pos, repository.clone());
         cache.insert(metadata.name.clone(), repository);
+        self.count.fetch_add(1, std::sync::atomic::Ordering::Release);
 
         Ok(())
     }
@@ -212,17 +219,24 @@ impl RepositoryManager {
         let mut repos = self.repositories.write().await;
         let mut cache = self.cache.write().await;
 
-        cache.remove(name);
+        let removed_from_cache = cache.remove(name).is_some();
 
-        // Find and remove from repositories list
-        if let Some(pos) = repos.iter().position(|r| {
-            // TODO: Implement proper name comparison
-            false
-        }) {
+        // Find by name and remove from ordered list
+        let mut found_pos: Option<usize> = None;
+        for (i, r) in repos.iter().enumerate() {
+            if r.read().await.metadata().name == name {
+                found_pos = Some(i);
+                break;
+            }
+        }
+
+        if let Some(pos) = found_pos {
             repos.remove(pos);
+            self.count.fetch_sub(1, std::sync::atomic::Ordering::Release);
             Ok(true)
         } else {
-            Ok(false)
+            // Still return true if we removed from cache
+            Ok(removed_from_cache)
         }
     }
 
@@ -510,5 +524,24 @@ mod repository_tests {
         criteria.limit = Some(10);
         assert_eq!(criteria.name_pattern, Some("python*".to_string()));
         assert_eq!(criteria.limit, Some(10));
+    }
+
+    // ── RepositoryManager repository_count (atomic) ──────────────────
+
+    #[test]
+    fn test_repository_manager_initial_count_is_zero() {
+        let mgr = RepositoryManager::new();
+        assert_eq!(mgr.repository_count(), 0);
+    }
+
+    // ── RepositoryManager deduplicate is exhaustive ──────────────────
+
+    #[test]
+    fn test_deduplicate_single_package() {
+        let mgr = RepositoryManager::new();
+        let pkgs = vec![make_pkg("houdini", "19.5.0")];
+        let result = mgr.deduplicate_packages(pkgs).unwrap();
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].name, "houdini");
     }
 }

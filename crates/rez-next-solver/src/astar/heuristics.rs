@@ -11,9 +11,8 @@
 //! - **Version Preference Heuristic**: Prefers certain version patterns
 //! - **Composite Heuristic**: Combines multiple heuristics with weights
 
-use super::search_state::{
-    ConflictType, DependencyConflict, Package, PackageRequirement, SearchState,
-};
+use super::search_state::{ConflictType, DependencyConflict, SearchState};
+use rez_next_package::{Package, PackageRequirement};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -115,7 +114,7 @@ impl ConflictPenaltyHeuristic {
             ConflictType::PlatformConflict => 100.0,
         };
 
-        base_penalty * conflict.severity * self.config.conflict_penalty_multiplier
+        base_penalty * conflict.severity() * self.config.conflict_penalty_multiplier
     }
 }
 
@@ -435,14 +434,8 @@ mod tests {
 
     fn create_test_state() -> SearchState {
         let requirements = vec![
-            PackageRequirement {
-                name: "test_package".to_string(),
-                requirement_string: "test_package".to_string(),
-            },
-            PackageRequirement {
-                name: "another_package".to_string(),
-                requirement_string: "another_package".to_string(),
-            },
+            PackageRequirement::new("test_package".to_string()),
+            PackageRequirement::new("another_package".to_string()),
         ];
 
         SearchState::new_initial(requirements)
@@ -465,18 +458,16 @@ mod tests {
         let heuristic = ConflictPenaltyHeuristic::new(config);
         let mut state = create_test_state();
 
-        // Add a conflict
-        let conflict = DependencyConflict {
-            package_name: "test_package".to_string(),
-            conflicting_requirements: vec![],
-            severity: 1.0,
-            conflict_type: ConflictType::VersionConflict,
-        };
-        state.add_conflict(conflict);
+        state.add_conflict(DependencyConflict::new(
+            "test_package".to_string(),
+            vec![],
+            1.0,
+            ConflictType::VersionConflict,
+        ));
 
         let cost = heuristic.calculate(&state);
         assert!(cost > 0.0);
-        assert!(!heuristic.is_admissible()); // Conflict penalty is not admissible
+        assert!(!heuristic.is_admissible());
     }
 
     #[test]

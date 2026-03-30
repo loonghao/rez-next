@@ -4,27 +4,58 @@
 //! in the dependency resolution search space, along with utilities for
 //! state management and comparison.
 
-// Temporarily comment out problematic imports for testing
-// use crate::{ConflictStrategy};
-// use rez_next_common::RezCoreError;
-// use rez_next_package::{Package, PackageRequirement};
-// use rez_next_version::Version;
+use rez_next_package::{Package, PackageRequirement};
 use serde::{Deserialize, Serialize};
-use std::collections::{BTreeSet, HashMap, HashSet};
+use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
-use std::sync::Arc;
 
-// Temporary type definitions for testing
+/// Represents a dependency conflict within the A* search
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct Package {
-    pub name: String,
-    pub requires: Vec<String>,
+pub struct DependencyConflict {
+    /// Name of the conflicting package
+    pub package_name: String,
+
+    /// Conflicting requirement strings
+    pub conflicting_requirements: Vec<String>,
+
+    /// Severity (0.0 = minor, 1.0 = major)  — serialized as bits
+    pub severity_bits: u64,
+
+    /// Type of conflict
+    pub conflict_type: ConflictType,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct PackageRequirement {
-    pub name: String,
-    pub requirement_string: String,
+impl DependencyConflict {
+    pub fn severity(&self) -> f64 {
+        f64::from_bits(self.severity_bits)
+    }
+
+    pub fn new(
+        package_name: String,
+        conflicting_requirements: Vec<String>,
+        severity: f64,
+        conflict_type: ConflictType,
+    ) -> Self {
+        Self {
+            package_name,
+            conflicting_requirements,
+            severity_bits: severity.to_bits(),
+            conflict_type,
+        }
+    }
+}
+
+/// Types of dependency conflicts
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+pub enum ConflictType {
+    /// Version range conflicts
+    VersionConflict,
+    /// Circular dependency
+    CircularDependency,
+    /// Missing package
+    MissingPackage,
+    /// Platform incompatibility
+    PlatformConflict,
 }
 
 /// Represents a state in the dependency resolution search space
@@ -33,7 +64,7 @@ pub struct SearchState {
     /// Packages that have been resolved in this state
     pub resolved_packages: HashMap<String, Package>,
 
-    /// Requirements that still need to be resolved
+    /// Requirements that still need to be resolved (stored as strings for hashing)
     pub pending_requirements: Vec<PackageRequirement>,
 
     /// Current conflicts in this state
@@ -56,38 +87,6 @@ pub struct SearchState {
 
     /// Hash of the state for quick comparison
     state_hash: u64,
-}
-
-/// Represents a dependency conflict
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct DependencyConflict {
-    /// Name of the conflicting package
-    pub package_name: String,
-
-    /// Conflicting requirements
-    pub conflicting_requirements: Vec<PackageRequirement>,
-
-    /// Severity of the conflict (0.0 = minor, 1.0 = major)
-    pub severity: f64,
-
-    /// Type of conflict
-    pub conflict_type: ConflictType,
-}
-
-/// Types of dependency conflicts
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub enum ConflictType {
-    /// Version range conflicts
-    VersionConflict,
-
-    /// Circular dependency
-    CircularDependency,
-
-    /// Missing package
-    MissingPackage,
-
-    /// Platform incompatibility
-    PlatformConflict,
 }
 
 impl SearchState {
@@ -120,7 +119,6 @@ impl SearchState {
         let mut resolved_packages = parent.resolved_packages.clone();
         resolved_packages.insert(resolved_package.name.clone(), resolved_package);
 
-        // Filter out requirements that are now satisfied
         let mut pending_requirements = parent.pending_requirements.clone();
         pending_requirements.extend(new_requirements);
 
@@ -129,7 +127,7 @@ impl SearchState {
             pending_requirements,
             conflicts: parent.conflicts.clone(),
             cost_so_far: parent.cost_so_far + additional_cost,
-            estimated_total_cost: 0.0, // Will be set by heuristic function
+            estimated_total_cost: 0.0,
             depth: parent.depth + 1,
             parent_id: Some(parent.state_id),
             state_id: 0,
@@ -148,7 +146,6 @@ impl SearchState {
 
     /// Check if this state is valid (no unresolvable conflicts)
     pub fn is_valid(&self) -> bool {
-        // Check for fatal conflicts
         for conflict in &self.conflicts {
             match conflict.conflict_type {
                 ConflictType::MissingPackage => return false,
@@ -170,7 +167,7 @@ impl SearchState {
         self.update_hash();
     }
 
-    /// Remove a requirement from pending list
+    /// Remove a requirement from pending list by name
     pub fn remove_requirement(&mut self, requirement: &PackageRequirement) {
         self.pending_requirements
             .retain(|req| req.name != requirement.name);
@@ -183,22 +180,26 @@ impl SearchState {
 
         let mut hasher = DefaultHasher::new();
 
-        // Hash resolved packages
+        // Hash resolved packages (sorted for determinism)
         let mut package_names: Vec<_> = self.resolved_packages.keys().collect();
         package_names.sort();
         for name in package_names {
             name.hash(&mut hasher);
-            // TODO: Add version hashing when version system is available
+            if let Some(pkg) = self.resolved_packages.get(name) {
+                if let Some(ref ver) = pkg.version {
+                    ver.as_str().hash(&mut hasher);
+                }
+            }
         }
 
-        // Hash pending requirements
-        let mut req_strings: Vec<_> = self
+        // Hash pending requirements (sorted for determinism)
+        let mut req_strings: Vec<String> = self
             .pending_requirements
             .iter()
-            .map(|req| &req.requirement_string)
+            .map(|req| req.to_string())
             .collect();
         req_strings.sort();
-        for req_str in req_strings {
+        for req_str in &req_strings {
             req_str.hash(&mut hasher);
         }
 
@@ -219,7 +220,6 @@ impl SearchState {
     /// Calculate the complexity of this state (for algorithm selection)
     pub fn calculate_complexity(&self) -> usize {
         self.resolved_packages.len() + self.pending_requirements.len() + self.conflicts.len() * 2
-        // Conflicts add more complexity
     }
 }
 
@@ -245,7 +245,7 @@ impl PartialOrd for SearchState {
 
 impl Ord for SearchState {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        // For priority queue (min-heap), we want states with lower f(n) to have higher priority
+        // Min-heap: states with lower f(n) have higher priority
         other
             .estimated_total_cost
             .partial_cmp(&self.estimated_total_cost)
@@ -255,10 +255,7 @@ impl Ord for SearchState {
 
 /// State pool for memory management
 pub struct StatePool {
-    /// Pool of reusable states
     pool: Vec<SearchState>,
-
-    /// Maximum pool size
     max_size: usize,
 }
 
@@ -281,7 +278,6 @@ impl StatePool {
     /// Return a state to the pool
     pub fn return_state(&mut self, mut state: SearchState) {
         if self.pool.len() < self.max_size {
-            // Reset state for reuse
             state.resolved_packages.clear();
             state.pending_requirements.clear();
             state.conflicts.clear();
@@ -291,7 +287,6 @@ impl StatePool {
             state.parent_id = None;
             state.state_id = 0;
             state.state_hash = 0;
-
             self.pool.push(state);
         }
     }
@@ -305,15 +300,15 @@ impl StatePool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    // use rez_next_version::VersionRange;
+    use rez_next_package::PackageRequirement;
+
+    fn make_req(name: &str) -> PackageRequirement {
+        PackageRequirement::new(name.to_string())
+    }
 
     #[test]
     fn test_search_state_creation() {
-        let req = PackageRequirement {
-            name: "test_package".to_string(),
-            requirement_string: "test_package".to_string(),
-        };
-
+        let req = make_req("test_package");
         let state = SearchState::new_initial(vec![req]);
         assert_eq!(state.pending_requirements.len(), 1);
         assert_eq!(state.resolved_packages.len(), 0);
@@ -323,16 +318,42 @@ mod tests {
 
     #[test]
     fn test_state_hash_consistency() {
-        let req = PackageRequirement {
-            name: "test_package".to_string(),
-            requirement_string: "test_package".to_string(),
-        };
-
+        let req = make_req("test_package");
         let state1 = SearchState::new_initial(vec![req.clone()]);
         let state2 = SearchState::new_initial(vec![req]);
-
         assert_eq!(state1.get_hash(), state2.get_hash());
         assert_eq!(state1, state2);
+    }
+
+    #[test]
+    fn test_goal_state_empty_requirements() {
+        let state = SearchState::new_initial(vec![]);
+        assert!(state.is_goal(), "Empty requirements with no conflicts is a goal");
+    }
+
+    #[test]
+    fn test_state_validity_missing_package_conflict() {
+        let mut state = SearchState::new_initial(vec![]);
+        state.add_conflict(DependencyConflict::new(
+            "missing_pkg".to_string(),
+            vec![],
+            1.0,
+            ConflictType::MissingPackage,
+        ));
+        assert!(!state.is_valid(), "MissingPackage conflict makes state invalid");
+    }
+
+    #[test]
+    fn test_state_validity_version_conflict_still_valid() {
+        let mut state = SearchState::new_initial(vec![]);
+        state.add_conflict(DependencyConflict::new(
+            "pkg".to_string(),
+            vec!["pkg-1.0".to_string(), "pkg-2.0".to_string()],
+            0.5,
+            ConflictType::VersionConflict,
+        ));
+        // VersionConflict doesn't make state invalid (resolvable)
+        assert!(state.is_valid(), "VersionConflict alone does not invalidate state");
     }
 
     #[test]
@@ -346,5 +367,31 @@ mod tests {
 
         let _state = pool.get_state();
         assert_eq!(pool.size(), 0);
+    }
+
+    #[test]
+    fn test_state_ordering_lower_cost_higher_priority() {
+        let mut s1 = SearchState::new_initial(vec![]);
+        s1.estimated_total_cost = 5.0;
+        let mut s2 = SearchState::new_initial(vec![make_req("x")]);
+        s2.estimated_total_cost = 10.0;
+        // In a max BinaryHeap (which we use as min-heap via reversed Ord), s1 should come out first
+        use std::collections::BinaryHeap;
+        let mut heap = BinaryHeap::new();
+        heap.push(s1);
+        heap.push(s2);
+        let top = heap.pop().unwrap();
+        assert_eq!(top.estimated_total_cost, 5.0, "Lower cost should have higher priority");
+    }
+
+    #[test]
+    fn test_remove_requirement() {
+        let req1 = make_req("pkg_a");
+        let req2 = make_req("pkg_b");
+        let mut state = SearchState::new_initial(vec![req1.clone(), req2.clone()]);
+        assert_eq!(state.pending_requirements.len(), 2);
+        state.remove_requirement(&req1);
+        assert_eq!(state.pending_requirements.len(), 1);
+        assert_eq!(state.pending_requirements[0].name, "pkg_b");
     }
 }

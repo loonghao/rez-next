@@ -13,18 +13,24 @@ mod graph;
 mod solver;
 pub mod resolution;
 pub mod conflict;
+pub mod astar;
 // mod cache;
 // mod optimized_solver;
-// mod astar;
 
 pub use dependency_resolver::*;
 pub use graph::*;
 pub use solver::*;
 pub use resolution::*;
 pub use conflict::*;
+pub use astar::astar_search::{AStarSearch, SearchStats};
+pub use astar::heuristics::{
+    AdaptiveHeuristic, CompositeHeuristic, ConflictPenaltyHeuristic, DependencyDepthHeuristic,
+    DependencyHeuristic, HeuristicConfig, HeuristicFactory, RemainingRequirementsHeuristic,
+    VersionPreferenceHeuristic,
+};
+pub use astar::search_state::{ConflictType as AStarConflictType, DependencyConflict as AStarDependencyConflict, SearchState};
 // pub use cache::*;
 // pub use optimized_solver::*;
-// pub use astar::*;
 
 #[cfg(feature = "python-bindings")]
 use pyo3::prelude::*;
