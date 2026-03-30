@@ -122,7 +122,6 @@ impl PySystem {
 }
 
 /// Global system singleton factory
-#[allow(dead_code)]
 #[pyfunction]
 pub fn get_system() -> PySystem {
     PySystem::new()

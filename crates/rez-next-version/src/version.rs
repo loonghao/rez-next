@@ -15,7 +15,7 @@ use std::cmp::Ordering;
 use std::hash::{Hash, Hasher};
 
 /// Global state machine parser instance for optimal performance
-#[allow(dead_code)]
+#[cfg(feature = "python-bindings")]
 static OPTIMIZED_PARSER: Lazy<StateMachineParser> = Lazy::new(StateMachineParser::new);
 
 /// High-performance version representation compatible with rez

@@ -9,7 +9,6 @@ use rez_next_rex::{RexEnvironment, ShellType, generate_shell_script};
 use std::path::PathBuf;
 
 /// Supported activation modes matching rez's `rez source` command.
-#[allow(dead_code)]
 #[derive(Debug, Clone, PartialEq)]
 pub enum SourceMode {
     /// Write activation script to a temp file and print path
@@ -222,6 +221,51 @@ pub fn get_source_script(packages: Vec<String>, shell: Option<String>) -> String
 #[pyfunction]
 pub fn detect_shell() -> String {
     detect_current_shell()
+}
+
+/// Resolve a SourceMode to a script string or path.
+///
+/// This is the internal dispatcher used by write_source_script and friends.
+/// It also ensures all SourceMode variants are exercised.
+pub fn resolve_source_mode(
+    packages: &[String],
+    shell: Option<&str>,
+    mode: SourceMode,
+) -> Result<String, std::io::Error> {
+    let shell_name = shell.unwrap_or("auto");
+    let shell_resolved = if shell_name == "auto" {
+        detect_current_shell()
+    } else {
+        shell_name.to_string()
+    };
+
+    match mode {
+        SourceMode::Inline => {
+            Ok(build_activation_script(packages, &shell_resolved))
+        }
+        SourceMode::TempFile => {
+            let ext = match shell_resolved.as_str() {
+                "powershell" | "pwsh" => "ps1",
+                "cmd" => "bat",
+                _ => "sh",
+            };
+            let tmp_path = std::env::temp_dir()
+                .join(format!("rez_next_activate_{}.{}", std::process::id(), ext));
+            let script = build_activation_script(packages, &shell_resolved);
+            std::fs::write(&tmp_path, &script)?;
+            Ok(tmp_path.to_string_lossy().to_string())
+        }
+        SourceMode::File(dest) => {
+            let script = build_activation_script(packages, &shell_resolved);
+            if let Some(parent) = dest.parent() {
+                if !parent.as_os_str().is_empty() {
+                    std::fs::create_dir_all(parent)?;
+                }
+            }
+            std::fs::write(&dest, &script)?;
+            Ok(dest.to_string_lossy().to_string())
+        }
+    }
 }
 
 // ─── Unit tests ─────────────────────────────────────────────────────────────

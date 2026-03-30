@@ -11,12 +11,11 @@ use rez_next_solver::{DependencyResolver, SolverConfig};
 use std::path::PathBuf;
 use std::sync::Arc;
 
-/// Python-accessible ResolvedContext class, compatible with rez.resolved_context.ResolvedContext
+    /// Python-accessible ResolvedContext class, compatible with rez.resolved_context.ResolvedContext
 #[pyclass(name = "ResolvedContext")]
 pub struct PyResolvedContext {
     inner: ResolvedContext,
     /// Paths used for resolution
-    #[allow(dead_code)]
     paths: Vec<PathBuf>,
 }
 
@@ -103,12 +102,13 @@ impl PyResolvedContext {
 
     fn __repr__(&self) -> String {
         format!(
-            "ResolvedContext(packages={:?})",
+            "ResolvedContext(packages={:?}, paths={})",
             self.inner
                 .resolved_packages
                 .iter()
                 .map(|p| p.name.clone())
-                .collect::<Vec<_>>()
+                .collect::<Vec<_>>(),
+            self.paths.len()
         )
     }
 

@@ -176,6 +176,7 @@ fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
     let system_mod = PyModule::new(m.py(), "system")?;
     system_mod.add_class::<PySystem>()?;
     system_mod.add("system", PySystem::new())?;
+    system_mod.add_function(wrap_pyfunction!(system_bindings::get_system, &system_mod)?)?;
     m.add_submodule(&system_mod)?;
 
     // Submodule: rez.vendor.version

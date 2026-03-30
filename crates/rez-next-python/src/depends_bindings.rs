@@ -345,12 +345,21 @@ mod depends_bindings_tests {
     use rez_next_package::Package;
     use rez_next_version::Version;
 
-    #[allow(dead_code)]
     fn make_pkg(name: &str, ver: &str, requires: &[&str]) -> Package {
         let mut p = Package::new(name.to_string());
         p.version = Some(Version::parse(ver).unwrap());
         p.requires = requires.iter().map(|s| s.to_string()).collect();
         p
+    }
+
+    // Verify make_pkg builds a package with correct fields
+    #[test]
+    fn test_make_pkg_helper() {
+        let pkg = make_pkg("maya", "2024.1", &["python-3.9", "arnold-7"]);
+        assert_eq!(pkg.name, "maya");
+        assert_eq!(pkg.version.as_ref().unwrap().as_str(), "2024.1");
+        assert_eq!(pkg.requires.len(), 2);
+        assert!(pkg.requires.contains(&"python-3.9".to_string()));
     }
 
     // Test the internal compute function with a mock: use paths that don't exist
