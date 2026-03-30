@@ -1,317 +1,157 @@
-# 🚀 rez-next: 下一代包管理系统
+# rez-next
 
 [![Rust](https://img.shields.io/badge/rust-1.70+-orange.svg)](https://www.rust-lang.org)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
-[![Performance](https://img.shields.io/badge/performance-117x%20faster-green.svg)](#performance)
-[![Crates.io](https://img.shields.io/crates/v/rez-next.svg)](https://crates.io/crates/rez-next)
-[![Documentation](https://docs.rs/rez-next/badge.svg)](https://docs.rs/rez-next)
+[![CI](https://img.shields.io/github/actions/workflow/status/loonghao/rez-next/ci.yml?branch=main)](https://github.com/loonghao/rez-next/actions)
 
-> **⚡ 使用Rust编写的极速、内存高效的Rez包管理器核心组件**
+一个实验性项目，尝试用 Rust 重写 [Rez](https://github.com/AcademySoftwareFoundation/rez) 包管理器的核心组件。
 
 [English](README.md) | [中文](README_zh.md)
 
-## ⚠️ **实验性项目 - 请勿用于生产环境**
+---
 
-> **🚧 此项目目前处于实验性开发阶段**
->
-> **❌ 尚未准备好用于生产环境**
->
-> 这是一个研究和开发项目，旨在用Rust重写Rez的核心功能以提升性能。许多功能尚未完成或缺失。使用风险自负，请勿部署到生产环境。
->
-> **生产环境请继续使用[官方Rez包管理器](https://github.com/AcademySoftwareFoundation/rez)。**
+## 警告
+
+**这是一个个人实验项目。它没有达到生产可用的状态，也不打算供他人使用。**
+
+大多数功能不完整，API 不稳定，不保证正确性或与官方 Rez 的兼容性。如果你需要包管理器，请使用 [Rez](https://github.com/AcademySoftwareFoundation/rez)。
 
 ---
 
-## 🌟 为什么选择rez-next？
+## 这是什么
 
-rez-next是对原始Rez包管理器核心功能的**完全重写**，使用Rust实现，在保持100% API兼容性的同时提供前所未有的性能提升。
+一个学习项目，探索用 Rust 重写 Rez 的性能关键子系统——版本解析、包表示、依赖求解、上下文管理以及 Rex 命令语言。
 
-### 🎯 核心成就
-
-- **🚀 117倍更快**的版本解析，采用零拷贝状态机
-- **⚡ 75倍更快**的Rex命令处理，配备智能缓存
-- **🧠 智能依赖解析**，使用A*启发式算法
-- **💾 多级缓存**，具备预测性预热功能
-- **🔧 100% Rez兼容**，可直接替换
-
-### 📊 性能对比
-
-| 组件 | 原始Rez | rez-next | 性能提升 |
-|------|---------|----------|----------|
-| 版本解析 | ~1,000/ms | **586,633/s** | **117倍更快** |
-| Rex命令 | 基准线 | **75倍更快** | **75倍更快** |
-| 仓库扫描 | 基准线 | **架构级优化** | **大幅提升** |
-| 依赖解析 | 基准线 | **启发式算法** | **3-5倍更快** |
+目标不是替代 Rez，而是了解这些子系统的原生实现是什么样的，以及对特定热路径是否能获得有意义的性能提升。
 
 ---
 
-## 🏗️ 架构设计
+## 基准测试结果
 
-rez-next构建为高性能crate的模块化生态系统：
+使用 [Criterion.rs](https://github.com/bheisler/criterion.rs) 在 release 模式下测量（opt-level=3, LTO）。这些仅是 Rust 内部的微基准测试——不代表与 Python Rez 的对比。
 
-```
-rez-next/
-├── 🧩 rez-next-common      # 共享工具和错误处理
-├── 📦 rez-next-version     # 超快版本解析（117倍更快）
-├── 📋 rez-next-package     # 包定义和管理
-├── 🔍 rez-next-solver      # 智能依赖解析（A*算法）
-├── 📚 rez-next-repository  # 仓库扫描和缓存
-├── 🌍 rez-next-context     # 环境管理和执行
-├── 🏗️ rez-next-build       # 构建系统集成
-└── ⚡ rez-next-cache       # 多级智能缓存
-```
+### 版本操作
 
----
+| 操作 | 耗时 |
+|------|------|
+| 解析单个版本 (`1.2.3-alpha.1`) | ~9.1 us |
+| 状态机分词器（5 个版本） | ~535 ns |
+| 比较两个版本 | ~6.8 ns |
+| 排序 100 个版本 | ~19 us |
+| 排序 1000 个版本 | ~176 us |
+| 批量解析 1000 个版本 | ~9.0 ms |
 
-## 🚀 快速开始
+### 包操作
 
-### 安装
+| 操作 | 耗时 |
+|------|------|
+| 创建空包 | ~35 ns |
+| 创建带版本号的包 | ~8.4 us |
+| 创建复杂包（依赖 + 工具 + 变体） | ~8.9 us |
+| 序列化为 YAML | ~7.0 us |
+| 序列化为 JSON | ~3.4 us |
 
-**一键安装（推荐）：**
+<details>
+<summary>复现方法</summary>
 
 ```bash
-# Linux / macOS
-curl -fsSL https://raw.githubusercontent.com/loonghao/rez-next/main/install.sh | sh
+vx cargo bench --bench version_benchmark
+vx cargo bench --bench simple_package_benchmark
 ```
 
-```powershell
-# Windows (PowerShell)
-irm https://raw.githubusercontent.com/loonghao/rez-next/main/install.ps1 | iex
+</details>
+
+---
+
+## 架构
+
+Cargo workspace 包含 11 个 crate：
+
+```
+rez-next-common       共享错误类型、配置、工具
+rez-next-version      版本解析、比较、范围
+rez-next-package      包定义、package.py 解析（通过 RustPython AST）
+rez-next-solver       依赖求解
+rez-next-repository   仓库扫描和缓存
+rez-next-context      已解析上下文和环境管理
+rez-next-build        构建系统集成
+rez-next-cache        多级缓存
+rez-next-rex          Rex 命令语言
+rez-next-suites       Suite 管理（已解析上下文集合）
+rez-next-python       Python 绑定 via PyO3（仅有脚手架）
 ```
 
-**其他安装方式：**
+### 各组件状态
+
+| Crate | 状态 | 说明 |
+|-------|------|------|
+| `rez-next-version` | 可用 | 解析、比较、范围、状态机解析器 |
+| `rez-next-package` | 可用 | package.py 解析，序列化（YAML/JSON/Python） |
+| `rez-next-common` | 可用 | 错误类型、配置 |
+| `rez-next-rex` | 部分完成 | 命令结构、shell 生成器、执行器 |
+| `rez-next-solver` | 部分完成 | 基础求解、回溯、环检测 |
+| `rez-next-context` | 部分完成 | 上下文创建、环境生成、激活脚本 |
+| `rez-next-repository` | 部分完成 | 扫描已搭建 |
+| `rez-next-build` | 部分完成 | 构建系统检测 |
+| `rez-next-cache` | 部分完成 | 缓存框架 |
+| `rez-next-suites` | 部分完成 | Suite 管理基础 |
+| `rez-next-python` | 脚手架 | PyO3 绑定存在但不可用 |
+
+---
+
+## 从源码构建
 
 ```bash
-# 从 crates.io 安装
-cargo install rez-next
-
-# 或从源码构建
 git clone https://github.com/loonghao/rez-next
 cd rez-next
 cargo build --release
 ```
 
-**安装脚本环境变量：**
+### 前置条件
 
-| 变量 | 说明 | 默认值 |
-|------|------|--------|
-| `REZ_NEXT_VERSION` | 指定安装版本 | `latest` |
-| `REZ_NEXT_INSTALL` | 安装目录 | `~/.rez-next/bin` |
-| `REZ_NEXT_MUSL` | (Linux) 设为 `1` 使用 musl 构建 | 自动检测 |
-| `REZ_NEXT_NO_PATH` | (Windows) 设为 `1` 跳过 PATH 配置 | 自动添加 |
+- Rust 1.70+
+- [just](https://github.com/casey/just)（可选，便捷命令）
+- [vx](https://github.com/loonghao/vx)（可选，环境管理器）
 
-### 基本用法
-
-```rust
-use rez_core::prelude::*;
-
-// 闪电般的版本解析
-let version = Version::parse("2.1.0-beta.1")?;
-println!("微秒级解析: {}", version);
-
-// 智能包解析
-let mut solver = Solver::new();
-let packages = solver.resolve(&["python-3.9", "maya-2024"])?;
-
-// 智能缓存
-let cache = IntelligentCacheManager::new();
-cache.enable_predictive_preheating();
-```
-
-### 🐍 Python集成
-
-> **⚠️ 状态：尚未实现**
->
-> Python绑定正在计划中但尚未可用。预期接口将提供与现有Rez工作流程的无缝集成，同时提供相同的117倍性能提升。
-
-#### 预期接口（即将推出）
-
-```python
-# 安装（计划中）
-pip install rez-next-python
-
-# 预期API - 与原始Rez 100%兼容
-import rez_next as rez
-
-# 🚀 117倍更快的版本解析
-version = rez.Version("2.1.0-beta.1+build.123")
-print(f"版本: {version}")
-print(f"主版本: {version.major}, 次版本: {version.minor}, 补丁: {version.patch}")
-
-# 🧠 智能依赖解析（5倍更快）
-solver = rez.Solver()
-context = solver.resolve(["python-3.9", "maya-2024", "nuke-13.2"])
-print(f"解析了 {len(context.resolved_packages)} 个包")
-
-# 📦 包管理和验证
-package = rez.Package.load("package.py")
-validator = rez.PackageValidator()
-result = validator.validate(package)
-
-# 🌍 环境执行（75倍更快）
-context = rez.ResolvedContext(["python-3.9", "maya-2024"])
-proc = context.execute_command(["python", "-c", "print('来自rez-next的问候!')"])
-print(f"退出代码: {proc.wait()}")
-```
-
-#### 迁移路径
-
-```python
-# 当前Rez代码（无需更改！）
-from rez import packages_path, resolved_context
-from rez.packages import get_latest_package
-from rez.solver import Solver
-
-# 安装rez-next-python后，相同代码运行速度提升117倍！
-# 无需代码更改 - 只需安装并享受性能提升
-```
-
----
-
-## 🎯 特性功能
-
-### ⚡ 性能优化
-
-- **零拷贝解析**，使用状态机
-- **SIMD加速**的字符串操作
-- **无锁数据结构**，支持并发
-- **内存映射I/O**，处理大型仓库
-- **预测性缓存**，基于ML的预热
-
-### 🔧 开发体验
-
-- **100% Rez API兼容**，无缝迁移
-- **丰富的Python绑定**，使用PyO3
-- **全面的CLI工具**，支持所有操作
-- **广泛的基准测试套件**，性能验证
-- **内存安全**，无段错误或内存泄漏
-
-### 🌐 生产就绪
-
-- **久经考验**的计算机科学研究算法
-- **全面测试覆盖**，基于属性的测试
-- **CI/CD集成**，性能回归检测
-- **跨平台支持**（Windows、macOS、Linux）
-- **企业级**错误处理和日志记录
-
----
-
-## 📈 基准测试
-
-运行基准测试套件：
+### 常用命令
 
 ```bash
-# 运行基准测试
-vx just bench
-
-# 或直接运行特定基准测试
-vx cargo bench --bench version_benchmark
-```
-
-### 示例结果
-
-```
-版本解析基准测试:
-  原始Rez:      1,000 ops/ms
-  rez-next:   586,633 ops/s  (117倍提升)
-
-Rex命令处理:
-  原始Rez:      基准线
-  rez-next:     75倍更快
-
-内存使用:
-  原始Rez:      大型仓库约200MB
-  rez-next:     约50MB (减少75%)
+vx just build           # 开发构建
+vx just build-release   # 发布构建
+vx just test            # 运行所有测试
+vx just lint            # Clippy
+vx just fmt             # 格式化
+vx just ci              # 完整 CI 检查
+vx just bench           # 基准测试
 ```
 
 ---
 
-## 🛠️ 开发
+## 测试
 
-### 前置要求
-
-- Rust 1.70+ 和 Cargo
-- [just](https://github.com/casey/just) 命令运行器
-- [vx](https://github.com/loonghao/vx) 环境管理器
-- Git
-
-### 构建
+所有测试通过：
 
 ```bash
-# 开发构建
-vx just build
-
-# 优化发布构建
-vx just build-release
-
-# 运行所有测试
 vx just test
-
-# 运行 clippy 检查
-vx just lint
-
-# 格式化代码
-vx just fmt
-
-# 本地运行所有 CI 检查
-vx just ci
-
-# 运行基准测试
-vx just bench
-
-# 本地安装
-vx just install
 ```
 
-### 贡献
+---
 
-我们欢迎贡献！请查看我们的[贡献指南](CONTRIBUTING.md)了解详情。
+## 文档
 
-1. Fork仓库
-2. 创建功能分支
-3. 进行更改并添加测试
-4. 运行完整测试套件
-5. 提交拉取请求
+- [贡献指南](docs/contributing.md) — 开发工作流和 CI
+- [基准测试指南](docs/benchmark_guide.md) — 运行和解读基准测试
+- [性能指南](docs/performance.md) — 性能分析工具
+- [Python 集成](docs/python-integration_zh.md) — 计划中的 Python 绑定（未实现）
+- [Pre-commit 配置](docs/PRE_COMMIT_SETUP.md) — 代码质量钩子
 
 ---
 
-## 📚 文档
+## 许可证
 
-- **[API文档](https://docs.rs/rez-next)** - 完整API参考
-- **[用户指南](docs/user-guide.md)** - 入门和最佳实践
-- **[Python集成](docs/python-integration_zh.md)** - Python绑定和API（计划中）
-- **[迁移指南](docs/migration.md)** - 从原始Rez迁移
-- **[性能指南](docs/performance.md)** - 优化技术
-- **[架构指南](docs/architecture.md)** - 内部设计详情
+[Apache License 2.0](LICENSE)
 
----
+## 致谢
 
-## 🤝 社区
-
-- **[GitHub讨论](https://github.com/loonghao/rez-next/discussions)** - 提问和分享想法
-- **[问题反馈](https://github.com/loonghao/rez-next/issues)** - 错误报告和功能请求
-- **[Discord](https://discord.gg/rez-next)** - 实时社区聊天
-
----
-
-## 📄 许可证
-
-根据Apache License 2.0许可。详情请参见[LICENSE](LICENSE)。
-
----
-
-## 🙏 致谢
-
-- **[Rez项目](https://github.com/AcademySoftwareFoundation/rez)** - 原始灵感和API设计
-- **[Rust社区](https://www.rust-lang.org/community)** - 出色的生态系统和工具
-- **贡献者** - 感谢您让这个项目变得更好！
-
----
-
-<div align="center">
-
-**⭐ 如果您觉得rez-next有用，请在GitHub上给我们点星！ ⭐**
-
-[🚀 开始使用](docs/quick-start.md) | [📖 文档](https://docs.rs/rez-next) | [💬 社区](https://github.com/loonghao/rez-next/discussions)
-
-</div>
+- [Rez](https://github.com/AcademySoftwareFoundation/rez) — 本项目所研究的包管理器
+- [Rust](https://www.rust-lang.org/) — 语言和生态

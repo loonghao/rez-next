@@ -117,31 +117,16 @@ pub enum OutputStyle {
 
 impl Default for OutputFormat {
     fn default() -> Self {
-        // Default to bash for now (context module disabled)
         OutputFormat::Bash
     }
 }
-
-// impl From<OutputFormat> for rez_next_context::ShellType {
-//     fn from(format: OutputFormat) -> Self {
-//         match format {
-//             OutputFormat::Bash => rez_next_context::ShellType::Bash,
-//             OutputFormat::Zsh => rez_next_context::ShellType::Zsh,
-//             OutputFormat::Fish => rez_next_context::ShellType::Fish,
-//             OutputFormat::Cmd => rez_next_context::ShellType::Cmd,
-//             OutputFormat::PowerShell => rez_next_context::ShellType::PowerShell,
-//             // For non-shell formats, default to current shell
-//             _ => rez_next_context::ShellType::detect(),
-//         }
-//     }
-// }
 
 /// Execute the context command
 pub fn execute(args: ContextArgs) -> RezCoreResult<()> {
     use rez_next_context::RezResolvedContext;
 
-    // For demonstration, create a mock context
-    let context = create_demo_context()?;
+    // Load context: from file, stdin, or current environment
+    let context = load_context(&args)?;
 
     if args.print_request {
         print_request_packages(&context);
@@ -151,6 +136,12 @@ pub fn execute(args: ContextArgs) -> RezCoreResult<()> {
         print_available_tools(&context);
     } else if let Some(ref cmd) = args.which {
         locate_command(&context, cmd);
+    } else if args.print_graph {
+        print_resolve_graph(&context, args.prune_pkg.as_deref());
+    } else if let Some(ref graph_file) = args.write_graph {
+        write_resolve_graph(&context, graph_file, args.prune_pkg.as_deref())?;
+    } else if args.graph {
+        render_graph_image(&context, args.prune_pkg.as_deref())?;
     } else if args.interpret {
         interpret_context(&context, &args)?;
     } else {
@@ -161,48 +152,56 @@ pub fn execute(args: ContextArgs) -> RezCoreResult<()> {
     Ok(())
 }
 
-/// Create a demonstration context
-fn create_demo_context() -> RezCoreResult<RezResolvedContext> {
-    use rez_next_context::{ResolvedPackage, RezResolvedContext};
-    use rez_next_package::{Package, Requirement};
-    use std::sync::Arc;
+/// Load context from file, stdin or REZ_CONTEXT_FILE env var
+fn load_context(args: &ContextArgs) -> RezCoreResult<RezResolvedContext> {
+    // Determine source
+    let source = args.rxt.as_deref().unwrap_or("");
 
-    // Create some demo requirements
-    let requirements = vec![
-        Requirement::new("python".to_string()),
-        Requirement::new("numpy".to_string()),
-    ];
+    if source == "-" {
+        // Read from stdin
+        use std::io::Read;
+        let mut content = String::new();
+        std::io::stdin()
+            .read_to_string(&mut content)
+            .map_err(|e| RezCoreError::ContextError(format!("Failed to read stdin: {}", e)))?;
+        return deserialize_context(&content);
+    }
 
-    let mut context = RezResolvedContext::new(requirements);
+    if !source.is_empty() {
+        // Load from specified file
+        let path = std::path::Path::new(source);
+        if path.exists() {
+            let content = std::fs::read_to_string(path)
+                .map_err(|e| RezCoreError::ContextError(format!("Failed to read {}: {}", source, e)))?;
+            return deserialize_context(&content);
+        }
+        return Err(RezCoreError::ContextError(format!("Context file not found: {}", source)));
+    }
 
-    // Create demo resolved packages
-    let mut python_pkg = Package::new("python".to_string());
-    python_pkg.version = Some(rez_next_version::Version::parse("3.9.0").unwrap());
-    python_pkg.description = Some("Python programming language".to_string());
-    python_pkg.tools = vec!["python".to_string(), "pip".to_string()];
-    python_pkg.commands =
-        Some("export PYTHON_ROOT=\"{root}\"\nexport PATH=\"${PATH}:{root}/bin\"".to_string());
+    // Try REZ_CONTEXT_FILE environment variable
+    if let Ok(ctx_file) = std::env::var("REZ_CONTEXT_FILE") {
+        let path = std::path::Path::new(&ctx_file);
+        if path.exists() {
+            let content = std::fs::read_to_string(path)
+                .map_err(|e| RezCoreError::ContextError(format!("Failed to read context file: {}", e)))?;
+            return deserialize_context(&content);
+        }
+    }
 
-    let mut numpy_pkg = Package::new("numpy".to_string());
-    numpy_pkg.version = Some(rez_next_version::Version::parse("1.21.0").unwrap());
-    numpy_pkg.description = Some("Numerical computing library".to_string());
-    numpy_pkg.commands = Some("export PYTHONPATH=\"${PYTHONPATH}:{root}/lib/python\"".to_string());
-
-    let python_resolved = ResolvedPackage::new(
-        Arc::new(python_pkg),
-        PathBuf::from("/packages/python/3.9.0"),
-        true,
-    );
-
-    let numpy_resolved = ResolvedPackage::new(
-        Arc::new(numpy_pkg),
-        PathBuf::from("/packages/numpy/1.21.0"),
-        true,
-    );
-
-    context.resolved_packages = vec![python_resolved, numpy_resolved];
-
+    // No context available - return empty context
+    let context = RezResolvedContext::new(vec![]);
     Ok(context)
+}
+
+/// Deserialize a RezResolvedContext from JSON/YAML string
+fn deserialize_context(content: &str) -> RezCoreResult<RezResolvedContext> {
+    // Try JSON first
+    if let Ok(ctx) = serde_json::from_str::<RezResolvedContext>(content) {
+        return Ok(ctx);
+    }
+    // Try YAML
+    serde_yaml::from_str::<RezResolvedContext>(content)
+        .map_err(|e| RezCoreError::ContextError(format!("Failed to parse context: {}", e)))
 }
 
 /// Print request packages
@@ -248,6 +247,11 @@ fn print_available_tools(context: &RezResolvedContext) {
     println!("Available tools:");
     let tools = context.get_tools();
 
+    if tools.is_empty() {
+        println!("  (no tools available)");
+        return;
+    }
+
     for (tool_name, tool_path) in tools {
         println!("  {} -> {}", tool_name, tool_path.display());
     }
@@ -273,7 +277,6 @@ fn interpret_context(context: &RezResolvedContext, args: &ContextArgs) -> RezCor
     match format {
         OutputFormat::Bash | OutputFormat::Zsh => {
             for (key, value) in &environ {
-                // Only show variables that were modified by packages
                 if is_package_variable(key, context) {
                     println!("export {}=\"{}\"", key, value);
                 }
@@ -342,6 +345,11 @@ fn print_context_summary(context: &RezResolvedContext) {
         summary.timestamp.format("%Y-%m-%d %H:%M:%S UTC")
     );
 
+    if summary.num_packages == 0 {
+        println!("\n  (no resolved packages - not in a rez environment)");
+        return;
+    }
+
     println!("\nPackages:");
     for package_name in &summary.package_names {
         if let Some(resolved_pkg) = context.get_package(package_name) {
@@ -353,6 +361,158 @@ fn print_context_summary(context: &RezResolvedContext) {
                 .unwrap_or("unknown");
             println!("  {} {}", package_name, version_str);
         }
+    }
+}
+
+/// Generate DOT graph string for a resolved context
+fn generate_dot_graph(context: &RezResolvedContext, prune_pkg: Option<&str>) -> String {
+    let mut dot = String::from("digraph rez_context {\n");
+    dot.push_str("    rankdir=LR;\n");
+    dot.push_str("    node [shape=box, style=filled, fillcolor=lightblue];\n");
+    dot.push_str("    edge [fontsize=10];\n\n");
+
+    // Collect packages to display
+    let packages: Vec<_> = if let Some(prune) = prune_pkg {
+        context
+            .resolved_packages
+            .iter()
+            .filter(|rp| rp.package.name == prune || {
+                // Include packages that depend on prune target
+                rp.package.requires.iter().any(|r| r.starts_with(prune))
+            })
+            .collect()
+    } else {
+        context.resolved_packages.iter().collect()
+    };
+
+    // Nodes
+    for resolved_pkg in &packages {
+        let name = &resolved_pkg.package.name;
+        let version = resolved_pkg
+            .package
+            .version
+            .as_ref()
+            .map(|v| v.as_str())
+            .unwrap_or("?");
+        let label = format!("{}-{}", name, version);
+        let node_id = name.replace('-', "_").replace('.', "_");
+        dot.push_str(&format!("    {} [label=\"{}\"];\n", node_id, label));
+    }
+
+    dot.push('\n');
+
+    // Edges (requires relationships)
+    for resolved_pkg in &packages {
+        let from_id = resolved_pkg
+            .package
+            .name
+            .replace('-', "_")
+            .replace('.', "_");
+        for req in &resolved_pkg.package.requires {
+            // req is like "python-3.9" or "numpy>=1.0"
+            let dep_name = req.split(|c: char| !c.is_alphanumeric() && c != '_' && c != '-')
+                .next()
+                .unwrap_or(req);
+            let to_id = dep_name.replace('-', "_").replace('.', "_");
+            // Only emit edge if target node exists in graph
+            let target_exists = packages.iter().any(|rp| rp.package.name == dep_name);
+            if target_exists {
+                dot.push_str(&format!(
+                    "    {} -> {} [label=\"{}\"];\n",
+                    from_id, to_id, req
+                ));
+            }
+        }
+    }
+
+    dot.push_str("}\n");
+    dot
+}
+
+/// Print DOT graph to stdout
+fn print_resolve_graph(context: &RezResolvedContext, prune_pkg: Option<&str>) {
+    let dot = generate_dot_graph(context, prune_pkg);
+    print!("{}", dot);
+}
+
+/// Write DOT graph to file
+fn write_resolve_graph(
+    context: &RezResolvedContext,
+    path: &std::path::Path,
+    prune_pkg: Option<&str>,
+) -> RezCoreResult<()> {
+    let dot = generate_dot_graph(context, prune_pkg);
+    std::fs::write(path, &dot)
+        .map_err(|e| RezCoreError::ContextError(format!("Failed to write graph to {}: {}", path.display(), e)))?;
+    eprintln!("Resolve graph written to: {}", path.display());
+    Ok(())
+}
+
+/// Render graph to image using Graphviz `dot` and open it
+fn render_graph_image(context: &RezResolvedContext, prune_pkg: Option<&str>) -> RezCoreResult<()> {
+    use std::process::Command;
+
+    let dot_content = generate_dot_graph(context, prune_pkg);
+
+    // Write DOT to a temp file
+    let tmp_dir = std::env::temp_dir();
+    let dot_file = tmp_dir.join("rez_context_graph.dot");
+    let png_file = tmp_dir.join("rez_context_graph.png");
+
+    std::fs::write(&dot_file, &dot_content).map_err(|e| {
+        RezCoreError::ContextError(format!("Failed to write temp DOT file: {}", e))
+    })?;
+
+    // Attempt to run `dot` (Graphviz)
+    let dot_result = Command::new("dot")
+        .arg("-Tpng")
+        .arg(&dot_file)
+        .arg("-o")
+        .arg(&png_file)
+        .status();
+
+    match dot_result {
+        Ok(status) if status.success() => {
+            eprintln!("Graph rendered to: {}", png_file.display());
+            // Try to open the image with the default viewer
+            open_file_with_default_app(&png_file);
+            Ok(())
+        }
+        Ok(status) => {
+            eprintln!(
+                "Warning: 'dot' exited with code {:?}. Is Graphviz installed?",
+                status.code()
+            );
+            // Fallback: print DOT source
+            eprintln!("Falling back to DOT source output:");
+            println!("{}", dot_content);
+            Ok(())
+        }
+        Err(_) => {
+            // `dot` not found - fallback to printing DOT
+            eprintln!("Warning: Graphviz 'dot' not found. Install Graphviz to render graphs.");
+            eprintln!("Printing DOT source instead:");
+            println!("{}", dot_content);
+            Ok(())
+        }
+    }
+}
+
+/// Open a file using the system default application
+fn open_file_with_default_app(path: &std::path::Path) {
+    #[cfg(target_os = "windows")]
+    {
+        let _ = std::process::Command::new("cmd")
+            .args(["/c", "start", "", &path.to_string_lossy()])
+            .spawn();
+    }
+    #[cfg(target_os = "macos")]
+    {
+        let _ = std::process::Command::new("open").arg(path).spawn();
+    }
+    #[cfg(target_os = "linux")]
+    {
+        let _ = std::process::Command::new("xdg-open").arg(path).spawn();
     }
 }
 
@@ -391,7 +551,6 @@ mod tests {
     #[test]
     fn test_output_format_conversion() {
         let bash_format = OutputFormat::Bash;
-        // Test that we can create the format
         assert!(matches!(bash_format, OutputFormat::Bash));
     }
 }

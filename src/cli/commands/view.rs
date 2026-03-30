@@ -71,9 +71,8 @@ fn view_package(args: &ViewArgs) -> RezCoreResult<()> {
         // Load from directory containing package.py
         load_package_from_directory(path)?
     } else {
-        // TODO: Implement package loading from repositories
-        // For now, create a mock package for demonstration
-        create_mock_package(&args.package)?
+        // Load from configured repositories
+        load_package_from_repos(&args.package)?
     };
 
     display_package(&package, args)
@@ -90,37 +89,84 @@ fn load_package_from_directory(dir_path: &Path) -> RezCoreResult<Package> {
         )));
     }
 
-    // Load the package using PackageSerializer
     PackageSerializer::load_from_file(&package_py_path)
 }
 
-/// Create a mock package for demonstration purposes
-fn create_mock_package(name: &str) -> RezCoreResult<Package> {
-    // TODO: Replace with actual package loading from repository
+/// Load package from configured repositories by name (and optional version)
+fn load_package_from_repos(spec: &str) -> RezCoreResult<Package> {
+    use rez_next_common::config::RezCoreConfig;
+    use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
 
-    // Parse package name and version if provided
-    let (pkg_name, version) = if let Some(pos) = name.find('-') {
-        let pkg_name = &name[..pos];
-        let version_str = &name[pos + 1..];
-        (pkg_name, Some(version_str))
+    // Parse "name" or "name-version" spec
+    let (pkg_name, version_str) = if let Some(pos) = spec.rfind('-') {
+        let candidate_ver = &spec[pos + 1..];
+        if candidate_ver.chars().next().map_or(false, |c| c.is_ascii_digit()) {
+            (&spec[..pos], Some(candidate_ver))
+        } else {
+            (spec, None)
+        }
     } else {
-        (name, None)
+        (spec, None)
     };
 
-    // Create a mock package
-    let mut package = Package::new(pkg_name.to_string());
-
-    if let Some(version_str) = version {
-        use rez_next_version::Version;
-        let version =
-            Version::parse(version_str).map_err(|e| RezCoreError::VersionParse(e.to_string()))?;
-        package.set_version(version);
+    let config = RezCoreConfig::load();
+    let mut repo_manager = RepositoryManager::new();
+    for (i, path_str) in config.packages_path.iter().enumerate() {
+        let path = expand_home_path(path_str);
+        if path.exists() {
+            repo_manager.add_repository(Box::new(SimpleRepository::new(
+                path,
+                format!("repo_{}", i),
+            )));
+        }
     }
 
-    // Add some mock metadata
-    package.set_description(format!("Mock package for {}", pkg_name));
+    let rt = tokio::runtime::Runtime::new()
+        .map_err(|e| RezCoreError::Repository(e.to_string()))?;
 
-    Ok(package)
+    let packages = rt
+        .block_on(repo_manager.find_packages(pkg_name))
+        .map_err(|e| RezCoreError::Repository(e.to_string()))?;
+
+    if packages.is_empty() {
+        return Err(RezCoreError::PackageParse(format!(
+            "Package '{}' not found in any repository",
+            pkg_name
+        )));
+    }
+
+    // If version specified, find exact match
+    if let Some(ver) = version_str {
+        for pkg in &packages {
+            if pkg.version.as_ref().map_or(false, |v| v.as_str() == ver) {
+                return Ok((**pkg).clone());
+            }
+        }
+        return Err(RezCoreError::PackageParse(format!(
+            "Package '{}-{}' not found",
+            pkg_name, ver
+        )));
+    }
+
+    // Return latest version (packages sorted descending)
+    let mut sorted = packages;
+    sorted.sort_by(|a, b| {
+        b.version
+            .as_ref()
+            .and_then(|bv| a.version.as_ref().map(|av| av.cmp(bv)))
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+
+    Ok((*sorted.into_iter().next().unwrap()).clone())
+}
+
+fn expand_home_path(p: &str) -> std::path::PathBuf {
+    if p.starts_with("~/") || p == "~" {
+        if let Some(home) = std::env::var_os("USERPROFILE").or_else(|| std::env::var_os("HOME")) {
+            return std::path::PathBuf::from(home).join(&p[2..]);
+        }
+    }
+    std::path::PathBuf::from(p)
 }
 
 /// Display package information in the requested format
@@ -344,14 +390,169 @@ mod tests {
     }
 
     #[test]
-    fn test_create_mock_package() {
-        // Test package name only
-        let package = create_mock_package("test_pkg").unwrap();
-        assert_eq!(package.name, "test_pkg");
+    fn test_expand_home_path_no_tilde() {
+        let path = expand_home_path("/usr/local/packages");
+        assert_eq!(path.to_string_lossy(), "/usr/local/packages");
+    }
 
-        // Test package with version
-        let package = create_mock_package("test_pkg-1.0.0").unwrap();
-        assert_eq!(package.name, "test_pkg");
-        assert!(package.version.is_some());
+    // ── Phase 99: view command package.py parse and display tests ────────────
+
+    fn create_package_dir(dir: &std::path::Path, content: &str) {
+        std::fs::create_dir_all(dir).unwrap();
+        std::fs::write(dir.join("package.py"), content).unwrap();
+    }
+
+    #[test]
+    fn test_load_package_from_directory_simple() {
+        let tmp = std::env::temp_dir().join("rez_view_test_simple");
+        let content = r#"name = "mypackage"
+version = "1.2.3"
+description = "A test package"
+"#;
+        create_package_dir(&tmp, content);
+        let pkg = load_package_from_directory(&tmp).unwrap();
+        assert_eq!(pkg.name, "mypackage");
+        assert_eq!(pkg.version.as_ref().map(|v| v.as_str()), Some("1.2.3"));
+        assert_eq!(pkg.description.as_deref(), Some("A test package"));
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn test_load_package_from_directory_with_requires() {
+        let tmp = std::env::temp_dir().join("rez_view_test_requires");
+        let content = r#"name = "myapp"
+version = "2.0.0"
+requires = ["python-3+", "numpy-1.20+"]
+"#;
+        create_package_dir(&tmp, content);
+        let pkg = load_package_from_directory(&tmp).unwrap();
+        assert_eq!(pkg.name, "myapp");
+        assert_eq!(pkg.requires.len(), 2);
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn test_load_package_from_directory_missing_package_py() {
+        let tmp = std::env::temp_dir().join("rez_view_test_missing");
+        std::fs::create_dir_all(&tmp).unwrap();
+        // No package.py created
+        let result = load_package_from_directory(&tmp);
+        assert!(result.is_err(), "Should fail when package.py is missing");
+        let err_msg = format!("{:?}", result.unwrap_err());
+        assert!(err_msg.contains("No package.py"), "Should mention missing package.py: {}", err_msg);
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn test_load_package_from_directory_with_tools() {
+        let tmp = std::env::temp_dir().join("rez_view_test_tools");
+        let content = r#"name = "mytool"
+version = "3.1.0"
+tools = ["mytool", "mytool-cli"]
+"#;
+        create_package_dir(&tmp, content);
+        let pkg = load_package_from_directory(&tmp).unwrap();
+        assert_eq!(pkg.tools.len(), 2);
+        assert!(pkg.tools.contains(&"mytool".to_string()));
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn test_display_package_yaml_output() {
+        use rez_next_package::Package;
+        use rez_next_version::Version;
+        let mut pkg = Package::new("testpkg".to_string());
+        pkg.version = Some(Version::parse("1.0.0").unwrap());
+        pkg.description = Some("Test description".to_string());
+        let args = ViewArgs {
+            package: "testpkg".to_string(),
+            format: ViewFormat::Yaml,
+            all: false,
+            brief: true,
+            current: false,
+        };
+        // Just verify display_package_yaml doesn't panic
+        let result = display_package_yaml(&pkg, &args);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_display_package_python_output() {
+        use rez_next_package::Package;
+        use rez_next_version::Version;
+        let mut pkg = Package::new("testpkg2".to_string());
+        pkg.version = Some(Version::parse("2.5.0").unwrap());
+        pkg.authors = vec!["Alice".to_string(), "Bob".to_string()];
+        let args = ViewArgs {
+            package: "testpkg2".to_string(),
+            format: ViewFormat::Py,
+            all: false,
+            brief: false,
+            current: false,
+        };
+        let result = display_package_python(&pkg, &args);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_load_package_with_commands() {
+        let tmp = std::env::temp_dir().join("rez_view_test_commands");
+        let content = r#"name = "myenv"
+version = "1.0"
+def commands():
+    env.setenv('MYENV_ROOT', '{root}')
+    env.prepend_path('PATH', '{root}/bin')
+"#;
+        create_package_dir(&tmp, content);
+        let pkg = load_package_from_directory(&tmp).unwrap();
+        assert_eq!(pkg.name, "myenv");
+        // commands may or may not be parsed depending on parser capability
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn test_view_args_current_context_flag() {
+        let args = ViewArgs {
+            package: "mypkg".to_string(),
+            format: ViewFormat::Yaml,
+            all: false,
+            brief: false,
+            current: true,
+        };
+        assert!(args.current);
+        // Executing view_current_package should return error (not in context)
+        let result = view_current_package(&args);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_view_format_variants() {
+        let yaml_args = ViewArgs {
+            package: "pkg".to_string(),
+            format: ViewFormat::Yaml,
+            all: false, brief: false, current: false,
+        };
+        let py_args = ViewArgs {
+            package: "pkg".to_string(),
+            format: ViewFormat::Py,
+            all: false, brief: false, current: false,
+        };
+        assert!(matches!(yaml_args.format, ViewFormat::Yaml));
+        assert!(matches!(py_args.format, ViewFormat::Py));
+    }
+
+    #[test]
+    fn test_load_package_with_variants() {
+        let tmp = std::env::temp_dir().join("rez_view_test_variants");
+        let content = r#"name = "mylib"
+version = "2.0.0"
+variants = [["python-3.9"], ["python-3.10"]]
+"#;
+        create_package_dir(&tmp, content);
+        let pkg = load_package_from_directory(&tmp).unwrap();
+        assert_eq!(pkg.name, "mylib");
+        // variants may be empty if not fully parsed, just check no panic
+        let _ = std::fs::remove_dir_all(&tmp);
     }
 }
+

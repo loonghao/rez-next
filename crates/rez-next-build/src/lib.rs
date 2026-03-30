@@ -14,6 +14,7 @@ mod environment;
 mod process;
 mod sources;
 mod systems;
+mod tests;
 
 pub use artifacts::*;
 pub use builder::*;

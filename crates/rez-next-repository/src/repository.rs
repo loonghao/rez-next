@@ -361,3 +361,154 @@ impl Default for RepositoryManager {
         Self::new()
     }
 }
+
+#[cfg(test)]
+mod repository_tests {
+    use super::*;
+    use rez_next_package::Package;
+    use rez_next_version::Version;
+
+    fn make_pkg(name: &str, version: &str) -> Package {
+        let mut pkg = Package::new(name.to_string());
+        pkg.version = Some(Version::parse(version).unwrap());
+        pkg
+    }
+
+    fn make_pkg_no_ver(name: &str) -> Package {
+        Package::new(name.to_string())
+    }
+
+    // ── RepositoryStats defaults ─────────────────────────────────────
+
+    #[test]
+    fn test_repository_stats_default() {
+        let stats = RepositoryStats::default();
+        assert_eq!(stats.package_count, 0);
+        assert_eq!(stats.version_count, 0);
+        assert_eq!(stats.variant_count, 0);
+        assert_eq!(stats.size_bytes, 0);
+        assert!(stats.last_scan_time.is_none());
+        assert!(stats.last_scan_duration_ms.is_none());
+    }
+
+    // ── RepositoryManager deduplicate_packages ───────────────────────
+
+    #[test]
+    fn test_deduplicate_removes_exact_duplicates() {
+        let mgr = RepositoryManager::new();
+        let pkgs = vec![
+            make_pkg("python", "3.9.0"),
+            make_pkg("python", "3.9.0"), // duplicate
+        ];
+        let result = mgr.deduplicate_packages(pkgs).unwrap();
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].name, "python");
+    }
+
+    #[test]
+    fn test_deduplicate_preserves_different_versions() {
+        let mgr = RepositoryManager::new();
+        let pkgs = vec![
+            make_pkg("python", "3.9.0"),
+            make_pkg("python", "3.11.0"),
+            make_pkg("python", "3.10.0"),
+        ];
+        let result = mgr.deduplicate_packages(pkgs).unwrap();
+        assert_eq!(result.len(), 3, "all 3 different versions must be kept");
+    }
+
+    #[test]
+    fn test_deduplicate_sorts_versions_descending() {
+        let mgr = RepositoryManager::new();
+        let pkgs = vec![
+            make_pkg("python", "3.9.0"),
+            make_pkg("python", "3.11.0"),
+            make_pkg("python", "3.10.0"),
+        ];
+        let result = mgr.deduplicate_packages(pkgs).unwrap();
+        // All under same name, should be sorted descending: 3.11 > 3.10 > 3.9
+        let versions: Vec<&str> = result
+            .iter()
+            .map(|p| p.version.as_ref().unwrap().as_str())
+            .collect();
+        assert_eq!(versions[0], "3.11.0", "highest version should come first");
+        assert_eq!(versions[2], "3.9.0", "lowest version should come last");
+    }
+
+    #[test]
+    fn test_deduplicate_multiple_packages() {
+        let mgr = RepositoryManager::new();
+        let pkgs = vec![
+            make_pkg("maya", "2024.1"),
+            make_pkg("python", "3.11.0"),
+            make_pkg("maya", "2023.0"),
+            make_pkg("python", "3.9.0"),
+            make_pkg("houdini", "20.0"),
+        ];
+        let result = mgr.deduplicate_packages(pkgs).unwrap();
+        assert_eq!(result.len(), 5, "5 distinct name+version combos");
+        // Packages should be ordered by name alphabetically then version descending
+        let houdini: Vec<_> = result.iter().filter(|p| p.name == "houdini").collect();
+        assert_eq!(houdini.len(), 1);
+        let maya: Vec<_> = result.iter().filter(|p| p.name == "maya").collect();
+        assert_eq!(maya.len(), 2);
+        let python: Vec<_> = result.iter().filter(|p| p.name == "python").collect();
+        assert_eq!(python.len(), 2);
+    }
+
+    #[test]
+    fn test_deduplicate_empty_input() {
+        let mgr = RepositoryManager::new();
+        let result = mgr.deduplicate_packages(vec![]).unwrap();
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_deduplicate_no_version_packages() {
+        let mgr = RepositoryManager::new();
+        let pkgs = vec![
+            make_pkg_no_ver("unnamed"),
+            make_pkg_no_ver("unnamed"), // duplicate with no version
+        ];
+        let result = mgr.deduplicate_packages(pkgs).unwrap();
+        assert_eq!(result.len(), 1, "no-version duplicates should be deduplicated");
+    }
+
+    // ── RepositoryMetadata creation ──────────────────────────────────
+
+    #[test]
+    fn test_repository_metadata_fields() {
+        let meta = RepositoryMetadata {
+            name: "test-repo".to_string(),
+            path: std::path::PathBuf::from("/tmp/packages"),
+            repository_type: RepositoryType::Memory,
+            priority: 10,
+            read_only: false,
+            description: Some("Test repository".to_string()),
+            config: HashMap::new(),
+        };
+        assert_eq!(meta.name, "test-repo");
+        assert_eq!(meta.priority, 10);
+        assert!(!meta.read_only);
+        assert_eq!(meta.repository_type, RepositoryType::Memory);
+    }
+
+    #[test]
+    fn test_package_search_criteria_defaults() {
+        let criteria = PackageSearchCriteria::default();
+        assert!(criteria.name_pattern.is_none());
+        assert!(criteria.version_requirement.is_none());
+        assert!(criteria.requirements.is_empty());
+        assert!(criteria.limit.is_none());
+        assert!(!criteria.include_prerelease);
+    }
+
+    #[test]
+    fn test_package_search_criteria_with_pattern() {
+        let mut criteria = PackageSearchCriteria::default();
+        criteria.name_pattern = Some("python*".to_string());
+        criteria.limit = Some(10);
+        assert_eq!(criteria.name_pattern, Some("python*".to_string()));
+        assert_eq!(criteria.limit, Some(10));
+    }
+}

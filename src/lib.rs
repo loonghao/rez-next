@@ -20,6 +20,7 @@ pub use rez_next_solver as solver;
 pub use rez_next_version as version;
 // pub use rez_next_repository as repository;  // Temporarily disabled
 pub use rez_next_context as context;
+pub use rez_next_suites as suites;
 
 // CLI module
 pub mod cli;

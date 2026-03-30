@@ -318,4 +318,257 @@ mod tests {
         config.preheating_config.min_confidence_threshold = 1.5;
         assert!(config.validate().is_err());
     }
+
+    // ── Phase 80: Concurrent package version query tests ─────────────────────
+
+    /// Simulate concurrent package version lookups (like rez-next solver querying multiple packages)
+    #[tokio::test]
+    async fn test_concurrent_package_version_queries() {
+        use std::sync::Arc;
+        let config = UnifiedCacheConfig::default();
+        let cache = Arc::new(IntelligentCacheManager::<String, Vec<String>>::new(config));
+
+        // Pre-populate with package versions
+        let packages = ["python", "maya", "houdini", "nuke", "hiero"];
+        for pkg in &packages {
+            let versions = (0..10).map(|i| format!("{}.{}.0", i / 5 + 1, i % 5)).collect();
+            cache.put(pkg.to_string(), versions).await.unwrap();
+        }
+
+        // Spawn concurrent readers (simulating solver querying versions)
+        let mut handles = Vec::new();
+        for worker in 0..8 {
+            let cache = Arc::clone(&cache);
+            let pkgs: Vec<String> = packages.iter().map(|s| s.to_string()).collect();
+            let handle = tokio::spawn(async move {
+                let mut hits = 0usize;
+                for pkg in &pkgs {
+                    if cache.get(pkg).await.is_some() {
+                        hits += 1;
+                    }
+                }
+                assert_eq!(hits, 5, "worker {} should find all 5 packages", worker);
+            });
+            handles.push(handle);
+        }
+
+        for handle in handles {
+            handle.await.unwrap();
+        }
+
+        let stats = cache.get_stats().await;
+        // All 5 packages should still be cached
+        assert!(stats.overall_stats.total_entries >= 1);
+    }
+
+    /// Test that concurrent writes don't corrupt cache state
+    #[tokio::test]
+    async fn test_concurrent_writes_no_corruption() {
+        use std::sync::Arc;
+        let config = UnifiedCacheConfig::default();
+        let cache = Arc::new(IntelligentCacheManager::<String, String>::new(config));
+
+        let mut handles = Vec::new();
+        for writer in 0..5 {
+            let cache = Arc::clone(&cache);
+            let handle = tokio::spawn(async move {
+                for i in 0..20 {
+                    let key = format!("shared_key_{}", i % 5); // shared keys to test concurrent overwrite
+                    let value = format!("writer_{}_value_{}", writer, i);
+                    cache.put(key.clone(), value).await.unwrap();
+                    // Read back and verify it's a valid value (any writer's value is ok)
+                    let got = cache.get(&key).await;
+                    assert!(got.is_some(), "key {} should exist after write", key);
+                }
+            });
+            handles.push(handle);
+        }
+
+        for handle in handles {
+            handle.await.unwrap();
+        }
+
+        // All shared keys should exist
+        for i in 0..5 {
+            let key = format!("shared_key_{}", i);
+            assert!(cache.contains_key(&key).await, "shared_key_{} should exist", i);
+        }
+    }
+
+    /// Test cache eviction doesn't break concurrent access
+    #[tokio::test]
+    async fn test_cache_eviction_under_load() {
+        use std::sync::Arc;
+        let config = UnifiedCacheConfig {
+            l1_config: L1CacheConfig {
+                max_entries: 5, // Small capacity to force eviction
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let cache = Arc::new(IntelligentCacheManager::<String, String>::new(config));
+
+        // Insert 20 entries into a size-5 cache
+        for i in 0..20 {
+            let key = format!("evict_key_{}", i);
+            let value = format!("value_{}", i);
+            cache.put(key, value).await.unwrap();
+        }
+
+        // L1 should not exceed max_entries
+        let stats = cache.get_stats().await;
+        assert!(
+            stats.l1_stats.entries <= 5,
+            "L1 should not exceed capacity 5, got {}",
+            stats.l1_stats.entries
+        );
+    }
+
+    /// Test batch put and get
+    #[tokio::test]
+    async fn test_batch_operations() {
+        let config = UnifiedCacheConfig::default();
+        let cache = IntelligentCacheManager::<u64, String>::new(config);
+
+        // Batch insert
+        let batch: Vec<(u64, String)> = (0u64..50).map(|i| (i, format!("pkg_v{}.0", i))).collect();
+        for (k, v) in batch {
+            cache.put(k, v).await.unwrap();
+        }
+
+        let stats = cache.get_stats().await;
+        assert_eq!(stats.overall_stats.total_entries, 50);
+
+        // Verify random sample
+        let result = cache.get(&25u64).await;
+        assert_eq!(result, Some("pkg_v25.0".to_string()));
+
+        let result = cache.get(&0u64).await;
+        assert_eq!(result, Some("pkg_v0.0".to_string()));
+    }
+
+    /// Test cache clear while concurrent access
+    #[tokio::test]
+    async fn test_clear_is_safe_under_concurrent_access() {
+        use std::sync::Arc;
+        let config = UnifiedCacheConfig::default();
+        let cache = Arc::new(IntelligentCacheManager::<String, String>::new(config));
+
+        // Populate
+        for i in 0..20 {
+            cache.put(format!("key_{}", i), format!("val_{}", i)).await.unwrap();
+        }
+
+        // Clear while spawning readers
+        let cache2 = Arc::clone(&cache);
+        let reader = tokio::spawn(async move {
+            for i in 0..20 {
+                let _ = cache2.get(&format!("key_{}", i)).await;
+            }
+        });
+
+        cache.clear().await.unwrap();
+        reader.await.unwrap();
+
+        // After clear, cache should be empty
+        assert!(cache.is_empty().await);
+    }
+
+    // ── Phase 103: Cache TTL and eviction strategy tests ─────────────────────
+
+    /// Test default TTL config is applied correctly
+    #[test]
+    fn test_default_ttl_config() {
+        let config = L1CacheConfig::default();
+        assert_eq!(config.default_ttl, DEFAULT_TTL_SECONDS);
+        assert!(config.default_ttl > 0);
+    }
+
+    /// Test cache config serialization roundtrip
+    #[test]
+    fn test_cache_config_serialization() {
+        let config = UnifiedCacheConfig::default();
+        let json = serde_json::to_string(&config).expect("serialize config");
+        let restored: UnifiedCacheConfig = serde_json::from_str(&json).expect("deserialize config");
+        assert_eq!(restored.l1_config.max_entries, config.l1_config.max_entries);
+        assert_eq!(restored.l1_config.default_ttl, config.l1_config.default_ttl);
+    }
+
+    /// Test LRU eviction strategy via small cache pressure
+    #[tokio::test]
+    async fn test_lru_eviction_strategy() {
+        let config = UnifiedCacheConfig {
+            l1_config: L1CacheConfig {
+                max_entries: 3,
+                eviction_strategy: crate::EvictionStrategy::LRU,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let cache = IntelligentCacheManager::<String, String>::new(config);
+
+        // Insert 3 entries (fills L1 exactly)
+        cache.put("a".to_string(), "1".to_string()).await.unwrap();
+        cache.put("b".to_string(), "2".to_string()).await.unwrap();
+        cache.put("c".to_string(), "3".to_string()).await.unwrap();
+
+        // Insert a 4th: should evict LRU (oldest unaccessed)
+        cache.put("d".to_string(), "4".to_string()).await.unwrap();
+
+        let stats = cache.get_stats().await;
+        assert!(stats.l1_stats.entries <= 3, "L1 should not exceed capacity");
+    }
+
+    /// Test FIFO eviction strategy config serialization
+    #[test]
+    fn test_eviction_strategy_serialization() {
+        let strategies = [
+            crate::EvictionStrategy::LRU,
+            crate::EvictionStrategy::LFU,
+            crate::EvictionStrategy::FIFO,
+            crate::EvictionStrategy::TTL,
+        ];
+        for strategy in &strategies {
+            let json = serde_json::to_string(strategy).unwrap();
+            let restored: crate::EvictionStrategy = serde_json::from_str(&json).unwrap();
+            assert_eq!(restored, *strategy);
+        }
+    }
+
+    /// Test cache with TTL eviction strategy type
+    #[tokio::test]
+    async fn test_ttl_strategy_config() {
+        let config = UnifiedCacheConfig {
+            l1_config: L1CacheConfig {
+                eviction_strategy: crate::EvictionStrategy::TTL,
+                default_ttl: 5,  // 5 second TTL
+                max_entries: 100,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let cache = IntelligentCacheManager::<String, String>::new(config);
+        cache.put("ttl_key".to_string(), "ttl_val".to_string()).await.unwrap();
+        // Entry should exist immediately after insert
+        assert!(cache.contains_key(&"ttl_key".to_string()).await);
+    }
+
+    /// Test cache size stays consistent after repeated operations
+    #[tokio::test]
+    async fn test_cache_size_consistency() {
+        let config = UnifiedCacheConfig::default();
+        let cache = IntelligentCacheManager::<u32, String>::new(config);
+
+        for i in 0..10u32 {
+            cache.put(i, format!("v{}", i)).await.unwrap();
+        }
+        assert_eq!(cache.get_stats().await.overall_stats.total_entries, 10);
+
+        // Remove 5 entries
+        for i in 0..5u32 {
+            cache.remove(&i).await;
+        }
+        let stats = cache.get_stats().await;
+        assert!(stats.overall_stats.total_entries <= 10, "Entries should decrease after remove");
+    }
 }

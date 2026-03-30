@@ -8,6 +8,9 @@ members = [
     "crates/rez-next-context",
     "crates/rez-next-build",
     "crates/rez-next-cache",
+    "crates/rez-next-rex",
+    "crates/rez-next-suites",
+    "crates/rez-next-python",
 ]
 exclude = [
     "examples/rez-lsp-integration",
@@ -25,8 +28,7 @@ categories = ["development-tools"]
 
 [workspace.dependencies]
 # External dependencies
-# Temporarily disabled Python bindings
-# pyo3 = { version = "0.25", features = ["extension-module", "abi3-py38"] }
+pyo3 = { version = "0.25", features = ["extension-module", "abi3-py38"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 serde_yaml = "0.9"
@@ -83,6 +85,8 @@ rez-next-context = { version = "0.1.0", path = "crates/rez-next-context", defaul
 # rez-core-rex = { path = "crates/rez-core-rex" }  # Temporarily disabled due to compilation errors
 rez-next-build = { version = "0.1.0", path = "crates/rez-next-build" }
 rez-next-cache = { version = "0.1.0", path = "crates/rez-next-cache" }
+rez-next-suites = { version = "0.1.0", path = "crates/rez-next-suites" }
+rez-next-rex = { version = "0.1.0", path = "crates/rez-next-rex" }
 # rez-core-python = { path = "crates/rez-core-python" }  # Temporarily disabled due to DLL issues
 
 # Python bindings - temporarily disabled
@@ -90,11 +94,13 @@ rez-next-cache = { version = "0.1.0", path = "crates/rez-next-cache" }
 
 # CLI dependencies
 clap.workspace = true
+serde = { workspace = true }
 serde_json.workspace = true
 serde_yaml.workspace = true
 tokio.workspace = true
 regex.workspace = true
 tempfile.workspace = true
+chrono = { version = "0.4", features = ["serde"] }
 
 [dev-dependencies]
 criterion.workspace = true
@@ -107,6 +113,11 @@ serial_test.workspace = true
 serde.workspace = true
 serde_yaml.workspace = true
 thiserror.workspace = true
+rez-next-package = { version = "0.1.0", path = "crates/rez-next-package", default-features = false }
+rez-next-rex = { version = "0.1.0", path = "crates/rez-next-rex" }
+rez-next-version = { version = "0.1.0", path = "crates/rez-next-version", default-features = false }
+rez-next-suites = { version = "0.1.0", path = "crates/rez-next-suites" }
+rez-next-common = { version = "0.1.0", path = "crates/rez-next-common", default-features = false }
 
 
 

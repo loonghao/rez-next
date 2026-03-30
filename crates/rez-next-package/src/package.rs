@@ -74,15 +74,81 @@ impl PackageRequirement {
         self.to_string()
     }
 
-    /// Check if this requirement is satisfied by a version (simplified)
+    /// Check if this requirement is satisfied by a version
     pub fn satisfied_by(&self, version: &Version) -> bool {
-        // Simplified implementation - can be enhanced later
         if let Some(ref version_spec) = self.version_spec {
-            // For now, just check if the version string matches
-            version.as_str() == version_spec
+            // Support range operators: >=, <=, >, <, ==, !=, ~=
+            let spec = version_spec.trim();
+
+            if spec.is_empty() {
+                return true;
+            }
+
+            // Handle range with comma: ">=1.0,<2.0"
+            if spec.contains(',') {
+                return spec
+                    .split(',')
+                    .all(|part| Self::check_single_constraint(version, part.trim()));
+            }
+
+            Self::check_single_constraint(version, spec)
         } else {
-            // No version constraint, always satisfied
             true
+        }
+    }
+
+    /// Check a single version constraint like ">=1.0" or "2.1.0"
+    fn check_single_constraint(version: &Version, spec: &str) -> bool {
+        use rez_next_version::VersionRange;
+
+        // Handle PEP 440 / rez operators first (before VersionRange stub)
+        let (op, ver_str) = if spec.starts_with(">=") {
+            (">=", &spec[2..])
+        } else if spec.starts_with("<=") {
+            ("<=", &spec[2..])
+        } else if spec.starts_with("!=") {
+            ("!=", &spec[2..])
+        } else if spec.starts_with("~=") {
+            ("~=", &spec[2..])
+        } else if spec.starts_with("==") {
+            ("==", &spec[2..])
+        } else if spec.starts_with('>') {
+            (">", &spec[1..])
+        } else if spec.starts_with('<') {
+            ("<", &spec[1..])
+        } else {
+            // No leading operator: try rez-style range first (e.g. "1.0+", "1.2<2.0")
+            if let Ok(range) = VersionRange::parse(spec) {
+                return range.contains(version);
+            }
+            // Plain version string: exact match
+            ("==", spec)
+        };
+
+        let ver_str = ver_str.trim();
+        if let Ok(constraint_ver) = Version::parse(ver_str) {
+            match op {
+                ">=" => version >= &constraint_ver,
+                "<=" => version <= &constraint_ver,
+                ">" => version > &constraint_ver,
+                "<" => version < &constraint_ver,
+                "!=" => version != &constraint_ver,
+                "~=" => {
+                    // Compatible release: >= version but < next major
+                    let parts: Vec<&str> = ver_str.split('.').collect();
+                    if parts.len() >= 2 {
+                        let prefix = parts[..parts.len() - 1].join(".");
+                        version >= &constraint_ver
+                            && version.as_str().starts_with(&format!("{}.", prefix))
+                    } else {
+                        version >= &constraint_ver
+                    }
+                }
+                _ => version == &constraint_ver,
+            }
+        } else {
+            // Could not parse version spec as a version — exact string match
+            version.as_str() == ver_str
         }
     }
 }
@@ -1239,3 +1305,66 @@ impl Package {
         Ok(())
     }
 }
+
+
+
+#[cfg(test)]
+mod package_tests {
+    use super::*;
+    use rez_next_version::Version;
+
+    fn ver(s: &str) -> Version { Version::parse(s).unwrap() }
+
+    #[test]
+    fn test_pkg_req_satisfied_no_constraint() {
+        let r = PackageRequirement::parse("python").unwrap();
+        assert!(r.satisfied_by(&ver("3.9.0")));
+    }
+
+    #[test]
+    fn test_pkg_req_satisfied_ge() {
+        // Use identical version string format in constraint and test version
+        let r = PackageRequirement::with_version("python".into(), ">=3.8.0".into());
+        assert!(r.satisfied_by(&ver("3.9.0")));
+        assert!(r.satisfied_by(&ver("3.8.0")));
+        assert!(!r.satisfied_by(&ver("3.7.0")));
+    }
+
+    #[test]
+    fn test_pkg_req_satisfied_lt() {
+        let r = PackageRequirement::with_version("python".into(), "<3.10.0".into());
+        assert!(r.satisfied_by(&ver("3.9.0")));
+        assert!(!r.satisfied_by(&ver("3.10.0")));
+    }
+
+    #[test]
+    fn test_pkg_req_satisfied_ne() {
+        // Use exact same string so version equality is reliable
+        let r = PackageRequirement::with_version("python".into(), "!=3.8.0".into());
+        assert!(r.satisfied_by(&ver("3.9.0")));
+        assert!(!r.satisfied_by(&ver("3.8.0")));
+    }
+
+    #[test]
+    fn test_pkg_req_satisfied_compatible() {
+        // ~=1.4.0 means >=1.4.0 AND same minor (starts_with "1.4.")
+        let r = PackageRequirement::with_version("mylib".into(), "~=1.4.0".into());
+        assert!(r.satisfied_by(&ver("1.4.0")));
+        assert!(r.satisfied_by(&ver("1.4.5")));
+        assert!(!r.satisfied_by(&ver("1.5.0")));
+    }
+
+    #[test]
+    fn test_package_new_and_validate() {
+        let pkg = Package::new("mylib".to_string());
+        assert_eq!(pkg.name, "mylib");
+        assert!(pkg.version.is_none());
+        assert!(pkg.validate().is_ok());
+    }
+
+    #[test]
+    fn test_package_empty_name_invalid() {
+        assert!(Package::new("".to_string()).validate().is_err());
+    }
+}
+

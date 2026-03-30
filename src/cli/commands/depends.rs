@@ -1,7 +1,7 @@
 //! Rez depends command implementation
 
 use clap::Args;
-use rez_next_common::RezCoreError;
+use rez_next_common::{RezCoreConfig, RezCoreError};
 use rez_next_package::{Package, PackageRequirement};
 use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
 use rez_next_solver::DependencyGraph;
@@ -131,11 +131,18 @@ pub async fn execute_depends(args: DependsArgs) -> Result<(), RezCoreError> {
         println!("📦 Analyzing dependencies for package: {}", args.package);
     }
 
-    // Parse package paths
-    let package_paths = if let Some(paths) = &args.paths {
+    // Parse package paths - use real config when no explicit paths given
+    let package_paths: Vec<PathBuf> = if let Some(paths) = &args.paths {
         paths.split(':').map(|p| PathBuf::from(p.trim())).collect()
     } else {
-        vec![PathBuf::from("./local_packages")]
+        let config = RezCoreConfig::load();
+        let mut paths: Vec<PathBuf> = config.packages_path.iter().map(PathBuf::from).collect();
+        // Also include local packages path
+        let local = PathBuf::from(&config.local_packages_path);
+        if !paths.contains(&local) {
+            paths.push(local);
+        }
+        paths
     };
 
     if args.verbose {
