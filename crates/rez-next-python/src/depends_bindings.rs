@@ -345,6 +345,7 @@ mod depends_bindings_tests {
     use rez_next_package::Package;
     use rez_next_version::Version;
 
+    #[allow(dead_code)]
     fn make_pkg(name: &str, ver: &str, requires: &[&str]) -> Package {
         let mut p = Package::new(name.to_string());
         p.version = Some(Version::parse(ver).unwrap());

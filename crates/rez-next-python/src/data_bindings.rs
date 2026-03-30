@@ -260,7 +260,6 @@ mod tests {
         use tempfile::TempDir;
         let tmp = TempDir::new().unwrap();
         let dest = tmp.path().join("rez-complete.bash");
-        let data = PyRezData::new();
         // Write directly (no PyO3 GIL in tests)
         let content = BASH_COMPLETE;
         std::fs::write(&dest, content).unwrap();
@@ -270,7 +269,6 @@ mod tests {
 
     #[test]
     fn test_resource_lookup_bash() {
-        let data = PyRezData::new();
         // Direct string match — no PyO3 in unit tests
         let content = match "completions/bash" {
             "completions/bash" => BASH_COMPLETE.to_string(),

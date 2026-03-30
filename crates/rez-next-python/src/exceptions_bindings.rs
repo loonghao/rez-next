@@ -4,25 +4,25 @@
 //! ensuring `except rez.exceptions.RezError` can be used as a catch-all.
 //!
 //! Hierarchy:
-//! ```
+//! ```text
 //! Exception
-//! └── RezError                    (base for all rez exceptions)
-//!     ├── PackageNotFound
-//!     ├── PackageFamilyNotFound
-//!     ├── PackageVersionConflict
-//!     ├── PackageRequestError
-//!     ├── ResolveError
-//!     │   ├── SolveFailure
-//!     │   └── PackageConflict
-//!     ├── RezBuildError
-//!     ├── RezReleaseError
-//!     ├── ConfigurationError
-//!     ├── PackageParseError
-//!     ├── ContextBundleError
-//!     ├── SuiteError
-//!     ├── RexError
-//!     │   └── RexUndefinedVariableError
-//!     └── RezSystemError
+//! +-- RezError                    (base for all rez exceptions)
+//!     +-- PackageNotFound
+//!     +-- PackageFamilyNotFound
+//!     +-- PackageVersionConflict
+//!     +-- PackageRequestError
+//!     +-- ResolveError
+//!     |   +-- SolveFailure
+//!     |   +-- PackageConflict
+//!     +-- RezBuildError
+//!     +-- RezReleaseError
+//!     +-- ConfigurationError
+//!     +-- PackageParseError
+//!     +-- ContextBundleError
+//!     +-- SuiteError
+//!     +-- RexError
+//!     |   +-- RexUndefinedVariableError
+//!     +-- RezSystemError
 //! ```
 
 use pyo3::prelude::*;
@@ -198,11 +198,13 @@ pub fn raise_rex_error(msg: impl Into<String>) -> PyErr {
 mod exceptions_tests {
     use super::*;
 
-    // We can't easily test PyO3 exception creation without a Python runtime,
-    // but we can test the helper functions compile and have correct signatures.
+    fn init_python() {
+        pyo3::prepare_freethreaded_python();
+    }
 
     #[test]
     fn test_raise_package_not_found_with_version() {
+        init_python();
         let err = raise_package_not_found("python", Some("3.9"));
         let msg = format!("{}", err);
         assert!(msg.contains("python") || msg.contains("Package"));
@@ -210,6 +212,7 @@ mod exceptions_tests {
 
     #[test]
     fn test_raise_package_not_found_without_version() {
+        init_python();
         let err = raise_package_not_found("maya", None);
         let msg = format!("{}", err);
         assert!(msg.contains("maya") || msg.contains("Package"));
@@ -217,29 +220,33 @@ mod exceptions_tests {
 
     #[test]
     fn test_raise_resolve_error() {
+        init_python();
         let err = raise_resolve_error("No solution found for requirements");
         let msg = format!("{}", err);
-        assert!(msg.contains("No solution") || msg.contains("resolve") || msg.len() > 0);
+        assert!(msg.contains("No solution") || msg.contains("resolve") || !msg.is_empty());
     }
 
     #[test]
     fn test_raise_config_error() {
+        init_python();
         let err = raise_config_error("Invalid packages_path setting");
         let msg = format!("{}", err);
-        assert!(msg.len() > 0);
+        assert!(!msg.is_empty());
     }
 
     #[test]
     fn test_raise_build_error() {
+        init_python();
         let err = raise_build_error("CMake configuration failed");
         let msg = format!("{}", err);
-        assert!(msg.len() > 0);
+        assert!(!msg.is_empty());
     }
 
     #[test]
     fn test_raise_rex_error() {
+        init_python();
         let err = raise_rex_error("Undefined variable: ${MY_VAR}");
         let msg = format!("{}", err);
-        assert!(msg.len() > 0);
+        assert!(!msg.is_empty());
     }
 }

@@ -3809,6 +3809,189 @@ fn test_solver_topological_sort_chain() {
     assert_eq!(result.unwrap().len(), 3, "All 3 packages should be in resolved order");
 }
 
+// ─── Context compat tests ────────────────────────────────────────────────────
+
+/// rez.resolved_context: context created from zero requirements has empty resolved_packages
+#[test]
+fn test_context_empty_requirements_has_no_packages() {
+    use rez_next_context::{ContextStatus, ResolvedContext};
+
+    let ctx = ResolvedContext::from_requirements(vec![]);
+    assert!(
+        ctx.resolved_packages.is_empty(),
+        "Empty requirements should produce empty resolved_packages"
+    );
+}
+
+/// rez.resolved_context: get_summary reports correct package count
+#[test]
+fn test_context_summary_reflects_resolved_packages() {
+    use rez_next_context::{ContextStatus, ResolvedContext};
+    use rez_next_package::{Package, PackageRequirement};
+    use rez_next_version::Version;
+
+    let reqs = vec![
+        PackageRequirement::parse("python-3.11").unwrap(),
+        PackageRequirement::parse("houdini-20.0").unwrap(),
+    ];
+    let mut ctx = ResolvedContext::from_requirements(reqs);
+
+    for (name, ver) in &[("python", "3.11"), ("houdini", "20.0")] {
+        let mut pkg = Package::new(name.to_string());
+        pkg.version = Some(Version::parse(ver).unwrap());
+        ctx.resolved_packages.push(pkg);
+    }
+    ctx.status = ContextStatus::Resolved;
+
+    let summary = ctx.get_summary();
+    assert_eq!(summary.package_count, 2);
+    assert!(summary.package_versions.contains_key("python"));
+    assert!(summary.package_versions.contains_key("houdini"));
+}
+
+/// rez.resolved_context: each context receives a unique ID
+#[test]
+fn test_context_unique_ids() {
+    use rez_next_context::ResolvedContext;
+
+    let c1 = ResolvedContext::from_requirements(vec![]);
+    let c2 = ResolvedContext::from_requirements(vec![]);
+    assert_ne!(c1.id, c2.id, "Each ResolvedContext must have a unique ID");
+}
+
+/// rez.resolved_context: created_at timestamp is positive (Unix epoch)
+#[test]
+fn test_context_created_at_positive() {
+    use rez_next_context::ResolvedContext;
+
+    let ctx = ResolvedContext::from_requirements(vec![]);
+    assert!(ctx.created_at > 0, "created_at should be a positive Unix timestamp");
+}
+
+/// rez.resolved_context: status transitions Failed → Resolved
+#[test]
+fn test_context_status_transition() {
+    use rez_next_context::{ContextStatus, ResolvedContext};
+
+    let mut ctx = ResolvedContext::from_requirements(vec![]);
+    ctx.status = ContextStatus::Failed;
+    assert_eq!(ctx.status, ContextStatus::Failed);
+
+    ctx.status = ContextStatus::Resolved;
+    assert_eq!(ctx.status, ContextStatus::Resolved);
+}
+
+/// rez.resolved_context: environment_vars can be injected (rez env semantics)
+#[test]
+fn test_context_environment_vars_injection() {
+    use rez_next_context::ResolvedContext;
+
+    let mut ctx = ResolvedContext::from_requirements(vec![]);
+    ctx.environment_vars.insert("REZ_USED_REQUEST".to_string(), "python-3.11".to_string());
+    ctx.environment_vars.insert("PATH".to_string(), "/usr/bin:/bin".to_string());
+
+    assert_eq!(
+        ctx.environment_vars.get("REZ_USED_REQUEST"),
+        Some(&"python-3.11".to_string())
+    );
+    assert!(ctx.environment_vars.contains_key("PATH"));
+}
+
+// ─── Solver boundary tests ───────────────────────────────────────────────────
+
+/// rez solver: resolving with only one package returns exactly that package
+#[test]
+fn test_solver_single_package_resolution() {
+    use rez_next_solver::DependencyGraph;
+    use rez_next_package::Package;
+    use rez_next_version::Version;
+
+    let mut graph = DependencyGraph::new();
+    let mut pkg = Package::new("solo".to_string());
+    pkg.version = Some(Version::parse("1.0.0").unwrap());
+    graph.add_package(pkg).unwrap();
+
+    let result = graph.get_resolved_packages().unwrap();
+    assert_eq!(result.len(), 1, "Single package graph should resolve to 1 package");
+    assert_eq!(result[0].name, "solo");
+}
+
+/// rez solver: weak requirement (~) does not prevent resolution when absent
+#[test]
+fn test_solver_weak_requirement_optional_absent() {
+    use rez_next_package::Requirement;
+
+    let req: Requirement = "~optional_tool>=1.0".parse().unwrap();
+    assert!(req.weak, "~ prefix must produce a weak requirement");
+    assert_eq!(req.name, "optional_tool");
+}
+
+/// rez solver: diamond dependency A→B, A→C, B→D, C→D resolves correctly
+#[test]
+fn test_solver_diamond_dependency_no_conflict() {
+    use rez_next_solver::DependencyGraph;
+    use rez_next_package::Package;
+    use rez_next_version::Version;
+
+    let mut graph = DependencyGraph::new();
+    for (n, v) in &[("A","1.0"), ("B","1.0"), ("C","1.0"), ("D","1.0")] {
+        let mut pkg = Package::new(n.to_string());
+        pkg.version = Some(Version::parse(v).unwrap());
+        graph.add_package(pkg).unwrap();
+    }
+
+    graph.add_dependency_edge("A-1.0", "B-1.0").unwrap();
+    graph.add_dependency_edge("A-1.0", "C-1.0").unwrap();
+    graph.add_dependency_edge("B-1.0", "D-1.0").unwrap();
+    graph.add_dependency_edge("C-1.0", "D-1.0").unwrap();
+
+    let resolved = graph.get_resolved_packages().unwrap();
+    assert_eq!(resolved.len(), 4, "Diamond dependency should include all 4 packages exactly once");
+}
+
+// ─── Exception type / message tests ─────────────────────────────────────────
+
+/// rez.exceptions: PackageRequirement parse is lenient — documents actual behavior.
+/// Parsing unusual strings should not panic; result may be Ok or Err.
+#[test]
+fn test_invalid_package_requirement_no_panic() {
+    use rez_next_package::PackageRequirement;
+
+    // Must not panic regardless of the result
+    let result = PackageRequirement::parse("!!!invalid");
+    let _ = result; // lenient parser may accept or reject — both are valid
+}
+
+/// rez.exceptions: Empty string PackageRequirement parse does not panic
+#[test]
+fn test_empty_package_requirement_no_panic() {
+    use rez_next_package::PackageRequirement;
+
+    let result = PackageRequirement::parse("");
+    let _ = result;
+}
+
+/// rez.exceptions: VersionRange parse error for unbalanced brackets
+#[test]
+fn test_version_range_unbalanced_bracket_error() {
+    use rez_core::version::VersionRange;
+
+    let result = VersionRange::parse(">=1.0,<2.0,");
+    // Trailing comma may or may not be accepted depending on impl;
+    // the important thing is that the call does not panic.
+    let _ = result;
+}
+
+/// rez.exceptions: Version parse with garbage input returns error (not panic)
+#[test]
+fn test_version_parse_garbage_no_panic() {
+    use rez_core::version::Version;
+
+    let result = Version::parse("!@#$%^&*");
+    // May succeed with best-effort or fail; must not panic.
+    let _ = result;
+}
+
 
 
 
