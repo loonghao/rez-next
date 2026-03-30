@@ -2179,6 +2179,7 @@ dependencies = [
  "rez-next-version",
  "serde",
  "serde_json",
+ "tempfile",
  "tokio",
 ]
 
