@@ -23,6 +23,8 @@ mod release_bindings;
 mod source_bindings;
 mod data_bindings;
 mod bind_bindings;
+mod search_bindings;
+mod completion_bindings;
 
 use version_bindings::{PyVersion, PyVersionRange};
 use package_bindings::{PyPackage, PyPackageRequirement};
@@ -41,6 +43,7 @@ use release_bindings::{PyReleaseManager, PyReleaseResult};
 use source_bindings::PySourceManager;
 use data_bindings::PyRezData;
 use bind_bindings::{PyBindManager, PyBindResult};
+use search_bindings::PySearchResult;
 
 /// Main Python module `rez_next` — drop-in replacement for `rez`
 #[pymodule(name = "rez_next")]
@@ -319,6 +322,28 @@ fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Top-level bind convenience function
     m.add_function(wrap_pyfunction!(bind_bindings::bind_tool, m)?)?;
     m.add_function(wrap_pyfunction!(bind_bindings::list_binders, m)?)?;
+
+    // Submodule: rez.search (package search)
+    let search_mod = PyModule::new(m.py(), "search")?;
+    search_mod.add_class::<PySearchResult>()?;
+    search_mod.add_class::<search_bindings::PyPackageSearcher>()?;
+    search_mod.add_function(wrap_pyfunction!(search_bindings::search_packages, &search_mod)?)?;
+    search_mod.add_function(wrap_pyfunction!(search_bindings::search_package_names, &search_mod)?)?;
+    search_mod.add_function(wrap_pyfunction!(search_bindings::search_latest_packages, &search_mod)?)?;
+    m.add_submodule(&search_mod)?;
+    // Top-level search helpers
+    m.add_function(wrap_pyfunction!(search_bindings::search_packages, m)?)?;
+    m.add_function(wrap_pyfunction!(search_bindings::search_package_names, m)?)?;
+
+    // Submodule: rez.complete (shell tab-completion)
+    let complete_mod = PyModule::new(m.py(), "complete")?;
+    complete_mod.add_function(wrap_pyfunction!(completion_bindings::get_completion_script, &complete_mod)?)?;
+    complete_mod.add_function(wrap_pyfunction!(completion_bindings::print_completion_script, &complete_mod)?)?;
+    complete_mod.add_function(wrap_pyfunction!(completion_bindings::supported_completion_shells, &complete_mod)?)?;
+    complete_mod.add_function(wrap_pyfunction!(completion_bindings::get_completion_install_path, &complete_mod)?)?;
+    m.add_submodule(&complete_mod)?;
+    // Top-level completion
+    m.add_function(wrap_pyfunction!(completion_bindings::get_completion_script, m)?)?;
 
     Ok(())
 }

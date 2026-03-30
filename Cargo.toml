@@ -11,6 +11,7 @@ members = [
     "crates/rez-next-rex",
     "crates/rez-next-suites",
     "crates/rez-next-bind",
+    "crates/rez-next-search",
     "crates/rez-next-python",
 ]
 exclude = [
@@ -122,6 +123,7 @@ rez-next-version = { version = "0.1.0", path = "crates/rez-next-version", defaul
 rez-next-suites = { version = "0.1.0", path = "crates/rez-next-suites" }
 rez-next-common = { version = "0.1.0", path = "crates/rez-next-common", default-features = false }
 rez-next-bind = { version = "0.1.0", path = "crates/rez-next-bind" }
+rez-next-search = { version = "0.1.0", path = "crates/rez-next-search" }
 
 
 

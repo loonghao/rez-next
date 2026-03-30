@@ -1,0 +1,23 @@
+[package]
+name = "rez-next-search"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+description = "Package search functionality for rez-next"
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+rez-next-common = { version = "0.1.0", path = "../rez-next-common" }
+rez-next-version = { version = "0.1.0", path = "../rez-next-version" }
+rez-next-package = { version = "0.1.0", path = "../rez-next-package" }
+rez-next-repository = { version = "0.1.0", path = "../rez-next-repository" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+regex = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+rstest = { workspace = true }
