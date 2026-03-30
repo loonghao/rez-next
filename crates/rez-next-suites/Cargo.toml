@@ -1,0 +1,32 @@
+[package]
+name = "rez-next-suites"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+description = "Suite management for Rez Next - manages collections of resolved contexts"
+license.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+[dependencies]
+rez-next-common = { version = "0.1.0", path = "../rez-next-common" }
+rez-next-version = { version = "0.1.0", path = "../rez-next-version" }
+rez-next-package = { version = "0.1.0", path = "../rez-next-package" }
+rez-next-context = { version = "0.1.0", path = "../rez-next-context" }
+rez-next-solver = { version = "0.1.0", path = "../rez-next-solver" }
+rez-next-repository = { version = "0.1.0", path = "../rez-next-repository" }
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
+serde_yaml.workspace = true
+tokio.workspace = true
+thiserror.workspace = true
+regex.workspace = true
+
+[dev-dependencies]
+rstest.workspace = true
+tempfile.workspace = true
+pretty_assertions.workspace = true
+
+[lints]
+workspace = true

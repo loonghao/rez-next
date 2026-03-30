@@ -1,0 +1,40 @@
+[build-system]
+requires = ["maturin>=1.0,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "rez-next"
+version = "0.1.0"
+description = "Next-generation Rez package manager - drop-in Python replacement"
+readme = "README.md"
+license = { text = "Apache-2.0" }
+requires-python = ">=3.8"
+classifiers = [
+    "Programming Language :: Rust",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "License :: OSI Approved :: Apache Software License",
+    "Topic :: Software Development :: Build Tools",
+    "Topic :: System :: Software Distribution",
+]
+keywords = ["rez", "package-manager", "vfx", "pipeline", "environment"]
+
+[project.urls]
+Homepage = "https://github.com/loonghao/rez-next"
+Documentation = "https://github.com/loonghao/rez-next"
+Repository = "https://github.com/loonghao/rez-next"
+Issues = "https://github.com/loonghao/rez-next/issues"
+
+[tool.maturin]
+# Build the cdylib as Python extension
+features = ["pyo3/extension-module"]
+# Python module name (must match #[pymodule(name = "rez_next")] in lib.rs)
+module-name = "rez_next"
+# Compatibility tag for abi3 (Python 3.8+)
+# Strip debug symbols in release
+strip = true

@@ -2,19 +2,23 @@
 //!
 //! Run tests defined in a package.
 //! This command handles package testing including:
+//! - Loading package definition and extracting test names from `tests` field
 //! - Test environment resolution
-//! - Test execution
-//! - Result reporting
-//! - Test filtering and selection
+//! - Real test command execution
+//! - Result reporting and filtering
 
 use clap::Args;
-use rez_next_common::{error::RezCoreResult, RezCoreError};
+use rez_next_common::{config::RezCoreConfig, error::RezCoreResult, RezCoreError};
+use rez_next_package::serialization::PackageSerializer;
+use std::collections::HashMap;
 use std::path::PathBuf;
+use std::process::{Command, Stdio};
+use std::time::Instant;
 
 /// Test command configuration
 #[derive(Debug, Clone, Args)]
 pub struct TestArgs {
-    /// Package to test
+    /// Package to test (can be a path or package name)
     #[arg(value_name = "PKG")]
     pub package: String,
 
@@ -76,6 +80,31 @@ pub struct TestResult {
     pub output: String,
     pub error: Option<String>,
     pub duration_ms: u64,
+    pub exit_code: i32,
+}
+
+/// Test definition loaded from package.py
+#[derive(Debug, Clone)]
+pub struct TestDefinition {
+    /// Test name
+    pub name: String,
+    /// Command to run (can be a string command or list)
+    pub command: TestCommand,
+    /// Required packages for this test (beyond normal requires)
+    pub requires: Vec<String>,
+    /// Whether to run in the package's context
+    pub run_on: Vec<String>,
+    /// Whether this test is on by default
+    pub on_variants: Option<bool>,
+}
+
+/// Test command format
+#[derive(Debug, Clone)]
+pub enum TestCommand {
+    /// Simple string command
+    String(String),
+    /// List of arguments
+    List(Vec<String>),
 }
 
 /// Test runner for package tests
@@ -87,6 +116,8 @@ pub struct PackageTestRunner {
     pub dry_run: bool,
     pub stop_on_fail: bool,
     pub test_results: Vec<TestResult>,
+    /// Loaded test definitions from package.py/yaml
+    test_definitions: HashMap<String, TestDefinition>,
 }
 
 impl PackageTestRunner {
@@ -97,25 +128,110 @@ impl PackageTestRunner {
             .clone()
             .unwrap_or_else(|| std::env::current_dir().unwrap());
 
-        Ok(Self {
-            package_name,
-            working_dir,
+        let mut runner = Self {
+            package_name: package_name.clone(),
+            working_dir: working_dir.clone(),
             verbose: args.verbose,
             dry_run: args.dry_run,
             stop_on_fail: args.stop_on_fail,
             test_results: Vec::new(),
-        })
+            test_definitions: HashMap::new(),
+        };
+
+        // Load test definitions from package file
+        runner.load_test_definitions(&working_dir, &package_name)?;
+
+        Ok(runner)
     }
 
-    /// Get available test names from package
+    /// Load test definitions from package.py or package.yaml in working directory
+    fn load_test_definitions(&mut self, working_dir: &Path, package_spec: &str) -> RezCoreResult<()> {
+        // First, try to find package.py or package.yaml in working_dir
+        let candidates = [
+            working_dir.join("package.py"),
+            working_dir.join("package.yaml"),
+            working_dir.join("package.yml"),
+        ];
+
+        for candidate in &candidates {
+            if candidate.exists() {
+                if let Ok(package) = PackageSerializer::load_from_file(candidate) {
+                    self.extract_tests_from_package(&package);
+                    return Ok(());
+                }
+            }
+        }
+
+        // If not found in working_dir, try to find by name in configured paths
+        let config = RezCoreConfig::load();
+        for search_path in &config.packages_path {
+            let expanded = expand_home_path(search_path);
+            let pkg_path = PathBuf::from(&expanded).join(package_spec);
+            if pkg_path.exists() {
+                // Look for latest version
+                if let Ok(entries) = std::fs::read_dir(&pkg_path) {
+                    let mut versions: Vec<PathBuf> = entries
+                        .flatten()
+                        .filter(|e| e.path().is_dir())
+                        .map(|e| e.path())
+                        .collect();
+                    versions.sort();
+                    if let Some(latest) = versions.last() {
+                        for fname in &["package.py", "package.yaml"] {
+                            let f = latest.join(fname);
+                            if f.exists() {
+                                if let Ok(package) = PackageSerializer::load_from_file(&f) {
+                                    self.extract_tests_from_package(&package);
+                                    return Ok(());
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // If no package file found, test_definitions remains empty
+        Ok(())
+    }
+
+    /// Extract test definitions from a loaded package
+    fn extract_tests_from_package(&mut self, package: &rez_next_package::Package) {
+        // Package.tests is HashMap<String, String> where value is the command
+        for (test_name, command_str) in &package.tests {
+            let cmd = if command_str.contains(' ') {
+                // Multi-word command, split it
+                let parts: Vec<String> = command_str
+                    .split_whitespace()
+                    .map(|s| s.to_string())
+                    .collect();
+                TestCommand::List(parts)
+            } else {
+                TestCommand::String(command_str.clone())
+            };
+
+            self.test_definitions.insert(
+                test_name.clone(),
+                TestDefinition {
+                    name: test_name.clone(),
+                    command: cmd,
+                    requires: vec![],
+                    run_on: vec!["default".to_string()],
+                    on_variants: None,
+                },
+            );
+        }
+    }
+
+    /// Get available test names from loaded package definition
     pub fn get_test_names(&self) -> RezCoreResult<Vec<String>> {
-        // TODO: Load package definition and extract test names
-        // For now, return some mock test names
-        Ok(vec![
-            "unit".to_string(),
-            "integration".to_string(),
-            "performance".to_string(),
-        ])
+        if self.test_definitions.is_empty() {
+            return Ok(vec![]);
+        }
+
+        let mut names: Vec<String> = self.test_definitions.keys().cloned().collect();
+        names.sort();
+        Ok(names)
     }
 
     /// Find requested test names (supports wildcards)
@@ -123,7 +239,6 @@ impl PackageTestRunner {
         let available_tests = self.get_test_names()?;
 
         if requested.is_empty() {
-            // Return all tests with 'default' run_on tag
             return Ok(available_tests);
         }
 
@@ -131,7 +246,6 @@ impl PackageTestRunner {
 
         for pattern in requested {
             if pattern.contains('*') {
-                // Handle wildcard patterns
                 let regex_pattern = pattern.replace('*', ".*");
                 let regex = regex::Regex::new(&regex_pattern).map_err(|e| {
                     RezCoreError::CliError(format!("Invalid pattern '{}': {}", pattern, e))
@@ -143,7 +257,6 @@ impl PackageTestRunner {
                     }
                 }
             } else {
-                // Exact match
                 if available_tests.contains(pattern) && !matched_tests.contains(pattern) {
                     matched_tests.push(pattern.clone());
                 }
@@ -153,18 +266,13 @@ impl PackageTestRunner {
         Ok(matched_tests)
     }
 
-    /// Run a specific test
+    /// Run a specific test by name
     pub fn run_test(&mut self, test_name: &str) -> RezCoreResult<i32> {
         if self.verbose > 0 {
-            println!("🧪 Running test: {}", test_name);
+            println!("Running test: {}", test_name);
         }
 
-        let start_time = std::time::Instant::now();
-
-        // TODO: Implement actual test execution
-        // 1. Resolve test environment
-        // 2. Execute test command
-        // 3. Capture output and exit code
+        let start_time = Instant::now();
 
         let (status, output, error, exit_code) = if self.dry_run {
             (
@@ -174,32 +282,16 @@ impl PackageTestRunner {
                 0,
             )
         } else {
-            // Mock test execution for now
-            match test_name {
-                "unit" => (
-                    TestStatus::Success,
-                    "All unit tests passed".to_string(),
-                    None,
-                    0,
-                ),
-                "integration" => (
-                    TestStatus::Failed,
-                    "Integration test output".to_string(),
-                    Some("Test failed: assertion error".to_string()),
-                    1,
-                ),
-                "performance" => (
-                    TestStatus::Success,
-                    "Performance tests completed".to_string(),
-                    None,
-                    0,
-                ),
-                _ => (
+            // Look up the test definition
+            if let Some(test_def) = self.test_definitions.get(test_name) {
+                self.execute_test_command(test_def)
+            } else {
+                (
                     TestStatus::Error,
-                    "".to_string(),
-                    Some(format!("Unknown test: {}", test_name)),
+                    String::new(),
+                    Some(format!("Test '{}' not found in package definition", test_name)),
                     -1,
-                ),
+                )
             }
         };
 
@@ -208,33 +300,40 @@ impl PackageTestRunner {
         let result = TestResult {
             name: test_name.to_string(),
             status: status.clone(),
-            output,
-            error,
+            output: output.clone(),
+            error: error.clone(),
             duration_ms,
+            exit_code,
         };
 
         // Print test result
-        match status {
+        match &status {
             TestStatus::Success => {
                 if self.verbose > 0 {
-                    println!("  ✅ {} ({}ms)", test_name, duration_ms);
+                    println!("  PASSED: {} ({}ms)", test_name, duration_ms);
+                    if self.verbose > 1 && !output.is_empty() {
+                        println!("{}", output);
+                    }
                 }
             }
             TestStatus::Failed => {
-                println!("  ❌ {} ({}ms)", test_name, duration_ms);
-                if let Some(ref error) = result.error {
-                    println!("     Error: {}", error);
+                println!("  FAILED: {} ({}ms)", test_name, duration_ms);
+                if !output.is_empty() {
+                    println!("{}", output);
+                }
+                if let Some(ref err) = error {
+                    println!("  Error: {}", err);
                 }
             }
             TestStatus::Skipped => {
                 if self.verbose > 0 {
-                    println!("  ⏭️  {} (skipped)", test_name);
+                    println!("  SKIPPED: {} (skipped)", test_name);
                 }
             }
             TestStatus::Error => {
-                println!("  💥 {} (error)", test_name);
-                if let Some(ref error) = result.error {
-                    println!("     Error: {}", error);
+                println!("  ERROR: {} (error)", test_name);
+                if let Some(ref err) = error {
+                    println!("  Error: {}", err);
                 }
             }
         }
@@ -246,6 +345,74 @@ impl PackageTestRunner {
         }
 
         Ok(exit_code)
+    }
+
+    /// Execute a test command and return (status, stdout, stderr, exit_code)
+    fn execute_test_command(
+        &self,
+        test_def: &TestDefinition,
+    ) -> (TestStatus, String, Option<String>, i32) {
+        let (program, args) = match &test_def.command {
+            TestCommand::String(cmd) => {
+                // Shell-execute the string command
+                if cfg!(windows) {
+                    ("cmd".to_string(), vec!["/c".to_string(), cmd.clone()])
+                } else {
+                    ("sh".to_string(), vec!["-c".to_string(), cmd.clone()])
+                }
+            }
+            TestCommand::List(parts) if !parts.is_empty() => {
+                (parts[0].clone(), parts[1..].to_vec())
+            }
+            _ => {
+                return (
+                    TestStatus::Error,
+                    String::new(),
+                    Some("Empty test command".to_string()),
+                    -1,
+                );
+            }
+        };
+
+        if self.verbose > 0 {
+            println!("  Executing: {} {}", program, args.join(" "));
+        }
+
+        let result = Command::new(&program)
+            .args(&args)
+            .current_dir(&self.working_dir)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .output();
+
+        match result {
+            Ok(output) => {
+                let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+                let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+                let exit_code = output.status.code().unwrap_or(-1);
+
+                if output.status.success() {
+                    (TestStatus::Success, stdout, if stderr.is_empty() { None } else { Some(stderr) }, exit_code)
+                } else {
+                    (
+                        TestStatus::Failed,
+                        stdout,
+                        Some(if stderr.is_empty() {
+                            format!("Process exited with code {}", exit_code)
+                        } else {
+                            stderr
+                        }),
+                        exit_code,
+                    )
+                }
+            }
+            Err(e) => (
+                TestStatus::Error,
+                String::new(),
+                Some(format!("Failed to execute test command: {}", e)),
+                -1,
+            ),
+        }
     }
 
     /// Print test summary
@@ -272,7 +439,7 @@ impl PackageTestRunner {
             .filter(|r| r.status == TestStatus::Skipped)
             .count();
 
-        println!("📊 Test Summary for package '{}':", self.package_name);
+        println!("Test Summary for package '{}':", self.package_name);
         println!("   Total:   {}", total);
         println!("   Passed:  {}", passed);
         println!("   Failed:  {}", failed);
@@ -280,16 +447,31 @@ impl PackageTestRunner {
         println!("   Skipped: {}", skipped);
 
         if failed > 0 || errors > 0 {
-            println!("\n❌ Some tests failed!");
+            println!("\nSome tests failed!");
         } else if total > 0 {
-            println!("\n✅ All tests passed!");
+            println!("\nAll tests passed!");
         }
     }
 }
 
+/// Expand ~ in path strings
+fn expand_home_path(path: &str) -> String {
+    if path.starts_with("~/") || path == "~" {
+        let home = std::env::var("USERPROFILE")
+            .or_else(|_| std::env::var("HOME"))
+            .unwrap_or_else(|_| ".".to_string());
+        path.replacen("~", &home, 1)
+    } else {
+        path.to_string()
+    }
+}
+
+// Need Path for load_test_definitions parameter
+use std::path::Path;
+
 /// Execute the test command
 pub fn execute(args: TestArgs) -> RezCoreResult<()> {
-    println!("🧪 Running package tests...");
+    println!("Running package tests...");
 
     // Validate arguments
     if args.inplace && (!args.extra_packages.is_empty() || args.paths.is_some() || args.no_local) {
@@ -306,7 +488,11 @@ pub fn execute(args: TestArgs) -> RezCoreResult<()> {
     let available_tests = runner.get_test_names()?;
 
     if available_tests.is_empty() {
-        println!("No tests found in package '{}'", args.package);
+        println!(
+            "No tests found in package '{}'.",
+            args.package
+        );
+        println!("Make sure the package has a 'tests' field in its package.py or package.yaml.");
         return Ok(());
     }
 
@@ -314,7 +500,15 @@ pub fn execute(args: TestArgs) -> RezCoreResult<()> {
     if args.list {
         println!("Tests defined in package '{}':", args.package);
         for test_name in &available_tests {
-            println!("  {}", test_name);
+            if let Some(def) = runner.test_definitions.get(test_name) {
+                let cmd_str = match &def.command {
+                    TestCommand::String(s) => s.clone(),
+                    TestCommand::List(parts) => parts.join(" "),
+                };
+                println!("  {:<20} {}", test_name, cmd_str);
+            } else {
+                println!("  {}", test_name);
+            }
         }
         return Ok(());
     }

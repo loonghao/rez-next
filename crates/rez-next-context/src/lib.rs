@@ -22,6 +22,9 @@ pub use resolved_context::*;
 pub use serialization::*;
 pub use shell::*;
 
+#[cfg(test)]
+mod tests;
+
 // use pyo3::prelude::*;  // Temporarily disabled due to DLL issues
 
 // Python module temporarily disabled due to DLL issues

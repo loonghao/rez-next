@@ -3,7 +3,7 @@
 //! Implements the `rez plugins` command for listing and managing package plugins.
 
 use clap::Args;
-use rez_next_common::{error::RezCoreResult, RezCoreError};
+use rez_next_common::{config::RezCoreConfig, error::RezCoreResult, RezCoreError};
 use rez_next_package::Package;
 use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
 use std::collections::HashMap;
@@ -85,8 +85,15 @@ async fn execute_plugins_async(args: &PluginsArgs) -> RezCoreResult<()> {
 /// Setup repository manager
 async fn setup_repositories(args: &PluginsArgs) -> RezCoreResult<RepositoryManager> {
     let mut repo_manager = RepositoryManager::new();
-    let paths = if args.paths.is_empty() {
-        vec![PathBuf::from("./local_packages")]
+    let paths: Vec<PathBuf> = if args.paths.is_empty() {
+        // Use real config paths
+        let config = RezCoreConfig::load();
+        let mut p: Vec<PathBuf> = config.packages_path.iter().map(PathBuf::from).collect();
+        let local = PathBuf::from(&config.local_packages_path);
+        if !p.contains(&local) {
+            p.push(local);
+        }
+        p
     } else {
         args.paths.clone()
     };

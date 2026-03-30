@@ -557,6 +557,31 @@ impl Version {
         self.tokens.is_empty() && self.string_repr.is_empty()
     }
 
+    /// Number of version tokens (components)
+    #[cfg(not(feature = "python-bindings"))]
+    pub fn len(&self) -> usize {
+        self.tokens.len()
+    }
+
+    /// Get the major version component (first token as u64), if available
+    #[cfg(not(feature = "python-bindings"))]
+    pub fn major(&self) -> Option<u64> {
+        self.tokens.first().and_then(|t| t.parse::<u64>().ok())
+    }
+
+    /// Get the minor version component (second token as u64), if available
+    #[cfg(not(feature = "python-bindings"))]
+    pub fn minor(&self) -> Option<u64> {
+        self.tokens.get(1).and_then(|t| t.parse::<u64>().ok())
+    }
+
+    /// Get the patch version component (third token as u64), if available
+    #[cfg(not(feature = "python-bindings"))]
+    pub fn patch(&self) -> Option<u64> {
+        self.tokens.get(2).and_then(|t| t.parse::<u64>().ok())
+    }
+
+
     /// Check if this is the epsilon version (alias for is_empty)
     pub fn is_epsilon(&self) -> bool {
         self.is_empty()

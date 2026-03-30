@@ -1,0 +1,30 @@
+[metadata]
+author = "loonghao"
+difficulty = "medium"
+category = "security"
+tags = ["rust", "cargo-audit", "dependency-upgrade", "ci-fix", "security-vulnerability"]
+description = "Fix CI security audit failures by upgrading vulnerable Rust dependencies (lru, bytes) in a multi-crate workspace"
+
+[verifier]
+timeout_sec = 300
+env = {}
+
+[agent]
+timeout_sec = 600
+user = "root"
+
+[solution]
+env = {}
+
+[environment]
+build_timeout_sec = 600
+docker_image = "rust:1.85-bookworm"
+cpus = 2
+memory_mb = 4096
+storage_mb = 10240
+allow_internet = true
+
+[source]
+repository = "https://github.com/loonghao/rez-next.git"
+branch = "fix/ci-custom-workflow-v3"
+pr_url = "https://github.com/loonghao/rez-next/pull/72"

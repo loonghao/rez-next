@@ -1,7 +1,7 @@
 //! Advanced search command implementation
 
 use clap::Args;
-use rez_next_common::{error::RezCoreResult, RezCoreError};
+use rez_next_common::{config::RezCoreConfig, error::RezCoreResult, RezCoreError};
 use rez_next_package::Package;
 use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
 use serde_json;
@@ -58,6 +58,22 @@ pub struct SearchArgs {
     /// Show detailed package information
     #[arg(short, long)]
     pub verbose: bool,
+
+    /// Only show packages newer than this ISO 8601 date (e.g. 2024-01-01 or 2024-01-01T00:00:00)
+    #[arg(long, value_name = "DATE")]
+    pub newer_than: Option<String>,
+
+    /// Only show packages older than this ISO 8601 date (e.g. 2025-01-01)
+    #[arg(long, value_name = "DATE")]
+    pub older_than: Option<String>,
+
+    /// Filter by type: package (default), family, or variant
+    #[arg(long = "type", value_name = "TYPE", default_value = "package")]
+    pub search_type: String,
+
+    /// Filter packages that have a specific variant requirement (e.g. python-3.9)
+    #[arg(long = "has-variant", value_name = "REQ")]
+    pub has_variant: Option<String>,
 }
 
 /// Search result entry
@@ -108,22 +124,26 @@ async fn search_async(args: SearchArgs) -> RezCoreResult<()> {
     Ok(())
 }
 
-/// Add default test repositories
+/// Add default repositories from rez config
 async fn add_default_repositories(repo_manager: &mut RepositoryManager) -> RezCoreResult<()> {
-    let test_repos = vec![
-        "C:/temp/test-packages",
-        "C:/temp/simple_test",
-        "C:/temp/test-build-command",
-        "C:/temp/test-commands",
-        "C:/temp/test-variants",
-        "C:/temp/test-complete",
-        "C:/temp/perf-test",
-    ];
+    let config = RezCoreConfig::load();
 
-    for (i, repo_path) in test_repos.iter().enumerate() {
-        let path = PathBuf::from(repo_path);
+    for (i, path_str) in config.packages_path.iter().enumerate() {
+        let expanded = if path_str.starts_with("~/") || path_str == "~" {
+            if let Ok(home) = std::env::var("USERPROFILE")
+                .or_else(|_| std::env::var("HOME"))
+            {
+                path_str.replacen("~", &home, 1)
+            } else {
+                path_str.clone()
+            }
+        } else {
+            path_str.clone()
+        };
+
+        let path = PathBuf::from(&expanded);
         if path.exists() {
-            let repo = SimpleRepository::new(&path, format!("test_repo_{}", i));
+            let repo = SimpleRepository::new(&path, format!("repo_{}", i));
             repo_manager.add_repository(Box::new(repo));
         }
     }
@@ -138,6 +158,10 @@ async fn perform_search(
 ) -> RezCoreResult<Vec<SearchResult>> {
     let mut all_results = Vec::new();
 
+    // Parse timestamp filters
+    let newer_than = args.newer_than.as_deref().and_then(parse_timestamp);
+    let older_than = args.older_than.as_deref().and_then(parse_timestamp);
+
     // Get all available packages
     let all_package_names = repo_manager.list_packages().await?;
 
@@ -145,10 +169,78 @@ async fn perform_search(
         let packages = repo_manager.find_packages(&package_name).await?;
 
         for package in packages {
+            // Apply timestamp filters if provided
+            if newer_than.is_some() || older_than.is_some() {
+                let pkg_timestamp = get_package_timestamp(&package);
+                if let Some(newer) = newer_than {
+                    if pkg_timestamp <= newer {
+                        continue;
+                    }
+                }
+                if let Some(older) = older_than {
+                    if pkg_timestamp >= older {
+                        continue;
+                    }
+                }
+            }
+
+            // Apply search_type filter
+            match args.search_type.as_str() {
+                "family" => {
+                    // For family type: group by name, show once per family
+                    // We'll just deduplicate at result level
+                }
+                "variant" => {
+                    // For variant type: only include packages that have variants
+                    if package.variants.is_empty() {
+                        continue;
+                    }
+                    // Filter by has_variant if specified
+                    if let Some(ref req) = args.has_variant {
+                        let req_lower = req.to_lowercase();
+                        let has_match = package.variants.iter().any(|variant| {
+                            variant.iter().any(|r| r.to_lowercase().contains(&req_lower))
+                        });
+                        if !has_match {
+                            continue;
+                        }
+                    }
+                }
+                _ => {
+                    // "package" type (default): no extra filter
+                    // Still apply has_variant if specified
+                    if let Some(ref req) = args.has_variant {
+                        let req_lower = req.to_lowercase();
+                        let has_match = package.variants.iter().any(|variant| {
+                            variant.iter().any(|r| r.to_lowercase().contains(&req_lower))
+                        });
+                        if !has_match {
+                            continue;
+                        }
+                    }
+                }
+            }
+
             if let Some(result) = evaluate_package_match(&package, args, "default") {
                 all_results.push(result);
             }
         }
+    }
+
+    // For family type: deduplicate by package name (keep highest score)
+    if args.search_type == "family" {
+        let mut family_map: HashMap<String, SearchResult> = HashMap::new();
+        for result in all_results {
+            let name = result.package.name.clone();
+            if let Some(existing) = family_map.get(&name) {
+                if result.match_score > existing.match_score {
+                    family_map.insert(name, result);
+                }
+            } else {
+                family_map.insert(name, result);
+            }
+        }
+        all_results = family_map.into_values().collect();
     }
 
     // Sort results
@@ -163,6 +255,29 @@ async fn perform_search(
     all_results.truncate(args.limit);
 
     Ok(all_results)
+}
+
+/// Parse an ISO 8601 date/datetime string to Unix timestamp (seconds)
+fn parse_timestamp(s: &str) -> Option<i64> {
+    // Try YYYY-MM-DDTHH:MM:SS format
+    if let Ok(dt) = chrono::NaiveDateTime::parse_from_str(s, "%Y-%m-%dT%H:%M:%S") {
+        return Some(dt.and_utc().timestamp());
+    }
+    // Try YYYY-MM-DD format
+    if let Ok(d) = chrono::NaiveDate::parse_from_str(s, "%Y-%m-%d") {
+        return Some(d.and_hms_opt(0, 0, 0)?.and_utc().timestamp());
+    }
+    None
+}
+
+/// Get the filesystem modification timestamp for a package (best effort)
+fn get_package_timestamp(package: &Arc<Package>) -> i64 {
+    // If the package has a timestamp field, use it
+    if let Some(ts) = package.timestamp {
+        return ts;
+    }
+    // Fall back to 0 (epoch) when unknown
+    0
 }
 
 /// Evaluate if a package matches the search criteria
@@ -532,9 +647,60 @@ mod tests {
             format: "table".to_string(),
             sort: "name".to_string(),
             verbose: false,
+            newer_than: None,
+            older_than: None,
+            search_type: "package".to_string(),
+            has_variant: None,
         };
 
         assert_eq!(args.query, "python");
         assert_eq!(args.limit, 50);
+    }
+
+    #[test]
+    fn test_search_type_variant_field() {
+        let args = SearchArgs {
+            query: "".to_string(),
+            repository: vec![],
+            description: false,
+            tools: false,
+            requirements: false,
+            case_sensitive: false,
+            regex: false,
+            latest_only: false,
+            limit: 10,
+            format: "table".to_string(),
+            sort: "name".to_string(),
+            verbose: false,
+            newer_than: None,
+            older_than: None,
+            search_type: "variant".to_string(),
+            has_variant: Some("python-3.9".to_string()),
+        };
+        assert_eq!(args.search_type, "variant");
+        assert_eq!(args.has_variant.as_deref(), Some("python-3.9"));
+    }
+
+    #[test]
+    fn test_search_type_family_field() {
+        let args = SearchArgs {
+            query: "py".to_string(),
+            repository: vec![],
+            description: false,
+            tools: false,
+            requirements: false,
+            case_sensitive: false,
+            regex: false,
+            latest_only: false,
+            limit: 10,
+            format: "table".to_string(),
+            sort: "name".to_string(),
+            verbose: false,
+            newer_than: None,
+            older_than: None,
+            search_type: "family".to_string(),
+            has_variant: None,
+        };
+        assert_eq!(args.search_type, "family");
     }
 }
