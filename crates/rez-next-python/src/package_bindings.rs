@@ -148,6 +148,15 @@ impl PyPackage {
         self.0.relocatable
     }
 
+    /// Set the version string (rez compat helper)
+    fn set_version(&mut self, version_str: &str) -> PyResult<()> {
+        use rez_next_version::Version;
+        let v = Version::parse(version_str)
+            .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))?;
+        self.0.version = Some(v);
+        Ok(())
+    }
+
     /// Load a package from file (package.py or package.yaml)
     #[staticmethod]
     fn load(path: &str) -> PyResult<PyPackage> {
@@ -218,9 +227,15 @@ impl PyPackageRequirement {
         self.0.name.clone()
     }
 
-    /// Version specification string
+    /// Version specification string (rez compat: .range)
     #[getter]
     fn range(&self) -> Option<String> {
+        self.0.version_spec.clone()
+    }
+
+    /// Version specification string (rez compat alias: .version_range)
+    #[getter]
+    fn version_range(&self) -> Option<String> {
         self.0.version_spec.clone()
     }
 
