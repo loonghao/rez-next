@@ -20,6 +20,8 @@ mod plugins_bindings;
 mod env_bindings;
 mod forward_bindings;
 mod release_bindings;
+mod source_bindings;
+mod data_bindings;
 
 use version_bindings::{PyVersion, PyVersionRange};
 use package_bindings::{PyPackage, PyPackageRequirement};
@@ -35,6 +37,8 @@ use plugins_bindings::{PyPlugin, PyRezPluginManager};
 use env_bindings::{PyRezEnv, PyPackageFamily};
 use forward_bindings::PyRezForward;
 use release_bindings::{PyReleaseManager, PyReleaseResult};
+use source_bindings::PySourceManager;
+use data_bindings::PyRezData;
 
 /// Main Python module `rez_next` — drop-in replacement for `rez`
 #[pymodule(name = "rez_next")]
@@ -84,6 +88,12 @@ fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyRezForward>()?;
     m.add_class::<PyReleaseManager>()?;
     m.add_class::<PyReleaseResult>()?;
+
+    // Source activation manager
+    m.add_class::<PySourceManager>()?;
+
+    // Data resources manager
+    m.add_class::<PyRezData>()?;
 
     // Top-level convenience functions (matching rez's public API)
     m.add_function(wrap_pyfunction!(get_latest_package, m)?)?;
@@ -265,6 +275,28 @@ fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_submodule(&release_mod)?;
     // Top-level release function
     m.add_function(wrap_pyfunction!(release_bindings::release_package, m)?)?;
+
+    // Submodule: rez.source (context activation script writing)
+    let source_mod = PyModule::new(m.py(), "source")?;
+    source_mod.add_class::<PySourceManager>()?;
+    source_mod.add_function(wrap_pyfunction!(source_bindings::write_source_script, &source_mod)?)?;
+    source_mod.add_function(wrap_pyfunction!(source_bindings::get_source_script, &source_mod)?)?;
+    source_mod.add_function(wrap_pyfunction!(source_bindings::detect_shell, &source_mod)?)?;
+    m.add_submodule(&source_mod)?;
+    // Top-level source helpers
+    m.add_function(wrap_pyfunction!(source_bindings::write_source_script, m)?)?;
+    m.add_function(wrap_pyfunction!(source_bindings::get_source_script, m)?)?;
+    m.add_function(wrap_pyfunction!(source_bindings::detect_shell, m)?)?;
+
+    // Submodule: rez.data (built-in data resources: completions, examples, config templates)
+    let data_mod = PyModule::new(m.py(), "data")?;
+    data_mod.add_class::<PyRezData>()?;
+    data_mod.add_function(wrap_pyfunction!(data_bindings::get_data_resource, &data_mod)?)?;
+    data_mod.add_function(wrap_pyfunction!(data_bindings::list_data_resources, &data_mod)?)?;
+    data_mod.add_function(wrap_pyfunction!(data_bindings::get_completion_script, &data_mod)?)?;
+    // data singleton instance
+    data_mod.add("data", PyRezData::new())?;
+    m.add_submodule(&data_mod)?;
 
     Ok(())
 }
