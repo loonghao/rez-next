@@ -84,6 +84,16 @@ fn generate_bash_script(env: &RexEnvironment) -> String {
         }
     }
 
+    // Info messages (as comments in generated script)
+    if !env.info_messages.is_empty() {
+        lines.push(String::new());
+        lines.push("# Info messages".to_string());
+        for msg in &env.info_messages {
+            let escaped = msg.replace('\'', "'\\''");
+            lines.push(format!("# [info] {}", escaped));
+        }
+    }
+
     lines.join("\n")
 }
 

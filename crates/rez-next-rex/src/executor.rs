@@ -115,6 +115,15 @@ impl RexExecutor {
             RexActionType::Source { path } => RexActionType::Source {
                 path: expand(&path),
             },
+            RexActionType::Info { message } => RexActionType::Info {
+                message: expand(&message),
+            },
+            RexActionType::Error { message } => RexActionType::Error {
+                message: expand(&message),
+            },
+            RexActionType::Stop { message } => RexActionType::Stop {
+                message: message.map(|m| expand(&m)),
+            },
             other => other,
         };
 

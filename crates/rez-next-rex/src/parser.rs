@@ -26,6 +26,14 @@ pub struct RexParser {
     command_re: Regex,
     /// Regex for `source("path/to/script.sh")`
     source_re: Regex,
+    /// Regex for `resetenv("VAR")` or `env.resetenv("VAR")`
+    resetenv_re: Regex,
+    /// Regex for `info("message")`
+    info_re: Regex,
+    /// Regex for `error("message")`
+    error_re: Regex,
+    /// Regex for `stop()` or `stop("message")`
+    stop_re: Regex,
 }
 
 impl RexParser {
@@ -70,6 +78,22 @@ impl RexParser {
             // source('path') or source("path")
             source_re: Regex::new(
                 r#"source\s*\(\s*['"]([^'"]*)['"]\s*\)"#
+            ).unwrap(),
+            // resetenv('VAR') or env.resetenv('VAR')
+            resetenv_re: Regex::new(
+                r#"(?:env\.)?resetenv\s*\(\s*['"]([^'"]+)['"]\s*\)"#
+            ).unwrap(),
+            // info('message') or info("message")
+            info_re: Regex::new(
+                r#"^info\s*\(\s*['"]([^'"]*)['"]\s*\)"#
+            ).unwrap(),
+            // error('message') or error("message")
+            error_re: Regex::new(
+                r#"^error\s*\(\s*['"]([^'"]*)['"]\s*\)"#
+            ).unwrap(),
+            // stop() or stop('message') or stop("message")
+            stop_re: Regex::new(
+                r#"^stop\s*\(\s*(?:['"]([^'"]*)['"]\s*)?\)"#
             ).unwrap(),
         }
     }
@@ -155,6 +179,34 @@ impl RexParser {
                 actions.push(RexAction {
                     action_type: RexActionType::Source {
                         path: caps[1].to_string(),
+                    },
+                    source_package: None,
+                });
+            } else if let Some(caps) = self.resetenv_re.captures(line) {
+                actions.push(RexAction {
+                    action_type: RexActionType::Resetenv {
+                        name: caps[1].to_string(),
+                    },
+                    source_package: None,
+                });
+            } else if let Some(caps) = self.info_re.captures(line) {
+                actions.push(RexAction {
+                    action_type: RexActionType::Info {
+                        message: caps[1].to_string(),
+                    },
+                    source_package: None,
+                });
+            } else if let Some(caps) = self.error_re.captures(line) {
+                actions.push(RexAction {
+                    action_type: RexActionType::Error {
+                        message: caps[1].to_string(),
+                    },
+                    source_package: None,
+                });
+            } else if let Some(caps) = self.stop_re.captures(line) {
+                actions.push(RexAction {
+                    action_type: RexActionType::Stop {
+                        message: caps.get(1).map(|m| m.as_str().to_string()),
                     },
                     source_package: None,
                 });
@@ -409,6 +461,117 @@ env.prepend_path('PATH', '{root}/bin')
         ).unwrap();
         assert_eq!(env.sourced_scripts.len(), 1);
         assert_eq!(env.sourced_scripts[0], "/opt/mypkg/1.0/etc/setup.sh");
+    }
+
+    // ── resetenv / info / error / stop ─────────────────────────────────────
+
+    #[test]
+    fn test_parse_resetenv_bare() {
+        let parser = RexParser::new();
+        let actions = parser.parse(r#"resetenv('PATH')"#).unwrap();
+        assert_eq!(actions.len(), 1);
+        match &actions[0].action_type {
+            RexActionType::Resetenv { name } => assert_eq!(name, "PATH"),
+            other => panic!("Expected Resetenv, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_parse_resetenv_env_dotted() {
+        let parser = RexParser::new();
+        let actions = parser.parse(r#"env.resetenv("MY_VAR")"#).unwrap();
+        assert_eq!(actions.len(), 1);
+        assert!(matches!(&actions[0].action_type, RexActionType::Resetenv { .. }));
+    }
+
+    #[test]
+    fn test_resetenv_removes_var_from_env() {
+        use crate::executor::RexExecutor;
+        let mut exec = RexExecutor::new();
+        exec.execute_commands(r#"env.setenv('LEGACY', 'old')"#, "pkg", None, None).unwrap();
+        let env = exec.execute_commands(r#"resetenv('LEGACY')"#, "pkg", None, None).unwrap();
+        assert!(!env.vars.contains_key("LEGACY"), "resetenv should remove the var");
+    }
+
+    #[test]
+    fn test_parse_info_message() {
+        let parser = RexParser::new();
+        let actions = parser.parse(r#"info("package activated")"#).unwrap();
+        assert_eq!(actions.len(), 1);
+        match &actions[0].action_type {
+            RexActionType::Info { message } => assert_eq!(message, "package activated"),
+            other => panic!("Expected Info, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_info_message_recorded_in_env() {
+        use crate::executor::RexExecutor;
+        let mut exec = RexExecutor::new();
+        let env = exec.execute_commands(
+            r#"info("myapp 1.0 loaded")"#,
+            "myapp",
+            None,
+            None,
+        ).unwrap();
+        assert_eq!(env.info_messages.len(), 1);
+        assert_eq!(env.info_messages[0], "myapp 1.0 loaded");
+    }
+
+    #[test]
+    fn test_parse_error_message() {
+        let parser = RexParser::new();
+        let actions = parser.parse(r#"error("missing dependency")"#).unwrap();
+        assert_eq!(actions.len(), 1);
+        match &actions[0].action_type {
+            RexActionType::Error { message } => assert_eq!(message, "missing dependency"),
+            other => panic!("Expected Error, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_parse_stop_no_message() {
+        let parser = RexParser::new();
+        let actions = parser.parse(r#"stop()"#).unwrap();
+        assert_eq!(actions.len(), 1);
+        match &actions[0].action_type {
+            RexActionType::Stop { message } => assert!(message.is_none()),
+            other => panic!("Expected Stop, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_parse_stop_with_message() {
+        let parser = RexParser::new();
+        let actions = parser.parse(r#"stop("build failed")"#).unwrap();
+        assert_eq!(actions.len(), 1);
+        match &actions[0].action_type {
+            RexActionType::Stop { message } => assert_eq!(message.as_deref(), Some("build failed")),
+            other => panic!("Expected Stop, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_stop_sets_stopped_flag() {
+        use crate::executor::RexExecutor;
+        let mut exec = RexExecutor::new();
+        let env = exec.execute_commands(r#"stop("abort")"#, "mypkg", None, None).unwrap();
+        assert!(env.stopped, "stop() should set stopped=true");
+        assert_eq!(env.stop_message.as_deref(), Some("abort"));
+    }
+
+    #[test]
+    fn test_info_with_root_expansion() {
+        use crate::executor::RexExecutor;
+        let mut exec = RexExecutor::new();
+        let env = exec.execute_commands(
+            r#"info("root is {root}")"#,
+            "mypkg",
+            Some("/opt/mypkg/2.0"),
+            None,
+        ).unwrap();
+        assert_eq!(env.info_messages.len(), 1);
+        assert_eq!(env.info_messages[0], "root is /opt/mypkg/2.0");
     }
 }
 

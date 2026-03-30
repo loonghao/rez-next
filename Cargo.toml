@@ -90,6 +90,8 @@ rez-next-rex = { version = "0.1.0", path = "crates/rez-next-rex" }
 # rez-core-python = { path = "crates/rez-core-python" }  # Temporarily disabled due to DLL issues
 
 # Python bindings - temporarily disabled
+
+
 # pyo3 = { workspace = true, optional = true }
 
 # CLI dependencies
@@ -131,6 +133,10 @@ harness = false
 
 [[bench]]
 name = "simple_package_benchmark"
+harness = false
+
+[[bench]]
+name = "rex_benchmark"
 harness = false
 
 # Temporarily disabled benchmarks due to API changes

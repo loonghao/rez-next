@@ -57,6 +57,22 @@ pub enum RexActionType {
     Comment {
         text: String,
     },
+    /// Reset an environment variable to its original (pre-context) value
+    Resetenv {
+        name: String,
+    },
+    /// Informational message (rez info() - no env effect)
+    Info {
+        message: String,
+    },
+    /// Error message (rez error() - raises on non-strict mode)
+    Error {
+        message: String,
+    },
+    /// Stop execution of commands (rez stop())
+    Stop {
+        message: Option<String>,
+    },
 }
 
 impl RexAction {

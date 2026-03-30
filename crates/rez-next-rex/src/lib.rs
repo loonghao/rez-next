@@ -40,6 +40,12 @@ pub struct RexEnvironment {
     pub startup_commands: Vec<String>,
     /// Scripts sourced during environment setup
     pub sourced_scripts: Vec<String>,
+    /// Info messages emitted by info() calls
+    pub info_messages: Vec<String>,
+    /// Whether a stop() was encountered
+    pub stopped: bool,
+    /// Stop message if any
+    pub stop_message: Option<String>,
 }
 
 impl RexEnvironment {
@@ -97,6 +103,21 @@ impl RexEnvironment {
                 self.sourced_scripts.push(path.clone());
             }
             RexActionType::Comment { .. } => {} // Ignore comments
+            RexActionType::Resetenv { name } => {
+                // Reset to empty (original value restoration requires process env snapshot)
+                self.vars.remove(name);
+            }
+            RexActionType::Info { message } => {
+                self.info_messages.push(message.clone());
+            }
+            RexActionType::Error { message } => {
+                // In non-strict mode, record as info message
+                self.info_messages.push(format!("[error] {}", message));
+            }
+            RexActionType::Stop { message } => {
+                self.stopped = true;
+                self.stop_message = message.clone();
+            }
         }
     }
 
