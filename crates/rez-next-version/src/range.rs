@@ -194,6 +194,7 @@ impl VersionRange {
                 }
             }
         }
+
         if result_sets.is_empty() {
             return None;
         }
@@ -211,6 +212,7 @@ impl VersionRange {
 
 
     /// Compute the union of two ranges (pipe-separated)
+
     pub fn union(&self, other: &VersionRange) -> VersionRange {
         let new_str = format!("{}|{}", self.range_str, other.range_str);
         let mut sets = self.bound_sets.clone();
@@ -699,6 +701,7 @@ fn is_bound_set_satisfiable(bs: &BoundSet) -> bool {
 
     true
 }
+
 
 /// Check if two BoundSets can simultaneously be satisfied (have intersection)
 fn bound_sets_intersect(a: &BoundSet, b: &BoundSet) -> bool {

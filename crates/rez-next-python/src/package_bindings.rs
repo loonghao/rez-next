@@ -157,6 +157,7 @@ impl PyPackage {
         Ok(())
     }
 
+
     /// Load a package from file (package.py or package.yaml)
     #[staticmethod]
     fn load(path: &str) -> PyResult<PyPackage> {
@@ -238,6 +239,7 @@ impl PyPackageRequirement {
     fn version_range(&self) -> Option<String> {
         self.0.version_spec.clone()
     }
+
 
     /// Whether this is a weak requirement
     #[getter]

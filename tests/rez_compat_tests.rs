@@ -477,6 +477,7 @@ fn test_rez_version_range_lt_syntax() {
 
 // ─── Additional rez official behavior tests ─────────────────────────────────
 
+
 /// rez semantics: version with more tokens is "smaller" (epoch semantics)
 /// 1.0 > 1.0.0 > 1.0.0.0
 #[test]
@@ -811,3 +812,4 @@ fn test_shell_scripts_all_shells() {
         );
     }
 }
+
