@@ -181,13 +181,17 @@ impl VersionRange {
             return Some(self.clone());
         }
         // Merge all bound sets with AND semantics
+        // Only include merged sets that are satisfiable (not trivially empty)
         let mut result_sets = Vec::new();
         for bs_self in &self.bound_sets {
             for bs_other in &other.bound_sets {
                 let mut merged = bs_self.bounds.clone();
                 merged.extend(bs_other.bounds.clone());
                 let merged_set = BoundSet { bounds: merged };
-                result_sets.push(merged_set);
+                // Only include if this merged set is satisfiable
+                if is_bound_set_satisfiable(&merged_set) {
+                    result_sets.push(merged_set);
+                }
             }
         }
         if result_sets.is_empty() {
@@ -203,6 +207,8 @@ impl VersionRange {
             subtract_from: combined_subtracts,
         })
     }
+
+
 
     /// Compute the union of two ranges (pipe-separated)
     pub fn union(&self, other: &VersionRange) -> VersionRange {
@@ -594,6 +600,104 @@ fn negate_bound_set(bs: &BoundSet) -> BoundSet {
         })
         .collect();
     BoundSet { bounds: negated }
+}
+
+/// Check if a single BoundSet is satisfiable (not trivially empty due to conflicting bounds)
+fn is_bound_set_satisfiable(bs: &BoundSet) -> bool {
+    // Check for None bounds
+    if bs.bounds.iter().any(|b| matches!(b, Bound::None)) {
+        return false;
+    }
+    // Extract lower and upper bounds to check for contradiction
+    let mut lower: Option<(&Version, bool)> = None; // (version, inclusive)
+    let mut upper: Option<(&Version, bool)> = None; // (version, inclusive)
+
+    for bound in &bs.bounds {
+        match bound {
+            Bound::Any => {}
+            Bound::None => return false,
+            Bound::Ge(v) => {
+                match lower {
+                    None => lower = Some((v, true)),
+                    Some((lv, linc)) => {
+                        if v > lv || (v == lv && !linc) {
+                            lower = Some((v, true));
+                        }
+                    }
+                }
+            }
+            Bound::Gt(v) => {
+                match lower {
+                    None => lower = Some((v, false)),
+                    Some((lv, _)) => {
+                        if v >= lv {
+                            lower = Some((v, false));
+                        }
+                    }
+                }
+            }
+            Bound::Le(v) => {
+                match upper {
+                    None => upper = Some((v, true)),
+                    Some((uv, uinc)) => {
+                        if v < uv || (v == uv && !uinc) {
+                            upper = Some((v, true));
+                        }
+                    }
+                }
+            }
+            Bound::Lt(v) => {
+                match upper {
+                    None => upper = Some((v, false)),
+                    Some((uv, _)) => {
+                        if v <= uv {
+                            upper = Some((v, false));
+                        }
+                    }
+                }
+            }
+            Bound::Eq(v) => {
+                // Equality constraint acts as both lower and upper bound
+                match lower {
+                    None => lower = Some((v, true)),
+                    Some((lv, linc)) => {
+                        if v > lv || (v == lv && !linc) {
+                            lower = Some((v, true));
+                        } else if v < lv {
+                            // v must be >= lv but eq requires v exactly — contradiction
+                            return false;
+                        }
+                    }
+                }
+                match upper {
+                    None => upper = Some((v, true)),
+                    Some((uv, uinc)) => {
+                        if v < uv || (v == uv && !uinc) {
+                            upper = Some((v, true));
+                        } else if v > uv {
+                            return false;
+                        }
+                    }
+                }
+            }
+            Bound::Ne(_) | Bound::Compatible(_) => {}
+        }
+    }
+
+    // Check if lower and upper bounds are compatible
+    if let (Some((lv, linc)), Some((uv, uinc))) = (lower, upper) {
+        match lv.cmp(uv) {
+            std::cmp::Ordering::Greater => return false,
+            std::cmp::Ordering::Equal => {
+                if !linc || !uinc {
+                    return false;
+                }
+            }
+            std::cmp::Ordering::Less => {}
+        }
+    }
+
+    true
 }
 
 /// Check if two BoundSets can simultaneously be satisfied (have intersection)

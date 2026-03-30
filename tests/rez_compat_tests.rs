@@ -693,28 +693,19 @@ fn test_rez_version_range_subtract() {
     assert!(!diff.contains(&Version::parse("2.5").unwrap()), "diff should not contain 2.5");
 }
 
-/// rez: version range intersection with disjoint ranges
-/// NOTE: rez-next currently returns a non-empty result for disjoint ranges.
-/// This is a known issue tracked for future fix. The test documents current behavior.
+/// rez: version range intersection with disjoint ranges returns None (Bug fix in rez-next)
 #[test]
 fn test_rez_version_range_disjoint_intersection() {
     let r1 = VersionRange::parse(">=1.0,<1.5").unwrap();
     let r2 = VersionRange::parse(">=2.0").unwrap();
 
-    // r1 and r2 are disjoint. The intersection is computed.
-    // Current behavior: intersect() may return Some(range) even for disjoint sets.
-    // We at least verify that the result does not contain versions that belong to neither range.
     let intersection = r1.intersect(&r2);
-    if let Some(ref inter) = intersection {
-        if !inter.is_empty() {
-            // If a non-empty intersection is returned for disjoint ranges,
-            // it should at minimum not contain versions outside both ranges
-            let v_outside = Version::parse("0.5").unwrap();
-            // This is documenting behavior, not asserting correctness
-            let _ = inter.contains(&v_outside);
-        }
-    }
-    // Test always passes - documents current behavior
+    // Disjoint ranges should give None (no satisfiable intersection)
+    assert!(
+        intersection.is_none(),
+        "Disjoint ranges should return None for intersect(), got: {:?}",
+        intersection.as_ref().map(|r| r.as_str())
+    );
 }
 
 /// rez: package with no version is valid
