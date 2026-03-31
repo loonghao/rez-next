@@ -6428,6 +6428,387 @@ fn test_astar_remaining_requirements_heuristic_empty_state() {
         "Empty state (no remaining requirements) should have cost 0");
 }
 
+// ── Phase 131: SearchState path reconstruction ───────────────────────────────
+
+/// rez solver: SearchState new_from_parent increments depth correctly
+#[test]
+fn test_search_state_depth_increments() {
+    use rez_next_solver::SearchState;
+    use rez_next_package::PackageRequirement;
+    use rez_next_package::Package;
+
+    let initial = SearchState::new_initial(vec![
+        PackageRequirement::parse("python-3.9").unwrap(),
+    ]);
+    assert_eq!(initial.depth, 0, "Initial state should have depth 0");
+    assert!(initial.parent_id.is_none(), "Initial state has no parent");
+
+    let mut python = Package::new("python".to_string());
+    python.version = Some(rez_core::version::Version::parse("3.9.0").unwrap());
+    let child = SearchState::new_from_parent(&initial, python, vec![], 1.0);
+    assert_eq!(child.depth, 1, "Child state depth should be 1");
+    assert_eq!(child.parent_id, Some(initial.state_id), "Child should point to parent");
+    assert!((child.cost_so_far - 1.0).abs() < 1e-10, "Cost should accumulate");
+}
+
+/// rez solver: SearchState new_from_parent adds resolved package
+#[test]
+fn test_search_state_adds_resolved_package() {
+    use rez_next_solver::SearchState;
+    use rez_next_package::{Package, PackageRequirement};
+
+    let initial = SearchState::new_initial(vec![
+        PackageRequirement::parse("maya-2023").unwrap(),
+    ]);
+
+    let mut maya = Package::new("maya".to_string());
+    maya.version = Some(rez_core::version::Version::parse("2023.0").unwrap());
+    let child = SearchState::new_from_parent(&initial, maya, vec![], 1.5);
+    assert!(child.resolved_packages.contains_key("maya"),
+        "Child should have maya in resolved_packages");
+}
+
+/// rez solver: SearchState cost accumulates across multiple parents
+#[test]
+fn test_search_state_cost_accumulation() {
+    use rez_next_solver::SearchState;
+    use rez_next_package::Package;
+
+    let s0 = SearchState::new_initial(vec![]);
+    let mut pkg_a = Package::new("pkg_a".to_string());
+    pkg_a.version = Some(rez_core::version::Version::parse("1.0").unwrap());
+    let s1 = SearchState::new_from_parent(&s0, pkg_a, vec![], 2.0);
+
+    let mut pkg_b = Package::new("pkg_b".to_string());
+    pkg_b.version = Some(rez_core::version::Version::parse("2.0").unwrap());
+    let s2 = SearchState::new_from_parent(&s1, pkg_b, vec![], 3.0);
+
+    assert!((s2.cost_so_far - 5.0).abs() < 1e-10,
+        "Total cost should be 2.0+3.0=5.0, got {}", s2.cost_so_far);
+    assert_eq!(s2.depth, 2);
+}
+
+/// rez solver: SearchState new_requirements extend pending list
+#[test]
+fn test_search_state_new_requirements_extend_pending() {
+    use rez_next_solver::SearchState;
+    use rez_next_package::{Package, PackageRequirement};
+
+    let initial = SearchState::new_initial(vec![
+        PackageRequirement::parse("python-3.9").unwrap(),
+    ]);
+    let mut pkg = Package::new("python".to_string());
+    pkg.version = Some(rez_core::version::Version::parse("3.9.0").unwrap());
+
+    // python resolves and introduces numpy as new dependency
+    let new_reqs = vec![PackageRequirement::parse("numpy-1.24").unwrap()];
+    let child = SearchState::new_from_parent(&initial, pkg, new_reqs, 1.0);
+    // python requirement removed is NOT automatic - parent still has it plus new one
+    // parent had ["python-3.9"] → child pending = ["python-3.9", "numpy-1.24"]
+    assert_eq!(child.pending_requirements.len(), 2,
+        "Child should have parent requirements + new requirements");
+}
+
+// ── Phase 132: SearchState is_goal / is_valid ─────────────────────────────────
+
+/// rez solver: SearchState is_goal true only when no pending requirements and no conflicts
+#[test]
+fn test_search_state_is_goal_empty() {
+    use rez_next_solver::SearchState;
+
+    let state = SearchState::new_initial(vec![]);
+    assert!(state.is_goal(), "Empty initial state should be goal (no pending, no conflicts)");
+}
+
+/// rez solver: SearchState is_goal false when there are pending requirements
+#[test]
+fn test_search_state_is_goal_false_with_pending() {
+    use rez_next_solver::SearchState;
+    use rez_next_package::PackageRequirement;
+
+    let state = SearchState::new_initial(vec![
+        PackageRequirement::parse("python-3.9").unwrap(),
+    ]);
+    assert!(!state.is_goal(), "State with pending requirements should not be goal");
+}
+
+/// rez solver: SearchState is_valid false when MissingPackage conflict exists
+#[test]
+fn test_search_state_is_valid_false_missing_package() {
+    use rez_next_solver::{SearchState, AStarDependencyConflict, AStarConflictType};
+
+    let mut state = SearchState::new_initial(vec![]);
+    let conflict = AStarDependencyConflict::new(
+        "nonexistent_pkg".to_string(),
+        vec![],
+        1.0,
+        AStarConflictType::MissingPackage,
+    );
+    state.add_conflict(conflict);
+    assert!(!state.is_valid(), "State with MissingPackage conflict should be invalid");
+}
+
+/// rez solver: SearchState is_valid false when CircularDependency conflict exists
+#[test]
+fn test_search_state_is_valid_false_circular_dep() {
+    use rez_next_solver::{SearchState, AStarDependencyConflict, AStarConflictType};
+
+    let mut state = SearchState::new_initial(vec![]);
+    let conflict = AStarDependencyConflict::new(
+        "circular_pkg".to_string(),
+        vec!["A requires B requires A".to_string()],
+        0.9,
+        AStarConflictType::CircularDependency,
+    );
+    state.add_conflict(conflict);
+    assert!(!state.is_valid(), "State with CircularDependency should be invalid");
+}
+
+/// rez solver: SearchState is_valid true for VersionConflict (not hard invalid)
+#[test]
+fn test_search_state_is_valid_true_version_conflict() {
+    use rez_next_solver::{SearchState, AStarDependencyConflict, AStarConflictType};
+
+    let mut state = SearchState::new_initial(vec![]);
+    let conflict = AStarDependencyConflict::new(
+        "python".to_string(),
+        vec![">=3.9".to_string(), "<3.8".to_string()],
+        0.5,
+        AStarConflictType::VersionConflict,
+    );
+    state.add_conflict(conflict);
+    // VersionConflict does not make state hard-invalid
+    assert!(state.is_valid(), "VersionConflict alone should not make state invalid");
+    // But is_goal is false (there are conflicts)
+    assert!(!state.is_goal(), "State with conflicts is not a goal");
+}
+
+// ── Phase 133: ResolutionResult API ──────────────────────────────────────────
+
+/// rez solver: ResolutionResult package lookup by name
+#[test]
+fn test_resolution_result_get_package() {
+    use rez_next_solver::resolution::ResolutionResult;
+    use rez_next_package::Package;
+
+    let mut python = Package::new("python".to_string());
+    python.version = Some(rez_core::version::Version::parse("3.9.0").unwrap());
+    let mut maya = Package::new("maya".to_string());
+    maya.version = Some(rez_core::version::Version::parse("2023.0").unwrap());
+
+    let result = ResolutionResult::new(vec![python, maya]);
+    assert_eq!(result.package_count(), 2);
+    assert!(result.get_package("python").is_some());
+    assert!(result.get_package("houdini").is_none());
+    assert!(result.contains_package("maya"));
+    assert!(!result.contains_package("nuke"));
+}
+
+/// rez solver: ResolutionResult get_package_names returns all names
+#[test]
+fn test_resolution_result_package_names() {
+    use rez_next_solver::resolution::ResolutionResult;
+    use rez_next_package::Package;
+
+    let pkgs: Vec<Package> = ["houdini", "nuke", "ocio"]
+        .iter()
+        .map(|n| Package::new(n.to_string()))
+        .collect();
+    let result = ResolutionResult::new(pkgs);
+    let names = result.get_package_names();
+    assert!(names.contains(&"houdini".to_string()));
+    assert!(names.contains(&"nuke".to_string()));
+    assert!(names.contains(&"ocio".to_string()));
+    assert_eq!(names.len(), 3);
+}
+
+/// rez solver: ResolutionResult with_metadata stores metadata
+#[test]
+fn test_resolution_result_metadata() {
+    use rez_next_solver::resolution::ResolutionResult;
+
+    let result = ResolutionResult::new(vec![])
+        .with_metadata("solver_type".to_string(), "astar".to_string())
+        .with_metadata("iterations".to_string(), "42".to_string());
+
+    assert_eq!(result.metadata.get("solver_type"), Some(&"astar".to_string()));
+    assert_eq!(result.metadata.get("iterations"), Some(&"42".to_string()));
+}
+
+/// rez solver: ResolutionResult with_conflicts_resolved sets flags correctly
+#[test]
+fn test_resolution_result_conflicts_resolved_flag() {
+    use rez_next_solver::resolution::ResolutionResult;
+    use rez_next_package::Package;
+
+    let no_conflict = ResolutionResult::new(vec![]);
+    assert!(!no_conflict.conflicts_resolved, "Default should have conflicts_resolved=false");
+
+    let with_resolved = ResolutionResult::with_conflicts_resolved(vec![], 123);
+    assert!(with_resolved.conflicts_resolved, "with_conflicts_resolved should be true");
+    assert_eq!(with_resolved.resolution_time_ms, 123);
+}
+
+// ── Phase 134: CacheConfig + CacheStats (rez-next-repository) ────────────────
+
+/// rez repository: CacheConfig defaults are production-ready
+#[test]
+fn test_repository_cache_config_defaults() {
+    use rez_next_repository::CacheConfig;
+
+    let cfg = CacheConfig::default();
+    assert!(cfg.default_ttl > 0, "Default TTL should be positive");
+    assert!(cfg.max_size_bytes > 0, "Max size should be positive");
+    assert!(cfg.max_entries > 0, "Max entries should be positive");
+    assert!(cfg.cleanup_interval > 0, "Cleanup interval should be positive");
+    // Default cache dir should be set
+    assert!(!cfg.cache_dir.as_os_str().is_empty(), "Cache dir should not be empty");
+}
+
+/// rez repository: CacheStats default is all zeros
+#[test]
+fn test_repository_cache_stats_defaults() {
+    use rez_next_repository::CacheStats;
+
+    let stats = CacheStats::default();
+    assert_eq!(stats.hits, 0);
+    assert_eq!(stats.misses, 0);
+    assert_eq!(stats.entries, 0);
+    assert_eq!(stats.size_bytes, 0);
+    assert!(stats.last_cleanup.is_none());
+}
+
+/// rez repository: CacheStats hit_rate calculation
+#[test]
+fn test_repository_cache_stats_hit_rate() {
+    use rez_next_repository::CacheStats;
+
+    // 3 hits, 1 miss → 75% hit rate
+    let stats = CacheStats {
+        hits: 3,
+        misses: 1,
+        entries: 0,
+        size_bytes: 0,
+        last_cleanup: None,
+    };
+    // CacheStats doesn't have a hit_rate() method, verify fields directly
+    let total = stats.hits + stats.misses;
+    assert_eq!(total, 4);
+    let rate = stats.hits as f64 / total as f64;
+    assert!((rate - 0.75).abs() < 1e-10, "Hit rate should be 0.75");
+}
+
+/// rez repository: CacheConfig compression flag
+#[test]
+fn test_repository_cache_config_compression_default() {
+    use rez_next_repository::CacheConfig;
+
+    let cfg = CacheConfig::default();
+    // Compression is enabled by default
+    assert!(cfg.enable_compression, "Compression should be enabled by default");
+}
+
+// ── Phase 135: RepositoryMetadata + RepositoryType ───────────────────────────
+
+/// rez repository: RepositoryType variants are distinct and comparable
+#[test]
+fn test_repository_type_variants() {
+    use rez_next_repository::RepositoryType;
+
+    assert_eq!(RepositoryType::FileSystem, RepositoryType::FileSystem);
+    assert_eq!(RepositoryType::Memory, RepositoryType::Memory);
+    assert_ne!(RepositoryType::FileSystem, RepositoryType::Memory);
+    assert_ne!(RepositoryType::Memory, RepositoryType::Remote);
+}
+
+/// rez repository: RepositoryMetadata fields are accessible
+#[test]
+fn test_repository_metadata_fields() {
+    use rez_next_repository::{RepositoryMetadata, RepositoryType};
+    use std::collections::HashMap;
+    use std::path::PathBuf;
+
+    let meta = RepositoryMetadata {
+        name: "local_packages".to_string(),
+        path: PathBuf::from("/opt/rez/packages"),
+        repository_type: RepositoryType::FileSystem,
+        priority: 10,
+        read_only: false,
+        description: Some("Primary package repository".to_string()),
+        config: HashMap::new(),
+    };
+
+    assert_eq!(meta.name, "local_packages");
+    assert_eq!(meta.priority, 10);
+    assert!(!meta.read_only);
+    assert_eq!(meta.repository_type, RepositoryType::FileSystem);
+    assert!(meta.description.is_some());
+}
+
+/// rez repository: RepositoryMetadata read_only flag works
+#[test]
+fn test_repository_metadata_read_only() {
+    use rez_next_repository::{RepositoryMetadata, RepositoryType};
+    use std::collections::HashMap;
+    use std::path::PathBuf;
+
+    let ro_repo = RepositoryMetadata {
+        name: "shared_packages".to_string(),
+        path: PathBuf::from("/shared/rez/packages"),
+        repository_type: RepositoryType::FileSystem,
+        priority: 5,
+        read_only: true,
+        description: None,
+        config: HashMap::new(),
+    };
+
+    assert!(ro_repo.read_only, "Repository should be read-only");
+    assert!(ro_repo.description.is_none());
+}
+
+/// rez repository: RepositoryMetadata priority ordering
+#[test]
+fn test_repository_metadata_priority_ordering() {
+    use rez_next_repository::{RepositoryMetadata, RepositoryType};
+    use std::collections::HashMap;
+    use std::path::PathBuf;
+
+    let high_priority = RepositoryMetadata {
+        name: "studio_packages".to_string(),
+        path: PathBuf::from("/studio/packages"),
+        repository_type: RepositoryType::FileSystem,
+        priority: 100,
+        read_only: false,
+        description: None,
+        config: HashMap::new(),
+    };
+    let low_priority = RepositoryMetadata {
+        name: "default_packages".to_string(),
+        path: PathBuf::from("/default/packages"),
+        repository_type: RepositoryType::FileSystem,
+        priority: 1,
+        read_only: true,
+        description: None,
+        config: HashMap::new(),
+    };
+
+    assert!(high_priority.priority > low_priority.priority,
+        "Studio packages should have higher priority");
+}
+
+/// rez repository: PackageSearchCriteria default values
+#[test]
+fn test_package_search_criteria_defaults() {
+    use rez_next_repository::PackageSearchCriteria;
+
+    let criteria = PackageSearchCriteria::default();
+    assert!(criteria.name_pattern.is_none());
+    assert!(criteria.version_requirement.is_none());
+    assert!(criteria.requirements.is_empty());
+    assert!(criteria.limit.is_none());
+    assert!(!criteria.include_prerelease, "Prerelease excluded by default");
+}
+
 
 
 
