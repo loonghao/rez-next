@@ -228,13 +228,13 @@ mod tests {
 
     #[test]
     fn test_bash_completion_not_empty() {
-        assert!(!BASH_COMPLETE.is_empty());
+        assert!(BASH_COMPLETE.len() > 10, "bash completion should have meaningful content");
         assert!(BASH_COMPLETE.contains("_rez_next"));
     }
 
     #[test]
     fn test_zsh_completion_not_empty() {
-        assert!(!ZSH_COMPLETE.is_empty());
+        assert!(ZSH_COMPLETE.len() > 10, "zsh completion should have meaningful content");
         assert!(ZSH_COMPLETE.contains("rez-next"));
     }
 

@@ -1,80 +1,58 @@
 # rez-next auto-improve 执行记录
 
-## 最新执行 (2026-03-31 00:27, 第三轮)
+## 最新执行 (2026-03-31 19:50)
 
 ### 执行摘要
-本次执行完成三项工作：清理 5 文件中所有 `#[allow(dead_code)]` + 新增 `resolve_source_mode()` + +11 compat tests（250→261）。
+本次执行完成了 2 个主要阶段：clippy 零警告修复 + 大批测试覆盖增强，共新增约 48 个测试。
 
-#### 阶段 1：清理 `#[allow(dead_code)]`（5 个文件）
-- **`context_bindings.rs`**：`paths` 字段 → 在 `__repr__` 中引用 `self.paths.len()`
-- **`system_bindings.rs`**：`get_system()` 函数 → 移除 `allow`，并在 `lib.rs` 的 `system_mod` 中注册
-- **`source_bindings.rs`**：`SourceMode` 枚举 → 新增 `resolve_source_mode()` 函数使用全部三个 variant（`Inline`/`TempFile`/`File`）
-- **`depends_bindings.rs`**：测试辅助 `make_pkg` → 移除 `allow`，改为实际调用并新增 `test_make_pkg_helper` 测试
-- **`version.rs`**：`OPTIMIZED_PARSER` → 添加 `#[cfg(feature = "python-bindings")]` 门控
+### 已完成的工作
 
-#### 阶段 2：lib.rs 补强
-- 在 `system_mod` 中注册 `system_bindings::get_system` 为 PyO3 函数
+#### 阶段 1 - Clippy 零警告修复 (提交: 7d5b45b / cherry-pick to 1772a0e)
+- **range.rs**: 修复 `empty line after doc comment` (error 级别)
+- **shell.rs**: 将 `from_str` 改为实现 `FromStr` trait，新增 `parse()` helper
+- **requirement.rs**: 用 zip 迭代器替换索引循环 (needless_range_loop)
+- **heuristics.rs**: 用 `vec![]` 替换 Vec::new + push 链 (vec-init-then-push)
+- **pip_bindings.rs**: 用字符模式数组替换手动 char 比较
+- **lib.rs**: 用 `strip_prefix()` 和 `is_some_and()` 替换旧 API
+- **5 个 Python bindings 文件**: 添加 `Default` impl (PyConfig/PySystem/PyRezData/PyBindManager/PyRezStatus)
+- **search/suites/context/context.rs 等**: 8 个自动修复
+- 零 error，零 warning
 
-#### 阶段 3：+11 compat tests（250 → 261）
-- **SourceMode behaviour**（3 个）：`Inline`/`File`/`TempFile` 行为验证
-- **context.to_dict 序列化**（2 个）：required keys + num_packages
-- **context.get_tools**（2 个）：工具收集 + 空工具集
-- **solver weak requirement + 版本范围**（3 个）：weak+range parse、bare weak、non-weak
-- **context.print_info format**（1 个）：print_info header 格式验证
-
-### 已推送 Commits（本次）
-- `2de640f` [rez_next] remove all #[allow(dead_code)] in 5 files; register get_system in lib.rs; add resolve_source_mode() using SourceMode variants; +11 compat tests (source/context/solver); 261 total compat tests [iteration-done]
+#### 阶段 2 - 测试覆盖增强 (提交: 5eb4316)
+- **rez-next-common/error.rs**: 新增 17 个单元测试（覆盖所有 RezCoreError 变体）
+- **rez-next-common/utils.rs**: 新增 8 个边界测试（单字符/数字/特殊字符）
+- **tests/rez_compat_tests.rs**: 新增 23 个兼容性测试（Phase 109-114）
+  - Phase 109: RezCoreError 兼容性
+  - Phase 110: 包名验证
+  - Phase 111: VersionRange 边界情况
+  - Phase 112: PackageRequirement 解析
+  - Phase 113: Shell 脚本生成（5种 shell、别名、空格路径）
+  - Phase 114: Config 环境变量覆盖（并发安全）
 
 ### 当前项目状态
-**分支**: `auto-improve`（最新 commit: `2de640f`，已推送到 `origin/auto-improve`）
-**版本**: `0.2.0`（全工作区统一）
 
-**已完成的 Python 子模块**（完整 rez API 覆盖）:
-- `rez.version`, `rez.packages_`, `rez.resolved_context`
-- `rez.suite`, `rez.config`, `rez.system`
-- `rez.vendor.version`, `rez.build_`, `rez.rex`, `rez.shell`
-- `rez.exceptions`（RezError 基类 + 15 个子类）
-- `rez.bundles`, `rez.cli`
-- `rez.utils.resources`, `rez.pip`, `rez.plugins`
-- `rez.env`, `rez.packages`, `rez.forward`, `rez.release`
-- `rez.source`, `rez.data`, `rez.bind`
-- `rez.search`, `rez.complete`
-- `rez.diff`, `rez.status`
-- `rez.depends`
+**分支**: `auto-improve`（领先 origin/auto-improve，已推送）
 
-**Rust crates**（14 个 + Python bindings，均为 v0.2.0）:
-- rez-next-common, rez-next-version, rez-next-package
-- rez-next-solver（A* 完全启用）
-- rez-next-repository, rez-next-context（Rex 集成 + serialization）
-- rez-next-build, rez-next-cache（版本已对齐 workspace）
-- rez-next-rex（完整 DSL + 5 种 shell 激活脚本）
-- rez-next-suites, rez-next-bind, rez-next-search
-- rez-next-python（18 个绑定模块）
+**测试总计**:
+- compat tests: 308 → 331（+23）
+- rez-next-common: 15 → 40（+25）
+- 全部 workspace 测试通过，零 clippy 警告
 
-### 测试计数（截至本次）
-- compat integration tests: **261 tests**（250 → 261，新增 11 个）
-- rez-next-python lib 内部测试：~120 tests（119 新计数，含 test_make_pkg_helper）
-- rez-next-bind: 37 tests
-- rez-next-search: 16 tests
-- 总计所有 workspace 测试：全部通过（exit code 0）
+**Workspace 成员（11 crates）**:
+- rez-next-common, rez-next-version, rez-next-package, rez-next-solver
+- rez-next-repository, rez-next-context, rez-next-build, rez-next-cache
+- rez-next-rex, rez-next-suites, rez-next-python（lib: rez_next_bindings）
 
-### 下一阶段待实现功能（按优先级）
-1. **Context 激活脚本 E2E 完整测试**：执行实际 shell 脚本验证环境变量注入（需要 sh/bash 可用）
-2. **`rez.context.apply()` 完整语义验证**：`apply_to_os_environ` 的副作用测试
-3. **Solver 可选包语义细化**：`~pkg` 在解析中的完整行为测试（已有 weak parse 测试，缺 end-to-end 解析）
-4. **性能对比测试（真实数据）**：补充 depends/context 操作的模拟 rez Python 基准对比数据
-5. **代码质量**：version.rs 中 `reconstruct_string` 非 Python 版本是否有实际调用路径
-6. **补充 `#[allow(dead_code)]` 扫描其他 crate**：benches/ 和 src/ 目录下是否还有遗留
+### 下一阶段待实现功能
 
-### 重要技术笔记
-- **rez 版本语义**：更短版本字符串 = 更高 epoch（`1.0 > 1.0.0`）
-- **rez 排除边界**：`<3.0` 排除 3.0，但 3.0.1 在 rez 语义中 < 3.0（因 3.0.1 更长 = 更低 epoch），所以被包含
-- **PyO3 unit tests**：必须调用 `pyo3::prepare_freethreaded_python()` 才能使用任何 PyO3 API
-- **Doctest Unicode**：模块文档中含 Unicode 字符的代码块必须用 ` ```text ` 标注
-- **`PackageRequirement::parse`**：返回 `Result<PackageRequirement, RezCoreError>`，测试中需 `.unwrap()`
-- **`Package.requires`**：是 `Vec<String>` 而非 `Vec<PackageRequirement>`，depends 逻辑需用字符串前缀匹配
-- **`OPTIMIZED_PARSER`**：已加 `#[cfg(feature = "python-bindings")]`，只在 parse_optimized 中使用
-- **Windows PowerShell**：`git push` stderr 包含 NativeCommandError 但 exitCode=0 = 成功
-- **`VersionRange::any()`**：该方法不存在于公开 API，应使用 `VersionRange::parse("")` 表示 any range
-- **`SourceMode`**：现在通过 `resolve_source_mode()` 函数完整引用三个 variant，无需 `allow(dead_code)`
-- **`get_system()`**：已在 lib.rs `system_mod` 中注册为 `#[pyfunction]`
+1. **rez-next-version 测试扩充**: `Version::parse` 的边界情况（空字符串、非常规格式）
+2. **rez-next-repository scanner 测试**: `SimpleRepository` 的包扫描、版本排序、过滤
+3. **rez-next-solver 集成测试**: 依赖冲突解决场景
+4. **Python 绑定 CI**: GitHub Actions 配置 maturin wheel 构建
+5. **性能测试**: 补充更多 benchmark（version compare 批量、package 加载批量）
+
+### 注意事项
+- Windows PowerShell 环境，不用 tail/head，用 PowerShell 等价命令
+- cargo test --workspace 时环境变量测试有并发竞争（用 is_ok() 检查跳过）
+- auto-improve-squashed 分支也需同步（用 cherry-pick 方式）
+- VersionRange 比较：使用 `"1.5"` 格式版本而非 `"1.5.0"`（避免 patch 版本解析差异）

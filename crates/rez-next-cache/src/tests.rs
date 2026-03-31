@@ -13,7 +13,13 @@ mod tests {
 
     #[test]
     fn test_version_info() {
-        assert!(!CACHE_VERSION.is_empty());
+        // CACHE_VERSION is set at compile time via env!("CARGO_PKG_VERSION")
+        // Verify it matches the expected semantic version pattern
+        assert!(
+            CACHE_VERSION.contains('.'),
+            "CACHE_VERSION should be a semver string, got: {}",
+            CACHE_VERSION,
+        );
     }
 
     #[test]

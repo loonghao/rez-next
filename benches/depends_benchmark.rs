@@ -124,7 +124,7 @@ fn bench_build_depends_index(c: &mut Criterion) {
                         for req in &pkg.requires {
                             // Extract package name prefix (take chars up to first non-alpha/digit/underscore)
                             let name_end = req
-                                .find(|c: char| c == '-' || c == '+' || c == '<' || c == '>' || c == '=')
+                                .find(['-', '+', '<', '>', '='])
                                 .unwrap_or(req.len());
                             let pkg_name = &req[..name_end];
                             index

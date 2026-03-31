@@ -571,7 +571,8 @@ mod rxtb_tests {
         let bytes = ContextSerializer::serialize(&ctx, ContextFormat::Binary).unwrap();
         let restored = ContextSerializer::deserialize(&bytes, ContextFormat::Binary).unwrap();
         assert_eq!(restored.resolved_packages.len(), 0);
-        assert!(restored.environment_vars.is_empty() || true, "Restored empty context OK");
+        // Empty context may or may not have environment vars depending on implementation
+        let _ = restored.environment_vars;
     }
 
     /// Binary format produces smaller or equal bytes vs JSON pretty (no forced assertion, just no panic)

@@ -391,7 +391,7 @@ mod tests {
         let packages = vec!["python-3.9".to_string(), "maya-2023".to_string()];
         let bundle_name: String = packages
             .iter()
-            .map(|p| p.replace('-', "_").replace('.', "_"))
+            .map(|p| p.replace(['-', '.'], "_"))
             .collect::<Vec<_>>()
             .join("_");
         assert_eq!(bundle_name, "python_3_9_maya_2023");
@@ -548,7 +548,7 @@ mod tests {
         let packages = vec!["maya-2024.1".to_string()];
         let name: String = packages
             .iter()
-            .map(|p| p.replace('-', "_").replace('.', "_"))
+            .map(|p| p.replace(['-', '.'], "_"))
             .collect::<Vec<_>>()
             .join("_");
         assert_eq!(name, "maya_2024_1");

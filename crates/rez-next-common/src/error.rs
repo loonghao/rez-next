@@ -181,7 +181,12 @@ mod tests {
     #[test]
     fn test_rez_core_result_ok() {
         let result: RezCoreResult<i32> = Ok(42);
-        assert_eq!(result.unwrap(), 42);
+        assert!(result.is_ok());
+        let val = match result {
+            Ok(v) => v,
+            Err(_) => unreachable!("result should be Ok"),
+        };
+        assert_eq!(val, 42);
     }
 
     #[test]

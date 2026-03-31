@@ -318,7 +318,6 @@ mod tests {
             force: false,
             search_path: false,
             extra_metadata: vec![("authors".to_string(), "['system']".to_string())],
-            ..Default::default()
         };
 
         let result = binder.bind("git", &opts).unwrap();

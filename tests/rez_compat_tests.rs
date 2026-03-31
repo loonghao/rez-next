@@ -17,7 +17,7 @@ use std::collections::HashMap;
 fn test_rez_version_numeric() {
     let versions = ["1", "1.2", "1.2.3", "1.2.3.4"];
     for v in &versions {
-        let parsed = Version::parse(v).expect(&format!("Failed to parse version: {}", v));
+        let parsed = Version::parse(v).unwrap_or_else(|_| panic!("Failed to parse version: {}", v));
         assert_eq!(parsed.as_str(), *v, "Version roundtrip failed for {}", v);
     }
 }
@@ -599,7 +599,8 @@ description = 'A well-authored package'
 
     let pkg = PackageSerializer::load_from_file(&path).unwrap();
     assert_eq!(pkg.name, "authored_pkg");
-    assert!(!pkg.description.as_deref().unwrap_or("").is_empty() || true);
+    // Description may or may not be set depending on serializer implementation
+    let _ = pkg.description;
 }
 
 /// Rex: append_path should append (not prepend)
@@ -1657,7 +1658,7 @@ fn test_pip_package_with_extras_stripped() {
     // pip deps like "requests[security]>=2.0" -> strip extras -> "requests>=2.0"
     let raw = "requests[security]>=2.0";
     let base = raw.split('[').next().unwrap_or(raw).trim();
-    let (name, spec) = if let Some(pos) = base.find(|c: char| c == '>' || c == '<' || c == '=') {
+    let (name, spec) = if let Some(pos) = base.find(['>', '<', '=']) {
         (&base[..pos], &base[pos..])
     } else {
         (base, "")
@@ -1678,7 +1679,7 @@ fn test_pip_requires_parsing_chain() {
 
     let rez_requires: Vec<String> = pip_deps.iter().map(|dep| {
         let dep = dep.trim();
-        if let Some(pos) = dep.find(|c: char| c == '>' || c == '<' || c == '=' || c == '!') {
+        if let Some(pos) = dep.find(['>', '<', '=', '!']) {
             let name = dep[..pos].to_lowercase().replace('_', "-");
             let spec = &dep[pos..];
             // Simplified conversion
@@ -2122,15 +2123,13 @@ fn test_rex_alias_with_path() {
     let mut exec = RexExecutor::new();
     let result = exec.execute_commands(commands, "maya", Some("/opt/autodesk/maya2024"), Some("2024"));
     // Either succeeds with alias set, or silently ignores unrecognized command
-    match result {
-        Ok(env) => {
-            // alias may be in aliases or vars
-            let has_alias = env.aliases.contains_key("maya") || env.vars.contains_key("maya");
-            // At minimum no panic
-            let _ = has_alias;
-        }
-        Err(_) => {} // parse errors are acceptable for edge cases
+    if let Ok(env) = result {
+        // alias may be in aliases or vars
+        let has_alias = env.aliases.contains_key("maya") || env.vars.contains_key("maya");
+        // At minimum no panic
+        let _ = has_alias;
     }
+    // Err case: parse errors are acceptable for edge cases
 }
 
 /// rez rex: setenv with {root} interpolation
@@ -3470,7 +3469,7 @@ fn test_complete_bash_completion_has_rez_function() {
         "bash completion should register for 'rez' command");
     assert!(script.contains("complete -F _rez_next_complete rez-next"),
         "bash completion should register for 'rez-next' command");
-    assert!(!script.is_empty());
+    assert!(script.contains("_rez_next_complete"), "script should define the completion function");
 }
 
 // ─── rez.diff compatibility tests ───────────────────────────────────────────
@@ -5042,7 +5041,7 @@ fn test_rez_rex_prependenv_generates_prepend_syntax() {
     let mut env = RexEnvironment::new();
     env.vars.insert("PATH".to_string(), "/new/bin".to_string());
     let script = generate_shell_script(&env, &ShellType::Bash);
-    assert!(!script.is_empty());
+    assert!(script.len() > 0, "generated shell script should not be empty");
     assert!(script.contains("PATH") || script.contains("new"));
 }
 
