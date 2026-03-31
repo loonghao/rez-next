@@ -649,10 +649,8 @@ impl DependencyResolutionCache {
     }
 }
 
-#[cfg_attr(feature = "python-bindings", pymethods)]
 impl PackageCacheManager {
     /// Create a new package cache manager
-    #[cfg_attr(feature = "python-bindings", new)]
     pub fn new(config: CacheConfig) -> Self {
         Self {
             parse_cache: PackageParseCache::new(config.clone()),

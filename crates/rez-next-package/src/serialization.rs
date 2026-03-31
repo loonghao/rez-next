@@ -39,7 +39,6 @@ pub enum PackageFormat {
 }
 
 /// Serialization options
-#[cfg_attr(feature = "python-bindings", pyclass)]
 #[derive(Debug, Clone)]
 pub struct SerializationOptions {
     /// Pretty print output
@@ -61,7 +60,6 @@ pub struct SerializationOptions {
 }
 
 /// Package metadata for serialization
-#[cfg_attr(feature = "python-bindings", pyclass)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PackageMetadata {
     /// Serialization timestamp

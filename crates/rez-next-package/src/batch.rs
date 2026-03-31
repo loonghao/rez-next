@@ -358,10 +358,8 @@ impl<T> BatchOperationResult<T> {
     }
 }
 
-#[cfg_attr(feature = "python-bindings", pymethods)]
 impl BatchPackageProcessor {
     /// Create new batch processor
-    #[cfg_attr(feature = "python-bindings", new)]
     pub fn new(config: BatchConfig) -> Self {
         let cache_manager = if config.enable_caching {
             Some(PackageCacheManager::new(

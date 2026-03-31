@@ -1,8 +1,6 @@
 //! Package variant implementation
 
 use crate::requirement::Requirement;
-#[cfg(feature = "python-bindings")]
-use pyo3::prelude::*;
 use rez_next_common::RezCoreError;
 use rez_next_version::Version;
 use serde::{Deserialize, Serialize};
@@ -10,31 +8,15 @@ use std::collections::{HashMap, HashSet};
 use std::fmt;
 
 /// Package variant representation
-#[cfg_attr(feature = "python-bindings", pyclass)]
 #[derive(Debug)]
 pub struct PackageVariant {
     /// Parent package name
-    #[cfg(feature = "python-bindings")]
-    #[pyo3(get)]
-    pub name: String,
-    /// Parent package name (non-Python version)
-    #[cfg(not(feature = "python-bindings"))]
     pub name: String,
 
     /// Parent package version
-    #[cfg(feature = "python-bindings")]
-    #[pyo3(get)]
-    pub version: Option<Version>,
-    /// Parent package version (non-Python version)
-    #[cfg(not(feature = "python-bindings"))]
     pub version: Option<Version>,
 
     /// Variant index (None for packages without variants)
-    #[cfg(feature = "python-bindings")]
-    #[pyo3(get)]
-    pub index: Option<usize>,
-    /// Variant index (None for packages without variants) (non-Python version)
-    #[cfg(not(feature = "python-bindings"))]
     pub index: Option<usize>,
 
     /// Variant requirements (overrides parent package requirements)
@@ -56,40 +38,9 @@ pub struct PackageVariant {
     pub subpath: Option<String>,
 
     /// Variant metadata
-    #[cfg(feature = "python-bindings")]
-    pub metadata: HashMap<String, PyObject>,
-    /// Variant metadata (non-Python version)
-    #[cfg(not(feature = "python-bindings"))]
     pub metadata: HashMap<String, String>,
 }
 
-#[cfg(feature = "python-bindings")]
-impl Clone for PackageVariant {
-    fn clone(&self) -> Self {
-        Python::with_gil(|py| {
-            let cloned_metadata: HashMap<String, PyObject> = self
-                .metadata
-                .iter()
-                .map(|(k, v)| (k.clone(), v.clone_ref(py)))
-                .collect();
-
-            Self {
-                name: self.name.clone(),
-                version: self.version.clone(),
-                index: self.index,
-                requires: self.requires.clone(),
-                build_requires: self.build_requires.clone(),
-                private_build_requires: self.private_build_requires.clone(),
-                commands: self.commands.clone(),
-                root: self.root.clone(),
-                subpath: self.subpath.clone(),
-                metadata: cloned_metadata,
-            }
-        })
-    }
-}
-
-#[cfg(not(feature = "python-bindings"))]
 impl Clone for PackageVariant {
     fn clone(&self) -> Self {
         Self {
@@ -123,7 +74,7 @@ impl Serialize for PackageVariant {
         state.serialize_field("commands", &self.commands)?;
         state.serialize_field("root", &self.root)?;
         state.serialize_field("subpath", &self.subpath)?;
-        // Skip metadata field as PyObject cannot be serialized
+        // Note: metadata field is excluded from serialization for compatibility
         state.end()
     }
 }
@@ -243,7 +194,7 @@ impl<'de> Deserialize<'de> for PackageVariant {
                     commands: commands.unwrap_or(None),
                     root: root.unwrap_or(None),
                     subpath: subpath.unwrap_or(None),
-                    metadata: HashMap::new(), // Cannot deserialize PyObject
+                    metadata: HashMap::new(),
                 })
             }
         }
@@ -263,10 +214,8 @@ impl<'de> Deserialize<'de> for PackageVariant {
     }
 }
 
-#[cfg(feature = "python-bindings")]
-#[pymethods]
 impl PackageVariant {
-    #[new]
+    /// Create a new package variant
     pub fn new(name: String, index: Option<usize>) -> Self {
         Self {
             name,
@@ -283,7 +232,6 @@ impl PackageVariant {
     }
 
     /// Get the qualified name of the variant
-    #[getter]
     pub fn qualified_name(&self) -> String {
         let base_name = match &self.version {
             Some(version) => format!("{}-{}", self.name, version.as_str()),
@@ -297,7 +245,6 @@ impl PackageVariant {
     }
 
     /// Get the qualified package name (without variant index)
-    #[getter]
     pub fn qualified_package_name(&self) -> String {
         match &self.version {
             Some(version) => format!("{}-{}", self.name, version.as_str()),
@@ -306,13 +253,11 @@ impl PackageVariant {
     }
 
     /// Check if this is a package (always false for PackageVariant)
-    #[getter]
     pub fn is_package(&self) -> bool {
         false
     }
 
     /// Check if this is a variant (always true for PackageVariant)
-    #[getter]
     pub fn is_variant(&self) -> bool {
         true
     }
@@ -352,18 +297,6 @@ impl PackageVariant {
         self.subpath = Some(subpath);
     }
 
-    /// Get string representation
-    fn __str__(&self) -> String {
-        self.qualified_name()
-    }
-
-    /// Get representation
-    fn __repr__(&self) -> String {
-        format!("PackageVariant('{}')", self.qualified_name())
-    }
-}
-
-impl PackageVariant {
     /// Create a variant from a package and variant definition
     pub fn from_package_and_variant(
         package_name: String,
@@ -747,12 +680,8 @@ mod tests {
         assert_eq!(variant.name, "test_package");
         assert_eq!(variant.index, Some(0));
 
-        // Note: qualified_name() method is only available with Python bindings
-        #[cfg(feature = "python-bindings")]
-        {
-            assert_eq!(variant.qualified_name(), "test_package-1.0.0[0]");
-            assert_eq!(variant.qualified_package_name(), "test_package-1.0.0");
-        }
+        assert_eq!(variant.qualified_name(), "test_package-1.0.0[0]");
+        assert_eq!(variant.qualified_package_name(), "test_package-1.0.0");
     }
 
     #[test]

@@ -1,8 +1,6 @@
 //! Package dependency resolution and analysis
 
 use crate::{requirement::Requirement, Package};
-#[cfg(feature = "python-bindings")]
-use pyo3::prelude::*;
 use rez_next_common::RezCoreError;
 use rez_next_version::Version;
 use serde::{Deserialize, Serialize};
@@ -40,7 +38,6 @@ pub enum ConflictResolution {
 }
 
 /// Dependency resolution options
-#[cfg_attr(feature = "python-bindings", pyclass)]
 #[derive(Debug, Clone)]
 pub struct DependencyResolutionOptions {
     /// Resolution strategy
@@ -158,7 +155,6 @@ pub struct ResolutionStatistics {
 }
 
 /// Dependency resolver
-#[cfg_attr(feature = "python-bindings", pyclass)]
 pub struct DependencyResolver {
     /// Resolution options
     options: DependencyResolutionOptions,
@@ -186,10 +182,8 @@ impl Default for DependencyResolutionOptions {
     }
 }
 
-#[cfg_attr(feature = "python-bindings", pymethods)]
 impl DependencyResolutionOptions {
     /// Create new default options
-    #[cfg_attr(feature = "python-bindings", new)]
     pub fn new() -> Self {
         Self {
             strategy: ResolutionStrategy::Latest,
@@ -206,7 +200,6 @@ impl DependencyResolutionOptions {
     }
 
     /// Create options for development builds
-    #[cfg_attr(feature = "python-bindings", staticmethod)]
     pub fn development() -> Self {
         Self {
             strategy: ResolutionStrategy::Latest,
@@ -223,7 +216,6 @@ impl DependencyResolutionOptions {
     }
 
     /// Create options for production builds
-    #[cfg_attr(feature = "python-bindings", staticmethod)]
     pub fn production() -> Self {
         Self {
             strategy: ResolutionStrategy::Stable,
@@ -255,10 +247,8 @@ impl DependencyResolutionOptions {
     }
 }
 
-#[cfg_attr(feature = "python-bindings", pymethods)]
 impl DependencyNode {
     /// Create a new dependency node
-    #[cfg_attr(feature = "python-bindings", new)]
     pub fn new(
         package_name: String,
         requirement: String,
@@ -350,10 +340,8 @@ impl fmt::Display for ConflictResolution {
     }
 }
 
-#[cfg_attr(feature = "python-bindings", pymethods)]
 impl DependencyResolver {
     /// Create a new dependency resolver
-    #[cfg_attr(feature = "python-bindings", new)]
     pub fn new(options: DependencyResolutionOptions) -> Self {
         Self {
             options,
