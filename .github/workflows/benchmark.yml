@@ -22,19 +22,27 @@ env:
   CARGO_INCREMENTAL: 0
 
 jobs:
-  # Fast benchmarks — core parsing & version ops (~2 min)
-  # Runs on every PR to catch regressions early
+  # ─────────────────────────────────────────────────────────────────────────
+  # Quick benchmarks — version + package + rex  (~2 min, every PR)
+  # ─────────────────────────────────────────────────────────────────────────
   bench-quick:
     name: Quick Benchmarks
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v4
+
       - uses: dtolnay/rust-toolchain@stable
+
       - uses: Swatinem/rust-cache@v2
         with:
-          key: bench-quick-v1
+          key: bench-quick-v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
 
       - name: Run quick benchmarks (version + package + rex)
         run: |
@@ -44,30 +52,62 @@ jobs:
             --bench rex_benchmark \
             2>&1 | tee benchmark-quick.txt
 
-      - name: Upload quick benchmark results
-        uses: actions/upload-artifact@v7
+      - name: Parse Criterion output → JSON
+        run: |
+          python metrics/benchmarking/scripts/parse_criterion.py \
+            benchmark-quick.txt > benchmark-quick.json
+          echo "=== Parsed results ==="
+          cat benchmark-quick.json
+
+      - name: Generate RESULTS.md (quick subset)
+        run: |
+          python metrics/benchmarking/scripts/generate_results.py \
+            --bench-json benchmark-quick.json \
+            --out metrics/benchmarking/RESULTS.md
+          echo "=== RESULTS.md preview ==="
+          head -60 metrics/benchmarking/RESULTS.md
+
+      - name: Upload quick benchmark artifacts
+        uses: actions/upload-artifact@v4
         with:
           name: bench-quick-${{ github.sha }}
-          path: benchmark-quick.txt
+          path: |
+            benchmark-quick.txt
+            benchmark-quick.json
+            metrics/benchmarking/RESULTS.md
           retention-days: 14
 
-  # Full benchmark suite — solver, context, depends, pip (~10 min)
-  # Runs on merge to main or manual trigger
+  # ─────────────────────────────────────────────────────────────────────────
+  # Full benchmark suite + auto-commit RESULTS.md  (push to main only)
+  # ─────────────────────────────────────────────────────────────────────────
   bench-full:
-    name: Full Benchmarks
+    name: Full Benchmarks + Publish Results
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     if: >-
       github.event_name == 'push' ||
       (github.event_name == 'workflow_dispatch' &&
        github.event.inputs.benchmark_type == 'comprehensive')
 
+    permissions:
+      contents: write   # needed to push RESULTS.md back to main
+
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
       - uses: dtolnay/rust-toolchain@stable
+
       - uses: Swatinem/rust-cache@v2
         with:
-          key: bench-full-v1
+          key: bench-full-v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
 
       - name: Run full benchmark suite
         run: |
@@ -83,11 +123,94 @@ jobs:
             --bench pip_conversion_benchmark \
             2>&1 | tee benchmark-full.txt
 
-      - name: Upload full benchmark results
-        uses: actions/upload-artifact@v7
+      - name: Parse Criterion output → JSON
+        run: |
+          python metrics/benchmarking/scripts/parse_criterion.py \
+            benchmark-full.txt > benchmark-full.json
+          echo "=== Parsed results ==="
+          python -c "
+          import json, sys
+          d = json.load(open('benchmark-full.json'))
+          print(f'Total benchmarks: {len(d[\"results\"])}')
+          print(f'Regressions: {d[\"regressions\"]}')
+          for r in d['results']:
+              print(f'  {r[\"name\"]:<50} {r[\"mean_human\"]}')
+          "
+
+      - name: Generate RESULTS.md (full suite)
+        run: |
+          python metrics/benchmarking/scripts/generate_results.py \
+            --bench-json benchmark-full.json \
+            --out metrics/benchmarking/RESULTS.md
+
+      - name: Show regression summary
+        run: |
+          python -c "
+          import json, sys
+          d = json.load(open('benchmark-full.json'))
+          regressions = d.get('regressions', [])
+          if regressions:
+              print('::warning::Performance regressions detected: ' + ', '.join(regressions))
+          else:
+              print('No performance regressions detected.')
+          "
+
+      - name: Commit RESULTS.md and artifacts
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Stage results
+          git add metrics/benchmarking/RESULTS.md
+          git add metrics/benchmarking/artifacts/ || true
+
+          # Only commit if something changed
+          if git diff --cached --quiet; then
+            echo "No changes to benchmark results."
+          else
+            SHORT_SHA=$(git rev-parse --short HEAD)
+            git commit -m "chore(bench): update performance results [${SHORT_SHA}] [skip ci]"
+            git push origin HEAD:main
+          fi
+
+      - name: Upload full benchmark artifacts
+        uses: actions/upload-artifact@v4
         with:
           name: bench-full-${{ github.sha }}
           path: |
             benchmark-full.txt
+            benchmark-full.json
+            metrics/benchmarking/RESULTS.md
+            metrics/benchmarking/artifacts/
             target/criterion/
           retention-days: 30
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # Regression gate — fail PR if any Criterion regression detected
+  # ─────────────────────────────────────────────────────────────────────────
+  regression-check:
+    name: Regression Gate
+    runs-on: ubuntu-latest
+    needs: [bench-quick]
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download quick bench results
+        uses: actions/download-artifact@v4
+        with:
+          name: bench-quick-${{ github.sha }}
+          path: bench-artifacts/
+
+      - name: Check for regressions
+        run: |
+          python -c "
+          import json, sys
+          d = json.load(open('bench-artifacts/benchmark-quick.json'))
+          regressions = d.get('regressions', [])
+          if regressions:
+              print(f'FAIL: {len(regressions)} regression(s): {regressions}')
+              sys.exit(1)
+          print(f'PASS: No regressions ({len(d[\"results\"])} benchmarks checked).')
+          "
