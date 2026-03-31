@@ -14,8 +14,6 @@ mod solver;
 pub mod resolution;
 pub mod conflict;
 pub mod astar;
-// mod cache;
-// mod optimized_solver;
 
 pub use dependency_resolver::*;
 pub use graph::*;
@@ -29,8 +27,6 @@ pub use astar::heuristics::{
     VersionPreferenceHeuristic,
 };
 pub use astar::search_state::{ConflictType as AStarConflictType, DependencyConflict as AStarDependencyConflict, SearchState};
-// pub use cache::*;
-// pub use optimized_solver::*;
 
 #[cfg(feature = "python-bindings")]
 use pyo3::prelude::*;
