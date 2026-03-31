@@ -151,7 +151,10 @@ fn determine_cache_directory(args: &PkgCacheArgs) -> RezCoreResult<PathBuf> {
         .or_else(|_| std::env::var("HOME"))
         .map_err(|_| RezCoreError::ConfigError("Cannot determine home directory".to_string()))?;
 
-    Ok(PathBuf::from(home).join(".rez").join("cache").join("packages"))
+    Ok(PathBuf::from(home)
+        .join(".rez")
+        .join("cache")
+        .join("packages"))
 }
 
 /// Initialize the cache manager
@@ -219,10 +222,8 @@ async fn add_variants(
         for (i, path_str) in config.packages_path.iter().enumerate() {
             let path = std::path::PathBuf::from(path_str);
             if path.exists() {
-                repo_manager.add_repository(Box::new(SimpleRepository::new(
-                    path,
-                    format!("repo_{}", i),
-                )));
+                repo_manager
+                    .add_repository(Box::new(SimpleRepository::new(path, format!("repo_{}", i))));
             }
         }
 
@@ -232,9 +233,9 @@ async fn add_variants(
             .unwrap_or_default();
 
         let pkg = packages.into_iter().find(|p| {
-            version
-                .as_ref()
-                .map_or(true, |v| p.version.as_ref().map_or(false, |pv| pv.as_str() == v))
+            version.as_ref().map_or(true, |v| {
+                p.version.as_ref().map_or(false, |pv| pv.as_str() == v)
+            })
         });
 
         let (original_path, cache_dest) = if let Some(ref p) = pkg {
@@ -310,13 +311,19 @@ async fn clean_cache(
             let home = std::env::var("USERPROFILE")
                 .or_else(|_| std::env::var("HOME"))
                 .unwrap_or_else(|_| ".".to_string());
-            std::path::PathBuf::from(home).join(".rez").join("cache").join("packages")
+            std::path::PathBuf::from(home)
+                .join(".rez")
+                .join("cache")
+                .join("packages")
         }
     } else {
         let home = std::env::var("USERPROFILE")
             .or_else(|_| std::env::var("HOME"))
             .unwrap_or_else(|_| ".".to_string());
-        std::path::PathBuf::from(home).join(".rez").join("cache").join("packages")
+        std::path::PathBuf::from(home)
+            .join(".rez")
+            .join("cache")
+            .join("packages")
     };
 
     let mut removed_dirs = 0usize;
@@ -562,5 +569,3 @@ fn truncate_string(s: &str, max_len: usize) -> String {
         format!("{}...", &s[..max_len.saturating_sub(3)])
     }
 }
-
-

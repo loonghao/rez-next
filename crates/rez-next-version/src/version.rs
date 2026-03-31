@@ -581,7 +581,6 @@ impl Version {
         self.tokens.get(2).and_then(|t| t.parse::<u64>().ok())
     }
 
-
     /// Check if this is the epsilon version (alias for is_empty)
     pub fn is_epsilon(&self) -> bool {
         self.is_empty()

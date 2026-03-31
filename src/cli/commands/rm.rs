@@ -348,7 +348,11 @@ async fn remove_single_package(package: &Package, args: &RmArgs) -> RezCoreResul
     use rez_next_common::config::RezCoreConfig;
 
     let config = RezCoreConfig::load();
-    let ver_str = package.version.as_ref().map(|v| v.as_str()).unwrap_or("unknown");
+    let ver_str = package
+        .version
+        .as_ref()
+        .map(|v| v.as_str())
+        .unwrap_or("unknown");
 
     // Try to find actual path
     let mut package_path: Option<PathBuf> = None;

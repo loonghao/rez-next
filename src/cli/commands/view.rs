@@ -100,7 +100,11 @@ fn load_package_from_repos(spec: &str) -> RezCoreResult<Package> {
     // Parse "name" or "name-version" spec
     let (pkg_name, version_str) = if let Some(pos) = spec.rfind('-') {
         let candidate_ver = &spec[pos + 1..];
-        if candidate_ver.chars().next().map_or(false, |c| c.is_ascii_digit()) {
+        if candidate_ver
+            .chars()
+            .next()
+            .map_or(false, |c| c.is_ascii_digit())
+        {
             (&spec[..pos], Some(candidate_ver))
         } else {
             (spec, None)
@@ -114,15 +118,12 @@ fn load_package_from_repos(spec: &str) -> RezCoreResult<Package> {
     for (i, path_str) in config.packages_path.iter().enumerate() {
         let path = expand_home_path(path_str);
         if path.exists() {
-            repo_manager.add_repository(Box::new(SimpleRepository::new(
-                path,
-                format!("repo_{}", i),
-            )));
+            repo_manager
+                .add_repository(Box::new(SimpleRepository::new(path, format!("repo_{}", i))));
         }
     }
 
-    let rt = tokio::runtime::Runtime::new()
-        .map_err(|e| RezCoreError::Repository(e.to_string()))?;
+    let rt = tokio::runtime::Runtime::new().map_err(|e| RezCoreError::Repository(e.to_string()))?;
 
     let packages = rt
         .block_on(repo_manager.find_packages(pkg_name))
@@ -439,7 +440,11 @@ requires = ["python-3+", "numpy-1.20+"]
         let result = load_package_from_directory(&tmp);
         assert!(result.is_err(), "Should fail when package.py is missing");
         let err_msg = format!("{:?}", result.unwrap_err());
-        assert!(err_msg.contains("No package.py"), "Should mention missing package.py: {}", err_msg);
+        assert!(
+            err_msg.contains("No package.py"),
+            "Should mention missing package.py: {}",
+            err_msg
+        );
         let _ = std::fs::remove_dir_all(&tmp);
     }
 
@@ -530,12 +535,16 @@ def commands():
         let yaml_args = ViewArgs {
             package: "pkg".to_string(),
             format: ViewFormat::Yaml,
-            all: false, brief: false, current: false,
+            all: false,
+            brief: false,
+            current: false,
         };
         let py_args = ViewArgs {
             package: "pkg".to_string(),
             format: ViewFormat::Py,
-            all: false, brief: false, current: false,
+            all: false,
+            brief: false,
+            current: false,
         };
         assert!(matches!(yaml_args.format, ViewFormat::Yaml));
         assert!(matches!(py_args.format, ViewFormat::Py));
@@ -555,4 +564,3 @@ variants = [["python-3.9"], ["python-3.10"]]
         let _ = std::fs::remove_dir_all(&tmp);
     }
 }
-

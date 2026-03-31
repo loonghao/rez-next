@@ -400,10 +400,7 @@ fn detect_python() -> Option<DetectedTool> {
     };
 
     for cmd in candidates {
-        if let Ok(output) = Command::new(cmd)
-            .args(["--version"])
-            .output()
-        {
+        if let Ok(output) = Command::new(cmd).args(["--version"]).output() {
             if output.status.success() {
                 let version_output = String::from_utf8_lossy(&output.stdout).to_string()
                     + &String::from_utf8_lossy(&output.stderr);
@@ -667,7 +664,12 @@ fn parse_version_from_string(s: &str) -> Option<String> {
 
     if let Some(start) = start {
         let mut end = start;
-        while end < chars.len() && (chars[end].is_ascii_digit() || chars[end] == '.' || chars[end] == '-' || chars[end] == '_') {
+        while end < chars.len()
+            && (chars[end].is_ascii_digit()
+                || chars[end] == '.'
+                || chars[end] == '-'
+                || chars[end] == '_')
+        {
             end += 1;
         }
         let version_str: String = chars[start..end].iter().collect();
@@ -722,7 +724,9 @@ fn get_package_commands(name: &str, exe_path: Option<&PathBuf>) -> Option<String
     match name {
         "python" => {
             if let Some(path) = exe_path {
-                let dir = path.parent().map(|p| p.to_string_lossy().to_string())
+                let dir = path
+                    .parent()
+                    .map(|p| p.to_string_lossy().to_string())
                     .unwrap_or_default();
                 if !dir.is_empty() {
                     return Some(format!(
@@ -735,7 +739,9 @@ fn get_package_commands(name: &str, exe_path: Option<&PathBuf>) -> Option<String
         }
         "pip" | "cmake" | "git" | "gcc" | "clang" => {
             if let Some(path) = exe_path {
-                let dir = path.parent().map(|p| p.to_string_lossy().to_string())
+                let dir = path
+                    .parent()
+                    .map(|p| p.to_string_lossy().to_string())
                     .unwrap_or_default();
                 if !dir.is_empty() {
                     return Some(format!(
@@ -887,7 +893,11 @@ fn get_default_tools(name: &str) -> Vec<String> {
     match name {
         "python" => vec!["python".to_string(), "python3".to_string()],
         "pip" => vec!["pip".to_string(), "pip3".to_string()],
-        "cmake" => vec!["cmake".to_string(), "ctest".to_string(), "cpack".to_string()],
+        "cmake" => vec![
+            "cmake".to_string(),
+            "ctest".to_string(),
+            "cpack".to_string(),
+        ],
         "git" => vec!["git".to_string()],
         "gcc" => vec!["gcc".to_string(), "g++".to_string(), "cpp".to_string()],
         "clang" => vec!["clang".to_string(), "clang++".to_string()],

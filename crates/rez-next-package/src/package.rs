@@ -1316,14 +1316,14 @@ impl Package {
     }
 }
 
-
-
 #[cfg(test)]
 mod package_tests {
     use super::*;
     use rez_next_version::Version;
 
-    fn ver(s: &str) -> Version { Version::parse(s).unwrap() }
+    fn ver(s: &str) -> Version {
+        Version::parse(s).unwrap()
+    }
 
     #[test]
     fn test_pkg_req_satisfied_no_constraint() {
@@ -1377,4 +1377,3 @@ mod package_tests {
         assert!(Package::new("".to_string()).validate().is_err());
     }
 }
-

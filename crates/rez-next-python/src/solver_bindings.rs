@@ -30,8 +30,8 @@ impl PySolver {
                     .iter()
                     .map(|p| {
                         let expanded = if p.starts_with("~/") || p == "~" {
-                            if let Ok(home) = std::env::var("USERPROFILE")
-                                .or_else(|_| std::env::var("HOME"))
+                            if let Ok(home) =
+                                std::env::var("USERPROFILE").or_else(|_| std::env::var("HOME"))
                             {
                                 p.replacen("~", &home, 1)
                             } else {

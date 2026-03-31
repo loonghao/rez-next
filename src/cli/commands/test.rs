@@ -145,7 +145,11 @@ impl PackageTestRunner {
     }
 
     /// Load test definitions from package.py or package.yaml in working directory
-    fn load_test_definitions(&mut self, working_dir: &Path, package_spec: &str) -> RezCoreResult<()> {
+    fn load_test_definitions(
+        &mut self,
+        working_dir: &Path,
+        package_spec: &str,
+    ) -> RezCoreResult<()> {
         // First, try to find package.py or package.yaml in working_dir
         let candidates = [
             working_dir.join("package.py"),
@@ -289,7 +293,10 @@ impl PackageTestRunner {
                 (
                     TestStatus::Error,
                     String::new(),
-                    Some(format!("Test '{}' not found in package definition", test_name)),
+                    Some(format!(
+                        "Test '{}' not found in package definition",
+                        test_name
+                    )),
                     -1,
                 )
             }
@@ -392,7 +399,16 @@ impl PackageTestRunner {
                 let exit_code = output.status.code().unwrap_or(-1);
 
                 if output.status.success() {
-                    (TestStatus::Success, stdout, if stderr.is_empty() { None } else { Some(stderr) }, exit_code)
+                    (
+                        TestStatus::Success,
+                        stdout,
+                        if stderr.is_empty() {
+                            None
+                        } else {
+                            Some(stderr)
+                        },
+                        exit_code,
+                    )
                 } else {
                     (
                         TestStatus::Failed,
@@ -488,10 +504,7 @@ pub fn execute(args: TestArgs) -> RezCoreResult<()> {
     let available_tests = runner.get_test_names()?;
 
     if available_tests.is_empty() {
-        println!(
-            "No tests found in package '{}'.",
-            args.package
-        );
+        println!("No tests found in package '{}'.", args.package);
         println!("Make sure the package has a 'tests' field in its package.py or package.yaml.");
         return Ok(());
     }

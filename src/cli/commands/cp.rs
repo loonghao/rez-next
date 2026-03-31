@@ -110,8 +110,13 @@ async fn execute_copy_async(args: &CpArgs) -> RezCoreResult<()> {
     }
 
     // Find source package
-    let (source_package, source_root) =
-        find_source_package_with_path(&repo_manager, &package_name, version_spec.as_deref(), &source_paths).await?;
+    let (source_package, source_root) = find_source_package_with_path(
+        &repo_manager,
+        &package_name,
+        version_spec.as_deref(),
+        &source_paths,
+    )
+    .await?;
 
     if args.verbose {
         println!(
@@ -237,7 +242,11 @@ async fn find_source_package_with_path(
     };
 
     // Find the actual filesystem path
-    let ver_str = pkg.version.as_ref().map(|v| v.as_str()).unwrap_or("unknown");
+    let ver_str = pkg
+        .version
+        .as_ref()
+        .map(|v| v.as_str())
+        .unwrap_or("unknown");
     for base_path in source_paths {
         // rez layout: <base>/<name>/<version>/
         let pkg_dir = base_path.join(&pkg.name).join(ver_str);
@@ -262,7 +271,11 @@ async fn package_exists_at_destination(
     destination_path: &PathBuf,
     package: &Package,
 ) -> RezCoreResult<bool> {
-    let ver_str = package.version.as_ref().map(|v| v.as_str()).unwrap_or("unknown");
+    let ver_str = package
+        .version
+        .as_ref()
+        .map(|v| v.as_str())
+        .unwrap_or("unknown");
     let pkg_dir = destination_path.join(&package.name).join(ver_str);
     Ok(pkg_dir.exists())
 }

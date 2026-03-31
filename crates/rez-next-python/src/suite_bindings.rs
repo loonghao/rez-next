@@ -142,12 +142,16 @@ impl PySuite {
     /// Get suite path
     #[getter]
     fn path(&self) -> Option<String> {
-        self.inner.path.as_ref().map(|p| p.to_string_lossy().to_string())
+        self.inner
+            .path
+            .as_ref()
+            .map(|p| p.to_string_lossy().to_string())
     }
 
     /// Get tools exposed by the suite as a dict
     fn get_tools(&self, py: Python) -> PyResult<PyObject> {
-        let tools = self.inner
+        let tools = self
+            .inner
             .get_tools()
             .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
 

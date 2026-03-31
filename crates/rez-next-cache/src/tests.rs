@@ -12,6 +12,7 @@ mod tests {
     use tokio::time::sleep;
 
     #[test]
+    #[allow(clippy::const_is_empty)]
     fn test_version_info() {
         // CACHE_VERSION is set at compile time via env!("CARGO_PKG_VERSION")
         // Verify it matches the expected semantic version pattern
@@ -337,7 +338,9 @@ mod tests {
         // Pre-populate with package versions
         let packages = ["python", "maya", "houdini", "nuke", "hiero"];
         for pkg in &packages {
-            let versions = (0..10).map(|i| format!("{}.{}.0", i / 5 + 1, i % 5)).collect();
+            let versions = (0..10)
+                .map(|i| format!("{}.{}.0", i / 5 + 1, i % 5))
+                .collect();
             cache.put(pkg.to_string(), versions).await.unwrap();
         }
 
@@ -397,7 +400,11 @@ mod tests {
         // All shared keys should exist
         for i in 0..5 {
             let key = format!("shared_key_{}", i);
-            assert!(cache.contains_key(&key).await, "shared_key_{} should exist", i);
+            assert!(
+                cache.contains_key(&key).await,
+                "shared_key_{} should exist",
+                i
+            );
         }
     }
 
@@ -462,7 +469,10 @@ mod tests {
 
         // Populate
         for i in 0..20 {
-            cache.put(format!("key_{}", i), format!("val_{}", i)).await.unwrap();
+            cache
+                .put(format!("key_{}", i), format!("val_{}", i))
+                .await
+                .unwrap();
         }
 
         // Clear while spawning readers
@@ -547,14 +557,17 @@ mod tests {
         let config = UnifiedCacheConfig {
             l1_config: L1CacheConfig {
                 eviction_strategy: crate::EvictionStrategy::TTL,
-                default_ttl: 5,  // 5 second TTL
+                default_ttl: 5, // 5 second TTL
                 max_entries: 100,
                 ..Default::default()
             },
             ..Default::default()
         };
         let cache = IntelligentCacheManager::<String, String>::new(config);
-        cache.put("ttl_key".to_string(), "ttl_val".to_string()).await.unwrap();
+        cache
+            .put("ttl_key".to_string(), "ttl_val".to_string())
+            .await
+            .unwrap();
         // Entry should exist immediately after insert
         assert!(cache.contains_key(&"ttl_key".to_string()).await);
     }
@@ -575,7 +588,10 @@ mod tests {
             cache.remove(&i).await;
         }
         let stats = cache.get_stats().await;
-        assert!(stats.overall_stats.total_entries <= 10, "Entries should decrease after remove");
+        assert!(
+            stats.overall_stats.total_entries <= 10,
+            "Entries should decrease after remove"
+        );
     }
 
     /// Test cache clear empties all entries

@@ -173,10 +173,7 @@ pub fn execute(args: SuitesArgs) -> RezCoreResult<()> {
         Some(SuitesCommand::Tools(a)) => cmd_tools(a),
         None => {
             // Default: list suites
-            cmd_list(
-                ListSuitesArgs { verbose: false },
-                suite_paths,
-            )
+            cmd_list(ListSuitesArgs { verbose: false }, suite_paths)
         }
     }
 }
@@ -197,7 +194,8 @@ fn get_suite_paths(args: &SuitesArgs) -> Vec<PathBuf> {
 }
 
 fn cmd_create(args: CreateSuiteArgs) -> RezCoreResult<()> {
-    let conflict_mode: ToolConflictMode = args.conflict_mode
+    let conflict_mode: ToolConflictMode = args
+        .conflict_mode
         .parse()
         .map_err(|e: String| RezCoreError::RequirementParse(e))?;
 
@@ -206,7 +204,8 @@ fn cmd_create(args: CreateSuiteArgs) -> RezCoreResult<()> {
         suite = suite.with_description(desc);
     }
 
-    suite.save(&args.path)
+    suite
+        .save(&args.path)
         .map_err(|e| RezCoreError::ExecutionError(e.to_string()))?;
 
     println!("Created suite at: {}", args.path.display());
@@ -244,15 +243,15 @@ fn cmd_list(args: ListSuitesArgs, suite_paths: Vec<PathBuf>) -> RezCoreResult<()
 }
 
 fn cmd_info(args: InfoSuiteArgs) -> RezCoreResult<()> {
-    let suite = Suite::load(&args.suite)
-        .map_err(|e| RezCoreError::ExecutionError(e.to_string()))?;
+    let suite =
+        Suite::load(&args.suite).map_err(|e| RezCoreError::ExecutionError(e.to_string()))?;
     suite.print_info();
     Ok(())
 }
 
 fn cmd_add_context(args: AddContextArgs) -> RezCoreResult<()> {
-    let mut suite = Suite::load(&args.suite)
-        .map_err(|e| RezCoreError::ExecutionError(e.to_string()))?;
+    let mut suite =
+        Suite::load(&args.suite).map_err(|e| RezCoreError::ExecutionError(e.to_string()))?;
 
     suite
         .add_context(args.context_name.clone(), args.requests.clone())
@@ -264,7 +263,8 @@ fn cmd_add_context(args: AddContextArgs) -> RezCoreResult<()> {
         }
     }
 
-    suite.save(suite.path.clone().unwrap())
+    suite
+        .save(suite.path.clone().unwrap())
         .map_err(|e| RezCoreError::ExecutionError(e.to_string()))?;
 
     println!(
@@ -276,14 +276,15 @@ fn cmd_add_context(args: AddContextArgs) -> RezCoreResult<()> {
 }
 
 fn cmd_remove_context(args: RemoveContextArgs) -> RezCoreResult<()> {
-    let mut suite = Suite::load(&args.suite)
-        .map_err(|e| RezCoreError::ExecutionError(e.to_string()))?;
+    let mut suite =
+        Suite::load(&args.suite).map_err(|e| RezCoreError::ExecutionError(e.to_string()))?;
 
     suite
         .remove_context(&args.context_name)
         .map_err(|e| RezCoreError::ExecutionError(e.to_string()))?;
 
-    suite.save(suite.path.clone().unwrap())
+    suite
+        .save(suite.path.clone().unwrap())
         .map_err(|e| RezCoreError::ExecutionError(e.to_string()))?;
 
     println!("Removed context '{}'", args.context_name);
@@ -291,14 +292,15 @@ fn cmd_remove_context(args: RemoveContextArgs) -> RezCoreResult<()> {
 }
 
 fn cmd_alias_tool(args: AliasToolArgs) -> RezCoreResult<()> {
-    let mut suite = Suite::load(&args.suite)
-        .map_err(|e| RezCoreError::ExecutionError(e.to_string()))?;
+    let mut suite =
+        Suite::load(&args.suite).map_err(|e| RezCoreError::ExecutionError(e.to_string()))?;
 
     suite
         .alias_tool(&args.context_name, args.alias.clone(), args.tool.clone())
         .map_err(|e| RezCoreError::ExecutionError(e.to_string()))?;
 
-    suite.save(suite.path.clone().unwrap())
+    suite
+        .save(suite.path.clone().unwrap())
         .map_err(|e| RezCoreError::ExecutionError(e.to_string()))?;
 
     println!(
@@ -309,14 +311,15 @@ fn cmd_alias_tool(args: AliasToolArgs) -> RezCoreResult<()> {
 }
 
 fn cmd_hide_tool(args: HideToolArgs) -> RezCoreResult<()> {
-    let mut suite = Suite::load(&args.suite)
-        .map_err(|e| RezCoreError::ExecutionError(e.to_string()))?;
+    let mut suite =
+        Suite::load(&args.suite).map_err(|e| RezCoreError::ExecutionError(e.to_string()))?;
 
     suite
         .hide_tool(&args.context_name, &args.tool)
         .map_err(|e| RezCoreError::ExecutionError(e.to_string()))?;
 
-    suite.save(suite.path.clone().unwrap())
+    suite
+        .save(suite.path.clone().unwrap())
         .map_err(|e| RezCoreError::ExecutionError(e.to_string()))?;
 
     println!(
@@ -327,8 +330,8 @@ fn cmd_hide_tool(args: HideToolArgs) -> RezCoreResult<()> {
 }
 
 fn cmd_tools(args: ToolsArgs) -> RezCoreResult<()> {
-    let suite = Suite::load(&args.suite)
-        .map_err(|e| RezCoreError::ExecutionError(e.to_string()))?;
+    let suite =
+        Suite::load(&args.suite).map_err(|e| RezCoreError::ExecutionError(e.to_string()))?;
 
     let tools = suite
         .get_tools()

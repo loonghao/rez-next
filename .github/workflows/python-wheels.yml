@@ -21,7 +21,7 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -34,17 +34,9 @@ jobs:
       - name: Install maturin
         run: pip install maturin
 
-      - name: Build wheels (Linux)
-        if: matrix.os == 'ubuntu-latest'
+      - name: Build wheels
         working-directory: crates/rez-next-python
-        run: |
-          maturin build --release --features pyo3/extension-module --out dist
-
-      - name: Build wheels (Windows/macOS)
-        if: matrix.os != 'ubuntu-latest'
-        working-directory: crates/rez-next-python
-        run: |
-          maturin build --release --features pyo3/extension-module --out dist
+        run: maturin build --release --features pyo3/extension-module --out dist
 
       - name: Upload wheels
         uses: actions/upload-artifact@v4
@@ -53,22 +45,25 @@ jobs:
           path: crates/rez-next-python/dist/*.whl
 
   test-wheel:
-    name: Test Python wheel (${{ matrix.os }})
+    name: Test wheel (${{ matrix.os }}, py${{ matrix.python-version }})
     needs: build-wheels
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
+        python-version: ["3.9", "3.10", "3.11", "3.12"]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
 
       - name: Download wheels
         uses: actions/download-artifact@v4
@@ -76,36 +71,24 @@ jobs:
           name: wheels-${{ matrix.os }}
           path: dist/
 
-      - name: Install wheel
+      - name: Install wheel and test dependencies
         shell: bash
         run: |
-          pip install dist/*.whl
+          uv pip install --system dist/*.whl
+          uv pip install --system pytest
 
-      - name: Run Python tests
+      - name: Smoke test — basic import
         run: |
           python -c "
           import rez_next
           print('rez_next version:', rez_next.__version__)
-
-          # Test Version API
-          from rez_next import Version, VersionRange
-          v = Version('1.2.3')
-          r = VersionRange('1.0+')
+          v = rez_next.Version('1.2.3')
+          r = rez_next.VersionRange('1.0+')
           assert r.contains(v), 'VersionRange.contains failed'
-          print('Version API: OK')
-
-          # Test Suite API
-          from rez_next.suite import Suite
-          s = Suite(description='Test')
-          s.add_context('dev', ['python-3.9'])
-          assert s.__len__() == 1
-          print('Suite API: OK')
-
-          # Test Config API
-          from rez_next import Config
-          cfg = Config()
-          assert isinstance(cfg.packages_path, list)
-          print('Config API: OK')
-
-          print('All tests passed!')
+          print('Smoke test passed!')
           "
+
+      - name: Run all Python tests
+        working-directory: crates/rez-next-python
+        run: pytest tests/ -v --tb=short -x
+

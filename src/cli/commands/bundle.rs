@@ -88,13 +88,13 @@ pub fn execute(args: BundleArgs) -> RezCoreResult<()> {
     });
 
     // Determine output directory
-    let output_dir = PathBuf::from(
-        args.output
-            .as_deref()
-            .unwrap_or(".")
-    ).join(&bundle_name);
+    let output_dir = PathBuf::from(args.output.as_deref().unwrap_or(".")).join(&bundle_name);
 
-    println!("Creating bundle '{}' in: {}", bundle_name, output_dir.display());
+    println!(
+        "Creating bundle '{}' in: {}",
+        bundle_name,
+        output_dir.display()
+    );
 
     // Parse requirements
     let requirements: Vec<PackageRequirement> = args
@@ -117,12 +117,10 @@ pub fn execute(args: BundleArgs) -> RezCoreResult<()> {
     }
 
     // Create bundle directory structure
-    std::fs::create_dir_all(&output_dir)
-        .map_err(|e| RezCoreError::Io(e.into()))?;
+    std::fs::create_dir_all(&output_dir).map_err(|e| RezCoreError::Io(e.into()))?;
 
     let packages_dir = output_dir.join("packages");
-    std::fs::create_dir_all(&packages_dir)
-        .map_err(|e| RezCoreError::Io(e.into()))?;
+    std::fs::create_dir_all(&packages_dir).map_err(|e| RezCoreError::Io(e.into()))?;
 
     // Setup search paths for finding package files
     let rez_config = RezCoreConfig::load();
@@ -198,7 +196,11 @@ pub fn execute(args: BundleArgs) -> RezCoreResult<()> {
     println!(
         "  Packages  : {} {}",
         context.resolved_packages.len(),
-        if args.skip_copy { "(metadata only)" } else { "(files copied)" }
+        if args.skip_copy {
+            "(metadata only)"
+        } else {
+            "(files copied)"
+        }
     );
 
     Ok(())
@@ -332,11 +334,7 @@ fn generate_activation_scripts(
         // Typical bin/lib paths
         let bin_path = pkg_root.join("bin");
         if bin_path.exists() {
-            let current_path = rex_env
-                .vars
-                .get("PATH")
-                .cloned()
-                .unwrap_or_default();
+            let current_path = rex_env.vars.get("PATH").cloned().unwrap_or_default();
             let sep = if cfg!(windows) { ";" } else { ":" };
             rex_env.vars.insert(
                 "PATH".to_string(),
@@ -454,7 +452,10 @@ mod tests {
         assert_eq!(restored.requests.len(), 2);
         assert_eq!(restored.packages.len(), 2);
         assert_eq!(restored.name, "houdini_20_python_3_11");
-        assert_eq!(restored.packages[0].source_path, Some("/packages/houdini/20.0.0".to_string()));
+        assert_eq!(
+            restored.packages[0].source_path,
+            Some("/packages/houdini/20.0.0".to_string())
+        );
         assert!(restored.packages[1].source_path.is_none());
     }
 
@@ -498,8 +499,14 @@ mod tests {
 
         copy_dir_recursive(&src, &dst).unwrap();
 
-        assert!(dst.join("package.py").exists(), "package.py should be copied");
-        assert!(dst.join("python").join("module.py").exists(), "subdirectory file should be copied");
+        assert!(
+            dst.join("package.py").exists(),
+            "package.py should be copied"
+        );
+        assert!(
+            dst.join("python").join("module.py").exists(),
+            "subdirectory file should be copied"
+        );
         let content = std::fs::read_to_string(dst.join("package.py")).unwrap();
         assert!(content.contains("test"));
     }

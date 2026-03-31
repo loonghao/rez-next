@@ -112,8 +112,8 @@ async fn setup_repositories(args: &StatusArgs) -> RezCoreResult<RepositoryManage
             .iter()
             .map(|p| {
                 let expanded = if p.starts_with("~/") || p == "~" {
-                    if let Ok(home) = std::env::var("USERPROFILE")
-                        .or_else(|_| std::env::var("HOME"))
+                    if let Ok(home) =
+                        std::env::var("USERPROFILE").or_else(|_| std::env::var("HOME"))
                     {
                         p.replacen("~", &home, 1)
                     } else {
@@ -364,8 +364,14 @@ async fn show_general_status(
     println!();
 
     println!("Config:");
-    println!("  Local packages path : {}", expand_home_str(&config.local_packages_path));
-    println!("  Release packages path: {}", expand_home_str(&config.release_packages_path));
+    println!(
+        "  Local packages path : {}",
+        expand_home_str(&config.local_packages_path)
+    );
+    println!(
+        "  Release packages path: {}",
+        expand_home_str(&config.release_packages_path)
+    );
     println!();
 
     if args.verbose {
@@ -462,7 +468,10 @@ mod tests {
     async fn test_analyze_nonexistent_repository() {
         let path = PathBuf::from("/this/path/does/not/exist/ever");
         let status = analyze_repository_status(&path).await.unwrap();
-        assert!(!status.accessible, "Non-existent path should be inaccessible");
+        assert!(
+            !status.accessible,
+            "Non-existent path should be inaccessible"
+        );
         assert!(status.error.is_some(), "Should have error message");
         assert_eq!(status.package_count, 0);
         assert_eq!(status.family_count, 0);
@@ -472,7 +481,9 @@ mod tests {
     async fn test_analyze_empty_repository() {
         use tempfile::TempDir;
         let temp_dir = TempDir::new().unwrap();
-        let status = analyze_repository_status(&temp_dir.path().to_path_buf()).await.unwrap();
+        let status = analyze_repository_status(&temp_dir.path().to_path_buf())
+            .await
+            .unwrap();
         assert!(status.accessible);
         assert!(status.error.is_none());
         assert_eq!(status.package_count, 0, "Empty directory has no packages");
@@ -486,7 +497,9 @@ mod tests {
         for family in &["python", "maya", "houdini"] {
             std::fs::create_dir(temp_dir.path().join(family)).unwrap();
         }
-        let status = analyze_repository_status(&temp_dir.path().to_path_buf()).await.unwrap();
+        let status = analyze_repository_status(&temp_dir.path().to_path_buf())
+            .await
+            .unwrap();
         assert!(status.accessible);
         assert_eq!(status.package_count, 3, "Should count 3 family directories");
         assert_eq!(status.family_count, 3);
@@ -577,8 +590,12 @@ mod tests {
         let args = StatusArgs {
             package: None,
             paths: vec![dir1.path().to_path_buf(), dir2.path().to_path_buf()],
-            detailed: false, repos: false, families: false,
-            recent: None, issues: false, verbose: false,
+            detailed: false,
+            repos: false,
+            families: false,
+            recent: None,
+            issues: false,
+            verbose: false,
         };
         let manager = setup_repositories(&args).await.unwrap();
         assert_eq!(manager.repository_count(), 2);
@@ -596,4 +613,3 @@ mod tests {
         assert_eq!(result2, "relative/path");
     }
 }
-

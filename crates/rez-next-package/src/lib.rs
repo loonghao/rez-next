@@ -131,7 +131,10 @@ mod tests {
     #[test]
     fn test_package_variants_empty() {
         let pkg = Package::new("mypkg".to_string());
-        assert!(pkg.variants.is_empty(), "New package should have no variants");
+        assert!(
+            pkg.variants.is_empty(),
+            "New package should have no variants"
+        );
     }
 
     #[test]
@@ -145,9 +148,16 @@ mod tests {
     #[test]
     fn test_package_variants_multiple() {
         let mut pkg = Package::new("mypkg".to_string());
-        pkg.variants.push(vec!["python-3.9".to_string(), "platform-linux".to_string()]);
-        pkg.variants.push(vec!["python-3.10".to_string(), "platform-linux".to_string()]);
-        pkg.variants.push(vec!["python-3.11".to_string(), "platform-windows".to_string()]);
+        pkg.variants
+            .push(vec!["python-3.9".to_string(), "platform-linux".to_string()]);
+        pkg.variants.push(vec![
+            "python-3.10".to_string(),
+            "platform-linux".to_string(),
+        ]);
+        pkg.variants.push(vec![
+            "python-3.11".to_string(),
+            "platform-windows".to_string(),
+        ]);
         assert_eq!(pkg.variants.len(), 3);
     }
 
@@ -185,7 +195,11 @@ requires = ['python-3', 'maya-2023']
         std::fs::write(&path, content).unwrap();
 
         let pkg = serialization::PackageSerializer::load_from_file(&path).unwrap();
-        assert!(!pkg.requires.is_empty(), "requires should be parsed: {:?}", pkg.requires);
+        assert!(
+            !pkg.requires.is_empty(),
+            "requires should be parsed: {:?}",
+            pkg.requires
+        );
         assert!(
             pkg.requires.iter().any(|r| r.contains("python")),
             "python requirement should be present: {:?}",
@@ -210,8 +224,8 @@ requires = ['python-3', 'maya-2023']
 
     #[test]
     fn test_package_requirement_satisfied_by() {
-        use rez_next_version::Version;
         use super::package::PackageRequirement;
+        use rez_next_version::Version;
 
         // In rez version semantics: "3.9" > "3.9.0" (shorter = greater)
         // So >=3.9 means "greater than or equal to 3.9 (the epoch)"
@@ -227,8 +241,8 @@ requires = ['python-3', 'maya-2023']
 
     #[test]
     fn test_package_requirement_ne_constraint() {
-        use rez_next_version::Version;
         use super::package::PackageRequirement;
+        use rez_next_version::Version;
 
         let req_ne = PackageRequirement::with_version("lib".to_string(), "!=1.5.0".to_string());
         assert!(req_ne.satisfied_by(&Version::parse("1.4.0").unwrap()));
@@ -242,9 +256,11 @@ requires = ['python-3', 'maya-2023']
         let mut pkg = Package::new("maya_tools".to_string());
         pkg.version = Some(Version::parse("1.0.0").unwrap());
         // Variant 0: requires python-3.9 AND maya-2023
-        pkg.variants.push(vec!["python-3.9".to_string(), "maya-2023".to_string()]);
+        pkg.variants
+            .push(vec!["python-3.9".to_string(), "maya-2023".to_string()]);
         // Variant 1: requires python-3.10 AND maya-2024
-        pkg.variants.push(vec!["python-3.10".to_string(), "maya-2024".to_string()]);
+        pkg.variants
+            .push(vec!["python-3.10".to_string(), "maya-2024".to_string()]);
 
         assert_eq!(pkg.variants.len(), 2);
         assert!(pkg.variants[0].iter().any(|r| r.contains("python-3.9")));

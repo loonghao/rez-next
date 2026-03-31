@@ -1,8 +1,8 @@
 //! Core solver implementation
 
+use crate::dependency_resolver::DependencyResolver;
 #[cfg(feature = "python-bindings")]
 use pyo3::prelude::*;
-use crate::dependency_resolver::DependencyResolver;
 use rez_next_common::RezCoreError;
 use rez_next_package::{Package, PackageRequirement, Requirement};
 use rez_next_repository::simple_repository::RepositoryManager;
@@ -248,9 +248,9 @@ impl DependencySolver {
                 .into_iter()
                 .map(|pr| {
                     let req_str = pr.to_string();
-                    req_str.parse::<Requirement>().unwrap_or_else(|_| {
-                        Requirement::new(pr.name.clone())
-                    })
+                    req_str
+                        .parse::<Requirement>()
+                        .unwrap_or_else(|_| Requirement::new(pr.name.clone()))
                 })
                 .collect();
 

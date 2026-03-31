@@ -212,7 +212,11 @@ impl RezCli {
             RezCommand::Pip(args) => commands::pip::execute(args.clone()),
             RezCommand::Complete(args) => commands::complete::execute(args.clone()),
             RezCommand::Forward(args) => commands::forward::execute(args.clone()),
-            RezCommand::Gui { output, open, package } => {
+            RezCommand::Gui {
+                output,
+                open,
+                package,
+            } => {
                 let args = commands::gui::GuiArgs {
                     output: output.clone(),
                     open: *open,
@@ -282,17 +286,24 @@ impl RezCli {
         // Test 2: Version comparison
         run_test!("version comparison", {
             use rez_next_version::Version;
-            let v1 = Version::parse("1.0.0").map_err(|e| RezCoreError::VersionParse(e.to_string()))?;
-            let v2 = Version::parse("2.0.0").map_err(|e| RezCoreError::VersionParse(e.to_string()))?;
-            if v1 < v2 { Ok(()) } else {
-                Err(RezCoreError::VersionParse("1.0.0 should be < 2.0.0".to_string()))
+            let v1 =
+                Version::parse("1.0.0").map_err(|e| RezCoreError::VersionParse(e.to_string()))?;
+            let v2 =
+                Version::parse("2.0.0").map_err(|e| RezCoreError::VersionParse(e.to_string()))?;
+            if v1 < v2 {
+                Ok(())
+            } else {
+                Err(RezCoreError::VersionParse(
+                    "1.0.0 should be < 2.0.0".to_string(),
+                ))
             }
         });
 
         // Test 3: Version range parsing
         run_test!("version range parsing", {
             use rez_next_version::VersionRange;
-            VersionRange::parse(">=1.0.0").map(|_| ())
+            VersionRange::parse(">=1.0.0")
+                .map(|_| ())
                 .map_err(|e| RezCoreError::VersionParse(format!("{:?}", e)))
         });
 
@@ -305,24 +316,36 @@ impl RezCli {
         // Test 5: Config loading
         run_test!("config loading", {
             let config = rez_next_common::config::RezCoreConfig::load();
-            if !config.version.is_empty() { Ok(()) } else {
-                Err(RezCoreError::RequirementParse("config.version is empty".to_string()))
+            if !config.version.is_empty() {
+                Ok(())
+            } else {
+                Err(RezCoreError::RequirementParse(
+                    "config.version is empty".to_string(),
+                ))
             }
         });
 
         // Test 6: Config field access
         run_test!("config field access", {
             let config = rez_next_common::config::RezCoreConfig::default();
-            config.get_field("version")
-                .ok_or_else(|| RezCoreError::RequirementParse("version field not found".to_string()))
+            config
+                .get_field("version")
+                .ok_or_else(|| {
+                    RezCoreError::RequirementParse("version field not found".to_string())
+                })
                 .map(|_| ())
         });
 
         // Test 7: Config nested field access
         run_test!("config nested field access", {
             let config = rez_next_common::config::RezCoreConfig::default();
-            config.get_field("cache.enable_memory_cache")
-                .ok_or_else(|| RezCoreError::RequirementParse("cache.enable_memory_cache not found".to_string()))
+            config
+                .get_field("cache.enable_memory_cache")
+                .ok_or_else(|| {
+                    RezCoreError::RequirementParse(
+                        "cache.enable_memory_cache not found".to_string(),
+                    )
+                })
                 .map(|_| ())
         });
 

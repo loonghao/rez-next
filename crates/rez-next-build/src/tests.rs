@@ -132,8 +132,11 @@ mod tests {
     #[test]
     fn test_detect_cmake_build_system() {
         let tmp = TempDir::new().unwrap();
-        std::fs::write(tmp.path().join("CMakeLists.txt"), "cmake_minimum_required(VERSION 3.0)")
-            .unwrap();
+        std::fs::write(
+            tmp.path().join("CMakeLists.txt"),
+            "cmake_minimum_required(VERSION 3.0)",
+        )
+        .unwrap();
         let system = BuildSystem::detect(&tmp.path().to_path_buf());
         assert!(system.is_ok());
         assert!(matches!(system.unwrap(), BuildSystem::CMake(_)));
@@ -142,8 +145,7 @@ mod tests {
     #[test]
     fn test_detect_python_build_system_setup_py() {
         let tmp = TempDir::new().unwrap();
-        std::fs::write(tmp.path().join("setup.py"), "from setuptools import setup")
-            .unwrap();
+        std::fs::write(tmp.path().join("setup.py"), "from setuptools import setup").unwrap();
         let system = BuildSystem::detect(&tmp.path().to_path_buf());
         assert!(system.is_ok());
         assert!(matches!(system.unwrap(), BuildSystem::Python(_)));
@@ -276,7 +278,11 @@ mod tests {
         let pkg = make_package("mylib", "2.0.0");
         let tmp = TempDir::new().unwrap();
         let env = BuildEnvironment::new(&pkg, &tmp.path().to_path_buf(), None);
-        assert!(env.is_ok(), "BuildEnvironment::new should succeed: {:?}", env.err());
+        assert!(
+            env.is_ok(),
+            "BuildEnvironment::new should succeed: {:?}",
+            env.err()
+        );
         let env = env.unwrap();
         // Build dir should be inside tmp
         assert!(env.get_build_dir().starts_with(tmp.path()));
@@ -310,7 +316,10 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         let mut env = BuildEnvironment::new(&pkg, &tmp.path().to_path_buf(), None).unwrap();
         env.add_env_var("MY_BUILD_FLAG".to_string(), "1".to_string());
-        assert_eq!(env.get_env_vars().get("MY_BUILD_FLAG"), Some(&"1".to_string()));
+        assert_eq!(
+            env.get_env_vars().get("MY_BUILD_FLAG"),
+            Some(&"1".to_string())
+        );
     }
 
     #[test]
@@ -320,8 +329,14 @@ mod tests {
         let env = BuildEnvironment::new(&pkg, &tmp.path().to_path_buf(), None).unwrap();
         // REZ_BUILD_PACKAGE_NAME should always be set
         let vars = env.get_env_vars();
-        assert_eq!(vars.get("REZ_BUILD_PACKAGE_NAME"), Some(&"mylib".to_string()));
-        assert_eq!(vars.get("REZ_BUILD_PACKAGE_VERSION"), Some(&"2.0.0".to_string()));
+        assert_eq!(
+            vars.get("REZ_BUILD_PACKAGE_NAME"),
+            Some(&"mylib".to_string())
+        );
+        assert_eq!(
+            vars.get("REZ_BUILD_PACKAGE_VERSION"),
+            Some(&"2.0.0".to_string())
+        );
     }
 
     #[test]
@@ -338,8 +353,11 @@ mod tests {
         // build.sh should take priority over CMakeLists.txt
         let tmp = TempDir::new().unwrap();
         std::fs::write(tmp.path().join("build.sh"), "#!/bin/bash").unwrap();
-        std::fs::write(tmp.path().join("CMakeLists.txt"), "cmake_minimum_required(VERSION 3.0)")
-            .unwrap();
+        std::fs::write(
+            tmp.path().join("CMakeLists.txt"),
+            "cmake_minimum_required(VERSION 3.0)",
+        )
+        .unwrap();
         let system = BuildSystem::detect(&tmp.path().to_path_buf()).unwrap();
         assert!(
             matches!(system, BuildSystem::Custom(_)),
@@ -362,10 +380,15 @@ mod tests {
     #[test]
     fn test_build_options_with_env_vars() {
         let mut opts = BuildOptions::default();
-        opts.env_vars.insert("REZ_BUILD_INSTALL".to_string(), "1".to_string());
-        opts.env_vars.insert("REZ_BUILD_PROJECT_NAME".to_string(), "maya".to_string());
+        opts.env_vars
+            .insert("REZ_BUILD_INSTALL".to_string(), "1".to_string());
+        opts.env_vars
+            .insert("REZ_BUILD_PROJECT_NAME".to_string(), "maya".to_string());
         assert_eq!(opts.env_vars.len(), 2);
-        assert_eq!(opts.env_vars.get("REZ_BUILD_INSTALL"), Some(&"1".to_string()));
+        assert_eq!(
+            opts.env_vars.get("REZ_BUILD_INSTALL"),
+            Some(&"1".to_string())
+        );
     }
 
     #[tokio::test]
@@ -384,6 +407,9 @@ mod tests {
         let _id = manager.start_build(req).await.unwrap();
 
         let stats = manager.get_stats();
-        assert_eq!(stats.builds_started, 1, "builds_started should be incremented");
+        assert_eq!(
+            stats.builds_started, 1,
+            "builds_started should be incremented"
+        );
     }
 }

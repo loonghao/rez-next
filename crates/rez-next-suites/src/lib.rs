@@ -22,14 +22,14 @@
 //! s.add_context("maya", ResolvedContext(["maya-2023", "python-3.9"]))
 //! ```
 
+pub mod error;
 pub mod suite;
 pub mod suite_context;
-pub mod suite_tool;
 pub mod suite_manager;
-pub mod error;
+pub mod suite_tool;
 
+pub use error::SuiteError;
 pub use suite::{Suite, SuiteStatus};
 pub use suite_context::SuiteContext;
-pub use suite_tool::{SuiteTool, ToolConflictMode};
 pub use suite_manager::SuiteManager;
-pub use error::SuiteError;
+pub use suite_tool::{SuiteTool, ToolConflictMode};
