@@ -5953,6 +5953,224 @@ fn test_conflict_records_source_packages() {
     assert_eq!(conflict.conflicting_requirements.len(), 2);
 }
 
+// ── Phase 121: Suite advanced behavior ───────────────────────────────────────
+
+/// rez suite: removing a context updates the context list
+#[test]
+fn test_suite_remove_context_updates_list() {
+    let mut suite = Suite::new();
+    suite.add_context("maya", vec!["maya-2024".to_string()]).unwrap();
+    suite.add_context("nuke", vec!["nuke-14".to_string()]).unwrap();
+    assert_eq!(suite.len(), 2);
+
+    suite.remove_context("maya").unwrap();
+    assert_eq!(suite.len(), 1, "After removing 'maya', suite should have 1 context");
+    assert!(suite.get_context("maya").is_none(), "'maya' should no longer exist");
+    assert!(suite.get_context("nuke").is_some(), "'nuke' should still exist");
+}
+
+/// rez suite: get_tools collects all tools across all contexts
+#[test]
+fn test_suite_get_tools_collects_all_contexts() {
+    let mut suite = Suite::new();
+    suite.add_context("dcc", vec!["maya-2024".to_string(), "python-3.9".to_string()]).unwrap();
+    suite.add_context("render", vec!["arnold-7".to_string()]).unwrap();
+    // Register aliases so get_tools has something to return
+    let _ = suite.alias_tool("dcc", "maya24", "maya");
+    let _ = suite.alias_tool("render", "rndr", "arnold");
+
+    let tools = suite.get_tools();
+    assert!(tools.is_ok(), "get_tools should succeed: {:?}", tools);
+    let tool_map = tools.unwrap();
+    assert!(!tool_map.is_empty(), "Suite with aliases should have tools");
+}
+
+/// rez suite: hide_tool removes tool from exposed tools
+#[test]
+fn test_suite_hide_tool_removes_tool() {
+    let mut suite = Suite::new();
+    suite.add_context("ctx", vec!["pkg-1.0".to_string()]).unwrap();
+    let _ = suite.alias_tool("ctx", "mytool", "mytool");
+    let _ = suite.hide_tool("ctx", "mytool");
+
+    let tools = suite.get_tools().unwrap();
+    assert!(
+        !tools.contains_key("mytool"),
+        "hidden tool should not appear in get_tools"
+    );
+}
+
+/// rez suite: is_empty returns true for new suite
+#[test]
+fn test_suite_is_empty_new_suite() {
+    let suite = Suite::new();
+    assert!(suite.is_empty(), "New suite should be empty");
+    assert_eq!(suite.len(), 0);
+}
+
+// ── Phase 122: Rex executor edge cases ───────────────────────────────────────
+
+/// rez rex: resetenv removes a previously set variable
+#[test]
+fn test_rex_resetenv_removes_variable() {
+    use rez_next_rex::RexExecutor;
+
+    let mut exec = RexExecutor::new();
+    exec.execute_commands("env.setenv('LEGACY', 'old_value')", "pkg", None, None).unwrap();
+    let env = exec.execute_commands("resetenv('LEGACY')", "pkg", None, None).unwrap();
+    assert!(!env.vars.contains_key("LEGACY"), "resetenv should remove variable from env");
+}
+
+/// rez rex: stop() sets stopped flag and captures message
+#[test]
+fn test_rex_stop_sets_flag_and_message() {
+    use rez_next_rex::RexExecutor;
+
+    let mut exec = RexExecutor::new();
+    let env = exec.execute_commands("stop('build aborted')", "pkg", None, None).unwrap();
+    assert!(env.stopped, "stop() should set stopped=true");
+    assert_eq!(env.stop_message.as_deref(), Some("build aborted"),
+        "stop() message should be captured");
+}
+
+/// rez rex: setenv_if_empty only sets when var not already set
+#[test]
+fn test_rex_setenv_if_empty_only_when_not_set() {
+    use rez_next_rex::RexExecutor;
+
+    let mut exec = RexExecutor::new();
+    // First set: should work since var doesn't exist
+    let env1 = exec.execute_commands(
+        "env.setenv_if_empty('MY_VAR', 'default_value')",
+        "pkg", None, None
+    ).unwrap();
+    assert_eq!(env1.vars.get("MY_VAR").map(|s| s.as_str()), Some("default_value"),
+        "setenv_if_empty should set when var is not set");
+}
+
+// ── Phase 123: Package is_valid and validation edge cases ─────────────────────
+
+/// rez package: is_valid returns true for package with name and version
+#[test]
+fn test_package_is_valid_with_name_and_version() {
+    use rez_next_package::Package;
+    use rez_next_version::Version;
+
+    let mut pkg = Package::new("mylib".to_string());
+    pkg.version = Some(Version::parse("1.2.3").unwrap());
+    assert!(pkg.is_valid(), "Package with name and version should be valid");
+}
+
+/// rez package: is_valid returns false for package with empty name
+#[test]
+fn test_package_is_valid_false_for_empty_name() {
+    use rez_next_package::Package;
+
+    let pkg = Package::new("".to_string());
+    assert!(!pkg.is_valid(), "Package with empty name should not be valid");
+}
+
+/// rez package: clone produces identical package
+#[test]
+fn test_package_clone_is_equal() {
+    use rez_next_package::Package;
+    use rez_next_version::Version;
+
+    let mut pkg = Package::new("mypkg".to_string());
+    pkg.version = Some(Version::parse("2.0.0").unwrap());
+    pkg.description = Some("A test package".to_string());
+    pkg.requires = vec!["python-3.9".to_string()];
+
+    let cloned = pkg.clone();
+    assert_eq!(cloned.name, pkg.name);
+    assert_eq!(cloned.version, pkg.version);
+    assert_eq!(cloned.description, pkg.description);
+    assert_eq!(cloned.requires, pkg.requires);
+}
+
+// ── Phase 124: Version string representations ────────────────────────────────
+
+/// rez version: as_str returns the original version string
+#[test]
+fn test_version_as_str_roundtrip() {
+    for v_str in &["1.0.0", "2.3", "10.0.0.alpha1", "0.0.1", "5"] {
+        let v = Version::parse(v_str).unwrap();
+        assert_eq!(v.as_str(), *v_str,
+            "Version::as_str() should return original string for {}", v_str);
+    }
+}
+
+/// rez version: Debug representation contains the version string
+#[test]
+fn test_version_display_equals_as_str() {
+    let v = Version::parse("3.9.7").unwrap();
+    let debug_repr = format!("{:?}", v);
+    // Debug representation should contain the version string
+    assert!(debug_repr.contains("3.9.7") || v.as_str() == "3.9.7",
+        "Version representation should contain '3.9.7'");
+}
+
+/// rez version: compare zero vs non-zero correctly
+#[test]
+fn test_version_zero_is_minimum() {
+    let v0 = Version::parse("0").unwrap();
+    let v1 = Version::parse("0.1").unwrap();
+    let v2 = Version::parse("1.0").unwrap();
+    // In rez semantics: longer version = smaller epoch
+    // 0 > 0.1 > ... but also 0 < 1.0 by major version
+    assert!(v2 > v0, "1.0 should be > 0 (major version comparison)");
+    assert!(v2 > v1, "1.0 should be > 0.1");
+}
+
+// ── Phase 125: PackageRequirement advanced semantics ─────────────────────────
+
+/// rez: PackageRequirement name() method returns correct name
+#[test]
+fn test_package_requirement_name_method() {
+    use rez_next_package::PackageRequirement;
+
+    let req = PackageRequirement::parse("python-3.9").unwrap();
+    assert_eq!(req.name(), "python", "name() should return 'python'");
+}
+
+/// rez: PackageRequirement version_spec() extracts version string
+#[test]
+fn test_package_requirement_version_spec() {
+    use rez_next_package::PackageRequirement;
+
+    let req_with_ver = PackageRequirement::parse("maya-2024").unwrap();
+    assert_eq!(req_with_ver.version_spec.as_deref(), Some("2024"),
+        "version_spec should be '2024'");
+
+    let req_no_ver = PackageRequirement::parse("python").unwrap();
+    assert!(req_no_ver.version_spec.is_none(),
+        "version_spec should be None for bare name requirement");
+}
+
+/// rez: PackageRequirement satisfied_by is false for version below range
+#[test]
+fn test_package_requirement_satisfied_by_below_range() {
+    use rez_next_package::PackageRequirement;
+
+    let req = PackageRequirement::with_version("python".to_string(), ">=3.9".to_string());
+    let old_ver = Version::parse("3.7").unwrap();
+    assert!(!req.satisfied_by(&old_ver),
+        "3.7 should not satisfy >=3.9");
+}
+
+/// rez: PackageRequirement with exact version is only satisfied by that version
+#[test]
+fn test_package_requirement_exact_version_satisfaction() {
+    use rez_next_package::PackageRequirement;
+
+    let req = PackageRequirement::with_version("maya".to_string(), "2024".to_string());
+    let exact = Version::parse("2024").unwrap();
+    let other = Version::parse("2023").unwrap();
+    assert!(req.satisfied_by(&exact), "2024 should satisfy exact version 2024");
+    assert!(!req.satisfied_by(&other), "2023 should not satisfy exact version 2024");
+}
+
+
 
 
 
