@@ -267,28 +267,6 @@ impl ResolvedContext {
         self.environment_vars.insert(name, value);
     }
 
-    // /// Create a resolved context from a resolution result
-    // pub fn from_resolution_result(
-    //     requirements: Vec<PackageRequirement>,
-    //     resolution: ResolutionResult,
-    // ) -> Self {
-    //     let mut context = Self::from_requirements(requirements);
-    //     context.resolved_packages = resolution.packages;
-    //     context.status = ContextStatus::Resolved;
-    //
-    //     // Add resolution metadata
-    //     context.metadata.insert(
-    //         "resolution_time_ms".to_string(),
-    //         resolution.resolution_time_ms.to_string(),
-    //     );
-    //     context.metadata.insert(
-    //         "conflicts_resolved".to_string(),
-    //         resolution.conflicts_resolved.to_string(),
-    //     );
-
-    //     context
-    // }
-
     /// Set context name
     pub fn set_name(&mut self, name: String) {
         self.name = Some(name);

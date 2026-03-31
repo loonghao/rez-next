@@ -19,8 +19,6 @@ serde_yaml.workspace = true
 tokio.workspace = true
 lru.workspace = true
 thiserror.workspace = true
-# Temporarily disabled Python bindings
-# pyo3 = { workspace = true, optional = true }
 async-trait = "0.1"
 regex = "1.11"
 chrono = { version = "0.4", features = ["serde"] }

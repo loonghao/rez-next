@@ -54,11 +54,7 @@ pub use performance_monitor::*;
 pub use predictive_preheater::*;
 pub use unified_cache::*;
 
-// Re-export existing cache components for compatibility
-// Temporarily disabled due to compilation errors in other crates
-// pub use rez_next_solver::cache::{EvictionStrategy, SolverCache, SolverCacheConfig, SolverCacheStats};
-// pub use rez_next_repository::cache::{RepositoryCache, CacheConfig as RepositoryCacheConfig, CacheStats as RepositoryCacheStats};
-// pub use rez_core_rex::cache::{RexCache, RexCacheConfig, RexCacheStats};
+
 
 /// Cache eviction strategies (copied from SolverCache for now)
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq)]

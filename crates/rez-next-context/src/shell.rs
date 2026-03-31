@@ -81,44 +81,17 @@ impl ShellType {
 }
 
 /// Shell command execution result
-// #[pyclass]  // Temporarily disabled due to DLL issues
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CommandResult {
     /// Exit code
-    // #[pyo3(get)]  // Temporarily disabled due to DLL issues
     pub exit_code: i32,
     /// Standard output
-    // #[pyo3(get)]  // Temporarily disabled due to DLL issues
     pub stdout: String,
     /// Standard error
-    // #[pyo3(get)]  // Temporarily disabled due to DLL issues
     pub stderr: String,
     /// Execution time in milliseconds
-    // #[pyo3(get)]  // Temporarily disabled due to DLL issues
     pub execution_time_ms: u64,
 }
-
-// Python methods temporarily disabled due to DLL issues
-/*
-#[pymethods]
-impl CommandResult {
-    /// Check if the command was successful
-    pub fn is_success(&self) -> bool {
-        self.exit_code == 0
-    }
-
-    /// Get combined output (stdout + stderr)
-    pub fn combined_output(&self) -> String {
-        if self.stderr.is_empty() {
-            self.stdout.clone()
-        } else if self.stdout.is_empty() {
-            self.stderr.clone()
-        } else {
-            format!("{}\n{}", self.stdout, self.stderr)
-        }
-    }
-}
-*/
 
 impl CommandResult {
     /// Check if the command was successful
@@ -139,7 +112,6 @@ impl CommandResult {
 }
 
 /// Shell executor for running commands in resolved contexts
-// #[pyclass]  // Temporarily disabled due to DLL issues
 #[derive(Debug, Clone)]
 pub struct ShellExecutor {
     /// Shell type to use

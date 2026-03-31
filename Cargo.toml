@@ -84,14 +84,12 @@ rez-next-package = { version = "0.2.0", path = "crates/rez-next-package", defaul
 rez-next-solver = { version = "0.2.0", path = "crates/rez-next-solver", default-features = false }
 rez-next-repository = { version = "0.2.0", path = "crates/rez-next-repository", default-features = false }
 rez-next-context = { version = "0.2.0", path = "crates/rez-next-context", default-features = false }
-# rez-core-rex = { path = "crates/rez-core-rex" }  # Temporarily disabled due to compilation errors
 rez-next-build = { version = "0.2.0", path = "crates/rez-next-build" }
 rez-next-cache = { version = "0.2.0", path = "crates/rez-next-cache" }
 rez-next-suites = { version = "0.2.0", path = "crates/rez-next-suites" }
 rez-next-rex = { version = "0.2.0", path = "crates/rez-next-rex" }
-# rez-core-python = { path = "crates/rez-core-python" }  # Temporarily disabled due to DLL issues
 
-# Python bindings - temporarily disabled
+
 
 
 # pyo3 = { workspace = true, optional = true }

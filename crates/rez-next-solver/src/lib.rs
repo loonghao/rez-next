@@ -14,8 +14,6 @@ pub mod dependency_resolver;
 mod graph;
 pub mod resolution;
 mod solver;
-// mod cache;
-// mod optimized_solver;
 
 pub use astar::astar_search::{AStarSearch, SearchStats};
 pub use astar::heuristics::{
@@ -31,8 +29,6 @@ pub use dependency_resolver::*;
 pub use graph::*;
 pub use resolution::*;
 pub use solver::*;
-// pub use cache::*;
-// pub use optimized_solver::*;
 
 #[cfg(feature = "python-bindings")]
 use pyo3::prelude::*;
