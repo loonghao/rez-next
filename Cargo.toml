@@ -89,12 +89,8 @@ rez-next-build = { version = "0.2.0", path = "crates/rez-next-build" }
 rez-next-cache = { version = "0.2.0", path = "crates/rez-next-cache" }
 rez-next-suites = { version = "0.2.0", path = "crates/rez-next-suites" }
 rez-next-rex = { version = "0.2.0", path = "crates/rez-next-rex" }
-# rez-core-python = { path = "crates/rez-core-python" }  # Temporarily disabled due to DLL issues
-
-# Python bindings - temporarily disabled
 
 
-# pyo3 = { workspace = true, optional = true }
 
 # CLI dependencies
 clap.workspace = true
@@ -163,59 +159,8 @@ harness = false
 name = "depends_benchmark"
 harness = false
 
-# Temporarily disabled benchmarks due to API changes
-# [[bench]]
-# name = "comprehensive_benchmark_suite"
-# harness = false
 
-# [[bench]]
-# name = "solver_benchmark"
-# harness = false
 
-# [[bench]]
-# name = "solver_benchmark_main"
-# harness = false
-
-# [[bench]]
-# name = "context_benchmark"
-# harness = false
-
-# [[bench]]
-# name = "context_benchmark_main"
-# harness = false
-
-# [[bench]]
-# name = "simple_context_benchmark"
-# harness = false
-
-# [[bench]]
-# name = "rex_benchmark_main"
-# harness = false
-
-# [[bench]]
-# name = "simple_rex_benchmark"
-# harness = false
-
-# [[bench]]
-# name = "build_cache_benchmark_main"
-# harness = false
-
-# [[bench]]
-# name = "simple_build_cache_benchmark"
-# harness = false
-
-# [[bench]]
-# name = "performance_validation_benchmark"
-# harness = false
-
-# [[bench]]
-# name = "performance_validation_main"
-# harness = false
-
-# [build-dependencies]
-# pyo3-build-config = "0.25"  # Only needed for Python bindings
-
-# flamegraph = ["pprof"]
 
 # Linting configuration (workspace-level, inherited by all crates)
 [workspace.lints.rust]
