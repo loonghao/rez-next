@@ -3,9 +3,6 @@
 use crate::{EnvironmentManager, ShellType};
 use rez_next_common::RezCoreError;
 use rez_next_package::{Package, PackageRequirement};
-// use rez_next_solver::{ResolutionResult, DependencySolver, SolverRequest};
-#[cfg(feature = "python-bindings")]
-use pyo3::prelude::*;
 use rez_next_version::Version;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -13,23 +10,12 @@ use std::path::PathBuf;
 use uuid::Uuid;
 
 /// Resolved context representing a complete package environment
-#[cfg_attr(feature = "python-bindings", pyclass)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ResolvedContext {
     /// Unique context identifier
-    #[cfg(feature = "python-bindings")]
-    #[pyo3(get)]
-    pub id: String,
-    /// Unique context identifier (non-Python version)
-    #[cfg(not(feature = "python-bindings"))]
     pub id: String,
 
     /// Context name
-    #[cfg(feature = "python-bindings")]
-    #[pyo3(get)]
-    pub name: Option<String>,
-    /// Context name (non-Python version)
-    #[cfg(not(feature = "python-bindings"))]
     pub name: Option<String>,
 
     /// Original requirements that led to this context
@@ -45,35 +31,15 @@ pub struct ResolvedContext {
     pub metadata: HashMap<String, String>,
 
     /// Context creation timestamp
-    #[cfg(feature = "python-bindings")]
-    #[pyo3(get)]
-    pub created_at: i64,
-    /// Context creation timestamp (non-Python version)
-    #[cfg(not(feature = "python-bindings"))]
     pub created_at: i64,
 
     /// Context suite (if any)
-    #[cfg(feature = "python-bindings")]
-    #[pyo3(get)]
-    pub suite: Option<String>,
-    /// Context suite (if any) (non-Python version)
-    #[cfg(not(feature = "python-bindings"))]
     pub suite: Option<String>,
 
     /// Platform information
-    #[cfg(feature = "python-bindings")]
-    #[pyo3(get)]
-    pub platform: Option<String>,
-    /// Platform information (non-Python version)
-    #[cfg(not(feature = "python-bindings"))]
     pub platform: Option<String>,
 
     /// Architecture information
-    #[cfg(feature = "python-bindings")]
-    #[pyo3(get)]
-    pub arch: Option<String>,
-    /// Architecture information (non-Python version)
-    #[cfg(not(feature = "python-bindings"))]
     pub arch: Option<String>,
 
     /// Context status
@@ -136,79 +102,6 @@ impl Default for ContextConfig {
             unset_vars: Vec::new(),
             path_strategy: PathStrategy::Prepend,
         }
-    }
-}
-
-// Python methods - conditionally compiled
-#[cfg(feature = "python-bindings")]
-#[pymethods]
-impl ResolvedContext {
-    #[new]
-    pub fn new(requirements: Vec<String>) -> PyResult<Self> {
-        let parsed_requirements: Result<Vec<PackageRequirement>, _> = requirements
-            .iter()
-            .map(|req_str| PackageRequirement::parse(req_str))
-            .collect();
-
-        let parsed_requirements = parsed_requirements
-            .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(e.to_string()))?;
-
-        Ok(Self::from_requirements(parsed_requirements))
-    }
-
-    /// Get the number of resolved packages
-    #[getter]
-    pub fn py_package_count(&self) -> usize {
-        self.package_count()
-    }
-
-    /// Get all package names
-    pub fn py_get_package_names(&self) -> Vec<String> {
-        self.get_package_names()
-    }
-
-    /// Check if a package is included in the context
-    pub fn py_contains_package(&self, name: &str) -> bool {
-        self.contains_package(name)
-    }
-
-    /// Get environment variable by name
-    pub fn py_get_env_var(&self, name: &str) -> Option<String> {
-        self.get_env_var(name)
-    }
-
-    /// Set an environment variable
-    pub fn py_set_env_var(&mut self, name: String, value: String) {
-        self.set_env_var(name, value);
-    }
-
-    /// Get context status as string
-    #[getter]
-    pub fn status_str(&self) -> String {
-        format!("{:?}", self.status)
-    }
-
-    /// Check if context is resolved
-    #[getter]
-    pub fn is_resolved(&self) -> bool {
-        self.status == ContextStatus::Resolved
-    }
-
-    /// Get string representation
-    fn __str__(&self) -> String {
-        match &self.name {
-            Some(name) => format!("ResolvedContext('{}')", name),
-            None => format!("ResolvedContext({})", self.id),
-        }
-    }
-
-    /// Get representation
-    fn __repr__(&self) -> String {
-        format!(
-            "ResolvedContext(id='{}', packages={})",
-            self.id,
-            self.py_package_count()
-        )
     }
 }
 

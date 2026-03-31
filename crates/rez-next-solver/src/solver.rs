@@ -1,8 +1,6 @@
 //! Core solver implementation
 
 use crate::dependency_resolver::DependencyResolver;
-#[cfg(feature = "python-bindings")]
-use pyo3::prelude::*;
 use rez_next_common::RezCoreError;
 use rez_next_package::{Package, PackageRequirement, Requirement};
 use rez_next_repository::simple_repository::RepositoryManager;
@@ -132,7 +130,6 @@ impl SolverRequest {
 }
 
 /// High-performance dependency solver
-#[cfg_attr(feature = "python-bindings", pyclass)]
 pub struct DependencySolver {
     /// Solver configuration
     config: SolverConfig,
@@ -181,26 +178,6 @@ impl Default for SolverStats {
             avg_resolution_time_ms: 0.0,
             total_resolution_time_ms: 0,
         }
-    }
-}
-
-// Python methods - conditionally compiled
-#[cfg(feature = "python-bindings")]
-#[pymethods]
-impl DependencySolver {
-    #[new]
-    pub fn new_py() -> Self {
-        let config = SolverConfig::default();
-        Self {
-            config,
-            stats: SolverStats::default(),
-        }
-    }
-
-    /// Get solver statistics
-    #[getter]
-    pub fn stats(&self) -> String {
-        serde_json::to_string(&self.stats).unwrap_or_else(|_| "{}".to_string())
     }
 }
 

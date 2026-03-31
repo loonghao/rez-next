@@ -4,8 +4,6 @@ use crate::{
     BuildArtifacts, BuildConfig, BuildEnvironment, BuildRequest, BuildResult, BuildStatus,
     BuildSystem,
 };
-#[cfg(feature = "python-bindings")]
-use pyo3::prelude::*;
 use rez_next_common::RezCoreError;
 use rez_next_context::ShellExecutor;
 use serde::{Deserialize, Serialize};
@@ -16,7 +14,6 @@ use tokio::process::Child;
 use tokio::sync::{Mutex, RwLock};
 
 /// Build process for managing individual package builds
-#[cfg_attr(feature = "python-bindings", pyclass)]
 #[derive(Debug)]
 pub struct BuildProcess {
     /// Build ID
@@ -71,29 +68,6 @@ pub struct BuildStepResult {
     pub errors: String,
     /// Step duration in milliseconds
     pub duration_ms: u64,
-}
-
-#[cfg(feature = "python-bindings")]
-#[pymethods]
-impl BuildProcess {
-    /// Get build ID
-    #[getter]
-    pub fn build_id(&self) -> String {
-        self.build_id.clone()
-    }
-
-    /// Get build status
-    #[getter]
-    pub fn status(&self) -> String {
-        // This is a simplified sync version for Python binding
-        format!("{:?}", BuildStatus::Running) // TODO: Implement proper sync access
-    }
-
-    /// Get package name
-    #[getter]
-    pub fn package_name(&self) -> String {
-        self.request.package.name.clone()
-    }
 }
 
 impl BuildProcess {

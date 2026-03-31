@@ -1,7 +1,5 @@
 //! Repository trait and base implementations
 
-#[cfg(feature = "python-bindings")]
-use pyo3::prelude::*;
 use rez_next_common::RezCoreError;
 use rez_next_package::{Package, PackageRequirement};
 use rez_next_version::Version;
@@ -151,7 +149,6 @@ impl Default for RepositoryStats {
 }
 
 /// Repository manager for handling multiple repositories
-#[cfg_attr(feature = "python-bindings", pyclass)]
 pub struct RepositoryManager {
     /// List of repositories in priority order
     repositories: Arc<RwLock<Vec<Arc<RwLock<dyn Repository>>>>>,
@@ -161,9 +158,7 @@ pub struct RepositoryManager {
     count: Arc<std::sync::atomic::AtomicUsize>,
 }
 
-#[cfg_attr(feature = "python-bindings", pymethods)]
 impl RepositoryManager {
-    #[cfg_attr(feature = "python-bindings", new)]
     pub fn new() -> Self {
         Self {
             repositories: Arc::new(RwLock::new(Vec::new())),
@@ -173,7 +168,6 @@ impl RepositoryManager {
     }
 
     /// Get the number of repositories (sync-safe via atomic counter)
-    #[cfg_attr(feature = "python-bindings", getter)]
     pub fn repository_count(&self) -> usize {
         self.count.load(std::sync::atomic::Ordering::Acquire)
     }

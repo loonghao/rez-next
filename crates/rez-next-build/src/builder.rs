@@ -1,8 +1,6 @@
 //! Build manager and coordination
 
 use crate::{BuildArtifacts, BuildEnvironment, BuildProcess, BuildSystem};
-#[cfg(feature = "python-bindings")]
-use pyo3::prelude::*;
 use rez_next_common::RezCoreError;
 use rez_next_context::ResolvedContext;
 use rez_next_package::Package;
@@ -12,7 +10,6 @@ use std::path::PathBuf;
 use uuid::Uuid;
 
 /// Build manager for coordinating package builds
-#[cfg_attr(feature = "python-bindings", pyclass)]
 #[derive(Debug)]
 pub struct BuildManager {
     /// Build configuration
@@ -202,54 +199,6 @@ impl BuildResult {
     pub fn with_metadata(mut self, key: String, value: String) -> Self {
         self.metadata.insert(key, value);
         self
-    }
-}
-
-#[cfg(feature = "python-bindings")]
-#[pymethods]
-impl BuildManager {
-    #[new]
-    pub fn new() -> Self {
-        Self::with_config(BuildConfig::default())
-    }
-
-    /// Start a build
-    #[cfg(feature = "python-bindings")]
-    pub fn build_package_py(&mut self, package: Package, source_dir: String) -> PyResult<String> {
-        let request = BuildRequest {
-            package,
-            context: None,
-            source_dir: PathBuf::from(source_dir),
-            variant: None,
-            options: BuildOptions::default(),
-        };
-
-        let result = tokio::runtime::Runtime::new()
-            .unwrap()
-            .block_on(self.start_build(request));
-
-        match result {
-            Ok(build_id) => Ok(build_id),
-            Err(e) => Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(
-                e.to_string(),
-            )),
-        }
-    }
-
-    /// Get build status
-    pub fn get_build_status_py(&self, build_id: &str) -> PyResult<String> {
-        match self.get_build_status(build_id) {
-            Some(status) => Ok(format!("{:?}", status)),
-            None => Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
-                "Build not found",
-            )),
-        }
-    }
-
-    /// Get build statistics
-    #[getter]
-    pub fn stats(&self) -> String {
-        serde_json::to_string_pretty(&self.stats).unwrap_or_default()
     }
 }
 
