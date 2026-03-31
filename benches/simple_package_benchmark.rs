@@ -386,7 +386,11 @@ fn ci_criterion() -> Criterion {
     Criterion::default()
         .sample_size(if ci { 30 } else { 100 })
         .measurement_time(std::time::Duration::from_secs(if ci { 2 } else { 5 }))
-        .warm_up_time(std::time::Duration::from_millis(if ci { 500 } else { 3000 }))
+        .warm_up_time(std::time::Duration::from_millis(if ci {
+            500
+        } else {
+            3000
+        }))
 }
 
 // Criterion benchmark groups

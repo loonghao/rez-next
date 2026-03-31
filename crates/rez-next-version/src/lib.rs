@@ -32,7 +32,6 @@ pub use version::Version;
 #[cfg(feature = "python-bindings")]
 pub use version_token::{AlphanumericVersionToken, NumericToken, VersionToken};
 
-
 // Define a custom error type for version parsing
 #[derive(Debug)]
 pub struct VersionParseError(pub String);
