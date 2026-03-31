@@ -94,7 +94,12 @@ pub fn execute(args: SearchArgs) -> RezCoreResult<()> {
 
 /// Async search implementation
 async fn search_async(args: SearchArgs) -> RezCoreResult<()> {
-    println!("🔍 Searching for: '{}'", args.query);
+    // Determine if we're in machine-readable (JSON) mode
+    let is_json_mode = args.format.eq_ignore_ascii_case("json");
+
+    if !is_json_mode {
+        println!("🔍 Searching for: '{}'", args.query);
+    }
 
     // Set up repository manager
     let mut repo_manager = RepositoryManager::new();
@@ -110,10 +115,12 @@ async fn search_async(args: SearchArgs) -> RezCoreResult<()> {
         }
     }
 
-    println!(
-        "📚 Searching {} repositories...",
-        repo_manager.repository_count()
-    );
+    if !is_json_mode {
+        println!(
+            "📚 Searching {} repositories...",
+            repo_manager.repository_count()
+        );
+    }
 
     // Perform search
     let results = perform_search(&repo_manager, &args).await?;
@@ -494,17 +501,25 @@ fn filter_latest_versions(results: Vec<SearchResult>) -> Vec<SearchResult> {
 
 /// Display search results
 fn display_search_results(results: &[SearchResult], args: &SearchArgs) -> RezCoreResult<()> {
+    let is_json = args.format.eq_ignore_ascii_case("json");
+
     if results.is_empty() {
-        println!("❌ No packages found matching '{}'", args.query);
+        if is_json {
+            println!("[]");
+        } else {
+            println!("❌ No packages found matching '{}'", args.query);
+        }
         return Ok(());
     }
 
-    println!("✅ Found {} package(s):", results.len());
-    println!();
+    if !is_json {
+        println!("✅ Found {} package(s):", results.len());
+        println!();
+    }
 
     match args.format.as_str() {
+        f if f.eq_ignore_ascii_case("json") => display_json_format(results),
         "table" => display_table_format(results, args),
-        "json" => display_json_format(results),
         "detailed" => display_detailed_format(results, args),
         _ => {
             eprintln!(

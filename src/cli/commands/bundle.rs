@@ -70,11 +70,50 @@ struct BundlePackageInfo {
     pub source_path: Option<String>,
 }
 
+/// Detect if a string looks like a filesystem path rather than a package spec.
+///
+/// A string is treated as a path if it:
+/// - is an absolute path (starts with `/`, `\`, or a Windows drive letter like `C:\`)
+/// - contains a path separator (`/` or `\`)
+fn looks_like_path(s: &str) -> bool {
+    // Windows absolute path: C:\... or C:/...
+    if s.len() >= 3 && s.chars().nth(1) == Some(':') {
+        return true;
+    }
+    // Unix absolute path or relative path with separator
+    if s.starts_with('/') || s.starts_with('\\') {
+        return true;
+    }
+    // Contains path separator
+    if s.contains('/') || s.contains('\\') {
+        return true;
+    }
+    false
+}
+
 /// Execute the bundle command
-pub fn execute(args: BundleArgs) -> RezCoreResult<()> {
+pub fn execute(mut args: BundleArgs) -> RezCoreResult<()> {
     if args.packages.is_empty() {
         return Err(RezCoreError::RequirementParse(
-            "No packages specified. Usage: rez bundle <pkg1> [pkg2 ...]".to_string(),
+            "No packages specified. Usage: rez bundle <pkg1> [pkg2 ...] [dest]".to_string(),
+        ));
+    }
+
+    // If the last positional argument looks like a path, treat it as the output directory.
+    // This supports the rez-style CLI: `rez bundle python-3.9 maya-2024 /path/to/bundle`
+    if args.output.is_none() {
+        if let Some(last) = args.packages.last() {
+            if looks_like_path(last) {
+                let dest = last.clone();
+                args.packages.pop();
+                args.output = Some(dest);
+            }
+        }
+    }
+
+    if args.packages.is_empty() {
+        return Err(RezCoreError::RequirementParse(
+            "No packages specified. Usage: rez bundle <pkg1> [pkg2 ...] [dest]".to_string(),
         ));
     }
 
@@ -87,8 +126,13 @@ pub fn execute(args: BundleArgs) -> RezCoreResult<()> {
             .join("_")
     });
 
-    // Determine output directory
-    let output_dir = PathBuf::from(args.output.as_deref().unwrap_or(".")).join(&bundle_name);
+    // Determine output directory: if output is explicitly specified, use it as-is.
+    // Otherwise, create a subdirectory named after the bundle.
+    let output_dir = if let Some(ref out) = args.output {
+        PathBuf::from(out)
+    } else {
+        PathBuf::from(".").join(&bundle_name)
+    };
 
     println!(
         "Creating bundle '{}' in: {}",
@@ -180,6 +224,25 @@ pub fn execute(args: BundleArgs) -> RezCoreResult<()> {
     let metadata_json = serde_json::to_string_pretty(&metadata).map_err(RezCoreError::Serde)?;
     let metadata_path = output_dir.join("bundle.json");
     std::fs::write(&metadata_path, &metadata_json).map_err(|e| RezCoreError::Io(e.into()))?;
+
+    // Also create bundle.yaml for rez compatibility (rez uses bundle.yaml as the bundle manifest)
+    let mut yaml_lines = vec![
+        format!("name: {}", metadata.name),
+        format!("version: {}", metadata.version),
+        format!("created_at: {}", metadata.created_at),
+        "requests:".to_string(),
+    ];
+    for req in &metadata.requests {
+        yaml_lines.push(format!("  - {}", req));
+    }
+    yaml_lines.push("packages:".to_string());
+    for pkg in &metadata.packages {
+        yaml_lines.push(format!("  - name: {}", pkg.name));
+        yaml_lines.push(format!("    version: {}", pkg.version));
+    }
+    let bundle_yaml = yaml_lines.join("\n") + "\n";
+    let yaml_path = output_dir.join("bundle.yaml");
+    std::fs::write(&yaml_path, &bundle_yaml).map_err(|e| RezCoreError::Io(e.into()))?;
 
     // Save context .rxt file
     let context_json = serde_json::to_string_pretty(&context).map_err(RezCoreError::Serde)?;

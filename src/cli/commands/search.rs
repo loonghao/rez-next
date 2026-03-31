@@ -8,6 +8,7 @@ use rez_next_package::Package;
 use rez_next_repository::simple_repository::RepositoryManager;
 use rez_next_repository::PackageSearchCriteria;
 use std::collections::HashMap;
+use serde_json;
 
 /// Arguments for the search command
 #[derive(Args, Clone, Debug)]
@@ -33,6 +34,10 @@ pub struct SearchArgs {
     /// Set package search path (ignores --no-local if set)
     #[arg(long, value_name = "PATH")]
     pub paths: Option<String>,
+
+    /// Set package repository path (alias for --paths)
+    #[arg(long, value_name = "PATH")]
+    pub repository: Option<String>,
 
     /// Format package output
     #[arg(short = 'f', long = "format", value_name = "FORMAT")]
@@ -98,7 +103,25 @@ pub fn execute(args: SearchArgs) -> RezCoreResult<()> {
     }
 
     // Create repository manager
-    let repo_manager = RepositoryManager::new();
+    let mut repo_manager = RepositoryManager::new();
+
+    // Add custom paths / repository if provided
+    let effective_paths: Option<String> = args.paths.clone().or_else(|| args.repository.clone());
+    if let Some(ref paths_str) = effective_paths {
+        // Support both `:` (Unix) and `;` (Windows) as separators, or single path
+        let separators: &[char] = &[':', ';'];
+        for path_str in paths_str.split(separators) {
+            let path_str = path_str.trim();
+            if path_str.is_empty() {
+                continue;
+            }
+            let repo = rez_next_repository::simple_repository::SimpleRepository::new(
+                path_str,
+                path_str.to_string(),
+            );
+            repo_manager.add_repository(Box::new(repo));
+        }
+    }
 
     // Execute search
     let runtime = tokio::runtime::Runtime::new().map_err(|e| RezCoreError::Io(e.into()))?;
@@ -115,29 +138,39 @@ async fn execute_search_async(
     before_time: Option<i64>,
     after_time: Option<i64>,
 ) -> RezCoreResult<()> {
-    // Create search criteria
-    let criteria = create_search_criteria(args, before_time, after_time)?;
+    // Determine name to search for
+    let search_name = args.package.as_deref().unwrap_or("*");
 
     if args.verbose {
-        println!("Search criteria:");
-        if let Some(ref pattern) = criteria.name_pattern {
-            println!("  Name pattern: {}", pattern);
-        }
-        if let Some(ref version) = criteria.version_requirement {
-            println!("  Version requirement: {}", version);
-        }
-        println!("  Include prerelease: {}", criteria.include_prerelease);
-        if let Some(limit) = criteria.limit {
-            println!("  Limit: {}", limit);
-        }
+        println!("Searching for: {}", search_name);
         println!();
     }
 
-    // Search for packages
-    let packages = repo_manager.find_packages(&criteria).await?;
+    // Search for packages - use "*" to list all, or specific name
+    let packages: Vec<Package> = if search_name == "*" || search_name.is_empty() {
+        // List all packages by scanning
+        let names = repo_manager.list_packages().await
+            .unwrap_or_default();
+        let mut all_pkgs = Vec::new();
+        for name in names {
+            let pkgs = repo_manager.find_packages(&name).await.unwrap_or_default();
+            for p in pkgs {
+                all_pkgs.push((*p).clone());
+            }
+        }
+        all_pkgs
+    } else {
+        let arcs = repo_manager.find_packages(search_name).await?;
+        arcs.into_iter().map(|a| (*a).clone()).collect()
+    };
 
     if packages.is_empty() {
         let resource_type = determine_resource_type(&args.resource_type, &args.package);
+        // Return empty JSON array rather than exiting with error when format=json
+        if args.format.as_deref().map(|f| f.eq_ignore_ascii_case("json")).unwrap_or(false) {
+            println!("[]");
+            return Ok(());
+        }
         eprintln!("No matching {} found.", resource_type);
         std::process::exit(1);
     }
@@ -146,7 +179,6 @@ async fn execute_search_async(
     let filtered_packages = filter_packages(packages, args, before_time, after_time)?;
 
     if args.errors {
-        // TODO: Implement validation and error filtering
         println!("Error filtering not yet implemented");
         return Ok(());
     }
@@ -275,6 +307,31 @@ fn display_formatted_results(
     format_str: &str,
     no_newlines: bool,
 ) -> RezCoreResult<()> {
+    // Special case: JSON output
+    if format_str.eq_ignore_ascii_case("json") {
+        let items: Vec<serde_json::Value> = packages
+            .iter()
+            .map(|p| {
+                let mut obj = serde_json::json!({
+                    "name": p.name,
+                });
+                if let Some(ref v) = p.version {
+                    obj["version"] = serde_json::Value::String(v.as_str().to_string());
+                    obj["qualified_name"] =
+                        serde_json::Value::String(format!("{}-{}", p.name, v.as_str()));
+                }
+                if let Some(ref d) = p.description {
+                    obj["description"] = serde_json::Value::String(d.clone());
+                }
+                obj
+            })
+            .collect();
+        let json_out = serde_json::to_string_pretty(&items)
+            .map_err(|e| RezCoreError::RequirementParse(format!("JSON serialization error: {e}")))?;
+        println!("{}", json_out);
+        return Ok(());
+    }
+
     for package in packages {
         let formatted = format_package(package, format_str)?;
         if no_newlines {
