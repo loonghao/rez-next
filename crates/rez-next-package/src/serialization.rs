@@ -1149,7 +1149,10 @@ mod tests {
     #[test]
     fn test_package_format_from_extension_py() {
         let p = std::path::Path::new("package.py");
-        assert_eq!(PackageFormat::from_extension(p), Some(PackageFormat::Python));
+        assert_eq!(
+            PackageFormat::from_extension(p),
+            Some(PackageFormat::Python)
+        );
     }
 
     #[test]
@@ -1213,7 +1216,10 @@ mod tests {
         assert!(py_path.exists(), "package.py should be written");
         let content = std::fs::read_to_string(&py_path).unwrap();
         assert!(content.contains("name"), "package.py should contain name");
-        assert!(content.contains("test_pkg"), "package.py should contain package name");
+        assert!(
+            content.contains("test_pkg"),
+            "package.py should contain package name"
+        );
     }
 
     #[test]
@@ -1230,10 +1236,7 @@ requires:
         let pkg = PackageSerializer::load_from_yaml(yaml).unwrap();
         assert_eq!(pkg.name, "my_package");
         assert!(pkg.version.is_some());
-        assert_eq!(
-            pkg.version.as_ref().map(|v| v.as_str()),
-            Some("2.0.0")
-        );
+        assert_eq!(pkg.version.as_ref().map(|v| v.as_str()), Some("2.0.0"));
         assert_eq!(pkg.description, Some("My test package".to_string()));
     }
 
@@ -1247,10 +1250,7 @@ requires = ["python>=3.7"]
 "#;
         let pkg = PackageSerializer::load_from_python(python).unwrap();
         assert_eq!(pkg.name, "pytools");
-        assert_eq!(
-            pkg.version.as_ref().map(|v| v.as_str()),
-            Some("1.0.0")
-        );
+        assert_eq!(pkg.version.as_ref().map(|v| v.as_str()), Some("1.0.0"));
         assert_eq!(pkg.description, Some("Python tools package".to_string()));
         assert_eq!(pkg.requires, vec!["python>=3.7"]);
     }
@@ -1303,12 +1303,21 @@ requires = ["python>=3.7"]
         pkg.requires = vec!["python-3.9".to_string(), "maya-2023".to_string()];
         pkg.tools = vec!["tool_a".to_string(), "tool_b".to_string()];
 
-        PackageSerializer::save_to_file_with_options(&pkg, &yaml_path, PackageFormat::Yaml, Some(minimal_opts())).unwrap();
+        PackageSerializer::save_to_file_with_options(
+            &pkg,
+            &yaml_path,
+            PackageFormat::Yaml,
+            Some(minimal_opts()),
+        )
+        .unwrap();
 
         let loaded = PackageSerializer::load_from_file(&yaml_path).unwrap();
         assert_eq!(loaded.name, "full_pkg");
         assert_eq!(loaded.version.as_ref().map(|v| v.as_str()), Some("2.5.0"));
-        assert_eq!(loaded.description, Some("Full field test package".to_string()));
+        assert_eq!(
+            loaded.description,
+            Some("Full field test package".to_string())
+        );
         assert!(loaded.authors.contains(&"Dev1".to_string()));
         assert!(loaded.authors.contains(&"Dev2".to_string()));
     }
@@ -1328,7 +1337,13 @@ requires = ["python>=3.7"]
             "scipy-1.7".to_string(),
         ];
 
-        PackageSerializer::save_to_file_with_options(&pkg, &yaml_path, PackageFormat::Yaml, Some(minimal_opts())).unwrap();
+        PackageSerializer::save_to_file_with_options(
+            &pkg,
+            &yaml_path,
+            PackageFormat::Yaml,
+            Some(minimal_opts()),
+        )
+        .unwrap();
         let loaded = PackageSerializer::load_from_file(&yaml_path).unwrap();
 
         assert_eq!(loaded.requires.len(), 3);
@@ -1348,7 +1363,13 @@ requires = ["python>=3.7"]
         pkg.version = Some(Version::parse("3.1.2").unwrap());
         pkg.description = Some("JSON test".to_string());
 
-        PackageSerializer::save_to_file_with_options(&pkg, &json_path, PackageFormat::Json, Some(minimal_opts())).unwrap();
+        PackageSerializer::save_to_file_with_options(
+            &pkg,
+            &json_path,
+            PackageFormat::Json,
+            Some(minimal_opts()),
+        )
+        .unwrap();
         let loaded = PackageSerializer::load_from_file(&json_path).unwrap();
 
         assert_eq!(loaded.name, "json_pkg");
@@ -1365,7 +1386,13 @@ requires = ["python>=3.7"]
         let pkg = make_test_package();
 
         // Save to file (no metadata)
-        PackageSerializer::save_to_file_with_options(&pkg, &yaml_path, PackageFormat::Yaml, Some(minimal_opts())).unwrap();
+        PackageSerializer::save_to_file_with_options(
+            &pkg,
+            &yaml_path,
+            PackageFormat::Yaml,
+            Some(minimal_opts()),
+        )
+        .unwrap();
 
         // Save to string
         let yaml_string = PackageSerializer::save_to_yaml(&pkg).unwrap();
@@ -1389,7 +1416,13 @@ requires = ["python>=3.7"]
         let yaml_path = tmp.path().join("package.yaml");
 
         let pkg = Package::new("minimal_pkg".to_string());
-        PackageSerializer::save_to_file_with_options(&pkg, &yaml_path, PackageFormat::Yaml, Some(minimal_opts())).unwrap();
+        PackageSerializer::save_to_file_with_options(
+            &pkg,
+            &yaml_path,
+            PackageFormat::Yaml,
+            Some(minimal_opts()),
+        )
+        .unwrap();
 
         let loaded = PackageSerializer::load_from_file(&yaml_path).unwrap();
         assert_eq!(loaded.name, "minimal_pkg");
@@ -1402,12 +1435,30 @@ requires = ["python>=3.7"]
     #[test]
     fn test_format_detection_all_extensions() {
         use std::path::Path;
-        assert_eq!(PackageFormat::from_extension(Path::new("pkg.yaml")), Some(PackageFormat::Yaml));
-        assert_eq!(PackageFormat::from_extension(Path::new("pkg.yml")), Some(PackageFormat::Yaml));
-        assert_eq!(PackageFormat::from_extension(Path::new("pkg.json")), Some(PackageFormat::Json));
-        assert_eq!(PackageFormat::from_extension(Path::new("pkg.py")), Some(PackageFormat::Python));
-        assert_eq!(PackageFormat::from_extension(Path::new("pkg.bin")), Some(PackageFormat::Binary));
-        assert_eq!(PackageFormat::from_extension(Path::new("pkg.toml")), Some(PackageFormat::Toml));
+        assert_eq!(
+            PackageFormat::from_extension(Path::new("pkg.yaml")),
+            Some(PackageFormat::Yaml)
+        );
+        assert_eq!(
+            PackageFormat::from_extension(Path::new("pkg.yml")),
+            Some(PackageFormat::Yaml)
+        );
+        assert_eq!(
+            PackageFormat::from_extension(Path::new("pkg.json")),
+            Some(PackageFormat::Json)
+        );
+        assert_eq!(
+            PackageFormat::from_extension(Path::new("pkg.py")),
+            Some(PackageFormat::Python)
+        );
+        assert_eq!(
+            PackageFormat::from_extension(Path::new("pkg.bin")),
+            Some(PackageFormat::Binary)
+        );
+        assert_eq!(
+            PackageFormat::from_extension(Path::new("pkg.toml")),
+            Some(PackageFormat::Toml)
+        );
         assert_eq!(PackageFormat::from_extension(Path::new("pkg.xyz")), None);
     }
 
@@ -1421,7 +1472,10 @@ requires = ["python>=3.7"]
         pkg.build_requires = vec!["cmake-3.20".to_string(), "ninja-1.10".to_string()];
 
         let json = PackageSerializer::save_to_json(&pkg).unwrap();
-        assert!(json.contains("cmake-3.20"), "JSON should have cmake in build_requires");
+        assert!(
+            json.contains("cmake-3.20"),
+            "JSON should have cmake in build_requires"
+        );
         let loaded = PackageSerializer::load_from_json(&json).unwrap();
         assert_eq!(loaded.build_requires.len(), 2);
         assert!(loaded.build_requires.contains(&"cmake-3.20".to_string()));
@@ -1450,7 +1504,9 @@ requires = ["python>=3.7"]
         let json = PackageSerializer::save_to_json(&pkg).unwrap();
         let loaded = PackageSerializer::load_from_json(&json).unwrap();
         assert_eq!(loaded.private_build_requires.len(), 1);
-        assert!(loaded.private_build_requires.contains(&"internal_lib-1.0".to_string()));
+        assert!(loaded
+            .private_build_requires
+            .contains(&"internal_lib-1.0".to_string()));
     }
 
     /// build_requires empty by default
@@ -1479,7 +1535,10 @@ requires = ["python>=3.7"]
         pkg.build_requires = vec!["cmake-3".to_string()];
 
         let py = PackageSerializer::save_to_python(&pkg).unwrap();
-        assert!(py.contains("build_requires"), "Python output should have build_requires");
+        assert!(
+            py.contains("build_requires"),
+            "Python output should have build_requires"
+        );
         assert!(py.contains("cmake-3"), "Python output should list cmake-3");
     }
 
@@ -1494,10 +1553,20 @@ requires = ["python>=3.7"]
         pkg.version = Some(Version::parse("1.5.0").unwrap());
         pkg.build_requires = vec!["cmake-3.20".to_string(), "boost-1.80".to_string()];
 
-        PackageSerializer::save_to_file_with_options(&pkg, &yaml_path, PackageFormat::Yaml, Some(minimal_opts())).unwrap();
+        PackageSerializer::save_to_file_with_options(
+            &pkg,
+            &yaml_path,
+            PackageFormat::Yaml,
+            Some(minimal_opts()),
+        )
+        .unwrap();
         let loaded = PackageSerializer::load_from_file(&yaml_path).unwrap();
 
-        assert_eq!(loaded.build_requires.len(), 2, "build_requires should be preserved in YAML file");
+        assert_eq!(
+            loaded.build_requires.len(),
+            2,
+            "build_requires should be preserved in YAML file"
+        );
         assert!(loaded.build_requires.contains(&"cmake-3.20".to_string()));
         assert!(loaded.build_requires.contains(&"boost-1.80".to_string()));
     }

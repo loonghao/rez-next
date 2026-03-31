@@ -231,15 +231,14 @@ impl DependencyGraph {
         // Group requirements by package name
         for (package_name, requirements) in &self.requirements {
             if requirements.len() > 1 {
-                // Check if requirements are compatible
+                // Check if requirements are compatible via version range intersection
                 let mut incompatible_groups = Vec::new();
 
                 for (i, req1) in requirements.iter().enumerate() {
                     for req2 in requirements.iter().skip(i + 1) {
-                        // TODO: Implement is_compatible_with method for PackageRequirement
-                        // if !req1.is_compatible_with(req2) {
-                        //     incompatible_groups.push((req1.clone(), req2.clone()));
-                        // }
+                        if !requirements_compatible(req1, req2) {
+                            incompatible_groups.push((req1.clone(), req2.clone()));
+                        }
                     }
                 }
 
@@ -269,16 +268,24 @@ impl DependencyGraph {
         // If major versions differ, it's major
         // Otherwise, it's minor
 
-        // TODO: Implement range checking when PackageRequirement has range field
-        // for (req1, req2) in incompatible_groups {
-        //     if let (Some(range1), Some(range2)) = (&req1.range, &req2.range) {
-        //         if !range1.intersects(range2) {
-        //             return ConflictSeverity::Incompatible;
-        //         }
-        //     }
-        // }
+        // Use range intersection to determine severity
+        for (req1, req2) in incompatible_groups {
+            let range1 = req1.version_spec.as_deref().unwrap_or("");
+            let range2 = req2.version_spec.as_deref().unwrap_or("");
+            // Both have ranges and they don't intersect → Incompatible
+            if !range1.is_empty() && !range2.is_empty() {
+                if let (Ok(r1), Ok(r2)) = (
+                    rez_next_version::VersionRange::parse(range1),
+                    rez_next_version::VersionRange::parse(range2),
+                ) {
+                    if r1.intersect(&r2).is_none() {
+                        return ConflictSeverity::Incompatible;
+                    }
+                }
+            }
+        }
 
-        ConflictSeverity::Major // Default to major for now
+        ConflictSeverity::Major
     }
 
     /// Find which packages introduced requirements for a given package
@@ -313,7 +320,6 @@ impl DependencyGraph {
         if let Some(requirements) = self.requirements.get_mut(&resolution.package_name) {
             // Create a new requirement based on the resolution
             if let Some(ref version) = resolution.selected_version {
-                // TODO: Implement exact requirement creation when method is available
                 let new_requirement = PackageRequirement::with_version(
                     resolution.package_name.clone(),
                     version.as_str().to_string(),
@@ -453,5 +459,26 @@ pub struct GraphStats {
 impl Default for DependencyGraph {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+/// Check if two PackageRequirements for the same package are compatible.
+/// Two requirements are compatible if their version ranges have a non-empty intersection.
+fn requirements_compatible(req1: &PackageRequirement, req2: &PackageRequirement) -> bool {
+    let spec1 = req1.version_spec.as_deref().unwrap_or("");
+    let spec2 = req2.version_spec.as_deref().unwrap_or("");
+
+    // If either has no version constraint, they're compatible
+    if spec1.is_empty() || spec2.is_empty() {
+        return true;
+    }
+
+    // Parse both ranges and check for intersection
+    match (
+        rez_next_version::VersionRange::parse(spec1),
+        rez_next_version::VersionRange::parse(spec2),
+    ) {
+        (Ok(r1), Ok(r2)) => r1.intersect(&r2).is_some(),
+        _ => true, // If parsing fails, assume compatible (don't false-flag)
     }
 }

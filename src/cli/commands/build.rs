@@ -141,18 +141,74 @@ pub fn execute(args: BuildArgs) -> RezCoreResult<()> {
         None
     };
 
-    // Create build request
-    let build_request = BuildRequest {
-        package: package.clone(),
-        context: None, // TODO: Resolve build context
-        source_dir: source_dir.clone(),
-        variant: None, // TODO: Handle variant selection
-        options: build_options,
-        install_path,
+    // Create build request(s) — one per selected variant (or one without variant)
+    let variant_indices: Vec<Option<usize>> = if let Some(ref indices) = args.variants {
+        // Validate indices against available variants
+        let max_variant = package.variants.len();
+        let valid: Vec<usize> = indices
+            .iter()
+            .copied()
+            .filter(|&i| {
+                if i >= max_variant {
+                    eprintln!(
+                        "Warning: variant index {} out of range (package has {} variants), skipping",
+                        i, max_variant
+                    );
+                    false
+                } else {
+                    true
+                }
+            })
+            .collect();
+
+        if valid.is_empty() && !indices.is_empty() {
+            return Err(RezCoreError::BuildError(
+                "All specified variant indices are out of range".to_string(),
+            ));
+        }
+
+        if valid.is_empty() {
+            vec![None]
+        } else {
+            valid.into_iter().map(Some).collect()
+        }
+    } else if !package.variants.is_empty() {
+        // Build all variants by default
+        (0..package.variants.len()).map(Some).collect()
+    } else {
+        vec![None]
     };
 
-    // Execute build
-    execute_build(build_request, &args, &package, &source_dir)
+    if args.verbose && variant_indices.len() > 1 {
+        println!("🔀 Building {} variants...", variant_indices.len());
+    }
+
+    for variant_idx in variant_indices {
+        // Convert variant index to a descriptive string name
+        let variant_name: Option<String> = variant_idx.map(|i| {
+            package
+                .variants
+                .get(i)
+                .map(|reqs| {
+                    let req_strs: Vec<String> = reqs.iter().map(|r| r.to_string()).collect();
+                    format!("variant_{}: [{}]", i, req_strs.join(", "))
+                })
+                .unwrap_or_else(|| format!("variant_{}", i))
+        });
+
+        let build_request = BuildRequest {
+            package: package.clone(),
+            context: None,
+            source_dir: source_dir.clone(),
+            variant: variant_name,
+            options: build_options.clone(),
+            install_path: install_path.clone(),
+        };
+
+        execute_build(build_request, &args, &package, &source_dir)?;
+    }
+
+    Ok(())
 }
 
 /// Fetch and load package from remote source

@@ -217,8 +217,7 @@ impl Suite {
                         }
                         ToolConflictMode::Prefix => {
                             // Rename with context prefix
-                            let prefixed_name =
-                                format!("{}_{}", ctx.name, alias);
+                            let prefixed_name = format!("{}_{}", ctx.name, alias);
                             let prefixed_tool = SuiteTool::new(
                                 prefixed_name.clone(),
                                 original.clone(),
@@ -280,8 +279,8 @@ impl Suite {
         }
 
         let content = std::fs::read_to_string(&suite_yaml_path)?;
-        let suite_file: SuiteFile = serde_yaml::from_str(&content)
-            .map_err(|e| SuiteError::Serialization(e.to_string()))?;
+        let suite_file: SuiteFile =
+            serde_yaml::from_str(&content).map_err(|e| SuiteError::Serialization(e.to_string()))?;
 
         let conflict_mode = suite_file
             .conflict_mode
@@ -448,8 +447,12 @@ mod tests {
         let mut suite = Suite::new()
             .with_description("Conflict test suite")
             .with_conflict_mode(ToolConflictMode::Last);
-        suite.add_context("ctx_a", vec!["python-3.9".to_string()]).unwrap();
-        suite.add_context("ctx_b", vec!["python-3.10".to_string()]).unwrap();
+        suite
+            .add_context("ctx_a", vec!["python-3.9".to_string()])
+            .unwrap();
+        suite
+            .add_context("ctx_b", vec!["python-3.10".to_string()])
+            .unwrap();
         suite.save(&suite_path).unwrap();
 
         let loaded = Suite::load(&suite_path).unwrap();
@@ -461,8 +464,12 @@ mod tests {
     #[test]
     fn test_suite_alias_and_hide_combination() {
         let mut suite = Suite::new();
-        suite.add_context("maya", vec!["maya-2023".to_string()]).unwrap();
-        suite.add_context("nuke", vec!["nuke-13".to_string()]).unwrap();
+        suite
+            .add_context("maya", vec!["maya-2023".to_string()])
+            .unwrap();
+        suite
+            .add_context("nuke", vec!["nuke-13".to_string()])
+            .unwrap();
 
         // maya context: alias maya2023 → maya
         suite.alias_tool("maya", "maya2023", "maya").unwrap();
@@ -472,11 +479,17 @@ mod tests {
         suite.alias_tool("nuke", "nuke13", "nuke").unwrap();
 
         let maya_ctx = suite.get_context("maya").unwrap();
-        assert_eq!(maya_ctx.tool_aliases.get("maya2023"), Some(&"maya".to_string()));
+        assert_eq!(
+            maya_ctx.tool_aliases.get("maya2023"),
+            Some(&"maya".to_string())
+        );
         assert!(!maya_ctx.is_tool_visible("maya"), "maya should be hidden");
 
         let nuke_ctx = suite.get_context("nuke").unwrap();
-        assert_eq!(nuke_ctx.tool_aliases.get("nuke13"), Some(&"nuke".to_string()));
+        assert_eq!(
+            nuke_ctx.tool_aliases.get("nuke13"),
+            Some(&"nuke".to_string())
+        );
     }
 
     /// Suite path is set after save()
@@ -486,7 +499,9 @@ mod tests {
         let suite_path = dir.path().join("pathtest_suite");
 
         let mut suite = Suite::new();
-        suite.add_context("dev", vec!["python-3.9".to_string()]).unwrap();
+        suite
+            .add_context("dev", vec!["python-3.9".to_string()])
+            .unwrap();
         assert!(suite.path.is_none(), "path should be None before save");
 
         suite.save(&suite_path).unwrap();
@@ -511,7 +526,10 @@ mod tests {
     fn test_remove_nonexistent_context_error() {
         let mut suite = Suite::new();
         let result = suite.remove_context("nonexistent");
-        assert!(result.is_err(), "Removing non-existent context should error");
+        assert!(
+            result.is_err(),
+            "Removing non-existent context should error"
+        );
     }
 
     /// Suite is_empty check
@@ -533,8 +551,12 @@ mod tests {
     #[test]
     fn test_suite_prefix_conflict_mode() {
         let mut suite = Suite::new().with_conflict_mode(ToolConflictMode::Prefix);
-        suite.add_context("ctx1", vec!["toolA-1.0".to_string()]).unwrap();
-        suite.add_context("ctx2", vec!["toolA-2.0".to_string()]).unwrap();
+        suite
+            .add_context("ctx1", vec!["toolA-1.0".to_string()])
+            .unwrap();
+        suite
+            .add_context("ctx2", vec!["toolA-2.0".to_string()])
+            .unwrap();
 
         // Add same-named alias in both contexts to create conflict
         suite.alias_tool("ctx1", "tool", "toolA").unwrap();
@@ -542,7 +564,11 @@ mod tests {
 
         // With Prefix mode, get_tools should succeed (not error)
         let tools = suite.get_tools();
-        assert!(tools.is_ok(), "Prefix conflict mode should not error: {:?}", tools);
+        assert!(
+            tools.is_ok(),
+            "Prefix conflict mode should not error: {:?}",
+            tools
+        );
         // At least one "ctx2_tool" or "ctx1_tool" should be there
         if let Ok(t) = tools {
             let tool_names: Vec<_> = t.keys().collect();
@@ -570,9 +596,21 @@ mod tests {
             .with_description("Multi-context project suite")
             .with_conflict_mode(ToolConflictMode::Last);
 
-        suite.add_context("maya", vec!["maya-2023".to_string(), "python-3.9".to_string()]).unwrap();
-        suite.add_context("nuke", vec!["nuke-13".to_string(), "python-3.9".to_string()]).unwrap();
-        suite.add_context("houdini", vec!["houdini-19".to_string()]).unwrap();
+        suite
+            .add_context(
+                "maya",
+                vec!["maya-2023".to_string(), "python-3.9".to_string()],
+            )
+            .unwrap();
+        suite
+            .add_context(
+                "nuke",
+                vec!["nuke-13".to_string(), "python-3.9".to_string()],
+            )
+            .unwrap();
+        suite
+            .add_context("houdini", vec!["houdini-19".to_string()])
+            .unwrap();
 
         // Add aliases
         suite.alias_tool("maya", "maya23", "maya").unwrap();
@@ -583,7 +621,10 @@ mod tests {
 
         let loaded = Suite::load(&suite_path).unwrap();
         assert_eq!(loaded.len(), 3);
-        assert_eq!(loaded.description, Some("Multi-context project suite".to_string()));
+        assert_eq!(
+            loaded.description,
+            Some("Multi-context project suite".to_string())
+        );
 
         let names = loaded.context_names();
         assert!(names.contains(&"maya"), "Should have maya context");
@@ -617,15 +658,23 @@ mod tests {
         let suite_path = dir.path().join("yaml_check_suite");
 
         let mut suite = Suite::new().with_description("YAML check");
-        suite.add_context("test_ctx", vec!["python-3.9".to_string()]).unwrap();
+        suite
+            .add_context("test_ctx", vec!["python-3.9".to_string()])
+            .unwrap();
         suite.save(&suite_path).unwrap();
 
         let yaml_path = suite_path.join("suite.yaml");
         assert!(yaml_path.exists(), "suite.yaml should be created");
 
         let content = std::fs::read_to_string(&yaml_path).unwrap();
-        assert!(content.contains("contexts"), "YAML should contain 'contexts' key");
-        assert!(content.contains("test_ctx"), "YAML should contain context name");
+        assert!(
+            content.contains("contexts"),
+            "YAML should contain 'contexts' key"
+        );
+        assert!(
+            content.contains("test_ctx"),
+            "YAML should contain context name"
+        );
     }
 
     /// Suite save creates bin directory and marker file
@@ -638,8 +687,14 @@ mod tests {
         suite.add_context("ctx", vec![]).unwrap();
         suite.save(&suite_path).unwrap();
 
-        assert!(suite_path.join("bin").exists(), "bin/ dir should be created");
-        assert!(suite_path.join(".rez_suite").exists(), ".rez_suite marker should exist");
+        assert!(
+            suite_path.join("bin").exists(),
+            "bin/ dir should be created"
+        );
+        assert!(
+            suite_path.join(".rez_suite").exists(),
+            ".rez_suite marker should exist"
+        );
     }
 
     /// Suite overwrite: saving again updates the file
@@ -649,12 +704,16 @@ mod tests {
         let suite_path = dir.path().join("overwrite_suite");
 
         let mut suite = Suite::new().with_description("original");
-        suite.add_context("ctx", vec!["python-3.9".to_string()]).unwrap();
+        suite
+            .add_context("ctx", vec!["python-3.9".to_string()])
+            .unwrap();
         suite.save(&suite_path).unwrap();
 
         // Change description and save again
         let mut suite2 = Suite::new().with_description("updated");
-        suite2.add_context("ctx", vec!["python-3.10".to_string()]).unwrap();
+        suite2
+            .add_context("ctx", vec!["python-3.10".to_string()])
+            .unwrap();
         suite2.save(&suite_path).unwrap();
 
         let loaded = Suite::load(&suite_path).unwrap();
@@ -666,7 +725,7 @@ mod tests {
     fn test_suite_load_nonexistent_suite_errors() {
         let dir = tempfile::tempdir().unwrap();
         let bad_path = dir.path().join("not_a_suite");
-        std::fs::create_dir_all(&bad_path).unwrap();  // Create dir but no suite.yaml
+        std::fs::create_dir_all(&bad_path).unwrap(); // Create dir but no suite.yaml
 
         let result = Suite::load(&bad_path);
         assert!(result.is_err(), "Loading non-suite directory should error");

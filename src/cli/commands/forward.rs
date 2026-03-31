@@ -20,7 +20,11 @@ pub struct ForwardArgs {
     pub dry_run: bool,
 
     /// Arguments to forward to rez_next
-    #[arg(value_name = "ARGS", allow_hyphen_values = true, trailing_var_arg = true)]
+    #[arg(
+        value_name = "ARGS",
+        allow_hyphen_values = true,
+        trailing_var_arg = true
+    )]
     pub args: Vec<String>,
 }
 

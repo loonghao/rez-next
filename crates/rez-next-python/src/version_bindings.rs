@@ -3,7 +3,6 @@
 //! Provides rez-compatible Version and VersionRange classes.
 
 use pyo3::prelude::*;
-use pyo3::types::{PyList, PyTuple};
 use rez_next_version::{Version, VersionRange};
 
 /// Python-accessible Version class, compatible with rez.vendor.version.Version

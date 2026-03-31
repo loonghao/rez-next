@@ -37,12 +37,15 @@ impl RexExecutor {
     ) -> Result<RexEnvironment, RezCoreError> {
         // Set default context vars
         if let Some(root) = root {
-            self.context_vars.insert("root".to_string(), root.to_string());
+            self.context_vars
+                .insert("root".to_string(), root.to_string());
         }
         if let Some(version) = version {
-            self.context_vars.insert("version".to_string(), version.to_string());
+            self.context_vars
+                .insert("version".to_string(), version.to_string());
         }
-        self.context_vars.insert("name".to_string(), package_name.to_string());
+        self.context_vars
+            .insert("name".to_string(), package_name.to_string());
 
         // Parse and execute commands
         let parser = crate::parser::RexParser::new();
@@ -87,20 +90,24 @@ impl RexExecutor {
                 name,
                 value: expand(&value),
             },
-            RexActionType::PrependPath { name, value, separator } => {
-                RexActionType::PrependPath {
-                    name,
-                    value: expand(&value),
-                    separator,
-                }
-            }
-            RexActionType::AppendPath { name, value, separator } => {
-                RexActionType::AppendPath {
-                    name,
-                    value: expand(&value),
-                    separator,
-                }
-            }
+            RexActionType::PrependPath {
+                name,
+                value,
+                separator,
+            } => RexActionType::PrependPath {
+                name,
+                value: expand(&value),
+                separator,
+            },
+            RexActionType::AppendPath {
+                name,
+                value,
+                separator,
+            } => RexActionType::AppendPath {
+                name,
+                value: expand(&value),
+                separator,
+            },
             RexActionType::SetenvIfEmpty { name, value } => RexActionType::SetenvIfEmpty {
                 name,
                 value: expand(&value),
@@ -109,11 +116,18 @@ impl RexExecutor {
                 name,
                 value: expand(&value),
             },
-            RexActionType::Command { cmd } => RexActionType::Command {
-                cmd: expand(&cmd),
-            },
+            RexActionType::Command { cmd } => RexActionType::Command { cmd: expand(&cmd) },
             RexActionType::Source { path } => RexActionType::Source {
                 path: expand(&path),
+            },
+            RexActionType::Info { message } => RexActionType::Info {
+                message: expand(&message),
+            },
+            RexActionType::Error { message } => RexActionType::Error {
+                message: expand(&message),
+            },
+            RexActionType::Stop { message } => RexActionType::Stop {
+                message: message.map(|m| expand(&m)),
             },
             other => other,
         };
@@ -139,12 +153,7 @@ mod tests {
     fn test_execute_setenv() {
         let mut exec = RexExecutor::new();
         let env = exec
-            .execute_commands(
-                r#"env.setenv("MY_VAR", "hello")"#,
-                "mypkg",
-                None,
-                None,
-            )
+            .execute_commands(r#"env.setenv("MY_VAR", "hello")"#, "mypkg", None, None)
             .unwrap();
         assert_eq!(env.vars.get("MY_VAR"), Some(&"hello".to_string()));
     }
@@ -175,7 +184,11 @@ mod tests {
                 None,
             )
             .unwrap();
-        assert!(env.vars.get("PYTHONPATH").map(|v| v.contains("/opt/lib")).unwrap_or(false));
+        assert!(env
+            .vars
+            .get("PYTHONPATH")
+            .map(|v| v.contains("/opt/lib"))
+            .unwrap_or(false));
     }
 
     #[test]
@@ -218,10 +231,7 @@ mod tests {
                 None,
             )
             .unwrap();
-        assert_eq!(
-            env.vars.get("MY_ROOT"),
-            Some(&"/opt/mypkg/1.0".to_string())
-        );
+        assert_eq!(env.vars.get("MY_ROOT"), Some(&"/opt/mypkg/1.0".to_string()));
     }
 
     #[test]
@@ -304,10 +314,24 @@ alias('maya', '{root}/bin/maya')
             .unwrap();
 
         assert_eq!(env.vars.get("MAYA_VERSION"), Some(&"2024.1".to_string()));
-        assert_eq!(env.vars.get("MAYA_ROOT"), Some(&"/opt/maya/2024.1".to_string()));
-        assert!(env.vars.get("PATH").map(|v| v.contains("/opt/maya/2024.1/bin")).unwrap_or(false));
-        assert!(env.vars.get("LD_LIBRARY_PATH").map(|v| v.contains("/opt/maya/2024.1/lib")).unwrap_or(false));
-        assert_eq!(env.aliases.get("maya"), Some(&"/opt/maya/2024.1/bin/maya".to_string()));
+        assert_eq!(
+            env.vars.get("MAYA_ROOT"),
+            Some(&"/opt/maya/2024.1".to_string())
+        );
+        assert!(env
+            .vars
+            .get("PATH")
+            .map(|v| v.contains("/opt/maya/2024.1/bin"))
+            .unwrap_or(false));
+        assert!(env
+            .vars
+            .get("LD_LIBRARY_PATH")
+            .map(|v| v.contains("/opt/maya/2024.1/lib"))
+            .unwrap_or(false));
+        assert_eq!(
+            env.aliases.get("maya"),
+            Some(&"/opt/maya/2024.1/bin/maya".to_string())
+        );
     }
 
     /// Simulate a python package.py commands block
@@ -325,7 +349,11 @@ env.setenv_if_empty('PYTHON_VERSION', '{version}')
             .unwrap();
 
         assert_eq!(env.vars.get("PYTHONHOME"), Some(&"/usr/local".to_string()));
-        assert!(env.vars.get("PYTHONPATH").map(|v| v.contains("site-packages")).unwrap_or(false));
+        assert!(env
+            .vars
+            .get("PYTHONPATH")
+            .map(|v| v.contains("site-packages"))
+            .unwrap_or(false));
         assert_eq!(env.vars.get("PYTHON_VERSION"), Some(&"3.11.0".to_string()));
     }
 
@@ -340,19 +368,30 @@ env.setenv_if_empty('PYTHON_VERSION', '{version}')
             "python",
             None,
             None,
-        ).unwrap();
+        )
+        .unwrap();
 
         // Second package: maya (PATH should now have both)
-        let env = exec.execute_commands(
-            r#"env.prepend_path('PATH', '/opt/maya/bin')"#,
-            "maya",
-            None,
-            None,
-        ).unwrap();
+        let env = exec
+            .execute_commands(
+                r#"env.prepend_path('PATH', '/opt/maya/bin')"#,
+                "maya",
+                None,
+                None,
+            )
+            .unwrap();
 
         let path = env.vars.get("PATH").cloned().unwrap_or_default();
-        assert!(path.contains("/opt/maya/bin"), "maya bin should be in PATH: {}", path);
-        assert!(path.contains("/opt/python/bin"), "python bin should be in PATH: {}", path);
+        assert!(
+            path.contains("/opt/maya/bin"),
+            "maya bin should be in PATH: {}",
+            path
+        );
+        assert!(
+            path.contains("/opt/python/bin"),
+            "python bin should be in PATH: {}",
+            path
+        );
         // maya should be prepended (comes first)
         let maya_pos = path.find("/opt/maya/bin").unwrap();
         let python_pos = path.find("/opt/python/bin").unwrap();
@@ -365,20 +404,18 @@ env.setenv_if_empty('PYTHON_VERSION', '{version}')
         let mut exec = RexExecutor::new();
 
         // First package sets value
-        exec.execute_commands(
-            r#"env.setenv('RENDERER', 'arnold')"#,
-            "arnold",
-            None,
-            None,
-        ).unwrap();
+        exec.execute_commands(r#"env.setenv('RENDERER', 'arnold')"#, "arnold", None, None)
+            .unwrap();
 
         // Second package tries setenv_if_empty - should not overwrite
-        let env = exec.execute_commands(
-            r#"env.setenv_if_empty('RENDERER', 'prman')"#,
-            "prman",
-            None,
-            None,
-        ).unwrap();
+        let env = exec
+            .execute_commands(
+                r#"env.setenv_if_empty('RENDERER', 'prman')"#,
+                "prman",
+                None,
+                None,
+            )
+            .unwrap();
 
         assert_eq!(env.vars.get("RENDERER"), Some(&"arnold".to_string()));
     }
@@ -402,22 +439,31 @@ alias('hython', '{root}/bin/hython')
             .execute_commands(commands, "houdini", Some("/opt/houdini/20.0"), Some("20.0"))
             .unwrap();
 
-        assert_eq!(env.vars.get("HOUDINI_PATH"), Some(&"/opt/houdini/20.0".to_string()));
-        assert!(env.vars.get("PATH").map(|v| v.contains("/opt/houdini/20.0/bin")).unwrap_or(false));
-        assert_eq!(env.aliases.get("houdini"), Some(&"/opt/houdini/20.0/bin/houdini".to_string()));
-        assert_eq!(env.aliases.get("hython"), Some(&"/opt/houdini/20.0/bin/hython".to_string()));
+        assert_eq!(
+            env.vars.get("HOUDINI_PATH"),
+            Some(&"/opt/houdini/20.0".to_string())
+        );
+        assert!(env
+            .vars
+            .get("PATH")
+            .map(|v| v.contains("/opt/houdini/20.0/bin"))
+            .unwrap_or(false));
+        assert_eq!(
+            env.aliases.get("houdini"),
+            Some(&"/opt/houdini/20.0/bin/houdini".to_string())
+        );
+        assert_eq!(
+            env.aliases.get("hython"),
+            Some(&"/opt/houdini/20.0/bin/hython".to_string())
+        );
     }
 
     /// Verify action source_package is recorded correctly
     #[test]
     fn test_actions_have_correct_source_package() {
         let mut exec = RexExecutor::new();
-        exec.execute_commands(
-            r#"env.setenv('TEST_VAR', 'hello')"#,
-            "testpkg",
-            None,
-            None,
-        ).unwrap();
+        exec.execute_commands(r#"env.setenv('TEST_VAR', 'hello')"#, "testpkg", None, None)
+            .unwrap();
 
         let actions = exec.get_actions();
         assert!(!actions.is_empty());
@@ -475,15 +521,18 @@ alias('pkg', '/opt/pkg/1.0/bin/pkg')
             "mypkg",
             Some("/opt/mypkg/1.0"),
             Some("1.0"),
-        ).unwrap();
+        )
+        .unwrap();
 
         // Simulate main commands (builds on pre)
-        let env = exec.execute_commands(
-            r#"env.setenv('STAGE', 'main')"#,
-            "mypkg",
-            Some("/opt/mypkg/1.0"),
-            Some("1.0"),
-        ).unwrap();
+        let env = exec
+            .execute_commands(
+                r#"env.setenv('STAGE', 'main')"#,
+                "mypkg",
+                Some("/opt/mypkg/1.0"),
+                Some("1.0"),
+            )
+            .unwrap();
 
         // Main commands overwrites pre_commands value
         assert_eq!(env.vars.get("STAGE"), Some(&"main".to_string()));
@@ -495,20 +544,13 @@ alias('pkg', '/opt/pkg/1.0/bin/pkg')
         let mut exec = RexExecutor::new();
 
         // Main commands sets a variable
-        exec.execute_commands(
-            r#"env.setenv('LOG_LEVEL', 'info')"#,
-            "mypkg",
-            None,
-            None,
-        ).unwrap();
+        exec.execute_commands(r#"env.setenv('LOG_LEVEL', 'info')"#, "mypkg", None, None)
+            .unwrap();
 
         // post_commands can override (e.g. force debug)
-        let env = exec.execute_commands(
-            r#"env.setenv('LOG_LEVEL', 'debug')"#,
-            "mypkg",
-            None,
-            None,
-        ).unwrap();
+        let env = exec
+            .execute_commands(r#"env.setenv('LOG_LEVEL', 'debug')"#, "mypkg", None, None)
+            .unwrap();
 
         assert_eq!(env.vars.get("LOG_LEVEL"), Some(&"debug".to_string()));
     }
@@ -524,19 +566,28 @@ alias('pkg', '/opt/pkg/1.0/bin/pkg')
             "common",
             None,
             None,
-        ).unwrap();
+        )
+        .unwrap();
 
         // main commands: add package-specific lib
-        let env = exec.execute_commands(
-            r#"env.prepend_path('LD_LIBRARY_PATH', '/opt/mypkg/1.0/lib')"#,
-            "mypkg",
-            Some("/opt/mypkg/1.0"),
-            Some("1.0"),
-        ).unwrap();
+        let env = exec
+            .execute_commands(
+                r#"env.prepend_path('LD_LIBRARY_PATH', '/opt/mypkg/1.0/lib')"#,
+                "mypkg",
+                Some("/opt/mypkg/1.0"),
+                Some("1.0"),
+            )
+            .unwrap();
 
         let ldpath = env.vars.get("LD_LIBRARY_PATH").cloned().unwrap_or_default();
-        assert!(ldpath.contains("/opt/common/lib"), "common lib path should be in LD_LIBRARY_PATH");
-        assert!(ldpath.contains("/opt/mypkg/1.0/lib"), "pkg lib path should be in LD_LIBRARY_PATH");
+        assert!(
+            ldpath.contains("/opt/common/lib"),
+            "common lib path should be in LD_LIBRARY_PATH"
+        );
+        assert!(
+            ldpath.contains("/opt/mypkg/1.0/lib"),
+            "pkg lib path should be in LD_LIBRARY_PATH"
+        );
     }
 
     /// pre_build_commands: verify env setup before build (setenv_if_empty semantics)
@@ -550,15 +601,18 @@ alias('pkg', '/opt/pkg/1.0/bin/pkg')
             "mypkg",
             None,
             None,
-        ).unwrap();
+        )
+        .unwrap();
 
         // Run again: should NOT overwrite
-        let env = exec.execute_commands(
-            r#"env.setenv_if_empty('BUILD_TYPE', 'Debug')"#,
-            "mypkg",
-            None,
-            None,
-        ).unwrap();
+        let env = exec
+            .execute_commands(
+                r#"env.setenv_if_empty('BUILD_TYPE', 'Debug')"#,
+                "mypkg",
+                None,
+                None,
+            )
+            .unwrap();
 
         // First call sets it to Release; second call is no-op
         assert_eq!(
@@ -573,17 +627,29 @@ alias('pkg', '/opt/pkg/1.0/bin/pkg')
     fn test_multi_phase_actions_source_tracking() {
         let mut exec = RexExecutor::new();
 
-        exec.execute_commands(r#"env.setenv('PRE_VAR', '1')"#, "pkg_pre", None, None).unwrap();
-        exec.execute_commands(r#"env.setenv('MAIN_VAR', '2')"#, "pkg_main", None, None).unwrap();
-        exec.execute_commands(r#"env.setenv('POST_VAR', '3')"#, "pkg_post", None, None).unwrap();
+        exec.execute_commands(r#"env.setenv('PRE_VAR', '1')"#, "pkg_pre", None, None)
+            .unwrap();
+        exec.execute_commands(r#"env.setenv('MAIN_VAR', '2')"#, "pkg_main", None, None)
+            .unwrap();
+        exec.execute_commands(r#"env.setenv('POST_VAR', '3')"#, "pkg_post", None, None)
+            .unwrap();
 
         let actions = exec.get_actions();
         assert_eq!(actions.len(), 3, "Should have exactly 3 actions");
 
-        let sources: Vec<_> = actions.iter().map(|a| a.source_package.as_deref().unwrap_or("")).collect();
+        let sources: Vec<_> = actions
+            .iter()
+            .map(|a| a.source_package.as_deref().unwrap_or(""))
+            .collect();
         assert!(sources.contains(&"pkg_pre"), "pkg_pre should be in sources");
-        assert!(sources.contains(&"pkg_main"), "pkg_main should be in sources");
-        assert!(sources.contains(&"pkg_post"), "pkg_post should be in sources");
+        assert!(
+            sources.contains(&"pkg_main"),
+            "pkg_main should be in sources"
+        );
+        assert!(
+            sources.contains(&"pkg_post"),
+            "pkg_post should be in sources"
+        );
     }
 
     // ── Phase 105: command() variable expansion + multi-command ordering ──────
@@ -601,9 +667,16 @@ alias('pkg', '/opt/pkg/1.0/bin/pkg')
             )
             .unwrap();
         // Command should be recorded in startup_commands with root expanded
-        assert!(!env.startup_commands.is_empty(), "startup_commands should not be empty");
+        assert!(
+            !env.startup_commands.is_empty(),
+            "startup_commands should not be empty"
+        );
         let cmd = &env.startup_commands[0];
-        assert!(cmd.contains("/opt/mypkg/1.0/bin/setup.sh"), "Root should be expanded in command: {}", cmd);
+        assert!(
+            cmd.contains("/opt/mypkg/1.0/bin/setup.sh"),
+            "Root should be expanded in command: {}",
+            cmd
+        );
     }
 
     /// command() with {version} variable expansion
@@ -619,8 +692,11 @@ alias('pkg', '/opt/pkg/1.0/bin/pkg')
             )
             .unwrap();
         assert_eq!(env.startup_commands.len(), 1);
-        assert!(env.startup_commands[0].contains("3.2.1"), 
-            "Version should be expanded: {}", env.startup_commands[0]);
+        assert!(
+            env.startup_commands[0].contains("3.2.1"),
+            "Version should be expanded: {}",
+            env.startup_commands[0]
+        );
     }
 
     /// Multiple command() calls produce multiple startup_commands in order
@@ -632,7 +708,9 @@ command("first_cmd")
 command("second_cmd")
 command("third_cmd")
 "#;
-        let env = exec.execute_commands(commands, "mypkg", None, None).unwrap();
+        let env = exec
+            .execute_commands(commands, "mypkg", None, None)
+            .unwrap();
         assert_eq!(env.startup_commands.len(), 3, "Should have 3 commands");
         assert_eq!(env.startup_commands[0], "first_cmd");
         assert_eq!(env.startup_commands[1], "second_cmd");
@@ -652,10 +730,17 @@ env.prepend_path("PATH", "{root}/bin")
             .execute_commands(commands, "mypkg", Some("/opt/mypkg/2.0"), Some("2.0"))
             .unwrap();
 
-        assert_eq!(env.vars.get("MY_PKG_HOME"), Some(&"/opt/mypkg/2.0".to_string()));
+        assert_eq!(
+            env.vars.get("MY_PKG_HOME"),
+            Some(&"/opt/mypkg/2.0".to_string())
+        );
         assert!(!env.startup_commands.is_empty());
         assert!(env.startup_commands[0].contains("/opt/mypkg/2.0/bin/init.sh"));
-        assert!(env.vars.get("PATH").map(|v| v.contains("/opt/mypkg/2.0/bin")).unwrap_or(false));
+        assert!(env
+            .vars
+            .get("PATH")
+            .map(|v| v.contains("/opt/mypkg/2.0/bin"))
+            .unwrap_or(false));
     }
 
     /// command() with custom context variable
@@ -680,13 +765,11 @@ env.prepend_path("PATH", "{root}/bin")
     fn test_no_command_leaves_startup_commands_empty() {
         let mut exec = RexExecutor::new();
         let env = exec
-            .execute_commands(
-                r#"env.setenv("FOO", "bar")"#,
-                "mypkg",
-                None,
-                None,
-            )
+            .execute_commands(r#"env.setenv("FOO", "bar")"#, "mypkg", None, None)
             .unwrap();
-        assert!(env.startup_commands.is_empty(), "No command() calls should leave startup_commands empty");
+        assert!(
+            env.startup_commands.is_empty(),
+            "No command() calls should leave startup_commands empty"
+        );
     }
 }

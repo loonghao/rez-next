@@ -58,7 +58,7 @@ impl SuiteContext {
     /// Get the effective name of a tool (resolving aliases)
     pub fn get_effective_tool_name<'a>(&self, tool: &'a str) -> &'a str {
         // If tool is in our aliases map (forward: alias -> original), return alias
-        for (_alias, original) in &self.tool_aliases {
+        for original in self.tool_aliases.values() {
             if original == tool {
                 return tool;
             }

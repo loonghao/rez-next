@@ -428,8 +428,10 @@ mod serialization_tests {
         ctx.resolved_packages.push(maya);
 
         // Add environment vars
-        ctx.environment_vars.insert("PYTHONHOME".to_string(), "/opt/python/3.11".to_string());
-        ctx.environment_vars.insert("MAYA_ROOT".to_string(), "/opt/maya/2024.1".to_string());
+        ctx.environment_vars
+            .insert("PYTHONHOME".to_string(), "/opt/python/3.11".to_string());
+        ctx.environment_vars
+            .insert("MAYA_ROOT".to_string(), "/opt/maya/2024.1".to_string());
 
         ctx
     }
@@ -457,7 +459,10 @@ mod serialization_tests {
         assert_eq!(restored.id, original.id);
         assert_eq!(restored.status, original.status);
         assert_eq!(restored.name, original.name);
-        assert_eq!(restored.resolved_packages.len(), original.resolved_packages.len());
+        assert_eq!(
+            restored.resolved_packages.len(),
+            original.resolved_packages.len()
+        );
     }
 
     #[test]
@@ -491,7 +496,10 @@ mod serialization_tests {
         let ctx = make_context_with_packages();
         let json_str = ContextSerializer::to_string(&ctx, ContextFormat::Json).unwrap();
         // Pretty-printed JSON contains newlines
-        assert!(json_str.contains('\n'), "JSON output should be pretty-printed");
+        assert!(
+            json_str.contains('\n'),
+            "JSON output should be pretty-printed"
+        );
     }
 
     #[test]
@@ -541,18 +549,26 @@ mod serialization_tests {
 
     #[test]
     fn test_is_context_file_rxt() {
-        assert!(ContextFileUtils::is_context_file(std::path::Path::new("ctx.rxt")));
+        assert!(ContextFileUtils::is_context_file(std::path::Path::new(
+            "ctx.rxt"
+        )));
     }
 
     #[test]
     fn test_is_context_file_rxtb() {
-        assert!(ContextFileUtils::is_context_file(std::path::Path::new("ctx.rxtb")));
+        assert!(ContextFileUtils::is_context_file(std::path::Path::new(
+            "ctx.rxtb"
+        )));
     }
 
     #[test]
     fn test_is_context_file_non_context() {
-        assert!(!ContextFileUtils::is_context_file(std::path::Path::new("ctx.json")));
-        assert!(!ContextFileUtils::is_context_file(std::path::Path::new("readme.md")));
+        assert!(!ContextFileUtils::is_context_file(std::path::Path::new(
+            "ctx.json"
+        )));
+        assert!(!ContextFileUtils::is_context_file(std::path::Path::new(
+            "readme.md"
+        )));
     }
 
     #[test]

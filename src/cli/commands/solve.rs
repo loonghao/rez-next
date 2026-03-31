@@ -115,9 +115,7 @@ async fn add_default_repositories(repo_manager: &mut RepositoryManager) -> RezCo
 
     for (i, path_str) in config.packages_path.iter().enumerate() {
         let expanded = if path_str.starts_with("~/") || path_str == "~" {
-            if let Ok(home) = std::env::var("USERPROFILE")
-                .or_else(|_| std::env::var("HOME"))
-            {
+            if let Ok(home) = std::env::var("USERPROFILE").or_else(|_| std::env::var("HOME")) {
                 path_str.replacen("~", &home, 1)
             } else {
                 path_str.clone()
@@ -353,21 +351,29 @@ mod tests {
 
     #[test]
     fn test_parse_requirements_with_version_constraint() {
-        let req_strs = vec![
-            "python>=3.9".to_string(),
-            "numpy".to_string(),
-        ];
+        let req_strs = vec!["python>=3.9".to_string(), "numpy".to_string()];
         let requirements = parse_requirements(&req_strs).unwrap();
         assert_eq!(requirements.len(), 2);
         let names: Vec<_> = requirements.iter().map(|r| r.name.as_str()).collect();
-        assert!(names.contains(&"python"), "python should be parsed, got: {:?}", names);
-        assert!(names.contains(&"numpy"), "numpy should be parsed, got: {:?}", names);
+        assert!(
+            names.contains(&"python"),
+            "python should be parsed, got: {:?}",
+            names
+        );
+        assert!(
+            names.contains(&"numpy"),
+            "numpy should be parsed, got: {:?}",
+            names
+        );
     }
 
     #[test]
     fn test_parse_empty_requirements() {
         let requirements = parse_requirements(&[]).unwrap();
-        assert!(requirements.is_empty(), "Empty input should yield empty requirements");
+        assert!(
+            requirements.is_empty(),
+            "Empty input should yield empty requirements"
+        );
     }
 
     #[test]
@@ -375,7 +381,10 @@ mod tests {
         // Verify SolverConfig can be created with default values used by CLI
         let config = SolverConfig::default();
         assert!(config.prefer_latest, "CLI default should prefer latest");
-        assert!(!config.allow_prerelease, "CLI default should not allow prerelease");
+        assert!(
+            !config.allow_prerelease,
+            "CLI default should not allow prerelease"
+        );
         assert!(config.max_attempts > 0);
     }
 
@@ -385,6 +394,9 @@ mod tests {
         // trim happens in Requirement::parse
         let requirements = parse_requirements(&req_strs);
         // Should not error even with leading/trailing spaces
-        assert!(requirements.is_ok() || requirements.is_err(), "trim handling is implementation defined");
+        assert!(
+            requirements.is_ok() || requirements.is_err(),
+            "trim handling is implementation defined"
+        );
     }
 }

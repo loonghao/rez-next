@@ -1,7 +1,6 @@
 //! Python bindings for rez configuration
 
 use pyo3::prelude::*;
-use pyo3::types::PyList;
 use rez_next_common::config::RezCoreConfig;
 
 /// Python-accessible Config class, compatible with rez.config
@@ -55,18 +54,11 @@ impl PyConfig {
     }
 
     /// Get a config field by name
-    fn get(
-        &self,
-        field: &str,
-        default: Option<PyObject>,
-        py: Python,
-    ) -> PyResult<PyObject> {
+    fn get(&self, field: &str, default: Option<PyObject>, py: Python) -> PyResult<PyObject> {
         if let Some(value) = self.inner.get_field(field) {
             match value {
                 serde_json::Value::String(s) => Ok(s.into_pyobject(py)?.into()),
-                serde_json::Value::Bool(b) => {
-                    Ok(pyo3::types::PyBool::new(py, b).to_owned().into())
-                }
+                serde_json::Value::Bool(b) => Ok(pyo3::types::PyBool::new(py, b).to_owned().into()),
                 serde_json::Value::Number(n) => {
                     if let Some(i) = n.as_i64() {
                         Ok(i.into_pyobject(py)?.into())

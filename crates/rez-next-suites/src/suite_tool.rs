@@ -92,10 +92,22 @@ mod tests {
 
     #[test]
     fn test_tool_conflict_mode_from_str() {
-        assert_eq!("error".parse::<ToolConflictMode>().unwrap(), ToolConflictMode::Error);
-        assert_eq!("first".parse::<ToolConflictMode>().unwrap(), ToolConflictMode::First);
-        assert_eq!("last".parse::<ToolConflictMode>().unwrap(), ToolConflictMode::Last);
-        assert_eq!("prefix".parse::<ToolConflictMode>().unwrap(), ToolConflictMode::Prefix);
+        assert_eq!(
+            "error".parse::<ToolConflictMode>().unwrap(),
+            ToolConflictMode::Error
+        );
+        assert_eq!(
+            "first".parse::<ToolConflictMode>().unwrap(),
+            ToolConflictMode::First
+        );
+        assert_eq!(
+            "last".parse::<ToolConflictMode>().unwrap(),
+            ToolConflictMode::Last
+        );
+        assert_eq!(
+            "prefix".parse::<ToolConflictMode>().unwrap(),
+            ToolConflictMode::Prefix
+        );
         assert!("unknown".parse::<ToolConflictMode>().is_err());
     }
 
@@ -125,7 +137,13 @@ mod tests {
 
     #[test]
     fn test_tool_conflict_mode_case_insensitive() {
-        assert_eq!("ERROR".parse::<ToolConflictMode>().unwrap(), ToolConflictMode::Error);
-        assert_eq!("PREFIX".parse::<ToolConflictMode>().unwrap(), ToolConflictMode::Prefix);
+        assert_eq!(
+            "ERROR".parse::<ToolConflictMode>().unwrap(),
+            ToolConflictMode::Error
+        );
+        assert_eq!(
+            "PREFIX".parse::<ToolConflictMode>().unwrap(),
+            ToolConflictMode::Prefix
+        );
     }
 }

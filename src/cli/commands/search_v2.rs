@@ -130,9 +130,7 @@ async fn add_default_repositories(repo_manager: &mut RepositoryManager) -> RezCo
 
     for (i, path_str) in config.packages_path.iter().enumerate() {
         let expanded = if path_str.starts_with("~/") || path_str == "~" {
-            if let Ok(home) = std::env::var("USERPROFILE")
-                .or_else(|_| std::env::var("HOME"))
-            {
+            if let Ok(home) = std::env::var("USERPROFILE").or_else(|_| std::env::var("HOME")) {
                 path_str.replacen("~", &home, 1)
             } else {
                 path_str.clone()
@@ -199,7 +197,9 @@ async fn perform_search(
                     if let Some(ref req) = args.has_variant {
                         let req_lower = req.to_lowercase();
                         let has_match = package.variants.iter().any(|variant| {
-                            variant.iter().any(|r| r.to_lowercase().contains(&req_lower))
+                            variant
+                                .iter()
+                                .any(|r| r.to_lowercase().contains(&req_lower))
                         });
                         if !has_match {
                             continue;
@@ -212,7 +212,9 @@ async fn perform_search(
                     if let Some(ref req) = args.has_variant {
                         let req_lower = req.to_lowercase();
                         let has_match = package.variants.iter().any(|variant| {
-                            variant.iter().any(|r| r.to_lowercase().contains(&req_lower))
+                            variant
+                                .iter()
+                                .any(|r| r.to_lowercase().contains(&req_lower))
                         });
                         if !has_match {
                             continue;

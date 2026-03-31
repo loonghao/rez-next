@@ -234,23 +234,19 @@ impl DependencyResolver {
 
         // Sort by version: latest first (prefer latest behavior)
         if self.config.prefer_latest {
-            candidates.sort_by(|a, b| {
-                match (&b.version, &a.version) {
-                    (Some(bv), Some(av)) => bv.cmp(av),
-                    (Some(_), None) => std::cmp::Ordering::Less,
-                    (None, Some(_)) => std::cmp::Ordering::Greater,
-                    (None, None) => std::cmp::Ordering::Equal,
-                }
+            candidates.sort_by(|a, b| match (&b.version, &a.version) {
+                (Some(bv), Some(av)) => bv.cmp(av),
+                (Some(_), None) => std::cmp::Ordering::Less,
+                (None, Some(_)) => std::cmp::Ordering::Greater,
+                (None, None) => std::cmp::Ordering::Equal,
             });
         } else {
             // oldest first
-            candidates.sort_by(|a, b| {
-                match (&a.version, &b.version) {
-                    (Some(av), Some(bv)) => av.cmp(bv),
-                    (Some(_), None) => std::cmp::Ordering::Less,
-                    (None, Some(_)) => std::cmp::Ordering::Greater,
-                    (None, None) => std::cmp::Ordering::Equal,
-                }
+            candidates.sort_by(|a, b| match (&a.version, &b.version) {
+                (Some(av), Some(bv)) => av.cmp(bv),
+                (Some(_), None) => std::cmp::Ordering::Less,
+                (None, Some(_)) => std::cmp::Ordering::Greater,
+                (None, None) => std::cmp::Ordering::Equal,
             });
         }
 
@@ -306,11 +302,7 @@ impl DependencyResolver {
     }
 
     /// Select the best variant for a package given current resolution state
-    fn select_variant(
-        &self,
-        package: &Package,
-        state: &ResolutionState,
-    ) -> Option<usize> {
+    fn select_variant(&self, package: &Package, state: &ResolutionState) -> Option<usize> {
         if package.variants.is_empty() {
             return None;
         }
@@ -436,9 +428,7 @@ impl ResolutionState {
 
         for node in self.dep_graph.keys() {
             if !visited.contains(node) {
-                if let Some(cycle) =
-                    self.dfs_cycle(node, &mut visited, &mut on_stack, &mut path)
-                {
+                if let Some(cycle) = self.dfs_cycle(node, &mut visited, &mut on_stack, &mut path) {
                     return Some(cycle);
                 }
             }
@@ -576,8 +566,8 @@ mod tests {
     use rez_next_package::{Package, Requirement};
     use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
     use rez_next_version::Version;
-    use std::sync::Arc;
     use serde_json;
+    use std::sync::Arc;
 
     /// Write a minimal package.py to a temp directory and return path
     fn write_package(base: &std::path::Path, name: &str, version: &str, requires: &[&str]) {
@@ -650,8 +640,16 @@ mod tests {
             .iter()
             .map(|r| r.package.name.as_str())
             .collect();
-        assert!(names.contains(&"foo"), "foo should be resolved, got: {:?}", names);
-        assert!(names.contains(&"bar"), "bar dependency should be resolved, got: {:?}", names);
+        assert!(
+            names.contains(&"foo"),
+            "foo should be resolved, got: {:?}",
+            names
+        );
+        assert!(
+            names.contains(&"bar"),
+            "bar dependency should be resolved, got: {:?}",
+            names
+        );
     }
 
     #[test]
@@ -763,7 +761,11 @@ mod tests {
         let req: Requirement = "foo>=1.0.0,<1.5.0".parse().unwrap();
         let result = rt.block_on(resolver.resolve(vec![req])).unwrap();
 
-        assert_eq!(result.resolved_packages.len(), 1, "Should resolve exactly one foo");
+        assert_eq!(
+            result.resolved_packages.len(),
+            1,
+            "Should resolve exactly one foo"
+        );
         let resolved_ver = result.resolved_packages[0]
             .package
             .version
@@ -867,9 +869,18 @@ mod tests {
             .map(|r| r.package.name.as_str())
             .collect();
         assert!(names.contains(&"a_pkg"), "a_pkg should be resolved");
-        assert!(names.contains(&"b_pkg"), "b_pkg dependency should be resolved");
-        assert!(names.contains(&"c_pkg"), "c_pkg dependency should be resolved");
-        assert!(names.contains(&"d_pkg"), "d_pkg should be resolved as transitive dep");
+        assert!(
+            names.contains(&"b_pkg"),
+            "b_pkg dependency should be resolved"
+        );
+        assert!(
+            names.contains(&"c_pkg"),
+            "c_pkg dependency should be resolved"
+        );
+        assert!(
+            names.contains(&"d_pkg"),
+            "d_pkg should be resolved as transitive dep"
+        );
     }
 
     /// Phase 70: Test multi-package resolution in one request
@@ -1026,9 +1037,17 @@ mod tests {
         let mut resolver = DependencyResolver::new(Arc::clone(&repo_arc), SolverConfig::default());
         let req = Requirement::new("dag_a".to_string());
         let result = rt.block_on(resolver.resolve(vec![req]));
-        assert!(result.is_ok(), "DAG (diamond) should resolve without error: {:?}", result);
+        assert!(
+            result.is_ok(),
+            "DAG (diamond) should resolve without error: {:?}",
+            result
+        );
         let r = result.unwrap();
-        let names: Vec<&str> = r.resolved_packages.iter().map(|p| p.package.name.as_str()).collect();
+        let names: Vec<&str> = r
+            .resolved_packages
+            .iter()
+            .map(|p| p.package.name.as_str())
+            .collect();
         assert!(names.contains(&"dag_a"));
         assert!(names.contains(&"dag_b"));
         assert!(names.contains(&"dag_c"));
@@ -1051,7 +1070,10 @@ mod tests {
         write_package(tmp.path(), "pkgB", "1.0.0", &["shared>=1.5.0,<2.0.0"]);
 
         let mut manager = RepositoryManager::new();
-        manager.add_repository(Box::new(SimpleRepository::new(tmp.path(), "test".to_string())));
+        manager.add_repository(Box::new(SimpleRepository::new(
+            tmp.path(),
+            "test".to_string(),
+        )));
         let repo_arc = Arc::new(manager);
 
         let mut resolver = DependencyResolver::new(Arc::clone(&repo_arc), SolverConfig::default());
@@ -1060,7 +1082,11 @@ mod tests {
             Requirement::new("pkgB".to_string()),
         ];
         let result = rt.block_on(resolver.resolve(reqs)).unwrap();
-        let names: Vec<&str> = result.resolved_packages.iter().map(|r| r.package.name.as_str()).collect();
+        let names: Vec<&str> = result
+            .resolved_packages
+            .iter()
+            .map(|r| r.package.name.as_str())
+            .collect();
         assert!(names.contains(&"pkgA"), "pkgA should resolve");
         assert!(names.contains(&"pkgB"), "pkgB should resolve");
         assert!(names.contains(&"shared"), "shared should resolve");
@@ -1076,14 +1102,22 @@ mod tests {
         write_package(tmp.path(), "engine", "3.0.0", &[]);
 
         let mut manager = RepositoryManager::new();
-        manager.add_repository(Box::new(SimpleRepository::new(tmp.path(), "test".to_string())));
+        manager.add_repository(Box::new(SimpleRepository::new(
+            tmp.path(),
+            "test".to_string(),
+        )));
         let repo_arc = Arc::new(manager);
 
         let mut resolver = DependencyResolver::new(Arc::clone(&repo_arc), SolverConfig::default());
         let req = Requirement::new("engine".to_string());
         let result = rt.block_on(resolver.resolve(vec![req])).unwrap();
         assert_eq!(result.resolved_packages.len(), 1);
-        let ver = result.resolved_packages[0].package.version.as_ref().map(|v| v.as_str().to_string()).unwrap_or_default();
+        let ver = result.resolved_packages[0]
+            .package
+            .version
+            .as_ref()
+            .map(|v| v.as_str().to_string())
+            .unwrap_or_default();
         assert_eq!(ver, "3.0.0", "Should pick latest 3.0.0");
     }
 
@@ -1097,7 +1131,10 @@ mod tests {
         write_package(tmp.path(), "util", "2.0.0", &[]);
 
         let mut manager = RepositoryManager::new();
-        manager.add_repository(Box::new(SimpleRepository::new(tmp.path(), "test".to_string())));
+        manager.add_repository(Box::new(SimpleRepository::new(
+            tmp.path(),
+            "test".to_string(),
+        )));
         let repo_arc = Arc::new(manager);
 
         let mut config = SolverConfig::default();
@@ -1107,8 +1144,17 @@ mod tests {
         let req: Requirement = "util>=1.8.0,<2.0.0".parse().unwrap();
         let result = rt.block_on(resolver.resolve(vec![req])).unwrap();
         assert_eq!(result.resolved_packages.len(), 1);
-        let ver = result.resolved_packages[0].package.version.as_ref().map(|v| v.as_str().to_string()).unwrap_or_default();
-        assert_eq!(ver, "1.9.0", "Should downgrade to 1.9.0 given <2.0.0 constraint, got: {}", ver);
+        let ver = result.resolved_packages[0]
+            .package
+            .version
+            .as_ref()
+            .map(|v| v.as_str().to_string())
+            .unwrap_or_default();
+        assert_eq!(
+            ver, "1.9.0",
+            "Should downgrade to 1.9.0 given <2.0.0 constraint, got: {}",
+            ver
+        );
     }
 
     /// Resolution stats: backtrack_steps and packages_considered are tracked
@@ -1120,13 +1166,22 @@ mod tests {
         write_package(tmp.path(), "beta", "2.0.0", &[]);
 
         let mut manager = RepositoryManager::new();
-        manager.add_repository(Box::new(SimpleRepository::new(tmp.path(), "test".to_string())));
+        manager.add_repository(Box::new(SimpleRepository::new(
+            tmp.path(),
+            "test".to_string(),
+        )));
         let repo_arc = Arc::new(manager);
 
         let mut resolver = DependencyResolver::new(Arc::clone(&repo_arc), SolverConfig::default());
-        let reqs = vec![Requirement::new("alpha".to_string()), Requirement::new("beta".to_string())];
+        let reqs = vec![
+            Requirement::new("alpha".to_string()),
+            Requirement::new("beta".to_string()),
+        ];
         let result = rt.block_on(resolver.resolve(reqs)).unwrap();
-        assert!(result.stats.packages_considered >= 2, "Should have considered at least 2 packages");
+        assert!(
+            result.stats.packages_considered >= 2,
+            "Should have considered at least 2 packages"
+        );
     }
 
     /// conflict_strategy=FailOnConflict config exists and is serializable
@@ -1135,7 +1190,10 @@ mod tests {
         let mut config = SolverConfig::default();
         config.conflict_strategy = ConflictStrategy::FailOnConflict;
         let json = serde_json::to_string(&config).unwrap();
-        assert!(json.contains("FailOnConflict"), "Serialized config should contain strategy name");
+        assert!(
+            json.contains("FailOnConflict"),
+            "Serialized config should contain strategy name"
+        );
         let back: SolverConfig = serde_json::from_str(&json).unwrap();
         assert_eq!(back.conflict_strategy, ConflictStrategy::FailOnConflict);
     }
@@ -1148,7 +1206,10 @@ mod tests {
         write_package(tmp.path(), "mylib", "1.0.0", &[]);
 
         let mut manager = RepositoryManager::new();
-        manager.add_repository(Box::new(SimpleRepository::new(tmp.path(), "test".to_string())));
+        manager.add_repository(Box::new(SimpleRepository::new(
+            tmp.path(),
+            "test".to_string(),
+        )));
         let repo_arc = Arc::new(manager);
 
         let mut resolver = DependencyResolver::new(Arc::clone(&repo_arc), SolverConfig::default());
@@ -1159,8 +1220,16 @@ mod tests {
         ];
         let result = rt.block_on(resolver.resolve(reqs)).unwrap();
         // Should resolve mylib only once
-        let mylib_count = result.resolved_packages.iter().filter(|r| r.package.name == "mylib").count();
-        assert_eq!(mylib_count, 1, "mylib should only appear once, got: {}", mylib_count);
+        let mylib_count = result
+            .resolved_packages
+            .iter()
+            .filter(|r| r.package.name == "mylib")
+            .count();
+        assert_eq!(
+            mylib_count, 1,
+            "mylib should only appear once, got: {}",
+            mylib_count
+        );
     }
 
     // ── Phase 113: Solver + VersionRange end-to-end tests ───────────────────
@@ -1175,7 +1244,10 @@ mod tests {
         write_package(tmp.path(), "lib", "3.0.0", &[]);
 
         let mut manager = RepositoryManager::new();
-        manager.add_repository(Box::new(SimpleRepository::new(tmp.path(), "test".to_string())));
+        manager.add_repository(Box::new(SimpleRepository::new(
+            tmp.path(),
+            "test".to_string(),
+        )));
         let repo_arc = Arc::new(manager);
 
         let mut resolver = DependencyResolver::new(Arc::clone(&repo_arc), SolverConfig::default());
@@ -1185,7 +1257,12 @@ mod tests {
         // If resolved, should NOT be 2.0.0
         for r in &result.resolved_packages {
             if r.package.name == "lib" {
-                let ver = r.package.version.as_ref().map(|v| v.as_str().to_string()).unwrap_or_default();
+                let ver = r
+                    .package
+                    .version
+                    .as_ref()
+                    .map(|v| v.as_str().to_string())
+                    .unwrap_or_default();
                 assert_ne!(ver, "2.0.0", "Should not resolve to excluded version 2.0.0");
             }
         }
@@ -1202,7 +1279,10 @@ mod tests {
         write_package(tmp.path(), "compat_lib", "2.0.0", &[]);
 
         let mut manager = RepositoryManager::new();
-        manager.add_repository(Box::new(SimpleRepository::new(tmp.path(), "test".to_string())));
+        manager.add_repository(Box::new(SimpleRepository::new(
+            tmp.path(),
+            "test".to_string(),
+        )));
         let repo_arc = Arc::new(manager);
 
         let mut resolver = DependencyResolver::new(Arc::clone(&repo_arc), SolverConfig::default());
@@ -1210,8 +1290,16 @@ mod tests {
         let req: Requirement = "compat_lib~=1.2".parse().unwrap();
         let result = rt.block_on(resolver.resolve(vec![req])).unwrap();
         if !result.resolved_packages.is_empty() {
-            let ver = result.resolved_packages[0].package.version.as_ref().map(|v| v.as_str().to_string()).unwrap_or_default();
-            assert_ne!(ver, "2.0.0", "~=1.2 should not select 2.0.0 (outside compatible range)");
+            let ver = result.resolved_packages[0]
+                .package
+                .version
+                .as_ref()
+                .map(|v| v.as_str().to_string())
+                .unwrap_or_default();
+            assert_ne!(
+                ver, "2.0.0",
+                "~=1.2 should not select 2.0.0 (outside compatible range)"
+            );
         }
     }
 
@@ -1225,7 +1313,10 @@ mod tests {
         write_package(tmp.path(), "rangelib", "1.9.0", &[]);
 
         let mut manager = RepositoryManager::new();
-        manager.add_repository(Box::new(SimpleRepository::new(tmp.path(), "test".to_string())));
+        manager.add_repository(Box::new(SimpleRepository::new(
+            tmp.path(),
+            "test".to_string(),
+        )));
         let repo_arc = Arc::new(manager);
 
         let mut config = SolverConfig::default();
@@ -1233,9 +1324,21 @@ mod tests {
         let mut resolver = DependencyResolver::new(Arc::clone(&repo_arc), config);
         let req: Requirement = "rangelib>=1.0.0,<2.0.0".parse().unwrap();
         let result = rt.block_on(resolver.resolve(vec![req])).unwrap();
-        assert!(!result.resolved_packages.is_empty(), "Should resolve rangelib");
-        let ver = result.resolved_packages[0].package.version.as_ref().map(|v| v.as_str().to_string()).unwrap_or_default();
-        assert_eq!(ver, "1.0.0", "prefer_latest=false should pick 1.0.0 in range, got: {}", ver);
+        assert!(
+            !result.resolved_packages.is_empty(),
+            "Should resolve rangelib"
+        );
+        let ver = result.resolved_packages[0]
+            .package
+            .version
+            .as_ref()
+            .map(|v| v.as_str().to_string())
+            .unwrap_or_default();
+        assert_eq!(
+            ver, "1.0.0",
+            "prefer_latest=false should pick 1.0.0 in range, got: {}",
+            ver
+        );
     }
 
     /// Empty repository: resolving any package returns empty or failed
@@ -1245,7 +1348,10 @@ mod tests {
         let tmp = tempfile::TempDir::new().unwrap(); // no packages written
 
         let mut manager = RepositoryManager::new();
-        manager.add_repository(Box::new(SimpleRepository::new(tmp.path(), "empty".to_string())));
+        manager.add_repository(Box::new(SimpleRepository::new(
+            tmp.path(),
+            "empty".to_string(),
+        )));
         let repo_arc = Arc::new(manager);
 
         let mut resolver = DependencyResolver::new(Arc::clone(&repo_arc), SolverConfig::default());
@@ -1268,8 +1374,14 @@ mod tests {
         write_package(tmp2.path(), "shared_pkg", "1.0.0", &[]);
 
         let mut manager = RepositoryManager::new();
-        manager.add_repository(Box::new(SimpleRepository::new(tmp1.path(), "repo1".to_string())));
-        manager.add_repository(Box::new(SimpleRepository::new(tmp2.path(), "repo2".to_string())));
+        manager.add_repository(Box::new(SimpleRepository::new(
+            tmp1.path(),
+            "repo1".to_string(),
+        )));
+        manager.add_repository(Box::new(SimpleRepository::new(
+            tmp2.path(),
+            "repo2".to_string(),
+        )));
         let repo_arc = Arc::new(manager);
 
         let mut config = SolverConfig::default();
@@ -1277,9 +1389,17 @@ mod tests {
         let mut resolver = DependencyResolver::new(Arc::clone(&repo_arc), config);
         let req = Requirement::new("shared_pkg".to_string());
         let result = rt.block_on(resolver.resolve(vec![req])).unwrap();
-        assert!(!result.resolved_packages.is_empty(), "Should resolve shared_pkg from multi-repo");
+        assert!(
+            !result.resolved_packages.is_empty(),
+            "Should resolve shared_pkg from multi-repo"
+        );
         // With prefer_latest, should select highest version across repos
-        let ver = result.resolved_packages[0].package.version.as_ref().map(|v| v.as_str().to_string()).unwrap_or_default();
+        let ver = result.resolved_packages[0]
+            .package
+            .version
+            .as_ref()
+            .map(|v| v.as_str().to_string())
+            .unwrap_or_default();
         assert_eq!(ver, "2.0.0", "Should prefer 2.0.0 (latest) from repo1");
     }
 
@@ -1294,10 +1414,17 @@ mod tests {
         ];
         for strategy in &strategies {
             let json = serde_json::to_string(strategy).unwrap();
-            assert!(!json.is_empty(), "Strategy should serialize: {:?}", strategy);
+            assert!(
+                !json.is_empty(),
+                "Strategy should serialize: {:?}",
+                strategy
+            );
             let back: ConflictStrategy = serde_json::from_str(&json).unwrap();
-            assert_eq!(back, *strategy, "Strategy roundtrip should match: {:?}", strategy);
+            assert_eq!(
+                back, *strategy,
+                "Strategy roundtrip should match: {:?}",
+                strategy
+            );
         }
     }
 }
-

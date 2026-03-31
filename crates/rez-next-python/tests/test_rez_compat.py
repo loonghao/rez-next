@@ -357,5 +357,354 @@ class TestExceptionsSubmodule:
         ])
 
 
+class TestBundlesModule:
+    """Verify rez.bundles submodule API."""
+
+    def test_bundles_submodule_exists(self):
+        import rez_next.bundles as bundles
+        assert callable(bundles.bundle_context)
+        assert callable(bundles.unbundle_context)
+        assert callable(bundles.list_bundles)
+
+    def test_bundle_context_creates_dir(self, tmp_path):
+        import rez_next.bundles as bundles
+        dest = str(tmp_path / "test_bundle")
+        result = bundles.bundle_context(["python-3.9", "maya-2024"], dest)
+        assert result == dest
+        import os
+        assert os.path.isdir(dest)
+        assert os.path.exists(os.path.join(dest, "bundle.yaml"))
+
+    def test_unbundle_context_reads_packages(self, tmp_path):
+        import rez_next.bundles as bundles
+        dest = str(tmp_path / "my_bundle")
+        bundles.bundle_context(["numpy-1.25", "scipy-1.11"], dest)
+        pkgs = bundles.unbundle_context(dest)
+        assert isinstance(pkgs, list)
+        assert len(pkgs) >= 2
+
+    def test_list_bundles_nonexistent_path(self, tmp_path):
+        import rez_next.bundles as bundles
+        result = bundles.list_bundles(str(tmp_path / "nonexistent_xyz"))
+        assert isinstance(result, list)
+        assert len(result) == 0
+
+    def test_bundle_context_top_level(self, tmp_path):
+        """bundle_context is also accessible at top level."""
+        dest = str(tmp_path / "top_level_bundle")
+        result = rez.bundle_context(["python-3.9"], dest)
+        assert result == dest
+
+
+class TestCliModule:
+    """Verify rez.cli submodule API."""
+
+    def test_cli_submodule_exists(self):
+        import rez_next.cli as cli
+        assert callable(cli.cli_run)
+        assert callable(cli.cli_main)
+
+    def test_cli_run_known_commands(self):
+        import rez_next.cli as cli
+        for cmd in ["env", "solve", "build", "search", "config", "selftest"]:
+            result = cli.cli_run(cmd)
+            assert result == 0, f"cli_run('{cmd}') should return 0"
+
+    def test_cli_run_unknown_command_raises(self):
+        import rez_next.cli as cli
+        with pytest.raises(ValueError):
+            cli.cli_run("totally_unknown_command_xyz")
+
+    def test_cli_main_no_args(self):
+        import rez_next.cli as cli
+        result = cli.cli_main()
+        assert result == 0
+
+    def test_cli_main_with_args(self):
+        import rez_next.cli as cli
+        result = cli.cli_main(["env", "--help"])
+        assert result == 0
+
+
+class TestUtilsModule:
+    """Verify rez.utils.resources submodule."""
+
+    def test_utils_resources_submodule(self):
+        from rez_next.utils.resources import get_resource_string
+        ver = get_resource_string("version")
+        assert isinstance(ver, str)
+        assert len(ver) > 0
+
+    def test_get_resource_string_name(self):
+        from rez_next.utils.resources import get_resource_string
+        name = get_resource_string("name")
+        assert "rez" in name.lower()
+
+    def test_get_resource_string_unknown_raises(self):
+        from rez_next.utils.resources import get_resource_string
+        with pytest.raises(KeyError):
+            get_resource_string("nonexistent_resource_xyz_12345")
+
+
+class TestEnvModule:
+    """Verify rez.env — environment creation and activation API."""
+
+    def test_env_submodule_exists(self):
+        import rez_next.env as env
+        assert hasattr(env, "RezEnv")
+        assert hasattr(env, "create_env")
+        assert hasattr(env, "get_activation_script")
+        assert hasattr(env, "apply_env")
+
+    def test_create_env_empty(self):
+        import rez_next.env as env
+        rez_env = env.create_env([])
+        assert rez_env is not None
+
+    def test_rez_env_empty_packages(self):
+        env_obj = rez.RezEnv([])
+        assert env_obj is not None
+        assert env_obj.packages == []
+
+    def test_rez_env_unknown_pkg_fails_gracefully(self):
+        """Unknown packages should fail gracefully, not raise."""
+        env_obj = rez.RezEnv(
+            ["nonexistent_pkg_xyz_999"],
+            paths=["/nonexistent/path_xyz"]
+        )
+        assert env_obj is not None
+        # Either success=False or success=True (empty repos → no resolution)
+
+    def test_rez_env_get_environ_returns_dict(self):
+        env_obj = rez.RezEnv([])
+        environ = env_obj.get_environ()
+        assert isinstance(environ, dict)
+
+    def test_rez_env_num_resolved_packages(self):
+        env_obj = rez.RezEnv([])
+        assert isinstance(env_obj.num_resolved_packages, int)
+        assert env_obj.num_resolved_packages >= 0
+
+    def test_get_activation_script_bash(self):
+        result = rez.get_activation_script(
+            [],  # empty packages = trivial activation
+            shell="bash",
+            paths=["/nonexistent/path_xyz"]
+        )
+        assert isinstance(result, str)
+
+    def test_top_level_create_env(self):
+        assert callable(rez.create_env)
+        env_obj = rez.create_env([])
+        assert env_obj is not None
+
+
+class TestPackagesModule:
+    """Verify rez.packages — PackageFamily API."""
+
+    def test_packages_submodule_exists(self):
+        import rez_next.packages as pkgs
+        assert hasattr(pkgs, "PackageFamily")
+        assert hasattr(pkgs, "Package")
+        assert hasattr(pkgs, "PackageRequirement")
+
+    def test_package_family_create(self):
+        import rez_next.packages as pkgs
+        family = pkgs.PackageFamily("python")
+        assert family.name == "python"
+        assert family.num_versions == 0
+
+    def test_rez_env_class_at_top_level(self):
+        assert rez.RezEnv is not None
+
+    def test_package_family_class_at_top_level(self):
+        assert rez.PackageFamily is not None
+        family = rez.PackageFamily("maya")
+        assert family.name == "maya"
+
+
+class TestPluginsModule:
+    """Verify rez.plugins plugin manager API."""
+
+    def test_plugins_submodule_exists(self):
+        import rez_next.plugins as plugins
+        assert hasattr(plugins, "get_plugin_manager")
+        assert hasattr(plugins, "get_shell_types")
+        assert hasattr(plugins, "get_build_system_types")
+        assert hasattr(plugins, "is_shell_supported")
+        assert hasattr(plugins, "plugin_manager")
+
+    def test_plugin_manager_singleton(self):
+        import rez_next.plugins as plugins
+        mgr = plugins.plugin_manager
+        assert mgr is not None
+
+    def test_get_plugin_manager_function(self):
+        import rez_next.plugins as plugins
+        mgr = plugins.get_plugin_manager()
+        assert mgr is not None
+        assert mgr.count > 0
+
+    def test_get_shell_types(self):
+        import rez_next.plugins as plugins
+        shells = plugins.get_shell_types()
+        assert isinstance(shells, list)
+        assert "bash" in shells
+        assert "powershell" in shells
+        assert "fish" in shells
+        assert "cmd" in shells
+
+    def test_get_build_system_types(self):
+        import rez_next.plugins as plugins
+        build_systems = plugins.get_build_system_types()
+        assert isinstance(build_systems, list)
+        assert "cmake" in build_systems
+        assert "python_rezbuild" in build_systems
+
+    def test_is_shell_supported(self):
+        import rez_next.plugins as plugins
+        assert plugins.is_shell_supported("bash")
+        assert plugins.is_shell_supported("powershell")
+        assert not plugins.is_shell_supported("nonexistent_xyz")
+
+    def test_plugin_manager_get_plugins(self):
+        import rez_next.plugins as plugins
+        mgr = plugins.get_plugin_manager()
+        shell_plugins = mgr.get_plugins("shell")
+        assert isinstance(shell_plugins, list)
+        assert len(shell_plugins) > 0
+
+    def test_plugin_manager_has_plugin(self):
+        import rez_next.plugins as plugins
+        mgr = plugins.get_plugin_manager()
+        assert mgr.has_plugin("shell", "bash")
+        assert mgr.has_plugin("build_system", "cmake")
+        assert not mgr.has_plugin("shell", "nonexistent")
+
+    def test_plugin_manager_plugin_types(self):
+        import rez_next.plugins as plugins
+        mgr = plugins.get_plugin_manager()
+        types = mgr.plugin_types()
+        assert "shell" in types
+        assert "build_system" in types
+        assert "release_hook" in types
+
+    def test_plugin_object_attributes(self):
+        import rez_next.plugins as plugins
+        mgr = plugins.get_plugin_manager()
+        plugin = mgr.get_plugin("shell", "bash")
+        assert plugin is not None
+        assert plugin.name == "bash"
+        assert plugin.plugin_type == "shell"
+        assert plugin.description
+
+    def test_top_level_get_plugin_manager(self):
+        """get_plugin_manager accessible at top level."""
+        assert callable(rez.get_plugin_manager)
+        mgr = rez.get_plugin_manager()
+        assert mgr is not None
+
+
+class TestPipModule:
+    """Verify rez.pip submodule API — pip-to-rez package conversion."""
+
+    def test_pip_submodule_exists(self):
+        import rez_next.pip as pip
+        assert hasattr(pip, "normalize_package_name")
+        assert hasattr(pip, "pip_version_to_rez")
+        assert hasattr(pip, "pip_install")
+        assert hasattr(pip, "convert_pip_to_rez")
+        assert hasattr(pip, "PipPackage")
+
+    def test_normalize_package_name(self):
+        import rez_next.pip as pip
+        assert pip.normalize_package_name("NumPy") == "numpy"
+        assert pip.normalize_package_name("Pillow") == "pillow"
+        assert pip.normalize_package_name("scikit_learn") == "scikit-learn"
+        assert pip.normalize_package_name("PyYAML") == "pyyaml"
+
+    def test_pip_version_to_rez_exact(self):
+        import rez_next.pip as pip
+        assert pip.pip_version_to_rez("==1.2.3") == "1.2.3"
+
+    def test_pip_version_to_rez_gte(self):
+        import rez_next.pip as pip
+        result = pip.pip_version_to_rez(">=3.9")
+        assert "3.9" in result
+
+    def test_pip_version_to_rez_range(self):
+        import rez_next.pip as pip
+        result = pip.pip_version_to_rez(">=1.0,<2.0")
+        assert "1.0" in result and "2.0" in result
+
+    def test_pip_install_returns_list(self):
+        import rez_next.pip as pip
+        result = pip.pip_install(["numpy==1.25.0", "scipy==1.11.0"])
+        assert isinstance(result, list)
+        assert len(result) == 2
+
+    def test_pip_install_name_normalization(self):
+        import rez_next.pip as pip
+        result = pip.pip_install(["PyYAML==6.0"])
+        assert result[0].startswith("pyyaml")
+
+    def test_convert_pip_to_rez(self):
+        import rez_next.pip as pip
+        pkg = pip.convert_pip_to_rez(
+            "numpy", "1.25.0",
+            requires=["python>=3.8"],
+            description="Numerical Python"
+        )
+        assert pkg.name == "numpy"
+        assert pkg.version == "1.25.0"
+        assert pkg.description == "Numerical Python"
+
+    def test_pip_package_to_package_py(self):
+        import rez_next.pip as pip
+        pkg = pip.PipPackage("numpy", "1.25.0", description="Numerical Python")
+        content = pkg.to_package_py()
+        assert 'name = "numpy"' in content
+        assert 'version = "1.25.0"' in content
+        assert "PYTHONPATH" in content
+
+    def test_pip_package_with_requires(self):
+        import rez_next.pip as pip
+        pkg = pip.PipPackage("scipy", "1.11.0", requires=["numpy-1.25+"])
+        content = pkg.to_package_py()
+        assert "requires" in content
+        assert "numpy" in content
+
+    def test_write_pip_package(self, tmp_path):
+        import rez_next.pip as pip
+        pkg = pip.PipPackage("mylib", "2.0.0", description="Test lib")
+        result = pip.write_pip_package(pkg, str(tmp_path))
+        import os
+        assert os.path.isdir(result)
+        assert os.path.exists(os.path.join(result, "package.py"))
+
+    def test_write_pip_package_overwrite_false(self, tmp_path):
+        import rez_next.pip as pip
+        pkg = pip.PipPackage("mylib", "2.0.0")
+        pip.write_pip_package(pkg, str(tmp_path))
+        # Second write without overwrite should raise
+        with pytest.raises(FileExistsError):
+            pip.write_pip_package(pkg, str(tmp_path), overwrite=False)
+
+    def test_write_pip_package_overwrite_true(self, tmp_path):
+        import rez_next.pip as pip
+        pkg = pip.PipPackage("mylib", "2.0.0")
+        pip.write_pip_package(pkg, str(tmp_path))
+        # Overwrite should succeed
+        result = pip.write_pip_package(pkg, str(tmp_path), overwrite=True)
+        assert result
+
+    def test_pip_install_top_level(self):
+        """pip_install also accessible at top level."""
+        assert callable(rez.pip_install)
+        result = rez.pip_install(["requests==2.31.0"])
+        assert len(result) == 1
+        assert "requests" in result[0]
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

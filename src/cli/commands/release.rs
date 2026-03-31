@@ -90,10 +90,7 @@ pub fn execute(args: ReleaseArgs) -> RezCoreResult<()> {
         .map(|v| v.as_str().to_string())
         .unwrap_or_else(|| "unknown".to_string());
 
-    println!(
-        "Releasing package: {}-{}",
-        package.name, version_str
-    );
+    println!("Releasing package: {}-{}", package.name, version_str);
 
     // 2. Determine VCS type
     let vcs_type = args
@@ -212,11 +209,7 @@ fn load_developer_package(working_dir: &Path) -> RezCoreResult<rez_next_package:
 }
 
 /// Validate VCS state (check for uncommitted changes, unpushed commits, etc.)
-fn validate_vcs_state(
-    working_dir: &Path,
-    vcs_type: &str,
-    args: &ReleaseArgs,
-) -> RezCoreResult<()> {
+fn validate_vcs_state(working_dir: &Path, vcs_type: &str, args: &ReleaseArgs) -> RezCoreResult<()> {
     if vcs_type == "git" {
         // Check for uncommitted changes
         let output = Command::new("git")
@@ -243,10 +236,7 @@ fn validate_vcs_state(
             if !output.stdout.is_empty() {
                 let unpushed = String::from_utf8_lossy(&output.stdout);
                 if args.verbose {
-                    println!(
-                        "Warning: Repository has unpushed commits:\n{}",
-                        unpushed
-                    );
+                    println!("Warning: Repository has unpushed commits:\n{}", unpushed);
                 }
             }
         }
@@ -298,10 +288,7 @@ fn create_git_tag(
     if let Ok(push) = push_output {
         if !push.status.success() && verbose {
             let stderr = String::from_utf8_lossy(&push.stderr);
-            println!(
-                "Warning: Could not push tag to origin: {}",
-                stderr
-            );
+            println!("Warning: Could not push tag to origin: {}", stderr);
         }
     }
 

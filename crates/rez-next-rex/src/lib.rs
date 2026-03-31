@@ -19,15 +19,15 @@
 
 use std::collections::HashMap;
 
-pub mod executor;
 pub mod actions;
+pub mod executor;
 pub mod parser;
 pub mod shell;
 
-pub use executor::RexExecutor;
 pub use actions::{RexAction, RexActionType};
+pub use executor::RexExecutor;
 pub use parser::RexParser;
-pub use shell::{ShellType, generate_shell_script};
+pub use shell::{generate_shell_script, ShellType};
 
 /// Environment state after applying Rex commands
 #[derive(Debug, Clone, Default)]
@@ -40,6 +40,12 @@ pub struct RexEnvironment {
     pub startup_commands: Vec<String>,
     /// Scripts sourced during environment setup
     pub sourced_scripts: Vec<String>,
+    /// Info messages emitted by info() calls
+    pub info_messages: Vec<String>,
+    /// Whether a stop() was encountered
+    pub stopped: bool,
+    /// Stop message if any
+    pub stop_message: Option<String>,
 }
 
 impl RexEnvironment {
@@ -62,7 +68,11 @@ impl RexEnvironment {
             RexActionType::Unsetenv { name } => {
                 self.vars.remove(name);
             }
-            RexActionType::PrependPath { name, value, separator } => {
+            RexActionType::PrependPath {
+                name,
+                value,
+                separator,
+            } => {
                 let sep = separator.as_deref().unwrap_or(get_path_sep());
                 let current = self.vars.get(name).cloned().unwrap_or_default();
                 let new_value = if current.is_empty() {
@@ -72,7 +82,11 @@ impl RexEnvironment {
                 };
                 self.vars.insert(name.clone(), new_value);
             }
-            RexActionType::AppendPath { name, value, separator } => {
+            RexActionType::AppendPath {
+                name,
+                value,
+                separator,
+            } => {
                 let sep = separator.as_deref().unwrap_or(get_path_sep());
                 let current = self.vars.get(name).cloned().unwrap_or_default();
                 let new_value = if current.is_empty() {
@@ -97,6 +111,21 @@ impl RexEnvironment {
                 self.sourced_scripts.push(path.clone());
             }
             RexActionType::Comment { .. } => {} // Ignore comments
+            RexActionType::Resetenv { name } => {
+                // Reset to empty (original value restoration requires process env snapshot)
+                self.vars.remove(name);
+            }
+            RexActionType::Info { message } => {
+                self.info_messages.push(message.clone());
+            }
+            RexActionType::Error { message } => {
+                // In non-strict mode, record as info message
+                self.info_messages.push(format!("[error] {}", message));
+            }
+            RexActionType::Stop { message } => {
+                self.stopped = true;
+                self.stop_message = message.clone();
+            }
         }
     }
 
@@ -111,5 +140,9 @@ impl RexEnvironment {
 }
 
 fn get_path_sep() -> &'static str {
-    if cfg!(windows) { ";" } else { ":" }
+    if cfg!(windows) {
+        ";"
+    } else {
+        ":"
+    }
 }

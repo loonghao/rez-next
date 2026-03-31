@@ -988,7 +988,9 @@ impl PythonBuildSystem {
             .with_environment(environment.get_env_vars().clone())
             .with_working_directory(request.source_dir.clone());
         // Try pytest, then python -m pytest, then unittest
-        let result = executor.execute("python -m pytest -q --tb=short 2>&1 || python -m unittest discover -q 2>&1").await;
+        let result = executor
+            .execute("python -m pytest -q --tb=short 2>&1 || python -m unittest discover -q 2>&1")
+            .await;
         match result {
             Ok(r) => Ok(BuildStepResult {
                 step: BuildStep::Testing,
@@ -1088,15 +1090,12 @@ impl PythonBuildSystem {
         }
 
         // No build file: copy source files (pure Python package)
-        let files_copied = CustomBuildSystem::copy_package_files(&request.source_dir, install_dir).await?;
+        let files_copied =
+            CustomBuildSystem::copy_package_files(&request.source_dir, install_dir).await?;
         Ok(BuildStepResult {
             step: BuildStep::Installing,
             success: true,
-            output: format!(
-                "Copied {} files to {}",
-                files_copied,
-                install_dir.display()
-            ),
+            output: format!("Copied {} files to {}", files_copied, install_dir.display()),
             errors: String::new(),
             duration_ms: 0,
         })
@@ -1136,7 +1135,9 @@ impl NodeJsBuildSystem {
             .with_environment(environment.get_env_vars().clone())
             .with_working_directory(request.source_dir.clone());
         // npm run build is the standard
-        let result = executor.execute("npm run build 2>&1 || echo 'No build script'").await?;
+        let result = executor
+            .execute("npm run build 2>&1 || echo 'No build script'")
+            .await?;
         Ok(BuildStepResult {
             step: BuildStep::Compiling,
             success: result.is_success(),
@@ -1155,7 +1156,9 @@ impl NodeJsBuildSystem {
         let executor = ShellExecutor::with_shell(rez_next_context::ShellType::detect())
             .with_environment(environment.get_env_vars().clone())
             .with_working_directory(request.source_dir.clone());
-        let result = executor.execute("npm test 2>&1 || echo 'No test script'").await?;
+        let result = executor
+            .execute("npm test 2>&1 || echo 'No test script'")
+            .await?;
         Ok(BuildStepResult {
             step: BuildStep::Testing,
             success: result.is_success(),
@@ -1190,7 +1193,11 @@ impl NodeJsBuildSystem {
         })?;
         // Copy dist/ or build/ output to install_dir
         let dist = request.source_dir.join("dist");
-        let src = if dist.exists() { dist } else { request.source_dir.clone() };
+        let src = if dist.exists() {
+            dist
+        } else {
+            request.source_dir.clone()
+        };
         let files = CustomBuildSystem::copy_package_files(&src, install_dir).await?;
         Ok(BuildStepResult {
             step: BuildStep::Installing,
@@ -1235,7 +1242,11 @@ impl CargoBuildSystem {
         let executor = ShellExecutor::with_shell(rez_next_context::ShellType::detect())
             .with_environment(environment.get_env_vars().clone())
             .with_working_directory(request.source_dir.clone());
-        let mode = if request.options.release_mode { "--release" } else { "" };
+        let mode = if request.options.release_mode {
+            "--release"
+        } else {
+            ""
+        };
         let cmd = format!("cargo build {}", mode).trim().to_string();
         let result = executor.execute(&cmd).await?;
         Ok(BuildStepResult {
@@ -1300,12 +1311,18 @@ impl CargoBuildSystem {
         let executor = ShellExecutor::with_shell(rez_next_context::ShellType::detect())
             .with_environment(environment.get_env_vars().clone())
             .with_working_directory(request.source_dir.clone());
-        let mode = if request.options.release_mode { "--release" } else { "" };
+        let mode = if request.options.release_mode {
+            "--release"
+        } else {
+            ""
+        };
         let cmd = format!(
             "cargo install --path . {} --root \"{}\"",
             mode,
             install_dir.to_string_lossy()
-        ).trim().to_string();
+        )
+        .trim()
+        .to_string();
         let result = executor.execute(&cmd).await?;
         Ok(BuildStepResult {
             step: BuildStep::Installing,
