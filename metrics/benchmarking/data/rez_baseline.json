@@ -1,0 +1,41 @@
+{
+  "_comment": "Reference baseline from official rez benchmarks (https://github.com/AcademySoftwareFoundation/rez/metrics/benchmarking/RESULTS.md)",
+  "_methodology": "Measured on Linux, Python 3.9, 2-core Azure Xeon E5-2673 v4 @ 2.30GHz. Times are median of 50 solve requests.",
+  "_source": "rez 2.112.0, Python 3.9, Linux-5.15.0-azure",
+  "solver": {
+    "median_s": 0.041,
+    "mean_s": 0.051,
+    "stddev_s": 0.028,
+    "unit": "seconds per resolve request"
+  },
+  "operations": {
+    "version_parse_1000": {
+      "mean_ms": 12.0,
+      "note": "1000× Version.parse() in Python rez"
+    },
+    "version_range_parse_1000": {
+      "mean_ms": 18.0,
+      "note": "1000× VersionRange creation in Python rez"
+    },
+    "req_parse_1000": {
+      "mean_ms": 25.0,
+      "note": "1000× Requirement/PackageRequest in Python rez"
+    },
+    "rex_execute_10cmds": {
+      "mean_ms": 5.0,
+      "note": "10-command Rex block execution in Python rez"
+    },
+    "shell_script_generate": {
+      "mean_ms": 15.0,
+      "note": "Generate bash activation script in Python rez"
+    },
+    "package_py_parse": {
+      "mean_ms": 8.0,
+      "note": "Parse a 50-line package.py in Python rez"
+    },
+    "startup_import": {
+      "mean_ms": 450.0,
+      "note": "import rez (cold start) in Python rez"
+    }
+  }
+}
