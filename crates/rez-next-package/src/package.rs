@@ -40,14 +40,29 @@ impl PackageRequirement {
 
     /// Parse a requirement string like "python-3.9" or "maya>=2023"
     pub fn parse(requirement_str: &str) -> Result<Self, RezCoreError> {
-        // Simple parsing - can be enhanced later
-        if let Some(dash_pos) = requirement_str.rfind('-') {
-            let name = requirement_str[..dash_pos].to_string();
-            let version = requirement_str[dash_pos + 1..].to_string();
-            Ok(Self::with_version(name, version))
+        // Handle weak requirement prefix (~)
+        let (s, weak) = if requirement_str.starts_with('~') && !requirement_str.starts_with("~=") {
+            (&requirement_str[1..], true)
         } else {
-            Ok(Self::new(requirement_str.to_string()))
-        }
+            (requirement_str, false)
+        };
+
+        // Simple parsing - can be enhanced later
+        let mut req = if let Some(dash_pos) = s.rfind('-') {
+            // Ensure it's a version separator and not part of the name
+            let potential_name = &s[..dash_pos];
+            let potential_version = &s[dash_pos + 1..];
+            // A version separator dash is followed by a digit
+            if potential_version.chars().next().map(|c| c.is_ascii_digit()).unwrap_or(false) {
+                Self::with_version(potential_name.to_string(), potential_version.to_string())
+            } else {
+                Self::new(s.to_string())
+            }
+        } else {
+            Self::new(s.to_string())
+        };
+        req.weak = weak;
+        Ok(req)
     }
 
     /// Get the package name
