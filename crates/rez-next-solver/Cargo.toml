@@ -22,26 +22,11 @@ serde.workspace = true
 serde_json.workspace = true
 rayon.workspace = true
 thiserror.workspace = true
-# Temporarily disabled Python bindings
-# pyo3 = { workspace = true, optional = true }
 tokio.workspace = true
 regex = "1.11"
 dashmap = "6.1"
 smallvec = "1.15"
 futures = "0.3"
-
-# Bins temporarily disabled - astar feature not implemented yet
-# [[bin]]
-# name = "test_astar"
-# path = "src/bin/test_astar.rs"
-
-# [[bin]]
-# name = "test_heuristics"
-# path = "src/bin/test_heuristics.rs"
-
-# [[bin]]
-# name = "heuristic_demo"
-# path = "src/bin/heuristic_demo.rs"
 
 [dev-dependencies]
 rstest.workspace = true

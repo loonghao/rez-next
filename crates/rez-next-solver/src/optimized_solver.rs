@@ -6,7 +6,6 @@
 use crate::{ConflictStrategy, DependencyGraph, ResolutionResult, SolverConfig, SolverRequest};
 use rez_next_common::RezCoreError;
 use rez_next_package::{Package, PackageRequirement};
-// use rez_next_repository::{RepositoryManager, PackageSearchCriteria};
 use dashmap::DashMap;
 use rayon::prelude::*;
 use rez_next_version::{Version, VersionRange};

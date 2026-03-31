@@ -31,7 +31,7 @@ pub use token::PyVersionToken;
 pub use version::Version;
 #[cfg(feature = "python-bindings")]
 pub use version_token::{AlphanumericVersionToken, NumericToken, VersionToken};
-// pub use optimized_parser::{OptimizedVersionParser, BatchVersionParser, ParsedVersionComponents};
+
 
 // Define a custom error type for version parsing
 #[derive(Debug)]
