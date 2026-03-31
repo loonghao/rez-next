@@ -2,13 +2,32 @@
 
 ## High Priority — Structural Refactoring
 
-### 1. `python-bindings` feature cleanup (119+ occurrences)
-- **Status**: Recorded for next cleanup cycle
-- **Impact**: 119+ `#[cfg(feature = "python-bindings")]` blocks across 10+ crates reference a feature that is **never defined** in any `Cargo.toml`
-- **Root cause**: Python bindings migrated to `rez-next-python` crate, but old per-crate `#[cfg(feature = "python-bindings")]` code was left behind
-- **Action**: Remove all `#[cfg(feature = "python-bindings")]` gated code from non-python crates (version, solver, context, common, repository, build, package)
-- **Risk**: Low — this code is never compiled (feature never enabled)
-- **Files affected**: `rez-next-version` (18), `rez-next-context` (9), `rez-next-common` (6), `rez-next-solver` (4), `rez-next-repository` (3), `rez-next-build` (3), `rez-next-package` (15+)
+### 1. `python-bindings` feature cleanup
+- **Status**: IN PROGRESS — Phase 1 complete (lib.rs + structural), Phase 2 remaining (source files)
+- **Impact**: Originally 119+ `#[cfg(feature = "python-bindings")]` blocks across 10+ crates. ~680 lines removed so far.
+- **Root cause**: Python bindings migrated to `rez-next-python` crate, but old per-crate `#[cfg(feature = "python-bindings")]` code was left behind. The feature is never defined in any `Cargo.toml`, and `pyo3` is not a dependency.
+- **Completed** (2026-04-01):
+  - 6 lib.rs files: removed `#[pymodule]`, `use pyo3`, conditional `pub mod`, conditional re-exports
+  - `rez-next-common/error.rs`: removed `PyO3` error variant and `create_exception!`
+  - `rez-next-common/config.rs`: removed `cfg_attr(pyclass)`, merged dual `#[pymethods]` / `#[cfg(not(...))]` impls
+  - `rez-next-version/tests/version_token_tests.rs`: cleared dead test module
+  - `rez-next-package/lib.rs`: removed 6 conditional `pub mod`, 7 conditional re-exports, `#[pymodule]` block, 6 dead tests
+  - `rez-next-solver/solver.rs`: removed `#[pymethods]` impl, `use pyo3`, `cfg_attr(pyclass)`
+  - `rez-next-build/builder.rs`: removed `#[pymethods]` impl (build_package_py, get_build_status_py, stats getter)
+  - `rez-next-build/process.rs`: removed `#[pymethods]` impl (build_id/status/package_name getters)
+  - `rez-next-repository/repository.rs`: removed `cfg_attr(pyclass/pymethods/new/getter)`
+  - `rez-next-repository/filesystem.rs`: removed `cfg_attr(pyclass/pymethods/new/getter)`
+  - `rez-next-context/context.rs`: removed `#[pymethods]` impl, 6 dual-gated struct fields
+- **Remaining** (next cycle):
+  - `version.rs`: ~19 blocks (largest file — dual `parse()`, `Clone`, `is_prerelease`, `reconstruct_string`, `compare_rez`, `#[pymethods]` impl, dual fields)
+  - `package.rs`: ~10 blocks (dual fields, dual `Clone`, `#[pymethods]` impl, `from_dict`, dual `validate`)
+  - `variant.rs`: ~7 blocks (dual fields, dual `Clone`, `#[pymethods]` impl)
+  - `parser.rs`: 2 blocks (use VersionToken, legacy parse_tokens)
+  - `dependency.rs`: ~50+ `cfg_attr(python-bindings, ...)` annotations
+  - `cache.rs`: ~10 `cfg_attr(python-bindings, ...)` annotations
+  - `batch.rs`: ~10 `cfg_attr(python-bindings, ...)` annotations
+  - `test_package_management_rust.rs`: 9 blocks (entire example dead)
+- **Risk**: Low for remaining items — but `version.rs`/`package.rs`/`variant.rs` require careful dual-branch merging
 
 ### 2. Workspace lint configuration tightening
 - **Status**: Recorded for next cleanup cycle
@@ -35,6 +54,17 @@
 - **CLI stubs**: time-based removal, daemon logic, validation filters
 - **Version system**: token comparison, caching, proper type distinction
 - None of these TODOs are blocking; they represent future work items.
+
+## Completed (2026-04-01)
+
+- [x] Removed python-bindings gates from 6 lib.rs files (pymodule, use pyo3, conditional mods/re-exports)
+- [x] Removed PyO3 error variant, create_exception from rez-next-common/error.rs
+- [x] Merged dual pyclass/not-pyclass config impls in rez-next-common/config.rs
+- [x] Cleared dead version_token_tests.rs (entire file gated by python-bindings)
+- [x] Removed 6 dead test functions from rez-next-package/lib.rs
+- [x] Removed pymethods impls from solver.rs, builder.rs, process.rs, context.rs
+- [x] Removed cfg_attr pyclass/pymethods from repository.rs, filesystem.rs
+- [x] Removed 6 dual-gated struct fields from context.rs
 
 ## Completed (2026-03-31)
 
