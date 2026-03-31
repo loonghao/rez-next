@@ -521,4 +521,71 @@ mod tests {
         // Adapted cost should be different due to weight adjustments
         assert_ne!(initial_cost, adapted_cost);
     }
+
+    #[test]
+    fn test_remaining_requirements_heuristic_name_and_admissibility() {
+        let h = RemainingRequirementsHeuristic::new(HeuristicConfig::default());
+        assert_eq!(h.name(), "RemainingRequirements");
+        assert!(h.is_admissible());
+    }
+
+    #[test]
+    fn test_conflict_penalty_heuristic_name_not_admissible() {
+        let h = ConflictPenaltyHeuristic::new(HeuristicConfig::default());
+        assert_eq!(h.name(), "ConflictPenalty");
+        assert!(!h.is_admissible(), "ConflictPenalty should NOT be admissible");
+    }
+
+    #[test]
+    fn test_composite_heuristic_not_admissible_with_conflict_penalty() {
+        // CompositeHeuristic includes ConflictPenaltyHeuristic (not admissible)
+        let h = CompositeHeuristic::new(HeuristicConfig::default());
+        assert!(!h.is_admissible(),
+            "CompositeHeuristic with ConflictPenalty should not be admissible");
+    }
+
+    #[test]
+    fn test_heuristic_factory_scenario_fast_and_thorough() {
+        let fast = HeuristicFactory::create_for_scenario("fast");
+        let thorough = HeuristicFactory::create_for_scenario("thorough");
+        let state = create_test_state();
+        assert!(fast.calculate(&state) >= 0.0, "fast heuristic should return >= 0");
+        assert!(thorough.calculate(&state) >= 0.0, "thorough heuristic should return >= 0");
+    }
+
+    #[test]
+    fn test_heuristic_factory_conflict_heavy_scenario() {
+        let h = HeuristicFactory::create_for_scenario("conflict_heavy");
+        let mut state = create_test_state();
+        state.add_conflict(DependencyConflict::new(
+            "pkgA".to_string(),
+            vec![">=1.0".to_string(), "<2.0".to_string()],
+            1.0,
+            ConflictType::VersionConflict,
+        ));
+        let cost = h.calculate(&state);
+        // conflict_heavy has high penalty multiplier — cost should be substantial
+        assert!(cost > 1000.0,
+            "conflict_heavy scenario cost with version conflict should be > 1000, got {}", cost);
+    }
+
+    #[test]
+    fn test_dependency_depth_heuristic_core_package_lower_depth() {
+        let config = HeuristicConfig::default();
+        let h = DependencyDepthHeuristic::new(config);
+
+        // State with a "core" package requirement — estimated depth = 1
+        let reqs = vec![PackageRequirement::new("core_utils".to_string())];
+        let state_core = SearchState::new_initial(reqs);
+
+        // State with an "app" package requirement — estimated depth = 5
+        let reqs_app = vec![PackageRequirement::new("my_app".to_string())];
+        let state_app = SearchState::new_initial(reqs_app);
+
+        let cost_core = h.calculate(&state_core);
+        let cost_app = h.calculate(&state_app);
+        assert!(cost_core < cost_app,
+            "core package depth cost ({}) should be < app package depth cost ({})",
+            cost_core, cost_app);
+    }
 }
