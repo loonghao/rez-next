@@ -32,7 +32,7 @@ impl PyResolvedContext {
 
         let pkg_paths: Vec<PathBuf> = paths
             .as_ref()
-            .map(|p| p.iter().map(|s| PathBuf::from(s)).collect())
+            .map(|p| p.iter().map(PathBuf::from).collect())
             .unwrap_or_else(|| {
                 config
                     .packages_path

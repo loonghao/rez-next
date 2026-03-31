@@ -2,10 +2,12 @@
 
 /// How the name pattern should be matched
 #[derive(Debug, Clone, PartialEq)]
+#[derive(Default)]
 pub enum FilterMode {
     /// Exact name match (case-insensitive)
     Exact,
     /// Prefix match: names starting with the pattern
+    #[default]
     Prefix,
     /// Substring match
     Contains,
@@ -13,11 +15,6 @@ pub enum FilterMode {
     Regex,
 }
 
-impl Default for FilterMode {
-    fn default() -> Self {
-        FilterMode::Prefix
-    }
-}
 
 /// A composite filter for package search
 #[derive(Debug, Clone, Default)]

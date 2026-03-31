@@ -163,7 +163,7 @@ impl PyPackage {
         use std::path::PathBuf;
 
         PackageSerializer::load_from_file(&PathBuf::from(path))
-            .map(|p| PyPackage(p))
+            .map(PyPackage)
             .map_err(|e| pyo3::exceptions::PyIOError::new_err(e.to_string()))
     }
 

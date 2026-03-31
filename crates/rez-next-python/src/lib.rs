@@ -468,8 +468,8 @@ fn unbundle_context(
             continue;
         }
         if in_packages {
-            if trimmed.starts_with("- ") {
-                packages.push(trimmed[2..].to_string());
+            if let Some(stripped) = trimmed.strip_prefix("- ") {
+                packages.push(stripped.to_string());
             } else if !trimmed.is_empty() && !trimmed.starts_with(' ') && !trimmed.starts_with('-') {
                 in_packages = false;
             }
@@ -684,7 +684,7 @@ fn get_package(
         if let Some(ver) = version {
             pkg.version
                 .as_ref()
-                .map_or(false, |v| v.as_str() == ver)
+                .is_some_and(|v| v.as_str() == ver)
         } else {
             true
         }
@@ -875,7 +875,7 @@ fn copy_package(
         .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
 
     let pkg = if let Some(ver) = version {
-        packages.into_iter().find(|p| p.version.as_ref().map_or(false, |v| v.as_str() == ver))
+        packages.into_iter().find(|p| p.version.as_ref().is_some_and(|v| v.as_str() == ver))
     } else {
         let mut sorted = packages;
         sorted.sort_by(|a, b| {

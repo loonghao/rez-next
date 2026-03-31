@@ -395,7 +395,7 @@ fn generate_dot_graph(context: &RezResolvedContext, prune_pkg: Option<&str>) -> 
             .map(|v| v.as_str())
             .unwrap_or("?");
         let label = format!("{}-{}", name, version);
-        let node_id = name.replace('-', "_").replace('.', "_");
+        let node_id = name.replace(['-', '.'], "_");
         dot.push_str(&format!("    {} [label=\"{}\"];\n", node_id, label));
     }
 
@@ -406,14 +406,13 @@ fn generate_dot_graph(context: &RezResolvedContext, prune_pkg: Option<&str>) -> 
         let from_id = resolved_pkg
             .package
             .name
-            .replace('-', "_")
-            .replace('.', "_");
+            .replace(['-', '.'], "_");
         for req in &resolved_pkg.package.requires {
             // req is like "python-3.9" or "numpy>=1.0"
             let dep_name = req.split(|c: char| !c.is_alphanumeric() && c != '_' && c != '-')
                 .next()
                 .unwrap_or(req);
-            let to_id = dep_name.replace('-', "_").replace('.', "_");
+            let to_id = dep_name.replace(['-', '.'], "_");
             // Only emit edge if target node exists in graph
             let target_exists = packages.iter().any(|rp| rp.package.name == dep_name);
             if target_exists {

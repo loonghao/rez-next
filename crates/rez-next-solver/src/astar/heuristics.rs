@@ -247,15 +247,13 @@ pub struct CompositeHeuristic {
 
 impl CompositeHeuristic {
     pub fn new(config: HeuristicConfig) -> Self {
-        let mut heuristics: Vec<Box<dyn DependencyHeuristic + Send + Sync>> = Vec::new();
-
-        // Add all heuristics
-        heuristics.push(Box::new(RemainingRequirementsHeuristic::new(
-            config.clone(),
-        )));
-        heuristics.push(Box::new(ConflictPenaltyHeuristic::new(config.clone())));
-        heuristics.push(Box::new(DependencyDepthHeuristic::new(config.clone())));
-        heuristics.push(Box::new(VersionPreferenceHeuristic::new(config.clone())));
+        // Add all heuristics using vec! macro instead of push chain
+        let heuristics: Vec<Box<dyn DependencyHeuristic + Send + Sync>> = vec![
+            Box::new(RemainingRequirementsHeuristic::new(config.clone())),
+            Box::new(ConflictPenaltyHeuristic::new(config.clone())),
+            Box::new(DependencyDepthHeuristic::new(config.clone())),
+            Box::new(VersionPreferenceHeuristic::new(config.clone())),
+        ];
 
         Self { heuristics, config }
     }

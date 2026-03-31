@@ -153,7 +153,7 @@ impl PyRezEnv {
 
         let mut scripts: HashMap<String, String> = HashMap::new();
         for shell_name in &shell_types_to_generate {
-            if let Some(shell_type) = ShellType::from_str(shell_name) {
+            if let Some(shell_type) = ShellType::parse(shell_name) {
                 let mut rex_env = rez_next_rex::RexEnvironment::new();
                 rex_env.vars = env_vars.clone();
                 let script = generate_shell_script(&rex_env, &shell_type);

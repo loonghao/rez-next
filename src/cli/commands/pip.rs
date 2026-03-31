@@ -357,8 +357,8 @@ fn create_rez_package(
         .iter()
         .filter(|r| !r.is_empty())
         .map(|r| {
-            let safe = r.to_lowercase().replace('-', "_");
-            safe
+            
+            r.to_lowercase().replace('-', "_")
         })
         .collect();
 

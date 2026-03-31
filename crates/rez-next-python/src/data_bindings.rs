@@ -95,6 +95,12 @@ quiet = False
 #[derive(Debug)]
 pub struct PyRezData;
 
+impl Default for PyRezData {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[pymethods]
 impl PyRezData {
     #[new]

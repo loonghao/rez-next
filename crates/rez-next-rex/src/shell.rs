@@ -14,17 +14,25 @@ pub enum ShellType {
     PowerShell,
 }
 
-impl ShellType {
-    /// Parse from string
-    pub fn from_str(s: &str) -> Option<Self> {
+impl std::str::FromStr for ShellType {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
-            "bash" => Some(Self::Bash),
-            "zsh" => Some(Self::Zsh),
-            "fish" => Some(Self::Fish),
-            "cmd" => Some(Self::Cmd),
-            "powershell" | "pwsh" => Some(Self::PowerShell),
-            _ => None,
+            "bash" => Ok(Self::Bash),
+            "zsh" => Ok(Self::Zsh),
+            "fish" => Ok(Self::Fish),
+            "cmd" => Ok(Self::Cmd),
+            "powershell" | "pwsh" => Ok(Self::PowerShell),
+            _ => Err(format!("unknown shell type: {s}")),
         }
+    }
+}
+
+impl ShellType {
+    /// Parse from string, returning None for unknown shell types
+    pub fn parse(s: &str) -> Option<Self> {
+        s.parse().ok()
     }
 }
 
@@ -272,13 +280,13 @@ mod tests {
 
     #[test]
     fn test_shell_type_from_str() {
-        assert_eq!(ShellType::from_str("bash"), Some(ShellType::Bash));
-        assert_eq!(ShellType::from_str("zsh"), Some(ShellType::Zsh));
-        assert_eq!(ShellType::from_str("powershell"), Some(ShellType::PowerShell));
-        assert_eq!(ShellType::from_str("pwsh"), Some(ShellType::PowerShell));
-        assert_eq!(ShellType::from_str("fish"), Some(ShellType::Fish));
-        assert_eq!(ShellType::from_str("cmd"), Some(ShellType::Cmd));
-        assert_eq!(ShellType::from_str("unknown"), None);
+        assert_eq!(ShellType::parse("bash"), Some(ShellType::Bash));
+        assert_eq!(ShellType::parse("zsh"), Some(ShellType::Zsh));
+        assert_eq!(ShellType::parse("powershell"), Some(ShellType::PowerShell));
+        assert_eq!(ShellType::parse("pwsh"), Some(ShellType::PowerShell));
+        assert_eq!(ShellType::parse("fish"), Some(ShellType::Fish));
+        assert_eq!(ShellType::parse("cmd"), Some(ShellType::Cmd));
+        assert_eq!(ShellType::parse("unknown"), None);
     }
 
     #[test]
@@ -438,11 +446,11 @@ mod tests {
             ("pwsh", ShellType::PowerShell),
         ];
         for (s, expected) in &cases {
-            let got = ShellType::from_str(s);
-            assert_eq!(got, Some(expected.clone()), "from_str('{}') failed", s);
+            let got = ShellType::parse(s);
+            assert_eq!(got, Some(expected.clone()), "parse('{}') failed", s);
         }
-        assert_eq!(ShellType::from_str("BASH"), Some(ShellType::Bash), "Case-insensitive");
-        assert!(ShellType::from_str("notashell").is_none());
+        assert_eq!(ShellType::parse("BASH"), Some(ShellType::Bash), "Case-insensitive");
+        assert!(ShellType::parse("notashell").is_none());
     }
 
     // ── Phase 97: source() statement shell script output ─────────────────────

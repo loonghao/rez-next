@@ -9,6 +9,12 @@ pub struct PyConfig {
     inner: RezCoreConfig,
 }
 
+impl Default for PyConfig {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[pymethods]
 impl PyConfig {
     /// Create a new Config (loads from files if available)

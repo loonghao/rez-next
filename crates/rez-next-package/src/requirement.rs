@@ -390,9 +390,9 @@ impl VersionConstraint {
 
         let depth = con_parts.len(); // compare only up to constraint depth
 
-        for i in 0..depth {
-            let v_tok = ver_parts.get(i).copied().unwrap_or("0");
-            let c_tok = con_parts[i];
+        for (v_tok, c_tok) in ver_parts.iter().zip(con_parts.iter()).take(depth) {
+            let v_tok = *v_tok;
+            let c_tok = *c_tok;
 
             // Try numeric comparison first
             if let (Ok(vn), Ok(cn)) = (v_tok.parse::<u64>(), c_tok.parse::<u64>()) {

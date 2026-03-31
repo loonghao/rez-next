@@ -300,7 +300,7 @@ pub fn get_reverse_dependencies(
         });
 
     compute_depends(package_name, version_range, &pkg_paths, transitive)
-        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e))
+        .map_err(pyo3::exceptions::PyRuntimeError::new_err)
 }
 
 /// Return a flat list of package name strings that directly depend on the given package.

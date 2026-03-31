@@ -212,7 +212,6 @@ impl VersionRange {
 
 
     /// Compute the union of two ranges (pipe-separated)
-
     pub fn union(&self, other: &VersionRange) -> VersionRange {
         let new_str = format!("{}|{}", self.range_str, other.range_str);
         let mut sets = self.bound_sets.clone();

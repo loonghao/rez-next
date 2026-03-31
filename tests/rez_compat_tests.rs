@@ -776,11 +776,11 @@ fn test_shell_type_all_supported() {
 
     let shells = ["bash", "zsh", "fish", "cmd", "powershell"];
     for s in &shells {
-        let st = ShellType::from_str(s);
+        let st = ShellType::parse(s);
         assert!(st.is_some(), "Shell type '{}' should be supported", s);
     }
 
-    let unknown = ShellType::from_str("unknown_shell_xyz");
+    let unknown = ShellType::parse("unknown_shell_xyz");
     assert!(unknown.is_none(), "Unknown shell type should return None");
 }
 

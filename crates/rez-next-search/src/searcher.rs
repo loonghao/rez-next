@@ -8,8 +8,10 @@ use std::path::PathBuf;
 
 /// What to search for
 #[derive(Debug, Clone, PartialEq)]
+#[derive(Default)]
 pub enum SearchScope {
     /// Search package families (default)
+    #[default]
     Families,
     /// Search individual package versions
     Packages,
@@ -17,11 +19,6 @@ pub enum SearchScope {
     LatestOnly,
 }
 
-impl Default for SearchScope {
-    fn default() -> Self {
-        SearchScope::Families
-    }
-}
 
 /// Options controlling search behaviour
 #[derive(Debug, Clone)]

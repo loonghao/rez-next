@@ -192,7 +192,7 @@ pub fn convert_pip_to_rez(
         .map(|r| {
             // Simplified: strip extras and convert version specifiers
             let base = r.split('[').next().unwrap_or(&r).trim().to_string();
-            let (pkg_name, spec) = if let Some(pos) = base.find(|c: char| c == '>' || c == '<' || c == '=' || c == '!') {
+            let (pkg_name, spec) = if let Some(pos) = base.find(['>', '<', '=', '!']) {
                 (&base[..pos], Some(pip_version_to_rez(&base[pos..])))
             } else {
                 (base.as_str(), None)

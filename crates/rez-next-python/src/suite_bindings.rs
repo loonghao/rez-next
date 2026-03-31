@@ -135,7 +135,7 @@ impl PySuite {
     fn set_conflict_mode(&mut self, mode: &str) -> PyResult<()> {
         self.inner.conflict_mode = mode
             .parse::<ToolConflictMode>()
-            .map_err(|e| pyo3::exceptions::PyValueError::new_err(e))?;
+            .map_err(pyo3::exceptions::PyValueError::new_err)?;
         Ok(())
     }
 

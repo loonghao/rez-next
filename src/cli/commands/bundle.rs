@@ -82,7 +82,7 @@ pub fn execute(args: BundleArgs) -> RezCoreResult<()> {
     let bundle_name = args.name.clone().unwrap_or_else(|| {
         args.packages
             .iter()
-            .map(|p| p.replace('-', "_").replace('.', "_"))
+            .map(|p| p.replace(['-', '.'], "_"))
             .collect::<Vec<_>>()
             .join("_")
     });

@@ -8,6 +8,12 @@ use pyo3::prelude::*;
 #[pyclass(name = "System")]
 pub struct PySystem;
 
+impl Default for PySystem {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[pymethods]
 impl PySystem {
     #[new]

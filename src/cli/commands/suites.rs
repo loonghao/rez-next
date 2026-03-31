@@ -342,8 +342,8 @@ fn cmd_tools(args: ToolsArgs) -> RezCoreResult<()> {
     let mut tool_list: Vec<_> = tools.values().collect();
     tool_list.sort_by(|a, b| a.name.cmp(&b.name));
 
-    println!("{:<30} {:<20} {}", "TOOL", "CONTEXT", "SOURCE");
-    println!("{:<30} {:<20} {}", "----", "-------", "------");
+    println!("{:<30} {:<20} SOURCE", "TOOL", "CONTEXT");
+    println!("{:<30} {:<20} ------", "----", "-------");
 
     for tool in tool_list {
         if args.verbose {
