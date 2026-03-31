@@ -2057,8 +2057,6 @@ dependencies = [
  "rez-next-package",
  "rez-next-version",
  "rstest",
- "serde",
- "serde_json",
  "tempfile",
  "thiserror 2.0.18",
 ]
@@ -2069,10 +2067,8 @@ version = "0.2.0"
 dependencies = [
  "assert_matches",
  "async-trait",
- "chrono",
  "pretty_assertions",
  "proptest",
- "regex",
  "reqwest",
  "rez-next-common",
  "rez-next-context",
@@ -2081,9 +2077,7 @@ dependencies = [
  "rstest",
  "serde",
  "serde_json",
- "serde_yaml",
  "serial_test",
- "shellexpand",
  "tempfile",
  "thiserror 2.0.18",
  "tokio",
@@ -2095,12 +2089,9 @@ dependencies = [
 name = "rez-next-cache"
 version = "0.2.0"
 dependencies = [
- "ahash",
  "async-trait",
  "criterion",
  "dashmap",
- "futures",
- "lru",
  "num_cpus",
  "rand 0.9.2",
  "rez-next-common",
@@ -2242,7 +2233,6 @@ dependencies = [
  "rez-next-common",
  "rez-next-version",
  "serde",
- "serde_json",
  "thiserror 2.0.18",
 ]
 
@@ -2257,9 +2247,7 @@ dependencies = [
  "rez-next-version",
  "rstest",
  "serde",
- "serde_json",
  "tempfile",
- "thiserror 2.0.18",
  "tokio",
 ]
 
@@ -2292,7 +2280,6 @@ name = "rez-next-suites"
 version = "0.2.0"
 dependencies = [
  "pretty_assertions",
- "regex",
  "rez-next-common",
  "rez-next-context",
  "rez-next-package",
@@ -2305,7 +2292,6 @@ dependencies = [
  "serde_yaml",
  "tempfile",
  "thiserror 2.0.18",
- "tokio",
 ]
 
 [[package]]
@@ -2314,7 +2300,6 @@ version = "0.2.0"
 dependencies = [
  "ahash",
  "assert_matches",
- "lru",
  "once_cell",
  "pretty_assertions",
  "proptest",

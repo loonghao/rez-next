@@ -25,7 +25,6 @@ regex.workspace = true
 thiserror.workspace = true
 # Temporarily disabled Python bindings
 # pyo3 = { workspace = true, optional = true }
-lru.workspace = true
 rand.workspace = true
 # Performance optimization dependencies
 ahash = "0.8"

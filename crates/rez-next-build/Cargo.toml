@@ -22,10 +22,6 @@ thiserror.workspace = true
 # Temporarily disabled Python bindings
 # pyo3 = { workspace = true, optional = true }
 uuid = { version = "1.17", features = ["v4", "serde"] }
-chrono = { version = "0.4", features = ["serde"] }
-regex = "1.11"
-shellexpand = "3.1"
-serde_yaml = "0.9"
 url = "2.5"
 reqwest = { version = "0.13", features = ["stream"] }
 async-trait = "0.1"
