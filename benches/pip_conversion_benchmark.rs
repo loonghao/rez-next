@@ -258,12 +258,22 @@ fn bench_bulk_pip_metadata_conversion(c: &mut Criterion) {
     group.finish();
 }
 
+fn ci_criterion() -> Criterion {
+    let ci = std::env::var("CRITERION_QUICK").is_ok();
+    Criterion::default()
+        .sample_size(if ci { 20 } else { 100 })
+        .measurement_time(std::time::Duration::from_secs(if ci { 2 } else { 5 }))
+        .warm_up_time(std::time::Duration::from_millis(if ci { 300 } else { 3000 }))
+}
+
 criterion_group!(
-    pip_benches,
-    bench_name_normalization,
-    bench_version_conversion,
-    bench_pip_converted_req_parsing,
-    bench_pip_version_satisfaction,
-    bench_bulk_pip_metadata_conversion,
+    name = pip_benches;
+    config = ci_criterion();
+    targets =
+        bench_name_normalization,
+        bench_version_conversion,
+        bench_pip_converted_req_parsing,
+        bench_pip_version_satisfaction,
+        bench_bulk_pip_metadata_conversion
 );
 criterion_main!(pip_benches);

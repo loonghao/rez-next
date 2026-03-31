@@ -110,13 +110,35 @@ fn state_machine_parser_benchmark(c: &mut Criterion) {
 }
 
 fn configure_criterion() -> Criterion {
+    // In CI (CRITERION_QUICK=1) use shorter warm-up and measurement times
+    // so the full bench suite finishes within the 15-minute job timeout.
+    let ci_quick = std::env::var("CRITERION_QUICK").is_ok();
+    let warm_up = if ci_quick {
+        std::time::Duration::from_millis(500)
+    } else {
+        std::time::Duration::from_secs(3)
+    };
+    let measurement = if ci_quick {
+        std::time::Duration::from_secs(2)
+    } else {
+        std::time::Duration::from_secs(5)
+    };
+    let sample_size: usize = if ci_quick { 30 } else { 100 };
+
     #[cfg(feature = "flamegraph")]
     {
-        Criterion::default().with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)))
+        Criterion::default()
+            .warm_up_time(warm_up)
+            .measurement_time(measurement)
+            .sample_size(sample_size)
+            .with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)))
     }
     #[cfg(not(feature = "flamegraph"))]
     {
         Criterion::default()
+            .warm_up_time(warm_up)
+            .measurement_time(measurement)
+            .sample_size(sample_size)
     }
 }
 

@@ -544,16 +544,26 @@ impl PackageBenchmark {
     }
 }
 
+fn ci_criterion() -> Criterion {
+    let ci = std::env::var("CRITERION_QUICK").is_ok();
+    Criterion::default()
+        .sample_size(if ci { 20 } else { 100 })
+        .measurement_time(Duration::from_secs(if ci { 2 } else { 5 }))
+        .warm_up_time(Duration::from_millis(if ci { 300 } else { 3000 }))
+}
+
 // Criterion benchmark groups
 criterion_group!(
-    package_benches,
-    bench_package_creation,
-    bench_package_serialization,
-    bench_package_deserialization,
-    bench_package_validation,
-    bench_package_variants,
-    bench_package_cloning,
-    bench_package_requirements
+    name = package_benches;
+    config = ci_criterion();
+    targets =
+        bench_package_creation,
+        bench_package_serialization,
+        bench_package_deserialization,
+        bench_package_validation,
+        bench_package_variants,
+        bench_package_cloning,
+        bench_package_requirements
 );
 
 criterion_main!(package_benches);

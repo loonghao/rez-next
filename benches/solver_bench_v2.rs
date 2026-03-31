@@ -124,30 +124,29 @@ fn bench_solver_configs(c: &mut Criterion) {
     group.finish();
 }
 
+fn ci_criterion(sample: usize, measure_s: u64) -> Criterion {
+    let ci = std::env::var("CRITERION_QUICK").is_ok();
+    Criterion::default()
+        .sample_size(if ci { 20 } else { sample })
+        .measurement_time(Duration::from_secs(if ci { 2 } else { measure_s }))
+        .warm_up_time(Duration::from_millis(if ci { 300 } else { 2000 }))
+}
+
 criterion_group!(
     name = resolver_basic;
-    config = Criterion::default()
-        .sample_size(200)
-        .measurement_time(Duration::from_secs(5))
-        .warm_up_time(Duration::from_secs(2));
+    config = ci_criterion(200, 5);
     targets = bench_resolver_creation, bench_resolve_empty
 );
 
 criterion_group!(
     name = resolver_resolution;
-    config = Criterion::default()
-        .sample_size(100)
-        .measurement_time(Duration::from_secs(8))
-        .warm_up_time(Duration::from_secs(2));
+    config = ci_criterion(100, 8);
     targets = bench_resolve_single_requirement, bench_resolve_multiple_requirements
 );
 
 criterion_group!(
     name = resolver_configs;
-    config = Criterion::default()
-        .sample_size(100)
-        .measurement_time(Duration::from_secs(5))
-        .warm_up_time(Duration::from_secs(2));
+    config = ci_criterion(100, 5);
     targets = bench_solver_configs
 );
 

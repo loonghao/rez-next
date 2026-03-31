@@ -131,12 +131,22 @@ fn bench_build_depends_index(c: &mut Criterion) {
     group.finish();
 }
 
+fn ci_criterion() -> Criterion {
+    let ci = std::env::var("CRITERION_QUICK").is_ok();
+    Criterion::default()
+        .sample_size(if ci { 20 } else { 100 })
+        .measurement_time(std::time::Duration::from_secs(if ci { 2 } else { 5 }))
+        .warm_up_time(std::time::Duration::from_millis(if ci { 300 } else { 3000 }))
+}
+
 criterion_group!(
-    benches,
-    bench_depends_scan,
-    bench_package_construction,
-    bench_requirement_string_ops,
-    bench_multi_target_depends,
-    bench_build_depends_index,
+    name = benches;
+    config = ci_criterion();
+    targets =
+        bench_depends_scan,
+        bench_package_construction,
+        bench_requirement_string_ops,
+        bench_multi_target_depends,
+        bench_build_depends_index
 );
 criterion_main!(benches);
