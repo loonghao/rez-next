@@ -45,6 +45,8 @@ jobs:
           python-version: "3.11"
 
       - name: Run quick benchmarks (version + package + rex)
+        env:
+          CRITERION_QUICK: "1"
         run: |
           cargo bench \
             --bench version_benchmark \
@@ -110,6 +112,8 @@ jobs:
           python-version: "3.11"
 
       - name: Run full benchmark suite
+        env:
+          CRITERION_QUICK: "1"
         run: |
           cargo bench \
             --bench version_benchmark \

@@ -151,32 +151,31 @@ fn bench_context_summary(c: &mut Criterion) {
     group.finish();
 }
 
+fn ci_criterion(sample: usize, measure_s: u64, warmup_ms: u64) -> Criterion {
+    let ci = std::env::var("CRITERION_QUICK").is_ok();
+    Criterion::default()
+        .sample_size(if ci { 20 } else { sample })
+        .measurement_time(Duration::from_secs(if ci { 2 } else { measure_s }))
+        .warm_up_time(Duration::from_millis(if ci { 300 } else { warmup_ms }))
+}
+
 // ── Groups ─────────────────────────────────────────────────────────────────────
 
 criterion_group!(
     name = context_creation_benches;
-    config = Criterion::default()
-        .sample_size(200)
-        .measurement_time(Duration::from_secs(5))
-        .warm_up_time(Duration::from_secs(1));
+    config = ci_criterion(200, 5, 1000);
     targets = bench_context_creation, bench_env_var_injection
 );
 
 criterion_group!(
     name = context_serialization_benches;
-    config = Criterion::default()
-        .sample_size(100)
-        .measurement_time(Duration::from_secs(8))
-        .warm_up_time(Duration::from_secs(2));
+    config = ci_criterion(100, 8, 2000);
     targets = bench_json_serialize, bench_json_deserialize, bench_json_roundtrip
 );
 
 criterion_group!(
     name = context_ops_benches;
-    config = Criterion::default()
-        .sample_size(200)
-        .measurement_time(Duration::from_secs(5))
-        .warm_up_time(Duration::from_secs(1));
+    config = ci_criterion(200, 5, 1000);
     targets = bench_context_summary
 );
 
