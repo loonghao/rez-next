@@ -3,10 +3,18 @@
 ## High Priority — Structural Refactoring
 
 ### 1. `python-bindings` feature cleanup
-- **Status**: IN PROGRESS — Phase 1 complete (lib.rs + structural), Phase 2 remaining (source files)
-- **Impact**: Originally 119+ `#[cfg(feature = "python-bindings")]` blocks across 10+ crates. ~680 lines removed so far.
+- **Status**: IN PROGRESS — Phase 1 complete, Phase 2 nearly complete, `version.rs` + `parser.rs` remaining
+- **Impact**: Originally 119+ `#[cfg(feature = "python-bindings")]` blocks across 10+ crates. ~1400 lines removed so far.
 - **Root cause**: Python bindings migrated to `rez-next-python` crate, but old per-crate `#[cfg(feature = "python-bindings")]` code was left behind. The feature is never defined in any `Cargo.toml`, and `pyo3` is not a dependency.
-- **Completed** (2026-04-01):
+- **Completed** (2026-04-01, cycle 6):
+  - `dependency.rs`: removed 14 `cfg_attr(python-bindings, pyclass/pymethods/new/staticmethod)` annotations and `use pyo3`
+  - `cache.rs`: removed 9 `cfg_attr(python-bindings, ...)` annotations and `use pyo3`
+  - `batch.rs`: removed 12 `cfg_attr(python-bindings, ...)` annotations and `use pyo3`
+  - `serialization.rs`: removed 2 `cfg_attr(python-bindings, pyclass)` annotations
+  - `variant.rs`: full dual-fork merge — removed dual struct fields (4 pairs), dual Clone impl, `#[pymethods]` block (+moved useful methods to regular impl), `cfg_attr(pyclass)`, dead test cfg gate
+  - `package.rs`: full dual-fork merge — removed dual struct fields (6 pairs), dual Clone impl, `#[pymethods]` block (+moved useful methods), `from_dict` dead impl, `cfg_attr(pyclass)`, `use pyo3`
+  - `test_package_management_rust.rs`: deleted entire file (all test functions gated by never-defined feature)
+- **Completed** (2026-04-01, cycle 5):
   - 6 lib.rs files: removed `#[pymodule]`, `use pyo3`, conditional `pub mod`, conditional re-exports
   - `rez-next-common/error.rs`: removed `PyO3` error variant and `create_exception!`
   - `rez-next-common/config.rs`: removed `cfg_attr(pyclass)`, merged dual `#[pymethods]` / `#[cfg(not(...))]` impls
@@ -18,16 +26,11 @@
   - `rez-next-repository/repository.rs`: removed `cfg_attr(pyclass/pymethods/new/getter)`
   - `rez-next-repository/filesystem.rs`: removed `cfg_attr(pyclass/pymethods/new/getter)`
   - `rez-next-context/context.rs`: removed `#[pymethods]` impl, 6 dual-gated struct fields
-- **Remaining** (next cycle):
-  - `version.rs`: ~19 blocks (largest file — dual `parse()`, `Clone`, `is_prerelease`, `reconstruct_string`, `compare_rez`, `#[pymethods]` impl, dual fields)
-  - `package.rs`: ~10 blocks (dual fields, dual `Clone`, `#[pymethods]` impl, `from_dict`, dual `validate`)
-  - `variant.rs`: ~7 blocks (dual fields, dual `Clone`, `#[pymethods]` impl)
-  - `parser.rs`: 2 blocks (use VersionToken, legacy parse_tokens)
-  - `dependency.rs`: ~50+ `cfg_attr(python-bindings, ...)` annotations
-  - `cache.rs`: ~10 `cfg_attr(python-bindings, ...)` annotations
-  - `batch.rs`: ~10 `cfg_attr(python-bindings, ...)` annotations
-  - `test_package_management_rust.rs`: 9 blocks (entire example dead)
-- **Risk**: Low for remaining items — but `version.rs`/`package.rs`/`variant.rs` require careful dual-branch merging
+- **Remaining** (next cycle — FINAL):
+  - `version.rs`: ~19+13 blocks — most complex file. Has dual `parse()`, `Clone`, `is_prerelease`, `reconstruct_string`, `compare_rez`, `compare_token_strings`, `#[pymethods]` impl (230 lines), dual struct fields, Python-specific helpers (`create_version_with_python_tokens`, `extract_token_strings_gil_free`, `parse_optimized`, `parse_legacy_simulation`, `parse_with_gil_release`, `cmp_with_gil_release`). Needs careful line-by-line merge.
+  - `parser.rs`: 2 blocks (`use VersionToken`, `parse_tokens()` method) — simple removal
+  - `environment.rs`: 1 block inside `/* ... */` comment — cleanup comment block
+- **Risk**: `version.rs` is high-risk due to dual-forked parse/compare logic; recommend dedicated focused session
 
 ### 2. Workspace lint configuration tightening
 - **Status**: Recorded for next cleanup cycle
