@@ -35,6 +35,18 @@ Issues = "https://github.com/loonghao/rez-next/issues"
 features = ["pyo3/extension-module"]
 # Python module name (must match #[pymodule(name = "rez_next")] in lib.rs)
 module-name = "rez_next"
-# Compatibility tag for abi3 (Python 3.8+)
 # Strip debug symbols in release
 strip = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-v --tb=short"
+
+[tool.ruff]
+line-length = 100
+target-version = "py38"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
+ignore = ["E501"]
+

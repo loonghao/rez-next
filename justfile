@@ -61,3 +61,55 @@ clean:
 # Install locally
 install:
     vx cargo install --path .
+
+# ── pre-commit ─────────────────────────────────────────────────────────────
+
+# Install pre-commit hooks
+pre-commit-install:
+    vx pre-commit install
+
+# Run pre-commit on all files (same as CI)
+pre-commit:
+    vx pre-commit run --all-files
+
+# Run pre-commit on staged files only
+pre-commit-staged:
+    vx pre-commit run
+
+# Update pre-commit hook versions
+pre-commit-update:
+    vx pre-commit autoupdate
+
+# ── Python ─────────────────────────────────────────────────────────────────
+
+# Build Python wheel with maturin develop (for local testing)
+py-build:
+    cd crates/rez-next-python && vx maturin develop --features pyo3/extension-module
+
+# Run Python compatibility tests
+py-test:
+    cd crates/rez-next-python && vx pytest tests/ -v --tb=short
+
+# Run Python compatibility tests (fast, stop on first failure)
+py-test-fast:
+    cd crates/rez-next-python && vx pytest tests/ -v --tb=short -x
+
+# Run Python e2e tests only
+py-test-e2e:
+    cd crates/rez-next-python && vx pytest tests/ -v --tb=short -k "e2e or E2E or end_to_end"
+
+# Run Python tests by module
+py-test-module MODULE:
+    cd crates/rez-next-python && vx pytest tests/ -v --tb=short -k "{{MODULE}}"
+
+# Format Python test files with ruff
+py-fmt:
+    vx ruff format crates/rez-next-python/
+
+# Lint Python test files with ruff
+py-lint:
+    vx ruff check crates/rez-next-python/
+
+# Build wheel + run all Python tests (full Python CI flow)
+py-ci: py-build py-test
+
