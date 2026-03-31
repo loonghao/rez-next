@@ -5379,6 +5379,274 @@ commands = "env.setenv('STRPKG_HOME', '{root}')"
     assert_eq!(pkg.name, "strpkg");
 }
 
+// ── Phase 109: RezCoreError compatibility tests ──────────────────────────────
+
+/// rez: errors should have descriptive messages like rez's exception classes
+#[test]
+fn test_error_version_parse_message() {
+    use rez_next_common::error::RezCoreError;
+    let e = RezCoreError::VersionParse("not_a_version".to_string());
+    let msg = e.to_string();
+    assert!(msg.contains("Version parsing error"), "expected 'Version parsing error' in: {msg}");
+    assert!(msg.contains("not_a_version"), "expected input in error message");
+}
+
+/// rez: solver conflicts should be descriptive
+#[test]
+fn test_error_solver_conflict_message() {
+    use rez_next_common::error::RezCoreError;
+    let e = RezCoreError::Solver("python-3.9 conflicts with python-2.7".to_string());
+    assert!(e.to_string().contains("Solver error"));
+    assert!(e.to_string().contains("python-3.9"));
+}
+
+/// rez: package parse errors used in Package::from_str compatibility
+#[test]
+fn test_error_package_parse_missing_name() {
+    use rez_next_common::error::RezCoreError;
+    let e = RezCoreError::PackageParse("Missing name".to_string());
+    assert!(e.to_string().contains("Package parsing error"));
+}
+
+/// rez: IO errors propagate correctly
+#[test]
+fn test_error_io_propagation() {
+    use rez_next_common::error::RezCoreError;
+    let io = std::io::Error::new(std::io::ErrorKind::PermissionDenied, "access denied");
+    let e: RezCoreError = io.into();
+    assert!(e.to_string().contains("IO error"));
+    assert!(e.to_string().contains("access denied"));
+}
+
+/// rez: config error for missing required fields
+#[test]
+fn test_error_config_error() {
+    use rez_next_common::error::RezCoreError;
+    let e = RezCoreError::ConfigError("packages_path must not be empty".to_string());
+    assert!(e.to_string().contains("Configuration error"));
+}
+
+// ── Phase 110: Package name validation (rez compatibility) ───────────────────
+
+/// rez: package names must follow [a-zA-Z0-9_-]+ pattern
+#[test]
+fn test_package_name_rez_valid_names() {
+    use rez_next_common::utils::is_valid_package_name;
+    // Standard rez package names
+    assert!(is_valid_package_name("maya"));
+    assert!(is_valid_package_name("houdini_fx"));
+    assert!(is_valid_package_name("nuke-studio"));
+    assert!(is_valid_package_name("python"));
+    assert!(is_valid_package_name("Qt5"));
+    assert!(is_valid_package_name("USD_23"));
+    assert!(is_valid_package_name("rez_next"));
+}
+
+/// rez: package names must not be empty or start/end with hyphens
+#[test]
+fn test_package_name_rez_invalid_names() {
+    use rez_next_common::utils::is_valid_package_name;
+    assert!(!is_valid_package_name(""));
+    assert!(!is_valid_package_name("-maya"));
+    assert!(!is_valid_package_name("maya-"));
+    assert!(!is_valid_package_name("my package"));
+    assert!(!is_valid_package_name("pkg@1.0"));
+    assert!(!is_valid_package_name("pkg.name"));
+}
+
+// ── Phase 111: VersionRange edge cases (rez compatibility) ───────────────────
+
+/// rez: version range "any" matches all versions
+#[test]
+fn test_version_range_any_matches_all() {
+    use rez_next_version::VersionRange;
+    // In rez, empty string or "*" means "any version"
+    let any = VersionRange::parse("*").unwrap();
+    let v1 = rez_next_version::Version::parse("1.0.0").unwrap();
+    let v2 = rez_next_version::Version::parse("99.99.99").unwrap();
+    assert!(any.contains(&v1));
+    assert!(any.contains(&v2));
+}
+
+/// rez: version range with upper bound (comma-separated AND format)
+#[test]
+fn test_version_range_upper_bound() {
+    use rez_next_version::VersionRange;
+    // Use versions without patch component to match existing test patterns
+    let range = VersionRange::parse(">=1.0,<3.0").unwrap();
+    let v_in = rez_next_version::Version::parse("1.5").unwrap();
+    let v_out_upper = rez_next_version::Version::parse("3.0").unwrap();
+    let v_out_beyond = rez_next_version::Version::parse("4.0").unwrap();
+    assert!(range.contains(&v_in), "1.5 should be in >=1.0,<3.0");
+    assert!(!range.contains(&v_out_upper), "3.0 should not be in >=1.0,<3.0");
+    assert!(!range.contains(&v_out_beyond), "4.0 should not be in >=1.0,<3.0");
+}
+
+/// rez: version range union covers both sub-ranges
+#[test]
+fn test_version_range_union_coverage() {
+    use rez_next_version::VersionRange;
+    let r1 = VersionRange::parse(">=1.0,<1.5").unwrap();
+    let r2 = VersionRange::parse(">=3.0,<4.0").unwrap();
+    let union = r1.union(&r2);
+    let v_in_1 = rez_next_version::Version::parse("1.2").unwrap();
+    let v_in_3 = rez_next_version::Version::parse("3.5").unwrap();
+    let v_out = rez_next_version::Version::parse("2.0").unwrap();
+    assert!(union.contains(&v_in_1), "1.2 should be in union");
+    assert!(union.contains(&v_in_3), "3.5 should be in union");
+    assert!(!union.contains(&v_out), "2.0 should not be in union");
+}
+
+// ── Phase 112: Package requirement parse edge cases ───────────────────────────
+
+/// rez: requirement with only name (no version) is valid
+#[test]
+fn test_requirement_p112_name_only() {
+    use rez_next_package::PackageRequirement;
+    let req = PackageRequirement::parse("python").unwrap();
+    assert_eq!(req.name, "python");
+    assert!(req.version_spec.is_none());
+}
+
+/// rez: requirement with exact version
+#[test]
+fn test_requirement_p112_exact_version() {
+    use rez_next_package::PackageRequirement;
+    let req = PackageRequirement::parse("python-3.9.0").unwrap();
+    assert_eq!(req.name, "python");
+    assert!(req.version_spec.is_some());
+    assert_eq!(req.version_spec.as_deref(), Some("3.9.0"));
+}
+
+/// rez: requirement with range
+#[test]
+fn test_requirement_p112_version_range() {
+    use rez_next_package::PackageRequirement;
+    let req = PackageRequirement::parse("python-3+").unwrap();
+    assert_eq!(req.name, "python");
+    assert!(req.version_spec.is_some());
+}
+
+/// rez: weak requirement (tilde prefix) is supported via Requirement type
+#[test]
+fn test_requirement_p112_weak_reference() {
+    use rez_next_package::Requirement;
+    use rez_next_package::requirement::RequirementParser;
+    let parser = RequirementParser::new();
+    let req = parser.parse("~python").unwrap();
+    assert_eq!(req.name, "python");
+    assert!(req.weak, "~python should be a weak requirement");
+}
+
+/// rez: requirement roundtrip (parse then convert to string)
+#[test]
+fn test_requirement_p112_roundtrip() {
+    use rez_next_package::PackageRequirement;
+    let req = PackageRequirement::parse("maya-2024.0").unwrap();
+    let s = req.to_string();
+    assert!(s.contains("maya"));
+    assert!(s.contains("2024.0"));
+}
+
+/// rez: multiple packages in requirements list
+#[test]
+fn test_requirement_p112_multiple_packages() {
+    use rez_next_package::PackageRequirement;
+    let reqs: Vec<_> = ["python-3.9", "maya-2024", "houdini"]
+        .iter()
+        .map(|s| PackageRequirement::parse(s).unwrap())
+        .collect();
+    assert_eq!(reqs.len(), 3);
+    assert_eq!(reqs[0].name, "python");
+    assert_eq!(reqs[1].name, "maya");
+    assert_eq!(reqs[2].name, "houdini");
+    assert!(reqs[2].version_spec.is_none());
+}
+
+// ── Phase 113: Shell script generation edge cases ────────────────────────────
+
+/// rez: empty env should still produce valid (albeit minimal) shell scripts
+#[test]
+fn test_shell_empty_env_all_shells() {
+    use rez_next_rex::{RexEnvironment, shell::{generate_shell_script, ShellType}};
+    let env = RexEnvironment::new();
+    let shells = [ShellType::Bash, ShellType::Zsh, ShellType::Fish, ShellType::Cmd, ShellType::PowerShell];
+    for shell in &shells {
+        let script = generate_shell_script(&env, shell);
+        // All scripts should be non-empty (at minimum a header comment)
+        assert!(!script.is_empty(), "Script for {:?} should not be empty", shell);
+    }
+}
+
+/// rez: environment vars with special chars in values
+#[test]
+fn test_shell_env_var_with_spaces() {
+    use rez_next_rex::{RexEnvironment, shell::{generate_shell_script, ShellType}};
+    let mut env = RexEnvironment::new();
+    env.vars.insert("MY_PATH".to_string(), "/path/with spaces/here".to_string());
+    let script = generate_shell_script(&env, &ShellType::Bash);
+    assert!(script.contains("MY_PATH"), "script should contain var name");
+}
+
+/// rez: alias commands in shell scripts
+#[test]
+fn test_shell_alias_in_bash() {
+    use rez_next_rex::{RexEnvironment, shell::{generate_shell_script, ShellType}};
+    let mut env = RexEnvironment::new();
+    env.aliases.insert("maya2024".to_string(), "/opt/autodesk/maya/bin/maya".to_string());
+    let script = generate_shell_script(&env, &ShellType::Bash);
+    assert!(script.contains("maya2024"), "Bash script should contain alias");
+}
+
+/// rez: alias commands in PowerShell scripts
+#[test]
+fn test_shell_alias_in_powershell() {
+    use rez_next_rex::{RexEnvironment, shell::{generate_shell_script, ShellType}};
+    let mut env = RexEnvironment::new();
+    env.aliases.insert("houdini20".to_string(), "/opt/hfs20/bin/houdini".to_string());
+    let script = generate_shell_script(&env, &ShellType::PowerShell);
+    assert!(script.contains("houdini20"), "PowerShell script should contain alias");
+}
+
+// ── Phase 114: Config environment variable override tests ────────────────────
+
+/// rez: REZ_PACKAGES_PATH environment variable overrides config
+#[test]
+fn test_config_env_override_packages_path() {
+    use rez_next_common::config::RezCoreConfig;
+    const TEST_PATH: &str = "/tmp/rez_phase114_test_path_unique";
+    // Skip if env var is already set by another concurrent test
+    if std::env::var("REZ_PACKAGES_PATH").is_ok() {
+        return;
+    }
+    unsafe { std::env::set_var("REZ_PACKAGES_PATH", TEST_PATH); }
+    let cfg = RezCoreConfig::load();
+    unsafe { std::env::remove_var("REZ_PACKAGES_PATH"); }
+    // The config should have the test path as one of its packages paths
+    let found = cfg.packages_path.iter().any(|p| p.as_str() == TEST_PATH);
+    assert!(found,
+        "Expected '{}' in packages_path, got: {:?}", TEST_PATH, cfg.packages_path);
+}
+
+/// rez: default config has at least one packages path
+#[test]
+fn test_config_default_has_packages_path() {
+    use rez_next_common::config::RezCoreConfig;
+    let cfg = RezCoreConfig::default();
+    // rez default config should have some packages paths configured
+    assert!(!cfg.packages_path.is_empty(), "Default config should have packages_path");
+}
+
+/// rez: config local_packages_path has a default value
+#[test]
+fn test_config_default_local_packages_path() {
+    use rez_next_common::config::RezCoreConfig;
+    let cfg = RezCoreConfig::default();
+    assert!(!cfg.local_packages_path.is_empty(),
+        "local_packages_path should not be empty by default");
+}
+
+
 
 
 
