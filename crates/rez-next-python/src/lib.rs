@@ -187,6 +187,11 @@ fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
     system_mod.add_class::<PySystem>()?;
     system_mod.add("system", PySystem::new())?;
     system_mod.add_function(wrap_pyfunction!(system_bindings::get_system, &system_mod)?)?;
+    // Also expose platform/arch/os directly on the module so that
+    // `rez.system.platform` works when `rez.system` is the module object.
+    system_mod.add("platform", system_bindings::PySystem::platform_pub())?;
+    system_mod.add("arch", system_bindings::PySystem::arch_pub())?;
+    system_mod.add("os", system_bindings::PySystem::os_pub())?;
     m.add_submodule(&system_mod)?;
 
     // Submodule: rez.vendor.version
@@ -529,13 +534,6 @@ fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
     )?)?;
     m.add_function(wrap_pyfunction!(depends_bindings::get_dependants, m)?)?;
     m.add_function(wrap_pyfunction!(depends_bindings::print_depends, m)?)?;
-
-    // Re-register top-level singletons AFTER all submodule registration.
-    // PyO3's add_submodule with the same name overwrites the attribute,
-    // so we must re-set these to expose PySystem/PyConfig instances at
-    // `rez_next.config` and `rez_next.system` (not the modules).
-    m.add("config", PyConfig::new())?;
-    m.add("system", PySystem::new())?;
 
     Ok(())
 }

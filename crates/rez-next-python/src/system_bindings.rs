@@ -72,6 +72,18 @@ impl PySystem {
 }
 
 impl PySystem {
+    pub fn platform_pub() -> String {
+        Self::platform_str()
+    }
+
+    pub fn arch_pub() -> String {
+        Self::arch_str()
+    }
+
+    pub fn os_pub() -> String {
+        Self::os_str()
+    }
+
     fn platform_str() -> String {
         match std::env::consts::OS {
             "windows" => "windows".to_string(),
