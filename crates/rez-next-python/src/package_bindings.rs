@@ -2,9 +2,7 @@
 
 use crate::version_bindings::PyVersion;
 use pyo3::prelude::*;
-use pyo3::types::PyList;
 use rez_next_package::{Package, PackageRequirement};
-use std::collections::HashMap;
 
 /// Python-accessible Package class, compatible with rez.packages.Package
 #[pyclass(name = "Package")]
@@ -148,6 +146,15 @@ impl PyPackage {
         self.0.relocatable
     }
 
+    /// Set the version string (rez compat helper)
+    fn set_version(&mut self, version_str: &str) -> PyResult<()> {
+        use rez_next_version::Version;
+        let v = Version::parse(version_str)
+            .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))?;
+        self.0.version = Some(v);
+        Ok(())
+    }
+
     /// Load a package from file (package.py or package.yaml)
     #[staticmethod]
     fn load(path: &str) -> PyResult<PyPackage> {
@@ -155,7 +162,7 @@ impl PyPackage {
         use std::path::PathBuf;
 
         PackageSerializer::load_from_file(&PathBuf::from(path))
-            .map(|p| PyPackage(p))
+            .map(PyPackage)
             .map_err(|e| pyo3::exceptions::PyIOError::new_err(e.to_string()))
     }
 
@@ -165,6 +172,11 @@ impl PyPackage {
             .validate()
             .map(|_| true)
             .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))
+    }
+
+    /// Check if the package definition is valid without raising exceptions
+    fn is_valid(&self) -> bool {
+        self.0.is_valid()
     }
 
     /// Get the format version
@@ -218,9 +230,15 @@ impl PyPackageRequirement {
         self.0.name.clone()
     }
 
-    /// Version specification string
+    /// Version specification string (rez compat: .range)
     #[getter]
     fn range(&self) -> Option<String> {
+        self.0.version_spec.clone()
+    }
+
+    /// Version specification string (rez compat alias: .version_range)
+    #[getter]
+    fn version_range(&self) -> Option<String> {
         self.0.version_spec.clone()
     }
 

@@ -70,10 +70,7 @@ impl SuiteManager {
     pub fn list_suite_names(&self) -> Vec<String> {
         self.find_suites()
             .into_iter()
-            .filter_map(|p| {
-                p.file_name()
-                    .map(|n| n.to_string_lossy().to_string())
-            })
+            .filter_map(|p| p.file_name().map(|n| n.to_string_lossy().to_string()))
             .collect()
     }
 }
@@ -144,7 +141,9 @@ mod tests {
         for name in &["suite_alpha", "suite_beta"] {
             let suite_path = dir.path().join(name);
             let mut suite = Suite::new();
-            suite.add_context("default", vec!["python".to_string()]).unwrap();
+            suite
+                .add_context("default", vec!["python".to_string()])
+                .unwrap();
             suite.save(&suite_path).unwrap();
         }
 
@@ -171,7 +170,9 @@ mod tests {
         let suite_path = dir.path().join("direct_suite");
 
         let mut suite = Suite::new().with_description("Direct");
-        suite.add_context("main", vec!["python-3.9".to_string()]).unwrap();
+        suite
+            .add_context("main", vec!["python-3.9".to_string()])
+            .unwrap();
         suite.save(&suite_path).unwrap();
 
         let loaded = SuiteManager::load_suite_from_path(&suite_path).unwrap();

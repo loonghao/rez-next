@@ -219,8 +219,8 @@ fn resolve_environment(
             .map(|p| {
                 // Expand ~ on all platforms
                 let expanded = if p.starts_with("~/") || p == "~" {
-                    if let Ok(home) = std::env::var("USERPROFILE")
-                        .or_else(|_| std::env::var("HOME"))
+                    if let Ok(home) =
+                        std::env::var("USERPROFILE").or_else(|_| std::env::var("HOME"))
                     {
                         p.replacen("~", &home, 1)
                     } else {
@@ -248,9 +248,9 @@ fn resolve_environment(
         .iter()
         .map(|pr| {
             let req_str = pr.to_string();
-            req_str.parse::<Requirement>().unwrap_or_else(|_| {
-                Requirement::new(pr.name.clone())
-            })
+            req_str
+                .parse::<Requirement>()
+                .unwrap_or_else(|_| Requirement::new(pr.name.clone()))
         })
         .collect();
 
@@ -333,7 +333,11 @@ fn print_shell_script(context: &ResolvedContext, args: &EnvArgs) -> RezCoreResul
 
     // Determine shell type
     let shell_str = args.shell.as_deref().unwrap_or({
-        if cfg!(windows) { "powershell" } else { "bash" }
+        if cfg!(windows) {
+            "powershell"
+        } else {
+            "bash"
+        }
     });
 
     let rex_shell = match shell_str {

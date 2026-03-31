@@ -2,11 +2,8 @@
 
 use crate::context_bindings::PyResolvedContext;
 use pyo3::prelude::*;
-use rez_next_package::{PackageRequirement, Requirement};
-use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
-use rez_next_solver::{DependencyResolver, SolverConfig};
+use rez_next_solver::SolverConfig;
 use std::path::PathBuf;
-use std::sync::Arc;
 
 /// Python-accessible Solver class, compatible with rez.solver.Solver
 #[pyclass(name = "Solver")]
@@ -33,8 +30,8 @@ impl PySolver {
                     .iter()
                     .map(|p| {
                         let expanded = if p.starts_with("~/") || p == "~" {
-                            if let Ok(home) = std::env::var("USERPROFILE")
-                                .or_else(|_| std::env::var("HOME"))
+                            if let Ok(home) =
+                                std::env::var("USERPROFILE").or_else(|_| std::env::var("HOME"))
                             {
                                 p.replacen("~", &home, 1)
                             } else {
@@ -55,7 +52,12 @@ impl PySolver {
     }
 
     fn __repr__(&self) -> String {
-        "Solver()".to_string()
+        format!(
+            "Solver(paths={}, max_attempts={}, prefer_latest={})",
+            self.paths.len(),
+            self.config.max_attempts,
+            self.config.prefer_latest,
+        )
     }
 
     /// Resolve a list of package requirements into a ResolvedContext.

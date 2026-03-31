@@ -15,7 +15,7 @@ use std::cmp::Ordering;
 use std::hash::{Hash, Hasher};
 
 /// Global state machine parser instance for optimal performance
-#[allow(dead_code)]
+#[cfg(feature = "python-bindings")]
 static OPTIMIZED_PARSER: Lazy<StateMachineParser> = Lazy::new(StateMachineParser::new);
 
 /// High-performance version representation compatible with rez
@@ -580,7 +580,6 @@ impl Version {
     pub fn patch(&self) -> Option<u64> {
         self.tokens.get(2).and_then(|t| t.parse::<u64>().ok())
     }
-
 
     /// Check if this is the epsilon version (alias for is_empty)
     pub fn is_epsilon(&self) -> bool {

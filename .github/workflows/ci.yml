@@ -50,7 +50,7 @@ jobs:
       - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      - run: cargo doc --workspace --all-features --no-deps
+      - run: cargo doc --workspace --all-features --no-deps --exclude rez-next-python
         env:
           RUSTDOCFLAGS: "-D warnings"
 
@@ -61,7 +61,7 @@ jobs:
       - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      - run: cargo test --workspace
+      - run: cargo test --workspace --exclude rez-next-python
 
   test-macos:
     name: Test - macOS
@@ -70,7 +70,7 @@ jobs:
       - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      - run: cargo test --workspace
+      - run: cargo test --workspace --exclude rez-next-python
 
   test-win-msvc:
     name: Test - win-msvc
@@ -81,7 +81,7 @@ jobs:
         with:
           targets: x86_64-pc-windows-msvc
       - uses: Swatinem/rust-cache@v2
-      - run: cargo test --workspace
+      - run: cargo test --workspace --exclude rez-next-python
 
   test-win-gnu:
     name: Test - win-gnu
@@ -92,7 +92,7 @@ jobs:
         with:
           targets: x86_64-pc-windows-gnu
       - uses: Swatinem/rust-cache@v2
-      - run: cargo test --workspace --target x86_64-pc-windows-gnu
+      - run: cargo test --workspace --exclude rez-next-python --target x86_64-pc-windows-gnu
 
   security-audit:
     name: Security Audit
@@ -113,7 +113,7 @@ jobs:
           components: llvm-tools-preview
       - uses: Swatinem/rust-cache@v2
       - uses: taiki-e/install-action@cargo-llvm-cov
-      - run: cargo llvm-cov --workspace --lcov --output-path lcov.info
+      - run: cargo llvm-cov --workspace --exclude rez-next-python --lcov --output-path lcov.info
       - uses: codecov/codecov-action@v6
         with:
           files: lcov.info

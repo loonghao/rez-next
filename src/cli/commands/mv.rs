@@ -121,9 +121,13 @@ async fn execute_move_async(args: &MvArgs) -> RezCoreResult<()> {
     }
 
     // Find source package and its location
-    let (source_package, source_path) =
-        find_source_package_with_path(&repo_manager, &package_name, version_spec.as_deref(), &source_paths)
-            .await?;
+    let (source_package, source_path) = find_source_package_with_path(
+        &repo_manager,
+        &package_name,
+        version_spec.as_deref(),
+        &source_paths,
+    )
+    .await?;
 
     if args.verbose {
         println!(
@@ -139,8 +143,15 @@ async fn execute_move_async(args: &MvArgs) -> RezCoreResult<()> {
     }
 
     // Determine destination directory (rez layout: dest/<name>/<version>/)
-    let ver_str = source_package.version.as_ref().map(|v| v.as_str()).unwrap_or("unknown");
-    let dest_pkg_dir = args.destination_path.join(&source_package.name).join(ver_str);
+    let ver_str = source_package
+        .version
+        .as_ref()
+        .map(|v| v.as_str())
+        .unwrap_or("unknown");
+    let dest_pkg_dir = args
+        .destination_path
+        .join(&source_package.name)
+        .join(ver_str);
 
     // Check if destination exists
     if !args.force && dest_pkg_dir.exists() {
@@ -252,7 +263,11 @@ async fn find_source_package_with_path(
         sorted.into_iter().next().unwrap()
     };
 
-    let ver_str = pkg.version.as_ref().map(|v| v.as_str()).unwrap_or("unknown");
+    let ver_str = pkg
+        .version
+        .as_ref()
+        .map(|v| v.as_str())
+        .unwrap_or("unknown");
     for base_path in source_paths {
         let pkg_dir = base_path.join(&pkg.name).join(ver_str);
         if pkg_dir.exists() {
@@ -275,7 +290,11 @@ async fn package_exists_at_destination(
     destination_path: &PathBuf,
     package: &Package,
 ) -> RezCoreResult<bool> {
-    let ver_str = package.version.as_ref().map(|v| v.as_str()).unwrap_or("unknown");
+    let ver_str = package
+        .version
+        .as_ref()
+        .map(|v| v.as_str())
+        .unwrap_or("unknown");
     let pkg_dir = destination_path.join(&package.name).join(ver_str);
     Ok(pkg_dir.exists())
 }

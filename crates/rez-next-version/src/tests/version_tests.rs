@@ -204,9 +204,9 @@ mod range_advanced_tests {
         // ">=1.0,<1.5|>=2.0,<3.0"
         // Bracket interpretation: (>=1.0 AND <1.5) OR (>=2.0 AND <3.0)
         let range = r(">=1.0,<1.5|>=2.0,<3.0");
-        assert!(range.contains(&v("1.2")));  // first arm
+        assert!(range.contains(&v("1.2"))); // first arm
         assert!(!range.contains(&v("1.7"))); // gap between arms
-        assert!(range.contains(&v("2.5")));  // second arm
+        assert!(range.contains(&v("2.5"))); // second arm
         assert!(!range.contains(&v("3.0"))); // beyond second arm
     }
 
@@ -414,7 +414,10 @@ mod range_dotdot_tests {
     fn test_dotdot_and_ne_excludes() {
         let range = r("1.0..2.0,!=1.5");
         assert!(range.contains(&v("1.0")));
-        assert!(!range.contains(&v("1.5")), "1.5 should be excluded by !=1.5");
+        assert!(
+            !range.contains(&v("1.5")),
+            "1.5 should be excluded by !=1.5"
+        );
         assert!(range.contains(&v("1.6")));
     }
 
@@ -456,9 +459,18 @@ mod range_dotdot_tests {
         let result = a.intersect(&b);
         assert!(result.is_some());
         let isect = result.unwrap();
-        assert!(isect.contains(&v("2.5")), "2.5 should be in intersection of [1,3) and [2,4)");
-        assert!(!isect.contains(&v("1.0")), "1.0 should NOT be in intersection");
-        assert!(!isect.contains(&v("3.5")), "3.5 should NOT be in intersection");
+        assert!(
+            isect.contains(&v("2.5")),
+            "2.5 should be in intersection of [1,3) and [2,4)"
+        );
+        assert!(
+            !isect.contains(&v("1.0")),
+            "1.0 should NOT be in intersection"
+        );
+        assert!(
+            !isect.contains(&v("3.5")),
+            "3.5 should NOT be in intersection"
+        );
     }
 }
 
@@ -544,7 +556,12 @@ mod version_helper_tests {
     fn test_version_as_str_roundtrip() {
         for s in &["1.0.0", "2.3.4", "0.1", "10", "1.2.3.4.5"] {
             let ver = v(s);
-            assert_eq!(ver.as_str(), *s, "as_str should return original string for {}", s);
+            assert_eq!(
+                ver.as_str(),
+                *s,
+                "as_str should return original string for {}",
+                s
+            );
         }
     }
 
@@ -568,7 +585,11 @@ mod version_helper_tests {
         // (either direction is acceptable; we just check total order is consistent)
         let ordering = pre.cmp(&rel);
         // The same comparison should be stable
-        assert_eq!(pre.cmp(&rel), ordering, "Version comparison should be deterministic");
+        assert_eq!(
+            pre.cmp(&rel),
+            ordering,
+            "Version comparison should be deterministic"
+        );
     }
 
     /// Version patch returns None for two-component versions
@@ -596,20 +617,23 @@ mod version_helper_tests {
         let original = v("2.0.1");
         let json = serde_json::to_string(&original).unwrap();
         // Should serialize as the string "2.0.1"
-        assert!(json.contains("2.0.1"), "Serialized JSON should contain version string");
+        assert!(
+            json.contains("2.0.1"),
+            "Serialized JSON should contain version string"
+        );
         let restored: Version = serde_json::from_str(&json).unwrap();
-        assert_eq!(original, restored, "Deserialized version should equal original");
+        assert_eq!(
+            original, restored,
+            "Deserialized version should equal original"
+        );
     }
 
     /// Version ordering: many versions sorted
     #[test]
     fn test_version_sort_many() {
-        let mut versions: Vec<Version> = vec![
-            v("3.0"), v("1.0"), v("2.5"), v("2.0"), v("1.5"),
-        ];
+        let mut versions: Vec<Version> = vec![v("3.0"), v("1.0"), v("2.5"), v("2.0"), v("1.5")];
         versions.sort();
         let sorted_strs: Vec<&str> = versions.iter().map(|v| v.as_str()).collect();
         assert_eq!(sorted_strs, vec!["1.0", "1.5", "2.0", "2.5", "3.0"]);
     }
 }
-

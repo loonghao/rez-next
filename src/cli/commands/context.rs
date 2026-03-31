@@ -171,19 +171,24 @@ fn load_context(args: &ContextArgs) -> RezCoreResult<RezResolvedContext> {
         // Load from specified file
         let path = std::path::Path::new(source);
         if path.exists() {
-            let content = std::fs::read_to_string(path)
-                .map_err(|e| RezCoreError::ContextError(format!("Failed to read {}: {}", source, e)))?;
+            let content = std::fs::read_to_string(path).map_err(|e| {
+                RezCoreError::ContextError(format!("Failed to read {}: {}", source, e))
+            })?;
             return deserialize_context(&content);
         }
-        return Err(RezCoreError::ContextError(format!("Context file not found: {}", source)));
+        return Err(RezCoreError::ContextError(format!(
+            "Context file not found: {}",
+            source
+        )));
     }
 
     // Try REZ_CONTEXT_FILE environment variable
     if let Ok(ctx_file) = std::env::var("REZ_CONTEXT_FILE") {
         let path = std::path::Path::new(&ctx_file);
         if path.exists() {
-            let content = std::fs::read_to_string(path)
-                .map_err(|e| RezCoreError::ContextError(format!("Failed to read context file: {}", e)))?;
+            let content = std::fs::read_to_string(path).map_err(|e| {
+                RezCoreError::ContextError(format!("Failed to read context file: {}", e))
+            })?;
             return deserialize_context(&content);
         }
     }
@@ -376,9 +381,11 @@ fn generate_dot_graph(context: &RezResolvedContext, prune_pkg: Option<&str>) -> 
         context
             .resolved_packages
             .iter()
-            .filter(|rp| rp.package.name == prune || {
-                // Include packages that depend on prune target
-                rp.package.requires.iter().any(|r| r.starts_with(prune))
+            .filter(|rp| {
+                rp.package.name == prune || {
+                    // Include packages that depend on prune target
+                    rp.package.requires.iter().any(|r| r.starts_with(prune))
+                }
             })
             .collect()
     } else {
@@ -395,7 +402,7 @@ fn generate_dot_graph(context: &RezResolvedContext, prune_pkg: Option<&str>) -> 
             .map(|v| v.as_str())
             .unwrap_or("?");
         let label = format!("{}-{}", name, version);
-        let node_id = name.replace('-', "_").replace('.', "_");
+        let node_id = name.replace(['-', '.'], "_");
         dot.push_str(&format!("    {} [label=\"{}\"];\n", node_id, label));
     }
 
@@ -403,17 +410,14 @@ fn generate_dot_graph(context: &RezResolvedContext, prune_pkg: Option<&str>) -> 
 
     // Edges (requires relationships)
     for resolved_pkg in &packages {
-        let from_id = resolved_pkg
-            .package
-            .name
-            .replace('-', "_")
-            .replace('.', "_");
+        let from_id = resolved_pkg.package.name.replace(['-', '.'], "_");
         for req in &resolved_pkg.package.requires {
             // req is like "python-3.9" or "numpy>=1.0"
-            let dep_name = req.split(|c: char| !c.is_alphanumeric() && c != '_' && c != '-')
+            let dep_name = req
+                .split(|c: char| !c.is_alphanumeric() && c != '_' && c != '-')
                 .next()
                 .unwrap_or(req);
-            let to_id = dep_name.replace('-', "_").replace('.', "_");
+            let to_id = dep_name.replace(['-', '.'], "_");
             // Only emit edge if target node exists in graph
             let target_exists = packages.iter().any(|rp| rp.package.name == dep_name);
             if target_exists {
@@ -442,8 +446,13 @@ fn write_resolve_graph(
     prune_pkg: Option<&str>,
 ) -> RezCoreResult<()> {
     let dot = generate_dot_graph(context, prune_pkg);
-    std::fs::write(path, &dot)
-        .map_err(|e| RezCoreError::ContextError(format!("Failed to write graph to {}: {}", path.display(), e)))?;
+    std::fs::write(path, &dot).map_err(|e| {
+        RezCoreError::ContextError(format!(
+            "Failed to write graph to {}: {}",
+            path.display(),
+            e
+        ))
+    })?;
     eprintln!("Resolve graph written to: {}", path.display());
     Ok(())
 }
@@ -459,9 +468,8 @@ fn render_graph_image(context: &RezResolvedContext, prune_pkg: Option<&str>) -> 
     let dot_file = tmp_dir.join("rez_context_graph.dot");
     let png_file = tmp_dir.join("rez_context_graph.png");
 
-    std::fs::write(&dot_file, &dot_content).map_err(|e| {
-        RezCoreError::ContextError(format!("Failed to write temp DOT file: {}", e))
-    })?;
+    std::fs::write(&dot_file, &dot_content)
+        .map_err(|e| RezCoreError::ContextError(format!("Failed to write temp DOT file: {}", e)))?;
 
     // Attempt to run `dot` (Graphviz)
     let dot_result = Command::new("dot")

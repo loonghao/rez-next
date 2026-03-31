@@ -280,7 +280,7 @@ mod version_range_integration {
     #[test]
     fn test_version_range_rez_syntax_compatibility() {
         // Test rez-specific syntax
-        let r1 = vr("1.0+");   // >=1.0
+        let r1 = vr("1.0+"); // >=1.0
         let r2 = vr("1.0+<2.0"); // >=1.0,<2.0
         let r3 = vr("1.0..2.0"); // >=1.0,<2.0
 
@@ -297,8 +297,8 @@ mod version_range_integration {
 
 mod solve_context_env_integration {
     use rez_next_package::Package;
+    use rez_next_rex::{generate_shell_script, RexExecutor, ShellType};
     use rez_next_version::Version;
-    use rez_next_rex::{RexExecutor, generate_shell_script, ShellType};
 
     fn make_package(name: &str, version: &str, commands: Option<&str>) -> Package {
         let mut pkg = Package::new(name.to_string());
@@ -312,31 +312,48 @@ mod solve_context_env_integration {
     #[test]
     fn test_package_commands_to_env_vars() {
         // Simulate: package has commands → executor processes → env vars set
-        let pkg = make_package("myapp", "2.0.0", Some(
-            "env.setenv('MYAPP_VERSION', '2.0.0')\nenv.setenv('MYAPP_ROOT', '{root}')"
-        ));
+        let pkg = make_package(
+            "myapp",
+            "2.0.0",
+            Some("env.setenv('MYAPP_VERSION', '2.0.0')\nenv.setenv('MYAPP_ROOT', '{root}')"),
+        );
         let mut exec = RexExecutor::new();
-        let env = exec.execute_commands(
-            pkg.commands.as_deref().unwrap(),
-            &pkg.name,
-            Some("/opt/myapp/2.0.0"),
-            Some("2.0.0"),
-        ).unwrap();
+        let env = exec
+            .execute_commands(
+                pkg.commands.as_deref().unwrap(),
+                &pkg.name,
+                Some("/opt/myapp/2.0.0"),
+                Some("2.0.0"),
+            )
+            .unwrap();
         assert_eq!(env.vars.get("MYAPP_VERSION"), Some(&"2.0.0".to_string()));
-        assert_eq!(env.vars.get("MYAPP_ROOT"), Some(&"/opt/myapp/2.0.0".to_string()));
+        assert_eq!(
+            env.vars.get("MYAPP_ROOT"),
+            Some(&"/opt/myapp/2.0.0".to_string())
+        );
     }
 
     #[test]
     fn test_multiple_packages_env_merging() {
         // Simulate: two packages with commands → check each env independently
-        let python_cmds = "env.setenv('PYTHON_ROOT', '{root}')\nenv.prepend_path('PATH', '{root}/bin')";
+        let python_cmds =
+            "env.setenv('PYTHON_ROOT', '{root}')\nenv.prepend_path('PATH', '{root}/bin')";
         let numpy_cmds = "env.setenv('NUMPY_VERSION', '1.24.0')\nenv.prepend_path('PYTHONPATH', '{root}/lib/python/site-packages')";
 
         let mut exec1 = RexExecutor::new();
-        let env_python = exec1.execute_commands(python_cmds, "python", Some("/opt/python/3.10"), Some("3.10")).unwrap();
+        let env_python = exec1
+            .execute_commands(
+                python_cmds,
+                "python",
+                Some("/opt/python/3.10"),
+                Some("3.10"),
+            )
+            .unwrap();
 
         let mut exec2 = RexExecutor::new();
-        let env_numpy = exec2.execute_commands(numpy_cmds, "numpy", Some("/opt/numpy/1.24"), Some("1.24.0")).unwrap();
+        let env_numpy = exec2
+            .execute_commands(numpy_cmds, "numpy", Some("/opt/numpy/1.24"), Some("1.24.0"))
+            .unwrap();
 
         // Check each env independently
         assert!(env_python.vars.contains_key("PYTHON_ROOT"));
@@ -358,37 +375,56 @@ mod solve_context_env_integration {
         ).unwrap();
 
         let script = generate_shell_script(&env, &ShellType::Bash);
-        assert!(script.contains("APP_ROOT"), "Bash script must contain APP_ROOT");
-        assert!(script.contains("/opt/myapp/1.0/bin"), "Bash script must contain bin path");
-        assert!(script.contains("alias myapp="), "Bash script must contain myapp alias");
+        assert!(
+            script.contains("APP_ROOT"),
+            "Bash script must contain APP_ROOT"
+        );
+        assert!(
+            script.contains("/opt/myapp/1.0/bin"),
+            "Bash script must contain bin path"
+        );
+        assert!(
+            script.contains("alias myapp="),
+            "Bash script must contain myapp alias"
+        );
     }
 
     #[test]
     fn test_env_to_powershell_script_chain() {
         let mut exec = RexExecutor::new();
-        let env = exec.execute_commands(
-            "env.setenv('TOOL_HOME', '{root}')",
-            "tool",
-            Some("C:\\opt\\tool\\1.0"),
-            Some("1.0"),
-        ).unwrap();
+        let env = exec
+            .execute_commands(
+                "env.setenv('TOOL_HOME', '{root}')",
+                "tool",
+                Some("C:\\opt\\tool\\1.0"),
+                Some("1.0"),
+            )
+            .unwrap();
 
         let script = generate_shell_script(&env, &ShellType::PowerShell);
-        assert!(script.contains("$env:TOOL_HOME"), "PowerShell script must contain TOOL_HOME");
+        assert!(
+            script.contains("$env:TOOL_HOME"),
+            "PowerShell script must contain TOOL_HOME"
+        );
     }
 
     #[test]
     fn test_source_script_in_env_chain() {
         // Package sources a setup script → env tracks it
         let mut exec = RexExecutor::new();
-        let env = exec.execute_commands(
-            "env.setenv('PKG_ROOT', '{root}')\nsource('{root}/etc/pkg_setup.sh')",
-            "mypkg",
-            Some("/opt/mypkg/2.0"),
-            None,
-        ).unwrap();
+        let env = exec
+            .execute_commands(
+                "env.setenv('PKG_ROOT', '{root}')\nsource('{root}/etc/pkg_setup.sh')",
+                "mypkg",
+                Some("/opt/mypkg/2.0"),
+                None,
+            )
+            .unwrap();
 
-        assert_eq!(env.vars.get("PKG_ROOT"), Some(&"/opt/mypkg/2.0".to_string()));
+        assert_eq!(
+            env.vars.get("PKG_ROOT"),
+            Some(&"/opt/mypkg/2.0".to_string())
+        );
         assert_eq!(env.sourced_scripts.len(), 1);
         assert_eq!(env.sourced_scripts[0], "/opt/mypkg/2.0/etc/pkg_setup.sh");
 
@@ -404,21 +440,37 @@ mod solve_context_env_integration {
         let main_cmds = "env.setenv('MAIN_VAR', 'main_value')\nenv.setenv('PRE_VAR', 'overridden')";
 
         let mut exec = RexExecutor::new();
-        let env_pre = exec.execute_commands(pre_cmds, "mypkg", Some("/opt/mypkg/1.0"), None).unwrap();
+        let env_pre = exec
+            .execute_commands(pre_cmds, "mypkg", Some("/opt/mypkg/1.0"), None)
+            .unwrap();
         assert_eq!(env_pre.vars.get("PRE_VAR"), Some(&"pre_value".to_string()));
 
         let mut exec2 = RexExecutor::new();
-        let env_main = exec2.execute_commands(main_cmds, "mypkg", Some("/opt/mypkg/1.0"), None).unwrap();
-        assert_eq!(env_main.vars.get("PRE_VAR"), Some(&"overridden".to_string()));
-        assert_eq!(env_main.vars.get("MAIN_VAR"), Some(&"main_value".to_string()));
+        let env_main = exec2
+            .execute_commands(main_cmds, "mypkg", Some("/opt/mypkg/1.0"), None)
+            .unwrap();
+        assert_eq!(
+            env_main.vars.get("PRE_VAR"),
+            Some(&"overridden".to_string())
+        );
+        assert_eq!(
+            env_main.vars.get("MAIN_VAR"),
+            Some(&"main_value".to_string())
+        );
     }
 
     #[test]
     fn test_path_accumulation_from_multiple_packages() {
         let mut exec = RexExecutor::new();
         let cmds2 = "env.prepend_path('PATH', '/opt/pkg2/bin')";
-        let env2 = exec.execute_commands(cmds2, "pkg2", Some("/opt/pkg2"), None).unwrap();
-        assert!(env2.vars.get("PATH").map(|p| p.contains("/opt/pkg2/bin")).unwrap_or(false));
+        let env2 = exec
+            .execute_commands(cmds2, "pkg2", Some("/opt/pkg2"), None)
+            .unwrap();
+        assert!(env2
+            .vars
+            .get("PATH")
+            .map(|p| p.contains("/opt/pkg2/bin"))
+            .unwrap_or(false));
     }
 
     #[test]
@@ -432,7 +484,12 @@ mod solve_context_env_integration {
         ];
         for (pkg, req) in &requirements {
             let range = VersionRange::parse(req);
-            assert!(range.is_ok(), "Requirement {}-{} should parse as valid range", pkg, req);
+            assert!(
+                range.is_ok(),
+                "Requirement {}-{} should parse as valid range",
+                pkg,
+                req
+            );
         }
     }
 
@@ -442,18 +499,30 @@ mod solve_context_env_integration {
         let pkg_version = Version::parse("3.10.5").unwrap();
         // Use explicit ranges to avoid rez short-version semantics edge cases
         let requirement = VersionRange::parse(">=3.9,<4.0.0").unwrap();
-        assert!(requirement.contains(&pkg_version), "3.10.5 should satisfy >=3.9,<4.0.0");
+        assert!(
+            requirement.contains(&pkg_version),
+            "3.10.5 should satisfy >=3.9,<4.0.0"
+        );
 
         let too_low = Version::parse("3.8.0").unwrap();
-        assert!(!requirement.contains(&too_low), "3.8.0 should not satisfy >=3.9,<4.0.0");
+        assert!(
+            !requirement.contains(&too_low),
+            "3.8.0 should not satisfy >=3.9,<4.0.0"
+        );
 
         // 4.0.0 is excluded by <4.0.0
         let at_boundary = Version::parse("4.0.0").unwrap();
-        assert!(!requirement.contains(&at_boundary), "4.0.0 should not satisfy >=3.9,<4.0.0");
+        assert!(
+            !requirement.contains(&at_boundary),
+            "4.0.0 should not satisfy >=3.9,<4.0.0"
+        );
 
         // Something clearly above
         let above = Version::parse("5.0.0").unwrap();
-        assert!(!requirement.contains(&above), "5.0.0 should not satisfy >=3.9,<4.0.0");
+        assert!(
+            !requirement.contains(&above),
+            "5.0.0 should not satisfy >=3.9,<4.0.0"
+        );
     }
 
     #[test]
@@ -465,10 +534,11 @@ mod solve_context_env_integration {
             Some("/packages/testpkg/2.5.0"),
             Some("2.5.0"),
         ).unwrap();
-        assert_eq!(env.vars.get("MY_ROOT"), Some(&"/packages/testpkg/2.5.0".to_string()));
+        assert_eq!(
+            env.vars.get("MY_ROOT"),
+            Some(&"/packages/testpkg/2.5.0".to_string())
+        );
         assert_eq!(env.vars.get("MY_VER"), Some(&"2.5.0".to_string()));
         assert_eq!(env.vars.get("MY_NAME"), Some(&"testpkg".to_string()));
     }
 }
-
-

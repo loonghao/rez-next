@@ -345,8 +345,7 @@ mod tests {
     fn test_get_search_paths_contain_home_config() {
         let paths = RezCoreConfig::get_search_paths();
         let has_home = paths.iter().any(|p| {
-            p.to_string_lossy().contains(".rezconfig")
-                || p.to_string_lossy().contains(".rez")
+            p.to_string_lossy().contains(".rezconfig") || p.to_string_lossy().contains(".rez")
         });
         assert!(has_home);
     }
@@ -376,7 +375,10 @@ mod tests {
         let restored: RezCoreConfig = serde_json::from_str(&json).unwrap();
         assert_eq!(cfg.version, restored.version);
         assert_eq!(cfg.packages_path, restored.packages_path);
-        assert_eq!(cfg.cache.memory_cache_size, restored.cache.memory_cache_size);
+        assert_eq!(
+            cfg.cache.memory_cache_size,
+            restored.cache.memory_cache_size
+        );
     }
 
     #[test]

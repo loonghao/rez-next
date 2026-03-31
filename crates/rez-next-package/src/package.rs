@@ -127,25 +127,17 @@ impl PackageRequirement {
 
         let ver_str = ver_str.trim();
         if let Ok(constraint_ver) = Version::parse(ver_str) {
-            match op {
-                ">=" => version >= &constraint_ver,
-                "<=" => version <= &constraint_ver,
-                ">" => version > &constraint_ver,
-                "<" => version < &constraint_ver,
-                "!=" => version != &constraint_ver,
-                "~=" => {
-                    // Compatible release: >= version but < next major
-                    let parts: Vec<&str> = ver_str.split('.').collect();
-                    if parts.len() >= 2 {
-                        let prefix = parts[..parts.len() - 1].join(".");
-                        version >= &constraint_ver
-                            && version.as_str().starts_with(&format!("{}.", prefix))
-                    } else {
-                        version >= &constraint_ver
-                    }
-                }
-                _ => version == &constraint_ver,
-            }
+            use crate::requirement::VersionConstraint;
+            let constraint = match op {
+                ">=" => VersionConstraint::GreaterThanOrEqual(constraint_ver),
+                "<=" => VersionConstraint::LessThanOrEqual(constraint_ver),
+                ">" => VersionConstraint::GreaterThan(constraint_ver),
+                "<" => VersionConstraint::LessThan(constraint_ver),
+                "!=" => VersionConstraint::Exclude(vec![constraint_ver]),
+                "~=" => VersionConstraint::Compatible(constraint_ver),
+                _ => VersionConstraint::Exact(constraint_ver),
+            };
+            constraint.is_satisfied_by(version)
         } else {
             // Could not parse version spec as a version — exact string match
             version.as_str() == ver_str
@@ -204,8 +196,11 @@ pub struct Package {
     /// Package tools
     pub tools: Vec<String>,
 
-    /// Package commands
+    /// Package commands (rex script string, set from `def commands():` body)
     pub commands: Option<String>,
+
+    /// Package commands function body (alias for commands; used by validation layer)
+    pub commands_function: Option<String>,
 
     /// Build command for custom builds
     pub build_command: Option<String>,
@@ -317,6 +312,7 @@ impl Clone for Package {
                 variants: self.variants.clone(),
                 tools: self.tools.clone(),
                 commands: self.commands.clone(),
+                commands_function: self.commands_function.clone(),
                 build_command: self.build_command.clone(),
                 build_system: self.build_system.clone(),
                 pre_commands: self.pre_commands.clone(),
@@ -362,6 +358,7 @@ impl Clone for Package {
             variants: self.variants.clone(),
             tools: self.tools.clone(),
             commands: self.commands.clone(),
+            commands_function: self.commands_function.clone(),
             build_command: self.build_command.clone(),
             build_system: self.build_system.clone(),
             pre_commands: self.pre_commands.clone(),
@@ -763,6 +760,7 @@ impl<'de> Deserialize<'de> for Package {
                     variants: variants.unwrap_or_default(),
                     tools: tools.unwrap_or_default(),
                     commands: commands.unwrap_or(None),
+                    commands_function: None, // Not stored in serialized form; set during parse
                     build_command: build_command.unwrap_or(None),
                     build_system: build_system.unwrap_or(None),
                     pre_commands: pre_commands.unwrap_or(None),
@@ -850,6 +848,7 @@ impl Package {
             variants: Vec::new(),
             tools: Vec::new(),
             commands: None,
+            commands_function: None,
             build_command: None,
             build_system: None,
             pre_commands: None,
@@ -990,6 +989,7 @@ impl Package {
             variants: Vec::new(),
             tools: Vec::new(),
             commands: None,
+            commands_function: None,
             build_command: None,
             build_system: None,
             pre_commands: None,
@@ -1093,6 +1093,11 @@ impl Package {
     /// Set commands
     pub fn set_commands(&mut self, commands: String) {
         self.commands = Some(commands);
+    }
+
+    /// Check if the package definition is valid (convenience bool version of validate())
+    pub fn is_valid(&self) -> bool {
+        self.validate().is_ok()
     }
 
     /// Validate the package definition
@@ -1235,6 +1240,11 @@ impl Package {
         })
     }
 
+    /// Check if the package definition is valid (convenience bool version of validate())
+    pub fn is_valid(&self) -> bool {
+        self.validate().is_ok()
+    }
+
     /// Validate the package definition
     pub fn validate(&self) -> Result<(), RezCoreError> {
         // Check required fields
@@ -1306,14 +1316,14 @@ impl Package {
     }
 }
 
-
-
 #[cfg(test)]
 mod package_tests {
     use super::*;
     use rez_next_version::Version;
 
-    fn ver(s: &str) -> Version { Version::parse(s).unwrap() }
+    fn ver(s: &str) -> Version {
+        Version::parse(s).unwrap()
+    }
 
     #[test]
     fn test_pkg_req_satisfied_no_constraint() {
@@ -1367,4 +1377,3 @@ mod package_tests {
         assert!(Package::new("".to_string()).validate().is_err());
     }
 }
-

@@ -161,7 +161,7 @@ async fn setup_repositories(args: &DiffArgs) -> RezCoreResult<RepositoryManager>
             .packages_path
             .iter()
             .map(|p| {
-                let expanded = if p.starts_with("~/") {
+                if p.starts_with("~/") {
                     if let Some(home) =
                         std::env::var_os("USERPROFILE").or_else(|| std::env::var_os("HOME"))
                     {
@@ -171,8 +171,7 @@ async fn setup_repositories(args: &DiffArgs) -> RezCoreResult<RepositoryManager>
                     }
                 } else {
                     PathBuf::from(p)
-                };
-                expanded
+                }
             })
             .filter(|p| p.exists())
             .collect()

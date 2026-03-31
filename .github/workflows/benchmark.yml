@@ -22,33 +22,72 @@ env:
   CARGO_INCREMENTAL: 0
 
 jobs:
-  benchmark:
-    name: Run Performance Benchmarks
+  # Fast benchmarks — core parsing & version ops (~2 min)
+  # Runs on every PR to catch regressions early
+  bench-quick:
+    name: Quick Benchmarks
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 15
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v6
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Cache Rust dependencies
-        uses: Swatinem/rust-cache@v2
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
         with:
-          key: benchmark-v1
+          key: bench-quick-v1
 
-      - name: Run benchmarks
+      - name: Run quick benchmarks (version + package + rex)
         run: |
-          echo "Running benchmarks..."
-          cargo bench --bench version_benchmark --bench package_benchmark --bench simple_package_benchmark 2>&1 | tee benchmark-output.txt
+          cargo bench \
+            --bench version_benchmark \
+            --bench simple_package_benchmark \
+            --bench rex_benchmark \
+            2>&1 | tee benchmark-quick.txt
 
-      - name: Upload benchmark results
+      - name: Upload quick benchmark results
         uses: actions/upload-artifact@v7
         with:
-          name: benchmark-results-${{ github.sha }}
+          name: bench-quick-${{ github.sha }}
+          path: benchmark-quick.txt
+          retention-days: 14
+
+  # Full benchmark suite — solver, context, depends, pip (~10 min)
+  # Runs on merge to main or manual trigger
+  bench-full:
+    name: Full Benchmarks
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    if: >-
+      github.event_name == 'push' ||
+      (github.event_name == 'workflow_dispatch' &&
+       github.event.inputs.benchmark_type == 'comprehensive')
+
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: bench-full-v1
+
+      - name: Run full benchmark suite
+        run: |
+          cargo bench \
+            --bench version_benchmark \
+            --bench package_benchmark \
+            --bench simple_package_benchmark \
+            --bench rex_benchmark \
+            --bench solver_bench_v2 \
+            --bench solver_real_repo_bench \
+            --bench context_operations_benchmark \
+            --bench depends_benchmark \
+            --bench pip_conversion_benchmark \
+            2>&1 | tee benchmark-full.txt
+
+      - name: Upload full benchmark results
+        uses: actions/upload-artifact@v7
+        with:
+          name: bench-full-${{ github.sha }}
           path: |
-            benchmark-output.txt
+            benchmark-full.txt
             target/criterion/
           retention-days: 30

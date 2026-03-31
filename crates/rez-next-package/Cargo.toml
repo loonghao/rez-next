@@ -14,8 +14,8 @@ categories = ["development-tools", "parsing", "filesystem"]
 exclude = ["tests/fixtures/", "examples/"]
 
 [dependencies]
-rez-next-common = { version = "0.1.0", path = "../rez-next-common", default-features = false }
-rez-next-version = { version = "0.1.0", path = "../rez-next-version", default-features = false }
+rez-next-common = { version = "0.2.0", path = "../rez-next-common", default-features = false }
+rez-next-version = { version = "0.2.0", path = "../rez-next-version", default-features = false }
 # Temporarily disabled Python bindings
 # pyo3 = { workspace = true, optional = true }
 serde.workspace = true

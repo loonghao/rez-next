@@ -90,6 +90,10 @@ pub enum VersionConstraint {
     /// Wildcard pattern (e.g., "1.2.*")
     Wildcard(String),
 
+    /// Prefix match: version starts with the given prefix tokens.
+    /// Used for rez "point release" syntax: pkg-3.11 matches 3.11, 3.11.0, 3.11.5, etc.
+    Prefix(Version),
+
     /// Any version
     Any,
 }
@@ -242,14 +246,31 @@ impl Requirement {
 }
 
 impl VersionConstraint {
-    /// Check if a version satisfies this constraint
+    /// Check if a version satisfies this constraint.
+    ///
+    /// Rez semantics: when comparing against a constraint version with fewer tokens,
+    /// the comparison is done at the depth of the constraint.
+    /// e.g., `>=3` on `3.11.0` → compare first token: `3 >= 3` ✓
+    ///        `<4` on `3.11.0`  → compare first token: `3 < 4` ✓
     pub fn is_satisfied_by(&self, version: &Version) -> bool {
         match self {
-            VersionConstraint::Exact(v) => version == v,
-            VersionConstraint::GreaterThan(v) => version > v,
-            VersionConstraint::GreaterThanOrEqual(v) => version >= v,
-            VersionConstraint::LessThan(v) => version < v,
-            VersionConstraint::LessThanOrEqual(v) => version <= v,
+            VersionConstraint::Exact(v) => {
+                Self::cmp_at_depth(version, v) == std::cmp::Ordering::Equal
+            }
+            VersionConstraint::GreaterThan(v) => {
+                Self::cmp_at_depth(version, v) == std::cmp::Ordering::Greater
+            }
+            VersionConstraint::GreaterThanOrEqual(v) => {
+                let ord = Self::cmp_at_depth(version, v);
+                ord == std::cmp::Ordering::Greater || ord == std::cmp::Ordering::Equal
+            }
+            VersionConstraint::LessThan(v) => {
+                Self::cmp_at_depth(version, v) == std::cmp::Ordering::Less
+            }
+            VersionConstraint::LessThanOrEqual(v) => {
+                let ord = Self::cmp_at_depth(version, v);
+                ord == std::cmp::Ordering::Less || ord == std::cmp::Ordering::Equal
+            }
             VersionConstraint::Compatible(v) => {
                 // Compatible version (~=) means >= v but < next minor version
                 // For example, ~=1.4 means >=1.4, <1.5
@@ -319,6 +340,14 @@ impl VersionConstraint {
                 // Match wildcard pattern (e.g., "1.2.*" matches "1.2.0", "1.2.1", etc.)
                 self.matches_wildcard(version, pattern)
             }
+            VersionConstraint::Prefix(prefix) => {
+                // Rez point-release semantics: version starts with the same token sequence.
+                // "3.11" matches "3.11", "3.11.0", "3.11.5", but not "3.12" or "3.1".
+                let ver_str = version.as_str();
+                let prefix_str = prefix.as_str();
+                // Either exact match, or version starts with "prefix."
+                ver_str == prefix_str || ver_str.starts_with(&format!("{}.", prefix_str))
+            }
             VersionConstraint::Any => true,
         }
     }
@@ -346,6 +375,46 @@ impl VersionConstraint {
         // If we've matched all pattern parts and there's no wildcard,
         // the version must have exactly the same number of parts
         pattern_parts.len() == version_parts.len()
+    }
+
+    /// Compare `version` against `constraint_ver` at the depth of `constraint_ver`.
+    ///
+    /// Rez semantics: constraints with fewer tokens are compared only at the token depth
+    /// of the constraint. This ensures `3.11.0 >= 3` is True (both share first token `3`).
+    ///
+    /// Algorithm:
+    /// 1. Split both into dot-separated tokens.
+    /// 2. Compare token by token, up to min(len(version), len(constraint)).
+    /// 3. If all compared tokens are equal, the version is considered Equal at this depth.
+    fn cmp_at_depth(version: &Version, constraint_ver: &Version) -> std::cmp::Ordering {
+        let ver_str = version.as_str();
+        let con_str = constraint_ver.as_str();
+
+        let ver_parts: Vec<&str> = ver_str.split('.').collect();
+        let con_parts: Vec<&str> = con_str.split('.').collect();
+
+        let depth = con_parts.len(); // compare only up to constraint depth
+
+        for (i, c_tok) in con_parts.iter().enumerate().take(depth) {
+            let v_tok = ver_parts.get(i).copied().unwrap_or("0");
+
+            // Try numeric comparison first
+            if let (Ok(vn), Ok(cn)) = (v_tok.parse::<u64>(), c_tok.parse::<u64>()) {
+                match vn.cmp(&cn) {
+                    std::cmp::Ordering::Equal => continue,
+                    ord => return ord,
+                }
+            } else {
+                // Lexicographic for non-numeric tokens
+                match v_tok.cmp(c_tok) {
+                    std::cmp::Ordering::Equal => continue,
+                    ord => return ord,
+                }
+            }
+        }
+
+        // All constraint tokens matched: treat as Equal at this depth
+        std::cmp::Ordering::Equal
     }
 
     /// Combine two constraints with AND logic
@@ -624,9 +693,42 @@ impl RequirementParser {
             if let Some(dash_pos) = without_plus.rfind("-") {
                 let name = without_plus[..dash_pos].to_string();
                 let version_str = &without_plus[dash_pos + 1..];
-                let version = Version::parse(version_str)
-                    .map_err(|e| format!("Invalid version {}: {}", version_str, e))?;
-                return Ok((name, Some(VersionConstraint::GreaterThanOrEqual(version))));
+                if Version::parse(version_str).is_ok() {
+                    let version = Version::parse(version_str)
+                        .map_err(|e| format!("Invalid version {}: {}", version_str, e))?;
+                    return Ok((name, Some(VersionConstraint::GreaterThanOrEqual(version))));
+                }
+            }
+        }
+
+        // Handle rez combined format: "package-ver+<max", "package-ver+", "package-ver"
+        // These use '-' as the separator between name and version spec.
+        // We look for the last '-' that is followed by a digit (version start).
+        {
+            // Find all dash positions and try from right to left
+            let bytes = s.as_bytes();
+            let mut split_pos: Option<usize> = None;
+            for i in (0..s.len()).rev() {
+                if bytes[i] == b'-' {
+                    let after = &s[i + 1..];
+                    // Version spec must start with a digit
+                    if after.starts_with(|c: char| c.is_ascii_digit()) {
+                        split_pos = Some(i);
+                        break;
+                    }
+                }
+            }
+
+            if let Some(pos) = split_pos {
+                let name = s[..pos].to_string();
+                let ver_spec = &s[pos + 1..];
+
+                // Parse rez version spec:
+                // Forms: "3.9", "3.9+", "3.9+<4", "3.9<4", "3.9..4",
+                //        "3.9+<3.11", "1.20+<2", "1.20+"
+                if let Some(constraint) = Self::parse_rez_version_spec(ver_spec) {
+                    return Ok((name, Some(constraint)));
+                }
             }
         }
 
@@ -650,6 +752,92 @@ impl RequirementParser {
         }
 
         Ok(VersionConstraint::Multiple(constraints))
+    }
+
+    /// Parse rez-native version spec attached after the '-' separator.
+    ///
+    /// Handles:
+    /// - `"3.9"` → point-release range [>=3.9, <3.10)  (rez: pkg-3.9 means the 3.9.x family)
+    /// - `"3.9+"` → GreaterThanOrEqual(3.9)
+    /// - `"3.9+<4"` → Multiple [>= 3.9, < 4]
+    /// - `"3.9<4"` → Multiple [>= 3.9, < 4]   ('+' is optional in rez)
+    /// - `"3.9..4"` → Multiple [>= 3.9, < 4]  (range syntax)
+    fn parse_rez_version_spec(spec: &str) -> Option<VersionConstraint> {
+        // Range syntax: "min..max"  → [>= min, < max]
+        if let Some(dot_pos) = spec.find("..") {
+            let min_str = &spec[..dot_pos];
+            let max_str = &spec[dot_pos + 2..];
+            if let (Ok(min), Ok(max)) = (Version::parse(min_str), Version::parse(max_str)) {
+                return Some(VersionConstraint::Multiple(vec![
+                    VersionConstraint::GreaterThanOrEqual(min),
+                    VersionConstraint::LessThan(max),
+                ]));
+            }
+        }
+
+        // "ver+<max" or "ver<max" (with or without '+')
+        let (base_spec, upper_spec) = if let Some(lt_pos) = spec.find('<') {
+            let base = spec[..lt_pos].trim_end_matches('+');
+            let upper = &spec[lt_pos..]; // includes the '<'
+            (base, Some(upper))
+        } else {
+            (spec.trim_end_matches('+'), None)
+        };
+
+        // base_spec must start with a digit
+        if !base_spec.starts_with(|c: char| c.is_ascii_digit()) {
+            return None;
+        }
+
+        let min_ver = Version::parse(base_spec).ok()?;
+
+        if let Some(upper) = upper_spec {
+            // upper starts with '<' optionally followed by '='
+            let (op, ver_str) = if upper.starts_with("<=") {
+                ("<=", upper[2..].trim())
+            } else {
+                ("<", upper[1..].trim())
+            };
+            let max_ver = Version::parse(ver_str).ok()?;
+            let max_constraint = if op == "<=" {
+                VersionConstraint::LessThanOrEqual(max_ver)
+            } else {
+                VersionConstraint::LessThan(max_ver)
+            };
+            let min_constraint = VersionConstraint::GreaterThanOrEqual(min_ver);
+            Some(VersionConstraint::Multiple(vec![
+                min_constraint,
+                max_constraint,
+            ]))
+        } else if spec.ends_with('+') {
+            // "ver+" → >= ver
+            Some(VersionConstraint::GreaterThanOrEqual(min_ver))
+        } else {
+            // Plain "ver" (no '+', no '<') → rez point-release range (prefix match):
+            // pkg-3.11 matches 3.11, 3.11.0, 3.11.5, but not 3.12 or 3.1
+            Some(VersionConstraint::Prefix(min_ver))
+        }
+    }
+
+    /// Increment the last numeric token of a version string.
+    /// "3.11" → "3.12", "3" → "4", "3.9.1" → "3.9.2"
+    fn increment_last_token(ver_str: &str) -> Option<String> {
+        let parts: Vec<&str> = ver_str.split('.').collect();
+        if parts.is_empty() {
+            return None;
+        }
+        let mut result_parts: Vec<String> = parts[..parts.len() - 1]
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
+        let last = parts[parts.len() - 1];
+        // Try to parse last part as integer and increment
+        if let Ok(n) = last.parse::<u64>() {
+            result_parts.push((n + 1).to_string());
+            Some(result_parts.join("."))
+        } else {
+            None
+        }
     }
 
     /// Parse a single version constraint
@@ -783,6 +971,7 @@ impl fmt::Display for VersionConstraint {
                 write!(f, "{}", version_strs.join(","))
             }
             VersionConstraint::Wildcard(pattern) => write!(f, "=={}", pattern),
+            VersionConstraint::Prefix(v) => write!(f, "-{}", v.as_str()),
             VersionConstraint::Any => write!(f, ""),
         }
     }

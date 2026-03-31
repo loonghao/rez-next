@@ -1,14 +1,13 @@
 //! Python bindings for ResolvedContext
 
-use crate::package_bindings::{PyPackage, PyPackageRequirement};
 use crate::expand_home;
+use crate::package_bindings::PyPackage;
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use rez_next_context::{ContextStatus, ResolvedContext};
 use rez_next_package::{PackageRequirement, Requirement};
 use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
 use rez_next_solver::{DependencyResolver, SolverConfig};
-use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -33,7 +32,7 @@ impl PyResolvedContext {
 
         let pkg_paths: Vec<PathBuf> = paths
             .as_ref()
-            .map(|p| p.iter().map(|s| PathBuf::from(s)).collect())
+            .map(|p| p.iter().map(PathBuf::from).collect())
             .unwrap_or_else(|| {
                 config
                     .packages_path
@@ -65,9 +64,9 @@ impl PyResolvedContext {
             .iter()
             .map(|pr| {
                 let req_str = pr.to_string();
-                req_str.parse::<Requirement>().unwrap_or_else(|_| {
-                    Requirement::new(pr.name.clone())
-                })
+                req_str
+                    .parse::<Requirement>()
+                    .unwrap_or_else(|_| Requirement::new(pr.name.clone()))
             })
             .collect();
 
@@ -103,12 +102,13 @@ impl PyResolvedContext {
 
     fn __repr__(&self) -> String {
         format!(
-            "ResolvedContext(packages={:?})",
+            "ResolvedContext(packages={:?}, paths={})",
             self.inner
                 .resolved_packages
                 .iter()
                 .map(|p| p.name.clone())
-                .collect::<Vec<_>>()
+                .collect::<Vec<_>>(),
+            self.paths.len()
         )
     }
 
@@ -184,6 +184,8 @@ impl PyResolvedContext {
         stdout: Option<bool>,
         stderr: Option<bool>,
     ) -> PyResult<i32> {
+        let _ = stdout;
+        let _ = stderr;
         let rt = tokio::runtime::Runtime::new()
             .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
 
@@ -269,13 +271,133 @@ impl PyResolvedContext {
             println!("  {}-{}", name, version);
         }
     }
+
+    /// Generate a shell activation script for the resolved context.
+    /// Compatible with `context.get_shell_code(shell)`.
+    /// shell: "bash" | "zsh" | "fish" | "cmd" | "powershell" (default: auto-detect)
+    #[pyo3(signature = (shell=None))]
+    fn to_shell_script(&self, shell: Option<&str>) -> PyResult<String> {
+        use rez_next_rex::{generate_shell_script, ShellType};
+
+        let shell_type = match shell.unwrap_or("auto") {
+            "bash" => ShellType::Bash,
+            "zsh" => ShellType::Zsh,
+            "fish" => ShellType::Fish,
+            "cmd" => ShellType::Cmd,
+            "powershell" | "pwsh" => ShellType::PowerShell,
+            _ => {
+                // Auto-detect shell
+                if let Ok(sh) = std::env::var("SHELL") {
+                    if sh.contains("zsh") {
+                        ShellType::Zsh
+                    } else if sh.contains("fish") {
+                        ShellType::Fish
+                    } else {
+                        ShellType::Bash
+                    }
+                } else if cfg!(windows) {
+                    if std::env::var("PSModulePath").is_ok() {
+                        ShellType::PowerShell
+                    } else {
+                        ShellType::Cmd
+                    }
+                } else {
+                    ShellType::Bash
+                }
+            }
+        };
+
+        let rt = tokio::runtime::Runtime::new()
+            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+
+        let env_manager = rez_next_context::EnvironmentManager::new(self.inner.config.clone());
+        let env_vars = rt
+            .block_on(env_manager.generate_environment(&self.inner.resolved_packages))
+            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+
+        // Build RexEnvironment from env_vars
+        let mut rex_env = rez_next_rex::RexEnvironment::new();
+        rex_env.vars = env_vars;
+
+        Ok(generate_shell_script(&rex_env, &shell_type))
+    }
+
+    /// Get the list of tools provided by packages in this context.
+    /// Compatible with `context.get_tools()`.
+    fn get_tools(&self, py: Python) -> PyResult<PyObject> {
+        let dict = PyDict::new(py);
+        for pkg in &self.inner.resolved_packages {
+            for tool in &pkg.tools {
+                // Tool path: {pkg_root}/bin/{tool}
+                let pkg_root = format!("/packages/{}", pkg.name);
+                let tool_path = format!("{}/bin/{}", pkg_root, tool);
+                dict.set_item(tool, tool_path)?;
+            }
+        }
+        Ok(dict.into())
+    }
+
+    /// Get the context as a dict (rez compat: for serialization)
+    fn to_dict(&self, py: Python) -> PyResult<PyObject> {
+        let dict = PyDict::new(py);
+        dict.set_item("id", &self.inner.id)?;
+        dict.set_item("status", format!("{:?}", self.inner.status))?;
+        dict.set_item(
+            "packages",
+            self.inner
+                .resolved_packages
+                .iter()
+                .map(|p| {
+                    format!(
+                        "{}-{}",
+                        p.name,
+                        p.version.as_ref().map(|v| v.as_str()).unwrap_or("unknown")
+                    )
+                })
+                .collect::<Vec<_>>(),
+        )?;
+        dict.set_item("num_packages", self.inner.resolved_packages.len())?;
+        Ok(dict.into())
+    }
+
+    /// Check if this context failed to resolve.
+    /// Compatible with `context.failure_description` (returns None if success).
+    #[getter]
+    fn failure_description(&self) -> Option<String> {
+        if self.inner.status == ContextStatus::Failed {
+            Some("Resolution failed".to_string())
+        } else {
+            None
+        }
+    }
+
+    /// Get the resolved packages as a list of (name, version) tuples.
+    fn get_resolved_packages_info(&self, py: Python) -> PyResult<PyObject> {
+        use pyo3::types::PyList;
+        let list = PyList::empty(py);
+        for pkg in &self.inner.resolved_packages {
+            let ver = pkg
+                .version
+                .as_ref()
+                .map(|v| v.as_str())
+                .unwrap_or("unknown");
+            let tuple = pyo3::types::PyTuple::new(
+                py,
+                [
+                    pkg.name.clone().into_pyobject(py)?.into_any().unbind(),
+                    ver.to_string().into_pyobject(py)?.into_any().unbind(),
+                ],
+            )?;
+            list.append(tuple)?;
+        }
+        Ok(list.into())
+    }
 }
 
 // ── Phase 78: PyResolvedContext internal logic tests ─────────────────────────
 
 #[cfg(test)]
 mod context_bindings_tests {
-    use crate::package_bindings::PyPackage;
     use rez_next_context::{ContextStatus, ResolvedContext};
     use rez_next_package::{Package, PackageRequirement};
     use rez_next_version::Version;
@@ -359,7 +481,8 @@ mod context_bindings_tests {
     #[test]
     fn test_environment_vars_can_be_set() {
         let mut ctx = make_py_ctx_inner(&[("python", "3.11.0")]);
-        ctx.environment_vars.insert("MY_TOOL".to_string(), "active".to_string());
+        ctx.environment_vars
+            .insert("MY_TOOL".to_string(), "active".to_string());
         assert_eq!(
             ctx.environment_vars.get("MY_TOOL"),
             Some(&"active".to_string())
@@ -391,6 +514,9 @@ mod context_bindings_tests {
     #[test]
     fn test_created_at_is_positive() {
         let ctx = make_py_ctx_inner(&[]);
-        assert!(ctx.created_at > 0, "created_at timestamp should be positive");
+        assert!(
+            ctx.created_at > 0,
+            "created_at timestamp should be positive"
+        );
     }
 }

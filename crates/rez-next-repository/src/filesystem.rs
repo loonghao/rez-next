@@ -27,8 +27,8 @@ pub struct FileSystemRepository {
     variant_cache: Arc<RwLock<HashMap<String, Vec<String>>>>,
     /// Repository statistics
     stats: Arc<RwLock<RepositoryStats>>,
-    /// Initialization status
-    initialized: Arc<RwLock<bool>>,
+    /// Initialization status (atomic for sync reads)
+    initialized: Arc<std::sync::atomic::AtomicBool>,
 }
 
 #[cfg_attr(feature = "python-bindings", pymethods)]
@@ -57,7 +57,7 @@ impl FileSystemRepository {
             package_cache: Arc::new(RwLock::new(HashMap::new())),
             variant_cache: Arc::new(RwLock::new(HashMap::new())),
             stats: Arc::new(RwLock::new(RepositoryStats::default())),
-            initialized: Arc::new(RwLock::new(false)),
+            initialized: Arc::new(std::sync::atomic::AtomicBool::new(false)),
         }
     }
 
@@ -130,18 +130,14 @@ impl Repository for FileSystemRepository {
         }
 
         // Mark as initialized
-        {
-            let mut initialized = self.initialized.write().await;
-            *initialized = true;
-        }
+        self.initialized
+            .store(true, std::sync::atomic::Ordering::Release);
 
         Ok(())
     }
 
     fn is_initialized(&self) -> bool {
-        // This is a sync method, so we can't use async read
-        // In practice, you might want to use a sync primitive or return a future
-        false // TODO: Implement proper sync check
+        self.initialized.load(std::sync::atomic::Ordering::Acquire)
     }
 
     async fn refresh(&mut self) -> Result<(), RezCoreError> {

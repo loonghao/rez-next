@@ -1,4 +1,4 @@
-﻿//! Version range implementation - full rez-compatible version range parsing
+//! Version range implementation - full rez-compatible version range parsing
 
 use super::Version;
 use rez_next_common::RezCoreError;
@@ -181,15 +181,20 @@ impl VersionRange {
             return Some(self.clone());
         }
         // Merge all bound sets with AND semantics
+        // Only include merged sets that are satisfiable (not trivially empty)
         let mut result_sets = Vec::new();
         for bs_self in &self.bound_sets {
             for bs_other in &other.bound_sets {
                 let mut merged = bs_self.bounds.clone();
                 merged.extend(bs_other.bounds.clone());
                 let merged_set = BoundSet { bounds: merged };
-                result_sets.push(merged_set);
+                // Only include if this merged set is satisfiable
+                if is_bound_set_satisfiable(&merged_set) {
+                    result_sets.push(merged_set);
+                }
             }
         }
+
         if result_sets.is_empty() {
             return None;
         }
@@ -242,7 +247,11 @@ impl VersionRange {
         // Quick sanity: at least one probe version must be in the result
         let probes = self.collect_probe_versions_with_other(other);
         let has_any = probes.iter().any(|v| range.contains(v));
-        if has_any { Some(range) } else { None }
+        if has_any {
+            Some(range)
+        } else {
+            None
+        }
     }
     /// Check if this range is the "any" range (matches all versions)
     pub fn is_any(&self) -> bool {
@@ -251,10 +260,9 @@ impl VersionRange {
             return true;
         }
         // Check if all bound sets are Any
-        self.bound_sets.iter().all(|bs| {
-            bs.bounds.is_empty()
-                || bs.bounds.iter().all(|b| matches!(b, Bound::Any))
-        })
+        self.bound_sets
+            .iter()
+            .all(|bs| bs.bounds.is_empty() || bs.bounds.iter().all(|b| matches!(b, Bound::Any)))
     }
 
     /// Check if this range is a subset of another range
@@ -289,8 +297,13 @@ impl VersionRange {
         for bs in &self.bound_sets {
             for bound in &bs.bounds {
                 match bound {
-                    Bound::Ge(v) | Bound::Gt(v) | Bound::Le(v) | Bound::Lt(v)
-                    | Bound::Eq(v) | Bound::Ne(v) | Bound::Compatible(v) => {
+                    Bound::Ge(v)
+                    | Bound::Gt(v)
+                    | Bound::Le(v)
+                    | Bound::Lt(v)
+                    | Bound::Eq(v)
+                    | Bound::Ne(v)
+                    | Bound::Compatible(v) => {
                         versions.push(v.clone());
                     }
                     _ => {}
@@ -307,8 +320,13 @@ impl VersionRange {
             for bs in &range.bound_sets {
                 for bound in &bs.bounds {
                     match bound {
-                        Bound::Ge(v) | Bound::Gt(v) | Bound::Le(v) | Bound::Lt(v)
-                        | Bound::Eq(v) | Bound::Ne(v) | Bound::Compatible(v) => {
+                        Bound::Ge(v)
+                        | Bound::Gt(v)
+                        | Bound::Le(v)
+                        | Bound::Lt(v)
+                        | Bound::Eq(v)
+                        | Bound::Ne(v)
+                        | Bound::Compatible(v) => {
                             versions.push(v.clone());
                             if let Ok(bumped) = Version::parse(&format!("{}.999999", v.as_str())) {
                                 versions.push(bumped);
@@ -410,7 +428,7 @@ fn parse_conjunction(s: &str) -> Result<BoundSet, RezCoreError> {
             let suffix = &s[plus_pos + 1..];
             if suffix.is_empty() {
                 // "1.0+" -> ">=1.0"
-                format!(">={}",  prefix)
+                format!(">={}", prefix)
             } else {
                 // "1.0+<2.0" -> ">=1.0,<2.0"
                 format!(">={},{}", prefix, suffix)
@@ -596,6 +614,96 @@ fn negate_bound_set(bs: &BoundSet) -> BoundSet {
     BoundSet { bounds: negated }
 }
 
+/// Check if a single BoundSet is satisfiable (not trivially empty due to conflicting bounds)
+fn is_bound_set_satisfiable(bs: &BoundSet) -> bool {
+    // Check for None bounds
+    if bs.bounds.iter().any(|b| matches!(b, Bound::None)) {
+        return false;
+    }
+    // Extract lower and upper bounds to check for contradiction
+    let mut lower: Option<(&Version, bool)> = None; // (version, inclusive)
+    let mut upper: Option<(&Version, bool)> = None; // (version, inclusive)
+
+    for bound in &bs.bounds {
+        match bound {
+            Bound::Any => {}
+            Bound::None => return false,
+            Bound::Ge(v) => match lower {
+                None => lower = Some((v, true)),
+                Some((lv, linc)) => {
+                    if v > lv || (v == lv && !linc) {
+                        lower = Some((v, true));
+                    }
+                }
+            },
+            Bound::Gt(v) => match lower {
+                None => lower = Some((v, false)),
+                Some((lv, _)) => {
+                    if v >= lv {
+                        lower = Some((v, false));
+                    }
+                }
+            },
+            Bound::Le(v) => match upper {
+                None => upper = Some((v, true)),
+                Some((uv, uinc)) => {
+                    if v < uv || (v == uv && !uinc) {
+                        upper = Some((v, true));
+                    }
+                }
+            },
+            Bound::Lt(v) => match upper {
+                None => upper = Some((v, false)),
+                Some((uv, _)) => {
+                    if v <= uv {
+                        upper = Some((v, false));
+                    }
+                }
+            },
+            Bound::Eq(v) => {
+                // Equality constraint acts as both lower and upper bound
+                match lower {
+                    None => lower = Some((v, true)),
+                    Some((lv, linc)) => {
+                        if v > lv || (v == lv && !linc) {
+                            lower = Some((v, true));
+                        } else if v < lv {
+                            // v must be >= lv but eq requires v exactly — contradiction
+                            return false;
+                        }
+                    }
+                }
+                match upper {
+                    None => upper = Some((v, true)),
+                    Some((uv, uinc)) => {
+                        if v < uv || (v == uv && !uinc) {
+                            upper = Some((v, true));
+                        } else if v > uv {
+                            return false;
+                        }
+                    }
+                }
+            }
+            Bound::Ne(_) | Bound::Compatible(_) => {}
+        }
+    }
+
+    // Check if lower and upper bounds are compatible
+    if let (Some((lv, linc)), Some((uv, uinc))) = (lower, upper) {
+        match lv.cmp(uv) {
+            std::cmp::Ordering::Greater => return false,
+            std::cmp::Ordering::Equal => {
+                if !linc || !uinc {
+                    return false;
+                }
+            }
+            std::cmp::Ordering::Less => {}
+        }
+    }
+
+    true
+}
+
 /// Check if two BoundSets can simultaneously be satisfied (have intersection)
 fn bound_sets_intersect(a: &BoundSet, b: &BoundSet) -> bool {
     // Quick check: if either is Any, they intersect
@@ -611,13 +719,7 @@ fn bound_sets_intersect(a: &BoundSet, b: &BoundSet) -> bool {
     // Check for obvious impossibilities: Eq(v) and Eq(w) where v != w
     let eq_versions: Vec<&Version> = combined_bounds
         .iter()
-        .filter_map(|b| {
-            if let Bound::Eq(v) = b {
-                Some(v)
-            } else {
-                None
-            }
-        })
+        .filter_map(|b| if let Bound::Eq(v) = b { Some(v) } else { None })
         .collect();
     if eq_versions.len() > 1 {
         let first = eq_versions[0];
@@ -634,46 +736,38 @@ fn bound_sets_intersect(a: &BoundSet, b: &BoundSet) -> bool {
 
     for bound in &combined_bounds {
         match bound {
-            Bound::Ge(v) => {
-                match lower {
-                    None => lower = Some((v, true)),
-                    Some((lv, linc)) => {
-                        if v > lv || (v == lv && !linc) {
-                            lower = Some((v, true));
-                        }
+            Bound::Ge(v) => match lower {
+                None => lower = Some((v, true)),
+                Some((lv, linc)) => {
+                    if v > lv || (v == lv && !linc) {
+                        lower = Some((v, true));
                     }
                 }
-            }
-            Bound::Gt(v) => {
-                match lower {
-                    None => lower = Some((v, false)),
-                    Some((lv, _linc)) => {
-                        if v >= lv {
-                            lower = Some((v, false));
-                        }
+            },
+            Bound::Gt(v) => match lower {
+                None => lower = Some((v, false)),
+                Some((lv, _linc)) => {
+                    if v >= lv {
+                        lower = Some((v, false));
                     }
                 }
-            }
-            Bound::Le(v) => {
-                match upper {
-                    None => upper = Some((v, true)),
-                    Some((uv, uinc)) => {
-                        if v < uv || (v == uv && !uinc) {
-                            upper = Some((v, true));
-                        }
+            },
+            Bound::Le(v) => match upper {
+                None => upper = Some((v, true)),
+                Some((uv, uinc)) => {
+                    if v < uv || (v == uv && !uinc) {
+                        upper = Some((v, true));
                     }
                 }
-            }
-            Bound::Lt(v) => {
-                match upper {
-                    None => upper = Some((v, false)),
-                    Some((uv, _uinc)) => {
-                        if v <= uv {
-                            upper = Some((v, false));
-                        }
+            },
+            Bound::Lt(v) => match upper {
+                None => upper = Some((v, false)),
+                Some((uv, _uinc)) => {
+                    if v <= uv {
+                        upper = Some((v, false));
                     }
                 }
-            }
+            },
             _ => {}
         }
     }
@@ -928,12 +1022,21 @@ mod tests {
         let r1 = VersionRange::parse(">=1.0,<3.0").unwrap();
         let r2 = VersionRange::parse(">=2.0,<4.0").unwrap();
         let result = r1.intersect(&r2);
-        assert!(result.is_some(), "Overlapping ranges should have intersection");
+        assert!(
+            result.is_some(),
+            "Overlapping ranges should have intersection"
+        );
         let inter = result.unwrap();
         assert!(inter.contains(&v("2.0")), "2.0 should be in intersection");
         assert!(inter.contains(&v("2.9")), "2.9 should be in intersection");
-        assert!(!inter.contains(&v("1.5")), "1.5 should NOT be in intersection (excluded by r2)");
-        assert!(!inter.contains(&v("3.0")), "3.0 should NOT be in intersection (excluded by r1)");
+        assert!(
+            !inter.contains(&v("1.5")),
+            "1.5 should NOT be in intersection (excluded by r2)"
+        );
+        assert!(
+            !inter.contains(&v("3.0")),
+            "3.0 should NOT be in intersection (excluded by r1)"
+        );
     }
 
     #[test]
@@ -974,8 +1077,14 @@ mod tests {
         let result = exact.intersect(&range);
         // Either None or the range doesn't contain any version
         if let Some(ref inter) = result {
-            assert!(!inter.contains(&v("5.0")), "5.0 should NOT be in intersection");
-            assert!(!inter.contains(&v("1.5")), "1.5 should NOT be in intersection");
+            assert!(
+                !inter.contains(&v("5.0")),
+                "5.0 should NOT be in intersection"
+            );
+            assert!(
+                !inter.contains(&v("1.5")),
+                "1.5 should NOT be in intersection"
+            );
         }
         // It's okay to return Some with an empty effective range
     }
@@ -1059,5 +1168,3 @@ mod tests {
         }
     }
 }
-
-

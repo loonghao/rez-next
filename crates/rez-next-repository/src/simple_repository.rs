@@ -265,8 +265,13 @@ mod tests {
     async fn create_package_file(dir: &std::path::Path, name: &str, version: &str) {
         let pkg_dir = dir.join(name).join(version);
         fs::create_dir_all(&pkg_dir).await.unwrap();
-        let content = format!("name = \"{}\"\nversion = \"{}\"\ndescription = \"Test\"\n", name, version);
-        fs::write(pkg_dir.join("package.py"), content).await.unwrap();
+        let content = format!(
+            "name = \"{}\"\nversion = \"{}\"\ndescription = \"Test\"\n",
+            name, version
+        );
+        fs::write(pkg_dir.join("package.py"), content)
+            .await
+            .unwrap();
     }
 
     #[tokio::test]
@@ -328,7 +333,10 @@ mod tests {
         let pkg = repo.get_package("mylib", None).await.unwrap();
         assert!(pkg.is_some());
         // Latest should be 2.5.0
-        assert_eq!(pkg.unwrap().version.as_ref().map(|v| v.as_str()), Some("2.5.0"));
+        assert_eq!(
+            pkg.unwrap().version.as_ref().map(|v| v.as_str()),
+            Some("2.5.0")
+        );
     }
 
     #[tokio::test]
@@ -384,8 +392,14 @@ mod tests {
         create_package_file(dir2.path(), "maya", "2023.0").await;
 
         let mut manager = RepositoryManager::new();
-        manager.add_repository(Box::new(SimpleRepository::new(dir1.path(), "repo1".to_string())));
-        manager.add_repository(Box::new(SimpleRepository::new(dir2.path(), "repo2".to_string())));
+        manager.add_repository(Box::new(SimpleRepository::new(
+            dir1.path(),
+            "repo1".to_string(),
+        )));
+        manager.add_repository(Box::new(SimpleRepository::new(
+            dir2.path(),
+            "repo2".to_string(),
+        )));
         assert_eq!(manager.repository_count(), 2);
 
         let py_pkgs = manager.find_packages("python").await.unwrap();
@@ -402,7 +416,10 @@ mod tests {
         create_package_file(temp_dir.path(), "maya", "2023.0").await;
 
         let mut manager = RepositoryManager::new();
-        manager.add_repository(Box::new(SimpleRepository::new(temp_dir.path(), "r".to_string())));
+        manager.add_repository(Box::new(SimpleRepository::new(
+            temp_dir.path(),
+            "r".to_string(),
+        )));
 
         let names = manager.list_packages().await.unwrap();
         // Sorted
@@ -445,7 +462,11 @@ mod tests {
         create_package_file(temp_dir.path(), "beta", "1.0.0").await;
         repo.scan().await.unwrap();
 
-        assert_eq!(repo.find_packages("beta").await.unwrap().len(), 1, "beta should be found after rescan");
+        assert_eq!(
+            repo.find_packages("beta").await.unwrap().len(),
+            1,
+            "beta should be found after rescan"
+        );
     }
 
     /// Packages with requires field are loaded correctly
@@ -455,7 +476,9 @@ mod tests {
         let pkg_dir = temp_dir.path().join("mypkg").join("1.0.0");
         fs::create_dir_all(&pkg_dir).await.unwrap();
         let content = "name = 'mypkg'\nversion = '1.0.0'\nrequires = ['python-3', 'boost-1']\n";
-        fs::write(pkg_dir.join("package.py"), content).await.unwrap();
+        fs::write(pkg_dir.join("package.py"), content)
+            .await
+            .unwrap();
 
         let repo = SimpleRepository::new(temp_dir.path(), "test_repo".to_string());
         let pkgs = repo.find_packages("mypkg").await.unwrap();
@@ -488,7 +511,10 @@ mod tests {
         }
 
         let mut manager = RepositoryManager::new();
-        manager.add_repository(Box::new(SimpleRepository::new(temp_dir.path(), "r".to_string())));
+        manager.add_repository(Box::new(SimpleRepository::new(
+            temp_dir.path(),
+            "r".to_string(),
+        )));
         let pkgs = manager.find_packages("sortpkg").await.unwrap();
 
         assert_eq!(pkgs.len(), 3);
@@ -543,9 +569,19 @@ mod tests {
     async fn test_scan_deep_nesting() {
         let temp_dir = TempDir::new().unwrap();
         // Create a deeply nested directory that has no package.py
-        let deep_dir = temp_dir.path().join("category").join("subcategory").join("mypkg").join("1.0.0");
+        let deep_dir = temp_dir
+            .path()
+            .join("category")
+            .join("subcategory")
+            .join("mypkg")
+            .join("1.0.0");
         fs::create_dir_all(&deep_dir).await.unwrap();
-        fs::write(deep_dir.join("package.py"), "name = 'mypkg'\nversion = '1.0.0'\n").await.unwrap();
+        fs::write(
+            deep_dir.join("package.py"),
+            "name = 'mypkg'\nversion = '1.0.0'\n",
+        )
+        .await
+        .unwrap();
 
         let repo = SimpleRepository::new(temp_dir.path(), "deep_repo".to_string());
         repo.scan().await.unwrap();
@@ -562,11 +598,21 @@ mod tests {
         // Create parent package.py
         let parent_dir = temp_dir.path().join("parent_pkg").join("1.0.0");
         fs::create_dir_all(&parent_dir).await.unwrap();
-        fs::write(parent_dir.join("package.py"), "name = 'parent_pkg'\nversion = '1.0.0'\n").await.unwrap();
+        fs::write(
+            parent_dir.join("package.py"),
+            "name = 'parent_pkg'\nversion = '1.0.0'\n",
+        )
+        .await
+        .unwrap();
         // Create inner dir (should NOT be scanned since parent has package.py)
         let inner_dir = parent_dir.join("inner_pkg").join("0.1.0");
         fs::create_dir_all(&inner_dir).await.unwrap();
-        fs::write(inner_dir.join("package.py"), "name = 'inner_pkg'\nversion = '0.1.0'\n").await.unwrap();
+        fs::write(
+            inner_dir.join("package.py"),
+            "name = 'inner_pkg'\nversion = '0.1.0'\n",
+        )
+        .await
+        .unwrap();
 
         let repo = SimpleRepository::new(temp_dir.path(), "stop_repo".to_string());
         repo.scan().await.unwrap();
@@ -617,7 +663,12 @@ mod tests {
         // Create a directory with a package.yaml but no package.py
         let dir = temp_dir.path().join("yamlpkg").join("1.0.0");
         fs::create_dir_all(&dir).await.unwrap();
-        fs::write(dir.join("package.yaml"), "name: yamlpkg\nversion: '1.0.0'\n").await.unwrap();
+        fs::write(
+            dir.join("package.yaml"),
+            "name: yamlpkg\nversion: '1.0.0'\n",
+        )
+        .await
+        .unwrap();
 
         let repo = SimpleRepository::new(temp_dir.path(), "repo".to_string());
         repo.scan().await.unwrap();
@@ -638,12 +689,21 @@ mod tests {
         create_package_file(dir2.path(), "shared_pkg", "2.0.0").await;
 
         let mut manager = RepositoryManager::new();
-        manager.add_repository(Box::new(SimpleRepository::new(dir1.path(), "repo1".to_string())));
-        manager.add_repository(Box::new(SimpleRepository::new(dir2.path(), "repo2".to_string())));
+        manager.add_repository(Box::new(SimpleRepository::new(
+            dir1.path(),
+            "repo1".to_string(),
+        )));
+        manager.add_repository(Box::new(SimpleRepository::new(
+            dir2.path(),
+            "repo2".to_string(),
+        )));
 
         let pkgs = manager.find_packages("shared_pkg").await.unwrap();
         // Both repos contribute their version
-        assert_eq!(pkgs.len(), 2, "Manager should aggregate packages from all repos");
+        assert_eq!(
+            pkgs.len(),
+            2,
+            "Manager should aggregate packages from all repos"
+        );
     }
 }
-
