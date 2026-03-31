@@ -113,3 +113,22 @@ py-lint:
 # Build wheel + run all Python tests (full Python CI flow)
 py-ci: py-build py-test
 
+# ── CLI E2E ────────────────────────────────────────────────────────────────
+
+# Build the rez-next binary
+build-bin:
+    vx cargo build --bin rez-next
+
+# Run CLI end-to-end tests (requires binary to be built first)
+cli-e2e: build-bin
+    REZ_NEXT_E2E_BINARY=target/debug/rez-next vx cargo test --test cli_e2e_tests -- --nocapture
+
+# Run CLI e2e tests with release binary (faster)
+cli-e2e-release:
+    vx cargo build --release --bin rez-next
+    REZ_NEXT_E2E_BINARY=target/release/rez-next vx cargo test --test cli_e2e_tests -- --nocapture
+
+# Run a single CLI e2e test by name
+cli-e2e-one TEST: build-bin
+    REZ_NEXT_E2E_BINARY=target/debug/rez-next vx cargo test --test cli_e2e_tests {{TEST}} -- --nocapture
+
