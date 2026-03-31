@@ -50,9 +50,33 @@ use suite_bindings::{PySuite, PySuiteManager};
 use system_bindings::PySystem;
 use version_bindings::{PyVersion, PyVersionRange};
 
+/// Register a submodule and insert it into sys.modules so that
+/// `from rez_next.<name> import ...` works correctly.
+///
+/// PyO3's `add_submodule` alone does NOT register the module in `sys.modules`,
+/// which means Python's import machinery cannot find it for dotted imports.
+/// See: https://github.com/PyO3/pyo3/discussions/3591
+fn register_submodule(
+    parent: &Bound<'_, PyModule>,
+    parent_name: &str,
+    child: &Bound<'_, PyModule>,
+    child_name: &str,
+) -> PyResult<()> {
+    parent.add_submodule(child)?;
+    let full_name = format!("{}.{}", parent_name, child_name);
+    parent
+        .py()
+        .import("sys")?
+        .getattr("modules")?
+        .set_item(&full_name, child)?;
+    Ok(())
+}
+
 /// Main Python module `rez_next` — drop-in replacement for `rez`
 #[pymodule(name = "rez_next")]
 fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    const PKG: &str = "rez_next";
+
     // Version classes (rez.vendor.version)
     m.add_class::<PyVersion>()?;
     m.add_class::<PyVersionRange>()?;
@@ -127,10 +151,10 @@ fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("__version__", env!("CARGO_PKG_VERSION"))?;
     m.add("__author__", "rez-next contributors")?;
 
-    // Submodule: rez.exceptions (common exception classes)
+    // Submodule: rez_next.exceptions
     let exceptions = PyModule::new(m.py(), "exceptions")?;
     exceptions_bindings::register_all_exceptions(&exceptions)?;
-    m.add_submodule(&exceptions)?;
+    register_submodule(m, PKG, &exceptions, "exceptions")?;
     // Also register custom exception types at top level for `from rez_next import RezError`
     m.add(
         "RezError",
@@ -153,7 +177,7 @@ fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
         m.py().get_type::<exceptions_bindings::ConfigurationError>(),
     )?;
 
-    // Submodule: rez.packages_ (package iteration API)
+    // Submodule: rez_next.packages_
     let packages_ = PyModule::new(m.py(), "packages_")?;
     packages_.add_function(wrap_pyfunction!(iter_packages, &packages_)?)?;
     packages_.add_function(wrap_pyfunction!(get_latest_package, &packages_)?)?;
@@ -163,60 +187,64 @@ fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
     packages_.add_function(wrap_pyfunction!(copy_package, &packages_)?)?;
     packages_.add_function(wrap_pyfunction!(move_package, &packages_)?)?;
     packages_.add_function(wrap_pyfunction!(remove_package, &packages_)?)?;
-    m.add_submodule(&packages_)?;
+    register_submodule(m, PKG, &packages_, "packages_")?;
 
-    // Submodule: rez.resolved_context
+    // Submodule: rez_next.resolved_context
     let resolved_context = PyModule::new(m.py(), "resolved_context")?;
     resolved_context.add_class::<PyResolvedContext>()?;
-    m.add_submodule(&resolved_context)?;
+    register_submodule(m, PKG, &resolved_context, "resolved_context")?;
 
-    // Submodule: rez.suite (Suite management)
+    // Submodule: rez_next.suite
     let suite_mod = PyModule::new(m.py(), "suite")?;
     suite_mod.add_class::<PySuite>()?;
     suite_mod.add_class::<PySuiteManager>()?;
-    m.add_submodule(&suite_mod)?;
+    register_submodule(m, PKG, &suite_mod, "suite")?;
 
-    // Submodule: rez.config
+    // Submodule: rez_next.config
     let config_mod = PyModule::new(m.py(), "config")?;
     config_mod.add_class::<PyConfig>()?;
     config_mod.add("config", PyConfig::new())?;
-    m.add_submodule(&config_mod)?;
+    register_submodule(m, PKG, &config_mod, "config")?;
 
-    // Submodule: rez.system
+    // Submodule: rez_next.system
+    // Also expose platform/arch/os directly on the module so that
+    // `rez.system.platform` works when `rez.system` is the module object.
     let system_mod = PyModule::new(m.py(), "system")?;
     system_mod.add_class::<PySystem>()?;
     system_mod.add("system", PySystem::new())?;
     system_mod.add_function(wrap_pyfunction!(system_bindings::get_system, &system_mod)?)?;
-    // Also expose platform/arch/os directly on the module so that
-    // `rez.system.platform` works when `rez.system` is the module object.
     system_mod.add("platform", system_bindings::PySystem::platform_pub())?;
     system_mod.add("arch", system_bindings::PySystem::arch_pub())?;
     system_mod.add("os", system_bindings::PySystem::os_pub())?;
-    m.add_submodule(&system_mod)?;
+    register_submodule(m, PKG, &system_mod, "system")?;
 
-    // Submodule: rez.vendor.version
+    // Submodule: rez_next.vendor.version (nested)
     let vendor = PyModule::new(m.py(), "vendor")?;
     let version_mod = PyModule::new(m.py(), "version")?;
     version_mod.add_class::<PyVersion>()?;
     version_mod.add_class::<PyVersionRange>()?;
+    // Register rez_next.vendor.version in sys.modules
+    m.py()
+        .import("sys")?
+        .getattr("modules")?
+        .set_item("rez_next.vendor.version", &version_mod)?;
     vendor.add_submodule(&version_mod)?;
-    m.add_submodule(&vendor)?;
+    register_submodule(m, PKG, &vendor, "vendor")?;
 
-    // Submodule: rez.build_ (build API compatible with rez.build_)
+    // Submodule: rez_next.build_
     let build_mod = PyModule::new(m.py(), "build_")?;
     build_mod.add_function(wrap_pyfunction!(build_package, &build_mod)?)?;
     build_mod.add_function(wrap_pyfunction!(get_build_system, &build_mod)?)?;
-    m.add_submodule(&build_mod)?;
-
+    register_submodule(m, PKG, &build_mod, "build_")?;
     // Also expose build functions at top level
     m.add_function(wrap_pyfunction!(build_package, m)?)?;
 
-    // Submodule: rez.rex (Rex command language)
+    // Submodule: rez_next.rex
     let rex_mod = PyModule::new(m.py(), "rex")?;
     rex_mod.add_function(wrap_pyfunction!(rex_interpret, &rex_mod)?)?;
-    m.add_submodule(&rex_mod)?;
+    register_submodule(m, PKG, &rex_mod, "rex")?;
 
-    // Submodule: rez.shell (shell script generation)
+    // Submodule: rez_next.shell
     let shell_mod = PyModule::new(m.py(), "shell")?;
     shell_mod.add_class::<PyShell>()?;
     shell_mod.add_function(wrap_pyfunction!(
@@ -231,31 +259,35 @@ fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
         shell_bindings::get_current_shell,
         &shell_mod
     )?)?;
-    m.add_submodule(&shell_mod)?;
+    register_submodule(m, PKG, &shell_mod, "shell")?;
 
-    // Submodule: rez.bundles (context bundle management)
+    // Submodule: rez_next.bundles
     let bundles_mod = PyModule::new(m.py(), "bundles")?;
     bundles_mod.add_function(wrap_pyfunction!(bundle_context, &bundles_mod)?)?;
     bundles_mod.add_function(wrap_pyfunction!(unbundle_context, &bundles_mod)?)?;
     bundles_mod.add_function(wrap_pyfunction!(list_bundles, &bundles_mod)?)?;
-    m.add_submodule(&bundles_mod)?;
+    register_submodule(m, PKG, &bundles_mod, "bundles")?;
     // Also top-level
     m.add_function(wrap_pyfunction!(bundle_context, m)?)?;
 
-    // Submodule: rez.cli (CLI tool compat shim)
+    // Submodule: rez_next.cli
     let cli_mod = PyModule::new(m.py(), "cli")?;
     cli_mod.add_function(wrap_pyfunction!(cli_run, &cli_mod)?)?;
     cli_mod.add_function(wrap_pyfunction!(cli_main, &cli_mod)?)?;
-    m.add_submodule(&cli_mod)?;
+    register_submodule(m, PKG, &cli_mod, "cli")?;
 
-    // Submodule: rez.utils.resources (resource loading compat)
+    // Submodule: rez_next.utils (with nested rez_next.utils.resources)
     let utils_mod = PyModule::new(m.py(), "utils")?;
     let resources_mod = PyModule::new(m.py(), "resources")?;
     resources_mod.add_function(wrap_pyfunction!(get_resource_string, &resources_mod)?)?;
+    m.py()
+        .import("sys")?
+        .getattr("modules")?
+        .set_item("rez_next.utils.resources", &resources_mod)?;
     utils_mod.add_submodule(&resources_mod)?;
-    m.add_submodule(&utils_mod)?;
+    register_submodule(m, PKG, &utils_mod, "utils")?;
 
-    // Submodule: rez.pip (pip-to-rez package conversion)
+    // Submodule: rez_next.pip
     let pip_mod = PyModule::new(m.py(), "pip")?;
     pip_mod.add_class::<PyPipPackage>()?;
     pip_mod.add_function(wrap_pyfunction!(
@@ -276,11 +308,11 @@ fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
         &pip_mod
     )?)?;
     pip_mod.add_function(wrap_pyfunction!(pip_bindings::write_pip_package, &pip_mod)?)?;
-    m.add_submodule(&pip_mod)?;
-    // Also expose pip_install at top level for convenience
+    register_submodule(m, PKG, &pip_mod, "pip")?;
+    // Also expose pip_install at top level
     m.add_function(wrap_pyfunction!(pip_bindings::pip_install, m)?)?;
 
-    // Submodule: rez.plugins (plugin manager)
+    // Submodule: rez_next.plugins
     let plugins_mod = PyModule::new(m.py(), "plugins")?;
     plugins_mod.add_class::<PyPlugin>()?;
     plugins_mod.add_class::<PyRezPluginManager>()?;
@@ -300,13 +332,12 @@ fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
         plugins_bindings::is_shell_supported,
         &plugins_mod
     )?)?;
-    // plugin_manager singleton (rez.plugins.plugin_manager)
     plugins_mod.add("plugin_manager", plugins_bindings::get_plugin_manager())?;
-    m.add_submodule(&plugins_mod)?;
+    register_submodule(m, PKG, &plugins_mod, "plugins")?;
     // Also expose at top level
     m.add_function(wrap_pyfunction!(plugins_bindings::get_plugin_manager, m)?)?;
 
-    // Submodule: rez.env (environment creation and activation)
+    // Submodule: rez_next.env
     let env_mod = PyModule::new(m.py(), "env")?;
     env_mod.add_class::<PyRezEnv>()?;
     env_mod.add_class::<PyPackageFamily>()?;
@@ -316,19 +347,19 @@ fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
         &env_mod
     )?)?;
     env_mod.add_function(wrap_pyfunction!(env_bindings::apply_env, &env_mod)?)?;
-    m.add_submodule(&env_mod)?;
+    register_submodule(m, PKG, &env_mod, "env")?;
     // Top-level env functions
     m.add_function(wrap_pyfunction!(env_bindings::create_env, m)?)?;
     m.add_function(wrap_pyfunction!(env_bindings::get_activation_script, m)?)?;
 
-    // Submodule: rez.packages (PackageFamily, iterable package API)
+    // Submodule: rez_next.packages
     let packages_mod = PyModule::new(m.py(), "packages")?;
     packages_mod.add_class::<PyPackageFamily>()?;
     packages_mod.add_class::<PyPackage>()?;
     packages_mod.add_class::<PyPackageRequirement>()?;
-    m.add_submodule(&packages_mod)?;
+    register_submodule(m, PKG, &packages_mod, "packages")?;
 
-    // Submodule: rez.forward (shell forward function compatibility)
+    // Submodule: rez_next.forward
     let forward_mod = PyModule::new(m.py(), "forward")?;
     forward_mod.add_class::<PyRezForward>()?;
     forward_mod.add_function(wrap_pyfunction!(
@@ -339,7 +370,7 @@ fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
         forward_bindings::generate_forward_script,
         &forward_mod
     )?)?;
-    m.add_submodule(&forward_mod)?;
+    register_submodule(m, PKG, &forward_mod, "forward")?;
     // Top-level forward helpers
     m.add_function(wrap_pyfunction!(forward_bindings::resolve_forward_tool, m)?)?;
     m.add_function(wrap_pyfunction!(
@@ -347,7 +378,7 @@ fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
         m
     )?)?;
 
-    // Submodule: rez.release (package release flow)
+    // Submodule: rez_next.release
     let release_mod = PyModule::new(m.py(), "release")?;
     release_mod.add_class::<PyReleaseManager>()?;
     release_mod.add_class::<PyReleaseResult>()?;
@@ -355,11 +386,11 @@ fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
         release_bindings::release_package,
         &release_mod
     )?)?;
-    m.add_submodule(&release_mod)?;
+    register_submodule(m, PKG, &release_mod, "release")?;
     // Top-level release function
     m.add_function(wrap_pyfunction!(release_bindings::release_package, m)?)?;
 
-    // Submodule: rez.source (context activation script writing)
+    // Submodule: rez_next.source
     let source_mod = PyModule::new(m.py(), "source")?;
     source_mod.add_class::<PySourceManager>()?;
     source_mod.add_function(wrap_pyfunction!(
@@ -378,14 +409,14 @@ fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
         source_bindings::resolve_source_mode,
         &source_mod
     )?)?;
-    m.add_submodule(&source_mod)?;
+    register_submodule(m, PKG, &source_mod, "source")?;
     // Top-level source helpers
     m.add_function(wrap_pyfunction!(source_bindings::write_source_script, m)?)?;
     m.add_function(wrap_pyfunction!(source_bindings::get_source_script, m)?)?;
     m.add_function(wrap_pyfunction!(source_bindings::detect_shell, m)?)?;
     m.add_function(wrap_pyfunction!(source_bindings::resolve_source_mode, m)?)?;
 
-    // Submodule: rez.data (built-in data resources: completions, examples, config templates)
+    // Submodule: rez_next.data
     let data_mod = PyModule::new(m.py(), "data")?;
     data_mod.add_class::<PyRezData>()?;
     data_mod.add_function(wrap_pyfunction!(
@@ -400,11 +431,10 @@ fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
         data_bindings::get_completion_script,
         &data_mod
     )?)?;
-    // data singleton instance
     data_mod.add("data", PyRezData::new())?;
-    m.add_submodule(&data_mod)?;
+    register_submodule(m, PKG, &data_mod, "data")?;
 
-    // Submodule: rez.bind (system tool binding)
+    // Submodule: rez_next.bind
     let bind_mod = PyModule::new(m.py(), "bind")?;
     bind_mod.add_class::<PyBindManager>()?;
     bind_mod.add_class::<PyBindResult>()?;
@@ -413,14 +443,13 @@ fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
     bind_mod.add_function(wrap_pyfunction!(bind_bindings::detect_version, &bind_mod)?)?;
     bind_mod.add_function(wrap_pyfunction!(bind_bindings::find_tool, &bind_mod)?)?;
     bind_mod.add_function(wrap_pyfunction!(bind_bindings::extract_version, &bind_mod)?)?;
-    // bind_manager singleton
     bind_mod.add("bind_manager", PyBindManager::new())?;
-    m.add_submodule(&bind_mod)?;
-    // Top-level bind convenience function
+    register_submodule(m, PKG, &bind_mod, "bind")?;
+    // Top-level bind convenience functions
     m.add_function(wrap_pyfunction!(bind_bindings::bind_tool, m)?)?;
     m.add_function(wrap_pyfunction!(bind_bindings::list_binders, m)?)?;
 
-    // Submodule: rez.search (package search)
+    // Submodule: rez_next.search
     let search_mod = PyModule::new(m.py(), "search")?;
     search_mod.add_class::<PySearchResult>()?;
     search_mod.add_class::<search_bindings::PyPackageSearcher>()?;
@@ -436,12 +465,12 @@ fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
         search_bindings::search_latest_packages,
         &search_mod
     )?)?;
-    m.add_submodule(&search_mod)?;
+    register_submodule(m, PKG, &search_mod, "search")?;
     // Top-level search helpers
     m.add_function(wrap_pyfunction!(search_bindings::search_packages, m)?)?;
     m.add_function(wrap_pyfunction!(search_bindings::search_package_names, m)?)?;
 
-    // Submodule: rez.complete (shell tab-completion)
+    // Submodule: rez_next.complete
     let complete_mod = PyModule::new(m.py(), "complete")?;
     complete_mod.add_function(wrap_pyfunction!(
         completion_bindings::get_completion_script,
@@ -459,14 +488,14 @@ fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
         completion_bindings::get_completion_install_path,
         &complete_mod
     )?)?;
-    m.add_submodule(&complete_mod)?;
+    register_submodule(m, PKG, &complete_mod, "complete")?;
     // Top-level completion
     m.add_function(wrap_pyfunction!(
         completion_bindings::get_completion_script,
         m
     )?)?;
 
-    // Submodule: rez.diff (context diffing)
+    // Submodule: rez_next.diff
     let diff_mod = PyModule::new(m.py(), "diff")?;
     diff_mod.add_class::<diff_bindings::PyPackageDiff>()?;
     diff_mod.add_class::<diff_bindings::PyContextDiff>()?;
@@ -476,13 +505,13 @@ fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
         &diff_mod
     )?)?;
     diff_mod.add_function(wrap_pyfunction!(diff_bindings::format_diff, &diff_mod)?)?;
-    m.add_submodule(&diff_mod)?;
+    register_submodule(m, PKG, &diff_mod, "diff")?;
     // Top-level diff helpers
     m.add_function(wrap_pyfunction!(diff_bindings::diff_contexts, m)?)?;
     m.add_function(wrap_pyfunction!(diff_bindings::diff_context_files, m)?)?;
     m.add_function(wrap_pyfunction!(diff_bindings::format_diff, m)?)?;
 
-    // Submodule: rez.status (current context status)
+    // Submodule: rez_next.status
     let status_mod = PyModule::new(m.py(), "status")?;
     status_mod.add_class::<status_bindings::PyRezStatus>()?;
     status_mod.add_function(wrap_pyfunction!(
@@ -505,12 +534,12 @@ fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
         status_bindings::get_rez_env_var,
         &status_mod
     )?)?;
-    m.add_submodule(&status_mod)?;
+    register_submodule(m, PKG, &status_mod, "status")?;
     // Top-level status helpers
     m.add_function(wrap_pyfunction!(status_bindings::is_in_rez_context, m)?)?;
     m.add_function(wrap_pyfunction!(status_bindings::get_current_status, m)?)?;
 
-    // Submodule: rez.depends (reverse dependency query)
+    // Submodule: rez_next.depends
     let depends_mod = PyModule::new(m.py(), "depends")?;
     depends_mod.add_class::<depends_bindings::PyDependsEntry>()?;
     depends_mod.add_class::<depends_bindings::PyDependsResult>()?;
@@ -526,7 +555,7 @@ fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
         depends_bindings::print_depends,
         &depends_mod
     )?)?;
-    m.add_submodule(&depends_mod)?;
+    register_submodule(m, PKG, &depends_mod, "depends")?;
     // Top-level depends helpers
     m.add_function(wrap_pyfunction!(
         depends_bindings::get_reverse_dependencies,
