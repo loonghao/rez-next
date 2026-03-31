@@ -1,7 +1,5 @@
 //! Error types for rez-core
 
-#[cfg(feature = "python-bindings")]
-use pyo3::prelude::*;
 use thiserror::Error;
 
 /// Main error type for rez-core operations
@@ -37,10 +35,6 @@ pub enum RezCoreError {
     #[error("Python error: {0}")]
     Python(String),
 
-    #[cfg(feature = "python-bindings")]
-    #[error("PyO3 error: {0}")]
-    PyO3(#[from] pyo3::PyErr),
-
     #[error("Rex error: {0}")]
     RexError(String),
 
@@ -62,10 +56,6 @@ pub enum RezCoreError {
 
 /// Result type alias for rez-core operations
 pub type RezCoreResult<T> = Result<T, RezCoreError>;
-
-// Create Python exception types
-#[cfg(feature = "python-bindings")]
-pyo3::create_exception!(rez_core, PyRezCoreError, pyo3::exceptions::PyException);
 
 #[cfg(test)]
 mod tests {

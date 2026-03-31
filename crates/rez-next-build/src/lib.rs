@@ -22,15 +22,3 @@ pub use environment::*;
 pub use process::*;
 pub use sources::*;
 pub use systems::*;
-
-#[cfg(feature = "python-bindings")]
-use pyo3::prelude::*;
-
-/// Initialize the build module for Python
-#[cfg(feature = "python-bindings")]
-#[pymodule]
-fn rez_next_build(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_class::<BuildManager>()?;
-    m.add_class::<BuildProcess>()?;
-    Ok(())
-}

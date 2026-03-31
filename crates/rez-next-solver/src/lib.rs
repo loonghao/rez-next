@@ -27,14 +27,3 @@ pub use astar::heuristics::{
     VersionPreferenceHeuristic,
 };
 pub use astar::search_state::{ConflictType as AStarConflictType, DependencyConflict as AStarDependencyConflict, SearchState};
-
-#[cfg(feature = "python-bindings")]
-use pyo3::prelude::*;
-
-/// Initialize the solver module for Python
-#[cfg(feature = "python-bindings")]
-#[pymodule]
-fn rez_next_solver(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_class::<DependencySolver>()?;
-    Ok(())
-}
