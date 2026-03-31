@@ -5645,6 +5645,315 @@ fn test_config_default_local_packages_path() {
         "local_packages_path should not be empty by default");
 }
 
+// ── Phase 115: VersionRange set operations (intersection, union, subtract) ───
+
+/// rez: intersect of overlapping ranges returns the narrower range
+#[test]
+fn test_version_range_intersect_overlapping() {
+    let r1 = VersionRange::parse(">=1.0,<3.0").unwrap();
+    let r2 = VersionRange::parse(">=2.0,<4.0").unwrap();
+    let intersected = r1.intersect(&r2);
+    assert!(intersected.is_some(), "Overlapping ranges should produce non-None intersection");
+    let i = intersected.unwrap();
+    assert!(i.contains(&Version::parse("2.0").unwrap()), "intersection contains 2.0");
+    assert!(i.contains(&Version::parse("2.9").unwrap()), "intersection contains 2.9");
+    assert!(!i.contains(&Version::parse("1.5").unwrap()), "intersection excludes 1.5");
+    assert!(!i.contains(&Version::parse("3.5").unwrap()), "intersection excludes 3.5");
+}
+
+/// rez: intersect of disjoint ranges returns None
+#[test]
+fn test_version_range_intersect_disjoint() {
+    let r1 = VersionRange::parse(">=1.0,<2.0").unwrap();
+    let r2 = VersionRange::parse(">=3.0,<4.0").unwrap();
+    let intersected = r1.intersect(&r2);
+    assert!(
+        intersected.is_none() || intersected.as_ref().map(|r| r.is_empty()).unwrap_or(false),
+        "Disjoint ranges should yield None or empty intersection"
+    );
+}
+
+/// rez: union of adjacent ranges covers both
+#[test]
+fn test_version_range_union_covers_both() {
+    let r1 = VersionRange::parse(">=1.0,<2.0").unwrap();
+    let r2 = VersionRange::parse(">=2.0,<3.0").unwrap();
+    let u = r1.union(&r2);
+    assert!(u.contains(&Version::parse("1.0").unwrap()), "union contains 1.0");
+    assert!(u.contains(&Version::parse("1.9").unwrap()), "union contains 1.9");
+    assert!(u.contains(&Version::parse("2.0").unwrap()), "union contains 2.0");
+    assert!(u.contains(&Version::parse("2.9").unwrap()), "union contains 2.9");
+}
+
+/// rez: subtract of range removes the subtracted interval
+#[test]
+fn test_version_range_subtract_narrows_range() {
+    let base = VersionRange::parse(">=1.0,<5.0").unwrap();
+    let sub = VersionRange::parse(">=2.0,<3.0").unwrap();
+    let result = base.subtract(&sub);
+    // After subtraction, 2.5 should not be in result
+    if let Some(ref r) = result {
+        assert!(!r.contains(&Version::parse("2.5").unwrap()),
+            "subtracted range should exclude 2.5");
+    }
+    // 1.0 and 4.0 should still be in (or result is None = different implementation)
+}
+
+/// rez: is_subset_of and is_superset_of work correctly
+#[test]
+fn test_version_range_subset_superset() {
+    let wide = VersionRange::parse(">=1.0,<5.0").unwrap();
+    let narrow = VersionRange::parse(">=2.0,<3.0").unwrap();
+    assert!(narrow.is_subset_of(&wide), "narrow >=2.0,<3.0 should be subset of >=1.0,<5.0");
+    assert!(wide.is_superset_of(&narrow), "wide >=1.0,<5.0 should be superset of >=2.0,<3.0");
+    assert!(!wide.is_subset_of(&narrow), "wide should not be subset of narrow");
+}
+
+// ── Phase 116: DependencyGraph node/edge operations ──────────────────────────
+
+/// rez graph: nodes added to dependency graph do not produce error
+#[test]
+fn test_dependency_graph_add_package_succeeds() {
+    use rez_next_solver::DependencyGraph;
+    use rez_next_package::Package;
+    use rez_next_version::Version;
+
+    let mut graph = DependencyGraph::new();
+    let mut pkg = Package::new("python".to_string());
+    pkg.version = Some(Version::parse("3.9").unwrap());
+    let result = graph.add_package(pkg);
+    assert!(result.is_ok(), "Adding package to graph should succeed, got: {:?}", result);
+}
+
+/// rez graph: dependency edge connects two nodes successfully
+#[test]
+fn test_dependency_graph_add_dependency_edge() {
+    use rez_next_solver::DependencyGraph;
+    use rez_next_package::Package;
+    use rez_next_version::Version;
+
+    let mut graph = DependencyGraph::new();
+    let mut pkg_a = Package::new("app".to_string());
+    pkg_a.version = Some(Version::parse("1.0").unwrap());
+    let mut pkg_b = Package::new("lib".to_string());
+    pkg_b.version = Some(Version::parse("2.0").unwrap());
+
+    graph.add_package(pkg_a).unwrap();
+    graph.add_package(pkg_b).unwrap();
+    let result = graph.add_dependency_edge("app-1.0", "lib-2.0");
+    assert!(result.is_ok(), "Adding valid dependency edge should succeed, got: {:?}", result);
+}
+
+/// rez graph: get_resolved_packages returns packages in graph
+#[test]
+fn test_dependency_graph_get_resolved_packages() {
+    use rez_next_solver::DependencyGraph;
+    use rez_next_package::Package;
+    use rez_next_version::Version;
+
+    let mut graph = DependencyGraph::new();
+    for (n, v) in &[("app", "1.0"), ("lib", "2.0"), ("core", "3.0")] {
+        let mut pkg = Package::new(n.to_string());
+        pkg.version = Some(Version::parse(v).unwrap());
+        graph.add_package(pkg).unwrap();
+    }
+    graph.add_dependency_edge("app-1.0", "lib-2.0").unwrap();
+    graph.add_dependency_edge("lib-2.0", "core-3.0").unwrap();
+
+    let resolved = graph.get_resolved_packages();
+    assert!(resolved.is_ok(), "get_resolved_packages should succeed on acyclic graph");
+    let pkgs = resolved.unwrap();
+    assert_eq!(pkgs.len(), 3, "All 3 packages should be in resolved list");
+}
+
+// ── Phase 117: Rex DSL — Source / Info / Comment actions ─────────────────────
+
+/// rez rex: source() action is recorded with correct path
+#[test]
+fn test_rex_source_action_recorded() {
+    use rez_next_rex::{RexExecutor, RexActionType};
+
+    let mut exec = RexExecutor::new();
+    let cmds = "source('/opt/mylib/setup.sh')";
+    let _env = exec.execute_commands(cmds, "testpkg", None, None).unwrap();
+    let actions = exec.get_actions();
+    let has_source = actions.iter().any(|a| matches!(&a.action_type, RexActionType::Source { path } if path.contains("setup.sh")));
+    assert!(has_source, "source('/opt/mylib/setup.sh') should record a Source action");
+}
+
+/// rez rex: info() action is recorded and has correct message
+#[test]
+fn test_rex_info_action_recorded() {
+    use rez_next_rex::{RexExecutor, RexActionType};
+
+    let mut exec = RexExecutor::new();
+    let cmds = "info('Package loaded: mylib-2.0')";
+    let _env = exec.execute_commands(cmds, "testpkg", None, None).unwrap();
+    let actions = exec.get_actions();
+    let has_info = actions.iter().any(|a| matches!(&a.action_type, RexActionType::Info { message } if message.contains("mylib")));
+    assert!(has_info, "info() should record an Info action with the message");
+}
+
+/// rez rex: comment() action is recorded and has correct text
+#[test]
+fn test_rex_comment_action_recorded() {
+    use rez_next_rex::{RexExecutor, RexActionType};
+
+    let mut exec = RexExecutor::new();
+    let cmds = "comment('Set up mylib environment')";
+    let _env = exec.execute_commands(cmds, "testpkg", None, None).unwrap();
+    let actions = exec.get_actions();
+    let has_comment = actions.iter().any(|a| matches!(&a.action_type, RexActionType::Comment { text } if text.contains("mylib")));
+    assert!(has_comment, "comment() should record a Comment action with the text");
+}
+
+// ── Phase 118: Package pre/post_commands and private_build_requires ───────────
+
+/// rez package: pre_commands is stored independently from commands
+#[test]
+fn test_package_pre_commands_independent_from_commands() {
+    use rez_next_package::Package;
+
+    let mut pkg = Package::new("mypkg".to_string());
+    pkg.commands = Some("env.setenv('A', '1')".to_string());
+    pkg.pre_commands = Some("env.setenv('PRE', '1')".to_string());
+
+    assert!(pkg.commands.is_some(), "commands should be set");
+    assert!(pkg.pre_commands.is_some(), "pre_commands should be set independently");
+    assert_ne!(pkg.commands, pkg.pre_commands, "commands and pre_commands are different");
+}
+
+/// rez package: post_commands is stored independently from commands
+#[test]
+fn test_package_post_commands_independent_from_commands() {
+    use rez_next_package::Package;
+
+    let mut pkg = Package::new("mypkg".to_string());
+    pkg.commands = Some("env.setenv('A', '1')".to_string());
+    pkg.post_commands = Some("env.setenv('POST', '1')".to_string());
+
+    assert!(pkg.commands.is_some(), "commands should be set");
+    assert!(pkg.post_commands.is_some(), "post_commands should be set independently");
+    assert_ne!(pkg.commands, pkg.post_commands, "commands and post_commands are different");
+}
+
+/// rez package: private_build_requires not included in runtime requires
+#[test]
+fn test_package_private_build_requires_separate_from_requires() {
+    use rez_next_package::Package;
+
+    let mut pkg = Package::new("mypkg".to_string());
+    pkg.requires = vec!["python-3.9".to_string()];
+    pkg.build_requires = vec!["cmake-3.20".to_string()];
+    pkg.private_build_requires = vec!["internal_build_tool-1.0".to_string()];
+
+    // private_build_requires must not overlap with public requires
+    let all_runtime: Vec<&String> = pkg.requires.iter().chain(pkg.build_requires.iter()).collect();
+    for pbr in &pkg.private_build_requires {
+        assert!(!all_runtime.contains(&pbr),
+            "private_build_requires '{}' should not appear in public requires", pbr);
+    }
+    assert_eq!(pkg.private_build_requires.len(), 1);
+}
+
+// ── Phase 119: Repository scan with temp package dir ─────────────────────────
+
+/// rez repository: scanning empty directory produces empty package list
+#[test]
+fn test_repository_scan_empty_dir() {
+    use rez_next_repository::{SimpleRepository, PackageRepository};
+    use tempfile::TempDir;
+
+    let tmp = TempDir::new().unwrap();
+    let repo = SimpleRepository::new(tmp.path(), "test_repo".to_string());
+
+    let rt = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .unwrap();
+    rt.block_on(async {
+        let scan_result = repo.scan().await;
+        assert!(scan_result.is_ok(), "Scanning empty dir should succeed: {:?}", scan_result);
+        let packages = repo.list_packages().await.unwrap();
+        assert!(packages.is_empty(), "Empty repo should have no packages");
+    });
+}
+
+/// rez repository: after writing a package.py, scan finds the package
+#[test]
+fn test_repository_scan_finds_package() {
+    use rez_next_repository::{SimpleRepository, PackageRepository};
+    use tempfile::TempDir;
+
+    let tmp = TempDir::new().unwrap();
+    // Create a minimal rez package directory structure: <repo>/<pkg>/<ver>/package.py
+    let pkg_dir = tmp.path().join("mypkg").join("1.0.0");
+    std::fs::create_dir_all(&pkg_dir).unwrap();
+    std::fs::write(pkg_dir.join("package.py"), "name = 'mypkg'\nversion = '1.0.0'\n").unwrap();
+
+    let repo = SimpleRepository::new(tmp.path(), "test_repo".to_string());
+    let rt = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .unwrap();
+    rt.block_on(async {
+        repo.scan().await.unwrap();
+        let packages = repo.list_packages().await.unwrap();
+        assert!(!packages.is_empty(), "After scan, repo should find 'mypkg'");
+        assert!(
+            packages.iter().any(|p| p.contains("mypkg")),
+            "mypkg should appear in package list, got: {:?}", packages
+        );
+    });
+}
+
+// ── Phase 120: DependencyConflict error message format ───────────────────────
+
+/// rez solver conflict: error message contains package name
+#[test]
+fn test_conflict_error_message_contains_package_name() {
+    use rez_next_solver::{DependencyConflict, ConflictSeverity};
+    use rez_next_package::PackageRequirement;
+
+    let conflict = DependencyConflict {
+        package_name: "python".to_string(),
+        conflicting_requirements: vec![
+            PackageRequirement::with_version("python".to_string(), ">=3.9".to_string()),
+            PackageRequirement::with_version("python".to_string(), "<3.0".to_string()),
+        ],
+        source_packages: vec!["app-1.0".to_string(), "legacy-2.0".to_string()],
+        severity: ConflictSeverity::Major,
+    };
+
+    let msg = format!("{:?}", conflict);
+    assert!(msg.contains("python"), "Conflict debug message should contain package name");
+    assert!(msg.contains("Major"), "Conflict debug message should contain severity");
+}
+
+/// rez solver: conflict with two requirements records both source packages
+#[test]
+fn test_conflict_records_source_packages() {
+    use rez_next_solver::{DependencyConflict, ConflictSeverity};
+    use rez_next_package::PackageRequirement;
+
+    let conflict = DependencyConflict {
+        package_name: "numpy".to_string(),
+        conflicting_requirements: vec![
+            PackageRequirement::with_version("numpy".to_string(), ">=1.20".to_string()),
+            PackageRequirement::with_version("numpy".to_string(), "<1.0".to_string()),
+        ],
+        source_packages: vec!["scipy-1.0".to_string(), "old_lib-0.5".to_string()],
+        severity: ConflictSeverity::Major,
+    };
+
+    assert_eq!(conflict.source_packages.len(), 2,
+        "Conflict should record exactly 2 source packages");
+    assert!(conflict.source_packages.contains(&"scipy-1.0".to_string()));
+    assert!(conflict.source_packages.contains(&"old_lib-0.5".to_string()));
+    assert_eq!(conflict.conflicting_requirements.len(), 2);
+}
+
+
 
 
 

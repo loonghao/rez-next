@@ -34,6 +34,8 @@ pub struct RexParser {
     error_re: Regex,
     /// Regex for `stop()` or `stop("message")`
     stop_re: Regex,
+    /// Regex for `comment('text')` or `comment("text")`
+    comment_fn_re: Regex,
 }
 
 impl RexParser {
@@ -94,6 +96,10 @@ impl RexParser {
             // stop() or stop('message') or stop("message")
             stop_re: Regex::new(
                 r#"^stop\s*\(\s*(?:['"]([^'"]*)['"]\s*)?\)"#
+            ).unwrap(),
+            // comment('text') or comment("text")
+            comment_fn_re: Regex::new(
+                r#"^comment\s*\(\s*['"]([^'"]*)['"]\s*\)"#
             ).unwrap(),
         }
     }
@@ -207,6 +213,13 @@ impl RexParser {
                 actions.push(RexAction {
                     action_type: RexActionType::Stop {
                         message: caps.get(1).map(|m| m.as_str().to_string()),
+                    },
+                    source_package: None,
+                });
+            } else if let Some(caps) = self.comment_fn_re.captures(line) {
+                actions.push(RexAction {
+                    action_type: RexActionType::Comment {
+                        text: caps[1].to_string(),
                     },
                     source_package: None,
                 });
