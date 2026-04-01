@@ -11,9 +11,9 @@
 use std::sync::Arc;
 use tempfile::TempDir;
 use rez_next_solver::{DependencyResolver, SolverConfig, DependencyGraph};
-use rez_next_package::{Package, PackageRequirement, Requirement};
+use rez_next_package::{PackageRequirement, Requirement};
 use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
-use rez_next_repository::PackageRepository;
+
 use rez_next_version::Version;
 
 /// Build a temporary package repository with multiple packages.

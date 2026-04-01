@@ -7,8 +7,7 @@
 use rez_core::version::{Version, VersionRange};
 use rez_next_package::{Package, PackageRequirement, Requirement};
 use rez_next_rex::{generate_shell_script, RexEnvironment, RexExecutor, ShellType};
-use rez_next_suites::{Suite, SuiteStatus, ToolConflictMode};
-use std::collections::HashMap;
+use rez_next_suites::{Suite, ToolConflictMode};
 
 // ─── Version compatibility tests ───────────────────────────────────────────
 
@@ -771,7 +770,7 @@ fn test_rex_append_path() {
 /// Rex: setenv_if_empty should not overwrite existing values
 #[test]
 fn test_rex_setenv_if_empty_no_overwrite() {
-    use rez_next_rex::{RexEnvironment, RexExecutor};
+    use rez_next_rex::RexExecutor;
 
     let mut exec = RexExecutor::new();
     // First set a value
@@ -1400,7 +1399,6 @@ fn test_rez_requirement_satisfaction_matrix() {
 fn test_solver_dcc_pipeline_scenario() {
     use rez_next_package::Requirement;
     use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
-    use rez_next_repository::PackageRepository;
     use rez_next_solver::{DependencyResolver, SolverConfig};
     use std::sync::Arc;
     use tempfile::TempDir;
@@ -1520,13 +1518,13 @@ fn test_package_requirement_rez_style_satisfied_by() {
 /// rez: verify version range cmp_at_depth semantics throughout the system
 #[test]
 fn test_version_depth_comparison_semantics() {
-    use rez_next_package::requirement::{Requirement, VersionConstraint};
+    use rez_next_package::requirement::VersionConstraint;
     use rez_next_version::Version;
 
     // Core rez semantics: 3 is "epoch 3" which encompasses 3.x.y
     let v_major = Version::parse("3").unwrap();
     let v_minor = Version::parse("3.11").unwrap();
-    let v_patch = Version::parse("3.11.0").unwrap();
+    let _v_patch = Version::parse("3.11.0").unwrap();
     let v_next_major = Version::parse("4").unwrap();
 
     // >=3 should match 3, 3.11, 3.11.0
@@ -2396,7 +2394,7 @@ fn test_source_activation_fish_set_gx_syntax() {
 #[test]
 fn test_source_write_tempfile_roundtrip() {
     use rez_next_rex::{generate_shell_script, RexEnvironment, ShellType};
-    use std::io::Write;
+    
 
     let mut env = RexEnvironment::new();
     env.vars.insert(
@@ -2827,8 +2825,8 @@ fn test_release_package_version_required() {
 #[test]
 fn test_release_package_roundtrip_yaml() {
     use rez_next_package::serialization::PackageSerializer;
-    use rez_next_package::Package;
-    use rez_next_version::Version;
+    
+    
 
     let dir = tempfile::tempdir().unwrap();
     let yaml_path = dir.path().join("package.yaml");
@@ -3204,7 +3202,7 @@ fn test_bind_force_replaces_existing() {
 /// rez bind: version not found returns VersionNotFound error
 #[test]
 fn test_bind_no_version_no_executable_fails() {
-    use rez_next_bind::{BindError, BindOptions, PackageBinder};
+    use rez_next_bind::{BindOptions, PackageBinder};
     use tempfile::TempDir;
 
     let tmp = TempDir::new().unwrap();
@@ -3521,7 +3519,7 @@ fn test_search_filter_regex_pattern() {
 #[test]
 fn test_depends_empty_repo_no_results() {
     use rez_next_package::Package;
-    use rez_next_version::Version;
+    
 
     // With no repository paths provided, result should be empty
     let packages: Vec<Package> = vec![];
@@ -3618,7 +3616,7 @@ fn test_depends_no_requires_no_dependants() {
 #[test]
 fn test_depends_version_range_filter() {
     use rez_next_package::{Package, PackageRequirement};
-    use rez_next_version::{Version, VersionRange};
+    use rez_next_version::Version;
 
     let mut old_pkg = Package::new("legacy_tool".to_string());
     old_pkg.version = Some(Version::parse("1.0").unwrap());
@@ -3828,7 +3826,7 @@ fn test_depends_deduplication() {
 fn test_search_result_latest_tracking() {
     use rez_next_search::SearchResult;
 
-    let mut versions = vec![
+    let versions = vec![
         "3.8".to_string(),
         "3.9".to_string(),
         "3.10".to_string(),
@@ -4569,7 +4567,7 @@ fn test_status_context_file_path_format() {
 /// rez solver: single package with no dependencies resolves immediately
 #[test]
 fn test_solver_single_package_no_deps() {
-    use rez_next_package::{Package, PackageRequirement};
+    use rez_next_package::Package;
     use rez_next_solver::DependencyGraph;
     use rez_next_version::Version;
 
@@ -4697,7 +4695,7 @@ fn test_solver_topological_sort_chain() {
 /// rez.resolved_context: context created from zero requirements has empty resolved_packages
 #[test]
 fn test_context_empty_requirements_has_no_packages() {
-    use rez_next_context::{ContextStatus, ResolvedContext};
+    use rez_next_context::ResolvedContext;
 
     let ctx = ResolvedContext::from_requirements(vec![]);
     assert!(
@@ -5409,7 +5407,7 @@ fn test_suite_two_contexts_tool_names() {
 /// Suite: status starts as Pending/Empty, transitions to Loaded after add
 #[test]
 fn test_suite_initial_status() {
-    use rez_next_suites::{Suite, SuiteStatus};
+    use rez_next_suites::Suite;
 
     let suite = Suite::new();
     assert!(suite.is_empty(), "New suite should be empty");
@@ -5990,7 +5988,7 @@ fn test_rez_package_build_requires_separate() {
 /// rez rex: prependenv should prepend with OS-correct separator
 #[test]
 fn test_rez_rex_prependenv_generates_prepend_syntax() {
-    use rez_next_rex::{generate_shell_script, RexEnvironment, RexExecutor, ShellType};
+    use rez_next_rex::{generate_shell_script, RexEnvironment, ShellType};
     let mut env = RexEnvironment::new();
     env.vars.insert("PATH".to_string(), "/new/bin".to_string());
     let script = generate_shell_script(&env, &ShellType::Bash);
@@ -6001,7 +5999,7 @@ fn test_rez_rex_prependenv_generates_prepend_syntax() {
 /// rez rex: setenv with empty value is valid (clears the variable)
 #[test]
 fn test_rez_rex_setenv_empty_value() {
-    use rez_next_rex::{generate_shell_script, RexEnvironment, RexExecutor, ShellType};
+    use rez_next_rex::{generate_shell_script, RexEnvironment, ShellType};
     let mut env = RexEnvironment::new();
     env.vars.insert("MY_VAR".to_string(), "".to_string());
     let script = generate_shell_script(&env, &ShellType::Bash);

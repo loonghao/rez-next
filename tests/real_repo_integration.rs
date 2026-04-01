@@ -341,7 +341,7 @@ fn test_solve_multiple_explicit_requests() {
 
 #[test]
 fn test_env_context_has_rez_variables() {
-    use rez_next_context::{ContextConfig, EnvironmentManager, ResolvedContext};
+    use rez_next_context::{ContextConfig, EnvironmentManager};
 
     let tmp = TempDir::new().unwrap();
     let repo_dir = tmp.path().to_path_buf();
@@ -376,8 +376,8 @@ fn test_env_context_has_rez_variables() {
 
 #[test]
 fn test_env_context_path_prepend() {
-    use rez_next_context::{ContextConfig, EnvironmentManager};
-    use rez_next_rex::RexExecutor;
+    
+    
 
     let tmp = TempDir::new().unwrap();
     let repo_dir = tmp.path().to_path_buf();

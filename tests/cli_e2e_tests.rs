@@ -56,6 +56,7 @@ fn rez_ok(args: &[&str]) -> String {
     stdout
 }
 
+#[allow(dead_code)]
 fn rez_fail(args: &[&str]) -> (String, String) {
     let out = rez(args);
     assert!(
