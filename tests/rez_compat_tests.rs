@@ -6454,7 +6454,7 @@ fn test_rex_environment_env_var_crud() {
     assert_eq!(env.vars.get("MY_VAR"), Some(&"updated".to_string()));
 
     env.vars.remove("MY_VAR");
-    assert!(env.vars.get("MY_VAR").is_none());
+    assert!(!env.vars.contains_key("MY_VAR"));
 }
 
 /// rez rex: generate_shell_script for zsh produces identical output as bash

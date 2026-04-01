@@ -11,7 +11,6 @@ use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use std::hint::black_box;
 use rez_next_package::Requirement;
 use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
-use rez_next_repository::PackageRepository;
 use rez_next_solver::{DependencyResolver, SolverConfig};
 use std::fs;
 use std::sync::Arc;
