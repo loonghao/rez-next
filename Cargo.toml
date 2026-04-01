@@ -173,12 +173,12 @@ unused_imports = "warn"
 dead_code = "warn"
 # Warn on unused variables (tightened from allow — cycle 10 cleanup)
 unused_variables = "warn"
-# Allow deprecated items during migration
-deprecated = "allow"
-# Allow ambiguous glob reexports during development
-ambiguous_glob_reexports = "allow"
-# Allow irrefutable let patterns
-irrefutable_let_patterns = "allow"
+# Warn on deprecated items (no deprecated attrs in codebase — tightened cycle 12)
+deprecated = "warn"
+# Warn on ambiguous glob reexports (tightened cycle 12)
+ambiguous_glob_reexports = "warn"
+# Warn on irrefutable let patterns (tightened cycle 12)
+irrefutable_let_patterns = "warn"
 # Warn on unused mut bindings (no instances found — tightened from allow)
 unused_mut = "warn"
 # Warn on unexpected cfg checks (tightened from allow — python-bindings cleanup complete)
