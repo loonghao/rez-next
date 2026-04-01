@@ -54,6 +54,17 @@
 - **Version system**: token comparison, caching, proper type distinction
 - None of these TODOs are blocking; they represent future work items.
 
+## Completed (2026-04-01, cycle 9)
+
+- [x] Deleted `batch.rs` (656 lines) — dead file, not in lib.rs module tree, no external references
+- [x] Deleted `cache.rs` (798 lines) — dead file, not in lib.rs module tree, no external references
+- [x] Deleted `dependency.rs` (851 lines) — dead file, not in lib.rs module tree, no external references
+- [x] Deleted `variant.rs` (716 lines) — dead file, not in lib.rs module tree, no external references
+- [x] Removed unused deps from rez-next-package: `lru`, `rayon`, `num_cpus`
+- [x] `unused_imports` lint: changed from `allow` to `warn`
+- [x] Removed 68 unused imports across 26 files (crates + CLI)
+- [x] Added `[lints] workspace = true` to `rez-next-python` and `rez-next-search` Cargo.toml
+
 ## Completed (2026-04-01, cycle 8)
 
 - [x] Deleted `version_token.rs` (371 lines) — dead pyo3 file, not in module tree
