@@ -539,3 +539,219 @@ fn test_requirement_from_str_rez_point_release() {
     assert!(!req.is_satisfied_by(&Version::parse("1.24.9").unwrap()),
         "1.24.9 does NOT satisfy point release numpy-1.25");
 }
+
+// ─── Solver version selection strategy tests ─────────────────────────────────
+
+/// prefer_latest=true (default): resolver picks highest available version
+#[test]
+fn test_resolver_prefer_latest_version() {
+    let (_tmp, repo) = build_test_repo(&[
+        ("numpy", "1.20.0", &[]),
+        ("numpy", "1.21.0", &[]),
+        ("numpy", "1.25.0", &[]),
+    ]);
+
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let config = SolverConfig {
+        prefer_latest: true,
+        ..SolverConfig::default()
+    };
+    let mut resolver = DependencyResolver::new(Arc::clone(&repo), config);
+
+    let reqs: Vec<Requirement> = vec!["numpy"].iter().map(|s| s.parse().unwrap()).collect();
+
+    let result = rt.block_on(resolver.resolve(reqs));
+    assert!(result.is_ok(), "Resolver should succeed with multiple numpy versions");
+
+    let resolution = result.unwrap();
+    assert_eq!(resolution.resolved_packages.len(), 1);
+
+    let ver = resolution.resolved_packages[0].package.version.as_ref()
+        .map(|v| v.as_str());
+    assert_eq!(ver, Some("1.25.0"), "prefer_latest should pick numpy-1.25.0");
+}
+
+/// prefer_latest=false: resolver picks lowest available version (oldest first)
+#[test]
+fn test_resolver_prefer_oldest_version() {
+    let (_tmp, repo) = build_test_repo(&[
+        ("scipy", "1.8.0", &[]),
+        ("scipy", "1.9.0", &[]),
+        ("scipy", "1.11.0", &[]),
+    ]);
+
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let config = SolverConfig {
+        prefer_latest: false,
+        ..SolverConfig::default()
+    };
+    let mut resolver = DependencyResolver::new(Arc::clone(&repo), config);
+
+    let reqs: Vec<Requirement> = vec!["scipy"].iter().map(|s| s.parse().unwrap()).collect();
+
+    let resolution = rt.block_on(resolver.resolve(reqs)).expect("Resolver should succeed");
+    assert_eq!(resolution.resolved_packages.len(), 1);
+
+    let ver = resolution.resolved_packages[0].package.version.as_ref()
+        .map(|v| v.as_str());
+    assert_eq!(ver, Some("1.8.0"), "prefer_latest=false should pick scipy-1.8.0");
+}
+
+/// Resolution statistics: packages_considered > 0 after a successful resolve
+#[test]
+fn test_resolver_stats_populated() {
+    let (_tmp, repo) = build_test_repo(&[
+        ("python", "3.11.0", &[]),
+        ("numpy", "1.25.0", &["python-3+"]),
+    ]);
+
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let config = SolverConfig::default();
+    let mut resolver = DependencyResolver::new(Arc::clone(&repo), config);
+
+    let reqs: Vec<Requirement> = vec!["numpy"].iter().map(|s| s.parse().unwrap()).collect();
+
+    let result = rt.block_on(resolver.resolve(reqs)).expect("Resolver should succeed");
+
+    assert!(result.stats.packages_considered > 0,
+        "packages_considered should be > 0 after resolving numpy+python");
+    assert!(result.stats.resolution_time_ms < 30_000,
+        "Resolution time should be reasonable (<30s), got {}ms", result.stats.resolution_time_ms);
+}
+
+/// Resolution with explicit version upper bound: only picks versions within range
+#[test]
+fn test_resolver_version_upper_bound_respected() {
+    let (_tmp, repo) = build_test_repo(&[
+        ("python", "3.9.0", &[]),
+        ("python", "3.10.0", &[]),
+        ("python", "3.11.0", &[]),
+        ("python", "3.12.0", &[]),
+    ]);
+
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let config = SolverConfig::default();
+    let mut resolver = DependencyResolver::new(Arc::clone(&repo), config);
+
+    // Request python-3.9+<3.12: 3.9, 3.10, 3.11 valid, 3.12 excluded
+    let reqs: Vec<Requirement> = vec!["python-3.9+<3.12"]
+        .iter()
+        .map(|s| s.parse().unwrap())
+        .collect();
+
+    let result = rt.block_on(resolver.resolve(reqs)).expect("Resolver should succeed");
+    assert_eq!(result.resolved_packages.len(), 1);
+
+    let ver = result.resolved_packages[0].package.version.as_ref()
+        .map(|v| v.as_str());
+    // prefer_latest picks the highest satisfying version: 3.11.0
+    assert_eq!(ver, Some("3.11.0"),
+        "python-3.9+<3.12 with prefer_latest should pick 3.11.0, got {:?}", ver);
+}
+
+// ─── DependencyGraph topology tests ──────────────────────────────────────────
+
+/// DependencyGraph: add packages and edges, verify node count and stats
+#[test]
+fn test_dependency_graph_add_packages_and_edges() {
+    use rez_next_package::Package;
+    use rez_next_solver::DependencyGraph;
+
+    let mut pkg_a = Package::new("A".to_string());
+    pkg_a.version = Some(Version::parse("1.0.0").unwrap());
+    let mut pkg_b = Package::new("B".to_string());
+    pkg_b.version = Some(Version::parse("1.0.0").unwrap());
+
+    let mut graph = DependencyGraph::new();
+    graph.add_package(pkg_a).unwrap();
+    graph.add_package(pkg_b).unwrap();
+    graph.add_dependency_edge("A-1.0.0", "B-1.0.0").unwrap();
+
+    let stats = graph.get_stats();
+    assert_eq!(stats.node_count, 2, "Graph should have 2 nodes");
+    assert_eq!(stats.edge_count, 1, "Graph should have 1 directed edge");
+    assert_eq!(stats.conflict_count, 0, "No requirements → no conflicts");
+}
+
+/// DependencyGraph: topological sort correctness
+#[test]
+fn test_dependency_graph_topological_sort() {
+    use rez_next_package::Package;
+    use rez_next_solver::DependencyGraph;
+
+    // Build linear chain: C <- B <- A (A depends on B, B depends on C)
+    let make_pkg = |name: &str, ver: &str| {
+        let mut pkg = Package::new(name.to_string());
+        pkg.version = Some(Version::parse(ver).unwrap());
+        pkg
+    };
+
+    let mut graph = DependencyGraph::new();
+    graph.add_package(make_pkg("A", "1.0")).unwrap();
+    graph.add_package(make_pkg("B", "1.0")).unwrap();
+    graph.add_package(make_pkg("C", "1.0")).unwrap();
+    graph.add_dependency_edge("A-1.0", "B-1.0").unwrap();
+    graph.add_dependency_edge("B-1.0", "C-1.0").unwrap();
+
+    let resolved = graph.get_resolved_packages().unwrap();
+    assert_eq!(resolved.len(), 3, "All 3 packages should be in topological sort");
+
+    // In topological order, A comes before B, B before C
+    // (nodes with no incoming edges = A → C is deepest)
+    let names: Vec<&str> = resolved.iter().map(|p| p.name.as_str()).collect();
+    let pos_a = names.iter().position(|&n| n == "A").unwrap();
+    let pos_b = names.iter().position(|&n| n == "B").unwrap();
+    let pos_c = names.iter().position(|&n| n == "C").unwrap();
+    assert!(pos_a < pos_b, "A should come before B in topological order");
+    assert!(pos_b < pos_c, "B should come before C in topological order");
+}
+
+/// DependencyGraph: clear() resets to empty state
+#[test]
+fn test_dependency_graph_clear() {
+    use rez_next_package::Package;
+    use rez_next_solver::DependencyGraph;
+
+    let mut pkg = Package::new("X".to_string());
+    pkg.version = Some(Version::parse("1.0").unwrap());
+
+    let mut graph = DependencyGraph::new();
+    graph.add_package(pkg).unwrap();
+    graph.add_requirement(
+        PackageRequirement::with_version("Y".to_string(), ">=2.0".to_string())
+    ).unwrap();
+    graph.add_constraint(
+        PackageRequirement::with_version("Z".to_string(), ">=1.0".to_string())
+    ).unwrap();
+
+    let stats_before = graph.get_stats();
+    assert_eq!(stats_before.node_count, 1);
+    assert_eq!(stats_before.constraint_count, 1);
+
+    graph.clear();
+    let stats_after = graph.get_stats();
+    assert_eq!(stats_after.node_count, 0, "After clear(), node_count should be 0");
+    assert_eq!(stats_after.edge_count, 0, "After clear(), edge_count should be 0");
+    assert_eq!(stats_after.conflict_count, 0, "After clear(), conflict_count should be 0");
+    assert_eq!(stats_after.constraint_count, 0, "After clear(), constraint_count should be 0");
+}
+
+/// DependencyGraph: exclusion prevents adding excluded package
+#[test]
+fn test_dependency_graph_exclusion() {
+    use rez_next_package::Package;
+    use rez_next_solver::DependencyGraph;
+
+    let mut graph = DependencyGraph::new();
+    graph.add_exclusion("banned_pkg".to_string()).unwrap();
+
+    let mut banned = Package::new("banned_pkg".to_string());
+    banned.version = Some(Version::parse("1.0").unwrap());
+
+    let result = graph.add_package(banned);
+    assert!(result.is_err(), "Adding excluded package should return Err");
+
+    let stats = graph.get_stats();
+    assert_eq!(stats.exclusion_count, 1, "exclusion_count should be 1");
+    assert_eq!(stats.node_count, 0, "Excluded package should not be in graph");
+}
