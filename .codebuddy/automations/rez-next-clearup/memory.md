@@ -1,41 +1,44 @@
 # rez-next cleanup 执行记录
 
-## 最新执行 (2026-04-01 02:54, 第五轮)
+## 最新执行 (2026-04-01 09:31, 第七轮)
 
 ### 执行摘要
-本轮清理聚焦于 CLEANUP_TODO.md 高优先级 #1：**python-bindings feature 大清理**。完成了 Phase 1（lib.rs 文件和结构性代码），Phase 2（源文件 impl 块）的一半。
+本轮完成了 **python-bindings 大清理的最终阶段** — `version.rs` 双门控合并（最复杂的单文件）。同时清理了所有剩余的 cfg_attr/cfg gates、注释残留。
 
-#### 阶段 1：过期代码清理 — python-bindings feature gates
+**python-bindings 清理现已 100% 完成**，crates 目录下（排除 rez-next-python）零残留。
 
-**Commit 1** (`d718913`): 9 files, -459 lines
-- 6 crate `lib.rs` 文件: 移除 `#[pymodule]`, `use pyo3`, 条件 `pub mod`, 条件 re-exports
-- `rez-next-common/error.rs`: 移除 `PyO3` error variant 和 `create_exception!`
-- `rez-next-common/config.rs`: 移除 `cfg_attr(pyclass)`, 合并双 impl
-- `rez-next-version/tests/version_token_tests.rs`: 清空死测试模块
-- `rez-next-package/lib.rs`: 移除 6 条件 mod, 7 re-exports, pymodule 块, 6 死测试
+#### 阶段 1：过期代码清理
 
-**Commit 2** (`e4d49bb`): 6 files, -221 lines
-- `solver.rs`: 移除 `#[pymethods]` impl, `use pyo3`, `cfg_attr pyclass`
-- `builder.rs`: 移除 `#[pymethods]` impl (build_package_py 等)
-- `process.rs`: 移除 `#[pymethods]` impl (getters)
-- `repository.rs`: 移除 `cfg_attr pyclass/pymethods/new/getter`
-- `filesystem.rs`: 移除 `cfg_attr pyclass/pymethods/new/getter`
-- `context.rs`: 移除 `#[pymethods]` impl, 6 双门控结构体字段
+**Commit 1** (`fbea1e2`): 12 files, -1005 lines (+70 refactored)
+- `version.rs`: 完整双门控合并 — 移除 ~850 行：
+  - 整个 `#[pymethods]` impl 块 (230 行)
+  - 双 struct fields (Vec<PyObject> vs Vec<String>)
+  - 双 `parse()`, `Clone`, `compare_rez()`, `is_prerelease()`, `compare_token_strings()`, `reconstruct_string()`
+  - Python helpers: `create_version_with_python_tokens`, `extract_token_strings_gil_free`, `parse_optimized`, `parse_legacy_simulation`, `parse_with_gil_release`, `cmp_with_gil_release`
+  - `OPTIMIZED_PARSER` static, imports: pyo3, PyTuple, AlphanumericVersionToken, once_cell, StateMachineParser
+- `parser.rs`: 移除 `use VersionToken` 和 `parse_tokens()` 死方法
+- `environment.rs`: 移除注释掉的 `#[pyclass]` 和 `/* #[pymethods] ... */` 块
+- `shell.rs`: 移除 `// use pyo3::prelude::*;` 注释
+- `context/lib.rs`: 移除注释掉的 pyo3 import 和 pymodule 块
+- `batch.rs`: 移除 `use pyo3` 和 12 个 `cfg_attr` 注解
+- `cache.rs`: 移除 `use pyo3` 和 6 个 `cfg_attr` 注解
+- `dependency.rs`: 移除 3 个 `cfg_attr` 注解
+- `version/lib.rs`: 移除过时文档行
 
-**Commit 3** (`b536915`): 更新 CLEANUP_TODO.md 记录进度
+**Commit 2** (`e52a09c`): 更新 CLEANUP_TODO.md
+**Commit 3** (`52534b4`): 移除 Cargo.toml 中过时的 pyo3 注释
 
 ### 基线状态
 - **分支**: `auto-improve`（已推送）
 - **测试**: 1290 passed, 0 failed（与清理前基线一致）
-- **Clippy**: 0 errors
-- **删除行数**: ~680 lines（本轮清理）
+- **删除行数**: ~935 lines（本轮 version.rs 合并 + 残留清理）
+- **python-bindings 总计**: ~2400 lines removed across 7 cycles
 
 ### 下一轮重点
-1. **python-bindings Phase 2**：清理 `version.rs`（19 blocks）, `package.rs`（10）, `variant.rs`（8）中的双门控代码
-2. **孤立文件评估**：`batch.rs`, `cache.rs`, `dependency.rs`, `management.rs`, `validation.rs`, `variant.rs` 不再被 lib.rs 引用
-3. **cfg_attr 清理**：`dependency.rs`(13), `cache.rs`(8), `batch.rs`(11) 中的 `cfg_attr` 注解
-4. **lint 配置收紧**：将 `dead_code` 从 `allow` 改为 `warn`
+1. **#2 Lint 配置收紧**: 将 `unexpected_cfgs = "allow"` 改为 `warn`（python-bindings 已清理完毕）
+2. **#5 孤立 pyo3 文件**: `validation.rs`/`management.rs` 无条件使用 pyo3，`version_token.rs`/`token.rs` 整文件 pyo3
+3. **#3 重复 ResolutionResult**: 合并三个同名结构体
 
 ### 注意事项
-- `version.rs`/`package.rs`/`variant.rs` 中有复杂的双门控模式（python 版 vs non-python 版的 fields/Clone/parse/compare），需仔细合并
-- 迭代 Agent 同时在 `auto-improve` 分支活跃，需注意合并冲突
+- `version_token.rs` 和 `token.rs` 包含 pyo3 pyclass 定义，但不从 lib.rs 导出 — 可能是 rez-next-python 通过 `use rez_next_version::*` 间接使用
+- `validation.rs` 和 `management.rs` 的 pyo3 清理风险高，需要 rez-next-python 同步修改
