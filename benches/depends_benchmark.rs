@@ -3,7 +3,8 @@
 //! Measures the cost of scanning a synthetic package set to find
 //! all packages that depend on a given target package name.
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
+use std::hint::black_box;
 use rez_next_package::Package;
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -74,13 +75,11 @@ fn bench_package_construction(c: &mut Criterion) {
 
 /// Benchmark: requirement string parsing (core of depends analysis).
 fn bench_requirement_string_ops(c: &mut Criterion) {
-    let req_strings = vec![
-        "python-3+",
+    let req_strings = ["python-3+",
         "numpy-1.20+<2",
         "maya-2024",
         "houdini-20+",
-        "nuke-13.2+<14",
-    ];
+        "nuke-13.2+<14"];
     c.bench_function("depends_requirement_string_match_batch", |b| {
         b.iter(|| {
             req_strings

@@ -8,7 +8,8 @@
 //! - Caching mechanisms
 //! - Execution statistics and performance monitoring
 
-use criterion::{black_box, BenchmarkId, Criterion, Throughput};
+use criterion::{BenchmarkId, Criterion, Throughput};
+use std::hint::black_box;
 use rez_next_common::RezCoreError;
 use rez_next_context::{
     ContextBuilder, ContextConfig, ContextExecution, ContextFormat, ContextSerialization,

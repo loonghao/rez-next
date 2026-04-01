@@ -64,7 +64,7 @@ fn test_diamond_dependency_compatible() {
     let config = SolverConfig::default();
     let mut resolver = DependencyResolver::new(Arc::clone(&repo), config);
 
-    let reqs: Vec<Requirement> = vec!["my_lib"]
+    let reqs: Vec<Requirement> = ["my_lib"]
         .iter()
         .map(|s| s.parse().unwrap())
         .collect();
@@ -99,7 +99,7 @@ fn test_diamond_dependency_same_range_unifies() {
     let config = SolverConfig::default();
     let mut resolver = DependencyResolver::new(Arc::clone(&repo), config);
 
-    let reqs: Vec<Requirement> = vec!["A"]
+    let reqs: Vec<Requirement> = ["A"]
         .iter()
         .map(|s| s.parse().unwrap())
         .collect();
@@ -218,7 +218,7 @@ fn test_transitive_chain_resolution() {
     let config = SolverConfig::default();
     let mut resolver = DependencyResolver::new(Arc::clone(&repo), config);
 
-    let reqs: Vec<Requirement> = vec!["A"]
+    let reqs: Vec<Requirement> = ["A"]
         .iter()
         .map(|s| s.parse().unwrap())
         .collect();
@@ -252,7 +252,7 @@ fn test_multiple_root_requirements_shared_dep() {
     let mut resolver = DependencyResolver::new(Arc::clone(&repo), config);
 
     // Request both pandas and matplotlib (they share python and numpy)
-    let reqs: Vec<Requirement> = vec!["pandas", "matplotlib"]
+    let reqs: Vec<Requirement> = ["pandas", "matplotlib"]
         .iter()
         .map(|s| s.parse().unwrap())
         .collect();
@@ -308,7 +308,7 @@ fn test_resolver_unknown_package_graceful() {
     let config = SolverConfig::default();
     let mut resolver = DependencyResolver::new(Arc::clone(&repo), config);
 
-    let reqs: Vec<Requirement> = vec!["totally_nonexistent_xyz_12345"]
+    let reqs: Vec<Requirement> = ["totally_nonexistent_xyz_12345"]
         .iter()
         .map(|s| s.parse().unwrap())
         .collect();
@@ -389,7 +389,7 @@ fn test_vfx_pipeline_shared_python_resolve() {
     let mut resolver = DependencyResolver::new(Arc::clone(&repo), config);
 
     // Request both maya and houdini
-    let reqs: Vec<Requirement> = vec!["maya", "houdini"]
+    let reqs: Vec<Requirement> = ["maya", "houdini"]
         .iter()
         .map(|s| s.parse().unwrap())
         .collect();
@@ -558,7 +558,7 @@ fn test_resolver_prefer_latest_version() {
     };
     let mut resolver = DependencyResolver::new(Arc::clone(&repo), config);
 
-    let reqs: Vec<Requirement> = vec!["numpy"].iter().map(|s| s.parse().unwrap()).collect();
+    let reqs: Vec<Requirement> = ["numpy"].iter().map(|s| s.parse().unwrap()).collect();
 
     let result = rt.block_on(resolver.resolve(reqs));
     assert!(result.is_ok(), "Resolver should succeed with multiple numpy versions");
@@ -587,7 +587,7 @@ fn test_resolver_prefer_oldest_version() {
     };
     let mut resolver = DependencyResolver::new(Arc::clone(&repo), config);
 
-    let reqs: Vec<Requirement> = vec!["scipy"].iter().map(|s| s.parse().unwrap()).collect();
+    let reqs: Vec<Requirement> = ["scipy"].iter().map(|s| s.parse().unwrap()).collect();
 
     let resolution = rt.block_on(resolver.resolve(reqs)).expect("Resolver should succeed");
     assert_eq!(resolution.resolved_packages.len(), 1);
@@ -609,7 +609,7 @@ fn test_resolver_stats_populated() {
     let config = SolverConfig::default();
     let mut resolver = DependencyResolver::new(Arc::clone(&repo), config);
 
-    let reqs: Vec<Requirement> = vec!["numpy"].iter().map(|s| s.parse().unwrap()).collect();
+    let reqs: Vec<Requirement> = ["numpy"].iter().map(|s| s.parse().unwrap()).collect();
 
     let result = rt.block_on(resolver.resolve(reqs)).expect("Resolver should succeed");
 
@@ -634,7 +634,7 @@ fn test_resolver_version_upper_bound_respected() {
     let mut resolver = DependencyResolver::new(Arc::clone(&repo), config);
 
     // Request python-3.9+<3.12: 3.9, 3.10, 3.11 valid, 3.12 excluded
-    let reqs: Vec<Requirement> = vec!["python-3.9+<3.12"]
+    let reqs: Vec<Requirement> = ["python-3.9+<3.12"]
         .iter()
         .map(|s| s.parse().unwrap())
         .collect();

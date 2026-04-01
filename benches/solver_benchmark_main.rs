@@ -90,7 +90,7 @@ fn quick_solver_benchmark(c: &mut Criterion) {
                     requirements: scenario.requirements.clone(),
                     config: rez_next_solver::SolverConfig::default(),
                 };
-                criterion::black_box(solver.resolve(criterion::black_box(request)))
+                std::hint::black_box(solver.resolve(std::hint::black_box(request)))
             });
         });
     }
@@ -104,7 +104,7 @@ fn quick_solver_benchmark(c: &mut Criterion) {
                     requirements: scenario.conflicting_requirements.clone(),
                     config: rez_next_solver::SolverConfig::default(),
                 };
-                criterion::black_box(solver.resolve(criterion::black_box(request)))
+                std::hint::black_box(solver.resolve(std::hint::black_box(request)))
             });
         });
     }

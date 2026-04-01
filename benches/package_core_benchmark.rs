@@ -2,7 +2,8 @@
 //!
 //! A minimal benchmark for the Package system focusing on core functionality
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
+use std::hint::black_box;
 use std::collections::HashMap;
 
 // Simplified Package structure for benchmarking without Python dependencies

@@ -7,13 +7,13 @@
 //! - Requirement parsing throughput
 //! - Comparison of A* vs greedy resolution strategies
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
+use std::hint::black_box;
 use rez_next_package::Requirement;
 use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
 use rez_next_repository::PackageRepository;
 use rez_next_solver::{DependencyResolver, SolverConfig};
 use std::fs;
-use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 use tempfile::TempDir;
@@ -25,7 +25,7 @@ fn make_rt() -> tokio::runtime::Runtime {
 }
 
 /// Create a package.py file at `<repo_dir>/<name>/<version>/package.py`
-fn create_package(repo_dir: &PathBuf, name: &str, version: &str, requires: &[&str]) {
+fn create_package(repo_dir: &std::path::Path, name: &str, version: &str, requires: &[&str]) {
     let pkg_dir = repo_dir.join(name).join(version);
     fs::create_dir_all(&pkg_dir).unwrap();
 

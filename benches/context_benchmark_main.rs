@@ -89,7 +89,7 @@ fn quick_context_benchmark(c: &mut Criterion) {
                 let builder = rez_next_context::ContextBuilder::new()
                     .requirements(scenario.requirements.clone())
                     .config(scenario.config.clone());
-                criterion::black_box(builder.build())
+                std::hint::black_box(builder.build())
             });
         });
     }
@@ -99,7 +99,7 @@ fn quick_context_benchmark(c: &mut Criterion) {
         group.bench_function("quick_env_generation", |b| {
             let env_manager = rez_next_context::EnvironmentManager::new(scenario.config.clone());
             b.iter(|| {
-                criterion::black_box(env_manager.generate_environment_sync(&scenario.packages))
+                std::hint::black_box(env_manager.generate_environment_sync(&scenario.packages))
             });
         });
     }

@@ -9,7 +9,8 @@
 //! - Cache preheating and adaptive tuning performance
 //! - Cache monitoring and performance validation
 
-use criterion::{black_box, BenchmarkId, Criterion, Throughput};
+use criterion::{BenchmarkId, Criterion, Throughput};
+use std::hint::black_box;
 use rez_next_build::{
     BuildConfig, BuildEnvironment, BuildManager, BuildOptions, BuildProcess, BuildRequest,
     BuildStats, BuildSystem, BuildVerbosity,

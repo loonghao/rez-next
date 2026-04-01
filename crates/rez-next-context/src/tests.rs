@@ -113,8 +113,10 @@ mod context_tests {
 
     #[test]
     fn test_env_manager_no_inherit() {
-        let mut cfg = ContextConfig::default();
-        cfg.inherit_parent_env = false;
+        let cfg = ContextConfig {
+            inherit_parent_env: false,
+            ..Default::default()
+        };
         let mgr = EnvironmentManager::new(cfg);
         let rt = tokio::runtime::Runtime::new().unwrap();
         let vars = rt.block_on(mgr.generate_environment(&[])).unwrap();
@@ -124,8 +126,10 @@ mod context_tests {
 
     #[test]
     fn test_env_manager_sets_package_root() {
-        let mut cfg = ContextConfig::default();
-        cfg.inherit_parent_env = false;
+        let cfg = ContextConfig {
+            inherit_parent_env: false,
+            ..Default::default()
+        };
         let mgr = EnvironmentManager::new(cfg);
         let pkg = make_package("python", "3.9.0");
         let rt = tokio::runtime::Runtime::new().unwrap();
@@ -135,8 +139,10 @@ mod context_tests {
 
     #[test]
     fn test_env_manager_sets_version_var() {
-        let mut cfg = ContextConfig::default();
-        cfg.inherit_parent_env = false;
+        let cfg = ContextConfig {
+            inherit_parent_env: false,
+            ..Default::default()
+        };
         let mgr = EnvironmentManager::new(cfg);
         let pkg = make_package("maya", "2023.0");
         let rt = tokio::runtime::Runtime::new().unwrap();
@@ -149,10 +155,13 @@ mod context_tests {
 
     #[test]
     fn test_env_manager_additional_vars() {
-        let mut cfg = ContextConfig::default();
-        cfg.inherit_parent_env = false;
-        cfg.additional_env_vars
-            .insert("CUSTOM_VAR".to_string(), "custom_value".to_string());
+        let mut additional_env_vars = std::collections::HashMap::new();
+        additional_env_vars.insert("CUSTOM_VAR".to_string(), "custom_value".to_string());
+        let cfg = ContextConfig {
+            inherit_parent_env: false,
+            additional_env_vars,
+            ..Default::default()
+        };
         let mgr = EnvironmentManager::new(cfg);
         let rt = tokio::runtime::Runtime::new().unwrap();
         let vars = rt.block_on(mgr.generate_environment(&[])).unwrap();
@@ -164,11 +173,14 @@ mod context_tests {
 
     #[test]
     fn test_env_manager_unset_vars() {
-        let mut cfg = ContextConfig::default();
-        cfg.inherit_parent_env = false;
-        cfg.additional_env_vars
-            .insert("TO_REMOVE".to_string(), "should_be_gone".to_string());
-        cfg.unset_vars.push("TO_REMOVE".to_string());
+        let mut additional_env_vars = std::collections::HashMap::new();
+        additional_env_vars.insert("TO_REMOVE".to_string(), "should_be_gone".to_string());
+        let cfg = ContextConfig {
+            inherit_parent_env: false,
+            additional_env_vars,
+            unset_vars: vec!["TO_REMOVE".to_string()],
+            ..Default::default()
+        };
         let mgr = EnvironmentManager::new(cfg);
         let rt = tokio::runtime::Runtime::new().unwrap();
         let vars = rt.block_on(mgr.generate_environment(&[])).unwrap();
@@ -177,8 +189,10 @@ mod context_tests {
 
     #[test]
     fn test_env_manager_multiple_packages() {
-        let mut cfg = ContextConfig::default();
-        cfg.inherit_parent_env = false;
+        let cfg = ContextConfig {
+            inherit_parent_env: false,
+            ..Default::default()
+        };
         let mgr = EnvironmentManager::new(cfg);
         let packages = vec![
             make_package("python", "3.9.0"),
@@ -385,8 +399,10 @@ mod activation_script_tests {
     }
 
     fn make_mgr(shell_type: ShellType) -> EnvironmentManager {
-        let mut cfg = ContextConfig::default();
-        cfg.shell_type = shell_type;
+        let cfg = ContextConfig {
+            shell_type,
+            ..Default::default()
+        };
         EnvironmentManager::new(cfg)
     }
 
@@ -754,11 +770,15 @@ mod execution_tests {
     /// ExecutionConfig with custom values
     #[test]
     fn test_execution_config_custom() {
-        let mut cfg = ExecutionConfig::default();
-        cfg.shell_type = ShellType::Bash;
-        cfg.timeout_seconds = 60;
-        cfg.working_directory = Some(PathBuf::from("/tmp"));
-        cfg.additional_env_vars.insert("MY_VAR".to_string(), "hello".to_string());
+        let mut additional_env_vars = std::collections::HashMap::new();
+        additional_env_vars.insert("MY_VAR".to_string(), "hello".to_string());
+        let cfg = ExecutionConfig {
+            shell_type: ShellType::Bash,
+            timeout_seconds: 60,
+            working_directory: Some(PathBuf::from("/tmp")),
+            additional_env_vars,
+            ..Default::default()
+        };
         assert_eq!(cfg.timeout_seconds, 60);
         assert!(cfg.working_directory.is_some());
         assert_eq!(cfg.additional_env_vars.get("MY_VAR"), Some(&"hello".to_string()));

@@ -6,7 +6,8 @@
 //! - Bulk package requirement parsing after pip conversion
 //! - Pip-converted package resolution simulation
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
+use std::hint::black_box;
 use rez_core::version::{Version, VersionRange};
 use rez_next_package::{Package, PackageRequirement};
 

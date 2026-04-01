@@ -235,7 +235,7 @@ fn generate_powershell_script(env: &RexEnvironment) -> String {
 mod tests {
     use super::*;
     use crate::RexEnvironment;
-    use std::collections::HashMap;
+    
 
     fn make_env() -> RexEnvironment {
         let mut env = RexEnvironment::new();

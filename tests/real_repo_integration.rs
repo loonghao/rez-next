@@ -6,11 +6,11 @@
 
 use rez_next_package::{Package, Requirement};
 use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
+#[allow(unused_imports)]
 use rez_next_repository::PackageRepository;
 use rez_next_solver::{DependencyResolver, SolverConfig};
 use rez_next_version::Version;
 use std::fs;
-use std::path::PathBuf;
 use std::sync::Arc;
 use tempfile::TempDir;
 
@@ -18,7 +18,7 @@ use tempfile::TempDir;
 
 /// Create a minimal package.py in a temp repo at `<repo>/<name>/<version>/package.py`
 fn create_package(
-    repo_dir: &PathBuf,
+    repo_dir: &std::path::Path,
     name: &str,
     version: &str,
     requires: &[&str],
@@ -87,10 +87,10 @@ description = "Test package {name}-{version}"
 }
 
 /// Build a RepositoryManager from a single temp dir
-fn make_repo(dir: &PathBuf) -> Arc<RepositoryManager> {
+fn make_repo(dir: &std::path::Path) -> Arc<RepositoryManager> {
     let mut mgr = RepositoryManager::new();
     if dir.exists() {
-        mgr.add_repository(Box::new(SimpleRepository::new(dir.clone(), "test_repo".to_string())));
+        mgr.add_repository(Box::new(SimpleRepository::new(dir, "test_repo".to_string())));
     }
     Arc::new(mgr)
 }
@@ -542,7 +542,7 @@ fn test_full_pipeline_e2e() {
     let rt = tokio::runtime::Runtime::new().unwrap();
     let config = SolverConfig::default();
     let mut resolver = DependencyResolver::new(Arc::clone(&repo), config);
-    let requirements: Vec<Requirement> = vec!["scipy"]
+    let requirements: Vec<Requirement> = ["scipy"]
         .iter()
         .map(|s| s.parse::<Requirement>().unwrap())
         .collect();
@@ -598,7 +598,7 @@ fn test_solve_conflict_detection() {
 
     let repo = make_repo(&repo_dir);
 
-    let requirements: Vec<Requirement> = vec!["python-3.11", "oldlib"]
+    let requirements: Vec<Requirement> = ["python-3.11", "oldlib"]
         .iter()
         .map(|s| s.parse::<Requirement>().unwrap())
         .collect();

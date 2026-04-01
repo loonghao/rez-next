@@ -460,7 +460,7 @@ mod tests {
         let config = SolverConfig::default();
         let search = AStarSearch::new(repo_manager, config, Duration::from_secs(30), 1000);
 
-        let mut pkg_no_deps = Package::new("no_deps".to_string());
+        let pkg_no_deps = Package::new("no_deps".to_string());
         let mut pkg_with_deps = Package::new("with_deps".to_string());
         pkg_with_deps.requires.push("dep1".to_string());
         pkg_with_deps.requires.push("dep2".to_string());

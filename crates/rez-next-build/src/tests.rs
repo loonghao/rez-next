@@ -4,7 +4,7 @@
 //! BuildOptions, BuildRequest, BuildConfig defaults, etc.
 
 #[cfg(test)]
-mod tests {
+mod build_tests {
     use crate::*;
     use rez_next_package::Package;
     use std::collections::HashMap;
@@ -137,7 +137,7 @@ mod tests {
             "cmake_minimum_required(VERSION 3.0)",
         )
         .unwrap();
-        let system = BuildSystem::detect(&tmp.path().to_path_buf());
+        let system = BuildSystem::detect(tmp.path());
         assert!(system.is_ok());
         assert!(matches!(system.unwrap(), BuildSystem::CMake(_)));
     }
@@ -146,7 +146,7 @@ mod tests {
     fn test_detect_python_build_system_setup_py() {
         let tmp = TempDir::new().unwrap();
         std::fs::write(tmp.path().join("setup.py"), "from setuptools import setup").unwrap();
-        let system = BuildSystem::detect(&tmp.path().to_path_buf());
+        let system = BuildSystem::detect(tmp.path());
         assert!(system.is_ok());
         assert!(matches!(system.unwrap(), BuildSystem::Python(_)));
     }
@@ -160,7 +160,7 @@ mod tests {
         )
         .unwrap();
         // No CMakeLists.txt or Makefile, so Python should be detected
-        let system = BuildSystem::detect(&tmp.path().to_path_buf());
+        let system = BuildSystem::detect(tmp.path());
         assert!(system.is_ok());
         assert!(matches!(system.unwrap(), BuildSystem::Python(_)));
     }
@@ -173,7 +173,7 @@ mod tests {
             r#"{"name":"mypkg","version":"1.0.0"}"#,
         )
         .unwrap();
-        let system = BuildSystem::detect(&tmp.path().to_path_buf());
+        let system = BuildSystem::detect(tmp.path());
         assert!(system.is_ok());
         assert!(matches!(system.unwrap(), BuildSystem::NodeJs(_)));
     }
@@ -186,7 +186,7 @@ mod tests {
             "[package]\nname = \"mypkg\"\nversion = \"0.1.0\"",
         )
         .unwrap();
-        let system = BuildSystem::detect(&tmp.path().to_path_buf());
+        let system = BuildSystem::detect(tmp.path());
         assert!(system.is_ok());
         assert!(matches!(system.unwrap(), BuildSystem::Cargo(_)));
     }
@@ -195,7 +195,7 @@ mod tests {
     fn test_detect_makefile_build_system() {
         let tmp = TempDir::new().unwrap();
         std::fs::write(tmp.path().join("Makefile"), "all:\n\techo build").unwrap();
-        let system = BuildSystem::detect(&tmp.path().to_path_buf());
+        let system = BuildSystem::detect(tmp.path());
         assert!(system.is_ok());
         assert!(matches!(system.unwrap(), BuildSystem::Make(_)));
     }
@@ -204,7 +204,7 @@ mod tests {
     fn test_detect_custom_build_script() {
         let tmp = TempDir::new().unwrap();
         std::fs::write(tmp.path().join("build.sh"), "#!/bin/bash\necho build").unwrap();
-        let system = BuildSystem::detect(&tmp.path().to_path_buf());
+        let system = BuildSystem::detect(tmp.path());
         assert!(system.is_ok());
         assert!(matches!(system.unwrap(), BuildSystem::Custom(_)));
     }
@@ -213,7 +213,7 @@ mod tests {
     fn test_detect_unknown_build_system_empty_dir() {
         let tmp = TempDir::new().unwrap();
         // Empty dir falls back to Custom("default")
-        let system = BuildSystem::detect(&tmp.path().to_path_buf());
+        let system = BuildSystem::detect(tmp.path());
         assert!(system.is_ok());
         // Empty directory should fall back to Custom with "default" script name
         assert!(matches!(system.unwrap(), BuildSystem::Custom(_)));
@@ -343,7 +343,7 @@ mod tests {
     fn test_detect_build_script_bat() {
         let tmp = TempDir::new().unwrap();
         std::fs::write(tmp.path().join("build.bat"), "@echo off\necho build").unwrap();
-        let system = BuildSystem::detect(&tmp.path().to_path_buf());
+        let system = BuildSystem::detect(tmp.path());
         assert!(system.is_ok());
         assert!(matches!(system.unwrap(), BuildSystem::Custom(_)));
     }
@@ -358,7 +358,7 @@ mod tests {
             "cmake_minimum_required(VERSION 3.0)",
         )
         .unwrap();
-        let system = BuildSystem::detect(&tmp.path().to_path_buf()).unwrap();
+        let system = BuildSystem::detect(tmp.path()).unwrap();
         assert!(
             matches!(system, BuildSystem::Custom(_)),
             "build.sh should take priority over CMakeLists.txt"

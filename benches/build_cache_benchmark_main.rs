@@ -3,7 +3,8 @@
 //! Comprehensive Build and Cache system benchmarks with multiple configurations and scenarios.
 //! This provides the main entry point for running all Build and Cache-related benchmarks.
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
+use std::hint::black_box;
 use rez_next_build::{
     BuildConfig, BuildEnvironment, BuildManager, BuildOptions, BuildProcess, BuildRequest,
     BuildStats, BuildSystem, BuildVerbosity,

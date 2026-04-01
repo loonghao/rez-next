@@ -298,8 +298,7 @@ mod tests {
     fn test_parser_creation() {
         let _parser = VersionParser::new();
         let _state_machine_parser = StateMachineParser::new();
-        // Basic test to ensure parsers can be created
-        assert!(true);
+        // Verify parsers can be created without panicking
     }
 
     #[test]

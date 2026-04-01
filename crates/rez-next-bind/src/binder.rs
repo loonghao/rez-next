@@ -76,6 +76,12 @@ pub struct PackageBinder {
     config: RezCoreConfig,
 }
 
+impl Default for PackageBinder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PackageBinder {
     /// Create a binder backed by the default rez config.
     pub fn new() -> Self {
@@ -159,7 +165,7 @@ impl PackageBinder {
             .as_ref()
             .and_then(|p| p.parent())
             .map(|d| d.to_string_lossy().replace('\\', "/"))
-            .unwrap_or_else(|| String::new());
+            .unwrap_or_default();
 
         let commands_block = if tool_bin_path.is_empty() {
             String::new()
@@ -331,7 +337,7 @@ mod tests {
     #[test]
     fn test_bind_list_packages() {
         let tmp = TempDir::new().unwrap();
-        let binder = PackageBinder::new();
+        let _binder = PackageBinder::new();
 
         for tool in &["python", "cmake", "git"] {
             let opts = BindOptions {

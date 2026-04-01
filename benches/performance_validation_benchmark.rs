@@ -3,7 +3,8 @@
 //! This benchmark suite is specifically designed to validate the performance improvements
 //! claimed for rez-core, including the 117x version parsing improvement and 75x Rex improvement.
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use std::hint::black_box;
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 

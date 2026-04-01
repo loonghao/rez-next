@@ -448,7 +448,7 @@ mod tests {
 
     #[test]
     fn test_bundle_name_generation() {
-        let packages = vec!["python-3.9".to_string(), "maya-2023".to_string()];
+        let packages = ["python-3.9".to_string(), "maya-2023".to_string()];
         let bundle_name: String = packages
             .iter()
             .map(|p| p.replace(['-', '.'], "_"))
@@ -614,7 +614,7 @@ mod tests {
     /// Bundle name generation for single package
     #[test]
     fn test_bundle_name_single_package() {
-        let packages = vec!["maya-2024.1".to_string()];
+        let packages = ["maya-2024.1".to_string()];
         let name: String = packages
             .iter()
             .map(|p| p.replace(['-', '.'], "_"))

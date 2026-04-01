@@ -8,7 +8,8 @@
 //! - A* heuristic algorithm
 //! - Optimized solver performance
 
-use criterion::{black_box, BenchmarkId, Criterion, Throughput};
+use criterion::{BenchmarkId, Criterion, Throughput};
+use std::hint::black_box;
 use rez_next_common::RezCoreError;
 use rez_next_package::{Package, PackageRequirement};
 use rez_next_solver::{

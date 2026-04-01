@@ -1459,7 +1459,7 @@ fn test_solver_dcc_pipeline_scenario() {
     let rt = tokio::runtime::Runtime::new().unwrap();
 
     // Resolve maya environment
-    let maya_reqs: Vec<Requirement> = vec!["maya"].iter().map(|s| s.parse().unwrap()).collect();
+    let maya_reqs: Vec<Requirement> = ["maya"].iter().map(|s| s.parse().unwrap()).collect();
 
     let config = SolverConfig::default();
     let mut resolver = DependencyResolver::new(Arc::clone(&repo), config);
@@ -2001,12 +2001,10 @@ fn test_pip_package_with_extras_stripped() {
 #[test]
 fn test_pip_requires_parsing_chain() {
     // Simulates converting a list of pip deps to rez requires
-    let pip_deps = vec![
-        "numpy>=1.20",
+    let pip_deps = ["numpy>=1.20",
         "scipy>=1.7,<2.0",
         "matplotlib==3.7.0",
-        "pandas",
-    ];
+        "pandas"];
 
     let rez_requires: Vec<String> = pip_deps
         .iter()
@@ -2016,10 +2014,10 @@ fn test_pip_requires_parsing_chain() {
                 let name = dep[..pos].to_lowercase().replace('_', "-");
                 let spec = &dep[pos..];
                 // Simplified conversion
-                let rez_ver = if spec.starts_with("==") {
-                    spec[2..].to_string()
-                } else if spec.starts_with(">=") {
-                    format!("{}+", &spec[2..])
+                let rez_ver = if let Some(v) = spec.strip_prefix("==") {
+                    v.to_string()
+                } else if let Some(v) = spec.strip_prefix(">=") {
+                    format!("{}+", v)
                 } else {
                     spec.to_string()
                 };
@@ -2917,7 +2915,7 @@ fn test_rez_private_package_requirement() {
 fn test_rez_dedup_requirements() {
     use rez_next_package::PackageRequirement;
 
-    let reqs = vec![
+    let reqs = [
         PackageRequirement::parse("python-3.9").unwrap(),
         PackageRequirement::parse("python-3.9").unwrap(), // duplicate
     ];
@@ -3765,11 +3763,9 @@ fn test_depends_excludes_self() {
 #[test]
 fn test_depends_format_output_sections() {
     // Verify formatting logic produces expected strings
-    let lines = vec![
-        "Reverse dependencies for 'python':".to_string(),
+    let lines = ["Reverse dependencies for 'python':".to_string(),
         "  Direct:".to_string(),
-        "    maya-2024.1  (requires 'python-3.9')".to_string(),
-    ];
+        "    maya-2024.1  (requires 'python-3.9')".to_string()];
     let output = lines.join("\n");
     assert!(output.contains("Reverse dependencies for 'python'"));
     assert!(output.contains("Direct"));
@@ -4041,7 +4037,7 @@ fn test_complete_all_shells_non_empty() {
 #[test]
 fn test_complete_supported_shells_count() {
     // Mimic what supported_completion_shells() returns
-    let supported = vec!["bash", "zsh", "fish", "powershell"];
+    let supported = ["bash", "zsh", "fish", "powershell"];
     assert!(
         supported.len() >= 4,
         "Should support at least 4 shell types"
@@ -4331,8 +4327,10 @@ fn test_solver_config_default_timeout_positive() {
 #[test]
 fn test_solver_config_custom_timeout_stored() {
     use rez_next_solver::SolverConfig;
-    let mut cfg = SolverConfig::default();
-    cfg.max_time_seconds = 10;
+    let cfg = SolverConfig {
+        max_time_seconds: 10,
+        ..Default::default()
+    };
     assert_eq!(cfg.max_time_seconds, 10);
 }
 
@@ -4340,8 +4338,10 @@ fn test_solver_config_custom_timeout_stored() {
 #[test]
 fn test_solver_config_zero_timeout_no_panic() {
     use rez_next_solver::SolverConfig;
-    let mut cfg = SolverConfig::default();
-    cfg.max_time_seconds = 0;
+    let cfg = SolverConfig {
+        max_time_seconds: 0,
+        ..Default::default()
+    };
     assert_eq!(cfg.max_time_seconds, 0);
 }
 
@@ -4361,8 +4361,10 @@ fn test_solver_config_json_roundtrip() {
 #[test]
 fn test_solver_with_config_preserves_timeout() {
     use rez_next_solver::{DependencySolver, SolverConfig};
-    let mut cfg = SolverConfig::default();
-    cfg.max_time_seconds = 30;
+    let cfg = SolverConfig {
+        max_time_seconds: 30,
+        ..Default::default()
+    };
     let solver = DependencySolver::with_config(cfg.clone());
     // Solver constructed without panic — verify via debug output
     let dbg = format!("{:?}", solver);

@@ -642,8 +642,10 @@ mod tests {
         )));
         let repo_arc = Arc::new(manager);
 
-        let mut config = SolverConfig::default();
-        config.prefer_latest = true;
+        let config = SolverConfig {
+            prefer_latest: true,
+            ..Default::default()
+        };
         let mut resolver = DependencyResolver::new(Arc::clone(&repo_arc), config);
 
         let req = Requirement::new("foo".to_string());
@@ -728,8 +730,10 @@ mod tests {
         )));
         let repo_arc = Arc::new(manager);
 
-        let mut config = SolverConfig::default();
-        config.prefer_latest = true;
+        let config = SolverConfig {
+            prefer_latest: true,
+            ..Default::default()
+        };
         let mut resolver = DependencyResolver::new(Arc::clone(&repo_arc), config);
 
         // Parse "foo>=1.0.0,<1.5.0" as a Requirement - strict range that excludes 1.5.0 and 2.0.0
@@ -908,8 +912,10 @@ mod tests {
         )));
         let repo_arc = Arc::new(manager);
 
-        let mut config = SolverConfig::default();
-        config.prefer_latest = false; // prefer earliest
+        let config = SolverConfig {
+            prefer_latest: false,
+            ..Default::default()
+        };
         let mut resolver = DependencyResolver::new(Arc::clone(&repo_arc), config);
 
         let req = Requirement::new("lib".to_string());
@@ -1112,8 +1118,10 @@ mod tests {
         )));
         let repo_arc = Arc::new(manager);
 
-        let mut config = SolverConfig::default();
-        config.prefer_latest = true;
+        let config = SolverConfig {
+            prefer_latest: true,
+            ..Default::default()
+        };
         let mut resolver = DependencyResolver::new(Arc::clone(&repo_arc), config);
         // Strict upper bound: <2.0.0 forces downgrade from 2.0
         let req: Requirement = "util>=1.8.0,<2.0.0".parse().unwrap();
@@ -1162,8 +1170,10 @@ mod tests {
     /// conflict_strategy=FailOnConflict config exists and is serializable
     #[test]
     fn test_conflict_strategy_fail_on_conflict_config() {
-        let mut config = SolverConfig::default();
-        config.conflict_strategy = ConflictStrategy::FailOnConflict;
+        let config = SolverConfig {
+            conflict_strategy: ConflictStrategy::FailOnConflict,
+            ..Default::default()
+        };
         let json = serde_json::to_string(&config).unwrap();
         assert!(
             json.contains("FailOnConflict"),
@@ -1294,8 +1304,10 @@ mod tests {
         )));
         let repo_arc = Arc::new(manager);
 
-        let mut config = SolverConfig::default();
-        config.prefer_latest = false;
+        let config = SolverConfig {
+            prefer_latest: false,
+            ..Default::default()
+        };
         let mut resolver = DependencyResolver::new(Arc::clone(&repo_arc), config);
         let req: Requirement = "rangelib>=1.0.0,<2.0.0".parse().unwrap();
         let result = rt.block_on(resolver.resolve(vec![req])).unwrap();
@@ -1359,8 +1371,10 @@ mod tests {
         )));
         let repo_arc = Arc::new(manager);
 
-        let mut config = SolverConfig::default();
-        config.prefer_latest = true;
+        let config = SolverConfig {
+            prefer_latest: true,
+            ..Default::default()
+        };
         let mut resolver = DependencyResolver::new(Arc::clone(&repo_arc), config);
         let req = Requirement::new("shared_pkg".to_string());
         let result = rt.block_on(resolver.resolve(vec![req])).unwrap();

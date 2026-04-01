@@ -1,36 +1,36 @@
 # rez-next cleanup 执行记录
 
-## 最新执行 (2026-04-01 20:35, 第十轮)
+## 最新执行 (2026-04-02 03:57, 第十五轮)
 
 ### 执行摘要
-本轮重点：**dead_code lint 收紧**（#7 继续）和 **unused_variables lint 收紧**。
+本轮重点：**审查迭代 Agent 新增代码** + **修复 10 个 clippy/lint 问题** + **修复 1 个语义 bug**。
 
-修复了 1 个编译错误（迭代 Agent 遗留），删除 ~430 行死代码（17 项），收紧 2 个 lint 规则。
+迭代 Agent 在 cycle 12 后新增了 conflict requirement 支持、VersionRange::any()/none() 构造器、PyVersionRange 绑定。审查发现 1 个语义 bug（`__eq__`/`__hash__` 缺少 `conflict`/`weak`）、1 个逻辑 bug（`conflict_requirement()` 双重前缀）、以及多个代码规范问题。
 
-#### 阶段 0：编译错误修复
-**Commit** (`86484a1`): 修复 `test_framework.rs` 中缺失的 `StatePool` import + 移除 2 个 unused imports
+#### Commit 1 (`67d1c3e`): 代码规范治理
+- 实现 `Display` for `PackageRequirement`（替代手动 `to_string()`）
+- 修复 `serialize_struct` 字段数 24→35（常量 `PACKAGE_SERIALIZED_FIELD_COUNT`）
+- `#[derive(Clone)]` 替代手动 Clone（-42 行）
+- 修复 `PyPackageRequirement::__eq__`/`__hash__` 缺少 `conflict`/`weak`
+- 修复 `conflict_requirement()` 双前缀 bug
+- 统一错误格式化 `{:?}` → `.to_string()`
+- 移除冗余 `'static` lifetime
 
-#### 阶段 1：dead_code lint 收紧 + 死代码清理
-**Commit** (`b558f21`): `dead_code` 从 `allow` → `warn`，删除 17 个死代码项 (~430 行)，19 files changed
-- 删除的函数/方法: `collect_probe_versions`, `negate_bound_set`, `increment_last_token`, `save_cache_index`, `scan_directory_recursive`, `scan_package_file`, `filter_candidates`, `parse_commands_for_env_vars` (+ 3 helper methods), `parse_variants`, `view_preprocessed_package`, `generate_package_content`, `package_exists_at_destination` (x2)
-- 删除的字段: `DependencyResolver.stats`, `DependencySolver.stats`, `AStarSearch.state_pool`, `ScanCacheEntry.cached_at`, `PipPackageInfo.location`/`home_page`
-- 添加 `#[allow(dead_code)]` 抑制: `RequirementPatterns`, `AdvancedCacheEntry`, `CompositeHeuristic.config`, `AdaptiveHeuristic.base_heuristic`
-- 移除 unused imports: `SolverStats`, `StatePool`, `JoinSet`, `Path`, `Package`, `HashMap`
+#### Commit 2 (`af07d19`): strip_prefix + derive Default
+- `check_single_constraint()` 使用 `strip_prefix` 替代 9 处字节索引切片
+- `PackageSearchCriteria` 和 `RepositoryStats` 用 `#[derive(Default)]` 替代手动 impl
 
-#### 阶段 2：unused_variables lint 收紧
-**Commit** (`c3ec157`): `unused_variables` 从 `allow` → `warn`，26 个 warnings 剩余（函数签名中的参数需手动加 `_` 前缀）
-
-#### 阶段 3：文档更新
-**Commit** (`1a5b737`): 更新 CLEANUP_TODO.md
+#### Commit 3 (`8804ea5`): 文档更新
+- 更新 CLEANUP_TODO.md，新增 clippy warnings 追踪 section
 
 ### 基线状态
 - **分支**: `auto-improve`（已推送）
-- **测试**: 1290 passed, 0 failed（与清理前基线一致）
-- **删除行数**: ~430 lines（本轮）
-- **累计删除**: ~8530 lines across 10 cycles
+- **测试**: 540 passed (111+39+29+19+320+22), 0 failed
+- **删除行数**: ~70 lines（本轮 net reduction: +43 -71 + +16 -41 = -53 lines）
+- **累计删除**: ~8650+ lines across 15 cycles
 
 ### 下一轮重点
-1. **#7 继续 unused_variables 修复**: 手动修复剩余 26 个 unused_variables warnings（函数签名中的参数加 `_` 前缀）
-2. **#7 继续 lint 收紧**: 将 `unused_mut` 从 `allow` 改为 `warn`
-3. **#7 继续 lint 收紧**: 将 `ambiguous_glob_reexports` 从 `allow` 改为 `warn`
-4. **#4 dead_code helper functions**: 评估 exceptions_bindings.rs 中 5 个函数是否可删除
+1. **Clippy warnings 批量修复**: ~50 remaining across 8 crates — stripping prefix/suffix manually (requirement.rs, sources.rs), collapsible if/else, new_without_default
+2. **#4 evaluate exceptions_bindings.rs dead_code functions**: 5 raise_* functions still unused
+3. **TODO audit**: 15 TODO comments remain — evaluate which are stale
+4. **结构性评估**: 29 个文件 >500 行

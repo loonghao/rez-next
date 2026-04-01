@@ -3,7 +3,8 @@
 //! A minimal benchmark for testing the context system functionality
 //! without complex dependencies. This focuses on core context operations.
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
+use std::hint::black_box;
 use rez_next_context::{
     ContextBuilder, ContextConfig, ContextFormat, ContextSerialization, EnvironmentManager,
     PathStrategy, ResolvedContext, ShellExecutor, ShellType,

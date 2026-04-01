@@ -297,9 +297,11 @@ mod repository_tests {
 
     #[test]
     fn test_package_search_criteria_with_pattern() {
-        let mut criteria = PackageSearchCriteria::default();
-        criteria.name_pattern = Some("python*".to_string());
-        criteria.limit = Some(10);
+        let criteria = PackageSearchCriteria {
+            name_pattern: Some("python*".to_string()),
+            limit: Some(10),
+            ..Default::default()
+        };
         assert_eq!(criteria.name_pattern, Some("python*".to_string()));
         assert_eq!(criteria.limit, Some(10));
     }

@@ -3,7 +3,8 @@
 //! A minimal benchmark for testing the Build and Cache system functionality
 //! without complex dependencies. This focuses on core Build and Cache operations.
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
+use std::hint::black_box;
 use rez_next_build::{
     BuildConfig, BuildEnvironment, BuildManager, BuildOptions, BuildProcess, BuildRequest,
     BuildStats, BuildSystem, BuildVerbosity,

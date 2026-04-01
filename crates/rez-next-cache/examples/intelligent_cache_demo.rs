@@ -7,10 +7,10 @@
 //! - Performance monitoring
 
 use rez_next_cache::{
-    benchmarks::{run_comprehensive_benchmarks, BenchmarkConfig, CacheBenchmarkSuite},
+    benchmarks::{BenchmarkConfig, CacheBenchmarkSuite},
     IntelligentCacheManager, UnifiedCache, UnifiedCacheConfig,
 };
-use std::{sync::Arc, time::Duration};
+use std::time::Duration;
 use tokio::time::sleep;
 
 #[tokio::main]
@@ -339,6 +339,7 @@ async fn demo_comprehensive_benchmarks() -> Result<(), Box<dyn std::error::Error
 }
 
 /// Helper function to format bytes
+#[allow(dead_code)]
 fn format_bytes(bytes: u64) -> String {
     const UNITS: &[&str] = &["B", "KB", "MB", "GB"];
     let mut size = bytes as f64;

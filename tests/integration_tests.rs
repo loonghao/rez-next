@@ -31,8 +31,7 @@ fn test_module_structure() {
     let _range = VersionRange::parse("1.0.0+").expect("Range creation should work");
     let _config = RezCoreConfig::default();
 
-    // This test ensures the basic module structure is working
-    assert!(true);
+    // This test ensures the basic module structure compiles and initializes
 }
 
 // Performance optimization tests
@@ -96,13 +95,11 @@ mod performance_tests {
     fn test_simd_pattern_matching_simulation() {
         println!("Testing SIMD pattern matching simulation...");
 
-        let test_files = vec![
-            "package.py",
+        let test_files = ["package.py",
             "package.yaml",
             "package.json",
             "not_a_package.txt",
-            "another_package.py",
-        ];
+            "another_package.py"];
 
         let start_time = Instant::now();
 
