@@ -147,20 +147,20 @@ impl PackageRequirement {
         use rez_next_version::VersionRange;
 
         // Handle PEP 440 / rez operators first (before VersionRange stub)
-        let (op, ver_str) = if spec.starts_with(">=") {
-            (">=", &spec[2..])
-        } else if spec.starts_with("<=") {
-            ("<=", &spec[2..])
-        } else if spec.starts_with("!=") {
-            ("!=", &spec[2..])
-        } else if spec.starts_with("~=") {
-            ("~=", &spec[2..])
-        } else if spec.starts_with("==") {
-            ("==", &spec[2..])
-        } else if spec.starts_with('>') {
-            (">", &spec[1..])
-        } else if spec.starts_with('<') {
-            ("<", &spec[1..])
+        let (op, ver_str) = if let Some(rest) = spec.strip_prefix(">=") {
+            (">=", rest)
+        } else if let Some(rest) = spec.strip_prefix("<=") {
+            ("<=", rest)
+        } else if let Some(rest) = spec.strip_prefix("!=") {
+            ("!=", rest)
+        } else if let Some(rest) = spec.strip_prefix("~=") {
+            ("~=", rest)
+        } else if let Some(rest) = spec.strip_prefix("==") {
+            ("==", rest)
+        } else if let Some(rest) = spec.strip_prefix('>') {
+            (">", rest)
+        } else if let Some(rest) = spec.strip_prefix('<') {
+            ("<", rest)
         } else {
             // No leading operator: try rez-style range first (e.g. "1.0+", "1.2<2.0")
             if let Ok(range) = VersionRange::parse(spec) {

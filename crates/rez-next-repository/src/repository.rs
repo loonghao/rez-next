@@ -39,7 +39,7 @@ pub enum RepositoryType {
 }
 
 /// Package search criteria
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct PackageSearchCriteria {
     /// Package name pattern (supports wildcards)
     pub name_pattern: Option<String>,
@@ -51,18 +51,6 @@ pub struct PackageSearchCriteria {
     pub limit: Option<usize>,
     /// Include pre-release versions
     pub include_prerelease: bool,
-}
-
-impl Default for PackageSearchCriteria {
-    fn default() -> Self {
-        Self {
-            name_pattern: None,
-            version_requirement: None,
-            requirements: Vec::new(),
-            limit: None,
-            include_prerelease: false,
-        }
-    }
 }
 
 /// Repository trait for package discovery and management
@@ -118,7 +106,7 @@ pub trait Repository: Send + Sync {
 }
 
 /// Repository statistics
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct RepositoryStats {
     /// Total number of packages
     pub package_count: usize,
@@ -132,19 +120,6 @@ pub struct RepositoryStats {
     pub last_scan_time: Option<i64>,
     /// Scan duration in milliseconds
     pub last_scan_duration_ms: Option<u64>,
-}
-
-impl Default for RepositoryStats {
-    fn default() -> Self {
-        Self {
-            package_count: 0,
-            version_count: 0,
-            variant_count: 0,
-            size_bytes: 0,
-            last_scan_time: None,
-            last_scan_duration_ms: None,
-        }
-    }
 }
 
 /// Remove duplicate packages from a list, keeping unique name+version combinations.
