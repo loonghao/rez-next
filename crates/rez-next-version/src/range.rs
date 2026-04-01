@@ -107,6 +107,26 @@ impl VersionRange {
         Self::parse(&range_str)
     }
 
+    /// Create a version range that matches any version (equivalent to `""` or `"*"`)
+    pub fn any() -> Self {
+        VersionRange {
+            range_str: String::new(),
+            bound_sets: vec![BoundSet::any()],
+            is_parsed: true,
+            subtract_from: Vec::new(),
+        }
+    }
+
+    /// Create a version range that matches no version (empty set)
+    pub fn none() -> Self {
+        VersionRange {
+            range_str: "!*".to_string(),
+            bound_sets: vec![BoundSet::none()],
+            is_parsed: true,
+            subtract_from: Vec::new(),
+        }
+    }
+
     /// Parse a version range string
     ///
     /// Supported formats:
@@ -776,6 +796,42 @@ mod tests {
 
         let range = VersionRange::parse("*").unwrap();
         assert!(range.is_any());
+    }
+
+    #[test]
+    fn test_version_range_any_constructor() {
+        let range = VersionRange::any();
+        assert!(range.is_any(), "VersionRange::any() must report is_any()");
+        assert!(range.contains(&v("0.0.1")));
+        assert!(range.contains(&v("1.0.0")));
+        assert!(range.contains(&v("99.99.99")));
+        // Intersecting any range with any other range returns the other range
+        let specific = VersionRange::parse(">=1.0,<2.0").unwrap();
+        let intersected = range.intersect(&specific).expect("intersection with any must succeed");
+        assert!(!intersected.contains(&v("0.9.0")));
+        assert!(intersected.contains(&v("1.5.0")));
+    }
+
+    #[test]
+    fn test_version_range_none_constructor() {
+        let range = VersionRange::none();
+        assert!(range.is_empty(), "VersionRange::none() must report is_empty()");
+        assert!(!range.contains(&v("1.0.0")));
+        assert!(!range.contains(&v("0.0.1")));
+        assert!(!range.contains(&v("99.0")));
+        // Intersecting none with anything yields None
+        let specific = VersionRange::parse(">=1.0").unwrap();
+        assert!(range.intersect(&specific).is_none(), "none intersect anything must be None");
+    }
+
+    #[test]
+    fn test_version_range_any_union_identity() {
+        // any().union(x) should be a superset of x (is_any equivalent)
+        let any = VersionRange::any();
+        let specific = VersionRange::parse("==1.0.0").unwrap();
+        let unioned = any.union(&specific);
+        assert!(unioned.contains(&v("1.0.0")));
+        assert!(unioned.contains(&v("2.0.0")));
     }
 
     #[test]

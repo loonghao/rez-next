@@ -244,7 +244,13 @@ impl PyPackageRequirement {
     }
 
 
-    /// Whether this is a weak requirement
+    /// Whether this is a conflict requirement (prefixed with `!`)
+    #[getter]
+    fn conflict(&self) -> bool {
+        self.0.conflict
+    }
+
+    /// Whether this is a weak requirement (prefixed with `~`)
     #[getter]
     fn weak(&self) -> bool {
         self.0.weak
