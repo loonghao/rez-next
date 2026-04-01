@@ -98,7 +98,7 @@ pub fn execute(args: DiffArgs) -> RezCoreResult<()> {
     }
 
     // Create async runtime
-    let runtime = tokio::runtime::Runtime::new().map_err(|e| RezCoreError::Io(e.into()))?;
+    let runtime = tokio::runtime::Runtime::new().map_err(|e| RezCoreError::Io(e))?;
 
     runtime.block_on(async { execute_diff_async(&args).await })
 }
@@ -213,7 +213,7 @@ fn parse_package_spec(spec: &str) -> RezCoreResult<(String, Option<String>)> {
         let version = spec[dash_pos + 1..].to_string();
 
         // Check if version part looks like a version
-        if version.chars().next().map_or(false, |c| c.is_ascii_digit()) {
+        if version.chars().next().is_some_and(|c| c.is_ascii_digit()) {
             return Ok((name, Some(version)));
         }
     }

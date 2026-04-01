@@ -162,7 +162,7 @@ async fn initialize_cache_manager(
 
     // Ensure cache directory exists
     if !cache_dir.exists() {
-        std::fs::create_dir_all(cache_dir).map_err(|e| RezCoreError::Io(e.into()))?;
+        std::fs::create_dir_all(cache_dir).map_err(|e| RezCoreError::Io(e))?;
     }
 
     Ok(manager)
@@ -204,7 +204,7 @@ async fn add_variants(
         // Parse "name-version" from URI
         let (pkg_name, version) = if let Some(pos) = uri.rfind('-') {
             let ver = &uri[pos + 1..];
-            if ver.chars().next().map_or(false, |c| c.is_ascii_digit()) {
+            if ver.chars().next().is_some_and(|c| c.is_ascii_digit()) {
                 (uri[..pos].to_string(), Some(ver.to_string()))
             } else {
                 (uri.clone(), None)
@@ -230,7 +230,7 @@ async fn add_variants(
 
         let pkg = packages.into_iter().find(|p| {
             version.as_ref().map_or(true, |v| {
-                p.version.as_ref().map_or(false, |pv| pv.as_str() == v)
+                p.version.as_ref().is_some_and(|pv| pv.as_str() == v)
             })
         });
 
@@ -362,7 +362,7 @@ async fn view_logs(cache_dir: &PathBuf) -> RezCoreResult<()> {
     println!("Cache logs from: {}", log_file.display());
     println!("================");
 
-    let content = std::fs::read_to_string(&log_file).map_err(|e| RezCoreError::Io(e.into()))?;
+    let content = std::fs::read_to_string(&log_file).map_err(|e| RezCoreError::Io(e))?;
 
     // Show last 50 lines
     let lines: Vec<&str> = content.lines().collect();

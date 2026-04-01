@@ -85,6 +85,7 @@ pub struct ContextArgs {
 
 /// Output format for context information
 #[derive(clap::ValueEnum, Clone, Debug)]
+#[derive(Default)]
 pub enum OutputFormat {
     /// Table format
     Table,
@@ -93,6 +94,7 @@ pub enum OutputFormat {
     /// JSON format
     Json,
     /// Bash shell format
+    #[default]
     Bash,
     /// Zsh shell format
     Zsh,
@@ -113,11 +115,6 @@ pub enum OutputStyle {
     Source,
 }
 
-impl Default for OutputFormat {
-    fn default() -> Self {
-        OutputFormat::Bash
-    }
-}
 
 /// Execute the context command
 pub fn execute(args: ContextArgs) -> RezCoreResult<()> {

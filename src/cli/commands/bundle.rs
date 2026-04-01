@@ -160,10 +160,10 @@ pub fn execute(mut args: BundleArgs) -> RezCoreResult<()> {
     }
 
     // Create bundle directory structure
-    std::fs::create_dir_all(&output_dir).map_err(|e| RezCoreError::Io(e.into()))?;
+    std::fs::create_dir_all(&output_dir).map_err(|e| RezCoreError::Io(e))?;
 
     let packages_dir = output_dir.join("packages");
-    std::fs::create_dir_all(&packages_dir).map_err(|e| RezCoreError::Io(e.into()))?;
+    std::fs::create_dir_all(&packages_dir).map_err(|e| RezCoreError::Io(e))?;
 
     // Setup search paths for finding package files
     let rez_config = RezCoreConfig::load();
@@ -222,7 +222,7 @@ pub fn execute(mut args: BundleArgs) -> RezCoreResult<()> {
 
     let metadata_json = serde_json::to_string_pretty(&metadata).map_err(RezCoreError::Serde)?;
     let metadata_path = output_dir.join("bundle.json");
-    std::fs::write(&metadata_path, &metadata_json).map_err(|e| RezCoreError::Io(e.into()))?;
+    std::fs::write(&metadata_path, &metadata_json).map_err(|e| RezCoreError::Io(e))?;
 
     // Also create bundle.yaml for rez compatibility (rez uses bundle.yaml as the bundle manifest)
     let mut yaml_lines = vec![
@@ -241,12 +241,12 @@ pub fn execute(mut args: BundleArgs) -> RezCoreResult<()> {
     }
     let bundle_yaml = yaml_lines.join("\n") + "\n";
     let yaml_path = output_dir.join("bundle.yaml");
-    std::fs::write(&yaml_path, &bundle_yaml).map_err(|e| RezCoreError::Io(e.into()))?;
+    std::fs::write(&yaml_path, &bundle_yaml).map_err(|e| RezCoreError::Io(e))?;
 
     // Save context .rxt file
     let context_json = serde_json::to_string_pretty(&context).map_err(RezCoreError::Serde)?;
     let context_path = output_dir.join("context.rxt");
-    std::fs::write(&context_path, &context_json).map_err(|e| RezCoreError::Io(e.into()))?;
+    std::fs::write(&context_path, &context_json).map_err(|e| RezCoreError::Io(e))?;
 
     // Generate activation scripts for common shells
     generate_activation_scripts(&output_dir, &context, &rez_config)?;
@@ -300,7 +300,7 @@ fn resolve_context(
         })
         .collect();
 
-    let rt = tokio::runtime::Runtime::new().map_err(|e| RezCoreError::Io(e.into()))?;
+    let rt = tokio::runtime::Runtime::new().map_err(|e| RezCoreError::Io(e))?;
     let solver_config = SolverConfig::default();
     let mut resolver = DependencyResolver::new(Arc::clone(&repo_arc), solver_config);
     let resolution = rt.block_on(resolver.resolve(resolver_reqs))?;
@@ -412,17 +412,17 @@ fn generate_activation_scripts(
     // Bash activation script
     let bash_script = generate_shell_script(&rex_env, &ShellType::Bash);
     let bash_path = bundle_dir.join("activate.sh");
-    std::fs::write(&bash_path, bash_script).map_err(|e| RezCoreError::Io(e.into()))?;
+    std::fs::write(&bash_path, bash_script).map_err(|e| RezCoreError::Io(e))?;
 
     // PowerShell activation script
     let ps_script = generate_shell_script(&rex_env, &ShellType::PowerShell);
     let ps_path = bundle_dir.join("activate.ps1");
-    std::fs::write(&ps_path, ps_script).map_err(|e| RezCoreError::Io(e.into()))?;
+    std::fs::write(&ps_path, ps_script).map_err(|e| RezCoreError::Io(e))?;
 
     // CMD activation script
     let cmd_script = generate_shell_script(&rex_env, &ShellType::Cmd);
     let cmd_path = bundle_dir.join("activate.bat");
-    std::fs::write(&cmd_path, cmd_script).map_err(|e| RezCoreError::Io(e.into()))?;
+    std::fs::write(&cmd_path, cmd_script).map_err(|e| RezCoreError::Io(e))?;
 
     Ok(())
 }

@@ -63,7 +63,7 @@ pub fn execute(args: PluginsArgs) -> RezCoreResult<()> {
     }
 
     // Create async runtime
-    let runtime = tokio::runtime::Runtime::new().map_err(|e| RezCoreError::Io(e.into()))?;
+    let runtime = tokio::runtime::Runtime::new().map_err(|e| RezCoreError::Io(e))?;
 
     runtime.block_on(async { execute_plugins_async(&args).await })
 }
@@ -280,7 +280,7 @@ fn display_plugins_result(result: &PluginDiscoveryResult, verbose: bool) {
         for plugin in &result.plugins {
             plugins_by_type
                 .entry(plugin.plugin_type.clone())
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push(plugin);
         }
 

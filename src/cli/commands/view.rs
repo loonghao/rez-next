@@ -103,7 +103,7 @@ fn load_package_from_repos(spec: &str) -> RezCoreResult<Package> {
         if candidate_ver
             .chars()
             .next()
-            .map_or(false, |c| c.is_ascii_digit())
+            .is_some_and(|c| c.is_ascii_digit())
         {
             (&spec[..pos], Some(candidate_ver))
         } else {
@@ -139,7 +139,7 @@ fn load_package_from_repos(spec: &str) -> RezCoreResult<Package> {
     // If version specified, find exact match
     if let Some(ver) = version_str {
         for pkg in &packages {
-            if pkg.version.as_ref().map_or(false, |v| v.as_str() == ver) {
+            if pkg.version.as_ref().is_some_and(|v| v.as_str() == ver) {
                 return Ok((**pkg).clone());
             }
         }

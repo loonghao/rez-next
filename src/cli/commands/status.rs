@@ -71,7 +71,7 @@ pub fn execute(args: StatusArgs) -> RezCoreResult<()> {
     }
 
     // Create async runtime
-    let runtime = tokio::runtime::Runtime::new().map_err(|e| RezCoreError::Io(e.into()))?;
+    let runtime = tokio::runtime::Runtime::new().map_err(|e| RezCoreError::Io(e))?;
 
     runtime.block_on(async { execute_status_async(&args).await })
 }

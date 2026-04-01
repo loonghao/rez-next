@@ -81,7 +81,7 @@ pub fn execute(args: RmArgs) -> RezCoreResult<()> {
     }
 
     // Create async runtime
-    let runtime = tokio::runtime::Runtime::new().map_err(|e| RezCoreError::Io(e.into()))?;
+    let runtime = tokio::runtime::Runtime::new().map_err(|e| RezCoreError::Io(e))?;
 
     runtime.block_on(async {
         if let Some(ref package_spec) = args.package {
@@ -332,7 +332,7 @@ async fn find_packages_to_remove(
         .into_iter()
         .filter(|p| {
             version_spec.map_or(true, |ver| {
-                p.version.as_ref().map_or(false, |v| v.as_str() == ver)
+                p.version.as_ref().is_some_and(|v| v.as_str() == ver)
             })
         })
         .map(|p| (*p).clone())
@@ -420,7 +420,7 @@ fn parse_package_spec(spec: &str) -> RezCoreResult<(String, Option<String>)> {
         let name = spec[..dash_pos].to_string();
         let version = spec[dash_pos + 1..].to_string();
 
-        if version.chars().next().map_or(false, |c| c.is_ascii_digit()) {
+        if version.chars().next().is_some_and(|c| c.is_ascii_digit()) {
             return Ok((name, Some(version)));
         }
     }
@@ -435,12 +435,12 @@ fn confirm_removal(package: &Package) -> RezCoreResult<bool> {
     print!("Remove package '{}'? [y/N]: ", package.name);
     io::stdout()
         .flush()
-        .map_err(|e| RezCoreError::Io(e.into()))?;
+        .map_err(|e| RezCoreError::Io(e))?;
 
     let mut input = String::new();
     io::stdin()
         .read_line(&mut input)
-        .map_err(|e| RezCoreError::Io(e.into()))?;
+        .map_err(|e| RezCoreError::Io(e))?;
 
     Ok(input.trim().to_lowercase() == "y" || input.trim().to_lowercase() == "yes")
 }
@@ -452,12 +452,12 @@ fn confirm_family_removal(family_name: &str) -> RezCoreResult<bool> {
     print!("Remove ENTIRE package family '{}'? [y/N]: ", family_name);
     io::stdout()
         .flush()
-        .map_err(|e| RezCoreError::Io(e.into()))?;
+        .map_err(|e| RezCoreError::Io(e))?;
 
     let mut input = String::new();
     io::stdin()
         .read_line(&mut input)
-        .map_err(|e| RezCoreError::Io(e.into()))?;
+        .map_err(|e| RezCoreError::Io(e))?;
 
     Ok(input.trim().to_lowercase() == "y" || input.trim().to_lowercase() == "yes")
 }

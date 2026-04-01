@@ -103,7 +103,7 @@ pub fn execute(args: BuildArgs) -> RezCoreResult<()> {
         fetch_and_load_remote_source(source_url, &args)?
     } else {
         // Local source (current directory)
-        let working_dir = std::env::current_dir().map_err(|e| RezCoreError::Io(e))?;
+        let working_dir = std::env::current_dir().map_err(RezCoreError::Io)?;
         let package = load_current_package(&working_dir)?;
         (working_dir, package)
     };
@@ -504,7 +504,7 @@ fn validate_drive_path(path: &str) -> RezCoreResult<String> {
         ));
     }
 
-    let drive_char = path.chars().nth(0).unwrap();
+    let drive_char = path.chars().next().unwrap();
     if !drive_char.is_ascii_alphabetic() || path.chars().nth(1) != Some(':') {
         return Err(RezCoreError::ConfigError(
             "Drive path must start with a letter followed by colon (e.g., C:)".to_string(),

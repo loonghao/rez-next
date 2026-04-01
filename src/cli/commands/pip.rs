@@ -87,7 +87,7 @@ pub fn execute(args: PipArgs) -> RezCoreResult<()> {
     // Also read from requirements.txt if specified
     if let Some(ref req_file) = args.requirement {
         let content = std::fs::read_to_string(req_file)
-            .map_err(|e| RezCoreError::Io(e.into()))?;
+            .map_err(|e| RezCoreError::Io(e))?;
         for line in content.lines() {
             let trimmed = line.trim();
             if !trimmed.is_empty() && !trimmed.starts_with('#') {
@@ -106,7 +106,7 @@ pub fn execute(args: PipArgs) -> RezCoreResult<()> {
     println!("Installing {} package(s) via pip...", pkg_specs.len());
 
     // Create a temporary virtualenv to install into, then repackage
-    let tmp_dir = tempfile::TempDir::new().map_err(|e| RezCoreError::Io(e.into()))?;
+    let tmp_dir = tempfile::TempDir::new().map_err(|e| RezCoreError::Io(e))?;
     let tmp_path = tmp_dir.path().to_path_buf();
 
     // Install packages into temp location
@@ -125,7 +125,7 @@ pub fn execute(args: PipArgs) -> RezCoreResult<()> {
 
             // Create rez package
             let rez_pkg_dir = install_path
-                .join(&info.name.to_lowercase().replace('-', "_"))
+                .join(info.name.to_lowercase().replace('-', "_"))
                 .join(&info.version);
 
             create_rez_package(&info, &tmp_path, &rez_pkg_dir, &args)?;
@@ -287,8 +287,8 @@ fn scan_target_for_package(
 
     // Look for <name>-<version>.dist-info directories
     let normalized = name.to_lowercase().replace('-', "_");
-    for entry in std::fs::read_dir(target).map_err(|e| RezCoreError::Io(e.into()))? {
-        let entry = entry.map_err(|e| RezCoreError::Io(e.into()))?;
+    for entry in std::fs::read_dir(target).map_err(|e| RezCoreError::Io(e))? {
+        let entry = entry.map_err(|e| RezCoreError::Io(e))?;
         let fname = entry.file_name().to_string_lossy().to_string();
 
         if fname.ends_with(".dist-info") {
@@ -333,7 +333,7 @@ fn create_rez_package(
     dest_dir: &Path,
     _args: &PipArgs,
 ) -> RezCoreResult<()> {
-    std::fs::create_dir_all(dest_dir).map_err(|e| RezCoreError::Io(e.into()))?;
+    std::fs::create_dir_all(dest_dir).map_err(|e| RezCoreError::Io(e))?;
 
     // Copy python files into python sub-directory
     let python_dir = dest_dir.join("python");
@@ -384,14 +384,14 @@ def commands():
     );
 
     let pkg_py_path = dest_dir.join("package.py");
-    std::fs::write(&pkg_py_path, package_py).map_err(|e| RezCoreError::Io(e.into()))?;
+    std::fs::write(&pkg_py_path, package_py).map_err(|e| RezCoreError::Io(e))?;
 
     Ok(())
 }
 
 /// Copy directory tree recursively
 fn copy_dir_recursive(src: &Path, dest: &Path) -> RezCoreResult<()> {
-    std::fs::create_dir_all(dest).map_err(|e| RezCoreError::Io(e.into()))?;
+    std::fs::create_dir_all(dest).map_err(|e| RezCoreError::Io(e))?;
 
     let entries = match std::fs::read_dir(src) {
         Ok(e) => e,
@@ -399,14 +399,14 @@ fn copy_dir_recursive(src: &Path, dest: &Path) -> RezCoreResult<()> {
     };
 
     for entry in entries {
-        let entry = entry.map_err(|e| RezCoreError::Io(e.into()))?;
+        let entry = entry.map_err(|e| RezCoreError::Io(e))?;
         let src_path = entry.path();
         let dest_path = dest.join(entry.file_name());
         if src_path.is_dir() {
             copy_dir_recursive(&src_path, &dest_path)?;
         } else {
             std::fs::copy(&src_path, &dest_path)
-                .map_err(|e| RezCoreError::Io(e.into()))?;
+                .map_err(|e| RezCoreError::Io(e))?;
         }
     }
     Ok(())
