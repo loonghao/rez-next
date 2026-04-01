@@ -266,3 +266,72 @@ impl PyPackageRequirement {
         format!("!{}", self.__str__())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rez_next_package::PackageRequirement;
+
+    fn req(s: &str) -> PyPackageRequirement {
+        PyPackageRequirement(PackageRequirement::parse(s).unwrap())
+    }
+
+    #[test]
+    fn test_package_requirement_basic() {
+        let r = req("python-3.9");
+        assert_eq!(r.name(), "python");
+        assert!(!r.conflict());
+        assert!(!r.weak());
+    }
+
+    #[test]
+    fn test_package_requirement_conflict_flag() {
+        // conflict requirement: "!python"
+        let r = req("!python");
+        assert_eq!(r.name(), "python");
+        assert!(r.conflict());
+        assert!(!r.weak());
+    }
+
+    #[test]
+    fn test_package_requirement_weak_flag() {
+        // weak requirement: "~python"
+        let r = req("~python");
+        assert_eq!(r.name(), "python");
+        assert!(!r.conflict());
+        assert!(r.weak());
+    }
+
+    #[test]
+    fn test_package_requirement_conflict_with_version() {
+        let r = req("!python-3.9+<4");
+        assert_eq!(r.name(), "python");
+        assert!(r.conflict());
+        assert!(!r.weak());
+    }
+
+    #[test]
+    fn test_package_requirement_str_roundtrip_basic() {
+        let r = req("python-3.9");
+        let s = r.__str__();
+        assert!(s.contains("python"));
+    }
+
+    #[test]
+    fn test_package_requirement_conflict_requirement_method() {
+        let r = req("python-3.9");
+        let conflict_str = r.conflict_requirement();
+        assert!(conflict_str.starts_with('!'));
+        assert!(conflict_str.contains("python"));
+    }
+
+    #[test]
+    fn test_package_requirement_no_version_range() {
+        let r = req("maya");
+        assert_eq!(r.name(), "maya");
+        // version_range may be None when no version constraint
+        // both None and Some("") are acceptable
+        let vr = r.range();
+        assert!(vr.is_none() || vr.unwrap().is_empty());
+    }
+}

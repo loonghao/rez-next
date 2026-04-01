@@ -136,3 +136,54 @@ class TestVersionEdgeCases:
         r = rez.VersionRange("3.9")
         v = rez.Version("3.9")
         assert r.contains(v)
+
+
+class TestVersionRangeClassMethods:
+    """VersionRange.any(), none(), from_str(), as_str() classmethods."""
+
+    def test_any_classmethod_exists(self):
+        r = rez.VersionRange.any()
+        assert r is not None
+
+    def test_any_classmethod_matches_everything(self):
+        r = rez.VersionRange.any()
+        assert r.is_any()
+        for ver in ["0.0.1", "1.0.0", "999.999.999", "1.2.3.4.5"]:
+            assert r.contains(rez.Version(ver)), f"any() should contain {ver}"
+
+    def test_none_classmethod_exists(self):
+        r = rez.VersionRange.none()
+        assert r is not None
+
+    def test_none_classmethod_matches_nothing(self):
+        r = rez.VersionRange.none()
+        assert r.is_empty()
+        for ver in ["0.0.1", "1.0.0", "99.0"]:
+            assert not r.contains(rez.Version(ver)), f"none() should not contain {ver}"
+
+    def test_from_str_static_method(self):
+        r = rez.VersionRange.from_str(">=1.0,<2.0")
+        assert r is not None
+        assert r.contains(rez.Version("1.5"))
+        assert not r.contains(rez.Version("2.0"))
+
+    def test_from_str_empty_string_gives_any(self):
+        r = rez.VersionRange.from_str("")
+        assert r.is_any()
+
+    def test_as_str_method(self):
+        r = rez.VersionRange(">=1.0,<2.0")
+        assert r.as_str() == ">=1.0,<2.0"
+
+    def test_as_str_any_range(self):
+        r = rez.VersionRange.any()
+        # any range string may be "" or "*"
+        s = r.as_str()
+        assert isinstance(s, str)
+
+    def test_any_union_identity(self):
+        """any() union anything should remain any."""
+        any_r = rez.VersionRange.any()
+        r = rez.VersionRange(">=3.0")
+        union_r = any_r.union(r)
+        assert union_r.is_any()
