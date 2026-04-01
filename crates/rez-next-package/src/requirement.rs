@@ -261,55 +261,51 @@ impl VersionConstraint {
                 ord == std::cmp::Ordering::Less || ord == std::cmp::Ordering::Equal
             }
             VersionConstraint::Compatible(v) => {
-                // Compatible version (~=) means >= v but < next minor version
-                // For example, ~=1.4 means >=1.4, <1.5
-                if version < v {
-                    return false;
-                }
-
+                // Compatible version (~=) uses a "locked prefix + floor" rule.
+                // Rez version ordering: shorter strings sort GREATER (1.4 > 1.4.2),
+                // so we work with string segments directly rather than Version comparison.
+                //
+                // Rule:
+                //   ~=X.Y   → prefix=["X"] (locked), minor >= Y
+                //              e.g. ~=1.4 accepts 1.4, 1.4.x, 1.5, 1.5.x — rejects 0.x, 2.x, 1.3
+                //   ~=X.Y.Z → prefix=["X","Y"] (locked), patch >= Z
+                //              e.g. ~=1.4.0 accepts 1.4.0, 1.4.5 — rejects 1.3.x, 1.5.x
+                //
+                // Algorithm:
+                //   1. All but the last segment of the constraint must match exactly in version
+                //   2. The last constraint segment is the floor: version[N-1] >= constraint[N-1]
+                //   3. Version may have additional deeper segments (unconstrained)
                 let version_parts: Vec<&str> = version.as_str().split('.').collect();
                 let constraint_parts: Vec<&str> = v.as_str().split('.').collect();
 
-                // Must have at least the same number of parts as the constraint
+                if constraint_parts.is_empty() {
+                    return true;
+                }
+
+                // Version must have at least as many segments as the constraint
                 if version_parts.len() < constraint_parts.len() {
                     return false;
                 }
 
-                // All parts except the last must match exactly
-                for i in 0..constraint_parts.len().saturating_sub(1) {
+                let last_idx = constraint_parts.len() - 1;
+
+                // All segments before the last must match exactly
+                for i in 0..last_idx {
                     if version_parts[i] != constraint_parts[i] {
                         return false;
                     }
                 }
 
-                // For the last part, check if it's within the compatible range
-                if !constraint_parts.is_empty() {
-                    let last_idx = constraint_parts.len() - 1;
-                    if let (Ok(v_part), Ok(c_part)) = (
-                        version_parts[last_idx].parse::<u32>(),
-                        constraint_parts[last_idx].parse::<u32>(),
-                    ) {
-                        // Version must be >= constraint version
-                        if v_part < c_part {
-                            return false;
-                        }
-
-                        // Check if we're still in the same minor version
-                        // For ~=1.4, we allow 1.4.x but not 1.5.x
-                        if constraint_parts.len() >= 2 {
-                            // This is a minor version constraint like ~=1.4
-                            // Allow any patch version but not next minor
-                            true
-                        } else {
-                            // This is a major version constraint like ~=1
-                            // Allow any minor.patch but not next major
-                            true
-                        }
-                    } else {
-                        version_parts[last_idx] >= constraint_parts[last_idx]
-                    }
+                // The last constraint segment is the floor: version's segment must be >=.
+                // Combined with the exact-match prefix, this gives:
+                //   ~=X.Y   → X locked (prefix), minor >= Y (floor)
+                //   ~=X.Y.Z → X.Y locked (prefix), patch >= Z (floor)
+                let v_last = version_parts[last_idx];
+                let c_last = constraint_parts[last_idx];
+                if let (Ok(vn), Ok(cn)) = (v_last.parse::<u64>(), c_last.parse::<u64>()) {
+                    vn >= cn
                 } else {
-                    true
+                    v_last >= c_last
                 }
             }
             VersionConstraint::Range(min, max) => version >= min && version < max,
@@ -1004,9 +1000,9 @@ mod tests {
         let version = Version::parse("3.9.0").unwrap();
         assert!(req.is_satisfied_by(&version));
 
-        // TODO: Fix version comparison logic for this test
-        // let version = Version::parse("4.0.1").unwrap();
-        // assert!(!req.is_satisfied_by(&version));
+        // Upper bound: 4.0.1 should NOT satisfy <4.0 (it's above the limit)
+        let version = Version::parse("4.0.1").unwrap();
+        assert!(!req.is_satisfied_by(&version));
     }
 
     #[test]
@@ -1048,21 +1044,38 @@ mod tests {
 
     #[test]
     fn test_compatible_version() {
+        // ~=1.4 (2 segments): prefix=["1"] locked, last segment minor >= 4
+        // Equivalent to: >=1.4, <2.0  (major locked, minor is the floor)
         let constraint = VersionConstraint::Compatible(Version::parse("1.4").unwrap());
 
-        // TODO: Fix compatible version logic - currently has issues with version comparison
-        // let version = Version::parse("1.4.2").unwrap();
-        // assert!(constraint.is_satisfied_by(&version));
+        // 1.4.2: major=1 (locked), minor=4 >= 4, patch=2 (unconstrained) → true
+        let version = Version::parse("1.4.2").unwrap();
+        assert!(constraint.is_satisfied_by(&version));
 
-        // TODO: Fix compatible version logic for these tests
-        // let version = Version::parse("1.5.0").unwrap();
-        // assert!(!constraint.is_satisfied_by(&version));
+        // 1.5.0: major=1 (locked), minor=5 >= 4 → true (minor advances are allowed)
+        let version = Version::parse("1.5.0").unwrap();
+        assert!(constraint.is_satisfied_by(&version));
 
-        // let version = Version::parse("2.0.0").unwrap();
-        // assert!(!constraint.is_satisfied_by(&version));
+        // 1.4 itself: major=1, minor=4>=4 → true
+        let version = Version::parse("1.4").unwrap();
+        assert!(constraint.is_satisfied_by(&version));
 
-        // For now, just test that the constraint was created
-        assert!(matches!(constraint, VersionConstraint::Compatible(_)));
+        // 2.0.0: major=2 != locked major=1 → false
+        let version = Version::parse("2.0.0").unwrap();
+        assert!(!constraint.is_satisfied_by(&version));
+
+        // 1.3: minor=3 < 4 → false
+        let version = Version::parse("1.3").unwrap();
+        assert!(!constraint.is_satisfied_by(&version));
+
+        // ~=1.4.0 (3 segments): prefix=["1","4"] locked, last segment patch >= 0
+        // Equivalent to: >=1.4.0, <1.5
+        let constraint3 = VersionConstraint::Compatible(Version::parse("1.4.0").unwrap());
+
+        assert!(constraint3.is_satisfied_by(&Version::parse("1.4.0").unwrap()));
+        assert!(constraint3.is_satisfied_by(&Version::parse("1.4.5").unwrap()));
+        assert!(!constraint3.is_satisfied_by(&Version::parse("1.5.0").unwrap()));
+        assert!(!constraint3.is_satisfied_by(&Version::parse("1.3.9").unwrap()));
     }
 
     #[test]
