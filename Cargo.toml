@@ -71,6 +71,9 @@ crate-type = ["rlib"]
 
 [features]
 default = []
+# Optional features used by benchmarks
+flamegraph = []
+quick-benchmarks = []
 
 [[bin]]
 name = "rez-next"
@@ -164,7 +167,7 @@ harness = false
 
 # Linting configuration (workspace-level, inherited by all crates)
 [workspace.lints.rust]
-# Allow unused imports for Python bindings that may not be used in all builds
+# Allow unused imports during development
 unused_imports = "allow"
 # Allow dead code for experimental features
 dead_code = "allow"
@@ -178,8 +181,8 @@ ambiguous_glob_reexports = "allow"
 irrefutable_let_patterns = "allow"
 # Allow unused mut during development
 unused_mut = "allow"
-# Allow unexpected cfg checks during development
-unexpected_cfgs = "allow"
+# Warn on unexpected cfg checks (tightened from allow — python-bindings cleanup complete)
+unexpected_cfgs = "warn"
 
 [workspace.lints.clippy]
 # Allow some clippy lints that are too strict for development
