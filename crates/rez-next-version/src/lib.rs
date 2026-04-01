@@ -7,7 +7,6 @@
 //! - Version comparison and ordering
 //! - Version range operations
 //! - Token-based version representation
-//! - Python bindings for version operations
 
 use rez_next_common::RezCoreError;
 

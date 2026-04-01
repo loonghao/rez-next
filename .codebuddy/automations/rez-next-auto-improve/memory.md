@@ -1,58 +1,51 @@
 # rez-next auto-improve 执行记录
 
-## 最新执行 (2026-03-31 19:50)
+## 最新执行 (2026-04-01 02:31)
 
 ### 执行摘要
-本次执行完成了 2 个主要阶段：clippy 零警告修复 + 大批测试覆盖增强，共新增约 48 个测试。
+本次执行完成了 3 个主要阶段：同步 origin/main 代码并解决冲突、修复全部 CLI e2e 测试失败、新增 12 个 compat tests 并修复功能 bug。
 
 ### 已完成的工作
 
-#### 阶段 1 - Clippy 零警告修复 (提交: 7d5b45b / cherry-pick to 1772a0e)
-- **range.rs**: 修复 `empty line after doc comment` (error 级别)
-- **shell.rs**: 将 `from_str` 改为实现 `FromStr` trait，新增 `parse()` helper
-- **requirement.rs**: 用 zip 迭代器替换索引循环 (needless_range_loop)
-- **heuristics.rs**: 用 `vec![]` 替换 Vec::new + push 链 (vec-init-then-push)
-- **pip_bindings.rs**: 用字符模式数组替换手动 char 比较
-- **lib.rs**: 用 `strip_prefix()` 和 `is_some_and()` 替换旧 API
-- **5 个 Python bindings 文件**: 添加 `Default` impl (PyConfig/PySystem/PyRezData/PyBindManager/PyRezStatus)
-- **search/suites/context/context.rs 等**: 8 个自动修复
-- 零 error，零 warning
+#### 阶段 1 - 分支同步与合并 (提交: c88019b)
+- 将 origin/main 的 8 个新提交 merge 进 auto-improve（含 bench、Python 修复、CLI e2e 测试）
+- 采用 `--ours` 策略解决所有 60 个冲突文件（auto-improve 实现更完整）
+- 也将 origin/auto-improve 的 1 个新提交合并
 
-#### 阶段 2 - 测试覆盖增强 (提交: 5eb4316)
-- **rez-next-common/error.rs**: 新增 17 个单元测试（覆盖所有 RezCoreError 变体）
-- **rez-next-common/utils.rs**: 新增 8 个边界测试（单字符/数字/特殊字符）
-- **tests/rez_compat_tests.rs**: 新增 23 个兼容性测试（Phase 109-114）
-  - Phase 109: RezCoreError 兼容性
-  - Phase 110: 包名验证
-  - Phase 111: VersionRange 边界情况
-  - Phase 112: PackageRequirement 解析
-  - Phase 113: Shell 脚本生成（5种 shell、别名、空格路径）
-  - Phase 114: Config 环境变量覆盖（并发安全）
+#### 阶段 2 - 修复全部 CLI e2e 测试 (提交: 0e1d1a1)
+- **bundle**: 新增路径检测逻辑（检测最后一个位置参数是否为路径），修复 Windows 绝对路径被解析为包名的问题
+- **bundle**: 额外生成 `bundle.yaml`（rez 原生格式兼容）
+- **bundle**: 显式指定 output 时直接使用该路径，不再追加 bundle_name
+- **search_v2**: `--format json` 模式下抑制 status println，空结果返回 `[]`
+- **plugins**: package 参数改为可选，无参数时列出可用 plugin 类型并 exit 0
+- **rez_compat_tests**: 删除重复函数（6421行后）；`ShellType::from_str` → `ShellType::parse`
+
+#### 阶段 3 - 新增 compat tests + 修复功能 bug (提交: 5d41943)
+- 新增 12 个 compat tests（phases 136-143）：Rex info_messages 排序、ShellType 大小写无关、RexEnvironment CRUD、zsh=bash 输出、空 env header、VersionRange union、开放上界范围、弱依赖解析、冲突依赖、package variant、bash alias、字母数字版本
+- **修复 `PackageRequirement::parse`**：正确处理 `~` 前缀设置 `weak=true`；修复 dash 分隔符检测（仅当跟随数字时才视为版本分隔）
 
 ### 当前项目状态
 
-**分支**: `auto-improve`（领先 origin/auto-improve，已推送）
+**分支**: `auto-improve`（已推送到 origin/auto-improve）
 
-**测试总计**:
-- compat tests: 308 → 331（+23）
-- rez-next-common: 15 → 40（+25）
-- 全部 workspace 测试通过，零 clippy 警告
+**测试总计**: ~332 compat tests + 111 unit tests + 39 e2e tests = ~482 全部通过
 
-**Workspace 成员（11 crates）**:
-- rez-next-common, rez-next-version, rez-next-package, rez-next-solver
-- rez-next-repository, rez-next-context, rez-next-build, rez-next-cache
-- rez-next-rex, rez-next-suites, rez-next-python（lib: rez_next_bindings）
+**最近提交**:
+- `5d41943` feat(tests+package): add 12 compat tests, fix PackageRequirement::parse weak prefix [iteration-done]
+- `0e1d1a1` fix(cli): fix all 5 e2e test failures
+- `c88019b` chore(merge): sync origin/main
 
-### 下一阶段待实现功能
+### 下一阶段待改进项
 
-1. **rez-next-version 测试扩充**: `Version::parse` 的边界情况（空字符串、非常规格式）
-2. **rez-next-repository scanner 测试**: `SimpleRepository` 的包扫描、版本排序、过滤
-3. **rez-next-solver 集成测试**: 依赖冲突解决场景
-4. **Python 绑定 CI**: GitHub Actions 配置 maturin wheel 构建
-5. **性能测试**: 补充更多 benchmark（version compare 批量、package 加载批量）
+1. **`PackageRequirement::parse` 增强**：支持 `!pkg` 冲突标记
+2. **`VersionRange::any()` 静态方法**：`rez_next_version::VersionRange` 缺少此 API（`rez_core::version::VersionRange` 有）
+3. **YAML 序列化**：`save_to_file` → `load_from_file` roundtrip 验证
+4. **search 命令改进**：`search_v2` 中 `--paths` 参数与 `--repository` 的统一处理
+5. **更多 compat tests**：参考 rez 官方 `src/rez/tests/` 中剩余测试用例
+6. **CI 配置**：GitHub Actions Python 绑定（maturin build wheel）
 
 ### 注意事项
-- Windows PowerShell 环境，不用 tail/head，用 PowerShell 等价命令
-- cargo test --workspace 时环境变量测试有并发竞争（用 is_ok() 检查跳过）
-- auto-improve-squashed 分支也需同步（用 cherry-pick 方式）
-- VersionRange 比较：使用 `"1.5"` 格式版本而非 `"1.5.0"`（避免 patch 版本解析差异）
+- Windows PowerShell 环境：不支持 Unix 命令（head/tail/grep）
+- 两个 `VersionRange` 类型：`rez_core::version::VersionRange`（有 `any()` 方法）vs `rez_next_version::VersionRange`（没有）
+- `rez_compat_tests.rs` 文件顶部用的是 `use rez_core::version::{Version, VersionRange}`
+- `search_v2.rs` 才是实际的 CLI search 命令（不是 `search.rs`）

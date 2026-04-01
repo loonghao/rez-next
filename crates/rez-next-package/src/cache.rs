@@ -1,9 +1,7 @@
-//! Package caching system for improved performance
+﻿//! Package caching system for improved performance
 
 use crate::{dependency::DependencyResolutionResult, Package, PackageValidationResult};
 use lru::LruCache;
-#[cfg(feature = "python-bindings")]
-use pyo3::prelude::*;
 use rez_next_common::RezCoreError;
 use rez_next_version::Version;
 use serde::{Deserialize, Serialize};
@@ -34,7 +32,6 @@ pub struct CacheEntry<T> {
 }
 
 /// Cache statistics
-#[cfg_attr(feature = "python-bindings", pyclass)]
 #[derive(Debug, Clone, Default)]
 pub struct CacheStatistics {
     /// Total cache hits
@@ -52,7 +49,6 @@ pub struct CacheStatistics {
 }
 
 /// Cache configuration
-#[cfg_attr(feature = "python-bindings", pyclass)]
 #[derive(Debug, Clone)]
 pub struct CacheConfig {
     /// Maximum number of entries
@@ -108,7 +104,6 @@ pub struct DependencyResolutionCache {
 }
 
 /// Unified package cache manager
-#[cfg_attr(feature = "python-bindings", pyclass)]
 pub struct PackageCacheManager {
     /// Package parsing cache
     pub parse_cache: PackageParseCache,
@@ -134,16 +129,13 @@ impl Default for CacheConfig {
     }
 }
 
-#[cfg_attr(feature = "python-bindings", pymethods)]
 impl CacheConfig {
     /// Create a new cache configuration
-    #[cfg_attr(feature = "python-bindings", new)]
     pub fn new() -> Self {
         Self::default()
     }
 
     /// Create configuration for development
-    #[cfg_attr(feature = "python-bindings", staticmethod)]
     pub fn development() -> Self {
         Self {
             max_entries: 500,

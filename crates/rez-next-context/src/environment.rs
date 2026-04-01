@@ -45,32 +45,6 @@ pub struct EnvVarDefinition {
     pub priority: i32,
 }
 
-// Python methods temporarily disabled due to DLL issues
-/*
-#[pymethods]
-impl EnvironmentManager {
-    #[new]
-    pub fn new_py() -> Self {
-        Self::new(ContextConfig::default())
-    }
-
-    /// Generate environment variables for packages
-    #[cfg(feature = "python-bindings")]
-    pub fn generate_environment_py(&self, packages: Vec<Package>) -> PyResult<HashMap<String, String>> {
-        let result = tokio::runtime::Runtime::new()
-            .unwrap()
-            .block_on(self.generate_environment(&packages));
-
-        result.map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))
-    }
-
-    /// Get base environment variables
-    #[getter]
-    pub fn base_env(&self) -> HashMap<String, String> {
-        self.base_env.clone()
-    }
-}
-*/
 
 impl EnvironmentManager {
     /// Create a new environment manager

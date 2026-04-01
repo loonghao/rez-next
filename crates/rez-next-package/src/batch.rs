@@ -1,11 +1,9 @@
-//! Batch package operations for high-performance bulk processing
+﻿//! Batch package operations for high-performance bulk processing
 
 use crate::{
     cache::PackageCacheManager, Package, PackageInstallOptions, PackageManager,
     PackageOperationResult, PackageValidationOptions, PackageValidationResult, PackageValidator,
 };
-#[cfg(feature = "python-bindings")]
-use pyo3::prelude::*;
 use rayon::prelude::*;
 use rez_next_common::RezCoreError;
 use serde::{Deserialize, Serialize};
@@ -15,7 +13,6 @@ use std::sync::{Arc, Mutex};
 use std::time::{Instant, SystemTime};
 
 /// Batch operation configuration
-#[cfg_attr(feature = "python-bindings", pyclass)]
 #[derive(Debug, Clone)]
 pub struct BatchConfig {
     /// Maximum number of parallel workers
@@ -37,7 +34,6 @@ pub struct BatchConfig {
 }
 
 /// Batch operation progress
-#[cfg_attr(feature = "python-bindings", pyclass)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BatchProgress {
     /// Total items to process
@@ -92,7 +88,6 @@ pub struct BatchStatistics {
 pub type ProgressCallback = Arc<dyn Fn(&BatchProgress) + Send + Sync>;
 
 /// Batch package processor
-#[cfg_attr(feature = "python-bindings", pyclass)]
 pub struct BatchPackageProcessor {
     /// Configuration
     config: BatchConfig,
@@ -105,7 +100,6 @@ pub struct BatchPackageProcessor {
 }
 
 /// Batch parsing options
-#[cfg_attr(feature = "python-bindings", pyclass)]
 #[derive(Debug, Clone)]
 pub struct BatchParseOptions {
     /// File patterns to include
@@ -123,7 +117,6 @@ pub struct BatchParseOptions {
 }
 
 /// Batch validation options
-#[cfg_attr(feature = "python-bindings", pyclass)]
 #[derive(Debug, Clone)]
 pub struct BatchValidationOptions {
     /// Validation options for each package
@@ -137,7 +130,6 @@ pub struct BatchValidationOptions {
 }
 
 /// Batch installation options
-#[cfg_attr(feature = "python-bindings", pyclass)]
 #[derive(Debug, Clone)]
 pub struct BatchInstallOptions {
     /// Installation options for each package
@@ -167,16 +159,13 @@ impl Default for BatchConfig {
     }
 }
 
-#[cfg_attr(feature = "python-bindings", pymethods)]
 impl BatchConfig {
     /// Create new batch configuration
-    #[cfg_attr(feature = "python-bindings", new)]
     pub fn new() -> Self {
         Self::default()
     }
 
     /// Create configuration optimized for development
-    #[cfg_attr(feature = "python-bindings", staticmethod)]
     pub fn development() -> Self {
         Self {
             max_workers: 2,

@@ -1,7 +1,6 @@
 //! Shell integration and command execution
 
 use rez_next_common::RezCoreError;
-// use pyo3::prelude::*;  // Temporarily disabled due to DLL issues
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;

@@ -1,4 +1,4 @@
-//! Package dependency resolution and analysis
+﻿//! Package dependency resolution and analysis
 
 use crate::{requirement::Requirement, Package};
 use rez_next_common::RezCoreError;
@@ -63,7 +63,6 @@ pub struct DependencyResolutionOptions {
 }
 
 /// Dependency node in the resolution graph
-#[cfg_attr(feature = "python-bindings", pyclass)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DependencyNode {
     /// Package name
@@ -106,7 +105,6 @@ pub enum DependencyType {
 }
 
 /// Dependency resolution result
-#[cfg_attr(feature = "python-bindings", pyclass)]
 #[derive(Debug, Clone)]
 pub struct DependencyResolutionResult {
     /// Whether resolution was successful
@@ -124,7 +122,6 @@ pub struct DependencyResolutionResult {
 }
 
 /// Dependency conflict information
-#[cfg_attr(feature = "python-bindings", pyclass)]
 #[derive(Debug, Clone)]
 pub struct DependencyConflict {
     /// Package name with conflict
