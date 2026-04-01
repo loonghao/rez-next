@@ -242,7 +242,7 @@ fn discover_installed_package(
 }
 
 /// Parse pip show output into PipPackageInfo
-fn parse_pip_show_output(output: &str, target: &Path) -> RezCoreResult<Option<PipPackageInfo>> {
+fn parse_pip_show_output(output: &str, _target: &Path) -> RezCoreResult<Option<PipPackageInfo>> {
     let mut name = String::new();
     let mut version = String::new();
     let mut requires = Vec::new();

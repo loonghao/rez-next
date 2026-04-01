@@ -212,7 +212,7 @@ impl BuildProcess {
 
     /// Run build steps
     async fn run_build_steps(
-        build_id: &str,
+        _build_id: &str,
         request: &BuildRequest,
         environment: &BuildEnvironment,
         config: &BuildConfig,
@@ -317,9 +317,9 @@ impl BuildProcess {
 
     /// Execute prepare step
     async fn execute_prepare_step(
-        request: &BuildRequest,
+        _request: &BuildRequest,
         environment: &BuildEnvironment,
-        config: &BuildConfig,
+        _config: &BuildConfig,
     ) -> Result<(bool, String, String), RezCoreError> {
         // Create build directories
         let build_dir = environment.get_build_dir();
@@ -346,7 +346,7 @@ impl BuildProcess {
     async fn execute_configure_step(
         request: &BuildRequest,
         environment: &BuildEnvironment,
-        config: &BuildConfig,
+        _config: &BuildConfig,
     ) -> Result<(bool, String, String), RezCoreError> {
         // Detect and configure build system
         let build_system = BuildSystem::detect_with_package(&request.source_dir, &request.package)?;
@@ -363,7 +363,7 @@ impl BuildProcess {
     async fn execute_compile_step(
         request: &BuildRequest,
         environment: &BuildEnvironment,
-        config: &BuildConfig,
+        _config: &BuildConfig,
         child_process: Arc<Mutex<Option<Child>>>,
     ) -> Result<(bool, String, String), RezCoreError> {
         let build_system = BuildSystem::detect_with_package(&request.source_dir, &request.package)?;
@@ -382,7 +382,7 @@ impl BuildProcess {
     async fn execute_test_step(
         request: &BuildRequest,
         environment: &BuildEnvironment,
-        config: &BuildConfig,
+        _config: &BuildConfig,
         child_process: Arc<Mutex<Option<Child>>>,
     ) -> Result<(bool, String, String), RezCoreError> {
         let build_system = BuildSystem::detect_with_package(&request.source_dir, &request.package)?;
@@ -397,7 +397,7 @@ impl BuildProcess {
     async fn execute_package_step(
         request: &BuildRequest,
         environment: &BuildEnvironment,
-        config: &BuildConfig,
+        _config: &BuildConfig,
     ) -> Result<(bool, String, String), RezCoreError> {
         let build_system = BuildSystem::detect_with_package(&request.source_dir, &request.package)?;
         let package_result = build_system.package(request, environment).await?;
@@ -413,7 +413,7 @@ impl BuildProcess {
     async fn execute_install_step(
         request: &BuildRequest,
         environment: &BuildEnvironment,
-        config: &BuildConfig,
+        _config: &BuildConfig,
     ) -> Result<(bool, String, String), RezCoreError> {
         let build_system = BuildSystem::detect_with_package(&request.source_dir, &request.package)?;
         let install_result = build_system.install(request, environment).await?;
@@ -427,7 +427,7 @@ impl BuildProcess {
 
     /// Execute cleanup step
     async fn execute_cleanup_step(
-        request: &BuildRequest,
+        _request: &BuildRequest,
         environment: &BuildEnvironment,
         config: &BuildConfig,
     ) -> Result<(bool, String, String), RezCoreError> {

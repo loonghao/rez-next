@@ -179,8 +179,8 @@ deprecated = "allow"
 ambiguous_glob_reexports = "allow"
 # Allow irrefutable let patterns
 irrefutable_let_patterns = "allow"
-# Allow unused mut during development
-unused_mut = "allow"
+# Warn on unused mut bindings (no instances found — tightened from allow)
+unused_mut = "warn"
 # Warn on unexpected cfg checks (tightened from allow — python-bindings cleanup complete)
 unexpected_cfgs = "warn"
 

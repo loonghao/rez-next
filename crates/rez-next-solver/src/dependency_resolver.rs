@@ -473,7 +473,7 @@ impl ResolutionState {
         }
     }
 
-    fn mark_requirement_satisfied(&mut self, requirement: &Requirement, package_name: String) {
+    fn mark_requirement_satisfied(&mut self, requirement: &Requirement, _package_name: String) {
         let req_key = format!(
             "{}:{}",
             requirement.name,

@@ -242,7 +242,7 @@ impl HighPerformanceScanner {
         package_files: &[PathBuf],
     ) -> Result<Vec<PackageScanResult>, RezCoreError> {
         let semaphore = Arc::new(Semaphore::new(self.config.max_concurrency));
-        let results = Arc::new(DashMap::<PathBuf, PackageScanResult>::new());
+        let _results = Arc::new(DashMap::<PathBuf, PackageScanResult>::new());
 
         if self.config.enable_work_stealing && package_files.len() > 1000 {
             // Use Rayon for work-stealing parallelism on large datasets

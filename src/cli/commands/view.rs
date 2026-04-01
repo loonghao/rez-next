@@ -52,7 +52,7 @@ pub fn execute(args: ViewArgs) -> RezCoreResult<()> {
 }
 
 /// View a package from the current context
-fn view_current_package(args: &ViewArgs) -> RezCoreResult<()> {
+fn view_current_package(_args: &ViewArgs) -> RezCoreResult<()> {
     // TODO: Implement current context package viewing
     // This requires integration with rez-core-context
 

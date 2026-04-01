@@ -180,7 +180,7 @@ impl BuildArtifacts {
     }
 
     /// Get file permissions
-    fn get_file_permissions(metadata: &std::fs::Metadata) -> Option<u32> {
+    fn get_file_permissions(_metadata: &std::fs::Metadata) -> Option<u32> {
         #[cfg(unix)]
         {
             use std::os::unix::fs::MetadataExt;

@@ -273,7 +273,7 @@ fn resolve_context(
     requirements: &[PackageRequirement],
     args: &BundleArgs,
 ) -> RezCoreResult<ResolvedContext> {
-    let config = ContextConfig::default();
+    let _config = ContextConfig::default();
     let rez_config = RezCoreConfig::load();
 
     let search_paths = get_search_paths(args, &rez_config);

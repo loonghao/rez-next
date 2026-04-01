@@ -38,12 +38,12 @@
 - Deleted `batch.rs`, `cache.rs`, `dependency.rs`, `variant.rs` — all dead files not in lib.rs module tree
 
 ### 7. Further lint tightening
-- **Status**: MOSTLY COMPLETE ✓
+- **Status**: COMPLETE ✓ (cycle 11)
 - `unused_imports`: `allow` → `warn` + 68 imports cleaned (cycle 9)
 - `dead_code`: `allow` → `warn` + ~430 lines dead code removed (cycle 10)
-- `unused_variables`: `allow` → `warn` (cycle 10, 26 warnings remaining — need manual _ prefix in function signatures)
-- Remaining: `ambiguous_glob_reexports`, `unused_mut` still `allow`
-- **Action**: Fix remaining unused_variables warnings, then tighten `unused_mut`
+- `unused_variables`: `allow` → `warn` + 24 function-signature warnings fixed (cycle 11)
+- `unused_mut`: `allow` → `warn` (cycle 11, zero instances found)
+- Remaining `allow` lints: `ambiguous_glob_reexports`, `deprecated`, `irrefutable_let_patterns`
 
 ## Medium Priority — TODO Audit
 
@@ -53,7 +53,23 @@
 - **Version system**: token comparison, caching, proper type distinction
 - None of these TODOs are blocking; they represent future work items.
 
+## Completed (2026-04-01, cycle 11)
+
+- [x] Fixed 24 `unused_variables` warnings: prefix with `_` across 11 files:
+  - `serialization.rs`: `options` → `_options` in `load_from_file_with_options`
+  - `high_performance_scanner.rs`: `results` → `_results`
+  - `filesystem.rs`: `version_str` → `_version_str` in loop destructuring
+  - `dependency_resolver.rs`: `package_name` → `_package_name` in `mark_requirement_satisfied`
+  - `environment.rs`: `tool` → `_tool` in loop
+  - `process.rs`: 8 params (`build_id`, `request`×4, `config`×6) prefixed with `_`
+  - `systems.rs`: `request`×2, `cmd` → `_`-prefixed
+  - `artifacts.rs`: `metadata` → `_metadata` in `get_file_permissions`
+  - `status.rs`, `view.rs`, `build.rs`, `bundle.rs`, `pip.rs`: 6 CLI params prefixed
+- [x] `unused_mut` lint: changed from `allow` to `warn` (zero instances in codebase)
+- [x] Updated `CLEANUP_TODO.md` with cycle 11 progress
+
 ## Completed (2026-04-01, cycle 10)
+
 
 - [x] Fixed compilation error: missing `StatePool` import in `test_framework.rs`
 - [x] `dead_code` lint: changed from `allow` to `warn`

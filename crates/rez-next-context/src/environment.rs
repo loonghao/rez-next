@@ -220,7 +220,7 @@ impl EnvironmentManager {
 
         // Collect tool paths from packages
         for package in packages {
-            for tool in &package.tools {
+            for _tool in &package.tools {
                 let tool_path = format!("/packages/{}/bin", package.name);
                 if !tool_paths.contains(&tool_path) {
                     tool_paths.push(tool_path);

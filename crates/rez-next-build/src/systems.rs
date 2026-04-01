@@ -310,7 +310,7 @@ impl CMakeBuildSystem {
 
     pub async fn test(
         &self,
-        request: &BuildRequest,
+        _request: &BuildRequest,
         environment: &BuildEnvironment,
         _child_process: Arc<Mutex<Option<Child>>>,
     ) -> Result<BuildStepResult, RezCoreError> {
@@ -349,7 +349,7 @@ impl CMakeBuildSystem {
 
     pub async fn install(
         &self,
-        request: &BuildRequest,
+        _request: &BuildRequest,
         environment: &BuildEnvironment,
     ) -> Result<BuildStepResult, RezCoreError> {
         let build_dir = environment.get_build_dir();
@@ -569,7 +569,7 @@ impl CustomBuildSystem {
                 // Execute build_command from package definition
                 self.execute_build_command(request, environment).await
             }
-            script_name => {
+            _script_name => {
                 // Execute custom build script with install command
                 self.execute_build_script(request, environment, "install")
                     .await
@@ -885,7 +885,7 @@ impl PythonBuildSystem {
             // Export build env vars for rezbuild.py
             let install_dir = environment.get_install_dir();
             let build_dir = environment.get_build_dir();
-            let cmd = format!(
+            let _cmd = format!(
                 "python {} -- build_dir={} install_dir={}",
                 rezbuild.to_string_lossy(),
                 build_dir.to_string_lossy(),

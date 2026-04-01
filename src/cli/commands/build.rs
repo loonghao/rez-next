@@ -397,8 +397,8 @@ fn view_preprocessed_package_with_data(package: &Package) -> RezCoreResult<()> {
 fn execute_build(
     request: BuildRequest,
     args: &BuildArgs,
-    package: &Package,
-    source_dir: &PathBuf,
+    _package: &Package,
+    _source_dir: &PathBuf,
 ) -> RezCoreResult<()> {
     // Create build manager
     let mut build_manager = BuildManager::new();

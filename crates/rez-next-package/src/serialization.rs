@@ -267,7 +267,7 @@ impl PackageSerializer {
     /// Load a package from a file with options
     pub fn load_from_file_with_options(
         path: &Path,
-        options: Option<SerializationOptions>,
+        _options: Option<SerializationOptions>,
     ) -> Result<PackageContainer, RezCoreError> {
         let format = PackageFormat::from_extension(path).ok_or_else(|| {
             RezCoreError::PackageParse(format!("Unsupported file format: {}", path.display()))
