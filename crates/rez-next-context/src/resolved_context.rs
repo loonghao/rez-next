@@ -85,7 +85,7 @@ impl RezResolvedContext {
             failure_description: None,
             timestamp: chrono::Utc::now(),
             user: whoami::username(),
-            host: whoami::hostname(),
+            host: whoami::fallible::hostname().unwrap_or_else(|_| String::from("unknown")),
             platform: std::env::consts::OS.to_string(),
             arch: std::env::consts::ARCH.to_string(),
             rez_version: env!("CARGO_PKG_VERSION").to_string(),
@@ -268,8 +268,8 @@ impl RezResolvedContext {
     }
 
     /// Get a summary of this context
-    pub fn get_summary(&self) -> ContextSummary {
-        ContextSummary {
+    pub fn get_summary(&self) -> ResolvedContextSummary {
+        ResolvedContextSummary {
             num_packages: self.resolved_packages.len(),
             package_names: self.get_package_names(),
             failed: self.failed,
@@ -279,9 +279,9 @@ impl RezResolvedContext {
     }
 }
 
-/// Summary information about a context
+/// Summary information about a resolved context
 #[derive(Debug, Clone)]
-pub struct ContextSummary {
+pub struct ResolvedContextSummary {
     pub num_packages: usize,
     pub package_names: Vec<String>,
     pub failed: bool,

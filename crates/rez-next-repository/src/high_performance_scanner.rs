@@ -58,10 +58,13 @@ impl Default for HighPerformanceConfig {
 #[derive(Debug, Clone)]
 struct AdvancedCacheEntry {
     result: PackageScanResult,
+    #[allow(dead_code)] // Written for cache invalidation, not yet read
     mtime: SystemTime,
+    #[allow(dead_code)] // Written for cache invalidation, not yet read
     size: u64,
     access_count: u64,
     last_accessed: SystemTime,
+    #[allow(dead_code)] // Written by prefetch predictor, not yet read
     prediction_score: f64,
 }
 

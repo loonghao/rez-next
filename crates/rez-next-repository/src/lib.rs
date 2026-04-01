@@ -18,6 +18,8 @@ pub mod simple_repository;
 pub use cache::*;
 pub use filesystem::*;
 pub use high_performance_scanner::*;
-pub use repository::*;
+pub use repository::{
+    PackageSearchCriteria, Repository, RepositoryMetadata, RepositoryStats, RepositoryType,
+};
 pub use scanner::*;
 pub use simple_repository::*;

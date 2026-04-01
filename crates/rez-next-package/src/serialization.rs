@@ -1,5 +1,6 @@
 //! Package serialization and deserialization
 
+use base64::Engine as _;
 use crate::{Package, PythonAstParser};
 use chrono::Utc;
 use flate2::write::GzEncoder;
@@ -671,7 +672,8 @@ impl PackageSerializer {
     /// Load a package from binary content
     pub fn load_from_binary(content: &str) -> Result<Package, RezCoreError> {
         // Decode from base64
-        let binary_data = base64::decode(content)
+        let binary_data = base64::engine::general_purpose::STANDARD
+            .decode(content)
             .map_err(|e| RezCoreError::PackageParse(format!("Failed to decode base64: {}", e)))?;
 
         // Deserialize from binary
@@ -993,7 +995,7 @@ impl PackageSerializer {
         })?;
 
         // Convert to base64 for text representation
-        Ok(base64::encode(binary_data))
+        Ok(base64::engine::general_purpose::STANDARD.encode(binary_data))
     }
 
     /// Save package to TOML format

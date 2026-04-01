@@ -388,10 +388,9 @@ impl RepositoryScanner {
 
     /// Stop background cache refresh task
     pub async fn stop_background_refresh(&self) {
-        if let mut refresh_handle = self.refresh_handle.write().await {
-            if let Some(handle) = refresh_handle.take() {
-                handle.abort();
-            }
+        let mut refresh_handle = self.refresh_handle.write().await;
+        if let Some(handle) = refresh_handle.take() {
+            handle.abort();
         }
     }
 
