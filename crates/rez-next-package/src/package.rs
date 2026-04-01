@@ -13,8 +13,10 @@ pub struct PackageRequirement {
     pub name: String,
     /// Version requirement (optional)
     pub version_spec: Option<String>,
-    /// Whether this is a weak requirement
+    /// Whether this is a weak requirement (prefix ~)
     pub weak: bool,
+    /// Whether this is a conflict requirement (prefix !)
+    pub conflict: bool,
 }
 
 impl PackageRequirement {
@@ -24,6 +26,7 @@ impl PackageRequirement {
             name,
             version_spec: None,
             weak: false,
+            conflict: false,
         }
     }
 
@@ -33,19 +36,35 @@ impl PackageRequirement {
             name,
             version_spec: Some(version_spec),
             weak: false,
+            conflict: false,
         }
     }
 
-    /// Parse a requirement string like "python-3.9" or "maya>=2023"
+    /// Parse a requirement string.
+    ///
+    /// Supports the following rez requirement formats:
+    /// - `python` — plain name requirement
+    /// - `python-3.9` — name with version
+    /// - `python>=3.9` — name with operator-prefixed version spec
+    /// - `~python` — weak (optional) requirement
+    /// - `!python` — conflict requirement (must NOT be present)
+    /// - `!python-3.9` — conflict requirement with version
     pub fn parse(requirement_str: &str) -> Result<Self, RezCoreError> {
-        // Handle weak requirement prefix (~)
-        let (s, weak) = if requirement_str.starts_with('~') && !requirement_str.starts_with("~=") {
+        // Handle conflict requirement prefix (!)
+        let (s, conflict) = if requirement_str.starts_with('!') {
             (&requirement_str[1..], true)
         } else {
             (requirement_str, false)
         };
 
-        // Simple parsing - can be enhanced later
+        // Handle weak requirement prefix (~), but not ~= which is a version operator
+        let (s, weak) = if s.starts_with('~') && !s.starts_with("~=") {
+            (&s[1..], true)
+        } else {
+            (s, false)
+        };
+
+        // Parse name and version
         let mut req = if let Some(dash_pos) = s.rfind('-') {
             // Ensure it's a version separator and not part of the name
             let potential_name = &s[..dash_pos];
@@ -60,6 +79,7 @@ impl PackageRequirement {
             Self::new(s.to_string())
         };
         req.weak = weak;
+        req.conflict = conflict;
         Ok(req)
     }
 
@@ -73,12 +93,19 @@ impl PackageRequirement {
         self.version_spec.as_deref()
     }
 
-    /// Convert to string representation
+    /// Convert to string representation (rez format)
     pub fn to_string(&self) -> String {
-        if let Some(ref version) = self.version_spec {
+        let base = if let Some(ref version) = self.version_spec {
             format!("{}-{}", self.name, version)
         } else {
             self.name.clone()
+        };
+        if self.conflict {
+            format!("!{}", base)
+        } else if self.weak {
+            format!("~{}", base)
+        } else {
+            base
         }
     }
 
@@ -1014,5 +1041,63 @@ mod package_tests {
     #[test]
     fn test_package_empty_name_invalid() {
         assert!(Package::new("".to_string()).validate().is_err());
+    }
+
+    // ── conflict requirement (!pkg) ───────────────────────────────────
+
+    #[test]
+    fn test_conflict_requirement_parse() {
+        let req = PackageRequirement::parse("!python").unwrap();
+        assert_eq!(req.name, "python");
+        assert!(req.conflict, "!python must be a conflict requirement");
+        assert!(!req.weak);
+        assert!(req.version_spec.is_none());
+    }
+
+    #[test]
+    fn test_conflict_requirement_with_version() {
+        let req = PackageRequirement::parse("!python-3.9").unwrap();
+        assert_eq!(req.name, "python");
+        assert!(req.conflict);
+        assert_eq!(req.version_spec.as_deref(), Some("3.9"));
+    }
+
+    #[test]
+    fn test_conflict_requirement_to_string() {
+        let req = PackageRequirement::parse("!python").unwrap();
+        assert_eq!(req.to_string(), "!python");
+    }
+
+    #[test]
+    fn test_conflict_requirement_with_version_to_string() {
+        let req = PackageRequirement::parse("!python-3.9").unwrap();
+        assert_eq!(req.to_string(), "!python-3.9");
+    }
+
+    #[test]
+    fn test_weak_requirement_to_string() {
+        let req = PackageRequirement::parse("~numpy").unwrap();
+        assert_eq!(req.name, "numpy");
+        assert!(req.weak);
+        assert!(!req.conflict);
+        assert_eq!(req.to_string(), "~numpy");
+    }
+
+    #[test]
+    fn test_normal_requirement_not_conflict_not_weak() {
+        let req = PackageRequirement::parse("maya-2024").unwrap();
+        assert!(!req.conflict);
+        assert!(!req.weak);
+        assert_eq!(req.name, "maya");
+        assert_eq!(req.version_spec.as_deref(), Some("2024"));
+    }
+
+    #[test]
+    fn test_conflict_takes_priority_over_weak() {
+        // "!" prefix is checked before "~", so "!~pkg" would be conflict + name "~pkg"
+        // but "~!pkg" is NOT valid rez syntax (~ before ! is not standard)
+        let req = PackageRequirement::parse("!python").unwrap();
+        assert!(req.conflict);
+        assert!(!req.weak);
     }
 }

@@ -6271,6 +6271,7 @@ fn test_solver_weak_requirement_name_preserved() {
         name: "numpy".to_string(),
         version_spec: None,
         weak: true,
+        conflict: false,
     };
     assert_eq!(weak_req.name(), "numpy");
     assert!(

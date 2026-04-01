@@ -240,7 +240,7 @@ pub fn diff_contexts(
             .map(|s| {
                 // Try "name-version" rez format first, then fallback
                 let pr = PackageRequirement::parse(s).unwrap_or_else(|_| {
-                    PackageRequirement { name: s.clone(), version_spec: None, weak: false }
+                    PackageRequirement { name: s.clone(), version_spec: None, weak: false, conflict: false }
                 });
                 let mut pkg = Package::new(pr.name.clone());
                 if let Some(ref spec) = pr.version_spec {
