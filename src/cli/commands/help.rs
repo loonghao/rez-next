@@ -64,7 +64,7 @@ pub fn execute(args: PkgHelpArgs) -> RezCoreResult<()> {
     }
 
     // Create async runtime for package help
-    let runtime = tokio::runtime::Runtime::new().map_err(|e| RezCoreError::Io(e))?;
+    let runtime = tokio::runtime::Runtime::new().map_err(RezCoreError::Io)?;
 
     runtime.block_on(async { execute_package_help_async(&args).await })
 }

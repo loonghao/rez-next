@@ -440,7 +440,7 @@ fn evaluate_package_match(
 }
 
 /// Sort search results
-fn sort_results(results: &mut Vec<SearchResult>, sort_by: &str) {
+fn sort_results(results: &mut [SearchResult], sort_by: &str) {
     match sort_by {
         "name" => {
             results.sort_by(|a, b| a.package.name.cmp(&b.package.name));

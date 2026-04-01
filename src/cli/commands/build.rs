@@ -247,7 +247,7 @@ fn fetch_and_load_remote_source(
 
     let source_path = runtime.block_on(async {
         source_manager
-            .fetch_source(&network_source, &temp_dir.path().to_path_buf())
+            .fetch_source(&network_source, temp_dir.path())
             .await
     })?;
 
@@ -327,7 +327,7 @@ fn copy_dir_recursive(src: &PathBuf, dest: &PathBuf) -> RezCoreResult<()> {
 }
 
 /// Load package from current directory
-fn load_current_package(working_dir: &PathBuf) -> RezCoreResult<Package> {
+fn load_current_package(working_dir: &Path) -> RezCoreResult<Package> {
     use rez_next_package::serialization::PackageSerializer;
 
     // Look for package.py or package.yaml

@@ -541,7 +541,7 @@ impl PackageSerializer {
         format: PackageFormat,
         options: Option<SerializationOptions>,
     ) -> Result<(), RezCoreError> {
-        let opts = options.unwrap_or_else(SerializationOptions::new);
+        let opts = options.unwrap_or_default();
 
         // Create container with metadata if requested
         let container = if opts.include_metadata {
@@ -890,11 +890,8 @@ impl PackageSerializer {
         package: &Package,
         options: &SerializationOptions,
     ) -> Result<String, RezCoreError> {
-        if options.pretty_print {
-            serde_yaml::to_string(package)
-        } else {
-            serde_yaml::to_string(package)
-        }
+        let _ = options.pretty_print; // TODO: implement pretty YAML formatting
+        serde_yaml::to_string(package)
         .map_err(|e| RezCoreError::PackageParse(format!("Failed to serialize to YAML: {}", e)))
     }
 

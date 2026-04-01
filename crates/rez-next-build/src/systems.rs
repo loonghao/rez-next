@@ -4,7 +4,7 @@ use crate::{BuildEnvironment, BuildRequest, BuildStep, BuildStepResult};
 use rez_next_common::RezCoreError;
 use rez_next_context::ShellExecutor;
 use rez_next_package::Package;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::process::Child;
 use tokio::sync::Mutex;
@@ -47,7 +47,7 @@ pub enum BuildSystem {
 
 impl BuildSystem {
     /// Detect build system from source directory
-    pub fn detect(source_dir: &PathBuf) -> Result<Self, RezCoreError> {
+    pub fn detect(source_dir: &Path) -> Result<Self, RezCoreError> {
         // Check for build script first (higher priority for rez packages)
         let build_scripts = ["build.sh", "build.bat", "build.py", "build"];
         for script in &build_scripts {
@@ -92,7 +92,7 @@ impl BuildSystem {
 
     /// Detect build system from source directory and package definition
     pub fn detect_with_package(
-        source_dir: &PathBuf,
+        source_dir: &Path,
         package: &Package,
     ) -> Result<Self, RezCoreError> {
         // Check for explicit build_command first
@@ -227,7 +227,7 @@ impl BuildSystem {
 }
 
 /// CMake build system
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct CMakeBuildSystem;
 
 impl CMakeBuildSystem {
@@ -372,7 +372,7 @@ impl CMakeBuildSystem {
 }
 
 /// Make build system (simplified implementation)
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct MakeBuildSystem;
 
 impl MakeBuildSystem {
@@ -477,13 +477,13 @@ impl MakeBuildSystem {
 }
 
 // Placeholder implementations for other build systems
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct PythonBuildSystem;
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct NodeJsBuildSystem;
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct CargoBuildSystem;
 
 #[derive(Debug)]
@@ -745,8 +745,6 @@ impl CustomBuildSystem {
             format!("python {} {}", script_path.to_string_lossy(), command)
         } else if self.script_name.ends_with(".sh") {
             format!("bash {} {}", script_path.to_string_lossy(), command)
-        } else if self.script_name.ends_with(".bat") {
-            format!("{} {}", script_path.to_string_lossy(), command)
         } else {
             format!("{} {}", script_path.to_string_lossy(), command)
         };
@@ -764,8 +762,8 @@ impl CustomBuildSystem {
 
     /// Copy package files from source to install directory
     async fn copy_package_files(
-        source_dir: &PathBuf,
-        install_dir: &PathBuf,
+        source_dir: &Path,
+        install_dir: &Path,
     ) -> Result<usize, RezCoreError> {
         use tokio::fs;
 

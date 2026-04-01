@@ -118,6 +118,7 @@ pub struct BuildRequest {
 
 /// Build options
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Default)]
 pub struct BuildOptions {
     /// Force rebuild even if artifacts exist
     pub force_rebuild: bool,
@@ -131,17 +132,6 @@ pub struct BuildOptions {
     pub env_vars: HashMap<String, String>,
 }
 
-impl Default for BuildOptions {
-    fn default() -> Self {
-        Self {
-            force_rebuild: false,
-            skip_tests: false,
-            release_mode: false,
-            build_args: Vec::new(),
-            env_vars: HashMap::new(),
-        }
-    }
-}
 
 /// Build result
 #[derive(Debug, Clone, Serialize, Deserialize)]

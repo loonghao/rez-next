@@ -63,7 +63,7 @@ pub fn execute(args: PluginsArgs) -> RezCoreResult<()> {
     }
 
     // Create async runtime
-    let runtime = tokio::runtime::Runtime::new().map_err(|e| RezCoreError::Io(e))?;
+    let runtime = tokio::runtime::Runtime::new().map_err(RezCoreError::Io)?;
 
     runtime.block_on(async { execute_plugins_async(&args).await })
 }

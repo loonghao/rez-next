@@ -173,7 +173,7 @@ pub async fn execute_depends(args: DependsArgs) -> Result<(), RezCoreError> {
         if args.print_graph {
             println!("{}", dot_graph);
         } else if let Some(output_file) = &args.write_graph {
-            std::fs::write(output_file, &dot_graph).map_err(|e| RezCoreError::Io(e))?;
+            std::fs::write(output_file, &dot_graph).map_err(RezCoreError::Io)?;
             if args.verbose {
                 println!("✅ Graph written to: {}", output_file.display());
             }

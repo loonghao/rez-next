@@ -81,7 +81,7 @@ pub fn execute(args: RmArgs) -> RezCoreResult<()> {
     }
 
     // Create async runtime
-    let runtime = tokio::runtime::Runtime::new().map_err(|e| RezCoreError::Io(e))?;
+    let runtime = tokio::runtime::Runtime::new().map_err(RezCoreError::Io)?;
 
     runtime.block_on(async {
         if let Some(ref package_spec) = args.package {
@@ -435,12 +435,12 @@ fn confirm_removal(package: &Package) -> RezCoreResult<bool> {
     print!("Remove package '{}'? [y/N]: ", package.name);
     io::stdout()
         .flush()
-        .map_err(|e| RezCoreError::Io(e))?;
+        .map_err(RezCoreError::Io)?;
 
     let mut input = String::new();
     io::stdin()
         .read_line(&mut input)
-        .map_err(|e| RezCoreError::Io(e))?;
+        .map_err(RezCoreError::Io)?;
 
     Ok(input.trim().to_lowercase() == "y" || input.trim().to_lowercase() == "yes")
 }
@@ -452,12 +452,12 @@ fn confirm_family_removal(family_name: &str) -> RezCoreResult<bool> {
     print!("Remove ENTIRE package family '{}'? [y/N]: ", family_name);
     io::stdout()
         .flush()
-        .map_err(|e| RezCoreError::Io(e))?;
+        .map_err(RezCoreError::Io)?;
 
     let mut input = String::new();
     io::stdin()
         .read_line(&mut input)
-        .map_err(|e| RezCoreError::Io(e))?;
+        .map_err(RezCoreError::Io)?;
 
     Ok(input.trim().to_lowercase() == "y" || input.trim().to_lowercase() == "yes")
 }

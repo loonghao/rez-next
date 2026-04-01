@@ -98,7 +98,7 @@ pub fn execute(args: DiffArgs) -> RezCoreResult<()> {
     }
 
     // Create async runtime
-    let runtime = tokio::runtime::Runtime::new().map_err(|e| RezCoreError::Io(e))?;
+    let runtime = tokio::runtime::Runtime::new().map_err(RezCoreError::Io)?;
 
     runtime.block_on(async { execute_diff_async(&args).await })
 }
@@ -159,12 +159,11 @@ async fn setup_repositories(args: &DiffArgs) -> RezCoreResult<RepositoryManager>
             .packages_path
             .iter()
             .map(|p| {
-                
-                if p.starts_with("~/") {
+                if let Some(rest) = p.strip_prefix("~/") {
                     if let Some(home) =
                         std::env::var_os("USERPROFILE").or_else(|| std::env::var_os("HOME"))
                     {
-                        std::path::PathBuf::from(home).join(&p[2..])
+                        std::path::PathBuf::from(home).join(rest)
                     } else {
                         PathBuf::from(p)
                     }
@@ -377,17 +376,11 @@ fn compare_variants(pkg1: &Package, pkg2: &Package) -> VariantsChanges {
 /// Output diff in text format
 fn output_text_diff(diff: &PackageDiff, verbose: bool) {
     println!(
-        "Package Diff: {} vs {}",
-        format!(
-            "{}-{}",
-            diff.pkg1_name,
-            diff.pkg1_version.as_deref().unwrap_or("unknown")
-        ),
-        format!(
-            "{}-{}",
-            diff.pkg2_name,
-            diff.pkg2_version.as_deref().unwrap_or("unknown")
-        )
+        "Package Diff: {}-{} vs {}-{}",
+        diff.pkg1_name,
+        diff.pkg1_version.as_deref().unwrap_or("unknown"),
+        diff.pkg2_name,
+        diff.pkg2_version.as_deref().unwrap_or("unknown")
     );
     println!("=====================================");
     println!();

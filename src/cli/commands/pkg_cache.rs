@@ -6,7 +6,7 @@
 use clap::Args;
 use rez_next_cache::{IntelligentCacheManager, UnifiedCache, UnifiedCacheConfig};
 use rez_next_common::{error::RezCoreResult, RezCoreError};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 /// Package cache management arguments
 #[derive(Args, Clone, Debug)]
@@ -162,7 +162,7 @@ async fn initialize_cache_manager(
 
     // Ensure cache directory exists
     if !cache_dir.exists() {
-        std::fs::create_dir_all(cache_dir).map_err(|e| RezCoreError::Io(e))?;
+        std::fs::create_dir_all(cache_dir).map_err(RezCoreError::Io)?;
     }
 
     Ok(manager)
@@ -171,7 +171,7 @@ async fn initialize_cache_manager(
 /// Run the cache daemon
 async fn run_daemon(
     _cache_manager: &IntelligentCacheManager<String, CacheEntry>,
-    cache_dir: &PathBuf,
+    cache_dir: &Path,
 ) -> RezCoreResult<()> {
     println!("Starting package cache daemon for: {}", cache_dir.display());
 
@@ -351,7 +351,7 @@ async fn clean_cache(
 }
 
 /// View cache logs
-async fn view_logs(cache_dir: &PathBuf) -> RezCoreResult<()> {
+async fn view_logs(cache_dir: &Path) -> RezCoreResult<()> {
     let log_file = cache_dir.join("cache.log");
 
     if !log_file.exists() {
@@ -362,7 +362,7 @@ async fn view_logs(cache_dir: &PathBuf) -> RezCoreResult<()> {
     println!("Cache logs from: {}", log_file.display());
     println!("================");
 
-    let content = std::fs::read_to_string(&log_file).map_err(|e| RezCoreError::Io(e))?;
+    let content = std::fs::read_to_string(&log_file).map_err(RezCoreError::Io)?;
 
     // Show last 50 lines
     let lines: Vec<&str> = content.lines().collect();

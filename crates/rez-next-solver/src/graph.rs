@@ -157,7 +157,7 @@ impl DependencyGraph {
     pub fn add_requirement(&mut self, requirement: PackageRequirement) -> Result<(), RezCoreError> {
         self.requirements
             .entry(requirement.name.clone())
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(requirement);
 
         Ok(())

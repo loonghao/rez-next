@@ -157,7 +157,7 @@ impl Requirement {
             let arch_match = condition
                 .arch
                 .as_ref()
-                .map_or(true, |a| arch.map_or(false, |arch| arch == a));
+                .map_or(true, |a| arch.is_some_and(|arch| arch == a));
 
             let condition_satisfied = platform_match && arch_match;
 
@@ -165,10 +165,8 @@ impl Requirement {
                 if condition_satisfied {
                     return false; // Negated condition is satisfied, so requirement fails
                 }
-            } else {
-                if condition_satisfied {
-                    return true; // At least one positive condition is satisfied
-                }
+            } else if condition_satisfied {
+                return true; // At least one positive condition is satisfied
             }
         }
 
@@ -187,8 +185,7 @@ impl Requirement {
             let var_exists = env_vars.contains_key(&condition.var_name);
             let value_match = if let Some(expected) = &condition.expected_value {
                 env_vars
-                    .get(&condition.var_name)
-                    .map_or(false, |v| v == expected)
+                    .get(&condition.var_name) == Some(expected)
             } else {
                 var_exists
             };
@@ -197,10 +194,8 @@ impl Requirement {
                 if value_match {
                     return false; // Negated condition is satisfied, so requirement fails
                 }
-            } else {
-                if !value_match {
-                    return false; // Positive condition is not satisfied
-                }
+            } else if !value_match {
+                return false; // Positive condition is not satisfied
             }
         }
 
@@ -288,7 +283,7 @@ impl VersionConstraint {
                 }
 
                 // For the last part, check if it's within the compatible range
-                if constraint_parts.len() > 0 {
+                if !constraint_parts.is_empty() {
                     let last_idx = constraint_parts.len() - 1;
                     if let (Ok(v_part), Ok(c_part)) = (
                         version_parts[last_idx].parse::<u32>(),
@@ -490,8 +485,8 @@ impl RequirementParser {
         let s = s.trim();
 
         // Handle weak requirements (starting with ~)
-        let (s, weak) = if s.starts_with("~") {
-            (&s[1..], true)
+        let (s, weak) = if let Some(stripped) = s.strip_prefix('~') {
+            (stripped, true)
         } else {
             (s, false)
         };
@@ -571,14 +566,8 @@ impl RequirementParser {
                 let arch = if condition.contains("arch") {
                     if let Some(arch_start) = condition.rfind("'") {
                         if arch_start > platform_start + 1 + platform_end {
-                            if let Some(arch_end) = condition[arch_start + 1..].find("'") {
-                                Some(
-                                    condition[arch_start + 1..arch_start + 1 + arch_end]
-                                        .to_string(),
-                                )
-                            } else {
-                                None
-                            }
+                            condition[arch_start + 1..].find("'").map(|arch_end| condition[arch_start + 1..arch_start + 1 + arch_end]
+                                        .to_string())
                         } else {
                             None
                         }
@@ -685,8 +674,7 @@ impl RequirementParser {
         }
 
         // Handle "package-1.0+" syntax
-        if s.ends_with("+") {
-            let without_plus = &s[..s.len() - 1];
+        if let Some(without_plus) = s.strip_suffix("+") {
             if let Some(dash_pos) = without_plus.rfind("-") {
                 let name = without_plus[..dash_pos].to_string();
                 let version_str = &without_plus[dash_pos + 1..];
@@ -790,8 +778,8 @@ impl RequirementParser {
 
         if let Some(upper) = upper_spec {
             // upper starts with '<' optionally followed by '='
-            let (op, ver_str) = if upper.starts_with("<=") {
-                ("<=", upper[2..].trim())
+            let (op, ver_str) = if let Some(s) = upper.strip_prefix("<=") {
+                ("<=", s.trim())
             } else {
                 ("<", upper[1..].trim())
             };
@@ -910,7 +898,7 @@ impl fmt::Display for EnvCondition {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let op = if self.negate { "!=" } else { "==" };
         match &self.expected_value {
-            Some(value) => write!(f, "env.{}{}'{}'{}", self.var_name, op, value, ""),
+            Some(value) => write!(f, "env.{}{}'{}'", self.var_name, op, value),
             None => write!(f, "env.{}", self.var_name),
         }
     }

@@ -251,10 +251,7 @@ impl HighPerformanceScanner {
             let results_vec: Vec<_> = package_files
                 .iter()
                 .filter_map(|path| {
-                    match futures::executor::block_on(self.scan_file_optimized(path)) {
-                        Ok(result) => Some(result),
-                        Err(_) => None,
-                    }
+                    futures::executor::block_on(self.scan_file_optimized(path)).ok()
                 })
                 .collect();
 
@@ -432,6 +429,7 @@ impl HighPerformanceScanner {
 }
 
 /// SIMD pattern matcher for high-performance file filtering
+#[derive(Default)]
 pub struct SIMDPatternMatcher {
     // SIMD pattern matching implementation
 }
@@ -464,6 +462,7 @@ impl SIMDPatternMatcher {
 }
 
 /// Predictive prefetching system
+#[derive(Default)]
 pub struct PrefetchPredictor {
     // Machine learning model for prediction
 }

@@ -69,6 +69,7 @@ pub struct ResolutionConflict {
 
 /// Statistics about the resolution process
 #[derive(Debug, Clone, serde::Serialize)]
+#[derive(Default)]
 pub struct ResolutionStats {
     /// Number of packages considered
     pub packages_considered: usize,
@@ -533,17 +534,6 @@ impl ResolutionState {
     }
 }
 
-impl Default for ResolutionStats {
-    fn default() -> Self {
-        Self {
-            packages_considered: 0,
-            variants_evaluated: 0,
-            resolution_time_ms: 0,
-            conflicts_encountered: 0,
-            backtrack_steps: 0,
-        }
-    }
-}
 
 #[cfg(test)]
 mod tests {

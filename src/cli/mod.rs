@@ -156,7 +156,7 @@ impl RezCli {
             None => {
                 // No subcommand provided, show help
                 let mut cmd = RezCli::command();
-                cmd.print_help().map_err(|e| RezCoreError::Io(e))?;
+                cmd.print_help().map_err(RezCoreError::Io)?;
                 Ok(())
             }
         }
@@ -194,7 +194,7 @@ impl RezCli {
             RezCommand::Search(args) => commands::search_v2::execute(args.clone()),
             RezCommand::Bind(args) => commands::bind::execute(args.clone()),
             RezCommand::Depends(args) => tokio::runtime::Runtime::new()
-                .map_err(|e| RezCoreError::Io(e))?
+                .map_err(RezCoreError::Io)?
                 .block_on(commands::depends::execute_depends(args.clone())),
             RezCommand::Solve(args) => commands::solve::execute(args.clone()),
             RezCommand::Cp(args) => commands::cp::execute(args.clone()),
@@ -205,7 +205,7 @@ impl RezCli {
             RezCommand::PkgHelp(args) => commands::help::execute(args.clone()),
             RezCommand::Plugins(args) => commands::plugins::execute(args.clone()),
             RezCommand::PkgCache(args) => tokio::runtime::Runtime::new()
-                .map_err(|e| RezCoreError::Io(e))?
+                .map_err(RezCoreError::Io)?
                 .block_on(commands::pkg_cache::execute(args.clone())),
             RezCommand::Suites(args) => commands::suites::execute(args.clone()),
             RezCommand::Bundle(args) => commands::bundle::execute(args.clone()),
@@ -223,7 +223,7 @@ impl RezCli {
                     package: package.clone(),
                 };
                 tokio::runtime::Runtime::new()
-                    .map_err(|e| RezCoreError::Io(e))?
+                    .map_err(RezCoreError::Io)?
                     .block_on(commands::gui::execute(&args))
                     .map_err(|e| RezCoreError::Solver(e.to_string()))
             }

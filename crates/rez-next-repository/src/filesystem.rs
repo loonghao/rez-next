@@ -375,7 +375,7 @@ impl FileSystemRepository {
                         // Add to package cache
                         package_cache
                             .entry(package_name.clone())
-                            .or_insert_with(HashMap::new)
+                            .or_default()
                             .insert(version_str.clone(), package.clone());
 
                         packages_found += 1;

@@ -68,7 +68,7 @@ pub fn execute(args: CpArgs) -> RezCoreResult<()> {
     }
 
     // Create async runtime
-    let runtime = tokio::runtime::Runtime::new().map_err(|e| RezCoreError::Io(e))?;
+    let runtime = tokio::runtime::Runtime::new().map_err(RezCoreError::Io)?;
 
     runtime.block_on(async { execute_copy_async(&args).await })
 }
@@ -273,7 +273,7 @@ async fn copy_package_directory(
 ) -> RezCoreResult<CopyResult> {
     // Remove existing destination if force
     if args.force && dest_root.exists() {
-        std::fs::remove_dir_all(dest_root).map_err(|e| RezCoreError::Io(e))?;
+        std::fs::remove_dir_all(dest_root).map_err(RezCoreError::Io)?;
     }
 
     // Recursively copy directory
@@ -296,17 +296,17 @@ async fn copy_package_directory(
 
 /// Recursively copy a directory
 fn copy_dir_recursive(src: &PathBuf, dest: &PathBuf) -> RezCoreResult<()> {
-    std::fs::create_dir_all(dest).map_err(|e| RezCoreError::Io(e))?;
+    std::fs::create_dir_all(dest).map_err(RezCoreError::Io)?;
 
-    for entry in std::fs::read_dir(src).map_err(|e| RezCoreError::Io(e))? {
-        let entry = entry.map_err(|e| RezCoreError::Io(e))?;
+    for entry in std::fs::read_dir(src).map_err(RezCoreError::Io)? {
+        let entry = entry.map_err(RezCoreError::Io)?;
         let src_path = entry.path();
         let dest_path = dest.join(entry.file_name());
 
         if src_path.is_dir() {
             copy_dir_recursive(&src_path, &dest_path)?;
         } else {
-            std::fs::copy(&src_path, &dest_path).map_err(|e| RezCoreError::Io(e))?;
+            std::fs::copy(&src_path, &dest_path).map_err(RezCoreError::Io)?;
         }
     }
 
