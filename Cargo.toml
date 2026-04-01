@@ -171,8 +171,8 @@ harness = false
 unused_imports = "warn"
 # Warn on dead code (tightened from allow — cycle 10 cleanup)
 dead_code = "warn"
-# Allow unused variables during development
-unused_variables = "allow"
+# Warn on unused variables (tightened from allow — cycle 10 cleanup)
+unused_variables = "warn"
 # Allow deprecated items during migration
 deprecated = "allow"
 # Allow ambiguous glob reexports during development
