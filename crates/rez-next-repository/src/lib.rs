@@ -19,7 +19,8 @@ pub use cache::*;
 pub use filesystem::*;
 pub use high_performance_scanner::*;
 pub use repository::{
-    PackageSearchCriteria, Repository, RepositoryMetadata, RepositoryStats, RepositoryType,
+    deduplicate_packages, PackageSearchCriteria, Repository, RepositoryMetadata, RepositoryStats,
+    RepositoryType,
 };
 pub use scanner::*;
 pub use simple_repository::*;
