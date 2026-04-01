@@ -23,9 +23,9 @@ pub struct DependencyResolver {
     package_cache: HashMap<String, Vec<Arc<Package>>>,
 }
 
-/// Resolution result containing resolved packages and metadata
+/// Detailed resolution result containing resolved packages, failures, conflicts and stats
 #[derive(Debug, Clone)]
-pub struct ResolutionResult {
+pub struct DetailedResolutionResult {
     /// Successfully resolved packages
     pub resolved_packages: Vec<ResolvedPackageInfo>,
 
@@ -105,7 +105,7 @@ impl DependencyResolver {
     pub async fn resolve(
         &mut self,
         requirements: Vec<Requirement>,
-    ) -> Result<ResolutionResult, RezCoreError> {
+    ) -> Result<DetailedResolutionResult, RezCoreError> {
         let start_time = std::time::Instant::now();
 
         // Initialize resolution state
@@ -132,7 +132,7 @@ impl DependencyResolver {
             backtrack_steps: resolution_state.backtrack_steps,
         };
 
-        Ok(ResolutionResult {
+        Ok(DetailedResolutionResult {
             resolved_packages: result,
             failed_requirements: resolution_state.failed_requirements,
             conflicts: resolution_state.conflicts,
@@ -723,7 +723,7 @@ mod tests {
 
     #[test]
     fn test_resolution_result_structure() {
-        let result = ResolutionResult {
+        let result = DetailedResolutionResult {
             resolved_packages: vec![],
             failed_requirements: vec![],
             conflicts: vec![],

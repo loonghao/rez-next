@@ -1,6 +1,7 @@
 //! Core solver implementation
 
 use crate::dependency_resolver::DependencyResolver;
+use crate::resolution::ResolutionResult;
 use rez_next_common::RezCoreError;
 use rez_next_package::{Package, PackageRequirement, Requirement};
 use rez_next_repository::simple_repository::RepositoryManager;
@@ -8,19 +9,6 @@ use rez_next_version::Version;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
-
-/// Resolution result
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ResolutionResult {
-    /// Resolved packages
-    pub packages: Vec<Package>,
-    /// Whether conflicts were resolved
-    pub conflicts_resolved: bool,
-    /// Resolution time in milliseconds
-    pub resolution_time_ms: u64,
-    /// Additional metadata
-    pub metadata: HashMap<String, String>,
-}
 
 /// Solver configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]

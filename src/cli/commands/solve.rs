@@ -4,7 +4,7 @@ use clap::Args;
 use rez_next_common::{config::RezCoreConfig, error::RezCoreResult, RezCoreError};
 use rez_next_package::Requirement;
 use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
-use rez_next_solver::dependency_resolver::ResolutionResult;
+use rez_next_solver::dependency_resolver::DetailedResolutionResult;
 use rez_next_solver::{ConflictStrategy, DependencyResolver, SolverConfig, SolverStats};
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -135,7 +135,7 @@ async fn add_default_repositories(repo_manager: &mut RepositoryManager) -> RezCo
 }
 
 /// Display resolution result
-fn display_resolution_result(result: &ResolutionResult, args: &SolveArgs) -> RezCoreResult<()> {
+fn display_resolution_result(result: &DetailedResolutionResult, args: &SolveArgs) -> RezCoreResult<()> {
     match args.format.as_str() {
         "summary" => display_summary(result, args),
         "detailed" => display_detailed(result, args),
@@ -151,7 +151,7 @@ fn display_resolution_result(result: &ResolutionResult, args: &SolveArgs) -> Rez
 }
 
 /// Display summary format
-fn display_summary(result: &ResolutionResult, args: &SolveArgs) -> RezCoreResult<()> {
+fn display_summary(result: &DetailedResolutionResult, args: &SolveArgs) -> RezCoreResult<()> {
     println!("\n=== Resolution Summary ===");
 
     if result.resolved_packages.is_empty() && result.failed_requirements.is_empty() {
@@ -233,7 +233,7 @@ fn display_summary(result: &ResolutionResult, args: &SolveArgs) -> RezCoreResult
 }
 
 /// Display detailed format
-fn display_detailed(result: &ResolutionResult, args: &SolveArgs) -> RezCoreResult<()> {
+fn display_detailed(result: &DetailedResolutionResult, args: &SolveArgs) -> RezCoreResult<()> {
     display_summary(result, args)?;
 
     if !result.resolved_packages.is_empty() {
@@ -267,7 +267,7 @@ fn display_detailed(result: &ResolutionResult, args: &SolveArgs) -> RezCoreResul
 }
 
 /// Display JSON format
-fn display_json(result: &ResolutionResult) -> RezCoreResult<()> {
+fn display_json(result: &DetailedResolutionResult) -> RezCoreResult<()> {
     // Create a simplified JSON representation
     let simplified = serde_json::json!({
         "resolved_packages": result.resolved_packages.iter().map(|pkg| {
