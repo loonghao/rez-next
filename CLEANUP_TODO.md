@@ -48,11 +48,12 @@
 - 30 clippy allow rules removed — all had zero instances (cycle 12)
 
 ### 8. Dead `repository::RepositoryManager` type
-- **Status**: NEW
-- `repository.rs` contains a `RepositoryManager` (lines 152-371) that is never used outside its own tests
-- All 44 external references use `simple_repository::RepositoryManager` instead
-- Safe to delete the entire struct + impl + tests (~220 lines)
-- Low risk, high impact cleanup for next cycle
+- **Status**: COMPLETE ✓ (cycle 14)
+- Renamed to `AsyncRepositoryManager` in cycle 13 (upstream rename for clarity)
+- `AsyncRepositoryManager` struct deleted in cycle 14 (~220 lines removed)
+- `deduplicate_packages` extracted as public free function in `repository.rs`
+- Exported via `lib.rs` as `rez_next_repository::deduplicate_packages`
+- All 8 tests updated to call free function directly (removed `test_repository_manager_initial_count_is_zero`)
 
 ## Medium Priority — TODO Audit
 
@@ -62,7 +63,29 @@
 - **Version system**: token comparison, caching, proper type distinction
 - None of these TODOs are blocking; they represent future work items.
 
-## Completed (2026-04-02, cycle 12)
+## Medium Priority — Clippy Warnings
+
+~50 clippy warnings remaining across crates. Key categories:
+- **stripping prefix/suffix manually**: `requirement.rs` (5+), `sources.rs` (4)
+- **collapsible if/else**: `serialization.rs`, `scanner.rs`, `python_ast_parser.rs`
+- **new_without_default**: `PythonAstParser`, `SIMDPatternMatcher`, `PrefetchPredictor`
+- **impl can be derived (Default)**: `builder.rs`, `dependency_resolver.rs`
+- **map_or can be simplified**: `serialization.rs`
+- **length comparison to zero**: `requirement.rs`
+- **manual Option::map**: `filesystem.rs`
+
+## Completed (2026-04-02, cycle 15)
+
+- [x] Implemented `Display` trait for `PackageRequirement`, replacing manual `to_string()` (clippy::inherent_to_string fix)
+- [x] Fixed `serialize_struct("Package", 24)` → `PACKAGE_SERIALIZED_FIELD_COUNT = 35` — field count was stale after struct growth
+- [x] Replaced manual `Clone` impl for `Package` with `#[derive(Clone)]` — removed 42 lines of boilerplate
+- [x] Fixed `PyPackageRequirement::__eq__` and `__hash__` to include `conflict` and `weak` fields — semantic bug fix
+- [x] Fixed `conflict_requirement()` to avoid `!!` double prefix when called on already-conflict requirements
+- [x] Normalized error formatting: `format!("{:?}", e)` → `e.to_string()` in `PyVersionRange::new()` and `from_str()`
+- [x] Removed redundant `'static` lifetime from `FIELDS` constant in `Package::deserialize`
+- [x] Used `strip_prefix` in `PackageRequirement::parse()` and `check_single_constraint()` — replaced 9 byte-index slices
+- [x] Derived `Default` for `PackageSearchCriteria` and `RepositoryStats` — removed 2 manual impls
+- [x] Removed double blank lines in `package_bindings.rs`
 
 - [x] Tightened `deprecated` from `allow` to `warn`, fixed `base64::decode`/`encode` → `Engine::decode`/`encode` API
 - [x] Tightened `ambiguous_glob_reexports` from `allow` to `warn`, fixed `RepositoryManager` conflict via explicit re-exports in `lib.rs`
