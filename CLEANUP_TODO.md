@@ -34,17 +34,16 @@
 - rez-next-python does not reference any types from these files
 
 ### 6. Dead .rs files in rez-next-package not in module tree
-- `batch.rs` (24 KB): references deleted types from validation.rs/management.rs; not in lib.rs
-- `cache.rs` (29 KB): references DependencyResolutionResult, PackageValidationResult; not in lib.rs
-- `dependency.rs` (33 KB): full dependency resolver; not in lib.rs
-- `variant.rs` (28 KB): variant handling; not in lib.rs
-- **Action**: Evaluate each file for Rust-only value. Strip pyo3 references and either incorporate into lib.rs or delete.
+- **Status**: COMPLETE ✓ (cycle 9)
+- Deleted `batch.rs`, `cache.rs`, `dependency.rs`, `variant.rs` — all dead files not in lib.rs module tree
 
 ### 7. Further lint tightening
-- `unused_imports = "allow"` → `warn`: will surface many unused imports, clean them up
-- `dead_code = "allow"` → `warn`: will reveal significant dead code across all crates
-- `ambiguous_glob_reexports = "allow"` → `warn`: may surface remaining glob issues
-- **Action**: Address one at a time in future cycles
+- **Status**: MOSTLY COMPLETE ✓
+- `unused_imports`: `allow` → `warn` + 68 imports cleaned (cycle 9)
+- `dead_code`: `allow` → `warn` + ~430 lines dead code removed (cycle 10)
+- `unused_variables`: `allow` → `warn` (cycle 10, 26 warnings remaining — need manual _ prefix in function signatures)
+- Remaining: `ambiguous_glob_reexports`, `unused_mut` still `allow`
+- **Action**: Fix remaining unused_variables warnings, then tighten `unused_mut`
 
 ## Medium Priority — TODO Audit
 
@@ -53,6 +52,27 @@
 - **CLI stubs**: time-based removal, daemon logic, validation filters
 - **Version system**: token comparison, caching, proper type distinction
 - None of these TODOs are blocking; they represent future work items.
+
+## Completed (2026-04-01, cycle 10)
+
+- [x] Fixed compilation error: missing `StatePool` import in `test_framework.rs`
+- [x] `dead_code` lint: changed from `allow` to `warn`
+- [x] Removed 17 dead code items (~430 lines) across 19 files:
+  - `range.rs`: `collect_probe_versions` (replaced by `_with_other`), `negate_bound_set` (unused approximation)
+  - `requirement.rs`: `increment_last_token` (unused helper)
+  - `cache.rs`: `save_cache_index` (never called)
+  - `scanner.rs`: `cached_at` field, `scan_directory_recursive` + `scan_package_file` (legacy dead methods)
+  - `dependency_resolver.rs`: `stats` field (initialized never read), `filter_candidates` (legacy alias)
+  - `solver.rs`: `stats` field (initialized never read)
+  - `astar_search.rs`: `state_pool` field (initialized never used)
+  - `environment.rs`: 4 dead methods (`parse_commands_for_env_vars` cluster)
+  - `release.rs`: `parse_variants`, `build.rs`: `view_preprocessed_package` + `generate_package_content`
+  - `cp.rs` + `mv.rs`: `package_exists_at_destination` (2x, never called)
+  - `pip.rs`: `location` + `home_page` fields (written never read)
+- [x] Added `#[allow(dead_code)]` to 5 items (public API / cache metadata): `RequirementPatterns`, `AdvancedCacheEntry`, `CompositeHeuristic.config`, `AdaptiveHeuristic.base_heuristic`
+- [x] Removed 5 unused imports: `SolverStats`, `StatePool`, `JoinSet`, `Path` (binder), `Package` (depends, bundle) + `HashMap` (bundle)
+- [x] `unused_variables` lint: changed from `allow` to `warn` (26 warnings remaining — function signatures)
+- [x] Updated `CLEANUP_TODO.md` with cycle 10 progress
 
 ## Completed (2026-04-01, cycle 9)
 
