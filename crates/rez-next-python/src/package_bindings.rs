@@ -155,7 +155,6 @@ impl PyPackage {
         Ok(())
     }
 
-
     /// Load a package from file (package.py or package.yaml)
     #[staticmethod]
     fn load(path: &str) -> PyResult<PyPackage> {
@@ -211,7 +210,10 @@ impl PyPackageRequirement {
     }
 
     fn __eq__(&self, other: &PyPackageRequirement) -> bool {
-        self.0.name == other.0.name && self.0.version_spec == other.0.version_spec
+        self.0.name == other.0.name
+            && self.0.version_spec == other.0.version_spec
+            && self.0.conflict == other.0.conflict
+            && self.0.weak == other.0.weak
     }
 
     fn __hash__(&self) -> u64 {
@@ -222,6 +224,8 @@ impl PyPackageRequirement {
         if let Some(ref spec) = self.0.version_spec {
             spec.hash(&mut h);
         }
+        self.0.conflict.hash(&mut h);
+        self.0.weak.hash(&mut h);
         h.finish()
     }
 
@@ -243,7 +247,6 @@ impl PyPackageRequirement {
         self.0.version_spec.clone()
     }
 
-
     /// Whether this is a conflict requirement (prefixed with `!`)
     #[getter]
     fn conflict(&self) -> bool {
@@ -263,7 +266,12 @@ impl PyPackageRequirement {
 
     /// Convert to conflict requirement (negate range)
     fn conflict_requirement(&self) -> String {
-        format!("!{}", self.__str__())
+        if self.0.conflict {
+            // Already a conflict requirement, return as-is
+            self.__str__()
+        } else {
+            format!("!{}", self.__str__())
+        }
     }
 }
 

@@ -19,6 +19,23 @@ pub struct PackageRequirement {
     pub conflict: bool,
 }
 
+impl std::fmt::Display for PackageRequirement {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let base = if let Some(ref version) = self.version_spec {
+            format!("{}-{}", self.name, version)
+        } else {
+            self.name.clone()
+        };
+        if self.conflict {
+            write!(f, "!{}", base)
+        } else if self.weak {
+            write!(f, "~{}", base)
+        } else {
+            write!(f, "{}", base)
+        }
+    }
+}
+
 impl PackageRequirement {
     /// Create a new package requirement
     pub fn new(name: String) -> Self {
@@ -51,15 +68,19 @@ impl PackageRequirement {
     /// - `!python-3.9` — conflict requirement with version
     pub fn parse(requirement_str: &str) -> Result<Self, RezCoreError> {
         // Handle conflict requirement prefix (!)
-        let (s, conflict) = if requirement_str.starts_with('!') {
-            (&requirement_str[1..], true)
+        let (s, conflict) = if let Some(rest) = requirement_str.strip_prefix('!') {
+            (rest, true)
         } else {
             (requirement_str, false)
         };
 
         // Handle weak requirement prefix (~), but not ~= which is a version operator
         let (s, weak) = if s.starts_with('~') && !s.starts_with("~=") {
-            (&s[1..], true)
+            if let Some(rest) = s.strip_prefix('~') {
+                (rest, true)
+            } else {
+                (s, false)
+            }
         } else {
             (s, false)
         };
@@ -91,22 +112,6 @@ impl PackageRequirement {
     /// Get the version specification
     pub fn version_spec(&self) -> Option<&str> {
         self.version_spec.as_deref()
-    }
-
-    /// Convert to string representation (rez format)
-    pub fn to_string(&self) -> String {
-        let base = if let Some(ref version) = self.version_spec {
-            format!("{}-{}", self.name, version)
-        } else {
-            self.name.clone()
-        };
-        if self.conflict {
-            format!("!{}", base)
-        } else if self.weak {
-            format!("~{}", base)
-        } else {
-            base
-        }
     }
 
     /// Get requirement string (for compatibility)
@@ -186,7 +191,7 @@ impl PackageRequirement {
 }
 
 /// High-performance package representation compatible with rez
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Package {
     /// Package name
     pub name: String,
@@ -300,49 +305,8 @@ pub struct Package {
     pub preprocess: Option<String>,
 }
 
-impl Clone for Package {
-    fn clone(&self) -> Self {
-        Self {
-            name: self.name.clone(),
-            version: self.version.clone(),
-            description: self.description.clone(),
-            authors: self.authors.clone(),
-            requires: self.requires.clone(),
-            build_requires: self.build_requires.clone(),
-            private_build_requires: self.private_build_requires.clone(),
-            variants: self.variants.clone(),
-            tools: self.tools.clone(),
-            commands: self.commands.clone(),
-            commands_function: self.commands_function.clone(),
-            build_command: self.build_command.clone(),
-            build_system: self.build_system.clone(),
-            pre_commands: self.pre_commands.clone(),
-            post_commands: self.post_commands.clone(),
-            pre_test_commands: self.pre_test_commands.clone(),
-            pre_build_commands: self.pre_build_commands.clone(),
-            tests: self.tests.clone(),
-            requires_rez_version: self.requires_rez_version.clone(),
-            uuid: self.uuid.clone(),
-            config: self.config.clone(),
-            help: self.help.clone(),
-            relocatable: self.relocatable,
-            cachable: self.cachable,
-            timestamp: self.timestamp,
-            revision: self.revision.clone(),
-            changelog: self.changelog.clone(),
-            release_message: self.release_message.clone(),
-            previous_version: self.previous_version.clone(),
-            previous_revision: self.previous_revision.clone(),
-            vcs: self.vcs.clone(),
-            format_version: self.format_version,
-            base: self.base.clone(),
-            has_plugins: self.has_plugins,
-            plugin_for: self.plugin_for.clone(),
-            hashed_variants: self.hashed_variants,
-            preprocess: self.preprocess.clone(),
-        }
-    }
-}
+/// Number of fields serialized in the Package struct (excludes `config` and `commands_function`).
+const PACKAGE_SERIALIZED_FIELD_COUNT: usize = 35;
 
 impl Serialize for Package {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -350,7 +314,7 @@ impl Serialize for Package {
         S: serde::Serializer,
     {
         use serde::ser::SerializeStruct;
-        let mut state = serializer.serialize_struct("Package", 24)?;
+        let mut state = serializer.serialize_struct("Package", PACKAGE_SERIALIZED_FIELD_COUNT)?;
         state.serialize_field("name", &self.name)?;
         state.serialize_field("version", &self.version)?;
         state.serialize_field("description", &self.description)?;
@@ -746,7 +710,7 @@ impl<'de> Deserialize<'de> for Package {
             }
         }
 
-        const FIELDS: &'static [&'static str] = &[
+        const FIELDS: &[&str] = &[
             "name",
             "version",
             "description",

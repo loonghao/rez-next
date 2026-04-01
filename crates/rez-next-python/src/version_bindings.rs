@@ -150,7 +150,7 @@ impl PyVersionRange {
         let range_str = s.unwrap_or("");
         VersionRange::parse(range_str)
             .map(PyVersionRange)
-            .map_err(|e| pyo3::exceptions::PyValueError::new_err(format!("{:?}", e)))
+            .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))
     }
 
     fn __str__(&self) -> String {
@@ -257,7 +257,7 @@ impl PyVersionRange {
     fn from_str(s: &str) -> PyResult<Self> {
         VersionRange::parse(s)
             .map(PyVersionRange)
-            .map_err(|e| pyo3::exceptions::PyValueError::new_err(format!("{:?}", e)))
+            .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))
     }
 
     /// Return the string representation of the range (rez compat: `.as_str()`).
