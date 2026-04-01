@@ -2,14 +2,11 @@
 
 use clap::Args;
 use rez_next_common::{RezCoreConfig, RezCoreError};
-use rez_next_package::{Package, PackageRequirement};
+use rez_next_package::Package;
 use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
-use rez_next_solver::DependencyGraph;
 use rez_next_version::Version;
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::path::PathBuf;
-use std::sync::Arc;
-use tokio::sync::RwLock;
 
 /// Arguments for the depends command
 #[derive(Args, Clone, Debug)]

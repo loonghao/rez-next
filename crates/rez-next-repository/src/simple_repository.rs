@@ -1,6 +1,5 @@
 //! Simple file-based repository implementation
 
-use crate::Repository;
 use async_trait::async_trait;
 use rez_next_common::RezCoreError;
 use rez_next_package::{Package, PackageSerializer};

@@ -4,7 +4,7 @@ use rez_next_common::RezCoreError;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::process::{Command, Stdio};
+use std::process::Stdio;
 use tokio::process::Command as AsyncCommand;
 
 /// Supported shell types

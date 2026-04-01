@@ -3,7 +3,7 @@
 use rez_next_common::RezCoreError;
 use rez_next_package::{Package, Requirement};
 use rez_next_version::Version;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 

@@ -5,7 +5,7 @@ use rez_next_common::{config::RezCoreConfig, error::RezCoreResult, RezCoreError}
 use rez_next_package::Requirement;
 use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
 use rez_next_solver::dependency_resolver::DetailedResolutionResult;
-use rez_next_solver::{ConflictStrategy, DependencyResolver, SolverConfig, SolverStats};
+use rez_next_solver::{ConflictStrategy, DependencyResolver, SolverConfig};
 use std::path::PathBuf;
 use std::sync::Arc;
 

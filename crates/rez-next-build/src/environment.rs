@@ -3,7 +3,6 @@
 use rez_next_common::RezCoreError;
 use rez_next_context::ResolvedContext;
 use rez_next_package::Package;
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
 

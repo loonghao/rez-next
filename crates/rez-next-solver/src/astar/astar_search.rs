@@ -9,7 +9,7 @@ use rez_next_common::RezCoreError;
 use rez_next_package::{Package, PackageRequirement};
 use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
 use rez_next_version::VersionRange;
-use std::collections::{BinaryHeap, HashMap, HashSet};
+use std::collections::{BinaryHeap, HashSet};
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::{Duration, Instant};

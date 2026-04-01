@@ -1,7 +1,7 @@
 //! Advanced search command implementation
 
 use clap::Args;
-use rez_next_common::{config::RezCoreConfig, error::RezCoreResult, RezCoreError};
+use rez_next_common::{config::RezCoreConfig, error::RezCoreResult};
 use rez_next_package::Package;
 use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
 use serde_json;

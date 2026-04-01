@@ -1,7 +1,7 @@
 //! Package serialization and deserialization
 
 use crate::{Package, PythonAstParser};
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 use flate2::write::GzEncoder;
 use flate2::Compression;
 use rez_next_common::RezCoreError;
@@ -11,8 +11,8 @@ use serde_json;
 use serde_yaml;
 use std::collections::HashMap;
 use std::fs;
-use std::io::{self, BufWriter, Write};
-use std::path::{Path, PathBuf};
+use std::io::Write;
+use std::path::Path;
 
 // PackageRequirement and PackageVariant imports removed as they're not used in this module
 // PyO3 imports removed as they're not used in this module

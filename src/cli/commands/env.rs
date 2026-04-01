@@ -6,12 +6,10 @@
 use clap::Args;
 use rez_next_common::{config::RezCoreConfig, error::RezCoreResult, RezCoreError};
 use rez_next_context::{ContextConfig, EnvironmentManager, ResolvedContext, ShellType};
-use rez_next_package::{Package, PackageRequirement, Requirement};
+use rez_next_package::{PackageRequirement, Requirement};
 use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
 use rez_next_rex::{generate_shell_script, RexEnvironment, ShellType as RexShellType};
 use rez_next_solver::{DependencyResolver, SolverConfig};
-use std::collections::HashMap;
-use std::env;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::sync::Arc;

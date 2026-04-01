@@ -1,14 +1,11 @@
 //! High-performance repository scanning utilities with optimized I/O
 
-use ahash::AHashMap;
 use dashmap::DashMap;
-use futures::stream::{self, StreamExt};
 use memmap2::Mmap;
 use rez_next_common::RezCoreError;
 use rez_next_package::Package;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
-use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::sync::Arc;
@@ -16,7 +13,7 @@ use std::time::{Duration, SystemTime};
 use tokio::fs;
 use tokio::sync::{RwLock, Semaphore};
 use tokio::task::JoinSet;
-use tokio::time::{interval, Instant};
+use tokio::time::interval;
 
 /// Enhanced scanner configuration with performance optimizations
 #[derive(Debug, Clone, Serialize, Deserialize)]

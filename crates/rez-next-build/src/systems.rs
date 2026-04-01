@@ -4,7 +4,6 @@ use crate::{BuildEnvironment, BuildRequest, BuildStep, BuildStepResult};
 use rez_next_common::RezCoreError;
 use rez_next_context::ShellExecutor;
 use rez_next_package::Package;
-use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::process::Child;

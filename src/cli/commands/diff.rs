@@ -6,9 +6,7 @@ use clap::Args;
 use rez_next_common::{error::RezCoreResult, RezCoreError};
 use rez_next_package::Package;
 use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
-use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::Arc;
 
 /// Arguments for the diff command
 #[derive(Args, Clone, Debug)]

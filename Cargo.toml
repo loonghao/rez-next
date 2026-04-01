@@ -167,8 +167,8 @@ harness = false
 
 # Linting configuration (workspace-level, inherited by all crates)
 [workspace.lints.rust]
-# Allow unused imports during development
-unused_imports = "allow"
+# Warn on unused imports (tightened from allow — dead file cleanup complete)
+unused_imports = "warn"
 # Allow dead code for experimental features
 dead_code = "allow"
 # Allow unused variables during development

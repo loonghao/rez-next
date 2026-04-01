@@ -7,8 +7,6 @@ use rez_next_common::{config::RezCoreConfig, error::RezCoreResult, RezCoreError}
 use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::Arc;
-use tokio::sync::RwLock;
 
 /// Arguments for the status command
 #[derive(Args, Clone, Debug)]

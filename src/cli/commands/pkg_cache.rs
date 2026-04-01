@@ -6,11 +6,7 @@
 use clap::Args;
 use rez_next_cache::{IntelligentCacheManager, UnifiedCache, UnifiedCacheConfig};
 use rez_next_common::{error::RezCoreResult, RezCoreError};
-use rez_next_repository::Repository;
-use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::Arc;
-use tokio::sync::RwLock;
 
 /// Package cache management arguments
 #[derive(Args, Clone, Debug)]

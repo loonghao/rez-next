@@ -1,6 +1,6 @@
 //! Build manager and coordination
 
-use crate::{BuildArtifacts, BuildEnvironment, BuildProcess, BuildSystem};
+use crate::{BuildArtifacts, BuildEnvironment, BuildProcess};
 use rez_next_common::RezCoreError;
 use rez_next_context::ResolvedContext;
 use rez_next_package::Package;

@@ -5,10 +5,7 @@ use crate::{
     BuildSystem,
 };
 use rez_next_common::RezCoreError;
-use rez_next_context::ShellExecutor;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::process::Child;
 use tokio::sync::{Mutex, RwLock};

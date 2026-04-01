@@ -2,7 +2,6 @@
 
 use crate::{ConflictResolution, ConflictStrategy, DependencyConflict};
 use rez_next_common::RezCoreError;
-use rez_next_package::PackageRequirement;
 use rez_next_version::Version;
 use std::collections::HashMap;
 

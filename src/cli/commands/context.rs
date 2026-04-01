@@ -5,10 +5,8 @@
 
 use clap::Args;
 use rez_next_common::{error::RezCoreResult, RezCoreError};
-use rez_next_context::{ResolvedPackage, RezResolvedContext};
-use rez_next_package::{Package, Requirement};
+use rez_next_context::RezResolvedContext;
 use std::path::PathBuf;
-use std::sync::Arc;
 
 /// Arguments for the context command
 #[derive(Args, Clone)]
@@ -123,8 +121,6 @@ impl Default for OutputFormat {
 
 /// Execute the context command
 pub fn execute(args: ContextArgs) -> RezCoreResult<()> {
-    use rez_next_context::RezResolvedContext;
-
     // Load context: from file, stdin, or current environment
     let context = load_context(&args)?;
 

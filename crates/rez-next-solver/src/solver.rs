@@ -5,7 +5,6 @@ use crate::resolution::ResolutionResult;
 use rez_next_common::RezCoreError;
 use rez_next_package::{Package, PackageRequirement, Requirement};
 use rez_next_repository::simple_repository::RepositoryManager;
-use rez_next_version::Version;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;

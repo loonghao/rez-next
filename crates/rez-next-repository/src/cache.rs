@@ -2,12 +2,11 @@
 
 use rez_next_common::RezCoreError;
 use rez_next_package::Package;
-use rez_next_version::Version;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::Arc;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::fs;
 use tokio::sync::RwLock;
 

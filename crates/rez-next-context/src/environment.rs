@@ -3,11 +3,10 @@
 use crate::{ContextConfig, PathStrategy, ShellType};
 use rez_next_common::RezCoreError;
 use rez_next_package::Package;
-use rez_next_rex::{RexEnvironment, RexExecutor};
+use rez_next_rex::RexExecutor;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::env;
-use std::path::{Path, PathBuf};
 
 /// Environment manager for generating package environments
 // #[pyclass]  // Temporarily disabled due to DLL issues

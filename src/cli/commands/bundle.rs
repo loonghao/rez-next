@@ -6,7 +6,7 @@
 
 use clap::Args;
 use rez_next_common::{config::RezCoreConfig, error::RezCoreResult, RezCoreError};
-use rez_next_context::{ContextConfig, EnvironmentManager, ResolvedContext};
+use rez_next_context::{ContextConfig, ResolvedContext};
 use rez_next_package::{Package, PackageRequirement};
 use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
 use rez_next_rex::{generate_shell_script, RexEnvironment, ShellType};

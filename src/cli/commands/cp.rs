@@ -7,8 +7,6 @@ use rez_next_common::{error::RezCoreResult, RezCoreError};
 use rez_next_package::Package;
 use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
 use std::path::PathBuf;
-use std::sync::Arc;
-use tokio::sync::RwLock;
 
 /// Arguments for the cp command
 #[derive(Args, Clone, Debug)]

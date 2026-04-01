@@ -2,9 +2,8 @@
 
 use crate::{SolverConfig, SolverStats};
 use rez_next_common::RezCoreError;
-use rez_next_package::{Package, Requirement, VersionConstraint};
-use rez_next_repository::simple_repository::{PackageRepository, RepositoryManager};
-use rez_next_version::Version;
+use rez_next_package::{Package, Requirement};
+use rez_next_repository::simple_repository::RepositoryManager;
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::Arc;
 

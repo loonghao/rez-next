@@ -1,8 +1,7 @@
 //! Test framework for A* search implementation
 
-use super::search_state::{ConflictType, DependencyConflict, SearchState, StatePool};
+use super::search_state::{ConflictType, DependencyConflict, SearchState};
 use rez_next_package::{Package, PackageRequirement};
-use std::time::Duration;
 
 /// Test the basic functionality of SearchState
 pub fn test_search_state_basic() -> Result<(), String> {

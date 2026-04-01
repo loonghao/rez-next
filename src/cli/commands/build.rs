@@ -3,7 +3,7 @@
 //! Implements the `rez build` command for building packages from source.
 
 use clap::Args;
-use rez_next_build::{BuildManager, BuildOptions, BuildRequest, BuildStatus};
+use rez_next_build::{BuildManager, BuildOptions, BuildRequest};
 use rez_next_common::{error::RezCoreResult, RezCoreError};
 use rez_next_package::Package;
 use std::collections::HashMap;
@@ -216,7 +216,7 @@ fn fetch_and_load_remote_source(
     source_url: &str,
     args: &BuildArgs,
 ) -> RezCoreResult<(PathBuf, Package)> {
-    use rez_next_build::{NetworkSource, SourceManager};
+    use rez_next_build::SourceManager;
     use tempfile::TempDir;
 
     if args.verbose {

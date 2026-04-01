@@ -7,18 +7,15 @@
 //! - Advanced caching with LRU eviction
 //! - Predictive prefetching
 
-use crate::{PackageScanResult, ScanError, ScanErrorType, ScanPerformanceMetrics, ScanResult};
+use crate::{PackageScanResult, ScanPerformanceMetrics, ScanResult};
 use dashmap::DashMap;
 use lru::LruCache;
 use memmap2::Mmap;
 use parking_lot::RwLock;
-use rayon::prelude::*;
 use rez_next_common::RezCoreError;
 use rez_next_package::Package;
-use smallvec::SmallVec;
-use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::{Instant, SystemTime};
 use tokio::fs;
