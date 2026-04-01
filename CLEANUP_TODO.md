@@ -23,8 +23,9 @@
 - CLI `solve.rs` updated to use `DetailedResolutionResult`
 
 ### 4. `#[allow(dead_code)]` helper functions (5 in exceptions_bindings.rs)
-- `raise_resolve_error`, `raise_package_not_found`, `raise_config_error`, `raise_build_error`, `raise_rex_error`
-- These are utility functions for future use. Keep for now, remove `#[allow(dead_code)]` when actually used.
+- **Status**: COMPLETE ✓ (cycle 16)
+- Removed all 5 `raise_*` functions and their 6 unit tests — none were called outside the file
+- Exception types remain available via `create_exception!` macro (Python `raise rez.ResolveError(...)` works directly)
 
 ### 5. Orphan pyo3 files in non-python crates
 - **Status**: COMPLETE ✓
@@ -57,22 +58,29 @@
 
 ## Medium Priority — TODO Audit
 
-35+ TODO comments across the codebase. Key categories:
-- **Implementation gaps**: LRU eviction, memory tracking, CPU usage monitoring (cache/repo)
-- **CLI stubs**: time-based removal, daemon logic, validation filters
-- **Version system**: token comparison, caching, proper type distinction
+24 TODO comments across the codebase (cycle 16 audit). Key categories:
+- **Performance monitoring stubs** (9): `performance_monitor.rs` (4), `high_performance_scanner.rs` (5) — track eviction latency, allocation rate, CPU usage, io/parsing time
+- **Cache implementation gaps** (2): `scanner.rs` — LRU eviction, memory tracking
+- **CLI stubs** (8): `search.rs` (4, time/validation filters, format fields, relative time parsing), `view.rs` (1, context package viewing), `rm.rs` (1, time-based removal), `pkg_cache.rs` (1, daemon logic), `rez-next.rs` (1, build command extra args)
+- **Misc** (5): `heuristics.rs` (version preference), `artifacts.rs` (checksum), `utils.rs` (terminal size), `mod.rs` (system info), `serialization.rs` (YAML formatting), `data_bindings.rs` (fish completions — inline string)
 - None of these TODOs are blocking; they represent future work items.
 
 ## Medium Priority — Clippy Warnings
 
-~50 clippy warnings remaining across crates. Key categories:
-- **stripping prefix/suffix manually**: `requirement.rs` (5+), `sources.rs` (4)
-- **collapsible if/else**: `serialization.rs`, `scanner.rs`, `python_ast_parser.rs`
-- **new_without_default**: `PythonAstParser`, `SIMDPatternMatcher`, `PrefetchPredictor`
-- **impl can be derived (Default)**: `builder.rs`, `dependency_resolver.rs`
-- **map_or can be simplified**: `serialization.rs`
-- **length comparison to zero**: `requirement.rs`
-- **manual Option::map**: `filesystem.rs`
+Clippy warnings: **~0** (cleared in iteration cycle 18, `--all-targets --all-features`)
+- Remaining: ~2 in `real_repo_integration.rs` (structural — false positive for unused import, PathBuf ownership needed)
+
+### 9. Orphan CLI files
+- **Status**: COMPLETE ✓ (cycle 16)
+- Deleted `src/cli/commands/search.rs` (592 lines) — replaced by `search_v2.rs`, `mod.rs` reference was already commented out
+- Removed stale `// pub mod search;` and TODO comment from `commands/mod.rs`
+
+## Completed (2026-04-02, cycle 16)
+
+- [x] Removed 5 dead `raise_*` helper functions + 6 unit tests from `exceptions_bindings.rs` (-93 lines)
+- [x] Deleted orphan `search.rs` (592 lines) — not in module tree, replaced by `search_v2.rs`
+- [x] Removed stale `// TODO: Add more commands` comment and `// pub mod search;` from `commands/mod.rs`
+- [x] Updated `CLEANUP_TODO.md`: mark #4 complete, update TODO audit (35→24), update clippy (~50→~0)
 
 ## Completed (2026-04-02, cycle 15)
 
