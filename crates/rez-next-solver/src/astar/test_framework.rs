@@ -98,6 +98,7 @@ pub fn run_framework_tests() -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::astar::StatePool;
 
     #[test]
     fn test_run_framework_tests() {

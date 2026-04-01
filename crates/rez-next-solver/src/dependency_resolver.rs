@@ -562,9 +562,8 @@ impl Default for ResolutionStats {
 mod tests {
     use super::*;
     use crate::solver::ConflictStrategy;
-    use rez_next_package::{Package, Requirement};
+    use rez_next_package::Requirement;
     use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
-    use rez_next_version::Version;
     use serde_json;
     use std::sync::Arc;
 
