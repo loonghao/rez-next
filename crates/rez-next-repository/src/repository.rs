@@ -399,11 +399,11 @@ mod repository_tests {
         assert!(stats.last_scan_duration_ms.is_none());
     }
 
-    // ── RepositoryManager deduplicate_packages ───────────────────────
+    // ── AsyncRepositoryManager deduplicate_packages ───────────────────────
 
     #[test]
     fn test_deduplicate_removes_exact_duplicates() {
-        let mgr = RepositoryManager::new();
+        let mgr = AsyncRepositoryManager::new();
         let pkgs = vec![
             make_pkg("python", "3.9.0"),
             make_pkg("python", "3.9.0"), // duplicate
@@ -415,7 +415,7 @@ mod repository_tests {
 
     #[test]
     fn test_deduplicate_preserves_different_versions() {
-        let mgr = RepositoryManager::new();
+        let mgr = AsyncRepositoryManager::new();
         let pkgs = vec![
             make_pkg("python", "3.9.0"),
             make_pkg("python", "3.11.0"),
@@ -427,7 +427,7 @@ mod repository_tests {
 
     #[test]
     fn test_deduplicate_sorts_versions_descending() {
-        let mgr = RepositoryManager::new();
+        let mgr = AsyncRepositoryManager::new();
         let pkgs = vec![
             make_pkg("python", "3.9.0"),
             make_pkg("python", "3.11.0"),
@@ -445,7 +445,7 @@ mod repository_tests {
 
     #[test]
     fn test_deduplicate_multiple_packages() {
-        let mgr = RepositoryManager::new();
+        let mgr = AsyncRepositoryManager::new();
         let pkgs = vec![
             make_pkg("maya", "2024.1"),
             make_pkg("python", "3.11.0"),
@@ -466,14 +466,14 @@ mod repository_tests {
 
     #[test]
     fn test_deduplicate_empty_input() {
-        let mgr = RepositoryManager::new();
+        let mgr = AsyncRepositoryManager::new();
         let result = mgr.deduplicate_packages(vec![]).unwrap();
         assert!(result.is_empty());
     }
 
     #[test]
     fn test_deduplicate_no_version_packages() {
-        let mgr = RepositoryManager::new();
+        let mgr = AsyncRepositoryManager::new();
         let pkgs = vec![
             make_pkg_no_ver("unnamed"),
             make_pkg_no_ver("unnamed"), // duplicate with no version
@@ -520,19 +520,19 @@ mod repository_tests {
         assert_eq!(criteria.limit, Some(10));
     }
 
-    // ── RepositoryManager repository_count (atomic) ──────────────────
+    // ── AsyncRepositoryManager repository_count (atomic) ──────────────────
 
     #[test]
     fn test_repository_manager_initial_count_is_zero() {
-        let mgr = RepositoryManager::new();
+        let mgr = AsyncRepositoryManager::new();
         assert_eq!(mgr.repository_count(), 0);
     }
 
-    // ── RepositoryManager deduplicate is exhaustive ──────────────────
+    // ── AsyncRepositoryManager deduplicate is exhaustive ──────────────────
 
     #[test]
     fn test_deduplicate_single_package() {
-        let mgr = RepositoryManager::new();
+        let mgr = AsyncRepositoryManager::new();
         let pkgs = vec![make_pkg("houdini", "19.5.0")];
         let result = mgr.deduplicate_packages(pkgs).unwrap();
         assert_eq!(result.len(), 1);
