@@ -287,25 +287,6 @@ impl Version {
         })
     }
 
-    /// Reconstruct string representation from tokens and separators
-    #[allow(dead_code)]
-    fn reconstruct_string(tokens: &[String], separators: &[String]) -> String {
-        if tokens.is_empty() {
-            return "".to_string();
-        }
-
-        let mut result = String::new();
-        for (i, token) in tokens.iter().enumerate() {
-            if i > 0 && i - 1 < separators.len() {
-                result.push_str(&separators[i - 1]);
-            } else if i > 0 {
-                result.push('.'); // Default separator
-            }
-            result.push_str(token);
-        }
-        result
-    }
-
     /// Compare two versions using rez-compatible rules
     fn compare_rez(&self, other: &Self) -> Ordering {
         // Handle infinite versions (inf is largest)
