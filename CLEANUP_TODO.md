@@ -10,11 +10,10 @@
 - **Note**: `version_token.rs` and `token.rs` have been deleted in cycle 8 — they were dead files not in the module tree.
 
 ### 2. Workspace lint configuration tightening
-- **Status**: PARTIALLY COMPLETE ✓
-- `unexpected_cfgs` changed from `allow` to `warn` (cycle 8)
-- `flamegraph` and `quick-benchmarks` features declared in `[features]`
-- Remaining `allow` lints: `dead_code`, `unused_imports`, `unused_variables`, `deprecated`, `ambiguous_glob_reexports`, `irrefutable_let_patterns`, `unused_mut`
-- **Next**: Tighten `unused_imports` to `warn` and fix warnings
+- **Status**: COMPLETE ✓ (cycle 12)
+- All Rust lints tightened to `warn` level: `unexpected_cfgs`, `unused_imports`, `dead_code`, `unused_variables`, `unused_mut`, `deprecated`, `ambiguous_glob_reexports`, `irrefutable_let_patterns`
+- All 30 clippy `allow` rules removed (zero instances in codebase) — clippy defaults now enforced
+- Only category-level clippy config remains: `complexity=warn`, `correctness=deny`, `suspicious=deny`, `perf=warn`
 
 ### 3. Duplicate `ResolutionResult` types
 - **Status**: COMPLETE ✓
@@ -38,12 +37,22 @@
 - Deleted `batch.rs`, `cache.rs`, `dependency.rs`, `variant.rs` — all dead files not in lib.rs module tree
 
 ### 7. Further lint tightening
-- **Status**: COMPLETE ✓ (cycle 11)
+- **Status**: COMPLETE ✓ (cycle 12)
 - `unused_imports`: `allow` → `warn` + 68 imports cleaned (cycle 9)
 - `dead_code`: `allow` → `warn` + ~430 lines dead code removed (cycle 10)
 - `unused_variables`: `allow` → `warn` + 24 function-signature warnings fixed (cycle 11)
 - `unused_mut`: `allow` → `warn` (cycle 11, zero instances found)
-- Remaining `allow` lints: `ambiguous_glob_reexports`, `deprecated`, `irrefutable_let_patterns`
+- `deprecated`: `allow` → `warn` + fixed `base64::decode`/`encode` deprecated API (cycle 12)
+- `ambiguous_glob_reexports`: `allow` → `warn` + fixed `RepositoryManager` glob conflict (cycle 12)
+- `irrefutable_let_patterns`: `allow` → `warn` + fixed scanner.rs `if let` pattern (cycle 12)
+- 30 clippy allow rules removed — all had zero instances (cycle 12)
+
+### 8. Dead `repository::RepositoryManager` type
+- **Status**: NEW
+- `repository.rs` contains a `RepositoryManager` (lines 152-371) that is never used outside its own tests
+- All 44 external references use `simple_repository::RepositoryManager` instead
+- Safe to delete the entire struct + impl + tests (~220 lines)
+- Low risk, high impact cleanup for next cycle
 
 ## Medium Priority — TODO Audit
 
@@ -52,6 +61,17 @@
 - **CLI stubs**: time-based removal, daemon logic, validation filters
 - **Version system**: token comparison, caching, proper type distinction
 - None of these TODOs are blocking; they represent future work items.
+
+## Completed (2026-04-02, cycle 12)
+
+- [x] Tightened `deprecated` from `allow` to `warn`, fixed `base64::decode`/`encode` → `Engine::decode`/`encode` API
+- [x] Tightened `ambiguous_glob_reexports` from `allow` to `warn`, fixed `RepositoryManager` conflict via explicit re-exports in `lib.rs`
+- [x] Tightened `irrefutable_let_patterns` from `allow` to `warn`, fixed `if let` → `let` in `scanner.rs`
+- [x] Removed all 30 clippy `allow` rules — all had zero instances in codebase
+- [x] Deleted dead `reconstruct_string` function from `version.rs`
+- [x] Added field-level `#[allow(dead_code)]` annotations to `AdvancedCacheEntry` (previously struct-level)
+- [x] All Rust lints now at `warn` level — lint configuration tightening COMPLETE
+- [x] Updated `CLEANUP_TODO.md` with cycle 12 progress, added #8 (dead `repository::RepositoryManager`)
 
 ## Completed (2026-04-01, cycle 11)
 

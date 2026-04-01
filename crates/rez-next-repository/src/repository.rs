@@ -148,8 +148,8 @@ impl Default for RepositoryStats {
     }
 }
 
-/// Repository manager for handling multiple repositories
-pub struct RepositoryManager {
+/// Async repository manager for handling multiple repositories (async/Arc version)
+pub struct AsyncRepositoryManager {
     /// List of repositories in priority order
     repositories: Arc<RwLock<Vec<Arc<RwLock<dyn Repository>>>>>,
     /// Repository cache
@@ -158,7 +158,7 @@ pub struct RepositoryManager {
     count: Arc<std::sync::atomic::AtomicUsize>,
 }
 
-impl RepositoryManager {
+impl AsyncRepositoryManager {
     pub fn new() -> Self {
         Self {
             repositories: Arc::new(RwLock::new(Vec::new())),
@@ -173,7 +173,7 @@ impl RepositoryManager {
     }
 }
 
-impl RepositoryManager {
+impl AsyncRepositoryManager {
     /// Add a repository to the manager
     pub async fn add_repository(
         &self,
@@ -364,7 +364,7 @@ impl RepositoryManager {
     }
 }
 
-impl Default for RepositoryManager {
+impl Default for AsyncRepositoryManager {
     fn default() -> Self {
         Self::new()
     }
