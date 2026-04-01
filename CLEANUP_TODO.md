@@ -7,32 +7,44 @@
 - **Impact**: Originally 119+ `#[cfg(feature = "python-bindings")]` blocks across 10+ crates. ~2400 lines removed total across 7 cycles.
 - **Root cause**: Python bindings migrated to `rez-next-python` crate, but old per-crate `#[cfg(feature = "python-bindings")]` code was left behind. The feature was never defined in any `Cargo.toml`, and `pyo3` was not a dependency in non-python crates.
 - **Verification**: `grep -r 'cfg.*python.bindings' crates/ --include='*.rs'` returns 0 results (excluding `rez-next-python/`)
-- **Note**: `version_token.rs` and `token.rs` still have unconditional `use pyo3` — these files are used by `rez-next-python` crate and are legitimate pyo3 types. They are NOT referenced from `rez-next-version/lib.rs`.
+- **Note**: `version_token.rs` and `token.rs` have been deleted in cycle 8 — they were dead files not in the module tree.
 
 ### 2. Workspace lint configuration tightening
-- **Status**: Recorded for next cleanup cycle
-- Root `Cargo.toml` sets `dead_code = "allow"`, `unused_imports = "allow"`, `unused_variables = "allow"`, `unexpected_cfgs = "allow"` globally
-- Now that python-bindings cleanup is complete, `unexpected_cfgs` can be changed to `warn`
-- **Action**: Progressively tighten to `warn` level, fix warnings, then consider `deny` for `dead_code`
+- **Status**: PARTIALLY COMPLETE ✓
+- `unexpected_cfgs` changed from `allow` to `warn` (cycle 8)
+- `flamegraph` and `quick-benchmarks` features declared in `[features]`
+- Remaining `allow` lints: `dead_code`, `unused_imports`, `unused_variables`, `deprecated`, `ambiguous_glob_reexports`, `irrefutable_let_patterns`, `unused_mut`
+- **Next**: Tighten `unused_imports` to `warn` and fix warnings
 
 ### 3. Duplicate `ResolutionResult` types
-- Three separate `ResolutionResult` structs exist in:
-  - `crates/rez-next-solver/src/resolution.rs` (used by tests)
-  - `crates/rez-next-solver/src/dependency_resolver.rs` (different fields)
-  - `crates/rez-next-solver/src/solver.rs` (duplicate of resolution.rs)
-- Glob re-exports (`pub use *`) cause ambiguity
-- **Action**: Consolidate into a single canonical type, remove duplicates
+- **Status**: COMPLETE ✓
+- Removed duplicate `ResolutionResult` from `solver.rs` (exact copy of `resolution.rs`)
+- `solver.rs` now imports `crate::resolution::ResolutionResult`
+- Renamed `dependency_resolver::ResolutionResult` to `DetailedResolutionResult` (different schema)
+- CLI `solve.rs` updated to use `DetailedResolutionResult`
 
 ### 4. `#[allow(dead_code)]` helper functions (5 in exceptions_bindings.rs)
 - `raise_resolve_error`, `raise_package_not_found`, `raise_config_error`, `raise_build_error`, `raise_rex_error`
 - These are utility functions for future use. Keep for now, remove `#[allow(dead_code)]` when actually used.
 
 ### 5. Orphan pyo3 files in non-python crates
-- `crates/rez-next-version/src/version_token.rs`: entire file uses pyo3 unconditionally (pyclass/pymethods/PyResult). Not exported from lib.rs.
-- `crates/rez-next-version/src/token.rs`: has `PyVersionToken` wrapper with pyo3 attrs. `VersionToken` enum is used by parser.
-- `crates/rez-next-package/src/validation.rs`: all structs are `#[pyclass]` with `#[pyo3(get)]` — unconditional pyo3 usage
-- `crates/rez-next-package/src/management.rs`: all structs are `#[pyclass]` with `#[pyo3(get)]` — unconditional pyo3 usage
-- **Action**: These files need pyo3 stripped or moved to rez-next-python. High risk — deep refactor required.
+- **Status**: COMPLETE ✓
+- Deleted `version_token.rs` (371 lines), `token.rs` (123 lines), `validation.rs` (1034 lines), `management.rs` (1077 lines), `version_token_tests.rs` (6 lines)
+- None were in lib.rs module trees, none were compiled, pyo3 was not a dependency of these crates
+- rez-next-python does not reference any types from these files
+
+### 6. Dead .rs files in rez-next-package not in module tree
+- `batch.rs` (24 KB): references deleted types from validation.rs/management.rs; not in lib.rs
+- `cache.rs` (29 KB): references DependencyResolutionResult, PackageValidationResult; not in lib.rs
+- `dependency.rs` (33 KB): full dependency resolver; not in lib.rs
+- `variant.rs` (28 KB): variant handling; not in lib.rs
+- **Action**: Evaluate each file for Rust-only value. Strip pyo3 references and either incorporate into lib.rs or delete.
+
+### 7. Further lint tightening
+- `unused_imports = "allow"` → `warn`: will surface many unused imports, clean them up
+- `dead_code = "allow"` → `warn`: will reveal significant dead code across all crates
+- `ambiguous_glob_reexports = "allow"` → `warn`: may surface remaining glob issues
+- **Action**: Address one at a time in future cycles
 
 ## Medium Priority — TODO Audit
 
@@ -41,6 +53,21 @@
 - **CLI stubs**: time-based removal, daemon logic, validation filters
 - **Version system**: token comparison, caching, proper type distinction
 - None of these TODOs are blocking; they represent future work items.
+
+## Completed (2026-04-01, cycle 8)
+
+- [x] Deleted `version_token.rs` (371 lines) — dead pyo3 file, not in module tree
+- [x] Deleted `token.rs` (123 lines) — dead pyo3 file, not in module tree
+- [x] Deleted `validation.rs` (1034 lines) — dead pyo3 file, not in module tree, pyo3 commented out in Cargo.toml
+- [x] Deleted `management.rs` (1077 lines) — dead pyo3 file, not in module tree, pyo3 commented out in Cargo.toml
+- [x] Deleted `version_token_tests.rs` (6 lines) — empty test file for deleted module
+- [x] Removed `pub mod version_token_tests` from tests/mod.rs
+- [x] `unexpected_cfgs` lint: changed from `allow` to `warn`
+- [x] Declared `flamegraph` and `quick-benchmarks` features in root Cargo.toml
+- [x] Updated stale `unused_imports` comment
+- [x] Removed duplicate `ResolutionResult` from `solver.rs` (12 lines) — was exact copy of `resolution.rs`
+- [x] Renamed `dependency_resolver::ResolutionResult` → `DetailedResolutionResult` to eliminate glob ambiguity
+- [x] Updated CLI `solve.rs` to use `DetailedResolutionResult`
 
 ## Completed (2026-04-01, cycle 7)
 
