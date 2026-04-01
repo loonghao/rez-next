@@ -242,6 +242,7 @@ impl DependencyHeuristic for VersionPreferenceHeuristic {
 /// Composite heuristic that combines multiple heuristics
 pub struct CompositeHeuristic {
     heuristics: Vec<Box<dyn DependencyHeuristic + Send + Sync>>,
+    #[allow(dead_code)]
     config: HeuristicConfig,
 }
 
@@ -348,6 +349,7 @@ impl HeuristicFactory {
 
 /// Adaptive heuristic that adjusts based on search progress
 pub struct AdaptiveHeuristic {
+    #[allow(dead_code)]
     base_heuristic: CompositeHeuristic,
     config: HeuristicConfig,
     /// Statistics for adaptation

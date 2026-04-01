@@ -7,13 +7,12 @@
 use clap::Args;
 use rez_next_common::{config::RezCoreConfig, error::RezCoreResult, RezCoreError};
 use rez_next_context::{ContextConfig, ResolvedContext};
-use rez_next_package::{Package, PackageRequirement};
+use rez_next_package::PackageRequirement;
 use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
 use rez_next_rex::{generate_shell_script, RexEnvironment, ShellType};
 use rez_next_solver::{DependencyResolver, SolverConfig};
 use serde::{Deserialize, Serialize};
 use serde_json;
-use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 

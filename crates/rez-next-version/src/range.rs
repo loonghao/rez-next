@@ -290,23 +290,6 @@ impl VersionRange {
         other.is_subset_of(self)
     }
 
-    /// Collect representative probe versions from the range's bounds for subset checking
-    fn collect_probe_versions(&self) -> Vec<Version> {
-        let mut versions = Vec::new();
-        for bs in &self.bound_sets {
-            for bound in &bs.bounds {
-                match bound {
-                    Bound::Ge(v) | Bound::Gt(v) | Bound::Le(v) | Bound::Lt(v)
-                    | Bound::Eq(v) | Bound::Ne(v) | Bound::Compatible(v) => {
-                        versions.push(v.clone());
-                    }
-                    _ => {}
-                }
-            }
-        }
-        versions
-    }
-
     /// Collect probe versions from both self and other's bounds, plus "beyond" versions
     fn collect_probe_versions_with_other(&self, other: &VersionRange) -> Vec<Version> {
         let mut versions = Vec::new();
@@ -576,31 +559,6 @@ fn parse_single_constraint(s: &str) -> Result<Bound, RezCoreError> {
         RezCoreError::VersionRange(format!("Invalid version constraint '{}': {}", s, e))
     })?;
     Ok(Bound::Eq(v))
-}
-
-/// Negate a BoundSet: flip each bound to its complement
-/// Used for computing set difference
-fn negate_bound_set(bs: &BoundSet) -> BoundSet {
-    // Negate each bound: AND of negated bounds = complement of AND of original bounds
-    // Actually for a BoundSet (conjunction), complement is a disjunction of negated bounds
-    // For simplicity we negate the first meaningful bound
-    // This is an approximation for the subtract operation
-    let negated: Vec<Bound> = bs
-        .bounds
-        .iter()
-        .map(|b| match b {
-            Bound::Any => Bound::None,
-            Bound::None => Bound::Any,
-            Bound::Ge(v) => Bound::Lt(v.clone()),
-            Bound::Gt(v) => Bound::Le(v.clone()),
-            Bound::Le(v) => Bound::Gt(v.clone()),
-            Bound::Lt(v) => Bound::Ge(v.clone()),
-            Bound::Eq(v) => Bound::Ne(v.clone()),
-            Bound::Ne(v) => Bound::Eq(v.clone()),
-            Bound::Compatible(v) => Bound::Lt(v.clone()), // approximate: below the base version
-        })
-        .collect();
-    BoundSet { bounds: negated }
 }
 
 /// Check if a single BoundSet is satisfiable (not trivially empty due to conflicting bounds)

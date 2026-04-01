@@ -120,8 +120,6 @@ impl SolverRequest {
 pub struct DependencySolver {
     /// Solver configuration
     config: SolverConfig,
-    /// Solver statistics
-    stats: SolverStats,
     /// Repository manager for package discovery
     repository_manager: Option<Arc<RepositoryManager>>,
 }
@@ -174,7 +172,6 @@ impl DependencySolver {
         let config = SolverConfig::default();
         Self {
             config,
-            stats: SolverStats::default(),
             repository_manager: None,
         }
     }
@@ -183,7 +180,6 @@ impl DependencySolver {
     pub fn with_config(config: SolverConfig) -> Self {
         Self {
             config,
-            stats: SolverStats::default(),
             repository_manager: None,
         }
     }

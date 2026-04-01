@@ -54,10 +54,8 @@ pub struct PipArgs {
 struct PipPackageInfo {
     pub name: String,
     pub version: String,
-    pub location: PathBuf,
     pub requires: Vec<String>,
     pub summary: String,
-    pub home_page: String,
 }
 
 /// Execute the pip command
@@ -249,7 +247,6 @@ fn parse_pip_show_output(output: &str, target: &Path) -> RezCoreResult<Option<Pi
     let mut version = String::new();
     let mut requires = Vec::new();
     let mut summary = String::new();
-    let mut home_page = String::new();
 
     for line in output.lines() {
         if let Some(val) = line.strip_prefix("Name: ") {
@@ -264,8 +261,6 @@ fn parse_pip_show_output(output: &str, target: &Path) -> RezCoreResult<Option<Pi
                 .collect();
         } else if let Some(val) = line.strip_prefix("Summary: ") {
             summary = val.trim().to_string();
-        } else if let Some(val) = line.strip_prefix("Home-page: ") {
-            home_page = val.trim().to_string();
         }
     }
 
@@ -276,10 +271,8 @@ fn parse_pip_show_output(output: &str, target: &Path) -> RezCoreResult<Option<Pi
     Ok(Some(PipPackageInfo {
         name,
         version,
-        location: target.to_path_buf(),
         requires,
         summary,
-        home_page,
     }))
 }
 
@@ -307,15 +300,12 @@ fn scan_target_for_package(
                     // Read METADATA file
                     let metadata_path = entry.path().join("METADATA");
                     let mut summary = String::new();
-                    let mut home_page = String::new();
                     let mut requires = Vec::new();
 
                     if let Ok(content) = std::fs::read_to_string(&metadata_path) {
                         for line in content.lines() {
                             if let Some(val) = line.strip_prefix("Summary: ") {
                                 summary = val.to_string();
-                            } else if let Some(val) = line.strip_prefix("Home-page: ") {
-                                home_page = val.to_string();
                             } else if let Some(val) = line.strip_prefix("Requires-Dist: ") {
                                 let dep_name = val.split_whitespace().next().unwrap_or(val);
                                 requires.push(dep_name.to_string());
@@ -326,10 +316,8 @@ fn scan_target_for_package(
                     return Ok(Some(PipPackageInfo {
                         name: without_suffix[..dash_pos].to_string(),
                         version: dist_version.to_string(),
-                        location: target.to_path_buf(),
                         requires,
                         summary,
-                        home_page,
                     }));
                 }
             }
@@ -523,10 +511,8 @@ Requires: certifi, charset-normalizer, idna, urllib3
         let info = PipPackageInfo {
             name: "requests".to_string(),
             version: "2.28.0".to_string(),
-            location: PathBuf::from("/tmp"),
             requires: vec![],
             summary: "HTTP library".to_string(),
-            home_page: "https://requests.readthedocs.io".to_string(),
         };
         let rez_requires: Vec<String> = info
             .requires
@@ -551,10 +537,8 @@ Requires: certifi, charset-normalizer, idna, urllib3
         let info = PipPackageInfo {
             name: "requests".to_string(),
             version: "2.28.0".to_string(),
-            location: src_dir.clone(),
             requires: vec!["certifi".to_string(), "urllib3".to_string()],
             summary: "Python HTTP for Humans.".to_string(),
-            home_page: "https://requests.readthedocs.io".to_string(),
         };
 
         let args = PipArgs {

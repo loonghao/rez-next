@@ -361,21 +361,6 @@ impl RepositoryCache {
         Ok(())
     }
 
-    /// Save cache index to disk
-    async fn save_cache_index(&self) -> Result<(), RezCoreError> {
-        let index_path = self.config.cache_dir.join("index.json");
-        let index = self.index.read().await;
-
-        let content = serde_json::to_string_pretty(&*index)
-            .map_err(|e| RezCoreError::Cache(format!("Failed to serialize cache index: {}", e)))?;
-
-        fs::write(&index_path, content)
-            .await
-            .map_err(|e| RezCoreError::Cache(format!("Failed to write cache index: {}", e)))?;
-
-        Ok(())
-    }
-
     /// Write a cache entry to disk
     async fn write_cache_file(&self, key: &str, entry: &CacheEntry) -> Result<(), RezCoreError> {
         let cache_file = self.config.cache_dir.join(format!("{}.json", key));

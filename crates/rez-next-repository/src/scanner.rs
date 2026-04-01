@@ -12,7 +12,6 @@ use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 use tokio::fs;
 use tokio::sync::{RwLock, Semaphore};
-use tokio::task::JoinSet;
 use tokio::time::interval;
 
 /// Enhanced scanner configuration with performance optimizations
@@ -184,8 +183,6 @@ struct ScanCacheEntry {
     mtime: std::time::SystemTime,
     /// File size when cached
     size: u64,
-    /// Cache creation time
-    cached_at: SystemTime,
     /// Access count for LRU tracking
     access_count: u64,
     /// Last access time
@@ -685,105 +682,6 @@ impl RepositoryScanner {
         Ok(())
     }
 
-    /// Legacy recursive scan method (kept for compatibility)
-    async fn scan_directory_recursive(
-        &self,
-        dir_path: &Path,
-        depth: usize,
-        join_set: &mut JoinSet<()>,
-        packages: Arc<RwLock<Vec<PackageScanResult>>>,
-        errors: Arc<RwLock<Vec<ScanError>>>,
-        directories_scanned: Arc<RwLock<usize>>,
-        files_examined: Arc<RwLock<usize>>,
-    ) -> Result<(), RezCoreError> {
-        // Check depth limit
-        if depth > self.config.max_depth {
-            return Ok(());
-        }
-
-        // Increment directories scanned counter
-        {
-            let mut count = directories_scanned.write().await;
-            *count += 1;
-        }
-
-        // Check if this directory should be excluded
-        if self.should_exclude_path(dir_path) {
-            return Ok(());
-        }
-
-        // Read directory entries
-        let mut entries = match fs::read_dir(dir_path).await {
-            Ok(entries) => entries,
-            Err(e) => {
-                let mut errors_guard = errors.write().await;
-                errors_guard.push(ScanError {
-                    path: dir_path.to_path_buf(),
-                    message: format!("Failed to read directory: {}", e),
-                    error_type: ScanErrorType::FileSystemError,
-                });
-                return Ok(());
-            }
-        };
-
-        while let Some(entry) = entries.next_entry().await.map_err(|e| {
-            RezCoreError::Repository(format!("Failed to read directory entry: {}", e))
-        })? {
-            let path = entry.path();
-
-            if path.is_dir() {
-                // Recursively scan subdirectory
-                Box::pin(self.scan_directory_recursive(
-                    &path,
-                    depth + 1,
-                    join_set,
-                    packages.clone(),
-                    errors.clone(),
-                    directories_scanned.clone(),
-                    files_examined.clone(),
-                ))
-                .await?;
-            } else if path.is_file() {
-                // Check if this is a package file
-                if self.is_package_file(&path) {
-                    // Spawn a task to scan this package file
-                    let semaphore = self.semaphore.clone();
-                    let path_clone = path.clone();
-                    let packages_clone = packages.clone();
-                    let errors_clone = errors.clone();
-                    let files_examined_clone = files_examined.clone();
-
-                    join_set.spawn(async move {
-                        let _permit = semaphore.acquire().await.unwrap();
-
-                        // Increment files examined counter
-                        {
-                            let mut count = files_examined_clone.write().await;
-                            *count += 1;
-                        }
-
-                        match Self::scan_package_file(&path_clone).await {
-                            Ok(package_result) => {
-                                let mut packages_guard = packages_clone.write().await;
-                                packages_guard.push(package_result);
-                            }
-                            Err(e) => {
-                                let mut errors_guard = errors_clone.write().await;
-                                errors_guard.push(ScanError {
-                                    path: path_clone,
-                                    message: format!("Failed to scan package: {}", e),
-                                    error_type: ScanErrorType::PackageParseError,
-                                });
-                            }
-                        }
-                    });
-                }
-            }
-        }
-
-        Ok(())
-    }
-
     /// Optimized package file scanning with caching and memory mapping
     async fn scan_package_file_optimized(
         &self,
@@ -860,7 +758,6 @@ impl RepositoryScanner {
                 result: result.clone(),
                 mtime,
                 size: file_size,
-                cached_at: now,
                 access_count: 1,
                 last_accessed: now,
             };
@@ -935,39 +832,6 @@ impl RepositoryScanner {
                 "Failed to convert memory mapped file to string: {}",
                 e
             ))
-        })
-    }
-
-    /// Legacy package file scanning method (kept for compatibility)
-    async fn scan_package_file(package_file: &Path) -> Result<PackageScanResult, RezCoreError> {
-        let start_time = std::time::Instant::now();
-
-        // Get file metadata
-        let metadata = fs::metadata(package_file)
-            .await
-            .map_err(|e| RezCoreError::Repository(format!("Failed to get file metadata: {}", e)))?;
-
-        let file_size = metadata.len();
-
-        // Read and parse package file
-        let content = fs::read_to_string(package_file)
-            .await
-            .map_err(|e| RezCoreError::Repository(format!("Failed to read package file: {}", e)))?;
-
-        // Simple YAML parsing for now
-        let package: Package = serde_yaml::from_str(&content).map_err(|e| {
-            RezCoreError::Repository(format!("Failed to parse package file: {}", e))
-        })?;
-
-        let scan_duration_ms = start_time.elapsed().as_millis() as u64;
-        let package_dir = package_file.parent().unwrap_or(package_file).to_path_buf();
-
-        Ok(PackageScanResult {
-            package,
-            package_file: package_file.to_path_buf(),
-            package_dir,
-            file_size,
-            scan_duration_ms,
         })
     }
 

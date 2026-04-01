@@ -461,6 +461,7 @@ pub struct RequirementParser {
 }
 
 /// Compiled regex patterns for requirement parsing
+#[allow(dead_code)]
 struct RequirementPatterns {
     /// Pattern for basic requirement with version: "package>=1.0"
     basic_version: Regex,
@@ -809,27 +810,6 @@ impl RequirementParser {
             // Plain "ver" (no '+', no '<') → rez point-release range (prefix match):
             // pkg-3.11 matches 3.11, 3.11.0, 3.11.5, but not 3.12 or 3.1
             Some(VersionConstraint::Prefix(min_ver))
-        }
-    }
-
-    /// Increment the last numeric token of a version string.
-    /// "3.11" → "3.12", "3" → "4", "3.9.1" → "3.9.2"
-    fn increment_last_token(ver_str: &str) -> Option<String> {
-        let parts: Vec<&str> = ver_str.split('.').collect();
-        if parts.is_empty() {
-            return None;
-        }
-        let mut result_parts: Vec<String> = parts[..parts.len() - 1]
-            .iter()
-            .map(|s| s.to_string())
-            .collect();
-        let last = parts[parts.len() - 1];
-        // Try to parse last part as integer and increment
-        if let Ok(n) = last.parse::<u64>() {
-            result_parts.push((n + 1).to_string());
-            Some(result_parts.join("."))
-        } else {
-            None
         }
     }
 

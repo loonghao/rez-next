@@ -1,6 +1,6 @@
 //! Dependency resolution implementation - equivalent to Python's solver
 
-use crate::{SolverConfig, SolverStats};
+use crate::SolverConfig;
 use rez_next_common::RezCoreError;
 use rez_next_package::{Package, Requirement};
 use rez_next_repository::simple_repository::RepositoryManager;
@@ -14,9 +14,6 @@ pub struct DependencyResolver {
 
     /// Solver configuration
     config: SolverConfig,
-
-    /// Solver statistics
-    stats: SolverStats,
 
     /// Cache of resolved packages
     package_cache: HashMap<String, Vec<Arc<Package>>>,
@@ -95,7 +92,6 @@ impl DependencyResolver {
         Self {
             repository_manager,
             config,
-            stats: SolverStats::default(),
             package_cache: HashMap::new(),
         }
     }
@@ -250,15 +246,6 @@ impl DependencyResolver {
         }
 
         candidates
-    }
-
-    /// Filter candidate packages based on version constraints (legacy alias)
-    fn filter_candidates(
-        &self,
-        packages: &[Arc<Package>],
-        requirement: &Requirement,
-    ) -> Vec<Arc<Package>> {
-        self.filter_and_sort_candidates(packages, requirement)
     }
 
     /// Try to resolve using a specific candidate package

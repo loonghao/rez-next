@@ -3,7 +3,7 @@
 //! Implements the core A* search algorithm optimized for dependency resolution.
 //! Uses heuristic-guided search to find optimal dependency solutions efficiently.
 
-use super::search_state::{ConflictType, DependencyConflict, SearchState, StatePool};
+use super::search_state::{ConflictType, DependencyConflict, SearchState};
 use crate::SolverConfig;
 use rez_next_common::RezCoreError;
 use rez_next_package::{Package, PackageRequirement};
@@ -21,9 +21,6 @@ pub struct AStarSearch {
 
     /// Closed set: hashes of states already evaluated
     closed_set: HashSet<u64>,
-
-    /// State pool for memory management
-    state_pool: StatePool,
 
     /// Repository manager for package lookup
     repository_manager: Arc<RepositoryManager>,
@@ -77,7 +74,6 @@ impl AStarSearch {
         Self {
             open_set: BinaryHeap::new(),
             closed_set: HashSet::new(),
-            state_pool: StatePool::new(1000),
             repository_manager,
             config,
             stats: SearchStats::default(),

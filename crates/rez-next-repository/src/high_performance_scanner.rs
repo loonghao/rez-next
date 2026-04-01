@@ -56,6 +56,7 @@ impl Default for HighPerformanceConfig {
 
 /// Advanced cache entry with metadata
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 struct AdvancedCacheEntry {
     result: PackageScanResult,
     mtime: SystemTime,

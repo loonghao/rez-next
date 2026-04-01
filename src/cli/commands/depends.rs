@@ -2,7 +2,6 @@
 
 use clap::Args;
 use rez_next_common::{RezCoreConfig, RezCoreError};
-use rez_next_package::Package;
 use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
 use rez_next_version::Version;
 use std::collections::{HashMap, HashSet, VecDeque};

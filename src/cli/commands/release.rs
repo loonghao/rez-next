@@ -62,15 +62,6 @@ pub struct ReleaseArgs {
     pub verbose: bool,
 }
 
-/// Parse variant indices from string
-fn parse_variants(variants_str: &str) -> RezCoreResult<Vec<usize>> {
-    variants_str
-        .split(',')
-        .map(|s| s.trim().parse::<usize>())
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(|e| RezCoreError::CliError(format!("Invalid variant indices: {}", e)))
-}
-
 /// Execute the release command
 pub fn execute(args: ReleaseArgs) -> RezCoreResult<()> {
     let working_dir = args

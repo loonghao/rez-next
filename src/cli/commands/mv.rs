@@ -283,20 +283,6 @@ async fn find_source_package_with_path(
     )))
 }
 
-/// Check if package already exists at destination
-async fn package_exists_at_destination(
-    destination_path: &PathBuf,
-    package: &Package,
-) -> RezCoreResult<bool> {
-    let ver_str = package
-        .version
-        .as_ref()
-        .map(|v| v.as_str())
-        .unwrap_or("unknown");
-    let pkg_dir = destination_path.join(&package.name).join(ver_str);
-    Ok(pkg_dir.exists())
-}
-
 /// Move/copy package directory
 async fn move_package_directory(
     source_package: &Package,

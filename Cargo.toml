@@ -169,8 +169,8 @@ harness = false
 [workspace.lints.rust]
 # Warn on unused imports (tightened from allow — dead file cleanup complete)
 unused_imports = "warn"
-# Allow dead code for experimental features
-dead_code = "allow"
+# Warn on dead code (tightened from allow — cycle 10 cleanup)
+dead_code = "warn"
 # Allow unused variables during development
 unused_variables = "allow"
 # Allow deprecated items during migration

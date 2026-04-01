@@ -360,43 +360,6 @@ fn parse_build_args(args_str: &Option<String>) -> Vec<String> {
     }
 }
 
-/// View preprocessed package definition
-fn view_preprocessed_package(args: &BuildArgs) -> RezCoreResult<()> {
-    let working_dir = std::env::current_dir().map_err(|e| RezCoreError::Io(e))?;
-
-    let package = load_current_package(&working_dir)?;
-
-    // Print package information in Python format
-    println!("# Preprocessed package definition");
-    println!("name = '{}'", package.name);
-
-    if let Some(ref version) = package.version {
-        println!("version = '{}'", version.as_str());
-    }
-
-    if let Some(ref description) = package.description {
-        println!("description = '{}'", description);
-    }
-
-    if !package.requires.is_empty() {
-        println!("requires = [");
-        for req in &package.requires {
-            println!("    '{}',", req);
-        }
-        println!("]");
-    }
-
-    if !package.build_requires.is_empty() {
-        println!("build_requires = [");
-        for req in &package.build_requires {
-            println!("    '{}',", req);
-        }
-        println!("]");
-    }
-
-    Ok(())
-}
-
 /// View preprocessed package definition with package data
 fn view_preprocessed_package_with_data(package: &Package) -> RezCoreResult<()> {
     // Print package information in Python format
@@ -612,13 +575,4 @@ fn get_install_path(args: &BuildArgs) -> RezCoreResult<PathBuf> {
     };
 
     Ok(PathBuf::from(install_path_str))
-}
-
-/// Generate package.py content
-fn generate_package_content(package: &Package) -> RezCoreResult<String> {
-    use rez_next_package::serialization::{PackageFormat, PackageSerializer};
-
-    PackageSerializer::save_to_string(package, PackageFormat::Python).map_err(|e| {
-        RezCoreError::PackageParse(format!("Failed to generate package content: {}", e))
-    })
 }

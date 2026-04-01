@@ -2,7 +2,7 @@
 
 use crate::detect::{detect_tool_version, extract_version_from_output, find_tool_executable};
 use rez_next_common::config::RezCoreConfig;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use thiserror::Error;
 
 /// Error types for bind operations.
