@@ -6,7 +6,6 @@
 
 use rez_next_package::{Package, Requirement};
 use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
-#[allow(unused_imports)]
 use rez_next_repository::PackageRepository;
 use rez_next_solver::{DependencyResolver, SolverConfig};
 use rez_next_version::Version;

@@ -120,8 +120,8 @@ impl PythonAstParser {
                 self.process_expression_statement(&expr_stmt.value, package_data)?;
             }
             _ => {
-                // Log unhandled statement types for debugging
-                eprintln!("Unhandled statement type: {:?}", stmt);
+                // Silently skip unhandled statement types (e.g. import, class def).
+                // Package metadata is only in assignments, function defs, and with blocks.
             }
         }
         Ok(())

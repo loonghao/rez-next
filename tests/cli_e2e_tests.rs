@@ -56,19 +56,6 @@ fn rez_ok(args: &[&str]) -> String {
     stdout
 }
 
-#[allow(dead_code)]
-fn rez_fail(args: &[&str]) -> (String, String) {
-    let out = rez(args);
-    assert!(
-        !out.status.success(),
-        "Expected rez-next {} to fail, but it succeeded",
-        args.join(" ")
-    );
-    (
-        String::from_utf8_lossy(&out.stdout).to_string(),
-        String::from_utf8_lossy(&out.stderr).to_string(),
-    )
-}
 
 // ── Package repo helpers ──────────────────────────────────────────────────────
 

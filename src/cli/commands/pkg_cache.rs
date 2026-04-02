@@ -268,134 +268,6 @@ async fn run_daemon(
     Ok(())
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_pkg_cache_args_default() {
-        let args = PkgCacheArgs::default();
-        assert!(args.dir.is_none());
-        assert!(args.add_variants.is_empty());
-        assert!(args.remove_variants.is_empty());
-        assert!(!args.clean);
-        assert!(!args.logs);
-        assert!(!args.daemon);
-        assert!(!args.force);
-        assert_eq!(args.columns, vec!["status", "package", "variant_uri", "cache_path"]);
-    }
-
-    #[test]
-    fn test_truncate_string_short() {
-        assert_eq!(truncate_string("hello", 10), "hello");
-    }
-
-    #[test]
-    fn test_truncate_string_exact() {
-        assert_eq!(truncate_string("hello", 5), "hello");
-    }
-
-    #[test]
-    fn test_truncate_string_long() {
-        let result = truncate_string("hello world long string", 10);
-        assert!(result.len() <= 10, "truncated string should be at most 10 chars");
-        assert!(result.ends_with("..."), "truncated string should end with '...'");
-    }
-
-    #[test]
-    fn test_format_status_variants() {
-        assert_eq!(format_status(&CacheStatus::Cached), "cached");
-        assert_eq!(format_status(&CacheStatus::Copying), "copying");
-        assert_eq!(format_status(&CacheStatus::Stalled), "stalled");
-        assert_eq!(format_status(&CacheStatus::Pending), "pending");
-    }
-
-    #[test]
-    fn test_determine_cache_directory_explicit_path() {
-        let tmp = tempfile::tempdir().unwrap();
-        let args = PkgCacheArgs {
-            dir: Some(tmp.path().to_path_buf()),
-            ..PkgCacheArgs::default()
-        };
-        let result = determine_cache_directory(&args);
-        assert!(result.is_ok());
-        assert_eq!(result.unwrap(), tmp.path().to_path_buf());
-    }
-
-    #[tokio::test]
-    async fn test_scan_cache_directory_empty() {
-        let tmp = tempfile::tempdir().unwrap();
-        let entries = scan_cache_directory(&tmp.path().to_path_buf()).await;
-        assert!(entries.is_empty(), "empty directory should yield no entries");
-    }
-
-    #[tokio::test]
-    async fn test_scan_cache_directory_with_packages() {
-        let tmp = tempfile::tempdir().unwrap();
-        let cache_root = tmp.path().to_path_buf();
-
-        // Create a fake cached package structure: <pkg>/<ver>/
-        let pkg_dir = cache_root.join("mypkg").join("1.0.0");
-        std::fs::create_dir_all(&pkg_dir).unwrap();
-
-        let entries = scan_cache_directory(&cache_root).await;
-        assert_eq!(entries.len(), 1, "should find one cached entry");
-        assert_eq!(entries[0].package_name, "mypkg");
-        assert!(entries[0].variant_uri.contains("mypkg"));
-    }
-
-    #[tokio::test]
-    async fn test_scan_cache_directory_with_variants() {
-        let tmp = tempfile::tempdir().unwrap();
-        let cache_root = tmp.path().to_path_buf();
-
-        // variant sub-directories: <pkg>/<ver>/<variant_hash>/
-        std::fs::create_dir_all(cache_root.join("pkg").join("2.0").join("v0")).unwrap();
-        std::fs::create_dir_all(cache_root.join("pkg").join("2.0").join("v1")).unwrap();
-
-        let entries = scan_cache_directory(&cache_root).await;
-        assert_eq!(entries.len(), 2, "should find two variant entries");
-        assert!(entries.iter().all(|e| e.package_name == "pkg"));
-    }
-
-    #[tokio::test]
-    async fn test_daemon_no_pending_dir() {
-        let tmp = tempfile::tempdir().unwrap();
-        let config = UnifiedCacheConfig::default();
-        let manager: IntelligentCacheManager<String, CacheEntry> =
-            IntelligentCacheManager::new(config);
-        // Should succeed even if pending/ dir doesn't exist yet.
-        let result = run_daemon(&manager, tmp.path()).await;
-        assert!(result.is_ok(), "daemon should succeed when no pending dir exists");
-        // Pending dir should now be created.
-        assert!(tmp.path().join("pending").exists());
-    }
-
-    #[tokio::test]
-    async fn test_daemon_processes_pending_file() {
-        let tmp = tempfile::tempdir().unwrap();
-        let cache_dir = tmp.path().to_path_buf();
-        let pending_dir = cache_dir.join("pending");
-        std::fs::create_dir_all(&pending_dir).unwrap();
-
-        // Create a fake pending file (uri = "mypkg_1.0.0" → "mypkg/1.0.0")
-        std::fs::write(pending_dir.join("mypkg_1.0.0.pending"), "").unwrap();
-
-        let config = UnifiedCacheConfig::default();
-        let manager: IntelligentCacheManager<String, CacheEntry> =
-            IntelligentCacheManager::new(config);
-
-        let result = run_daemon(&manager, &cache_dir).await;
-        assert!(result.is_ok(), "daemon should process pending file without error");
-
-        // The pending file should have been removed after processing.
-        assert!(
-            !pending_dir.join("mypkg_1.0.0.pending").exists(),
-            "pending file should be consumed by daemon"
-        );
-    }
-}
-
 /// Add variants to the cache (copy from package paths to cache dir)
 async fn add_variants(
     cache_manager: &IntelligentCacheManager<String, CacheEntry>,
@@ -775,5 +647,133 @@ fn truncate_string(s: &str, max_len: usize) -> String {
         s.to_string()
     } else {
         format!("{}...", &s[..max_len.saturating_sub(3)])
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_pkg_cache_args_default() {
+        let args = PkgCacheArgs::default();
+        assert!(args.dir.is_none());
+        assert!(args.add_variants.is_empty());
+        assert!(args.remove_variants.is_empty());
+        assert!(!args.clean);
+        assert!(!args.logs);
+        assert!(!args.daemon);
+        assert!(!args.force);
+        assert_eq!(args.columns, vec!["status", "package", "variant_uri", "cache_path"]);
+    }
+
+    #[test]
+    fn test_truncate_string_short() {
+        assert_eq!(truncate_string("hello", 10), "hello");
+    }
+
+    #[test]
+    fn test_truncate_string_exact() {
+        assert_eq!(truncate_string("hello", 5), "hello");
+    }
+
+    #[test]
+    fn test_truncate_string_long() {
+        let result = truncate_string("hello world long string", 10);
+        assert!(result.len() <= 10, "truncated string should be at most 10 chars");
+        assert!(result.ends_with("..."), "truncated string should end with '...'");
+    }
+
+    #[test]
+    fn test_format_status_variants() {
+        assert_eq!(format_status(&CacheStatus::Cached), "cached");
+        assert_eq!(format_status(&CacheStatus::Copying), "copying");
+        assert_eq!(format_status(&CacheStatus::Stalled), "stalled");
+        assert_eq!(format_status(&CacheStatus::Pending), "pending");
+    }
+
+    #[test]
+    fn test_determine_cache_directory_explicit_path() {
+        let tmp = tempfile::tempdir().unwrap();
+        let args = PkgCacheArgs {
+            dir: Some(tmp.path().to_path_buf()),
+            ..PkgCacheArgs::default()
+        };
+        let result = determine_cache_directory(&args);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), tmp.path().to_path_buf());
+    }
+
+    #[tokio::test]
+    async fn test_scan_cache_directory_empty() {
+        let tmp = tempfile::tempdir().unwrap();
+        let entries = scan_cache_directory(&tmp.path().to_path_buf()).await;
+        assert!(entries.is_empty(), "empty directory should yield no entries");
+    }
+
+    #[tokio::test]
+    async fn test_scan_cache_directory_with_packages() {
+        let tmp = tempfile::tempdir().unwrap();
+        let cache_root = tmp.path().to_path_buf();
+
+        // Create a fake cached package structure: <pkg>/<ver>/
+        let pkg_dir = cache_root.join("mypkg").join("1.0.0");
+        std::fs::create_dir_all(&pkg_dir).unwrap();
+
+        let entries = scan_cache_directory(&cache_root).await;
+        assert_eq!(entries.len(), 1, "should find one cached entry");
+        assert_eq!(entries[0].package_name, "mypkg");
+        assert!(entries[0].variant_uri.contains("mypkg"));
+    }
+
+    #[tokio::test]
+    async fn test_scan_cache_directory_with_variants() {
+        let tmp = tempfile::tempdir().unwrap();
+        let cache_root = tmp.path().to_path_buf();
+
+        // variant sub-directories: <pkg>/<ver>/<variant_hash>/
+        std::fs::create_dir_all(cache_root.join("pkg").join("2.0").join("v0")).unwrap();
+        std::fs::create_dir_all(cache_root.join("pkg").join("2.0").join("v1")).unwrap();
+
+        let entries = scan_cache_directory(&cache_root).await;
+        assert_eq!(entries.len(), 2, "should find two variant entries");
+        assert!(entries.iter().all(|e| e.package_name == "pkg"));
+    }
+
+    #[tokio::test]
+    async fn test_daemon_no_pending_dir() {
+        let tmp = tempfile::tempdir().unwrap();
+        let config = UnifiedCacheConfig::default();
+        let manager: IntelligentCacheManager<String, CacheEntry> =
+            IntelligentCacheManager::new(config);
+        // Should succeed even if pending/ dir doesn't exist yet.
+        let result = run_daemon(&manager, tmp.path()).await;
+        assert!(result.is_ok(), "daemon should succeed when no pending dir exists");
+        // Pending dir should now be created.
+        assert!(tmp.path().join("pending").exists());
+    }
+
+    #[tokio::test]
+    async fn test_daemon_processes_pending_file() {
+        let tmp = tempfile::tempdir().unwrap();
+        let cache_dir = tmp.path().to_path_buf();
+        let pending_dir = cache_dir.join("pending");
+        std::fs::create_dir_all(&pending_dir).unwrap();
+
+        // Create a fake pending file (uri = "mypkg_1.0.0" → "mypkg/1.0.0")
+        std::fs::write(pending_dir.join("mypkg_1.0.0.pending"), "").unwrap();
+
+        let config = UnifiedCacheConfig::default();
+        let manager: IntelligentCacheManager<String, CacheEntry> =
+            IntelligentCacheManager::new(config);
+
+        let result = run_daemon(&manager, &cache_dir).await;
+        assert!(result.is_ok(), "daemon should process pending file without error");
+
+        // The pending file should have been removed after processing.
+        assert!(
+            !pending_dir.join("mypkg_1.0.0.pending").exists(),
+            "pending file should be consumed by daemon"
+        );
     }
 }

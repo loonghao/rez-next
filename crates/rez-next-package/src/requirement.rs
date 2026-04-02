@@ -452,16 +452,9 @@ pub struct RequirementParser {
 }
 
 /// Compiled regex patterns for requirement parsing
-#[allow(dead_code)]
 struct RequirementPatterns {
     /// Pattern for basic requirement with version: "package>=1.0"
     basic_version: Regex,
-    /// Pattern for range requirement: "package>=1.0,<2.0"
-    range: Regex,
-    /// Pattern for platform condition: "package[platform=='linux']"
-    platform_condition: Regex,
-    /// Pattern for environment condition: "package[env.VAR=='value']"
-    env_condition: Regex,
     /// Pattern for namespace: "namespace::package"
     namespace: Regex,
     /// Pattern for wildcard version: "package==1.2.*"
@@ -830,9 +823,6 @@ impl RequirementPatterns {
     fn new() -> Self {
         Self {
             basic_version: Regex::new(r"^([a-zA-Z0-9_\-\.]+)(==|>=|<=|>|<|~=)(.+)$").unwrap(),
-            range: Regex::new(r"^([a-zA-Z0-9_\-\.]+)(.+)$").unwrap(),
-            platform_condition: Regex::new(r"\[platform.*?\]").unwrap(),
-            env_condition: Regex::new(r"\[env\..*?\]").unwrap(),
             namespace: Regex::new(r"^([a-zA-Z0-9_\-\.]+)::([a-zA-Z0-9_\-\.]+.*)$").unwrap(),
             wildcard: Regex::new(r"^([a-zA-Z0-9_\-\.]+)==(.+\*.*)$").unwrap(),
         }
