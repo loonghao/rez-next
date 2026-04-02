@@ -58,13 +58,16 @@
 
 ## Medium Priority — TODO Audit
 
-18 TODO comments across the codebase (cycle 17 audit, down from 24 in cycle 16). Key categories:
-- **Performance monitoring stubs** (9): `performance_monitor.rs` (4), `high_performance_scanner.rs` (5) — track eviction latency, allocation rate, CPU usage, io/parsing time
-- **Cache implementation gaps** (2): `scanner.rs` — LRU eviction, memory tracking
-- **CLI stubs** (4): `view.rs` (1, context package viewing), `rm.rs` (1, time-based removal), `pkg_cache.rs` (1, daemon logic), `rez-next.rs` (1, build command extra args)
-- **Misc** (3): `artifacts.rs` (checksum), `utils.rs` (terminal size), `mod.rs` (system info), `data_bindings.rs` (fish completions — inline string)
-- Resolved since cycle 16: `heuristics.rs` (version preference — implemented), `serialization.rs` (YAML formatting — implemented), `search.rs` (4 time/validation filters, relative time parsing — implemented in search_v2.rs)
-- None of these TODOs are blocking; they represent future work items.
+2 TODO comments across the codebase (cycle 18 audit, down from 18 in cycle 17). Key categories:
+- **CLI stubs** (2): `view.rs` (1, context package viewing), `pkg_cache.rs` (1, daemon logic)
+- Resolved since cycle 17: 16 TODOs implemented by iteration agent — `performance_monitor.rs` (eviction latency, allocation rate, CPU usage, io/parsing time), `high_performance_scanner.rs` (io/parsing metrics), `scanner.rs` (LRU eviction, memory tracking), `rm.rs` (time-based removal), `rez-next.rs` (build command extra args), `artifacts.rs` (SHA256 checksum), `utils.rs` (terminal size), `mod.rs` (system info), `data_bindings.rs` (fish completions)
+- The remaining 2 TODOs are non-blocking stub implementations for future features.
+
+### 11. PerformanceMonitor::reset() incomplete counter reset
+- **Status**: COMPLETE ✓ (cycle 18)
+- Fixed `reset()` method in `performance_monitor.rs` — 5 counters were missing from reset: `eviction_operations`, `total_eviction_latency_us`, `hit_count`, `miss_count`, `total_bytes_allocated`
+- Added temp file patterns (`*_output.txt`, `*_test.txt`) to `.gitignore`
+- Removed double blank lines in `Cargo.toml` and `crates/rez-next-build/Cargo.toml`
 
 ### 10. Duplicate code in serialization.rs
 - **Status**: COMPLETE ✓ (cycle 17)
