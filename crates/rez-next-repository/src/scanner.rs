@@ -226,6 +226,8 @@ pub struct RepositoryScanner {
     prefix_hits: Arc<AtomicUsize>,
     peak_concurrency: Arc<AtomicUsize>,
     current_concurrency: Arc<AtomicUsize>,
+    /// Peak memory approximation: sum of file sizes read so far (bytes)
+    peak_memory_bytes: Arc<AtomicU64>,
     /// Path prefix cache for faster lookups
     prefix_cache: Arc<DashMap<PathBuf, Vec<PathBuf>>>,
     /// Background refresh task handle
@@ -249,6 +251,7 @@ impl RepositoryScanner {
             prefix_hits: Arc::new(AtomicUsize::new(0)),
             peak_concurrency: Arc::new(AtomicUsize::new(0)),
             current_concurrency: Arc::new(AtomicUsize::new(0)),
+            peak_memory_bytes: Arc::new(AtomicU64::new(0)),
             prefix_cache: Arc::new(DashMap::new()),
             refresh_handle: Arc::new(RwLock::new(None)),
         };
@@ -274,6 +277,7 @@ impl RepositoryScanner {
         self.prefix_hits.store(0, Ordering::Relaxed);
         self.peak_concurrency.store(0, Ordering::Relaxed);
         self.current_concurrency.store(0, Ordering::Relaxed);
+        self.peak_memory_bytes.store(0, Ordering::Relaxed);
     }
 
     /// Get current cache size
@@ -527,7 +531,7 @@ impl RepositoryScanner {
             cache_hits: self.cache_hits.load(Ordering::Relaxed),
             cache_misses: self.cache_misses.load(Ordering::Relaxed),
             avg_file_size,
-            peak_memory_usage: 0, // TODO: Implement memory tracking
+            peak_memory_usage: self.peak_memory_bytes.load(Ordering::Relaxed),
             peak_concurrency: self.peak_concurrency.load(Ordering::Relaxed),
         };
 
@@ -729,6 +733,14 @@ impl RepositoryScanner {
         let io_time = io_start.elapsed().as_millis() as u64;
         self.io_time.fetch_add(io_time, Ordering::Relaxed);
 
+        // Update peak memory approximation (content is in-memory now)
+        let content_bytes = content.len() as u64;
+        let prev = self.peak_memory_bytes.load(Ordering::Relaxed);
+        if content_bytes > prev {
+            self.peak_memory_bytes
+                .store(content_bytes, Ordering::Relaxed);
+        }
+
         // Parse package
         let parse_start = std::time::Instant::now();
         let package: Package = serde_yaml::from_str(&content).map_err(|e| {
@@ -761,12 +773,21 @@ impl RepositoryScanner {
             self.scan_cache
                 .insert(package_file.to_path_buf(), cache_entry);
 
-            // Limit cache size
-            if self.scan_cache.len() > self.config.max_cache_size_mb * 1000 {
-                // Simple cache eviction: remove oldest entries
-                // TODO: Implement LRU eviction
-                if self.scan_cache.len() > self.config.max_cache_size_mb * 1200 {
-                    self.scan_cache.clear();
+            // Limit cache size using LRU eviction: remove least-recently-used entries
+            let max_entries = self.config.max_cache_size_mb * 1000;
+            if self.scan_cache.len() > max_entries {
+                // Collect (path, last_accessed) pairs and sort oldest first
+                let mut entries: Vec<(PathBuf, SystemTime)> = self
+                    .scan_cache
+                    .iter()
+                    .map(|r| (r.key().clone(), r.value().last_accessed))
+                    .collect();
+                entries.sort_by_key(|(_, ts)| *ts);
+                // Evict until we're at 80% capacity
+                let target = (max_entries as f64 * 0.8) as usize;
+                let to_remove = entries.len().saturating_sub(target);
+                for (path, _) in entries.into_iter().take(to_remove) {
+                    self.scan_cache.remove(&path);
                 }
             }
         }

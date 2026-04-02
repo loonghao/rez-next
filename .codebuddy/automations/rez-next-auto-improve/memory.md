@@ -1,66 +1,75 @@
 # rez-next auto-improve 执行记录
 
-## 最新执行 (2026-04-02 05:29) — Cycle 17
+## 最新执行 (2026-04-02 08:22) — Cycle 19
 
 ### 执行摘要
-本次执行完成了 cycle 17：彻底清零所有 clippy warnings（workspace 从 ~50 个降至 0）。
+本次执行完成了 cycle 19：实现 3 个 TODO 项——版本偏好启发、pretty YAML 格式、相对时间过滤。
 
 ### 已完成的工作
 
-#### 提交 039b556 — chore(lint): eliminate all clippy warnings
+#### 提交 95d4c9b — feat(solver,search,package): implement TODO items
 
-**自动修复（`cargo clippy --fix`）**：
-- `rez-next-package`：serialization.rs, python_ast_parser.rs, requirement.rs（10 处）
-- `rez-next-repository`：filesystem, cache, scanner, simple_repository, high_performance_scanner（9 处）
-- `rez-next-solver`：dependency_resolver, graph（2 处）
-- `rez-next-context`：serialization（2 处）
-- `rez-next-build`：builder, systems, sources（10 处）
-- `rez-next`（CLI）：diff, mv, cp, bundle, plugins, help, rm, mod, pip, depends, status, env, complete, pkg_cache, build（55 处）
+**1. heuristics.rs — VersionPreferenceHeuristic**：
+- 实现 `calculate_version_preference_cost`（移除 TODO）
+- prefer_latest=true：cost = 1/(major+1)，高 major 版本 cost 更低（鼓励最新版）
+- pre-release（alpha/beta/rc/dev/pre）cost = 5.0（不鼓励 pre-release）
+- no-version：cost = 1.0（中等）
+- 新增测试：stable v2/v10 排序、no-version cost 精确值
 
-**手动修复**：
-- `python_ast_parser.rs`：两处嵌套 if let 合并为 `if let Some(Expr::X)` 单层
-- `requirement.rs`：两处 `starts_with + 切片` 改为 `strip_prefix`
-- `serialization.rs`：`if_same_then_else` — 两个相同分支合并，添加 TODO
-- `artifacts.rs`：`&PathBuf` → `&Path`（3 个函数），`field_reassign_with_default`（重写为字面量初始化）
-- `sources.rs`：`SourceFetcher::fetch` trait + 3 impl 参数 `&PathBuf` → `&Path`
-- `systems.rs`：`detect/detect_with_package/copy_package_files` 参数 `&PathBuf` → `&Path`，合并 `if_same_then_else`，`CMake/Make/Python/NodeJs/CargoBuildSystem` 改用 `#[derive(Default)]`
-- `high_performance_scanner.rs`：`SIMDPatternMatcher/PrefetchPredictor` 改用 `#[derive(Default)]`
-- `diff.rs`：`strip_prefix`，`format! in println!` 内联
-- `pkg_cache.rs`：`run_daemon/view_logs` 参数 `&PathBuf` → `&Path`
-- `search_v2.rs`：`&mut Vec` → `&mut [SearchResult]`
-- `env.rs`：删除 `ContextConfig::default()` 后的冗余 `inherit_parent_env = true`
+**2. serialization.rs — pretty YAML**：
+- 实现 `save_to_yaml_with_options` 的 `pretty_print` 分支（移除 `let _ = options.pretty_print` TODO）
+- pretty_print=true：添加 `# ---` 分隔符注释 + 对顶级列表项添加额外缩进
+
+**3. search_v2.rs — 相对时间解析 + timestamp 输出**：
+- 新增 `parse_relative_time()` 函数：1d/2w/1m/1y → past Unix timestamp
+- `parse_timestamp()` 扩展：fallthrough 到相对时间解析
+- JSON 输出新增 `timestamp` 字段
+- detailed 格式显示人类可读时间戳（chrono format）
+- 新增 7 个测试：ISO datetime/date、invalid、1d/2w/1m/1y、passthrough
+
+**测试结果**：
+- rez-next-solver: 76 passed（+2 新增）
+- rez-next-package: 69 passed
+- --tests (integration+bin): 320+30 = 350 passed
+- 全部 450+ 测试通过
 
 ### 当前项目状态
 
-**分支**: `auto-improve`（已推送 039b556 到 origin/auto-improve）
+**分支**: `auto-improve`（已推送 95d4c9b 到 origin/auto-improve）
 
-**Rust 测试总计**:
-- workspace 全量 `cargo test --quiet`：548 passed, 0 failed
-- `rez_solver_advanced_tests`：30 passed
-- clippy warnings：**0**（之前约 50 个）
+**已消除的 TODO**：
+- `heuristics.rs`: `// TODO: Implement version preference logic`
+- `serialization.rs`: `// TODO: implement pretty YAML formatting`
+- `search_v2.rs`: 相对时间解析（新增功能）
 
-**最近提交**:
-- `039b556` chore(lint): eliminate all clippy warnings — 0 warnings across workspace [iteration-done]
-- `0de4c7e` test(solver): add 11 advanced solver edge case tests + expand Python solver test coverage
-- `d873a3e` chore(cli): lint: remove redundant .into() on io::Error
+**TODO 剩余（约 22 个）**：
+- **Performance monitoring stubs** (9): `performance_monitor.rs` (4), `high_performance_scanner.rs` (5)
+- **Cache implementation gaps** (2): `scanner.rs` — LRU eviction, memory tracking
+- **CLI stubs** (7): `rm.rs` time-based removal, `view.rs` current context, `pkg_cache.rs` daemon, `rez-next.rs` build extra args, search.rs 4 filters
+- **Misc** (4): `heuristics.rs` done, `artifacts.rs` checksum, `utils.rs` terminal size, `data_bindings.rs` fish completions
 
-### 下一阶段待改进项
+**clippy warnings**: ~0（--all-targets）
 
-1. **CI 配置**（优先级高）：
-   - `.github/workflows/` 补充 `maturin build wheel` job
-   - Python wheel 自动构建并上传到 artifact
-   - 补充 Rust clippy CI check（现在 clippy 为 0 warnings，可作为 CI gate）
-2. **TODO audit**（中优先级）：
-   - 35+ TODO comments：LRU eviction、memory tracking、CPU usage monitoring
-   - `serialization.rs` 中新增的 `// TODO: implement pretty YAML formatting`
-3. **README 同步**：README.md / README_zh.md 与实现现状同步
-4. **测试覆盖率提升**：
-   - `rez-next-build` crate 目前测试较少
-   - `rez-next-context` shell execution 路径测试
+### 下一阶段待改进项（优先级排序）
+
+1. **`rm.rs` time-based removal**（高优先级）：
+   - `remove_ignored_since` 中实现真正的时间过滤
+   - 可复用 `search_v2.rs::parse_relative_time` 逻辑（或提取到 common）
+   
+2. **`artifacts.rs` checksum**（中优先级）：
+   - `get_file_permissions` 中的 checksum TODO
+
+3. **`utils.rs` terminal size**（低优先级）：
+   - 用 `terminal_size` crate 或 COLUMNS env var 实现
+
+4. **README 同步**（中优先级）：
+   - README.md / README_zh.md 与实现现状同步
 
 ### 注意事项
-- Windows PowerShell：`cargo test` 输出被 CLIXML 包裹，用 Where-Object 过滤
+- Windows PowerShell：cargo 输出被 CLIXML 包裹，用 file redirect + Select-String 读取
 - `Package::default()` 不存在，应使用 `Package::new(name)`
-- workspace 全量测试 = 548 个 Rust 测试
-- Python 层测试需要 `maturin develop --features extension-module` 才能运行 pytest
-- `PythonBuildSystem`/`NodeJsBuildSystem`/`CargoBuildSystem` 虽声明为 unit struct（`;`），但 impl 中用 `Self {}`，Rust 允许这样写
+- rez 版本排序：短版本 > 长版本（1.4 > 1.4.2）
+- `Compatible(~=)` 语义（rez）：前 N-1 段 locked prefix，第 N 段 >= floor
+- criterion 0.8 已 deprecated `black_box`，应用 `std::hint::black_box`
+- `resolved_packages` 是 `HashMap<String, Package>`（非 Arc）
+- workspace full tests = 450+ Rust tests（lib + integration + bin）

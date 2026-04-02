@@ -2,6 +2,7 @@
 
 use rez_next_common::RezCoreError;
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
@@ -114,12 +115,13 @@ impl BuildArtifacts {
                 let file_type = Self::determine_file_type(&path);
                 let size_bytes = metadata.len();
                 let permissions = Self::get_file_permissions(&metadata);
+                let checksum = Self::compute_sha256(&path).await.ok();
 
                 let artifact_file = ArtifactFile {
                     path: relative_file_path,
                     file_type,
                     size_bytes,
-                    checksum: None, // TODO: Calculate checksum if needed
+                    checksum,
                     permissions,
                 };
 
@@ -184,11 +186,21 @@ impl BuildArtifacts {
         #[cfg(unix)]
         {
             use std::os::unix::fs::MetadataExt;
-            Some(metadata.mode())
+            Some(_metadata.mode())
         }
 
         #[cfg(not(unix))]
         None
+    }
+
+    /// Compute SHA-256 checksum of a file; returns lowercase hex string.
+    async fn compute_sha256(path: &Path) -> Result<String, RezCoreError> {
+        let data = tokio::fs::read(path)
+            .await
+            .map_err(|e| RezCoreError::BuildError(format!("Failed to read file for checksum: {}", e)))?;
+        let mut hasher = Sha256::new();
+        hasher.update(&data);
+        Ok(hex::encode(hasher.finalize()))
     }
 
     /// Add metadata
