@@ -1,91 +1,86 @@
 # rez-next auto-improve 执行记录
 
-## 最新执行 (2026-04-02 15:23) — Cycle 20
+## 最新执行 (2026-04-02 23:51) — Cycle 27
 
 ### 执行摘要
-本次执行完成了 cycle 20：实现了 7 个 TODO 项，消除了大部分剩余 stub。
+本次执行完成了 cycle 27：向 `rez_compat_tests.rs` 追加 13 个测试（320→333），覆盖 `rez.config` 兼容性（`RezCoreConfig` 字段访问、JSON roundtrip、平台 shell 验证）和 `rez.diff` 操作（identical/upgrade/added/removed 场景）；向 `rez_solver_advanced_tests.rs` 追加 6 个测试（44→50），覆盖 platform/OS 约束（平台包依赖解析、平台不匹配容错、OS 版本范围）和版本边界（exclusive upper bound、prefix epoch、multi-version prefer-latest）。全部测试通过，总计提升到 **639 tests, 0 failed**。
 
 ### 已完成的工作
 
-#### 提交 368b5bc — feat(todos): implement 7 TODO items
+#### 提交 00c259b — test(compat,solver): add 19 tests — rez.config/diff compat (333) + platform/OS solver (50) [iteration-done]
 
-**1. `data_bindings.rs` — fish shell completions**：
-- 新增 `FISH_COMPLETE` 常量（完整 fish completion 脚本）
-- `get_completion_script("fish")` 和 `get_resource("completions/fish")` 返回真实内容
-- 新增 2 个测试：`test_fish_completion_not_empty`、`test_resource_lookup_fish`
+**rez_compat_tests.rs 新增 13 个测试**（320→333）：
 
-**2. `utils.rs` — terminal size detection**：
-- Unix：使用 `libc::ioctl(TIOCGWINSZ)` 获取真实终端宽度
-- Windows：使用 `windows-sys::GetConsoleScreenBufferInfo` 获取控制台宽度
-- 回退到 `$COLUMNS` env var 和默认值 80
-- `Cargo.toml` 中添加平台条件依赖：`libc` (unix)、`windows-sys` (windows)
+*rez.config 兼容（9 个）*：
+- `test_config_packages_path_default_is_list`：默认 packages_path 非空
+- `test_config_local_packages_path_is_string`：local_packages_path 非空字符串
+- `test_config_release_packages_path_is_string`：release_packages_path 非空字符串
+- `test_config_override_packages_path_direct`：字段直接赋值后正确覆盖
+- `test_config_get_field_packages_path`：get_field() 返回 JSON Array
+- `test_config_get_field_cache_nested`：get_field("cache.enable_*") 嵌套访问
+- `test_config_default_shell_platform_appropriate`：cfg!(windows)/cfg!(not(windows)) 验证
+- `test_config_version_non_empty`：version 字段非空且含 `.`
+- `test_config_serialization_json_roundtrip_compat`：JSON roundtrip packages_path/local/shell 一致
 
-**3. `artifacts.rs` — SHA256 checksum**：
-- 新增 `compute_sha256()` 异步方法，使用 `sha2` + `hex` crate
-- `scan_install_dir` 现在自动为每个文件计算 SHA256 checksum
-- `rez-next-build/Cargo.toml` 添加 `sha2 = "0.10"`、`hex = "0.4"`
+*rez.diff 兼容（4 个）*：
+- `test_diff_identical_contexts_empty`：相同 context → 无 added/removed
+- `test_diff_version_upgrade_detected`：版本升级被检测（2023→2024）
+- `test_diff_added_package_detected`：新增包（numpy）在 diff 中体现
+- `test_diff_removed_package_detected`：移除包（hqueue）在 diff 中体现
 
-**4. `performance_monitor.rs` — eviction/allocation/CPU/hit_rate**：
-- `PerformanceCounters` 新增字段：`eviction_operations`、`total_eviction_latency_us`、`hit_count`、`miss_count`、`total_bytes_allocated`
-- 新增公开方法：`record_eviction_latency()`、`record_cache_hit()`、`record_cache_miss()`、`record_allocation()`、`hit_rate()`
-- `avg_eviction_latency_us` 从追踪数据计算（不再是 0.0）
-- `memory_allocation_rate` 从累积分配字节/秒计算
-- `cpu_usage_percent` 用总操作耗时/elapsed 近似
-- benchmark `hit_rate` 使用 `self.hit_rate()` 计算
+**rez_solver_advanced_tests.rs 新增 6 个测试**（44→50）：
+- `test_solver_platform_specific_package_resolves`：含 platform 依赖的包成功解析（lenient 模式）
+- `test_solver_platform_mismatch_fails_or_empty`：平台不匹配时不 panic（Ok/Err 均可）
+- `test_solver_os_version_constraint_resolve`：OS 版本约束解析（centos-7.9.0 满足 os-centos-7+）
+- `test_solver_exclusive_upper_bound_respected`：排他上界（lib-1+<3 排除 lib-3.0.0）
+- `test_solver_prefix_version_range_resolves_correct_epoch`：前缀版本范围（lib-2 解析 epoch 2）
+- `test_solver_multi_version_picks_highest_satisfying`：多版本 prefer-latest（lib-1+ → lib-2.0.0）
 
-**5. `rm.rs` — time-based removal**：
-- 实现 `remove_ignored_since()` 函数，遍历所有包并过滤修改时间早于指定时间的包
-- 新增 `parse_time_spec()` 函数：解析 1d/2w/1m/1y 及 ISO 日期/时间格式
-- 支持 dry-run、verbose 模式
-- 使用 `chrono::NaiveDate/NaiveDateTime` 解析绝对时间
-
-**6. `high_performance_scanner.rs` — io/parsing time tracking + dirs/errors**：
-- 新增 4 个原子字段：`io_time_ms`、`parsing_time_ms`、`dirs_scanned`、`scan_errors`
-- `scan_file_optimized` 分 io/parsing 两阶段追踪时间，出错时递增 `scan_errors`
-- `discover_directories_predictive` 每处理一个目录递增 `dirs_scanned`
-- `build_scan_result` 使用真实计数器替换 TODO
-
-**7. `scanner.rs` — LRU eviction + memory tracking**：
-- LRU eviction：按 `last_accessed` 排序，删至 80% 容量（替换 `.clear()` 核弹方案）
-- 新增 `peak_memory_bytes: Arc<AtomicU64>` 字段，在文件读入内存时更新
-- `peak_memory_usage` 指标从 0 变为真实追踪值
+**关键发现（文档化）**：
+- solver lenient 模式：transitive deps 不一定出现在 resolved_packages 中（只请求包才明确列出）
+- `RezCoreConfig` API：使用直接字段访问（`.packages_path`），无 getter 方法
+- platform 测试模式：将 platform 作为普通包版本（"linux"/"windows"），在请求中显式声明
 
 **测试结果**：
-- workspace: 470 passed（120 lib + 320 integration + 30 solver）
-- 无编译 error/warning
+- lib tests: 145 passed
+- integration_tests: 43 passed
+- real_repo_integration: 25 passed
+- rez_compat_tests: **333 passed（↑13 from 320）**
+- rez_solver_advanced_tests: **50 passed（↑6 from 44）**
+- 其他: 43 passed
+- **总计: ~639 tests, 0 failed（↑13 from 626）**
 
 ### 当前项目状态
 
-**分支**: `auto-improve`（已推送 368b5bc 到 origin/auto-improve）
+**分支**: `auto-improve`（已推送 00c259b 到 origin/auto-improve）
 
-**TODO 剩余（约 4 个，全部为结构性低价值）**：
-- `performance_monitor.rs` `peak_memory_usage`（已有 current_memory_usage，peak 需调用方更新）
-- `high_performance_scanner.rs` `peak_memory_usage`（注释说明 "platform-specific; not tracked without OS crate"）
-- `src/cli/mod.rs`：`// TODO: Add more system information`（纯 CLI 增强）
-- `src/bin/rez-next.rs`：`// TODO: Handle build command extra args`（build 命令参数透传）
-
-**已消除 TODO**（cycle 20）：14 个 TODO 注释
-**clippy warnings**: ~0
+**test count**：~639 total tests
 
 ### 下一阶段待改进项（优先级排序）
 
-1. **`src/cli/mod.rs` system info**（低优先级）：
-   - 显示包路径、配置文件路径、可用仓库信息
-   
-2. **`src/bin/rez-next.rs` build extra args**（低优先级）：
-   - 解析并透传 build 命令的额外参数
+1. **solver strict 模式实现**（高优先级）：
+   - 当前 solver 对缺失包静默忽略（lenient），添加 `strict_mode: bool` 到 `SolverConfig` 支持返回 Err
+   - 补充对应的 strict 模式测试用例
 
-3. **`rm.rs` 单元测试**（中优先级）：
-   - 为 `parse_time_spec` 添加单元测试（各种格式验证）
+2. **`rez_solver_advanced_tests.rs` 继续扩展**（中优先级）：
+   - 补充版本 pre-release/alpha token 排序测试
+   - 补充 variant 索引相关场景
 
-4. **README 同步**（中优先级）：
-   - 与实现现状同步，添加 fish completion 安装说明
+3. **错误消息改善**（中优先级）：
+   - 审查 solver 错误路径的消息清晰度（冲突描述）
+   - 补充 solver error case 的 message 内容断言
 
-5. **`utils.rs` terminal size 测试**：
-   - 测试 COLUMNS env var 路径和 fallback 路径
+4. **`rez_compat_tests.rs` 继续扩展**（中优先级）：
+   - 补充 rez.status 模块兼容性测试
+   - 补充 rez.packages_ 模块过滤/搜索场景
+
+5. **benches/README.md 补充结果数据**（低优先级）：
+   - 补充实际 bench 数字
 
 ### 注意事项
-- Windows PowerShell：cargo 输出被 CLIXML 包裹，用 file redirect + Get-Content 读取
-- `libc`/`windows-sys` 作为平台条件依赖添加到根 `Cargo.toml`
-- `sha2` + `hex` 添加到 `rez-next-build/Cargo.toml`
-- workspace full tests = 470+ Rust tests（lib + integration + solver tests）
+- Windows PowerShell：cargo 输出被 CLIXML 包裹，用 `2>` 重定向 stderr + Get-Content 读取
+- rez 版本语义：`20.1 > 20.0.0`（短版本 epoch 更大）；做 patch 固定应用 3-token 对称边界
+- solver 缺失包行为：宽松模式返回 Ok（空 resolved set），不抛 Err
+- solver transitive deps：不保证出现在 resolved_packages（只显示直接请求的包）
+- RezCoreConfig 使用直接字段访问，不用 getter 方法
+- bench 使用 cache trait 方法需显式 `use rez_next_cache::UnifiedCache`

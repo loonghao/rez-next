@@ -17,20 +17,6 @@ Benchmarks for rez-next using [Criterion.rs](https://docs.rs/criterion/).
 | `depends_benchmark.rs` | Dependency graph traversal and ranking |
 | `cache_operations_benchmark.rs` | Cache put/get/eviction, hot-path pkg lookup (7 scenarios) |
 
-```bash
-vx just bench
-```
-
-## Disabled
-
-The following exist but are commented out in `Cargo.toml` due to API changes:
-
-- `comprehensive_benchmark_suite.rs`
-- `solver_benchmark.rs` / `solver_benchmark_main.rs`
-- `context_benchmark.rs` / `context_benchmark_main.rs` / `simple_context_benchmark.rs`
-- `build_cache_benchmark.rs` / `build_cache_benchmark_main.rs` / `simple_build_cache_benchmark.rs`
-- `performance_validation_benchmark.rs` / `performance_validation_main.rs`
-
 ## Recent results (Windows, release profile)
 
 ```
