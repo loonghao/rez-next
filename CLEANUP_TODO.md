@@ -58,12 +58,21 @@
 
 ## Medium Priority — TODO Audit
 
-24 TODO comments across the codebase (cycle 16 audit). Key categories:
+18 TODO comments across the codebase (cycle 17 audit, down from 24 in cycle 16). Key categories:
 - **Performance monitoring stubs** (9): `performance_monitor.rs` (4), `high_performance_scanner.rs` (5) — track eviction latency, allocation rate, CPU usage, io/parsing time
 - **Cache implementation gaps** (2): `scanner.rs` — LRU eviction, memory tracking
-- **CLI stubs** (8): `search.rs` (4, time/validation filters, format fields, relative time parsing), `view.rs` (1, context package viewing), `rm.rs` (1, time-based removal), `pkg_cache.rs` (1, daemon logic), `rez-next.rs` (1, build command extra args)
-- **Misc** (5): `heuristics.rs` (version preference), `artifacts.rs` (checksum), `utils.rs` (terminal size), `mod.rs` (system info), `serialization.rs` (YAML formatting), `data_bindings.rs` (fish completions — inline string)
+- **CLI stubs** (4): `view.rs` (1, context package viewing), `rm.rs` (1, time-based removal), `pkg_cache.rs` (1, daemon logic), `rez-next.rs` (1, build command extra args)
+- **Misc** (3): `artifacts.rs` (checksum), `utils.rs` (terminal size), `mod.rs` (system info), `data_bindings.rs` (fish completions — inline string)
+- Resolved since cycle 16: `heuristics.rs` (version preference — implemented), `serialization.rs` (YAML formatting — implemented), `search.rs` (4 time/validation filters, relative time parsing — implemented in search_v2.rs)
 - None of these TODOs are blocking; they represent future work items.
+
+### 10. Duplicate code in serialization.rs
+- **Status**: COMPLETE ✓ (cycle 17)
+- Extracted shared `load_from_json_data()` — `load_from_data` and `load_from_yaml_data` now delegate to it (~90 lines deduped)
+- `save_to_python()` now delegates to `save_to_python_with_options()` (~57 lines deduped)
+- Removed 2 stale comments (lines 18-19, leftover from PyO3 import removal)
+- Removed redundant `use serde_json;` in `search_v2.rs` (unnecessary in Rust 2018+)
+- Net: -145 lines
 
 ## Medium Priority — Clippy Warnings
 
