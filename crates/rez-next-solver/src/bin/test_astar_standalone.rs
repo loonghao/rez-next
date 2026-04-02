@@ -114,20 +114,8 @@ mod astar_standalone {
             true
         }
 
-        #[allow(dead_code)]
-        pub fn get_next_requirement(&self) -> Option<&PackageRequirement> {
-            self.pending_requirements.first()
-        }
-
         pub fn add_conflict(&mut self, conflict: DependencyConflict) {
             self.conflicts.push(conflict);
-            self.update_hash();
-        }
-
-        #[allow(dead_code)]
-        pub fn remove_requirement(&mut self, requirement: &PackageRequirement) {
-            self.pending_requirements
-                .retain(|req| req.name != requirement.name);
             self.update_hash();
         }
 
