@@ -150,7 +150,7 @@ impl PyVersionRange {
         let range_str = s.unwrap_or("");
         VersionRange::parse(range_str)
             .map(PyVersionRange)
-            .map_err(|e| pyo3::exceptions::PyValueError::new_err(format!("{:?}", e)))
+            .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))
     }
 
     fn __str__(&self) -> String {
@@ -235,6 +235,34 @@ impl PyVersionRange {
     /// Subtract another range from this range (set difference)
     fn subtract(&self, other: &PyVersionRange) -> Option<PyVersionRange> {
         self.0.subtract(&other.0).map(PyVersionRange)
+    }
+
+    /// Class method: create a VersionRange that matches any version.
+    /// Equivalent to `VersionRange("")` or `VersionRange("*")`.
+    #[classmethod]
+    fn any(_cls: &pyo3::Bound<'_, pyo3::types::PyType>) -> Self {
+        PyVersionRange(VersionRange::any())
+    }
+
+    /// Class method: create a VersionRange that matches no version (empty set).
+    /// Equivalent to `VersionRange("!*")`.
+    #[classmethod]
+    fn none(_cls: &pyo3::Bound<'_, pyo3::types::PyType>) -> Self {
+        PyVersionRange(VersionRange::none())
+    }
+
+    /// Static method: parse from string (alias for `VersionRange(s)`).
+    /// Provided for rez API compatibility where `.from_str()` is used.
+    #[staticmethod]
+    fn from_str(s: &str) -> PyResult<Self> {
+        VersionRange::parse(s)
+            .map(PyVersionRange)
+            .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))
+    }
+
+    /// Return the string representation of the range (rez compat: `.as_str()`).
+    fn as_str(&self) -> &str {
+        self.0.as_str()
     }
 }
 
@@ -396,5 +424,52 @@ mod tests {
         let r1 = pvr(">=1.0");
         let r2 = pvr(">=1.0");
         assert_eq!(r1.__hash__(), r2.__hash__());
+    }
+
+    #[test]
+    fn test_py_version_range_any_classmethod() {
+        // any() should be equivalent to VersionRange::any() — matches every version
+        let r = PyVersionRange(VersionRange::any());
+        assert!(r.is_any());
+        assert!(r.contains(&pv("0.0.1")));
+        assert!(r.contains(&pv("999.999.999")));
+    }
+
+    #[test]
+    fn test_py_version_range_none_classmethod() {
+        // none() should match no version
+        let r = PyVersionRange(VersionRange::none());
+        assert!(r.is_empty());
+        assert!(!r.contains(&pv("1.0.0")));
+    }
+
+    #[test]
+    fn test_py_version_range_from_str_static() {
+        let r = PyVersionRange::from_str(">=1.0,<2.0").unwrap();
+        assert!(r.contains(&pv("1.5")));
+        assert!(!r.contains(&pv("2.0")));
+    }
+
+    #[test]
+    fn test_py_version_range_from_str_invalid() {
+        // invalid range string must return Err, not panic
+        let result = PyVersionRange::from_str("!!!invalid!!!");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_py_version_range_as_str() {
+        let r = pvr(">=1.0,<2.0");
+        assert_eq!(r.as_str(), ">=1.0,<2.0");
+    }
+
+    #[test]
+    fn test_py_version_range_any_union_identity() {
+        // any() union with anything = any()
+        let any = PyVersionRange(VersionRange::any());
+        let r = pvr(">=3.0");
+        // any().union(r) should give back any
+        let union_result = any.union(&r).unwrap();
+        assert!(union_result.is_any());
     }
 }

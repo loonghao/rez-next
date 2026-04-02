@@ -328,10 +328,7 @@ mod tests {
     #[test]
     fn test_goal_state_empty_requirements() {
         let state = SearchState::new_initial(vec![]);
-        assert!(
-            state.is_goal(),
-            "Empty requirements with no conflicts is a goal"
-        );
+        assert!(state.is_goal(), "Empty requirements with no conflicts is a goal");
     }
 
     #[test]
@@ -343,10 +340,7 @@ mod tests {
             1.0,
             ConflictType::MissingPackage,
         ));
-        assert!(
-            !state.is_valid(),
-            "MissingPackage conflict makes state invalid"
-        );
+        assert!(!state.is_valid(), "MissingPackage conflict makes state invalid");
     }
 
     #[test]
@@ -359,10 +353,7 @@ mod tests {
             ConflictType::VersionConflict,
         ));
         // VersionConflict doesn't make state invalid (resolvable)
-        assert!(
-            state.is_valid(),
-            "VersionConflict alone does not invalidate state"
-        );
+        assert!(state.is_valid(), "VersionConflict alone does not invalidate state");
     }
 
     #[test]
@@ -390,10 +381,7 @@ mod tests {
         heap.push(s1);
         heap.push(s2);
         let top = heap.pop().unwrap();
-        assert_eq!(
-            top.estimated_total_cost, 5.0,
-            "Lower cost should have higher priority"
-        );
+        assert_eq!(top.estimated_total_cost, 5.0, "Lower cost should have higher priority");
     }
 
     #[test]

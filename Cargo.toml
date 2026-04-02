@@ -71,6 +71,9 @@ crate-type = ["rlib"]
 
 [features]
 default = []
+# Optional features used by benchmarks
+flamegraph = []
+quick-benchmarks = []
 
 [[bin]]
 name = "rez-next"
@@ -84,15 +87,13 @@ rez-next-package = { version = "0.2.0", path = "crates/rez-next-package", defaul
 rez-next-solver = { version = "0.2.0", path = "crates/rez-next-solver", default-features = false }
 rez-next-repository = { version = "0.2.0", path = "crates/rez-next-repository", default-features = false }
 rez-next-context = { version = "0.2.0", path = "crates/rez-next-context", default-features = false }
+# rez-core-rex = { path = "crates/rez-core-rex" }  # Temporarily disabled due to compilation errors
 rez-next-build = { version = "0.2.0", path = "crates/rez-next-build" }
 rez-next-cache = { version = "0.2.0", path = "crates/rez-next-cache" }
 rez-next-suites = { version = "0.2.0", path = "crates/rez-next-suites" }
 rez-next-rex = { version = "0.2.0", path = "crates/rez-next-rex" }
 
 
-
-
-# pyo3 = { workspace = true, optional = true }
 
 # CLI dependencies
 clap.workspace = true
@@ -103,6 +104,12 @@ tokio.workspace = true
 regex.workspace = true
 tempfile.workspace = true
 chrono = { version = "0.4", features = ["serde"] }
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.59", features = ["Win32_System_Console"] }
 
 [dev-dependencies]
 criterion.workspace = true
@@ -161,117 +168,34 @@ harness = false
 name = "depends_benchmark"
 harness = false
 
-# Temporarily disabled benchmarks due to API changes
-# [[bench]]
-# name = "comprehensive_benchmark_suite"
-# harness = false
+[[bench]]
+name = "cache_operations_benchmark"
+harness = false
 
-# [[bench]]
-# name = "solver_benchmark"
-# harness = false
 
-# [[bench]]
-# name = "solver_benchmark_main"
-# harness = false
 
-# [[bench]]
-# name = "context_benchmark"
-# harness = false
-
-# [[bench]]
-# name = "context_benchmark_main"
-# harness = false
-
-# [[bench]]
-# name = "simple_context_benchmark"
-# harness = false
-
-# [[bench]]
-# name = "rex_benchmark_main"
-# harness = false
-
-# [[bench]]
-# name = "simple_rex_benchmark"
-# harness = false
-
-# [[bench]]
-# name = "build_cache_benchmark_main"
-# harness = false
-
-# [[bench]]
-# name = "simple_build_cache_benchmark"
-# harness = false
-
-# [[bench]]
-# name = "performance_validation_benchmark"
-# harness = false
-
-# [[bench]]
-# name = "performance_validation_main"
-# harness = false
-
-# [build-dependencies]
-# pyo3-build-config = "0.25"  # Only needed for Python bindings
-
-# flamegraph = ["pprof"]
 
 # Linting configuration (workspace-level, inherited by all crates)
 [workspace.lints.rust]
-# Allow unused imports for Python bindings that may not be used in all builds
-unused_imports = "allow"
-# Allow dead code for experimental features
-dead_code = "allow"
-# Allow unused variables during development
-unused_variables = "allow"
-# Allow deprecated items during migration
-deprecated = "allow"
-# Allow ambiguous glob reexports during development
-ambiguous_glob_reexports = "allow"
-# Allow irrefutable let patterns
-irrefutable_let_patterns = "allow"
-# Allow unused mut during development
-unused_mut = "allow"
-# Allow unexpected cfg checks during development
-unexpected_cfgs = "allow"
+# Warn on unused imports (tightened from allow — dead file cleanup complete)
+unused_imports = "warn"
+# Warn on dead code (tightened from allow — cycle 10 cleanup)
+dead_code = "warn"
+# Warn on unused variables (tightened from allow — cycle 10 cleanup)
+unused_variables = "warn"
+# Warn on deprecated items (no deprecated attrs in codebase — tightened cycle 12)
+deprecated = "warn"
+# Warn on ambiguous glob reexports (tightened cycle 12)
+ambiguous_glob_reexports = "warn"
+# Warn on irrefutable let patterns (tightened cycle 12)
+irrefutable_let_patterns = "warn"
+# Warn on unused mut bindings (no instances found — tightened from allow)
+unused_mut = "warn"
+# Warn on unexpected cfg checks (tightened from allow — python-bindings cleanup complete)
+unexpected_cfgs = "warn"
 
 [workspace.lints.clippy]
-# Allow some clippy lints that are too strict for development
-too_many_arguments = "allow"
-module_inception = "allow"
-# Allow common style lints during development
-collapsible_else_if = "allow"
-collapsible_if = "allow"
-collapsible_match = "allow"
-manual_map = "allow"
-manual_strip = "allow"
-manual_ok_err = "allow"
-match_result_ok = "allow"
-redundant_static_lifetimes = "allow"
-write_literal = "allow"
-unnecessary_map_or = "allow"
-unwrap_or_default = "allow"
-len_zero = "allow"
-assertions_on_constants = "allow"
-if_same_then_else = "allow"
-inherent_to_string = "allow"
-new_without_default = "allow"
-field_reassign_with_default = "allow"
-derivable_impls = "allow"
-needless_borrow = "allow"
-type_complexity = "allow"
-identity_op = "allow"
-single_char_add_str = "allow"
-single_component_path_imports = "allow"
-double_ended_iterator_last = "allow"
-needless_borrows_for_generic_args = "allow"
-ptr_arg = "allow"
-format_in_format_args = "allow"
-iter_nth_zero = "allow"
-redundant_closure = "allow"
-useless_conversion = "allow"
-useless_format = "allow"
-useless_vec = "allow"
-# Focus on critical issues only
+# Critical issue categories
 complexity = { level = "warn", priority = -1 }
 correctness = { level = "deny", priority = -1 }
 suspicious = { level = "deny", priority = -1 }

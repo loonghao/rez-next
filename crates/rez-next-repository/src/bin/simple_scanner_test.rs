@@ -4,6 +4,9 @@ use std::path::PathBuf;
 use std::time::Instant;
 use tokio::fs;
 
+
+
+
 // Simplified scanner configuration for testing
 #[derive(Debug, Clone)]
 pub struct SimpleScannerConfig {
@@ -111,6 +114,7 @@ impl SimpleScanner {
         })
     }
 
+    #[allow(clippy::type_complexity)]
     fn collect_directories_recursive<'a>(
         &'a self,
         root_path: &'a PathBuf,

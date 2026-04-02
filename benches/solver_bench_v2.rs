@@ -3,7 +3,8 @@
 //! Benchmarks using the current DependencyResolver API.
 //! Tests empty-repo resolution performance and config variations.
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
+use std::hint::black_box;
 use rez_next_package::Requirement;
 use rez_next_repository::simple_repository::RepositoryManager;
 use rez_next_solver::{DependencyResolver, SolverConfig};
@@ -22,7 +23,9 @@ fn make_rt() -> tokio::runtime::Runtime {
 /// Benchmark: resolver construction overhead
 fn bench_resolver_creation(c: &mut Criterion) {
     c.bench_function("resolver_create_default", |b| {
-        b.iter(|| black_box(make_resolver(SolverConfig::default())))
+        b.iter(|| {
+            black_box(make_resolver(SolverConfig::default()))
+        })
     });
 }
 
@@ -48,9 +51,7 @@ fn bench_resolve_single_requirement(c: &mut Criterion) {
     for req_str in &req_strings {
         group.bench_with_input(BenchmarkId::new("req", req_str), req_str, |b, &s| {
             b.iter(|| {
-                let req: Requirement = s
-                    .parse()
-                    .unwrap_or_else(|_| Requirement::new(s.to_string()));
+                let req: Requirement = s.parse().unwrap_or_else(|_| Requirement::new(s.to_string()));
                 let mut resolver = make_resolver(SolverConfig::default());
                 rt.block_on(resolver.resolve(vec![black_box(req)])).unwrap()
             })
@@ -72,8 +73,7 @@ fn bench_resolve_multiple_requirements(c: &mut Criterion) {
                 .collect();
             b.iter(|| {
                 let mut resolver = make_resolver(SolverConfig::default());
-                rt.block_on(resolver.resolve(black_box(reqs.clone())))
-                    .unwrap()
+                rt.block_on(resolver.resolve(black_box(reqs.clone()))).unwrap()
             })
         });
     }
@@ -124,29 +124,30 @@ fn bench_solver_configs(c: &mut Criterion) {
     group.finish();
 }
 
-fn ci_criterion(sample: usize, measure_s: u64) -> Criterion {
-    let ci = std::env::var("CRITERION_QUICK").is_ok();
-    Criterion::default()
-        .sample_size(if ci { 20 } else { sample })
-        .measurement_time(Duration::from_secs(if ci { 2 } else { measure_s }))
-        .warm_up_time(Duration::from_millis(if ci { 300 } else { 2000 }))
-}
-
 criterion_group!(
     name = resolver_basic;
-    config = ci_criterion(200, 5);
+    config = Criterion::default()
+        .sample_size(200)
+        .measurement_time(Duration::from_secs(5))
+        .warm_up_time(Duration::from_secs(2));
     targets = bench_resolver_creation, bench_resolve_empty
 );
 
 criterion_group!(
     name = resolver_resolution;
-    config = ci_criterion(100, 8);
+    config = Criterion::default()
+        .sample_size(100)
+        .measurement_time(Duration::from_secs(8))
+        .warm_up_time(Duration::from_secs(2));
     targets = bench_resolve_single_requirement, bench_resolve_multiple_requirements
 );
 
 criterion_group!(
     name = resolver_configs;
-    config = ci_criterion(100, 5);
+    config = Criterion::default()
+        .sample_size(100)
+        .measurement_time(Duration::from_secs(5))
+        .warm_up_time(Duration::from_secs(2));
     targets = bench_solver_configs
 );
 

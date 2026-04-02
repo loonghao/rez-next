@@ -3,12 +3,11 @@
 //! Implements the `rez rm` command for removing packages from repositories.
 
 use clap::Args;
+use chrono::NaiveDate;
 use rez_next_common::{error::RezCoreResult, RezCoreError};
 use rez_next_package::Package;
 use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
 use std::path::PathBuf;
-use std::sync::Arc;
-use tokio::sync::RwLock;
 
 /// Arguments for the rm command
 #[derive(Args, Clone, Debug)]
@@ -83,7 +82,7 @@ pub fn execute(args: RmArgs) -> RezCoreResult<()> {
     }
 
     // Create async runtime
-    let runtime = tokio::runtime::Runtime::new().map_err(|e| RezCoreError::Io(e.into()))?;
+    let runtime = tokio::runtime::Runtime::new().map_err(RezCoreError::Io)?;
 
     runtime.block_on(async {
         if let Some(ref package_spec) = args.package {
@@ -277,13 +276,150 @@ async fn remove_ignored_since(args: &RmArgs) -> RezCoreResult<()> {
         println!("Removing packages ignored since: {}", time_spec);
     }
 
-    // TODO: Implement time-based package removal
-    // This would require package metadata with timestamps
+    // Parse time specification (absolute ISO datetime or relative like 1d/2w/1m/1y)
+    let cutoff_timestamp = parse_time_spec(time_spec)?;
 
-    println!("Time-based removal not yet implemented");
-    println!("Would remove packages ignored since: {}", time_spec);
+    let repo_manager = setup_repositories(args).await?;
 
+    // Get all package family names, then fetch their versions
+    let package_names = repo_manager.list_packages().await?;
+    let mut removal_candidates: Vec<Package> = Vec::new();
+
+    for name in &package_names {
+        let packages = repo_manager.find_packages(name).await?;
+        for pkg_arc in packages {
+            let pkg = (*pkg_arc).clone();
+            // Retrieve install dir by walking the configured repo paths
+            let pkg_path = {
+                let ver_str = pkg.version.as_ref().map(|v| v.as_str()).unwrap_or("unknown");
+                // Construct candidate paths: <repo>/<name>/<version>/package.py
+                let mut found_path = std::path::PathBuf::new();
+                for path in &args.paths {
+                    let candidate = path.join(&pkg.name).join(ver_str).join("package.py");
+                    if candidate.exists() {
+                        found_path = candidate;
+                        break;
+                    }
+                }
+                found_path
+            };
+
+            if !pkg_path.as_os_str().is_empty() {
+                if let Ok(metadata) = std::fs::metadata(&pkg_path) {
+                    if let Ok(modified) = metadata.modified() {
+                        if let Ok(dur) = modified.duration_since(std::time::UNIX_EPOCH) {
+                            if dur.as_secs() < cutoff_timestamp {
+                                removal_candidates.push(pkg);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if removal_candidates.is_empty() {
+        println!(
+            "No packages found matching time filter (ignored since {})",
+            time_spec
+        );
+        return Ok(());
+    }
+
+    if args.verbose || args.dry_run {
+        println!("Packages to remove ({}):", removal_candidates.len());
+        for pkg in &removal_candidates {
+            let ver = pkg
+                .version
+                .as_ref()
+                .map(|v| v.as_str())
+                .unwrap_or("unknown");
+            println!("  {}-{}", pkg.name, ver);
+        }
+    }
+
+    if args.dry_run {
+        println!(
+            "[dry-run] Would remove {} package(s)",
+            removal_candidates.len()
+        );
+        return Ok(());
+    }
+
+    // Perform actual removal via the existing single-package remove path
+    let mut removed = 0usize;
+    for pkg in &removal_candidates {
+        match remove_single_package(pkg, args).await {
+            Ok(_) => {
+                removed += 1;
+                if args.verbose {
+                    println!(
+                        "  Removed {}-{}",
+                        pkg.name,
+                        pkg.version.as_ref().map(|v| v.as_str()).unwrap_or("unknown")
+                    );
+                }
+            }
+            Err(e) => eprintln!("  Warning: failed to remove {}: {}", pkg.name, e),
+        }
+    }
+
+    println!(
+        "✅ Removed {} package(s) ignored since {}",
+        removed, time_spec
+    );
     Ok(())
+}
+
+/// Parse a time specification into a Unix timestamp (seconds since epoch).
+///
+/// Accepts:
+/// - Relative: `1d`, `2w`, `1m`, `1y` — seconds back from now
+/// - ISO date:  `2024-01-15`
+/// - ISO datetime: `2024-01-15T12:00:00`
+fn parse_time_spec(spec: &str) -> RezCoreResult<u64> {
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_err(|e| RezCoreError::CliError(format!("system time error: {}", e)))?
+        .as_secs();
+
+    // Relative time: number + suffix
+    if let Some(rest) = spec.strip_suffix('d') {
+        if let Ok(n) = rest.parse::<u64>() {
+            return Ok(now.saturating_sub(n * 86_400));
+        }
+    }
+    if let Some(rest) = spec.strip_suffix('w') {
+        if let Ok(n) = rest.parse::<u64>() {
+            return Ok(now.saturating_sub(n * 7 * 86_400));
+        }
+    }
+    if let Some(rest) = spec.strip_suffix('m') {
+        if let Ok(n) = rest.parse::<u64>() {
+            return Ok(now.saturating_sub(n * 30 * 86_400));
+        }
+    }
+    if let Some(rest) = spec.strip_suffix('y') {
+        if let Ok(n) = rest.parse::<u64>() {
+            return Ok(now.saturating_sub(n * 365 * 86_400));
+        }
+    }
+
+    // ISO datetime: YYYY-MM-DDTHH:MM:SS
+    if let Ok(dt) = chrono::NaiveDateTime::parse_from_str(spec, "%Y-%m-%dT%H:%M:%S") {
+        return Ok(dt.and_utc().timestamp() as u64);
+    }
+    // ISO date: YYYY-MM-DD
+    if let Ok(date) = NaiveDate::parse_from_str(spec, "%Y-%m-%d") {
+        return Ok(date.and_hms_opt(0, 0, 0).unwrap().and_utc().timestamp() as u64);
+    }
+
+    Err(RezCoreError::CliError(format!(
+        "Cannot parse time spec '{}'. Expected: 1d/2w/1m/1y or YYYY-MM-DD[THH:MM:SS]",
+        spec
+    )))
 }
 
 /// Setup repository manager
@@ -334,7 +470,7 @@ async fn find_packages_to_remove(
         .into_iter()
         .filter(|p| {
             version_spec.map_or(true, |ver| {
-                p.version.as_ref().map_or(false, |v| v.as_str() == ver)
+                p.version.as_ref().is_some_and(|v| v.as_str() == ver)
             })
         })
         .map(|p| (*p).clone())
@@ -422,7 +558,7 @@ fn parse_package_spec(spec: &str) -> RezCoreResult<(String, Option<String>)> {
         let name = spec[..dash_pos].to_string();
         let version = spec[dash_pos + 1..].to_string();
 
-        if version.chars().next().map_or(false, |c| c.is_ascii_digit()) {
+        if version.chars().next().is_some_and(|c| c.is_ascii_digit()) {
             return Ok((name, Some(version)));
         }
     }
@@ -437,12 +573,12 @@ fn confirm_removal(package: &Package) -> RezCoreResult<bool> {
     print!("Remove package '{}'? [y/N]: ", package.name);
     io::stdout()
         .flush()
-        .map_err(|e| RezCoreError::Io(e.into()))?;
+        .map_err(RezCoreError::Io)?;
 
     let mut input = String::new();
     io::stdin()
         .read_line(&mut input)
-        .map_err(|e| RezCoreError::Io(e.into()))?;
+        .map_err(RezCoreError::Io)?;
 
     Ok(input.trim().to_lowercase() == "y" || input.trim().to_lowercase() == "yes")
 }
@@ -454,12 +590,12 @@ fn confirm_family_removal(family_name: &str) -> RezCoreResult<bool> {
     print!("Remove ENTIRE package family '{}'? [y/N]: ", family_name);
     io::stdout()
         .flush()
-        .map_err(|e| RezCoreError::Io(e.into()))?;
+        .map_err(RezCoreError::Io)?;
 
     let mut input = String::new();
     io::stdin()
         .read_line(&mut input)
-        .map_err(|e| RezCoreError::Io(e.into()))?;
+        .map_err(RezCoreError::Io)?;
 
     Ok(input.trim().to_lowercase() == "y" || input.trim().to_lowercase() == "yes")
 }
@@ -498,5 +634,116 @@ mod tests {
 
         // Should require either package or ignored_since
         assert!(args.package.is_none() && args.ignored_since.is_none());
+    }
+
+    // ── parse_time_spec tests ────────────────────────────────────────────────
+
+    #[test]
+    fn test_parse_time_spec_days() {
+        use std::time::{SystemTime, UNIX_EPOCH};
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+
+        let result = parse_time_spec("1d").unwrap();
+        let expected = now.saturating_sub(86_400);
+        // Allow up to 2s tolerance
+        assert!(
+            result.abs_diff(expected) <= 2,
+            "1d: result={} expected={}",
+            result,
+            expected
+        );
+
+        let result_7d = parse_time_spec("7d").unwrap();
+        let expected_7d = now.saturating_sub(7 * 86_400);
+        assert!(result_7d.abs_diff(expected_7d) <= 2);
+    }
+
+    #[test]
+    fn test_parse_time_spec_weeks() {
+        use std::time::{SystemTime, UNIX_EPOCH};
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+
+        let result = parse_time_spec("2w").unwrap();
+        let expected = now.saturating_sub(2 * 7 * 86_400);
+        assert!(result.abs_diff(expected) <= 2);
+    }
+
+    #[test]
+    fn test_parse_time_spec_months() {
+        use std::time::{SystemTime, UNIX_EPOCH};
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+
+        let result = parse_time_spec("1m").unwrap();
+        let expected = now.saturating_sub(30 * 86_400);
+        assert!(result.abs_diff(expected) <= 2);
+    }
+
+    #[test]
+    fn test_parse_time_spec_years() {
+        use std::time::{SystemTime, UNIX_EPOCH};
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+
+        let result = parse_time_spec("1y").unwrap();
+        let expected = now.saturating_sub(365 * 86_400);
+        assert!(result.abs_diff(expected) <= 2);
+    }
+
+    #[test]
+    fn test_parse_time_spec_iso_date() {
+        let result = parse_time_spec("2024-01-15").unwrap();
+        // 2024-01-15 00:00:00 UTC = 1705276800
+        assert_eq!(result, 1_705_276_800);
+    }
+
+    #[test]
+    fn test_parse_time_spec_iso_datetime() {
+        let result = parse_time_spec("2024-01-15T12:00:00").unwrap();
+        // 2024-01-15 12:00:00 UTC = 1705320000
+        assert_eq!(result, 1_705_320_000);
+    }
+
+    #[test]
+    fn test_parse_time_spec_invalid() {
+        assert!(parse_time_spec("invalid").is_err());
+        assert!(parse_time_spec("abc").is_err());
+        assert!(parse_time_spec("").is_err());
+        assert!(parse_time_spec("2024/01/15").is_err());
+    }
+
+    #[test]
+    fn test_parse_time_spec_relative_ordering() {
+        // 1d should produce a timestamp more recent than 1w
+        let one_day = parse_time_spec("1d").unwrap();
+        let one_week = parse_time_spec("1w").unwrap();
+        assert!(
+            one_day > one_week,
+            "1d ({}) should be more recent than 1w ({})",
+            one_day,
+            one_week
+        );
+    }
+
+    #[test]
+    fn test_parse_time_spec_zero_relative() {
+        // "0d" — valid parse, returns ~now
+        use std::time::{SystemTime, UNIX_EPOCH};
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+        let result = parse_time_spec("0d").unwrap();
+        assert!(result.abs_diff(now) <= 2);
     }
 }

@@ -62,9 +62,10 @@ impl HeuristicBenchmark {
             let num_conflicts = i % (self.config.max_conflicts + 1);
 
             let requirements: Vec<PackageRequirement> = (0..num_requirements)
-                .map(|j| {
-                    PackageRequirement::with_version(format!("package_{}", j), format!(">=1.0"))
-                })
+                .map(|j| PackageRequirement::with_version(
+                    format!("package_{}", j),
+                    ">=1.0".to_string(),
+                ))
                 .collect();
 
             let mut state = SearchState::new_initial(requirements);
@@ -140,8 +141,7 @@ impl HeuristicBenchmark {
         let mut results = Vec::new();
         let config = HeuristicConfig::default();
 
-        results
-            .push(self.benchmark_heuristic(&RemainingRequirementsHeuristic::new(config.clone())));
+        results.push(self.benchmark_heuristic(&RemainingRequirementsHeuristic::new(config.clone())));
         results.push(self.benchmark_heuristic(&ConflictPenaltyHeuristic::new(config.clone())));
         results.push(self.benchmark_heuristic(&DependencyDepthHeuristic::new(config.clone())));
         results.push(self.benchmark_heuristic(&VersionPreferenceHeuristic::new(config.clone())));
@@ -214,11 +214,8 @@ mod tests {
         let results = benchmark.run_comprehensive_benchmark();
         assert!(!results.is_empty());
         for result in &results {
-            assert!(
-                result.avg_calculation_time_ns < 1_000_000_000,
-                "Heuristic '{}' should complete in < 1s per calculation",
-                result.heuristic_name
-            );
+            assert!(result.avg_calculation_time_ns < 1_000_000_000,
+                    "Heuristic '{}' should complete in < 1s per calculation", result.heuristic_name);
         }
     }
 }

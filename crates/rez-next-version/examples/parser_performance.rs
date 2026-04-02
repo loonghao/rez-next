@@ -40,7 +40,7 @@ fn main() {
     for _ in 0..iterations {
         for version_str in &test_versions {
             match parser.parse_tokens(version_str) {
-                Ok((tokens, separators)) => {
+                Ok((tokens, _separators)) => {
                     // Verify basic parsing worked
                     if tokens.is_empty() && !version_str.is_empty() {
                         eprintln!("❌ Failed to parse: {}", version_str);

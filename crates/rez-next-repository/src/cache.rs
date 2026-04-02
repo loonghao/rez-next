@@ -2,12 +2,11 @@
 
 use rez_next_common::RezCoreError;
 use rez_next_package::Package;
-use rez_next_version::Version;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::Arc;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::fs;
 use tokio::sync::RwLock;
 
@@ -131,6 +130,7 @@ pub struct RepositoryCache {
 
 /// Cache statistics
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Default)]
 pub struct CacheStats {
     /// Total cache hits
     pub hits: u64,
@@ -144,17 +144,6 @@ pub struct CacheStats {
     pub last_cleanup: Option<u64>,
 }
 
-impl Default for CacheStats {
-    fn default() -> Self {
-        Self {
-            hits: 0,
-            misses: 0,
-            entries: 0,
-            size_bytes: 0,
-            last_cleanup: None,
-        }
-    }
-}
 
 impl RepositoryCache {
     /// Create a new repository cache
@@ -358,21 +347,6 @@ impl RepositoryCache {
             let mut index = self.index.write().await;
             *index = cache_index;
         }
-
-        Ok(())
-    }
-
-    /// Save cache index to disk
-    async fn save_cache_index(&self) -> Result<(), RezCoreError> {
-        let index_path = self.config.cache_dir.join("index.json");
-        let index = self.index.read().await;
-
-        let content = serde_json::to_string_pretty(&*index)
-            .map_err(|e| RezCoreError::Cache(format!("Failed to serialize cache index: {}", e)))?;
-
-        fs::write(&index_path, content)
-            .await
-            .map_err(|e| RezCoreError::Cache(format!("Failed to write cache index: {}", e)))?;
 
         Ok(())
     }

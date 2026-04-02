@@ -2,8 +2,9 @@
 //!
 //! A standalone benchmark for the Package system without external dependencies
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
-use rez_next_package::{Package, PackageFormat, PackageSerializer};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
+use std::hint::black_box;
+use rez_next_package::{Package, PackageSerializer};
 use rez_next_version::Version;
 
 /// Benchmark package creation with different complexity levels

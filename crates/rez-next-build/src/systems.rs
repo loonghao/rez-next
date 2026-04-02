@@ -4,8 +4,7 @@ use crate::{BuildEnvironment, BuildRequest, BuildStep, BuildStepResult};
 use rez_next_common::RezCoreError;
 use rez_next_context::ShellExecutor;
 use rez_next_package::Package;
-use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::process::Child;
 use tokio::sync::Mutex;
@@ -48,7 +47,7 @@ pub enum BuildSystem {
 
 impl BuildSystem {
     /// Detect build system from source directory
-    pub fn detect(source_dir: &PathBuf) -> Result<Self, RezCoreError> {
+    pub fn detect(source_dir: &Path) -> Result<Self, RezCoreError> {
         // Check for build script first (higher priority for rez packages)
         let build_scripts = ["build.sh", "build.bat", "build.py", "build"];
         for script in &build_scripts {
@@ -93,7 +92,7 @@ impl BuildSystem {
 
     /// Detect build system from source directory and package definition
     pub fn detect_with_package(
-        source_dir: &PathBuf,
+        source_dir: &Path,
         package: &Package,
     ) -> Result<Self, RezCoreError> {
         // Check for explicit build_command first
@@ -228,7 +227,7 @@ impl BuildSystem {
 }
 
 /// CMake build system
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct CMakeBuildSystem;
 
 impl CMakeBuildSystem {
@@ -311,7 +310,7 @@ impl CMakeBuildSystem {
 
     pub async fn test(
         &self,
-        request: &BuildRequest,
+        _request: &BuildRequest,
         environment: &BuildEnvironment,
         _child_process: Arc<Mutex<Option<Child>>>,
     ) -> Result<BuildStepResult, RezCoreError> {
@@ -350,7 +349,7 @@ impl CMakeBuildSystem {
 
     pub async fn install(
         &self,
-        request: &BuildRequest,
+        _request: &BuildRequest,
         environment: &BuildEnvironment,
     ) -> Result<BuildStepResult, RezCoreError> {
         let build_dir = environment.get_build_dir();
@@ -373,7 +372,7 @@ impl CMakeBuildSystem {
 }
 
 /// Make build system (simplified implementation)
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct MakeBuildSystem;
 
 impl MakeBuildSystem {
@@ -478,13 +477,13 @@ impl MakeBuildSystem {
 }
 
 // Placeholder implementations for other build systems
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct PythonBuildSystem;
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct NodeJsBuildSystem;
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct CargoBuildSystem;
 
 #[derive(Debug)]
@@ -570,7 +569,7 @@ impl CustomBuildSystem {
                 // Execute build_command from package definition
                 self.execute_build_command(request, environment).await
             }
-            script_name => {
+            _script_name => {
                 // Execute custom build script with install command
                 self.execute_build_script(request, environment, "install")
                     .await
@@ -746,8 +745,6 @@ impl CustomBuildSystem {
             format!("python {} {}", script_path.to_string_lossy(), command)
         } else if self.script_name.ends_with(".sh") {
             format!("bash {} {}", script_path.to_string_lossy(), command)
-        } else if self.script_name.ends_with(".bat") {
-            format!("{} {}", script_path.to_string_lossy(), command)
         } else {
             format!("{} {}", script_path.to_string_lossy(), command)
         };
@@ -765,8 +762,8 @@ impl CustomBuildSystem {
 
     /// Copy package files from source to install directory
     async fn copy_package_files(
-        source_dir: &PathBuf,
-        install_dir: &PathBuf,
+        source_dir: &Path,
+        install_dir: &Path,
     ) -> Result<usize, RezCoreError> {
         use tokio::fs;
 
@@ -886,7 +883,7 @@ impl PythonBuildSystem {
             // Export build env vars for rezbuild.py
             let install_dir = environment.get_install_dir();
             let build_dir = environment.get_build_dir();
-            let cmd = format!(
+            let _cmd = format!(
                 "python {} -- build_dir={} install_dir={}",
                 rezbuild.to_string_lossy(),
                 build_dir.to_string_lossy(),

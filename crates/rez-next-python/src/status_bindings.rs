@@ -42,6 +42,12 @@ pub struct PyRezStatus {
     rez_env_vars: HashMap<String, String>,
 }
 
+impl Default for PyRezStatus {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[pymethods]
 impl PyRezStatus {
     /// Detect the current rez context from environment variables.
@@ -82,18 +88,9 @@ impl PyRezStatus {
         let d = PyDict::new(py);
         d.set_item("is_active", self.is_active)?;
         d.set_item("context_file", &self.context_file)?;
-        d.set_item(
-            "resolved_packages",
-            PyList::new(py, &self.resolved_packages)?,
-        )?;
-        d.set_item(
-            "requested_packages",
-            PyList::new(py, &self.requested_packages)?,
-        )?;
-        d.set_item(
-            "implicit_packages",
-            PyList::new(py, &self.implicit_packages)?,
-        )?;
+        d.set_item("resolved_packages", PyList::new(py, &self.resolved_packages)?)?;
+        d.set_item("requested_packages", PyList::new(py, &self.requested_packages)?)?;
+        d.set_item("implicit_packages", PyList::new(py, &self.implicit_packages)?)?;
         d.set_item("current_shell", &self.current_shell)?;
         d.set_item("rez_version", &self.rez_version)?;
         d.set_item("context_cwd", &self.context_cwd)?;
@@ -216,7 +213,8 @@ pub fn get_current_status() -> PyResult<PyRezStatus> {
 /// Equivalent to `rez status` exit-code check.
 #[pyfunction]
 pub fn is_in_rez_context() -> bool {
-    std::env::var("REZ_CONTEXT_FILE").is_ok() || std::env::var("REZ_USED_PACKAGES_NAMES").is_ok()
+    std::env::var("REZ_CONTEXT_FILE").is_ok()
+        || std::env::var("REZ_USED_PACKAGES_NAMES").is_ok()
 }
 
 /// Get the current context file path (REZ_CONTEXT_FILE env var), or None.

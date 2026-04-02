@@ -3,7 +3,8 @@
 //! Measures performance of the Rex parser and executor —
 //! key components used whenever a package's `commands` block is processed.
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
+use std::hint::black_box;
 use rez_next_rex::{RexExecutor, RexParser};
 use std::time::Duration;
 
@@ -165,24 +166,21 @@ fn bench_parser_new(c: &mut Criterion) {
 
 // ── Groups ────────────────────────────────────────────────────────────────────
 
-fn ci_criterion() -> Criterion {
-    // Shorten times in CI (CRITERION_QUICK=1) to stay within job timeout
-    let ci = std::env::var("CRITERION_QUICK").is_ok();
-    Criterion::default()
-        .sample_size(if ci { 30 } else { 100 })
-        .measurement_time(Duration::from_secs(if ci { 2 } else { 5 }))
-        .warm_up_time(Duration::from_millis(if ci { 500 } else { 2000 }))
-}
-
 criterion_group!(
     name = rex_parser_benches;
-    config = ci_criterion();
+    config = Criterion::default()
+        .sample_size(200)
+        .measurement_time(Duration::from_secs(5))
+        .warm_up_time(Duration::from_secs(2));
     targets = bench_parser_simple, bench_parser_commands_blocks, bench_parser_new
 );
 
 criterion_group!(
     name = rex_executor_benches;
-    config = ci_criterion();
+    config = Criterion::default()
+        .sample_size(100)
+        .measurement_time(Duration::from_secs(8))
+        .warm_up_time(Duration::from_secs(2));
     targets = bench_executor_execute, bench_executor_multi_package
 );
 

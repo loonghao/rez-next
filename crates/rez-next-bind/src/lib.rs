@@ -11,5 +11,5 @@ mod builtin_binders;
 mod detect;
 
 pub use binder::{BindError, BindOptions, BindResult, PackageBinder};
-pub use builtin_binders::{get_builtin_binder, list_builtin_binders, BuiltinBinder};
-pub use detect::{detect_tool_version, extract_version_from_output, find_tool_executable};
+pub use builtin_binders::{BuiltinBinder, get_builtin_binder, list_builtin_binders};
+pub use detect::{detect_tool_version, find_tool_executable, extract_version_from_output};

@@ -240,8 +240,10 @@ mod tests {
 
     #[test]
     fn test_prefix_matching_disabled() {
-        let mut config = MockScannerConfig::default();
-        config.enable_prefix_matching = false;
+        let config = MockScannerConfig {
+            enable_prefix_matching: false,
+            ..Default::default()
+        };
         let mut scanner = MockRepositoryScanner::new(config);
 
         let path = PathBuf::from("/test/package.py");

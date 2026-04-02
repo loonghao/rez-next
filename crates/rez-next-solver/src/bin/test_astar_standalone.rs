@@ -5,9 +5,9 @@
 
 mod astar_standalone {
     use serde::{Deserialize, Serialize};
-    use std::collections::{BinaryHeap, HashMap, HashSet};
+    use std::collections::HashMap;
     use std::hash::{Hash, Hasher};
-    use std::time::{Duration, Instant};
+    
 
     // Standalone type definitions
     #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -114,18 +114,8 @@ mod astar_standalone {
             true
         }
 
-        pub fn get_next_requirement(&self) -> Option<&PackageRequirement> {
-            self.pending_requirements.first()
-        }
-
         pub fn add_conflict(&mut self, conflict: DependencyConflict) {
             self.conflicts.push(conflict);
-            self.update_hash();
-        }
-
-        pub fn remove_requirement(&mut self, requirement: &PackageRequirement) {
-            self.pending_requirements
-                .retain(|req| req.name != requirement.name);
             self.update_hash();
         }
 
@@ -424,7 +414,7 @@ mod astar_standalone {
         }
 
         let complexity = child_state.calculate_complexity();
-        let expected_complexity = 1 + 3 + 0; // 1 resolved + 3 pending + 0 conflicts
+        let expected_complexity = 1 + 3; // 1 resolved + 3 pending + 0 conflicts
         if complexity != expected_complexity {
             return Err(format!(
                 "Expected complexity {}, got {}",

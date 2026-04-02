@@ -2,7 +2,7 @@
 
 use crate::detect::{detect_tool_version, extract_version_from_output, find_tool_executable};
 use rez_next_common::config::RezCoreConfig;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use thiserror::Error;
 
 /// Error types for bind operations.
@@ -74,6 +74,12 @@ pub struct BindResult {
 /// Core struct that performs the bind operation.
 pub struct PackageBinder {
     config: RezCoreConfig,
+}
+
+impl Default for PackageBinder {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl PackageBinder {
@@ -159,7 +165,7 @@ impl PackageBinder {
             .as_ref()
             .and_then(|p| p.parent())
             .map(|d| d.to_string_lossy().replace('\\', "/"))
-            .unwrap_or_else(|| String::new());
+            .unwrap_or_default();
 
         let commands_block = if tool_bin_path.is_empty() {
             String::new()
@@ -331,7 +337,7 @@ mod tests {
     #[test]
     fn test_bind_list_packages() {
         let tmp = TempDir::new().unwrap();
-        let binder = PackageBinder::new();
+        let _binder = PackageBinder::new();
 
         for tool in &["python", "cmake", "git"] {
             let opts = BindOptions {

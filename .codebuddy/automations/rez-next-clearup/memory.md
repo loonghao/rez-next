@@ -1,36 +1,36 @@
 # rez-next cleanup 执行记录
 
-## 最新执行 (2026-03-31 23:28, 第四轮)
+## 最新执行 (2026-04-02 20:11, 第十九轮)
 
 ### 执行摘要
-本轮清理聚焦于阶段 1（过期代码清理）和阶段 6（结构性重构评估记录）。
+本轮重点：**迭代 Agent 新增代码审查** + **bug 修复** + **clippy 清理** + **dead code 审计**。
 
-#### 阶段 1：过期代码清理
-- 删除 `solver/lib.rs` 中注释掉的 `// mod cache` / `// mod optimized_solver` 和 `// pub use cache::*` / `// pub use optimized_solver::*`（4 行）
-- 删除 `optimized_solver.rs` 中注释掉的 `// use rez_next_repository::...` 导入（1 行）
-- 注：其他文件（src/lib.rs, context.rs, shell.rs, 多个 Cargo.toml）的清理已由迭代 Agent 在 squash commit 中一并完成
+#### Commit 1 (`293852f`): Bug 修复 — build/env --help exit code
+- `rez-next.rs`: `handle_grouped_command` 中 clap `try_parse_from` 返回 `Err` 处理不当
+- `--help`/`--version` 属于 clap 的 `DisplayHelp`/`DisplayVersion` 错误类型，不应 exit(1)
+- 使用 `e.use_stderr()` 区分：help/version → exit(0)，真正错误 → exit(1)
 
-#### 阶段 6：结构性重构评估
-- 创建 `CLEANUP_TODO.md`，记录 3 个高优先级结构性问题：
-  1. **python-bindings feature 清理**（119+ 处）：永远不会被启用的 `#[cfg(feature = "python-bindings")]` 代码块
-  2. **Workspace lint 配置收紧**：`dead_code = "allow"` 等全局抑制项隐藏了大量潜在问题
-  3. **重复 ResolutionResult 类型**：3 个同名 struct 导致 glob re-export 歧义
+#### Commit 2 (`c25a295`): Lint 和 dead code 清理
+- `pkg_cache.rs`: 将 `#[cfg(test)] mod tests` 从文件中间移到文件末尾，修复 clippy `items-after-test-module` 警告
+- `requirement.rs`: 删除 `RequirementPatterns` 中 3 个未使用的 regex 字段（`range`, `platform_condition`, `env_condition`），移除 `#[allow(dead_code)]` 注解
+- `python_ast_parser.rs`: 删除调试用 `eprintln!("Unhandled statement type: {:?}", stmt)` — 库代码不应直接打印到 stderr
+- `cli_e2e_tests.rs`: 删除从未调用的 `rez_fail` 函数及其 `#[allow(dead_code)]`
+- `real_repo_integration.rs`: 移除不必要的 `#[allow(unused_imports)]`（`PackageRepository` trait 实际被使用）
 
-### 已推送 Commits
-- `56a52d5` chore(cleanup): dead-code: remove commented-out cache/optimized_solver mod declarations and stale imports
-- `8b80813` chore(cleanup): docs: add CLEANUP_TODO.md with structural refactoring items and python-bindings feature audit
+#### Commit 3 (`d3f7c2e`): 文档更新
+- 更新 CLEANUP_TODO.md：TODO 审计 2→1（daemon TODO 由迭代 Agent 实现），新增 #12 (exit code bug — COMPLETE), #13 (dead regex fields — COMPLETE)
 
 ### 基线状态
-- **分支**: `auto-improve`（已推送）
-- **测试**: 全部通过（0 failures），总计约 1200+ tests
-- **Clippy**: 0 warnings（workspace lint 全局 allow 下）
-- **删除行数**: 约 5 行代码（本轮在此分支上的直接清理）
+- **分支**: `auto-improve`（已推送 827b05d）
+- **测试**: 1371 passed, 0 failed（基线 1341 → 1371，增加 30 来自迭代 Agent 新测试）
+- **Clippy warnings**: 0 (--all-targets)
+- **TODO 数量**: 1（`view.rs` — context package viewing）+ 2 benches（非阻塞性能 validation stubs）
+- **`#[allow(dead_code)]`**: 5 处（test_astar_standalone.rs: 2 辅助方法, high_performance_scanner.rs: 3 cache metadata 字段, intelligent_cache_demo.rs: 1 示例函数）
+- **累计删除**: ~9520+ lines across 19 cycles
 
 ### 下一轮重点
-1. **python-bindings 大清理**：移除 10+ crates 中 119+ 处无效 cfg 门控代码
-2. **lint 配置收紧**：将 `dead_code` 和 `unused_imports` 从 `allow` 改为 `warn`，修复暴露的问题
-3. **ResolutionResult 合并**：将 3 个同名类型合并为一个权威定义
-
-### 注意事项
-- 迭代 Agent 同时在 `auto-improve` 分支活跃，需注意合并冲突
-- 存在 `auto-improve-squashed` 分支（squash 后的版本），清理工作应在 `auto-improve` 上进行
+1. **eprintln 改 tracing**: 库代码中 3 处 `eprintln!` 应替换为 `tracing` 日志框架（`intelligent_manager.rs`, `scanner.rs`, `filesystem.rs`）
+2. **fix-ci-security-audit/ 目录**: Harbor 任务文件在 git 中，不属于项目源码 — 需用户确认是否删除
+3. **结构性评估**: 39+ 个文件 >500 行，9 个 >1000 行
+4. **`pprof` feature gate**: `--all-features` 在 Windows 编译失败（pprof 仅 Linux）
+5. **Python 测试中 `env::set_var` 线程安全问题**: Rust 1.66+ 中在多线程环境不安全

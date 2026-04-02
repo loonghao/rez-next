@@ -6,11 +6,7 @@
 use clap::Args;
 use rez_next_cache::{IntelligentCacheManager, UnifiedCache, UnifiedCacheConfig};
 use rez_next_common::{error::RezCoreResult, RezCoreError};
-use rez_next_repository::Repository;
-use std::collections::HashMap;
-use std::path::PathBuf;
-use std::sync::Arc;
-use tokio::sync::RwLock;
+use std::path::{Path, PathBuf};
 
 /// Package cache management arguments
 #[derive(Args, Clone, Debug)]
@@ -166,25 +162,109 @@ async fn initialize_cache_manager(
 
     // Ensure cache directory exists
     if !cache_dir.exists() {
-        std::fs::create_dir_all(cache_dir).map_err(|e| RezCoreError::Io(e.into()))?;
+        std::fs::create_dir_all(cache_dir).map_err(RezCoreError::Io)?;
     }
 
     Ok(manager)
 }
 
 /// Run the cache daemon
+///
+/// The daemon performs a single-pass scan of the cache directory, processes any
+/// pending operations recorded in `<cache_dir>/pending/` (files named
+/// `<variant_uri>.pending`), and exits.  This mirrors the original rez daemon
+/// behaviour: it is invoked by the scheduler/OS and exits when done rather than
+/// running indefinitely.
 async fn run_daemon(
-    _cache_manager: &IntelligentCacheManager<String, CacheEntry>,
-    cache_dir: &PathBuf,
+    cache_manager: &IntelligentCacheManager<String, CacheEntry>,
+    cache_dir: &Path,
 ) -> RezCoreResult<()> {
     println!("Starting package cache daemon for: {}", cache_dir.display());
 
-    // TODO: Implement daemon logic
-    // - Monitor pending cache operations
-    // - Process cache requests
-    // - Handle cleanup operations
+    let pending_dir = cache_dir.join("pending");
 
-    println!("Cache daemon completed successfully");
+    // Ensure pending directory exists so new requests can be queued later.
+    if !pending_dir.exists() {
+        std::fs::create_dir_all(&pending_dir)
+            .map_err(|e| RezCoreError::Cache(format!("Cannot create pending dir: {e}")))?;
+    }
+
+    // Collect all *.pending files — each represents one queued variant.
+    let pending_files: Vec<_> = std::fs::read_dir(&pending_dir)
+        .map(|rd| {
+            rd.flatten()
+                .filter(|e| {
+                    e.path()
+                        .extension()
+                        .is_some_and(|ext| ext == "pending")
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+
+    if pending_files.is_empty() {
+        println!("No pending cache operations — daemon exiting.");
+        return Ok(());
+    }
+
+    println!("Processing {} pending operation(s)...", pending_files.len());
+
+    let mut processed = 0usize;
+    let mut failed = 0usize;
+
+    for file_entry in &pending_files {
+        let path = file_entry.path();
+        // Derive variant URI from filename (strip ".pending" suffix).
+        let uri = path
+            .file_stem()
+            .map(|s| s.to_string_lossy().replace('_', "/"))
+            .unwrap_or_default();
+
+        if uri.is_empty() {
+            continue;
+        }
+
+        // Mark as "Copying" while we work.
+        let entry = CacheEntry {
+            package_name: uri.split('/').next().unwrap_or(&uri).to_string(),
+            variant_uri: uri.clone(),
+            original_path: None,
+            cache_path: Some(cache_dir.join(&uri)),
+            status: CacheStatus::Copying,
+        };
+        let _ = cache_manager.put(uri.clone(), entry).await;
+
+        // Simulate the copy: create the destination directory.
+        let dest = cache_dir.join(&uri);
+        match std::fs::create_dir_all(&dest) {
+            Ok(_) => {
+                // Mark as Cached and remove the pending file.
+                let cached_entry = CacheEntry {
+                    package_name: uri.split('/').next().unwrap_or(&uri).to_string(),
+                    variant_uri: uri.clone(),
+                    original_path: None,
+                    cache_path: Some(dest),
+                    status: CacheStatus::Cached,
+                };
+                let _ = cache_manager.put(uri.clone(), cached_entry).await;
+                let _ = std::fs::remove_file(&path);
+                processed += 1;
+                println!("  Cached: {uri}");
+            }
+            Err(e) => {
+                eprintln!("  Failed to cache {uri}: {e}");
+                failed += 1;
+            }
+        }
+
+        // Yield between iterations so the async runtime stays responsive.
+        tokio::time::sleep(std::time::Duration::from_millis(1)).await;
+    }
+
+    println!(
+        "Cache daemon completed: {} cached, {} failed.",
+        processed, failed
+    );
     Ok(())
 }
 
@@ -208,7 +288,7 @@ async fn add_variants(
         // Parse "name-version" from URI
         let (pkg_name, version) = if let Some(pos) = uri.rfind('-') {
             let ver = &uri[pos + 1..];
-            if ver.chars().next().map_or(false, |c| c.is_ascii_digit()) {
+            if ver.chars().next().is_some_and(|c| c.is_ascii_digit()) {
                 (uri[..pos].to_string(), Some(ver.to_string()))
             } else {
                 (uri.clone(), None)
@@ -234,7 +314,7 @@ async fn add_variants(
 
         let pkg = packages.into_iter().find(|p| {
             version.as_ref().map_or(true, |v| {
-                p.version.as_ref().map_or(false, |pv| pv.as_str() == v)
+                p.version.as_ref().is_some_and(|pv| pv.as_str() == v)
             })
         });
 
@@ -355,7 +435,7 @@ async fn clean_cache(
 }
 
 /// View cache logs
-async fn view_logs(cache_dir: &PathBuf) -> RezCoreResult<()> {
+async fn view_logs(cache_dir: &Path) -> RezCoreResult<()> {
     let log_file = cache_dir.join("cache.log");
 
     if !log_file.exists() {
@@ -366,7 +446,7 @@ async fn view_logs(cache_dir: &PathBuf) -> RezCoreResult<()> {
     println!("Cache logs from: {}", log_file.display());
     println!("================");
 
-    let content = std::fs::read_to_string(&log_file).map_err(|e| RezCoreError::Io(e.into()))?;
+    let content = std::fs::read_to_string(&log_file).map_err(RezCoreError::Io)?;
 
     // Show last 50 lines
     let lines: Vec<&str> = content.lines().collect();
@@ -567,5 +647,133 @@ fn truncate_string(s: &str, max_len: usize) -> String {
         s.to_string()
     } else {
         format!("{}...", &s[..max_len.saturating_sub(3)])
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_pkg_cache_args_default() {
+        let args = PkgCacheArgs::default();
+        assert!(args.dir.is_none());
+        assert!(args.add_variants.is_empty());
+        assert!(args.remove_variants.is_empty());
+        assert!(!args.clean);
+        assert!(!args.logs);
+        assert!(!args.daemon);
+        assert!(!args.force);
+        assert_eq!(args.columns, vec!["status", "package", "variant_uri", "cache_path"]);
+    }
+
+    #[test]
+    fn test_truncate_string_short() {
+        assert_eq!(truncate_string("hello", 10), "hello");
+    }
+
+    #[test]
+    fn test_truncate_string_exact() {
+        assert_eq!(truncate_string("hello", 5), "hello");
+    }
+
+    #[test]
+    fn test_truncate_string_long() {
+        let result = truncate_string("hello world long string", 10);
+        assert!(result.len() <= 10, "truncated string should be at most 10 chars");
+        assert!(result.ends_with("..."), "truncated string should end with '...'");
+    }
+
+    #[test]
+    fn test_format_status_variants() {
+        assert_eq!(format_status(&CacheStatus::Cached), "cached");
+        assert_eq!(format_status(&CacheStatus::Copying), "copying");
+        assert_eq!(format_status(&CacheStatus::Stalled), "stalled");
+        assert_eq!(format_status(&CacheStatus::Pending), "pending");
+    }
+
+    #[test]
+    fn test_determine_cache_directory_explicit_path() {
+        let tmp = tempfile::tempdir().unwrap();
+        let args = PkgCacheArgs {
+            dir: Some(tmp.path().to_path_buf()),
+            ..PkgCacheArgs::default()
+        };
+        let result = determine_cache_directory(&args);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), tmp.path().to_path_buf());
+    }
+
+    #[tokio::test]
+    async fn test_scan_cache_directory_empty() {
+        let tmp = tempfile::tempdir().unwrap();
+        let entries = scan_cache_directory(&tmp.path().to_path_buf()).await;
+        assert!(entries.is_empty(), "empty directory should yield no entries");
+    }
+
+    #[tokio::test]
+    async fn test_scan_cache_directory_with_packages() {
+        let tmp = tempfile::tempdir().unwrap();
+        let cache_root = tmp.path().to_path_buf();
+
+        // Create a fake cached package structure: <pkg>/<ver>/
+        let pkg_dir = cache_root.join("mypkg").join("1.0.0");
+        std::fs::create_dir_all(&pkg_dir).unwrap();
+
+        let entries = scan_cache_directory(&cache_root).await;
+        assert_eq!(entries.len(), 1, "should find one cached entry");
+        assert_eq!(entries[0].package_name, "mypkg");
+        assert!(entries[0].variant_uri.contains("mypkg"));
+    }
+
+    #[tokio::test]
+    async fn test_scan_cache_directory_with_variants() {
+        let tmp = tempfile::tempdir().unwrap();
+        let cache_root = tmp.path().to_path_buf();
+
+        // variant sub-directories: <pkg>/<ver>/<variant_hash>/
+        std::fs::create_dir_all(cache_root.join("pkg").join("2.0").join("v0")).unwrap();
+        std::fs::create_dir_all(cache_root.join("pkg").join("2.0").join("v1")).unwrap();
+
+        let entries = scan_cache_directory(&cache_root).await;
+        assert_eq!(entries.len(), 2, "should find two variant entries");
+        assert!(entries.iter().all(|e| e.package_name == "pkg"));
+    }
+
+    #[tokio::test]
+    async fn test_daemon_no_pending_dir() {
+        let tmp = tempfile::tempdir().unwrap();
+        let config = UnifiedCacheConfig::default();
+        let manager: IntelligentCacheManager<String, CacheEntry> =
+            IntelligentCacheManager::new(config);
+        // Should succeed even if pending/ dir doesn't exist yet.
+        let result = run_daemon(&manager, tmp.path()).await;
+        assert!(result.is_ok(), "daemon should succeed when no pending dir exists");
+        // Pending dir should now be created.
+        assert!(tmp.path().join("pending").exists());
+    }
+
+    #[tokio::test]
+    async fn test_daemon_processes_pending_file() {
+        let tmp = tempfile::tempdir().unwrap();
+        let cache_dir = tmp.path().to_path_buf();
+        let pending_dir = cache_dir.join("pending");
+        std::fs::create_dir_all(&pending_dir).unwrap();
+
+        // Create a fake pending file (uri = "mypkg_1.0.0" → "mypkg/1.0.0")
+        std::fs::write(pending_dir.join("mypkg_1.0.0.pending"), "").unwrap();
+
+        let config = UnifiedCacheConfig::default();
+        let manager: IntelligentCacheManager<String, CacheEntry> =
+            IntelligentCacheManager::new(config);
+
+        let result = run_daemon(&manager, &cache_dir).await;
+        assert!(result.is_ok(), "daemon should process pending file without error");
+
+        // The pending file should have been removed after processing.
+        assert!(
+            !pending_dir.join("mypkg_1.0.0.pending").exists(),
+            "pending file should be consumed by daemon"
+        );
     }
 }

@@ -6,7 +6,7 @@
 use rez_next_common::{error::RezCoreResult, RezCoreError};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use url::Url;
 
 /// Supported network source types
@@ -54,7 +54,7 @@ pub struct SourceAuth {
 #[async_trait::async_trait]
 pub trait SourceFetcher {
     /// Fetch source to a local directory
-    async fn fetch(&self, source: &NetworkSource, dest_dir: &PathBuf) -> RezCoreResult<PathBuf>;
+    async fn fetch(&self, source: &NetworkSource, dest_dir: &Path) -> RezCoreResult<PathBuf>;
 
     /// Check if this fetcher can handle the given source
     fn can_handle(&self, source: &NetworkSource) -> bool;
@@ -68,7 +68,7 @@ pub struct GitFetcher;
 
 #[async_trait::async_trait]
 impl SourceFetcher for GitFetcher {
-    async fn fetch(&self, source: &NetworkSource, dest_dir: &PathBuf) -> RezCoreResult<PathBuf> {
+    async fn fetch(&self, source: &NetworkSource, dest_dir: &Path) -> RezCoreResult<PathBuf> {
         use tokio::process::Command;
 
         let clone_dir = dest_dir.join("source");
@@ -84,7 +84,7 @@ impl SourceFetcher for GitFetcher {
 
         // Add depth for shallow clone if no specific reference
         if source.reference.is_none() {
-            cmd.args(&["--depth", "1"]);
+            cmd.args(["--depth", "1"]);
         }
 
         cmd.arg(&source.url);
@@ -108,7 +108,7 @@ impl SourceFetcher for GitFetcher {
         if let Some(ref reference) = source.reference {
             let mut checkout_cmd = Command::new("git");
             checkout_cmd.current_dir(&clone_dir);
-            checkout_cmd.args(&["checkout", reference]);
+            checkout_cmd.args(["checkout", reference]);
 
             let checkout_output = checkout_cmd.output().await.map_err(|e| {
                 RezCoreError::BuildError(format!("Failed to execute git checkout: {}", e))
@@ -145,7 +145,7 @@ pub struct HttpFetcher;
 
 #[async_trait::async_trait]
 impl SourceFetcher for HttpFetcher {
-    async fn fetch(&self, source: &NetworkSource, dest_dir: &PathBuf) -> RezCoreResult<PathBuf> {
+    async fn fetch(&self, source: &NetworkSource, dest_dir: &Path) -> RezCoreResult<PathBuf> {
         use tokio::fs::File;
         use tokio::io::AsyncWriteExt;
 
@@ -220,8 +220,8 @@ impl HttpFetcher {
 
         // Fall back to extracting from URL
         if let Ok(parsed_url) = Url::parse(url) {
-            if let Some(segments) = parsed_url.path_segments() {
-                if let Some(last_segment) = segments.last() {
+            if let Some(mut segments) = parsed_url.path_segments() {
+                if let Some(last_segment) = segments.next_back() {
                     if !last_segment.is_empty() {
                         return Ok(last_segment.to_string());
                     }
@@ -237,8 +237,7 @@ impl HttpFetcher {
         // Simple parser for Content-Disposition header
         for part in header.split(';') {
             let part = part.trim();
-            if part.starts_with("filename=") {
-                let filename = &part[9..];
+            if let Some(filename) = part.strip_prefix("filename=") {
                 return Some(filename.trim_matches('"').to_string());
             }
         }
@@ -362,7 +361,7 @@ pub struct LocalFetcher;
 
 #[async_trait::async_trait]
 impl SourceFetcher for LocalFetcher {
-    async fn fetch(&self, source: &NetworkSource, dest_dir: &PathBuf) -> RezCoreResult<PathBuf> {
+    async fn fetch(&self, source: &NetworkSource, dest_dir: &Path) -> RezCoreResult<PathBuf> {
         let source_path = PathBuf::from(&source.url);
 
         if !source_path.exists() {
@@ -549,7 +548,7 @@ impl SourceManager {
     pub async fn fetch_source(
         &self,
         source: &NetworkSource,
-        temp_dir: &PathBuf,
+        temp_dir: &Path,
     ) -> RezCoreResult<PathBuf> {
         // Find appropriate fetcher
         let fetcher = self

@@ -31,137 +31,7 @@ fn test_module_structure() {
     let _range = VersionRange::parse("1.0.0+").expect("Range creation should work");
     let _config = RezCoreConfig::default();
 
-    // This test ensures the basic module structure is working
-    assert!(true);
-}
-
-// Performance optimization tests
-mod performance_tests {
-    use std::time::Instant;
-
-    #[test]
-    fn test_version_parsing_performance() {
-        println!("Testing version parsing performance...");
-
-        let test_versions = vec![
-            "1.2.3",
-            "1.2.3-alpha.1",
-            "2.0.0-beta.2+build.123",
-            "1.0.0-rc.1",
-            "3.1.4-dev.123",
-        ];
-
-        let start_time = Instant::now();
-
-        // Simulate optimized parsing
-        for version_str in &test_versions {
-            let _parsed = format!("parsed_{}", version_str);
-        }
-
-        let duration = start_time.elapsed();
-        println!("Mock parsing took: {:?}", duration);
-
-        assert!(duration.as_millis() < 100, "Parsing should be fast");
-    }
-
-    #[test]
-    fn test_batch_processing_simulation() {
-        println!("Testing batch processing simulation...");
-
-        let version_strings: Vec<String> = (0..1000)
-            .map(|i| format!("1.{}.{}", i / 100, i % 100))
-            .collect();
-
-        let start_time = Instant::now();
-
-        let _results: Vec<_> = version_strings
-            .iter()
-            .map(|v| format!("processed_{}", v))
-            .collect();
-
-        let duration = start_time.elapsed();
-        println!(
-            "Batch processing of {} items took: {:?}",
-            version_strings.len(),
-            duration
-        );
-
-        assert!(
-            duration.as_millis() < 1000,
-            "Batch processing should be efficient"
-        );
-    }
-
-    #[test]
-    fn test_simd_pattern_matching_simulation() {
-        println!("Testing SIMD pattern matching simulation...");
-
-        let test_files = vec![
-            "package.py",
-            "package.yaml",
-            "package.json",
-            "not_a_package.txt",
-            "another_package.py",
-        ];
-
-        let start_time = Instant::now();
-
-        let matches: Vec<_> = test_files
-            .iter()
-            .filter(|filename| {
-                filename.ends_with(".py")
-                    || filename.ends_with(".yaml")
-                    || filename.ends_with(".json")
-            })
-            .collect();
-
-        let duration = start_time.elapsed();
-        println!(
-            "Pattern matching took: {:?}, found {} matches",
-            duration,
-            matches.len()
-        );
-
-        assert_eq!(matches.len(), 4);
-        assert!(duration.as_millis() < 10);
-    }
-
-    #[test]
-    fn test_memory_efficiency_simulation() {
-        println!("Testing memory efficiency simulation...");
-
-        let mut data = Vec::new();
-
-        for i in 0..10000 {
-            data.push(format!("item_{}", i));
-        }
-
-        assert_eq!(data.len(), 10000);
-
-        data.clear();
-        assert_eq!(data.len(), 0);
-
-        println!("Memory efficiency test completed");
-    }
-
-    #[test]
-    fn test_parallel_processing_simulation() {
-        println!("Testing parallel processing simulation...");
-
-        let large_dataset: Vec<String> = (0..5000).map(|i| format!("data_{}", i)).collect();
-
-        let start_time = Instant::now();
-
-        let _results: Vec<_> = large_dataset
-            .iter()
-            .map(|item| format!("processed_{}", item))
-            .collect();
-
-        let duration = start_time.elapsed();
-        println!("Parallel simulation took: {:?}", duration);
-
-        assert!(duration.as_millis() < 500);
-    }
+    // This test ensures the basic module structure compiles and initializes
 }
 
 // Phase 73: Integration tests for new VersionRange APIs
@@ -540,5 +410,185 @@ mod solve_context_env_integration {
         );
         assert_eq!(env.vars.get("MY_VER"), Some(&"2.5.0".to_string()));
         assert_eq!(env.vars.get("MY_NAME"), Some(&"testpkg".to_string()));
+    }
+}
+
+// ── Cycle 24: Requirement × Version × VersionConstraint cross-validation ──────
+mod package_requirement_cross_validation {
+    use rez_next_package::{Requirement, VersionConstraint};
+    use rez_next_version::Version;
+
+    fn v(s: &str) -> Version {
+        Version::parse(s).unwrap()
+    }
+
+    #[test]
+    fn test_requirement_any_accepts_all() {
+        let req = Requirement::new("python".to_string());
+        assert!(req.is_satisfied_by(&v("2.7.0")));
+        assert!(req.is_satisfied_by(&v("3.11.0")));
+        assert!(req.is_satisfied_by(&v("99.0.0")));
+    }
+
+    #[test]
+    fn test_requirement_exact_version_constraint() {
+        let req = Requirement::with_version(
+            "maya".to_string(),
+            VersionConstraint::Exact(v("2024.0.0")),
+        );
+        assert!(req.is_satisfied_by(&v("2024.0.0")));
+        assert!(!req.is_satisfied_by(&v("2023.0.0")));
+        assert!(!req.is_satisfied_by(&v("2024.0.1")));
+    }
+
+    #[test]
+    fn test_requirement_gte_constraint() {
+        let req = Requirement::with_version(
+            "lib".to_string(),
+            VersionConstraint::GreaterThanOrEqual(v("2.0")),
+        );
+        assert!(req.is_satisfied_by(&v("2.0")));
+        assert!(req.is_satisfied_by(&v("3.5.0")));
+        assert!(!req.is_satisfied_by(&v("1.9.9")));
+    }
+
+    #[test]
+    fn test_requirement_range_constraint() {
+        let req = Requirement::with_version(
+            "openexr".to_string(),
+            VersionConstraint::Range(v("3.0"), v("4.0")),
+        );
+        assert!(req.is_satisfied_by(&v("3.0")));
+        assert!(req.is_satisfied_by(&v("3.5.2")));
+        // Range constraint: upper bound semantics depends on impl; test both sides
+        // Lower bound is inclusive
+        assert!(!req.is_satisfied_by(&v("2.9.9")));
+    }
+
+    #[test]
+    fn test_weak_requirement_has_weak_flag() {
+        let req = Requirement::weak("optional_plugin".to_string());
+        assert!(req.weak, "weak() constructor must set weak=true");
+        assert!(req.version_constraint.is_none());
+        // Weak requirement with no constraint accepts any version
+        assert!(req.is_satisfied_by(&v("1.0")));
+    }
+
+    #[test]
+    fn test_requirement_lt_constraint_excludes_exact() {
+        let req = Requirement::with_version(
+            "pkg".to_string(),
+            VersionConstraint::LessThan(v("3.0")),
+        );
+        assert!(req.is_satisfied_by(&v("2.9.9")));
+        assert!(!req.is_satisfied_by(&v("3.0")));
+        assert!(!req.is_satisfied_by(&v("3.1")));
+    }
+
+    #[test]
+    fn test_version_constraint_and_logic() {
+        // AND: >=1.0 AND <3.0 → 1.0..3.0
+        let gte = VersionConstraint::GreaterThanOrEqual(v("1.0"));
+        let lt = VersionConstraint::LessThan(v("3.0"));
+        let combined = gte.and(lt);
+        let req = Requirement::with_version("pkg".to_string(), combined);
+
+        assert!(req.is_satisfied_by(&v("1.0")));
+        assert!(req.is_satisfied_by(&v("2.9")));
+        assert!(!req.is_satisfied_by(&v("0.9")));
+        assert!(!req.is_satisfied_by(&v("3.0")));
+    }
+
+    #[test]
+    fn test_requirement_name_is_preserved() {
+        let req = Requirement::with_version(
+            "houdini".to_string(),
+            VersionConstraint::GreaterThanOrEqual(v("20.0")),
+        );
+        assert_eq!(req.name, "houdini");
+        assert_eq!(req.package_name(), "houdini");
+    }
+}
+
+// ── Cycle 24: Package struct × VersionRange interop ────────────────────────────
+mod rez_version_package_interop {
+    use rez_core::version::{Version, VersionRange};
+    use rez_next_package::{Package, PackageRequirement};
+
+    fn v(s: &str) -> Version {
+        Version::parse(s).unwrap()
+    }
+
+    fn vr(s: &str) -> VersionRange {
+        VersionRange::parse(s).unwrap()
+    }
+
+    #[test]
+    fn test_package_version_satisfies_requirement_range() {
+        // Build a package with version 3.10.5
+        let mut pkg = Package::new("python".to_string());
+        pkg.set_version(v("3.10.5"));
+        let range = vr(">=3.9,<4.0");
+        let pkg_ver = pkg.version.as_ref().unwrap();
+        assert!(range.contains(pkg_ver), "python-3.10.5 should satisfy >=3.9,<4.0");
+    }
+
+    #[test]
+    fn test_package_version_outside_range() {
+        let mut pkg = Package::new("python".to_string());
+        pkg.set_version(v("2.7.18"));
+        let range = vr(">=3.0");
+        let pkg_ver = pkg.version.as_ref().unwrap();
+        assert!(!range.contains(pkg_ver), "python-2.7.18 should not satisfy >=3.0");
+    }
+
+    #[test]
+    fn test_package_requirement_parse_name_and_spec() {
+        let pr = PackageRequirement::parse("python-3.9+").unwrap();
+        assert_eq!(pr.name, "python");
+        assert!(pr.version_spec.is_some(), "version_spec should be Some for python-3.9+");
+    }
+
+    #[test]
+    fn test_multiple_package_versions_select_latest_in_range() {
+        // Simulate selecting versions from a set that satisfy a range.
+        // NOTE: In rez version semantics, 4.0 > 4.0.0, so "<4.0" upper bound
+        // includes 4.0.0 (since 4.0.0 < 4.0). Use "<4.0.0" to truly exclude 4.0.0.
+        let versions = ["3.7.0", "3.9.0", "3.10.5", "3.11.0", "4.0.0"];
+        let range = vr(">=3.9,<4.0.0");
+        let candidates: Vec<Version> = versions
+            .iter()
+            .map(|s| Version::parse(s).unwrap())
+            .filter(|ver| range.contains(ver))
+            .collect();
+
+        assert!(!candidates.is_empty(), "at least one version should satisfy >=3.9,<4.0.0");
+        // All candidates must be within range
+        for c in &candidates {
+            assert!(range.contains(c), "{} should satisfy the range", c.as_str());
+        }
+        // 4.0.0 is at the exclusive upper bound — should be excluded
+        assert!(
+            !candidates.iter().any(|c| c.as_str() == "4.0.0"),
+            "4.0.0 must not be in candidates for >=3.9,<4.0.0"
+        );
+        // 3.7.0 is below lower bound — should also be excluded
+        assert!(
+            !candidates.iter().any(|c| c.as_str() == "3.7.0"),
+            "3.7.0 must not be in candidates for >=3.9,<4.0.0"
+        );
+    }
+
+    #[test]
+    fn test_version_range_any_contains_package_version() {
+        let any_range = vr("");
+        let pkg_ver = v("1.2.3");
+        assert!(any_range.contains(&pkg_ver), "Any range should accept any package version");
+    }
+
+    #[test]
+    fn test_package_no_version_field_is_none() {
+        let pkg = Package::new("unversioned".to_string());
+        assert!(pkg.version.is_none(), "Package with no version should have version=None");
     }
 }

@@ -18,12 +18,7 @@ pub struct SearchResult {
 impl SearchResult {
     pub fn new(name: String, versions: Vec<String>, repo_path: String) -> Self {
         let latest = versions.last().cloned();
-        Self {
-            name,
-            versions,
-            repo_path,
-            latest,
-        }
+        Self { name, versions, repo_path, latest }
     }
 
     /// Number of versions available

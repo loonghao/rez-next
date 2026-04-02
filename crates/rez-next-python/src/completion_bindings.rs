@@ -230,12 +230,11 @@ pub fn get_completion_install_path(shell: Option<&str>) -> PyResult<String> {
         "bash" => Ok("~/.bash_completion.d/rez-next".to_string()),
         "zsh" => Ok("~/.zsh/completions/_rez-next".to_string()),
         "fish" => Ok("~/.config/fish/completions/rez-next.fish".to_string()),
-        "powershell" | "pwsh" => {
-            Ok("~/.config/powershell/Microsoft.PowerShell_profile.ps1".to_string())
-        }
+        "powershell" | "pwsh" => Ok(
+            "~/.config/powershell/Microsoft.PowerShell_profile.ps1".to_string()
+        ),
         other => Err(pyo3::exceptions::PyValueError::new_err(format!(
-            "Unknown shell type: '{}'",
-            other
+            "Unknown shell type: '{}'", other
         ))),
     }
 }

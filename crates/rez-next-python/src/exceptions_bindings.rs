@@ -25,15 +25,12 @@
 //!     +-- RezSystemError
 //! ```
 
-use pyo3::exceptions::PyException;
 use pyo3::prelude::*;
+use pyo3::exceptions::PyException;
 
 // ─── Root exception ───────────────────────────────────────────────────────────
 
-pyo3::create_exception!(
-    rez_next,
-    RezError,
-    PyException,
+pyo3::create_exception!(rez_next, RezError, PyException,
     "Base exception for all rez-next errors.\n\nAll rez-next exceptions inherit from this class."
 );
 
@@ -61,10 +58,7 @@ pyo3::create_exception!(rez_next, PackageParseError, RezError,
 
 // ─── Resolve exceptions ───────────────────────────────────────────────────────
 
-pyo3::create_exception!(
-    rez_next,
-    ResolveError,
-    RezError,
+pyo3::create_exception!(rez_next, ResolveError, RezError,
     "Raised when dependency resolution fails.\n\nEquivalent to rez.exceptions.ResolveError."
 );
 
@@ -78,17 +72,11 @@ pyo3::create_exception!(rez_next, PackageConflict, ResolveError,
 
 // ─── Build / release exceptions ───────────────────────────────────────────────
 
-pyo3::create_exception!(
-    rez_next,
-    RezBuildError,
-    RezError,
+pyo3::create_exception!(rez_next, RezBuildError, RezError,
     "Raised when a package build fails.\n\nEquivalent to rez.exceptions.RezBuildError."
 );
 
-pyo3::create_exception!(
-    rez_next,
-    RezReleaseError,
-    RezError,
+pyo3::create_exception!(rez_next, RezReleaseError, RezError,
     "Raised when a package release fails.\n\nEquivalent to rez.exceptions.RezReleaseError."
 );
 
@@ -106,10 +94,7 @@ pyo3::create_exception!(rez_next, ContextBundleError, RezError,
 
 // ─── Suite exceptions ────────────────────────────────────────────────────────
 
-pyo3::create_exception!(
-    rez_next,
-    SuiteError,
-    RezError,
+pyo3::create_exception!(rez_next, SuiteError, RezError,
     "Raised when suite management operations fail.\n\nEquivalent to rez.exceptions.SuiteError."
 );
 
@@ -125,10 +110,7 @@ pyo3::create_exception!(rez_next, RexUndefinedVariableError, RexError,
 
 // ─── System exceptions ────────────────────────────────────────────────────────
 
-pyo3::create_exception!(
-    rez_next,
-    RezSystemError,
-    RezError,
+pyo3::create_exception!(rez_next, RezSystemError, RezError,
     "Raised for internal rez-next errors.\n\nEquivalent to rez.exceptions.RezSystemError."
 );
 
@@ -141,18 +123,9 @@ pub fn register_all_exceptions(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
     // Package
     m.add("PackageNotFound", m.py().get_type::<PackageNotFound>())?;
-    m.add(
-        "PackageFamilyNotFound",
-        m.py().get_type::<PackageFamilyNotFound>(),
-    )?;
-    m.add(
-        "PackageVersionConflict",
-        m.py().get_type::<PackageVersionConflict>(),
-    )?;
-    m.add(
-        "PackageRequestError",
-        m.py().get_type::<PackageRequestError>(),
-    )?;
+    m.add("PackageFamilyNotFound", m.py().get_type::<PackageFamilyNotFound>())?;
+    m.add("PackageVersionConflict", m.py().get_type::<PackageVersionConflict>())?;
+    m.add("PackageRequestError", m.py().get_type::<PackageRequestError>())?;
     m.add("PackageParseError", m.py().get_type::<PackageParseError>())?;
 
     // Resolve
@@ -165,26 +138,17 @@ pub fn register_all_exceptions(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("RezReleaseError", m.py().get_type::<RezReleaseError>())?;
 
     // Config
-    m.add(
-        "ConfigurationError",
-        m.py().get_type::<ConfigurationError>(),
-    )?;
+    m.add("ConfigurationError", m.py().get_type::<ConfigurationError>())?;
 
     // Context / bundle
-    m.add(
-        "ContextBundleError",
-        m.py().get_type::<ContextBundleError>(),
-    )?;
+    m.add("ContextBundleError", m.py().get_type::<ContextBundleError>())?;
 
     // Suite
     m.add("SuiteError", m.py().get_type::<SuiteError>())?;
 
     // Rex
     m.add("RexError", m.py().get_type::<RexError>())?;
-    m.add(
-        "RexUndefinedVariableError",
-        m.py().get_type::<RexUndefinedVariableError>(),
-    )?;
+    m.add("RexUndefinedVariableError", m.py().get_type::<RexUndefinedVariableError>())?;
 
     // System
     m.add("RezSystemError", m.py().get_type::<RezSystemError>())?;
@@ -192,97 +156,4 @@ pub fn register_all_exceptions(m: &Bound<'_, PyModule>) -> PyResult<()> {
     Ok(())
 }
 
-// ─── Helper: raise typed exceptions from Rust errors ─────────────────────────
 
-/// Convert a generic solve error string into a typed `ResolveError`.
-#[allow(dead_code)]
-pub fn raise_resolve_error(msg: impl Into<String>) -> PyErr {
-    ResolveError::new_err(msg.into())
-}
-
-/// Convert a package-not-found error string into `PackageNotFound`.
-#[allow(dead_code)]
-pub fn raise_package_not_found(name: &str, version: Option<&str>) -> PyErr {
-    let msg = match version {
-        Some(ver) => format!("Package '{}-{}' not found", name, ver),
-        None => format!("Package '{}' not found", name),
-    };
-    PackageNotFound::new_err(msg)
-}
-
-/// Convert a configuration error string into `ConfigurationError`.
-#[allow(dead_code)]
-pub fn raise_config_error(msg: impl Into<String>) -> PyErr {
-    ConfigurationError::new_err(msg.into())
-}
-
-/// Convert a build error string into `RezBuildError`.
-#[allow(dead_code)]
-pub fn raise_build_error(msg: impl Into<String>) -> PyErr {
-    RezBuildError::new_err(msg.into())
-}
-
-/// Convert a Rex error string into `RexError`.
-#[allow(dead_code)]
-pub fn raise_rex_error(msg: impl Into<String>) -> PyErr {
-    RexError::new_err(msg.into())
-}
-
-// ─── Rust unit tests ──────────────────────────────────────────────────────────
-
-#[cfg(test)]
-mod exceptions_tests {
-    use super::*;
-
-    fn init_python() {
-        pyo3::prepare_freethreaded_python();
-    }
-
-    #[test]
-    fn test_raise_package_not_found_with_version() {
-        init_python();
-        let err = raise_package_not_found("python", Some("3.9"));
-        let msg = format!("{}", err);
-        assert!(msg.contains("python") || msg.contains("Package"));
-    }
-
-    #[test]
-    fn test_raise_package_not_found_without_version() {
-        init_python();
-        let err = raise_package_not_found("maya", None);
-        let msg = format!("{}", err);
-        assert!(msg.contains("maya") || msg.contains("Package"));
-    }
-
-    #[test]
-    fn test_raise_resolve_error() {
-        init_python();
-        let err = raise_resolve_error("No solution found for requirements");
-        let msg = format!("{}", err);
-        assert!(msg.contains("No solution") || msg.contains("resolve") || !msg.is_empty());
-    }
-
-    #[test]
-    fn test_raise_config_error() {
-        init_python();
-        let err = raise_config_error("Invalid packages_path setting");
-        let msg = format!("{}", err);
-        assert!(!msg.is_empty());
-    }
-
-    #[test]
-    fn test_raise_build_error() {
-        init_python();
-        let err = raise_build_error("CMake configuration failed");
-        let msg = format!("{}", err);
-        assert!(!msg.is_empty());
-    }
-
-    #[test]
-    fn test_raise_rex_error() {
-        init_python();
-        let err = raise_rex_error("Undefined variable: ${MY_VAR}");
-        let msg = format!("{}", err);
-        assert!(!msg.is_empty());
-    }
-}

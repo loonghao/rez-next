@@ -175,7 +175,7 @@ Register-ArgumentCompleter -Native -CommandName rez -ScriptBlock {{
 fn complete_package_names(prefix: &str) -> RezCoreResult<()> {
     let config = RezCoreConfig::load();
     let rt =
-        tokio::runtime::Runtime::new().map_err(|e| rez_next_common::RezCoreError::Io(e.into()))?;
+        tokio::runtime::Runtime::new().map_err(rez_next_common::RezCoreError::Io)?;
 
     let mut manager = RepositoryManager::new();
     for (i, path_str) in config.packages_path.iter().enumerate() {
@@ -198,7 +198,7 @@ fn complete_package_names(prefix: &str) -> RezCoreResult<()> {
 fn complete_package_versions(pkg_name: &str, prefix: &str) -> RezCoreResult<()> {
     let config = RezCoreConfig::load();
     let rt =
-        tokio::runtime::Runtime::new().map_err(|e| rez_next_common::RezCoreError::Io(e.into()))?;
+        tokio::runtime::Runtime::new().map_err(rez_next_common::RezCoreError::Io)?;
 
     let mut manager = RepositoryManager::new();
     for (i, path_str) in config.packages_path.iter().enumerate() {

@@ -1,7 +1,7 @@
 //! Python bindings for ResolvedContext
 
-use crate::expand_home;
 use crate::package_bindings::PyPackage;
+use crate::expand_home;
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use rez_next_context::{ContextStatus, ResolvedContext};
@@ -11,7 +11,7 @@ use rez_next_solver::{DependencyResolver, SolverConfig};
 use std::path::PathBuf;
 use std::sync::Arc;
 
-/// Python-accessible ResolvedContext class, compatible with rez.resolved_context.ResolvedContext
+    /// Python-accessible ResolvedContext class, compatible with rez.resolved_context.ResolvedContext
 #[pyclass(name = "ResolvedContext")]
 pub struct PyResolvedContext {
     inner: ResolvedContext,
@@ -64,9 +64,9 @@ impl PyResolvedContext {
             .iter()
             .map(|pr| {
                 let req_str = pr.to_string();
-                req_str
-                    .parse::<Requirement>()
-                    .unwrap_or_else(|_| Requirement::new(pr.name.clone()))
+                req_str.parse::<Requirement>().unwrap_or_else(|_| {
+                    Requirement::new(pr.name.clone())
+                })
             })
             .collect();
 
@@ -277,7 +277,7 @@ impl PyResolvedContext {
     /// shell: "bash" | "zsh" | "fish" | "cmd" | "powershell" (default: auto-detect)
     #[pyo3(signature = (shell=None))]
     fn to_shell_script(&self, shell: Option<&str>) -> PyResult<String> {
-        use rez_next_rex::{generate_shell_script, ShellType};
+        use rez_next_rex::{ShellType, generate_shell_script};
 
         let shell_type = match shell.unwrap_or("auto") {
             "bash" => ShellType::Bash,
@@ -376,18 +376,11 @@ impl PyResolvedContext {
         use pyo3::types::PyList;
         let list = PyList::empty(py);
         for pkg in &self.inner.resolved_packages {
-            let ver = pkg
-                .version
-                .as_ref()
-                .map(|v| v.as_str())
-                .unwrap_or("unknown");
-            let tuple = pyo3::types::PyTuple::new(
-                py,
-                [
-                    pkg.name.clone().into_pyobject(py)?.into_any().unbind(),
-                    ver.to_string().into_pyobject(py)?.into_any().unbind(),
-                ],
-            )?;
+            let ver = pkg.version.as_ref().map(|v| v.as_str()).unwrap_or("unknown");
+            let tuple = pyo3::types::PyTuple::new(py, [
+                pkg.name.clone().into_pyobject(py)?.into_any().unbind(),
+                ver.to_string().into_pyobject(py)?.into_any().unbind(),
+            ])?;
             list.append(tuple)?;
         }
         Ok(list.into())
@@ -481,8 +474,7 @@ mod context_bindings_tests {
     #[test]
     fn test_environment_vars_can_be_set() {
         let mut ctx = make_py_ctx_inner(&[("python", "3.11.0")]);
-        ctx.environment_vars
-            .insert("MY_TOOL".to_string(), "active".to_string());
+        ctx.environment_vars.insert("MY_TOOL".to_string(), "active".to_string());
         assert_eq!(
             ctx.environment_vars.get("MY_TOOL"),
             Some(&"active".to_string())
@@ -514,9 +506,6 @@ mod context_bindings_tests {
     #[test]
     fn test_created_at_is_positive() {
         let ctx = make_py_ctx_inner(&[]);
-        assert!(
-            ctx.created_at > 0,
-            "created_at timestamp should be positive"
-        );
+        assert!(ctx.created_at > 0, "created_at timestamp should be positive");
     }
 }

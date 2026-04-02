@@ -3,7 +3,8 @@
 //! Measures the cost of scanning a synthetic package set to find
 //! all packages that depend on a given target package name.
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
+use std::hint::black_box;
 use rez_next_package::Package;
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -46,9 +47,13 @@ fn bench_depends_scan(c: &mut Criterion) {
     let mut group = c.benchmark_group("depends_reverse_scan");
     for &size in &[50usize, 200, 500, 1000, 5000] {
         let packages = build_package_set(size);
-        group.bench_with_input(BenchmarkId::from_parameter(size), &packages, |b, pkgs| {
-            b.iter(|| count_dependents(black_box(pkgs), black_box("python")));
-        });
+        group.bench_with_input(
+            BenchmarkId::from_parameter(size),
+            &packages,
+            |b, pkgs| {
+                b.iter(|| count_dependents(black_box(pkgs), black_box("python")));
+            },
+        );
     }
     group.finish();
 }
@@ -57,22 +62,24 @@ fn bench_depends_scan(c: &mut Criterion) {
 fn bench_package_construction(c: &mut Criterion) {
     let mut group = c.benchmark_group("depends_package_construction");
     for &size in &[10usize, 50, 100, 500] {
-        group.bench_with_input(BenchmarkId::from_parameter(size), &size, |b, &n| {
-            b.iter(|| build_package_set(black_box(n)));
-        });
+        group.bench_with_input(
+            BenchmarkId::from_parameter(size),
+            &size,
+            |b, &n| {
+                b.iter(|| build_package_set(black_box(n)));
+            },
+        );
     }
     group.finish();
 }
 
 /// Benchmark: requirement string parsing (core of depends analysis).
 fn bench_requirement_string_ops(c: &mut Criterion) {
-    let req_strings = vec![
-        "python-3+",
+    let req_strings = ["python-3+",
         "numpy-1.20+<2",
         "maya-2024",
         "houdini-20+",
-        "nuke-13.2+<14",
-    ];
+        "nuke-13.2+<14"];
     c.bench_function("depends_requirement_string_match_batch", |b| {
         b.iter(|| {
             req_strings
@@ -102,55 +109,44 @@ fn bench_build_depends_index(c: &mut Criterion) {
     let mut group = c.benchmark_group("depends_build_index");
     for &size in &[100usize, 500, 2000] {
         let packages = build_package_set(size);
-        group.bench_with_input(BenchmarkId::from_parameter(size), &packages, |b, pkgs| {
-            b.iter(|| {
-                // Build a map: "target_name" -> [dependent_pkg_name, ...]
-                // Requirement strings may be "python-3+" so we extract the
-                // alphabetic prefix as the package name.
-                let mut index: std::collections::HashMap<String, Vec<&str>> =
-                    std::collections::HashMap::new();
-                for pkg in black_box(pkgs) {
-                    for req in &pkg.requires {
-                        // Extract package name prefix (take chars up to first non-alpha/digit/underscore)
-                        let name_end = req
-                            .find(|c: char| {
-                                c == '-' || c == '+' || c == '<' || c == '>' || c == '='
-                            })
-                            .unwrap_or(req.len());
-                        let pkg_name = &req[..name_end];
-                        index
-                            .entry(pkg_name.to_string())
-                            .or_default()
-                            .push(pkg.name.as_str());
+        group.bench_with_input(
+            BenchmarkId::from_parameter(size),
+            &packages,
+            |b, pkgs| {
+                b.iter(|| {
+                    // Build a map: "target_name" -> [dependent_pkg_name, ...]
+                    // Requirement strings may be "python-3+" so we extract the
+                    // alphabetic prefix as the package name.
+                    let mut index: std::collections::HashMap<String, Vec<&str>> =
+                        std::collections::HashMap::new();
+                    for pkg in black_box(pkgs) {
+                        for req in &pkg.requires {
+                            // Extract package name prefix (take chars up to first non-alpha/digit/underscore)
+                            let name_end = req
+                                .find(['-', '+', '<', '>', '='])
+                                .unwrap_or(req.len());
+                            let pkg_name = &req[..name_end];
+                            index
+                                .entry(pkg_name.to_string())
+                                .or_default()
+                                .push(pkg.name.as_str());
+                        }
                     }
-                }
-                index
-            });
-        });
+                    index
+                });
+            },
+        );
     }
     group.finish();
 }
 
-fn ci_criterion() -> Criterion {
-    let ci = std::env::var("CRITERION_QUICK").is_ok();
-    Criterion::default()
-        .sample_size(if ci { 20 } else { 100 })
-        .measurement_time(std::time::Duration::from_secs(if ci { 2 } else { 5 }))
-        .warm_up_time(std::time::Duration::from_millis(if ci {
-            300
-        } else {
-            3000
-        }))
-}
-
 criterion_group!(
-    name = benches;
-    config = ci_criterion();
-    targets =
-        bench_depends_scan,
-        bench_package_construction,
-        bench_requirement_string_ops,
-        bench_multi_target_depends,
-        bench_build_depends_index
+    benches,
+    bench_depends_scan,
+    bench_package_construction,
+    bench_requirement_string_ops,
+    bench_multi_target_depends,
+    bench_build_depends_index,
 );
 criterion_main!(benches);
+

@@ -7,8 +7,6 @@ use rez_next_common::{error::RezCoreResult, RezCoreError};
 use rez_next_package::Package;
 use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
 use std::path::PathBuf;
-use std::sync::Arc;
-use tokio::sync::RwLock;
 
 /// Arguments for the mv command
 #[derive(Args, Clone, Debug)]
@@ -81,7 +79,7 @@ pub fn execute(args: MvArgs) -> RezCoreResult<()> {
     }
 
     // Create async runtime
-    let runtime = tokio::runtime::Runtime::new().map_err(|e| RezCoreError::Io(e.into()))?;
+    let runtime = tokio::runtime::Runtime::new().map_err(RezCoreError::Io)?;
 
     runtime.block_on(async { execute_move_async(&args).await })
 }
@@ -218,7 +216,7 @@ fn parse_package_spec(spec: &str) -> RezCoreResult<(String, Option<String>)> {
         let version = spec[dash_pos + 1..].to_string();
 
         // Check if version part looks like a version
-        if version.chars().next().map_or(false, |c| c.is_ascii_digit()) {
+        if version.chars().next().is_some_and(|c| c.is_ascii_digit()) {
             return Ok((name, Some(version)));
         }
     }
@@ -245,7 +243,7 @@ async fn find_source_package_with_path(
     let pkg = if let Some(ver) = version_spec {
         packages
             .into_iter()
-            .find(|p| p.version.as_ref().map_or(false, |v| v.as_str() == ver))
+            .find(|p| p.version.as_ref().is_some_and(|v| v.as_str() == ver))
             .ok_or_else(|| {
                 RezCoreError::RequirementParse(format!(
                     "Package '{}-{}' not found",
@@ -285,20 +283,6 @@ async fn find_source_package_with_path(
     )))
 }
 
-/// Check if package already exists at destination
-async fn package_exists_at_destination(
-    destination_path: &PathBuf,
-    package: &Package,
-) -> RezCoreResult<bool> {
-    let ver_str = package
-        .version
-        .as_ref()
-        .map(|v| v.as_str())
-        .unwrap_or("unknown");
-    let pkg_dir = destination_path.join(&package.name).join(ver_str);
-    Ok(pkg_dir.exists())
-}
-
 /// Move/copy package directory
 async fn move_package_directory(
     source_package: &Package,
@@ -308,7 +292,7 @@ async fn move_package_directory(
 ) -> RezCoreResult<MoveResult> {
     // Remove existing destination if force
     if args.force && dest_root.exists() {
-        std::fs::remove_dir_all(dest_root).map_err(|e| RezCoreError::Io(e.into()))?;
+        std::fs::remove_dir_all(dest_root).map_err(RezCoreError::Io)?;
     }
 
     // Copy source to destination
@@ -344,17 +328,17 @@ async fn move_package_directory(
 }
 
 fn copy_dir_recursive(src: &PathBuf, dest: &PathBuf) -> RezCoreResult<()> {
-    std::fs::create_dir_all(dest).map_err(|e| RezCoreError::Io(e.into()))?;
+    std::fs::create_dir_all(dest).map_err(RezCoreError::Io)?;
 
-    for entry in std::fs::read_dir(src).map_err(|e| RezCoreError::Io(e.into()))? {
-        let entry = entry.map_err(|e| RezCoreError::Io(e.into()))?;
+    for entry in std::fs::read_dir(src).map_err(RezCoreError::Io)? {
+        let entry = entry.map_err(RezCoreError::Io)?;
         let src_path = entry.path();
         let dest_path = dest.join(entry.file_name());
 
         if src_path.is_dir() {
             copy_dir_recursive(&src_path, &dest_path)?;
         } else {
-            std::fs::copy(&src_path, &dest_path).map_err(|e| RezCoreError::Io(e.into()))?;
+            std::fs::copy(&src_path, &dest_path).map_err(RezCoreError::Io)?;
         }
     }
 

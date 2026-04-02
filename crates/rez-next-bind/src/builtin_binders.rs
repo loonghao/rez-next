@@ -38,10 +38,7 @@ impl BuiltinBinder {
                 return result;
             }
             // If only failed because the tool was not found, try next exe
-            if matches!(
-                result,
-                Err(BindError::ToolNotFound(_)) | Err(BindError::VersionNotFound(_))
-            ) {
+            if matches!(result, Err(BindError::ToolNotFound(_)) | Err(BindError::VersionNotFound(_))) {
                 continue;
             }
             return result;
@@ -166,11 +163,7 @@ mod tests {
     #[test]
     fn test_all_binders_have_executables() {
         for b in BUILTIN_BINDERS {
-            assert!(
-                !b.executables.is_empty(),
-                "Binder '{}' has no executables",
-                b.name
-            );
+            assert!(!b.executables.is_empty(), "Binder '{}' has no executables", b.name);
         }
     }
 }

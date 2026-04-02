@@ -26,6 +26,41 @@ _rez_next() {
 complete -F _rez_next rez-next rez_next
 "#;
 
+/// Embedded completion script for fish
+const FISH_COMPLETE: &str = r#"# rez-next fish completion
+# Place in ~/.config/fish/completions/rez-next.fish
+
+set -l commands env solve build release status search view diff cp mv rm bundle config selftest gui context suite interpret depends pip forward benchmark complete source bind
+
+complete -c rez-next -f
+complete -c rez-next -n "__fish_use_subcommand" -a "$commands"
+
+# Global flags
+complete -c rez-next -s h -l help    -d "Show help"
+complete -c rez-next -s V -l version -d "Show version"
+complete -c rez-next -l debug        -d "Enable debug mode"
+complete -c rez-next -l quiet        -d "Suppress non-critical output"
+
+# env subcommand
+complete -c rez-next -n "__fish_seen_subcommand_from env" -s i -l interactive -d "Launch interactive shell"
+complete -c rez-next -n "__fish_seen_subcommand_from env" -l nl -d "Ignore noerase variables"
+complete -c rez-next -n "__fish_seen_subcommand_from env" -l si -d "Print resolved context info"
+
+# search subcommand
+complete -c rez-next -n "__fish_seen_subcommand_from search" -l type -d "Package type filter"
+complete -c rez-next -n "__fish_seen_subcommand_from search" -l format -d "Output format (table/json/yaml)"
+complete -c rez-next -n "__fish_seen_subcommand_from search" -l latest -d "Only latest versions"
+
+# build subcommand
+complete -c rez-next -n "__fish_seen_subcommand_from build" -s i -l install -d "Install after build"
+complete -c rez-next -n "__fish_seen_subcommand_from build" -s c -l clean   -d "Clean build"
+complete -c rez-next -n "__fish_seen_subcommand_from build" -l variants -d "Build specific variants"
+
+# solve subcommand
+complete -c rez-next -n "__fish_seen_subcommand_from solve" -l json -d "Output as JSON"
+complete -c rez-next -n "__fish_seen_subcommand_from solve" -l verbose -d "Verbose solver output"
+"#;
+
 /// Embedded completion script for zsh
 const ZSH_COMPLETE: &str = r#"# rez-next zsh completion
 #compdef rez-next
@@ -95,6 +130,12 @@ quiet = False
 #[derive(Debug)]
 pub struct PyRezData;
 
+impl Default for PyRezData {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[pymethods]
 impl PyRezData {
     #[new]
@@ -114,7 +155,7 @@ impl PyRezData {
         match shell_name.to_lowercase().as_str() {
             "bash" => Ok(BASH_COMPLETE.to_string()),
             "zsh" => Ok(ZSH_COMPLETE.to_string()),
-            "fish" => Ok("# rez-next fish completion\n# TODO: fish completions\n".to_string()),
+            "fish" => Ok(FISH_COMPLETE.to_string()),
             _ => Err(pyo3::exceptions::PyValueError::new_err(format!(
                 "Unknown shell '{}'. Supported: bash, zsh, fish",
                 shell_name
@@ -153,7 +194,7 @@ impl PyRezData {
         match path {
             "completions/bash" => Ok(BASH_COMPLETE.to_string()),
             "completions/zsh" => Ok(ZSH_COMPLETE.to_string()),
-            "completions/fish" => Ok("# rez-next fish completion\n".to_string()),
+            "completions/fish" => Ok(FISH_COMPLETE.to_string()),
             "examples/package.py" => Ok(EXAMPLE_PACKAGE_PY.to_string()),
             "config/rezconfig.py" => Ok(DEFAULT_REZCONFIG.to_string()),
             _ => Err(pyo3::exceptions::PyKeyError::new_err(format!(
@@ -221,16 +262,31 @@ mod tests {
     use super::*;
 
     #[test]
-    #[allow(clippy::const_is_empty)]
+    fn test_fish_completion_not_empty() {
+        assert!(FISH_COMPLETE.len() > 10, "fish completion should have meaningful content");
+        assert!(FISH_COMPLETE.contains("rez-next"));
+        assert!(FISH_COMPLETE.contains("complete -c rez-next"));
+    }
+
+    #[test]
+    fn test_resource_lookup_fish() {
+        let content = match "completions/fish" {
+            "completions/fish" => FISH_COMPLETE.to_string(),
+            _ => panic!("not found"),
+        };
+        assert!(!content.is_empty());
+        assert!(content.contains("fish completion"));
+    }
+
+    #[test]
     fn test_bash_completion_not_empty() {
-        assert!(!BASH_COMPLETE.is_empty());
+        assert!(BASH_COMPLETE.len() > 10, "bash completion should have meaningful content");
         assert!(BASH_COMPLETE.contains("_rez_next"));
     }
 
     #[test]
-    #[allow(clippy::const_is_empty)]
     fn test_zsh_completion_not_empty() {
-        assert!(!ZSH_COMPLETE.is_empty());
+        assert!(ZSH_COMPLETE.len() > 10, "zsh completion should have meaningful content");
         assert!(ZSH_COMPLETE.contains("rez-next"));
     }
 

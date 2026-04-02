@@ -24,12 +24,22 @@ pub struct PerformanceCounters {
     pub put_operations: AtomicU64,
     /// Total remove operations
     pub remove_operations: AtomicU64,
+    /// Total eviction operations
+    pub eviction_operations: AtomicU64,
     /// Total get latency (microseconds)
     pub total_get_latency_us: AtomicU64,
     /// Total put latency (microseconds)
     pub total_put_latency_us: AtomicU64,
     /// Total remove latency (microseconds)
     pub total_remove_latency_us: AtomicU64,
+    /// Total eviction latency (microseconds)
+    pub total_eviction_latency_us: AtomicU64,
+    /// Cache hit count
+    pub hit_count: AtomicU64,
+    /// Cache miss count
+    pub miss_count: AtomicU64,
+    /// Total bytes allocated (cumulative)
+    pub total_bytes_allocated: AtomicU64,
     /// Peak memory usage
     pub peak_memory_usage: AtomicU64,
     /// Current memory usage
@@ -46,9 +56,14 @@ impl Default for PerformanceCounters {
             get_operations: AtomicU64::new(0),
             put_operations: AtomicU64::new(0),
             remove_operations: AtomicU64::new(0),
+            eviction_operations: AtomicU64::new(0),
             total_get_latency_us: AtomicU64::new(0),
             total_put_latency_us: AtomicU64::new(0),
             total_remove_latency_us: AtomicU64::new(0),
+            total_eviction_latency_us: AtomicU64::new(0),
+            hit_count: AtomicU64::new(0),
+            miss_count: AtomicU64::new(0),
+            total_bytes_allocated: AtomicU64::new(0),
             peak_memory_usage: AtomicU64::new(0),
             current_memory_usage: AtomicU64::new(0),
             disk_bytes_read: AtomicU64::new(0),
@@ -248,6 +263,59 @@ impl PerformanceMonitor {
             .fetch_add(bytes_written, Ordering::Relaxed);
     }
 
+    /// Record an eviction operation latency
+    pub async fn record_eviction_latency(&self, latency: Duration) {
+        let latency_us = latency.as_micros() as u64;
+        self.counters
+            .eviction_operations
+            .fetch_add(1, Ordering::Relaxed);
+        self.counters
+            .total_eviction_latency_us
+            .fetch_add(latency_us, Ordering::Relaxed);
+
+        self.update_latency_histogram(latency_us).await;
+
+        if self.config.enable_event_logging {
+            self.log_event(PerformanceEvent {
+                timestamp: SystemTime::now(),
+                event_type: PerformanceEventType::CacheEviction,
+                latency_us,
+                memory_usage: self.counters.current_memory_usage.load(Ordering::Relaxed),
+                metadata: HashMap::new(),
+            })
+            .await;
+        }
+    }
+
+    /// Record a cache hit
+    pub fn record_cache_hit(&self) {
+        self.counters.hit_count.fetch_add(1, Ordering::Relaxed);
+    }
+
+    /// Record a cache miss
+    pub fn record_cache_miss(&self) {
+        self.counters.miss_count.fetch_add(1, Ordering::Relaxed);
+    }
+
+    /// Record memory allocation
+    pub fn record_allocation(&self, bytes: u64) {
+        self.counters
+            .total_bytes_allocated
+            .fetch_add(bytes, Ordering::Relaxed);
+    }
+
+    /// Get current cache hit rate (0.0–1.0)
+    pub fn hit_rate(&self) -> f64 {
+        let hits = self.counters.hit_count.load(Ordering::Relaxed);
+        let misses = self.counters.miss_count.load(Ordering::Relaxed);
+        let total = hits + misses;
+        if total > 0 {
+            hits as f64 / total as f64
+        } else {
+            0.0
+        }
+    }
+
     /// Log a performance event
     async fn log_event(&self, event: PerformanceEvent) {
         if !self.config.enable_event_logging {
@@ -281,12 +349,25 @@ impl PerformanceMonitor {
         let get_ops = self.counters.get_operations.load(Ordering::Relaxed);
         let put_ops = self.counters.put_operations.load(Ordering::Relaxed);
         let remove_ops = self.counters.remove_operations.load(Ordering::Relaxed);
+        let eviction_ops = self.counters.eviction_operations.load(Ordering::Relaxed);
 
         let total_get_latency = self.counters.total_get_latency_us.load(Ordering::Relaxed);
         let total_put_latency = self.counters.total_put_latency_us.load(Ordering::Relaxed);
+        let total_eviction_latency = self
+            .counters
+            .total_eviction_latency_us
+            .load(Ordering::Relaxed);
 
         let elapsed_secs = self.start_time.elapsed().as_secs_f64();
         let total_ops = get_ops + put_ops + remove_ops;
+
+        // Memory allocation rate: bytes allocated per second
+        let total_allocated = self.counters.total_bytes_allocated.load(Ordering::Relaxed);
+        let memory_allocation_rate = if elapsed_secs > 0.0 {
+            total_allocated as f64 / elapsed_secs
+        } else {
+            0.0
+        };
 
         PerformanceMetrics {
             avg_get_latency_us: if get_ops > 0 {
@@ -299,13 +380,17 @@ impl PerformanceMonitor {
             } else {
                 0.0
             },
-            avg_eviction_latency_us: 0.0, // TODO: Track eviction latency
+            avg_eviction_latency_us: if eviction_ops > 0 {
+                total_eviction_latency as f64 / eviction_ops as f64
+            } else {
+                0.0
+            },
             ops_per_second: if elapsed_secs > 0.0 {
                 total_ops as f64 / elapsed_secs
             } else {
                 0.0
             },
-            memory_allocation_rate: 0.0, // TODO: Track allocation rate
+            memory_allocation_rate,
             disk_io_rate: if elapsed_secs > 0.0 {
                 (self.counters.disk_bytes_read.load(Ordering::Relaxed)
                     + self.counters.disk_bytes_written.load(Ordering::Relaxed))
@@ -314,7 +399,20 @@ impl PerformanceMonitor {
             } else {
                 0.0
             },
-            cpu_usage_percent: 0.0, // TODO: Track CPU usage
+            // CPU usage: not reliably available without an OS-specific crate.
+            // We approximate using elapsed time vs. total operation time.
+            cpu_usage_percent: {
+                let total_op_latency_us = total_get_latency
+                    + total_put_latency
+                    + total_eviction_latency
+                    + self.counters.total_remove_latency_us.load(Ordering::Relaxed);
+                let elapsed_us = self.start_time.elapsed().as_micros() as f64;
+                if elapsed_us > 0.0 {
+                    (total_op_latency_us as f64 / elapsed_us * 100.0).min(100.0)
+                } else {
+                    0.0
+                }
+            },
             peak_memory_usage: self.counters.peak_memory_usage.load(Ordering::Relaxed),
         }
     }
@@ -359,7 +457,7 @@ impl PerformanceMonitor {
             p95_latency_us: p95_latency,
             p99_latency_us: p99_latency,
             memory_usage: self.counters.current_memory_usage.load(Ordering::Relaxed),
-            hit_rate: 0.0, // TODO: Calculate hit rate for benchmark
+            hit_rate: self.hit_rate(),
             duration,
             timestamp: SystemTime::now(),
         };
@@ -442,6 +540,9 @@ impl PerformanceMonitor {
         self.counters.put_operations.store(0, Ordering::Relaxed);
         self.counters.remove_operations.store(0, Ordering::Relaxed);
         self.counters
+            .eviction_operations
+            .store(0, Ordering::Relaxed);
+        self.counters
             .total_get_latency_us
             .store(0, Ordering::Relaxed);
         self.counters
@@ -449,6 +550,14 @@ impl PerformanceMonitor {
             .store(0, Ordering::Relaxed);
         self.counters
             .total_remove_latency_us
+            .store(0, Ordering::Relaxed);
+        self.counters
+            .total_eviction_latency_us
+            .store(0, Ordering::Relaxed);
+        self.counters.hit_count.store(0, Ordering::Relaxed);
+        self.counters.miss_count.store(0, Ordering::Relaxed);
+        self.counters
+            .total_bytes_allocated
             .store(0, Ordering::Relaxed);
         self.counters.peak_memory_usage.store(0, Ordering::Relaxed);
         self.counters

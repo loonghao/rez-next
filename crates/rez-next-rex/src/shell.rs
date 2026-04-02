@@ -14,18 +14,25 @@ pub enum ShellType {
     PowerShell,
 }
 
-impl ShellType {
-    /// Parse from string
-    #[allow(clippy::should_implement_trait)]
-    pub fn from_str(s: &str) -> Option<Self> {
+impl std::str::FromStr for ShellType {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
-            "bash" => Some(Self::Bash),
-            "zsh" => Some(Self::Zsh),
-            "fish" => Some(Self::Fish),
-            "cmd" => Some(Self::Cmd),
-            "powershell" | "pwsh" => Some(Self::PowerShell),
-            _ => None,
+            "bash" => Ok(Self::Bash),
+            "zsh" => Ok(Self::Zsh),
+            "fish" => Ok(Self::Fish),
+            "cmd" => Ok(Self::Cmd),
+            "powershell" | "pwsh" => Ok(Self::PowerShell),
+            _ => Err(format!("unknown shell type: {s}")),
         }
+    }
+}
+
+impl ShellType {
+    /// Parse from string, returning None for unknown shell types
+    pub fn parse(s: &str) -> Option<Self> {
+        s.parse().ok()
     }
 }
 
@@ -228,16 +235,13 @@ fn generate_powershell_script(env: &RexEnvironment) -> String {
 mod tests {
     use super::*;
     use crate::RexEnvironment;
-    use std::collections::HashMap;
+    
 
     fn make_env() -> RexEnvironment {
         let mut env = RexEnvironment::new();
-        env.vars
-            .insert("MY_ROOT".to_string(), "/opt/pkg/1.0".to_string());
-        env.vars
-            .insert("PATH".to_string(), "/opt/pkg/1.0/bin:/usr/bin".to_string());
-        env.aliases
-            .insert("mypkg".to_string(), "/opt/pkg/1.0/bin/mypkg".to_string());
+        env.vars.insert("MY_ROOT".to_string(), "/opt/pkg/1.0".to_string());
+        env.vars.insert("PATH".to_string(), "/opt/pkg/1.0/bin:/usr/bin".to_string());
+        env.aliases.insert("mypkg".to_string(), "/opt/pkg/1.0/bin/mypkg".to_string());
         env
     }
 
@@ -276,16 +280,13 @@ mod tests {
 
     #[test]
     fn test_shell_type_from_str() {
-        assert_eq!(ShellType::from_str("bash"), Some(ShellType::Bash));
-        assert_eq!(ShellType::from_str("zsh"), Some(ShellType::Zsh));
-        assert_eq!(
-            ShellType::from_str("powershell"),
-            Some(ShellType::PowerShell)
-        );
-        assert_eq!(ShellType::from_str("pwsh"), Some(ShellType::PowerShell));
-        assert_eq!(ShellType::from_str("fish"), Some(ShellType::Fish));
-        assert_eq!(ShellType::from_str("cmd"), Some(ShellType::Cmd));
-        assert_eq!(ShellType::from_str("unknown"), None);
+        assert_eq!(ShellType::parse("bash"), Some(ShellType::Bash));
+        assert_eq!(ShellType::parse("zsh"), Some(ShellType::Zsh));
+        assert_eq!(ShellType::parse("powershell"), Some(ShellType::PowerShell));
+        assert_eq!(ShellType::parse("pwsh"), Some(ShellType::PowerShell));
+        assert_eq!(ShellType::parse("fish"), Some(ShellType::Fish));
+        assert_eq!(ShellType::parse("cmd"), Some(ShellType::Cmd));
+        assert_eq!(ShellType::parse("unknown"), None);
     }
 
     #[test]
@@ -300,8 +301,7 @@ mod tests {
     #[test]
     fn test_bash_escapes_special_chars() {
         let mut env = RexEnvironment::new();
-        env.vars
-            .insert("MY_VAR".to_string(), "value with \"quotes\"".to_string());
+        env.vars.insert("MY_VAR".to_string(), "value with \"quotes\"".to_string());
         let script = generate_shell_script(&env, &ShellType::Bash);
         assert!(script.contains("\\\"quotes\\\""));
     }
@@ -309,8 +309,7 @@ mod tests {
     #[test]
     fn test_powershell_escapes_single_quotes() {
         let mut env = RexEnvironment::new();
-        env.vars
-            .insert("MY_VAR".to_string(), "it's a test".to_string());
+        env.vars.insert("MY_VAR".to_string(), "it's a test".to_string());
         let script = generate_shell_script(&env, &ShellType::PowerShell);
         assert!(script.contains("it''s a test"));
     }
@@ -327,24 +326,12 @@ mod tests {
 
     fn make_full_env() -> RexEnvironment {
         let mut env = RexEnvironment::new();
-        env.vars
-            .insert("MYAPP_ROOT".to_string(), "/opt/myapp/1.2.3".to_string());
-        env.vars
-            .insert("MYAPP_VERSION".to_string(), "1.2.3".to_string());
-        env.vars.insert(
-            "PATH".to_string(),
-            "/opt/myapp/1.2.3/bin:/usr/bin".to_string(),
-        );
-        env.aliases.insert(
-            "myapp".to_string(),
-            "/opt/myapp/1.2.3/bin/myapp".to_string(),
-        );
-        env.aliases.insert(
-            "myrend".to_string(),
-            "/opt/myapp/1.2.3/bin/myrend --headless".to_string(),
-        );
-        env.startup_commands
-            .push("echo 'myapp 1.2.3 activated'".to_string());
+        env.vars.insert("MYAPP_ROOT".to_string(), "/opt/myapp/1.2.3".to_string());
+        env.vars.insert("MYAPP_VERSION".to_string(), "1.2.3".to_string());
+        env.vars.insert("PATH".to_string(), "/opt/myapp/1.2.3/bin:/usr/bin".to_string());
+        env.aliases.insert("myapp".to_string(), "/opt/myapp/1.2.3/bin/myapp".to_string());
+        env.aliases.insert("myrend".to_string(), "/opt/myapp/1.2.3/bin/myrend --headless".to_string());
+        env.startup_commands.push("echo 'myapp 1.2.3 activated'".to_string());
         env
     }
 
@@ -353,34 +340,19 @@ mod tests {
         let env = make_full_env();
         let script = generate_shell_script(&env, &ShellType::Bash);
         // Header
-        assert!(
-            script.contains("# Generated by rez-next rex"),
-            "Missing header"
-        );
+        assert!(script.contains("# Generated by rez-next rex"), "Missing header");
         // Variables exported in order
-        assert!(
-            script.contains("export MYAPP_ROOT=\"/opt/myapp/1.2.3\""),
-            "Missing MYAPP_ROOT export"
-        );
-        assert!(
-            script.contains("export MYAPP_VERSION=\"1.2.3\""),
-            "Missing MYAPP_VERSION export"
-        );
+        assert!(script.contains("export MYAPP_ROOT=\"/opt/myapp/1.2.3\""), "Missing MYAPP_ROOT export");
+        assert!(script.contains("export MYAPP_VERSION=\"1.2.3\""), "Missing MYAPP_VERSION export");
         // Aliases use single quotes
         assert!(script.contains("alias myapp="), "Missing myapp alias");
         assert!(script.contains("alias myrend="), "Missing myrend alias");
         // Startup command at end
-        assert!(
-            script.contains("echo 'myapp 1.2.3 activated'"),
-            "Missing startup command"
-        );
+        assert!(script.contains("echo 'myapp 1.2.3 activated'"), "Missing startup command");
         // Variables come before aliases
         let export_pos = script.find("export MYAPP").unwrap();
         let alias_pos = script.find("alias myapp").unwrap();
-        assert!(
-            export_pos < alias_pos,
-            "exports should appear before aliases"
-        );
+        assert!(export_pos < alias_pos, "exports should appear before aliases");
     }
 
     #[test]
@@ -388,64 +360,31 @@ mod tests {
         let env = make_full_env();
         let bash_script = generate_shell_script(&env, &ShellType::Bash);
         let zsh_script = generate_shell_script(&env, &ShellType::Zsh);
-        assert_eq!(
-            bash_script, zsh_script,
-            "Zsh and Bash should produce identical scripts"
-        );
+        assert_eq!(bash_script, zsh_script, "Zsh and Bash should produce identical scripts");
     }
 
     #[test]
     fn test_fish_full_output() {
         let env = make_full_env();
         let script = generate_shell_script(&env, &ShellType::Fish);
-        assert!(
-            script.contains("set -gx MYAPP_ROOT"),
-            "Missing MYAPP_ROOT set -gx"
-        );
-        assert!(
-            script.contains("set -gx MYAPP_VERSION"),
-            "Missing MYAPP_VERSION set -gx"
-        );
-        assert!(
-            script.contains("alias myapp"),
-            "Missing myapp alias in fish"
-        );
-        assert!(
-            script.contains("echo 'myapp 1.2.3 activated'"),
-            "Missing startup cmd"
-        );
+        assert!(script.contains("set -gx MYAPP_ROOT"), "Missing MYAPP_ROOT set -gx");
+        assert!(script.contains("set -gx MYAPP_VERSION"), "Missing MYAPP_VERSION set -gx");
+        assert!(script.contains("alias myapp"), "Missing myapp alias in fish");
+        assert!(script.contains("echo 'myapp 1.2.3 activated'"), "Missing startup cmd");
         // fish should NOT use export
-        assert!(
-            !script.contains("export MYAPP_ROOT"),
-            "Fish should not use export"
-        );
+        assert!(!script.contains("export MYAPP_ROOT"), "Fish should not use export");
     }
 
     #[test]
     fn test_powershell_full_output() {
         let env = make_full_env();
         let script = generate_shell_script(&env, &ShellType::PowerShell);
-        assert!(
-            script.contains("$env:MYAPP_ROOT = '/opt/myapp/1.2.3'"),
-            "Missing $env:MYAPP_ROOT"
-        );
-        assert!(
-            script.contains("$env:MYAPP_VERSION = '1.2.3'"),
-            "Missing $env:MYAPP_VERSION"
-        );
-        assert!(
-            script.contains("Set-Alias -Name myapp"),
-            "Missing Set-Alias myapp"
-        );
-        assert!(
-            script.contains("echo 'myapp 1.2.3 activated'"),
-            "Missing startup cmd"
-        );
+        assert!(script.contains("$env:MYAPP_ROOT = '/opt/myapp/1.2.3'"), "Missing $env:MYAPP_ROOT");
+        assert!(script.contains("$env:MYAPP_VERSION = '1.2.3'"), "Missing $env:MYAPP_VERSION");
+        assert!(script.contains("Set-Alias -Name myapp"), "Missing Set-Alias myapp");
+        assert!(script.contains("echo 'myapp 1.2.3 activated'"), "Missing startup cmd");
         // PowerShell should NOT use export
-        assert!(
-            !script.contains("export "),
-            "PowerShell should not use export keyword"
-        );
+        assert!(!script.contains("export "), "PowerShell should not use export keyword");
     }
 
     #[test]
@@ -453,35 +392,21 @@ mod tests {
         let env = make_full_env();
         let script = generate_shell_script(&env, &ShellType::Cmd);
         assert!(script.contains("@echo off"), "Missing @echo off");
-        assert!(
-            script.contains("SET MYAPP_ROOT=/opt/myapp/1.2.3"),
-            "Missing SET MYAPP_ROOT"
-        );
-        assert!(
-            script.contains("SET MYAPP_VERSION=1.2.3"),
-            "Missing SET MYAPP_VERSION"
-        );
+        assert!(script.contains("SET MYAPP_ROOT=/opt/myapp/1.2.3"), "Missing SET MYAPP_ROOT");
+        assert!(script.contains("SET MYAPP_VERSION=1.2.3"), "Missing SET MYAPP_VERSION");
         assert!(script.contains("DOSKEY myapp="), "Missing DOSKEY myapp");
         // CMD uses CRLF line endings
-        assert!(
-            script.contains("\r\n"),
-            "CMD script should use CRLF line endings"
-        );
+        assert!(script.contains("\r\n"), "CMD script should use CRLF line endings");
     }
 
     #[test]
     fn test_bash_alias_with_spaces_escaped() {
         let mut env = RexEnvironment::new();
         // Alias value contains single quote → must be escaped in bash
-        env.aliases
-            .insert("it".to_string(), "it's a tool".to_string());
+        env.aliases.insert("it".to_string(), "it's a tool".to_string());
         let script = generate_shell_script(&env, &ShellType::Bash);
         // bash alias escape: ' → '\''
-        assert!(
-            script.contains("it'\\''s"),
-            "Single quote in alias should be escaped: {}",
-            script
-        );
+        assert!(script.contains("it'\\''s"), "Single quote in alias should be escaped: {}", script);
     }
 
     #[test]
@@ -489,16 +414,8 @@ mod tests {
         let env = RexEnvironment::new();
         for shell in [ShellType::Bash, ShellType::Fish, ShellType::PowerShell] {
             let script = generate_shell_script(&env, &shell);
-            assert!(
-                !script.contains("export "),
-                "Empty env: no export in {:?}",
-                shell
-            );
-            assert!(
-                !script.contains("alias "),
-                "Empty env: no alias in {:?}",
-                shell
-            );
+            assert!(!script.contains("export "), "Empty env: no export in {:?}", shell);
+            assert!(!script.contains("alias "), "Empty env: no alias in {:?}", shell);
         }
         let cmd = generate_shell_script(&env, &ShellType::Cmd);
         assert!(!cmd.contains("SET "), "Empty env CMD: no SET");
@@ -515,10 +432,7 @@ mod tests {
         let pos1 = script.find("cmd_first").unwrap();
         let pos2 = script.find("cmd_second").unwrap();
         let pos3 = script.find("cmd_third").unwrap();
-        assert!(
-            pos1 < pos2 && pos2 < pos3,
-            "Startup commands should appear in order"
-        );
+        assert!(pos1 < pos2 && pos2 < pos3, "Startup commands should appear in order");
     }
 
     #[test]
@@ -532,15 +446,11 @@ mod tests {
             ("pwsh", ShellType::PowerShell),
         ];
         for (s, expected) in &cases {
-            let got = ShellType::from_str(s);
-            assert_eq!(got, Some(expected.clone()), "from_str('{}') failed", s);
+            let got = ShellType::parse(s);
+            assert_eq!(got, Some(expected.clone()), "parse('{}') failed", s);
         }
-        assert_eq!(
-            ShellType::from_str("BASH"),
-            Some(ShellType::Bash),
-            "Case-insensitive"
-        );
-        assert!(ShellType::from_str("notashell").is_none());
+        assert_eq!(ShellType::parse("BASH"), Some(ShellType::Bash), "Case-insensitive");
+        assert!(ShellType::parse("notashell").is_none());
     }
 
     // ── Phase 97: source() statement shell script output ─────────────────────
@@ -550,73 +460,46 @@ mod tests {
         let mut env = RexEnvironment::new();
         env.sourced_scripts.push("/opt/myapp/setup.sh".to_string());
         let script = generate_shell_script(&env, &ShellType::Bash);
-        assert!(
-            script.contains("# Sourced scripts"),
-            "Missing sourced scripts section"
-        );
-        assert!(
-            script.contains("source \"/opt/myapp/setup.sh\""),
-            "Missing bash source line"
-        );
+        assert!(script.contains("# Sourced scripts"), "Missing sourced scripts section");
+        assert!(script.contains("source \"/opt/myapp/setup.sh\""), "Missing bash source line");
     }
 
     #[test]
     fn test_fish_source_script() {
         let mut env = RexEnvironment::new();
-        env.sourced_scripts
-            .push("/opt/myapp/setup.fish".to_string());
+        env.sourced_scripts.push("/opt/myapp/setup.fish".to_string());
         let script = generate_shell_script(&env, &ShellType::Fish);
-        assert!(
-            script.contains("source \"/opt/myapp/setup.fish\""),
-            "Missing fish source line"
-        );
+        assert!(script.contains("source \"/opt/myapp/setup.fish\""), "Missing fish source line");
     }
 
     #[test]
     fn test_cmd_call_script() {
         let mut env = RexEnvironment::new();
-        env.sourced_scripts
-            .push("C:\\opt\\myapp\\setup.bat".to_string());
+        env.sourced_scripts.push("C:\\opt\\myapp\\setup.bat".to_string());
         let script = generate_shell_script(&env, &ShellType::Cmd);
-        assert!(
-            script.contains("CALL \"C:\\opt\\myapp\\setup.bat\""),
-            "Missing CMD CALL line"
-        );
-        assert!(
-            script.contains("REM Sourced scripts"),
-            "Missing CMD sourced section"
-        );
+        assert!(script.contains("CALL \"C:\\opt\\myapp\\setup.bat\""), "Missing CMD CALL line");
+        assert!(script.contains("REM Sourced scripts"), "Missing CMD sourced section");
     }
 
     #[test]
     fn test_powershell_dot_source() {
         let mut env = RexEnvironment::new();
-        env.sourced_scripts
-            .push("C:\\opt\\myapp\\setup.ps1".to_string());
+        env.sourced_scripts.push("C:\\opt\\myapp\\setup.ps1".to_string());
         let script = generate_shell_script(&env, &ShellType::PowerShell);
-        assert!(
-            script.contains(". 'C:\\opt\\myapp\\setup.ps1'"),
-            "Missing PS dot-source: {}",
-            script
-        );
-        assert!(
-            script.contains("# Sourced scripts"),
-            "Missing PS sourced section"
-        );
+        assert!(script.contains(". 'C:\\opt\\myapp\\setup.ps1'"), "Missing PS dot-source: {}", script);
+        assert!(script.contains("# Sourced scripts"), "Missing PS sourced section");
     }
 
     #[test]
     fn test_source_expands_with_executor() {
         use crate::executor::RexExecutor;
         let mut exec = RexExecutor::new();
-        let env = exec
-            .execute_commands(
-                r#"source("{root}/etc/setup.sh")"#,
-                "mypkg",
-                Some("/opt/mypkg/1.0"),
-                None,
-            )
-            .unwrap();
+        let env = exec.execute_commands(
+            r#"source("{root}/etc/setup.sh")"#,
+            "mypkg",
+            Some("/opt/mypkg/1.0"),
+            None,
+        ).unwrap();
         assert_eq!(env.sourced_scripts.len(), 1);
         assert_eq!(env.sourced_scripts[0], "/opt/mypkg/1.0/etc/setup.sh");
     }
@@ -632,3 +515,4 @@ mod tests {
         assert!(pos1 < pos2, "Sources should appear in order");
     }
 }
+

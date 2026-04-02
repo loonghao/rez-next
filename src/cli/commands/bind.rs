@@ -171,7 +171,7 @@ fn execute_quickstart(args: &BindArgs) -> RezCoreResult<()> {
     ];
 
     let install_path = get_install_path(args)?;
-    std::fs::create_dir_all(&install_path).map_err(|e| RezCoreError::Io(e))?;
+    std::fs::create_dir_all(&install_path).map_err(RezCoreError::Io)?;
 
     let mut results = Vec::new();
 
@@ -261,7 +261,7 @@ fn bind_package(package_spec: &str, args: &BindArgs) -> RezCoreResult<()> {
     let (package_name, _version_range) = parse_package_spec(package_spec)?;
 
     let install_path = get_install_path(args)?;
-    std::fs::create_dir_all(&install_path).map_err(|e| RezCoreError::Io(e))?;
+    std::fs::create_dir_all(&install_path).map_err(RezCoreError::Io)?;
 
     match bind_single_package(&package_name, &install_path, args.no_deps, args) {
         Ok(result) => {
@@ -367,7 +367,7 @@ fn parse_package_spec(spec: &str) -> RezCoreResult<(String, Option<String>)> {
         let name = spec[..dash_pos].to_string();
         let version = spec[dash_pos + 1..].to_string();
 
-        if version.chars().next().map_or(false, |c| c.is_ascii_digit()) {
+        if version.chars().next().is_some_and(|c| c.is_ascii_digit()) {
             return Ok((name, Some(version)));
         }
     }
@@ -833,7 +833,7 @@ fn bind_single_package(
 
     // Write package.py to disk: <install_path>/<name>/<version>/package.py
     let pkg_dir = install_path.join(name).join(&version_str);
-    std::fs::create_dir_all(&pkg_dir).map_err(|e| RezCoreError::Io(e))?;
+    std::fs::create_dir_all(&pkg_dir).map_err(RezCoreError::Io)?;
 
     let pkg_file = pkg_dir.join("package.py");
     let pkg_content = generate_package_py(
@@ -845,7 +845,7 @@ fn bind_single_package(
         commands.as_deref(),
     );
 
-    std::fs::write(&pkg_file, &pkg_content).map_err(|e| RezCoreError::Io(e))?;
+    std::fs::write(&pkg_file, &pkg_content).map_err(RezCoreError::Io)?;
 
     if args.verbose {
         println!("  Wrote {}", pkg_file.display());

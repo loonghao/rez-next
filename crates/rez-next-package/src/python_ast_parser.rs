@@ -8,6 +8,7 @@ use rustpython_parser::Parse;
 use std::collections::HashMap;
 
 /// Advanced Python AST parser for package.py files
+#[derive(Default)]
 pub struct PythonAstParser {
     /// Context for tracking variables and imports during parsing
     context: ParsingContext,
@@ -78,10 +79,8 @@ impl PythonAstParser {
         match stmt {
             Stmt::Assign(assign) => {
                 // Handle variable assignments like: name = "value"
-                if let Some(target) = assign.targets.first() {
-                    if let Expr::Name(name_expr) = target {
-                        self.process_assignment(&name_expr.id, &assign.value, package_data)?;
-                    }
+                if let Some(Expr::Name(name_expr)) = assign.targets.first() {
+                    self.process_assignment(&name_expr.id, &assign.value, package_data)?;
                 }
             }
             Stmt::FunctionDef(func_def) => {
@@ -121,8 +120,8 @@ impl PythonAstParser {
                 self.process_expression_statement(&expr_stmt.value, package_data)?;
             }
             _ => {
-                // Log unhandled statement types for debugging
-                eprintln!("Unhandled statement type: {:?}", stmt);
+                // Silently skip unhandled statement types (e.g. import, class def).
+                // Package metadata is only in assignments, function defs, and with blocks.
             }
         }
         Ok(())
@@ -733,17 +732,15 @@ impl PythonAstParser {
         match stmt {
             // Handle `env.VAR = "value"` (attribute assignment shorthand)
             Stmt::Assign(assign) => {
-                if let Some(target) = assign.targets.first() {
-                    if let Expr::Attribute(attr) = target {
-                        if let Expr::Name(name_expr) = &*attr.value {
-                            if name_expr.id.as_str() == "env" {
-                                let var_name = attr.attr.as_str();
-                                if let Ok(value) = self.extract_string_value(&assign.value) {
-                                    return Ok(Some(format!(
-                                        "env.setenv('{}', '{}')",
-                                        var_name, value
-                                    )));
-                                }
+                if let Some(Expr::Attribute(attr)) = assign.targets.first() {
+                    if let Expr::Name(name_expr) = &*attr.value {
+                        if name_expr.id.as_str() == "env" {
+                            let var_name = attr.attr.as_str();
+                            if let Ok(value) = self.extract_string_value(&assign.value) {
+                                return Ok(Some(format!(
+                                    "env.setenv('{}', '{}')",
+                                    var_name, value
+                                )));
                             }
                         }
                     }
@@ -765,10 +762,7 @@ impl PythonAstParser {
                                                 self.extract_string_value(&call.args[0]),
                                                 self.extract_string_value(&call.args[1]),
                                             ) {
-                                                return Ok(Some(format!(
-                                                    "env.setenv('{}', '{}')",
-                                                    k, v
-                                                )));
+                                                return Ok(Some(format!("env.setenv('{}', '{}')", k, v)));
                                             }
                                         }
                                     }
@@ -785,10 +779,7 @@ impl PythonAstParser {
                                                 self.extract_string_value(&call.args[0]),
                                                 self.extract_string_value(&call.args[1]),
                                             ) {
-                                                return Ok(Some(format!(
-                                                    "env.prepend_path('{}', '{}')",
-                                                    k, v
-                                                )));
+                                                return Ok(Some(format!("env.prepend_path('{}', '{}')", k, v)));
                                             }
                                         }
                                     }
@@ -798,10 +789,7 @@ impl PythonAstParser {
                                                 self.extract_string_value(&call.args[0]),
                                                 self.extract_string_value(&call.args[1]),
                                             ) {
-                                                return Ok(Some(format!(
-                                                    "env.append_path('{}', '{}')",
-                                                    k, v
-                                                )));
+                                                return Ok(Some(format!("env.append_path('{}', '{}')", k, v)));
                                             }
                                         }
                                     }
@@ -811,10 +799,7 @@ impl PythonAstParser {
                                                 self.extract_string_value(&call.args[0]),
                                                 self.extract_string_value(&call.args[1]),
                                             ) {
-                                                return Ok(Some(format!(
-                                                    "env.setenv_if_empty('{}', '{}')",
-                                                    k, v
-                                                )));
+                                                return Ok(Some(format!("env.setenv_if_empty('{}', '{}')", k, v)));
                                             }
                                         }
                                     }

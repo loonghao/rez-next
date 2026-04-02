@@ -2,8 +2,9 @@
 
 use rez_next_common::RezCoreError;
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 /// Build artifacts container
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -88,8 +89,8 @@ impl BuildArtifacts {
     /// Recursively scan directory for files
     async fn scan_directory(
         &mut self,
-        dir: &PathBuf,
-        relative_path: &PathBuf,
+        dir: &Path,
+        relative_path: &Path,
     ) -> Result<(), RezCoreError> {
         let mut entries = tokio::fs::read_dir(dir)
             .await
@@ -114,12 +115,13 @@ impl BuildArtifacts {
                 let file_type = Self::determine_file_type(&path);
                 let size_bytes = metadata.len();
                 let permissions = Self::get_file_permissions(&metadata);
+                let checksum = Self::compute_sha256(&path).await.ok();
 
                 let artifact_file = ArtifactFile {
                     path: relative_file_path,
                     file_type,
                     size_bytes,
-                    checksum: None, // TODO: Calculate checksum if needed
+                    checksum,
                     permissions,
                 };
 
@@ -131,7 +133,7 @@ impl BuildArtifacts {
     }
 
     /// Determine file type based on path and extension
-    fn determine_file_type(path: &PathBuf) -> ArtifactFileType {
+    fn determine_file_type(path: &Path) -> ArtifactFileType {
         if let Some(extension) = path.extension().and_then(|ext| ext.to_str()) {
             match extension.to_lowercase().as_str() {
                 "exe" | "bin" => ArtifactFileType::Executable,
@@ -153,7 +155,7 @@ impl BuildArtifacts {
     }
 
     /// Check if file is executable (simplified)
-    fn is_executable(path: &PathBuf) -> bool {
+    fn is_executable(path: &Path) -> bool {
         // On Unix systems, check execute permission
         #[cfg(unix)]
         {
@@ -180,15 +182,25 @@ impl BuildArtifacts {
     }
 
     /// Get file permissions
-    fn get_file_permissions(metadata: &std::fs::Metadata) -> Option<u32> {
+    fn get_file_permissions(_metadata: &std::fs::Metadata) -> Option<u32> {
         #[cfg(unix)]
         {
             use std::os::unix::fs::MetadataExt;
-            Some(metadata.mode())
+            Some(_metadata.mode())
         }
 
         #[cfg(not(unix))]
         None
+    }
+
+    /// Compute SHA-256 checksum of a file; returns lowercase hex string.
+    async fn compute_sha256(path: &Path) -> Result<String, RezCoreError> {
+        let data = tokio::fs::read(path)
+            .await
+            .map_err(|e| RezCoreError::BuildError(format!("Failed to read file for checksum: {}", e)))?;
+        let mut hasher = Sha256::new();
+        hasher.update(&data);
+        Ok(hex::encode(hasher.finalize()))
     }
 
     /// Add metadata
@@ -221,24 +233,40 @@ impl BuildArtifacts {
 
     /// Get artifact summary
     pub fn get_summary(&self) -> ArtifactSummary {
-        let mut summary = ArtifactSummary::default();
-        summary.total_files = self.files.len();
-        summary.total_size_bytes = self.get_total_size();
+        let mut executables = 0;
+        let mut libraries = 0;
+        let mut static_libraries = 0;
+        let mut headers = 0;
+        let mut documentation = 0;
+        let mut configuration = 0;
+        let mut data_files = 0;
+        let mut other_files = 0;
 
         for file in &self.files {
             match file.file_type {
-                ArtifactFileType::Executable => summary.executables += 1,
-                ArtifactFileType::Library => summary.libraries += 1,
-                ArtifactFileType::StaticLibrary => summary.static_libraries += 1,
-                ArtifactFileType::Header => summary.headers += 1,
-                ArtifactFileType::Documentation => summary.documentation += 1,
-                ArtifactFileType::Configuration => summary.configuration += 1,
-                ArtifactFileType::Data => summary.data_files += 1,
-                ArtifactFileType::Other => summary.other_files += 1,
+                ArtifactFileType::Executable => executables += 1,
+                ArtifactFileType::Library => libraries += 1,
+                ArtifactFileType::StaticLibrary => static_libraries += 1,
+                ArtifactFileType::Header => headers += 1,
+                ArtifactFileType::Documentation => documentation += 1,
+                ArtifactFileType::Configuration => configuration += 1,
+                ArtifactFileType::Data => data_files += 1,
+                ArtifactFileType::Other => other_files += 1,
             }
         }
 
-        summary
+        ArtifactSummary {
+            total_files: self.files.len(),
+            total_size_bytes: self.get_total_size(),
+            executables,
+            libraries,
+            static_libraries,
+            headers,
+            documentation,
+            configuration,
+            data_files,
+            other_files,
+        }
     }
 
     /// Validate artifacts

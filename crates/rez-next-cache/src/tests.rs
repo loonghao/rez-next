@@ -14,7 +14,13 @@ mod tests {
     #[test]
     #[allow(clippy::const_is_empty)]
     fn test_version_info() {
-        assert!(!CACHE_VERSION.is_empty());
+        // CACHE_VERSION is set at compile time via env!("CARGO_PKG_VERSION")
+        // Verify it matches the expected semantic version pattern
+        assert!(
+            CACHE_VERSION.contains('.'),
+            "CACHE_VERSION should be a semver string, got: {}",
+            CACHE_VERSION,
+        );
     }
 
     #[test]
@@ -586,5 +592,60 @@ mod tests {
             stats.overall_stats.total_entries <= 10,
             "Entries should decrease after remove"
         );
+    }
+
+    /// Test cache clear empties all entries
+    #[tokio::test]
+    async fn test_cache_clear_removes_all_entries() {
+        let config = UnifiedCacheConfig::default();
+        let cache = IntelligentCacheManager::<String, String>::new(config);
+
+        cache.put("a".to_string(), "1".to_string()).await.unwrap();
+        cache.put("b".to_string(), "2".to_string()).await.unwrap();
+        assert!(!cache.is_empty().await);
+
+        cache.clear().await.unwrap();
+        assert!(cache.is_empty().await, "Cache should be empty after clear");
+        assert_eq!(cache.size().await, 0, "size() should be 0 after clear");
+    }
+
+    /// Test cache type identifier
+    #[tokio::test]
+    async fn test_cache_type_identifier() {
+        let config = UnifiedCacheConfig::default();
+        let cache = IntelligentCacheManager::<String, String>::new(config);
+        let type_id = cache.cache_type();
+        assert!(!type_id.is_empty(), "cache_type() should return a non-empty string");
+    }
+
+    /// Test summary_report contains expected fields
+    #[test]
+    fn test_unified_cache_stats_summary_report() {
+        use crate::UnifiedCacheStats;
+        let mut stats = UnifiedCacheStats::new();
+        stats.l1_stats.hits = 70;
+        stats.l1_stats.misses = 30;
+        stats.update_overall_stats();
+        let report = stats.summary_report();
+        assert!(report.contains("Hit Rate"), "Report should contain 'Hit Rate'");
+        assert!(report.contains("Entries"), "Report should contain 'Entries'");
+    }
+
+    /// Test CacheLevelStats hit_rate calculation
+    #[test]
+    fn test_cache_level_stats_hit_rate_precision() {
+        use crate::CacheLevelStats;
+        let mut stats = CacheLevelStats {
+            hits: 3,
+            misses: 1,
+            capacity: 10,
+            entries: 5,
+            ..Default::default()
+        };
+        stats.update_calculated_fields();
+        assert!((stats.hit_rate - 0.75).abs() < 1e-10,
+            "Hit rate should be exactly 0.75 for 3 hits / 4 total");
+        assert!((stats.load_factor - 0.5).abs() < 1e-10,
+            "Load factor should be 0.5 for 5 entries / 10 capacity");
     }
 }

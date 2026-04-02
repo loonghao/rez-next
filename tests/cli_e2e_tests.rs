@@ -56,18 +56,6 @@ fn rez_ok(args: &[&str]) -> String {
     stdout
 }
 
-fn rez_fail(args: &[&str]) -> (String, String) {
-    let out = rez(args);
-    assert!(
-        !out.status.success(),
-        "Expected rez-next {} to fail, but it succeeded",
-        args.join(" ")
-    );
-    (
-        String::from_utf8_lossy(&out.stdout).to_string(),
-        String::from_utf8_lossy(&out.stderr).to_string(),
-    )
-}
 
 // ── Package repo helpers ──────────────────────────────────────────────────────
 
@@ -617,4 +605,136 @@ fn test_full_workflow_bundle_roundtrip() {
     let content = fs::read_to_string(bundle_dir.join("bundle.yaml")).unwrap();
     assert!(content.contains("python-3.9"));
     assert!(content.contains("maya-2024"));
+}
+
+// ── info flag extended ────────────────────────────────────────────────────────
+
+#[test]
+fn test_info_long_flag() {
+    skip_no_bin!();
+    // --info long flag should behave identically to -i
+    let out = rez_ok(&["--info"]);
+    assert!(
+        out.contains("Version") || out.contains("version") || out.contains("OS"),
+        "long --info flag should print system info: {out}"
+    );
+}
+
+#[test]
+fn test_info_shows_packages_path_label() {
+    skip_no_bin!();
+    let out = rez_ok(&["-i"]);
+    // Print-info should mention packages_path or packages path
+    assert!(
+        out.to_lowercase().contains("packages"),
+        "--info output should mention packages path: {out}"
+    );
+}
+
+#[test]
+fn test_info_shows_version_string() {
+    skip_no_bin!();
+    let out = rez_ok(&["-i"]);
+    // The version line should include a semver-ish string like "0.2.0"
+    let has_version = out
+        .lines()
+        .any(|l| l.to_lowercase().contains("version") && l.chars().any(|c| c.is_ascii_digit()));
+    assert!(has_version, "--info should include a version line with digits: {out}");
+}
+
+#[test]
+fn test_info_exit_code_zero() {
+    skip_no_bin!();
+    let out = rez(&["-i"]);
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "-i flag should exit with code 0"
+    );
+}
+
+// ── build extra-args passthrough ──────────────────────────────────────────────
+
+#[test]
+fn test_build_help_flag() {
+    skip_no_bin!();
+    let out = rez_ok(&["build", "--help"]);
+    assert!(
+        !out.trim().is_empty(),
+        "build --help should print usage information"
+    );
+}
+
+#[test]
+fn test_build_extra_args_separator_accepted() {
+    skip_no_bin!();
+    let tmp = tempfile::tempdir().unwrap();
+    // Write a minimal package.py so build can find a valid package root
+    fs::write(
+        tmp.path().join("package.py"),
+        "name = \"test_build_pkg\"\nversion = \"1.0.0\"\n",
+    )
+    .unwrap();
+
+    // Pass extra build args via "--"; the binary should not crash on unknown
+    // downstream flags — it may fail because there's nothing to build, but the
+    // crash-free handling of the "--" separator is what we're testing.
+    let out = rez(&["build", "--", "--dry-run", "--verbose"]);
+    assert!(
+        out.status.code().is_some(),
+        "build with -- extra args should exit with a code, not be killed by signal"
+    );
+}
+
+#[test]
+fn test_build_without_package_py() {
+    skip_no_bin!();
+    let tmp = tempfile::tempdir().unwrap();
+    // Run build in an empty directory — should fail gracefully, not panic
+    let out = std::process::Command::new(rez_next_bin())
+        .args(["build"])
+        .current_dir(tmp.path())
+        .output()
+        .unwrap();
+    assert!(
+        out.status.code().is_some(),
+        "build in empty dir should exit with a code, not crash"
+    );
+}
+
+// ── pkg-cache daemon ──────────────────────────────────────────────────────────
+
+#[test]
+fn test_pkg_cache_status_empty_dir() {
+    skip_no_bin!();
+    let tmp = tempfile::tempdir().unwrap();
+    // Point pkg-cache at an empty directory — should not panic
+    let out = rez(&["pkg-cache", tmp.path().to_str().unwrap()]);
+    assert!(
+        out.status.code().is_some(),
+        "pkg-cache with empty dir should exit with a code"
+    );
+}
+
+#[test]
+fn test_pkg_cache_clean_empty_dir() {
+    skip_no_bin!();
+    let tmp = tempfile::tempdir().unwrap();
+    let out = rez(&["pkg-cache", tmp.path().to_str().unwrap(), "--clean"]);
+    assert!(
+        out.status.code().is_some(),
+        "pkg-cache --clean on empty dir should not crash"
+    );
+}
+
+#[test]
+fn test_pkg_cache_logs_no_log_file() {
+    skip_no_bin!();
+    let tmp = tempfile::tempdir().unwrap();
+    // --logs when no log file exists should print "No cache logs found" and exit 0
+    let out = rez_ok(&["pkg-cache", tmp.path().to_str().unwrap(), "--logs"]);
+    assert!(
+        out.contains("No cache logs") || out.contains("logs"),
+        "should report no logs found: {out}"
+    );
 }

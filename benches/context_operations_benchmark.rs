@@ -9,7 +9,8 @@
 //! These benchmarks establish a baseline for future rez vs rez-next
 //! performance comparisons once the Python layer is wired up.
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
+use std::hint::black_box;
 use rez_next_context::{ContextFormat, ContextSerializer, ContextStatus, ResolvedContext};
 use rez_next_package::{Package, PackageRequirement};
 use rez_next_version::Version;
@@ -84,9 +85,7 @@ fn bench_json_serialize(c: &mut Criterion) {
 
         group.bench_with_input(BenchmarkId::new("n_pkgs", n), &ctx, |b, ctx| {
             b.iter(|| {
-                black_box(
-                    ContextSerializer::serialize(black_box(ctx), ContextFormat::Json).unwrap(),
-                )
+                black_box(ContextSerializer::serialize(black_box(ctx), ContextFormat::Json).unwrap())
             })
         });
     }
@@ -125,8 +124,7 @@ fn bench_json_roundtrip(c: &mut Criterion) {
 
         group.bench_with_input(BenchmarkId::new("n_pkgs", n), &ctx, |b, ctx| {
             b.iter(|| {
-                let bytes =
-                    ContextSerializer::serialize(black_box(ctx), ContextFormat::Json).unwrap();
+                let bytes = ContextSerializer::serialize(black_box(ctx), ContextFormat::Json).unwrap();
                 black_box(ContextSerializer::deserialize(&bytes, ContextFormat::Json).unwrap())
             })
         });
@@ -151,31 +149,32 @@ fn bench_context_summary(c: &mut Criterion) {
     group.finish();
 }
 
-fn ci_criterion(sample: usize, measure_s: u64, warmup_ms: u64) -> Criterion {
-    let ci = std::env::var("CRITERION_QUICK").is_ok();
-    Criterion::default()
-        .sample_size(if ci { 20 } else { sample })
-        .measurement_time(Duration::from_secs(if ci { 2 } else { measure_s }))
-        .warm_up_time(Duration::from_millis(if ci { 300 } else { warmup_ms }))
-}
-
 // ── Groups ─────────────────────────────────────────────────────────────────────
 
 criterion_group!(
     name = context_creation_benches;
-    config = ci_criterion(200, 5, 1000);
+    config = Criterion::default()
+        .sample_size(200)
+        .measurement_time(Duration::from_secs(5))
+        .warm_up_time(Duration::from_secs(1));
     targets = bench_context_creation, bench_env_var_injection
 );
 
 criterion_group!(
     name = context_serialization_benches;
-    config = ci_criterion(100, 8, 2000);
+    config = Criterion::default()
+        .sample_size(100)
+        .measurement_time(Duration::from_secs(8))
+        .warm_up_time(Duration::from_secs(2));
     targets = bench_json_serialize, bench_json_deserialize, bench_json_roundtrip
 );
 
 criterion_group!(
     name = context_ops_benches;
-    config = ci_criterion(200, 5, 1000);
+    config = Criterion::default()
+        .sample_size(200)
+        .measurement_time(Duration::from_secs(5))
+        .warm_up_time(Duration::from_secs(1));
     targets = bench_context_summary
 );
 

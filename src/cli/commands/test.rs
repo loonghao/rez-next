@@ -260,10 +260,8 @@ impl PackageTestRunner {
                         matched_tests.push(test_name.clone());
                     }
                 }
-            } else {
-                if available_tests.contains(pattern) && !matched_tests.contains(pattern) {
-                    matched_tests.push(pattern.clone());
-                }
+            } else if available_tests.contains(pattern) && !matched_tests.contains(pattern) {
+                matched_tests.push(pattern.clone());
             }
         }
 

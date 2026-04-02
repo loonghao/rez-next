@@ -1,13 +1,10 @@
 //! Configuration management for rez-core
 
-#[cfg(feature = "python-bindings")]
-use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::env;
 use std::path::PathBuf;
 
 /// Configuration for rez-core components
-#[cfg_attr(feature = "python-bindings", pyclass(name = "Config"))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RezCoreConfig {
     /// Enable Rust version system
@@ -84,23 +81,6 @@ pub struct CacheConfig {
     pub cache_ttl_seconds: u64,
 }
 
-#[cfg(feature = "python-bindings")]
-#[pymethods]
-impl RezCoreConfig {
-    #[new]
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    pub fn __repr__(&self) -> String {
-        format!(
-            "Config(use_rust_version={}, use_rust_solver={}, use_rust_repository={})",
-            self.use_rust_version, self.use_rust_solver, self.use_rust_repository
-        )
-    }
-}
-
-#[cfg(not(feature = "python-bindings"))]
 impl RezCoreConfig {
     pub fn new() -> Self {
         Self::default()

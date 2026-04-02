@@ -24,11 +24,10 @@ pub mod cli;
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    
 
     #[test]
     fn test_module_structure() {
-        // Basic test to ensure modules compile
-        assert!(true);
+        // Basic test to ensure modules compile without panicking
     }
 }

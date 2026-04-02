@@ -7,7 +7,8 @@ use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository
 use std::path::PathBuf;
 
 /// What to search for
-#[derive(Debug, Clone, PartialEq, Default)]
+#[derive(Debug, Clone, PartialEq)]
+#[derive(Default)]
 pub enum SearchScope {
     /// Search package families (default)
     #[default]
@@ -17,6 +18,7 @@ pub enum SearchScope {
     /// Search only latest version of each family
     LatestOnly,
 }
+
 
 /// Options controlling search behaviour
 #[derive(Debug, Clone)]
@@ -152,7 +154,9 @@ impl PackageSearcher {
                 result_set.add(result);
 
                 // Respect limit
-                if self.options.filter.limit > 0 && result_set.len() >= self.options.filter.limit {
+                if self.options.filter.limit > 0
+                    && result_set.len() >= self.options.filter.limit
+                {
                     return result_set;
                 }
             }

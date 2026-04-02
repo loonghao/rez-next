@@ -1,7 +1,8 @@
 //! Search filter definitions
 
 /// How the name pattern should be matched
-#[derive(Debug, Clone, PartialEq, Default)]
+#[derive(Debug, Clone, PartialEq)]
+#[derive(Default)]
 pub enum FilterMode {
     /// Exact name match (case-insensitive)
     Exact,
@@ -13,6 +14,7 @@ pub enum FilterMode {
     /// Regex pattern match
     Regex,
 }
+
 
 /// A composite filter for package search
 #[derive(Debug, Clone, Default)]
@@ -66,9 +68,11 @@ impl SearchFilter {
             FilterMode::Exact => target == pattern,
             FilterMode::Prefix => target.starts_with(&pattern),
             FilterMode::Contains => target.contains(&pattern),
-            FilterMode::Regex => regex::Regex::new(&self.name_pattern)
-                .map(|re| re.is_match(name))
-                .unwrap_or(false),
+            FilterMode::Regex => {
+                regex::Regex::new(&self.name_pattern)
+                    .map(|re| re.is_match(name))
+                    .unwrap_or(false)
+            }
         }
     }
 }

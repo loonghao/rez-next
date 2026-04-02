@@ -6,12 +6,10 @@
 use clap::Args;
 use rez_next_common::{config::RezCoreConfig, error::RezCoreResult, RezCoreError};
 use rez_next_context::{ContextConfig, EnvironmentManager, ResolvedContext, ShellType};
-use rez_next_package::{Package, PackageRequirement, Requirement};
+use rez_next_package::{PackageRequirement, Requirement};
 use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
 use rez_next_rex::{generate_shell_script, RexEnvironment, ShellType as RexShellType};
 use rez_next_solver::{DependencyResolver, SolverConfig};
-use std::collections::HashMap;
-use std::env;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::sync::Arc;
@@ -159,7 +157,7 @@ pub fn execute_with_extra_args(mut args: EnvArgs, extra_args: Vec<String>) -> Re
 fn save_context_to_rxt(context: &ResolvedContext) -> RezCoreResult<Option<PathBuf>> {
     let json = serde_json::to_string_pretty(context).map_err(RezCoreError::Serde)?;
     let rxt_path = std::env::temp_dir().join(format!("rez_context_{}.rxt", &context.id[..8]));
-    std::fs::write(&rxt_path, &json).map_err(|e| RezCoreError::Io(e.into()))?;
+    std::fs::write(&rxt_path, &json).map_err(RezCoreError::Io)?;
     Ok(Some(rxt_path))
 }
 
@@ -188,7 +186,6 @@ fn resolve_environment(
     args: &EnvArgs,
 ) -> RezCoreResult<ResolvedContext> {
     let mut config = ContextConfig::default();
-    config.inherit_parent_env = true;
 
     // Set shell type based on args
     if let Some(shell) = &args.shell {
@@ -255,7 +252,7 @@ fn resolve_environment(
         .collect();
 
     // Run the dependency resolver
-    let rt = tokio::runtime::Runtime::new().map_err(|e| RezCoreError::Io(e.into()))?;
+    let rt = tokio::runtime::Runtime::new().map_err(RezCoreError::Io)?;
     let solver_config = SolverConfig {
         max_time_seconds: args.max_solve_time.unwrap_or(300),
         ..SolverConfig::default()
@@ -278,7 +275,7 @@ fn resolve_environment(
 /// Print requested packages
 fn print_requested_packages(requirements: &[PackageRequirement]) -> RezCoreResult<()> {
     for req in requirements {
-        println!("{}", req.to_string());
+        println!("{}", req);
     }
     Ok(())
 }
@@ -300,7 +297,7 @@ fn print_environment(context: &ResolvedContext, args: &EnvArgs) -> RezCoreResult
     // Generate environment variables using EnvironmentManager
     let env_manager = EnvironmentManager::new(context.config.clone());
     let env_vars = tokio::runtime::Runtime::new()
-        .map_err(|e| RezCoreError::Io(e.into()))?
+        .map_err(RezCoreError::Io)?
         .block_on(env_manager.generate_environment(&context.resolved_packages))?;
 
     match args.format.as_deref() {
@@ -328,7 +325,7 @@ fn print_environment(context: &ResolvedContext, args: &EnvArgs) -> RezCoreResult
 fn print_shell_script(context: &ResolvedContext, args: &EnvArgs) -> RezCoreResult<()> {
     let env_manager = EnvironmentManager::new(context.config.clone());
     let env_vars = tokio::runtime::Runtime::new()
-        .map_err(|e| RezCoreError::Io(e.into()))?
+        .map_err(RezCoreError::Io)?
         .block_on(env_manager.generate_environment(&context.resolved_packages))?;
 
     // Determine shell type
@@ -380,7 +377,7 @@ fn execute_command_in_context(
     // Generate environment variables
     let env_manager = EnvironmentManager::new(context.config.clone());
     let env_vars = tokio::runtime::Runtime::new()
-        .map_err(|e| RezCoreError::Io(e.into()))?
+        .map_err(RezCoreError::Io)?
         .block_on(env_manager.generate_environment(&context.resolved_packages))?;
 
     if !args.quiet {
@@ -435,7 +432,7 @@ fn execute_extra_args_in_context(
     // Generate environment variables
     let env_manager = EnvironmentManager::new(context.config.clone());
     let env_vars = tokio::runtime::Runtime::new()
-        .map_err(|e| RezCoreError::Io(e.into()))?
+        .map_err(RezCoreError::Io)?
         .block_on(env_manager.generate_environment(&context.resolved_packages))?;
 
     if !args.quiet {
@@ -486,7 +483,7 @@ fn spawn_shell_in_context(context: &ResolvedContext, args: &EnvArgs) -> RezCoreR
     // Generate environment variables
     let env_manager = EnvironmentManager::new(context.config.clone());
     let env_vars = tokio::runtime::Runtime::new()
-        .map_err(|e| RezCoreError::Io(e.into()))?
+        .map_err(RezCoreError::Io)?
         .block_on(env_manager.generate_environment(&context.resolved_packages))?;
 
     if !args.quiet {
