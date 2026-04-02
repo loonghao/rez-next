@@ -890,9 +890,25 @@ impl PackageSerializer {
         package: &Package,
         options: &SerializationOptions,
     ) -> Result<String, RezCoreError> {
-        let _ = options.pretty_print; // TODO: implement pretty YAML formatting
-        serde_yaml::to_string(package)
-        .map_err(|e| RezCoreError::PackageParse(format!("Failed to serialize to YAML: {}", e)))
+        let raw = serde_yaml::to_string(package)
+            .map_err(|e| RezCoreError::PackageParse(format!("Failed to serialize to YAML: {}", e)))?;
+
+        if !options.pretty_print {
+            return Ok(raw);
+        }
+
+        // Pretty-print: add a leading separator comment and indent list items
+        let mut output = String::with_capacity(raw.len() + 64);
+        output.push_str("# ---\n");
+        for line in raw.lines() {
+            // Indent list items one extra level for readability
+            if line.starts_with("- ") {
+                output.push_str("  ");
+            }
+            output.push_str(line);
+            output.push('\n');
+        }
+        Ok(output)
     }
 
     /// Save package to JSON with options

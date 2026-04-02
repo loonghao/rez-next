@@ -212,10 +212,40 @@ impl VersionPreferenceHeuristic {
         Self { config }
     }
 
-    fn calculate_version_preference_cost(&self, _package: &Package) -> f64 {
-        // TODO: Implement version preference logic when version system is available
-        // For now, return minimal cost
-        0.1
+    fn calculate_version_preference_cost(&self, package: &Package) -> f64 {
+        let Some(ref version) = package.version else {
+            // Unknown version — assign moderate cost
+            return 1.0;
+        };
+        let ver_str = version.as_str();
+
+        // Pre-release indicator: versions containing alpha/beta/rc/dev suffixes
+        let is_prerelease = ver_str.contains("alpha")
+            || ver_str.contains("beta")
+            || ver_str.contains("rc")
+            || ver_str.contains("dev")
+            || ver_str.contains("pre");
+
+        if is_prerelease {
+            // High cost: discourage pre-release packages when prefer_latest is set
+            return if self.config.prefer_latest_versions { 5.0 } else { 2.0 };
+        }
+
+        // Parse numeric components to determine recency preference.
+        // Higher major version → lower cost (prefer newer).
+        let major = ver_str
+            .split('.')
+            .next()
+            .and_then(|s| s.parse::<u64>().ok())
+            .unwrap_or(0);
+
+        if self.config.prefer_latest_versions {
+            // Diminishing cost as major version grows: cost = 1 / (major + 1)
+            1.0 / (major as f64 + 1.0)
+        } else {
+            // Prefer older/stable: higher major = slightly higher cost
+            (major as f64 * 0.05).min(1.0)
+        }
     }
 }
 
@@ -590,4 +620,61 @@ mod tests {
             "core package depth cost ({}) should be < app package depth cost ({})",
             cost_core, cost_app);
     }
+
+    #[test]
+    fn test_version_preference_heuristic_prerelease_higher_cost() {
+        let config_prefer_latest = HeuristicConfig {
+            prefer_latest_versions: true,
+            version_preference_weight: 1.0, // weight=1 for easy math
+            ..Default::default()
+        };
+        let h = VersionPreferenceHeuristic::new(config_prefer_latest);
+
+        // Stable package: major=2, prefer_latest=true → cost = 1/(2+1) = 0.333
+        let mut state_stable = SearchState::new_initial(vec![]);
+        let mut pkg_stable = Package::new("mypkg_stable".to_string());
+        pkg_stable.version = Some(rez_next_version::Version::parse("2.0.0").unwrap());
+        state_stable.resolved_packages.insert("mypkg_stable".to_string(), pkg_stable);
+        let cost_stable = h.calculate(&state_stable);
+        assert!(cost_stable > 0.0 && cost_stable < 1.0,
+            "Stable v2.0.0 cost should be 0 < cost < 1, got {}", cost_stable);
+
+        // package with no version → cost = 1.0 * weight
+        let mut state_unknown = SearchState::new_initial(vec![]);
+        let pkg_unknown = Package::new("mypkg_unknown".to_string());
+        state_unknown.resolved_packages.insert("mypkg_unknown".to_string(), pkg_unknown);
+        let cost_unknown = h.calculate(&state_unknown);
+        assert!((cost_unknown - 1.0).abs() < 1e-9,
+            "Unknown-version cost should be 1.0, got {}", cost_unknown);
+
+        // stable v1 vs stable v10: v10 should have lower cost (prefer latest)
+        let mut state_v1 = SearchState::new_initial(vec![]);
+        let mut pkg_v1 = Package::new("mypkg_v1".to_string());
+        pkg_v1.version = Some(rez_next_version::Version::parse("1.0.0").unwrap());
+        state_v1.resolved_packages.insert("mypkg_v1".to_string(), pkg_v1);
+
+        let mut state_v10 = SearchState::new_initial(vec![]);
+        let mut pkg_v10 = Package::new("mypkg_v10".to_string());
+        pkg_v10.version = Some(rez_next_version::Version::parse("10.0.0").unwrap());
+        state_v10.resolved_packages.insert("mypkg_v10".to_string(), pkg_v10);
+
+        let cost_v1 = h.calculate(&state_v1);
+        let cost_v10 = h.calculate(&state_v10);
+        assert!(cost_v10 < cost_v1,
+            "v10 ({}) should have lower preference cost than v1 ({}) when prefer_latest=true",
+            cost_v10, cost_v1);
+    }
+
+    #[test]
+    fn test_version_preference_heuristic_no_version_moderate_cost() {
+        let config = HeuristicConfig::default(); // weight=0.1
+        let h = VersionPreferenceHeuristic::new(config);
+        let mut state = SearchState::new_initial(vec![]);
+        let pkg = Package::new("unknown_ver_pkg".to_string()); // no version set
+        state.resolved_packages.insert("unknown_ver_pkg".to_string(), pkg);
+        let cost = h.calculate(&state);
+        // Unknown version: base_cost=1.0 * weight=0.1 → 0.1
+        assert!((cost - 0.1).abs() < 1e-9, "Expected 0.1, got {}", cost);
+    }
 }
+
