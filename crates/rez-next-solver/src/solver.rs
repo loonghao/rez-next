@@ -30,6 +30,10 @@ pub struct SolverConfig {
     pub allow_prerelease: bool,
     /// Conflict resolution strategy
     pub conflict_strategy: ConflictStrategy,
+    /// Strict mode: return Err if any requirement cannot be satisfied.
+    /// When false (lenient/default), unsatisfied requirements are recorded in
+    /// `DetailedResolutionResult::failed_requirements` and resolution continues.
+    pub strict_mode: bool,
 }
 
 impl Default for SolverConfig {
@@ -44,6 +48,7 @@ impl Default for SolverConfig {
             prefer_latest: true,
             allow_prerelease: false,
             conflict_strategy: ConflictStrategy::LatestWins,
+            strict_mode: false,
         }
     }
 }

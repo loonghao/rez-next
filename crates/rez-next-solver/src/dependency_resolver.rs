@@ -128,9 +128,20 @@ impl DependencyResolver {
             backtrack_steps: resolution_state.backtrack_steps,
         };
 
+        let failed = resolution_state.failed_requirements;
+
+        // Strict mode: any unsatisfied requirement is a hard error
+        if self.config.strict_mode && !failed.is_empty() {
+            let names: Vec<String> = failed.iter().map(|r| r.to_string()).collect();
+            return Err(RezCoreError::Solver(format!(
+                "Strict mode: failed to satisfy requirements: {}",
+                names.join(", ")
+            )));
+        }
+
         Ok(DetailedResolutionResult {
             resolved_packages: result,
-            failed_requirements: resolution_state.failed_requirements,
+            failed_requirements: failed,
             conflicts: resolution_state.conflicts,
             stats,
         })

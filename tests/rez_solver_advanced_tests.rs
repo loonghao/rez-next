@@ -1432,3 +1432,152 @@ fn test_solver_multi_version_picks_highest_satisfying() {
         "prefer-latest: 'lib-1+' should select lib-2.0.0 (highest satisfying), got '{}'", selected);
 }
 
+// ─── Strict mode tests ────────────────────────────────────────────────────────
+
+/// Strict mode: missing package returns Err, not Ok with empty resolved set.
+///
+/// In lenient mode (default), requesting a non-existent package returns Ok
+/// with failed_requirements populated.  In strict mode the same request must
+/// return Err so callers can rely on Ok meaning "fully resolved".
+#[test]
+fn test_solver_strict_mode_missing_package_returns_err() {
+    let (_tmp, repo) = build_test_repo(&[
+        ("python", "3.11.0", &[]),
+    ]);
+
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let config = SolverConfig { strict_mode: true, ..SolverConfig::default() };
+    let mut resolver = DependencyResolver::new(Arc::clone(&repo), config);
+
+    let reqs: Vec<Requirement> = ["nonexistent_package-1.0"]
+        .iter()
+        .map(|s| s.parse().unwrap())
+        .collect();
+
+    let result = rt.block_on(resolver.resolve(reqs));
+    assert!(result.is_err(), "strict mode should return Err for missing package");
+    let err_msg = result.unwrap_err().to_string();
+    assert!(
+        err_msg.contains("nonexistent_package") || err_msg.contains("Strict mode"),
+        "error message should mention the missing package or strict mode, got: {}", err_msg
+    );
+}
+
+/// Lenient mode (default): missing package returns Ok with failed_requirements populated.
+///
+/// This verifies the default behaviour has not changed after adding strict_mode field.
+#[test]
+fn test_solver_lenient_mode_missing_package_returns_ok_with_failed() {
+    let (_tmp, repo) = build_test_repo(&[
+        ("python", "3.11.0", &[]),
+    ]);
+
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    // explicit lenient config (strict_mode = false, which is also the default)
+    let config = SolverConfig { strict_mode: false, ..SolverConfig::default() };
+    let mut resolver = DependencyResolver::new(Arc::clone(&repo), config);
+
+    let reqs: Vec<Requirement> = ["nonexistent_package-1.0"]
+        .iter()
+        .map(|s| s.parse().unwrap())
+        .collect();
+
+    let result = rt.block_on(resolver.resolve(reqs));
+    assert!(result.is_ok(), "lenient mode should not return Err for missing package");
+    let resolution = result.unwrap();
+    assert_eq!(
+        resolution.failed_requirements.len(), 1,
+        "failed_requirements should record the unsatisfied requirement"
+    );
+    assert!(
+        resolution.failed_requirements[0].name.contains("nonexistent_package"),
+        "failed requirement name should be 'nonexistent_package'"
+    );
+}
+
+/// Strict mode: fully satisfiable request returns Ok (no regression).
+///
+/// When strict_mode is true and ALL requirements are satisfied, the result
+/// should still be Ok (strict_mode should not affect successful resolutions).
+#[test]
+fn test_solver_strict_mode_satisfiable_request_returns_ok() {
+    let (_tmp, repo) = build_test_repo(&[
+        ("python", "3.11.0", &[]),
+        ("numpy", "1.25.0", &["python-3+"]),
+    ]);
+
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let config = SolverConfig { strict_mode: true, ..SolverConfig::default() };
+    let mut resolver = DependencyResolver::new(Arc::clone(&repo), config);
+
+    let reqs: Vec<Requirement> = ["python-3+", "numpy-1+"]
+        .iter()
+        .map(|s| s.parse().unwrap())
+        .collect();
+
+    let result = rt.block_on(resolver.resolve(reqs));
+    assert!(result.is_ok(), "strict mode with satisfiable request should return Ok");
+    let resolution = result.unwrap();
+    assert!(
+        resolution.failed_requirements.is_empty(),
+        "no requirements should fail for a fully satisfiable request"
+    );
+    assert!(
+        !resolution.resolved_packages.is_empty(),
+        "at least one package should be resolved"
+    );
+}
+
+/// Strict mode: partial failure (some packages present, one missing) returns Err.
+///
+/// Even if most requirements are satisfied, strict mode must fail if even one
+/// requirement cannot be met.
+#[test]
+fn test_solver_strict_mode_partial_failure_returns_err() {
+    let (_tmp, repo) = build_test_repo(&[
+        ("python", "3.11.0", &[]),
+        ("numpy", "1.25.0", &["python-3+"]),
+    ]);
+
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let config = SolverConfig { strict_mode: true, ..SolverConfig::default() };
+    let mut resolver = DependencyResolver::new(Arc::clone(&repo), config);
+
+    // python and numpy exist, but missing_dep does not
+    let reqs: Vec<Requirement> = ["python-3+", "numpy-1+", "missing_dep-2.0"]
+        .iter()
+        .map(|s| s.parse().unwrap())
+        .collect();
+
+    let result = rt.block_on(resolver.resolve(reqs));
+    assert!(result.is_err(), "strict mode should return Err if any requirement is unsatisfied");
+}
+
+/// Strict mode: version constraint with no matching candidate returns Err.
+///
+/// Package exists (lib-1.0.0) but requested version range (lib-5+) has no match.
+/// Strict mode must return Err; lenient mode would silently ignore it.
+#[test]
+fn test_solver_strict_mode_version_mismatch_returns_err() {
+    let (_tmp, repo) = build_test_repo(&[
+        ("lib", "1.0.0", &[]),
+        ("lib", "2.0.0", &[]),
+    ]);
+
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let config = SolverConfig { strict_mode: true, ..SolverConfig::default() };
+    let mut resolver = DependencyResolver::new(Arc::clone(&repo), config);
+
+    // Request lib-5+ but only lib-1 and lib-2 exist
+    let reqs: Vec<Requirement> = ["lib-5+"]
+        .iter()
+        .map(|s| s.parse().unwrap())
+        .collect();
+
+    let result = rt.block_on(resolver.resolve(reqs));
+    assert!(
+        result.is_err(),
+        "strict mode: version range with no matching candidate should return Err"
+    );
+}
+

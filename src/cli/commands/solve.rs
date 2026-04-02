@@ -80,6 +80,7 @@ async fn solve_async(args: SolveArgs) -> RezCoreResult<()> {
         prefer_latest: true,
         allow_prerelease: false,
         conflict_strategy: ConflictStrategy::LatestWins,
+        strict_mode: false,
     };
 
     // Create dependency resolver
