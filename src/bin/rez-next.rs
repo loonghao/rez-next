@@ -62,8 +62,15 @@ fn handle_grouped_command(args: Vec<String>) {
                             return;
                         }
                     }
-                    RezCommand::Build(_) => {
-                        // TODO: Handle build command extra args
+                    RezCommand::Build(ref mut build_args) => {
+                        if arg_groups.len() > 1 && !arg_groups[1].is_empty() {
+                            // Pass extra args as build-args string
+                            let extra = arg_groups[1].join(" ");
+                            if build_args.build_args.is_none() {
+                                build_args.build_args = Some(extra);
+                            }
+                            // Fall through to normal execute with updated args
+                        }
                     }
                     _ => {}
                 }

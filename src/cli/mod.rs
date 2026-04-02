@@ -164,6 +164,8 @@ impl RezCli {
 
     /// Print system information
     fn print_info(&self) -> RezCoreResult<()> {
+        use rez_next_common::config::RezCoreConfig;
+
         println!();
         println!("Rez Core System Information");
         println!("==========================");
@@ -173,10 +175,53 @@ impl RezCli {
         println!("OS: {}", std::env::consts::OS);
         println!();
 
-        // TODO: Add more system information when other modules are available
-        // - Package paths
-        // - Configuration files
-        // - Available repositories
+        let config = RezCoreConfig::load();
+
+        // Package paths
+        println!("Package Paths:");
+        if config.packages_path.is_empty() {
+            println!("  (none configured)");
+        } else {
+            for path in &config.packages_path {
+                let exists = std::path::Path::new(path).exists();
+                println!("  {} {}", path, if exists { "[exists]" } else { "[missing]" });
+            }
+        }
+        println!();
+
+        // Local packages path
+        println!("Local Packages Path: {}", config.local_packages_path);
+        println!(
+            "Release Packages Path: {}",
+            config.release_packages_path
+        );
+        println!();
+
+        // Configuration file search paths
+        println!("Config Search Paths:");
+        let home_rezconfig = std::env::var("USERPROFILE")
+            .or_else(|_| std::env::var("HOME"))
+            .ok()
+            .map(|h| format!("{}/{}", h, ".rezconfig"));
+        let config_locations: Vec<Option<String>> = vec![
+            std::env::var("REZ_CONFIG_FILE").ok(),
+            home_rezconfig,
+            Some("/etc/rez/rezconfig".to_string()),
+        ];
+        let mut found_any = false;
+        for loc in config_locations.iter().flatten() {
+            if std::path::Path::new(loc).exists() {
+                println!("  {} [active]", loc);
+                found_any = true;
+            }
+        }
+        if !found_any {
+            println!("  (no rezconfig files found — using defaults)");
+        }
+        println!();
+
+        // Default shell
+        println!("Default Shell: {}", config.default_shell);
 
         Ok(())
     }

@@ -635,4 +635,115 @@ mod tests {
         // Should require either package or ignored_since
         assert!(args.package.is_none() && args.ignored_since.is_none());
     }
+
+    // ── parse_time_spec tests ────────────────────────────────────────────────
+
+    #[test]
+    fn test_parse_time_spec_days() {
+        use std::time::{SystemTime, UNIX_EPOCH};
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+
+        let result = parse_time_spec("1d").unwrap();
+        let expected = now.saturating_sub(86_400);
+        // Allow up to 2s tolerance
+        assert!(
+            result.abs_diff(expected) <= 2,
+            "1d: result={} expected={}",
+            result,
+            expected
+        );
+
+        let result_7d = parse_time_spec("7d").unwrap();
+        let expected_7d = now.saturating_sub(7 * 86_400);
+        assert!(result_7d.abs_diff(expected_7d) <= 2);
+    }
+
+    #[test]
+    fn test_parse_time_spec_weeks() {
+        use std::time::{SystemTime, UNIX_EPOCH};
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+
+        let result = parse_time_spec("2w").unwrap();
+        let expected = now.saturating_sub(2 * 7 * 86_400);
+        assert!(result.abs_diff(expected) <= 2);
+    }
+
+    #[test]
+    fn test_parse_time_spec_months() {
+        use std::time::{SystemTime, UNIX_EPOCH};
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+
+        let result = parse_time_spec("1m").unwrap();
+        let expected = now.saturating_sub(30 * 86_400);
+        assert!(result.abs_diff(expected) <= 2);
+    }
+
+    #[test]
+    fn test_parse_time_spec_years() {
+        use std::time::{SystemTime, UNIX_EPOCH};
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+
+        let result = parse_time_spec("1y").unwrap();
+        let expected = now.saturating_sub(365 * 86_400);
+        assert!(result.abs_diff(expected) <= 2);
+    }
+
+    #[test]
+    fn test_parse_time_spec_iso_date() {
+        let result = parse_time_spec("2024-01-15").unwrap();
+        // 2024-01-15 00:00:00 UTC = 1705276800
+        assert_eq!(result, 1_705_276_800);
+    }
+
+    #[test]
+    fn test_parse_time_spec_iso_datetime() {
+        let result = parse_time_spec("2024-01-15T12:00:00").unwrap();
+        // 2024-01-15 12:00:00 UTC = 1705320000
+        assert_eq!(result, 1_705_320_000);
+    }
+
+    #[test]
+    fn test_parse_time_spec_invalid() {
+        assert!(parse_time_spec("invalid").is_err());
+        assert!(parse_time_spec("abc").is_err());
+        assert!(parse_time_spec("").is_err());
+        assert!(parse_time_spec("2024/01/15").is_err());
+    }
+
+    #[test]
+    fn test_parse_time_spec_relative_ordering() {
+        // 1d should produce a timestamp more recent than 1w
+        let one_day = parse_time_spec("1d").unwrap();
+        let one_week = parse_time_spec("1w").unwrap();
+        assert!(
+            one_day > one_week,
+            "1d ({}) should be more recent than 1w ({})",
+            one_day,
+            one_week
+        );
+    }
+
+    #[test]
+    fn test_parse_time_spec_zero_relative() {
+        // "0d" — valid parse, returns ~now
+        use std::time::{SystemTime, UNIX_EPOCH};
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+        let result = parse_time_spec("0d").unwrap();
+        assert!(result.abs_diff(now) <= 2);
+    }
 }

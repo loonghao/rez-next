@@ -7,16 +7,9 @@ Covers: Version, VersionRange — parsing, comparison, arithmetic,
 
 import pytest
 
-try:
-    import rez_next as rez
-
-    REZ_NEXT_AVAILABLE = True
-except ImportError:
-    REZ_NEXT_AVAILABLE = False
-
-pytestmark = pytest.mark.skipif(
-    not REZ_NEXT_AVAILABLE,
-    reason="rez_next not built. Run: maturin develop --features extension-module",
+rez = pytest.importorskip(
+    "rez_next",
+    reason="rez_next not built — run: maturin develop --features extension-module",
 )
 
 

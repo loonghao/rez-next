@@ -10,16 +10,9 @@ replacement for `import rez`.
 """
 import pytest
 
-# The main compatibility test: import rez_next as rez
-try:
-    import rez_next as rez
-    REZ_NEXT_AVAILABLE = True
-except ImportError:
-    REZ_NEXT_AVAILABLE = False
-
-pytestmark = pytest.mark.skipif(
-    not REZ_NEXT_AVAILABLE,
-    reason="rez_next not built yet. Run: maturin develop --features extension-module"
+rez = pytest.importorskip(
+    "rez_next",
+    reason="rez_next not built yet — run: maturin develop --features extension-module",
 )
 
 
