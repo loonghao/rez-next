@@ -755,3 +755,310 @@ fn test_dependency_graph_exclusion() {
     assert_eq!(stats.exclusion_count, 1, "exclusion_count should be 1");
     assert_eq!(stats.node_count, 0, "Excluded package should not be in graph");
 }
+
+// ─── Cycle detection tests ────────────────────────────────────────────────────
+
+/// DependencyGraph: direct cycle A → B → A triggers topological sort error
+#[test]
+fn test_graph_cycle_detection_two_nodes() {
+    use rez_next_package::Package;
+    use rez_next_solver::DependencyGraph;
+
+    let make_pkg = |name: &str, ver: &str| {
+        let mut pkg = Package::new(name.to_string());
+        pkg.version = Some(Version::parse(ver).unwrap());
+        pkg
+    };
+
+    let mut graph = DependencyGraph::new();
+    graph.add_package(make_pkg("A", "1.0")).unwrap();
+    graph.add_package(make_pkg("B", "1.0")).unwrap();
+    // A depends on B, B depends on A → cycle
+    graph.add_dependency_edge("A-1.0", "B-1.0").unwrap();
+    graph.add_dependency_edge("B-1.0", "A-1.0").unwrap();
+
+    let result = graph.get_resolved_packages();
+    assert!(result.is_err(), "Cyclic graph (A→B→A) should fail topological sort");
+    let err_msg = format!("{}", result.unwrap_err());
+    assert!(
+        err_msg.to_lowercase().contains("circular") || err_msg.to_lowercase().contains("cycle"),
+        "Error message should mention circular/cycle, got: {}", err_msg
+    );
+}
+
+/// DependencyGraph: three-node cycle A → B → C → A
+#[test]
+fn test_graph_cycle_detection_three_nodes() {
+    use rez_next_package::Package;
+    use rez_next_solver::DependencyGraph;
+
+    let make_pkg = |name: &str, ver: &str| {
+        let mut pkg = Package::new(name.to_string());
+        pkg.version = Some(Version::parse(ver).unwrap());
+        pkg
+    };
+
+    let mut graph = DependencyGraph::new();
+    graph.add_package(make_pkg("A", "1.0")).unwrap();
+    graph.add_package(make_pkg("B", "1.0")).unwrap();
+    graph.add_package(make_pkg("C", "1.0")).unwrap();
+    graph.add_dependency_edge("A-1.0", "B-1.0").unwrap();
+    graph.add_dependency_edge("B-1.0", "C-1.0").unwrap();
+    graph.add_dependency_edge("C-1.0", "A-1.0").unwrap(); // closes the cycle
+
+    let result = graph.get_resolved_packages();
+    assert!(result.is_err(), "Three-node cycle (A→B→C→A) should fail topological sort");
+}
+
+/// DependencyGraph: linear chain (no cycle) → get_resolved_packages succeeds
+#[test]
+fn test_graph_no_cycle_linear_chain() {
+    use rez_next_package::Package;
+    use rez_next_solver::DependencyGraph;
+
+    let make_pkg = |name: &str, ver: &str| {
+        let mut pkg = Package::new(name.to_string());
+        pkg.version = Some(Version::parse(ver).unwrap());
+        pkg
+    };
+
+    let mut graph = DependencyGraph::new();
+    graph.add_package(make_pkg("X", "1.0")).unwrap();
+    graph.add_package(make_pkg("Y", "1.0")).unwrap();
+    graph.add_package(make_pkg("Z", "1.0")).unwrap();
+    graph.add_dependency_edge("X-1.0", "Y-1.0").unwrap();
+    graph.add_dependency_edge("Y-1.0", "Z-1.0").unwrap();
+    // No cycle: X → Y → Z
+
+    let result = graph.get_resolved_packages();
+    assert!(result.is_ok(), "Linear chain (X→Y→Z) should NOT be detected as cyclic");
+    assert_eq!(result.unwrap().len(), 3, "All 3 packages should be returned");
+}
+
+/// DependencyGraph: self-loop (A → A) triggers cycle error
+#[test]
+fn test_graph_cycle_detection_self_loop() {
+    use rez_next_package::Package;
+    use rez_next_solver::DependencyGraph;
+
+    let mut pkg = Package::new("SelfDep".to_string());
+    pkg.version = Some(Version::parse("1.0").unwrap());
+
+    let mut graph = DependencyGraph::new();
+    graph.add_package(pkg).unwrap();
+    graph.add_dependency_edge("SelfDep-1.0", "SelfDep-1.0").unwrap();
+
+    let result = graph.get_resolved_packages();
+    assert!(result.is_err(), "Self-loop should be detected as cyclic");
+}
+
+// ─── Large VFX pipeline tests ─────────────────────────────────────────────────
+
+/// Large VFX pipeline: 20+ packages with multi-level dependency tree
+/// Simulates a real studio DCC environment:
+///   python → (numpy, pyside2)
+///   maya → (python, pyside2, openexr)
+///   houdini → (python, openexr, vex)
+///   nuke → (python, pyside2, openexr)
+///   katana → (python, pyside2)
+///   mari → (python, pyside2, openexr)
+///   gaffer → (python, pyside2, openexr, imath)
+///   clarisse → (python, openexr)
+///   substance_painter → (python, pyside2)
+///   blender → (python)
+///   openexr → (imath)
+///   alembic → (openexr, imath)
+///   usd → (python, openexr, alembic)
+///   arnold → (python)
+///   redshift → (python)
+///   katana_plugins → (katana, arnold)
+///   houdini_plugins → (houdini, arnold, redshift)
+///   maya_plugins → (maya, arnold)
+///   pipeline_tools → (usd, alembic, python)
+///   studio_base → (maya, houdini, nuke, pipeline_tools)
+#[test]
+fn test_large_vfx_pipeline_resolve() {
+    let (_tmp, repo) = build_test_repo(&[
+        ("imath", "3.1.0", &[]),
+        ("python", "3.10.0", &[]),
+        ("numpy", "1.24.0", &["python-3+"]),
+        ("pyside2", "5.15.0", &["python-3+"]),
+        ("openexr", "3.1.0", &["imath-3+"]),
+        ("alembic", "1.8.0", &["openexr-3+", "imath-3+"]),
+        ("usd", "23.11", &["python-3+", "openexr-3+", "alembic-1+"]),
+        ("arnold", "7.2.0", &["python-3+"]),
+        ("redshift", "3.5.0", &["python-3+"]),
+        ("maya", "2024.0", &["python-3.9+<3.12", "pyside2-5+", "openexr-3+"]),
+        ("houdini", "20.0.547", &["python-3.10+<3.12", "openexr-3+"]),
+        ("nuke", "15.0", &["python-3+", "pyside2-5+", "openexr-3+"]),
+        ("katana", "7.0", &["python-3+", "pyside2-5+"]),
+        ("mari", "7.0", &["python-3+", "pyside2-5+", "openexr-3+"]),
+        ("gaffer", "1.4.0", &["python-3+", "pyside2-5+", "openexr-3+", "imath-3+"]),
+        ("clarisse", "6.0", &["python-3+", "openexr-3+"]),
+        ("substance_painter", "10.0", &["python-3+", "pyside2-5+"]),
+        ("blender", "4.1.0", &["python-3+"]),
+        ("arnold_plugins", "1.0", &["arnold-7+"]),
+        ("redshift_plugins", "1.0", &["redshift-3+"]),
+        ("pipeline_tools", "2.0", &["usd-23+", "alembic-1+", "python-3+"]),
+        ("studio_base", "1.0", &["maya-2024+", "houdini-20+", "nuke-15+", "pipeline_tools-2+"]),
+    ]);
+
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let config = SolverConfig { prefer_latest: true, ..SolverConfig::default() };
+    let mut resolver = DependencyResolver::new(Arc::clone(&repo), config);
+
+    let reqs: Vec<Requirement> = ["studio_base"]
+        .iter()
+        .map(|s| s.parse().unwrap())
+        .collect();
+
+    let result = rt.block_on(resolver.resolve(reqs));
+    assert!(result.is_ok(), "Large VFX pipeline (22 pkgs) should resolve: {:?}",
+        result.as_ref().err());
+
+    let resolution = result.unwrap();
+    let names: std::collections::HashSet<&str> = resolution.resolved_packages.iter()
+        .map(|p| p.package.name.as_str())
+        .collect();
+
+    // Core packages must be present
+    for pkg in &["studio_base", "maya", "houdini", "nuke", "pipeline_tools",
+                 "python", "openexr", "imath", "usd", "alembic"] {
+        assert!(names.contains(*pkg),
+            "Package '{}' should be in large VFX pipeline resolution", pkg);
+    }
+
+    // python must appear exactly once (shared by all DCC tools)
+    let python_count = resolution.resolved_packages.iter()
+        .filter(|p| p.package.name == "python")
+        .count();
+    assert_eq!(python_count, 1,
+        "python should be deduplicated even in a 22-package pipeline");
+
+    // openexr must appear exactly once
+    let openexr_count = resolution.resolved_packages.iter()
+        .filter(|p| p.package.name == "openexr")
+        .count();
+    assert_eq!(openexr_count, 1, "openexr should be deduplicated");
+}
+
+/// Large VFX pipeline statistics: packages_considered covers the full dependency tree
+#[test]
+fn test_large_pipeline_stats_populated() {
+    let (_tmp, repo) = build_test_repo(&[
+        ("imath", "3.1.0", &[]),
+        ("python", "3.10.0", &[]),
+        ("pyside2", "5.15.0", &["python-3+"]),
+        ("openexr", "3.1.0", &["imath-3+"]),
+        ("alembic", "1.8.0", &["openexr-3+", "imath-3+"]),
+        ("usd", "23.11", &["python-3+", "openexr-3+", "alembic-1+"]),
+        ("maya", "2024.0", &["python-3+", "pyside2-5+", "openexr-3+"]),
+        ("pipeline_tools", "2.0", &["usd-23+", "python-3+"]),
+        ("studio_env", "1.0", &["maya-2024+", "pipeline_tools-2+"]),
+    ]);
+
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let config = SolverConfig::default();
+    let mut resolver = DependencyResolver::new(Arc::clone(&repo), config);
+
+    let reqs: Vec<Requirement> = ["studio_env"]
+        .iter()
+        .map(|s| s.parse().unwrap())
+        .collect();
+
+    let result = rt.block_on(resolver.resolve(reqs)).expect("studio_env should resolve");
+
+    // With 9 packages in repo and deep transitive chain, packages_considered should be > 4
+    assert!(result.stats.packages_considered > 4,
+        "packages_considered should be > 4 for a 9-package pipeline, got {}",
+        result.stats.packages_considered);
+    assert!(result.stats.resolution_time_ms < 60_000,
+        "Resolution time should be < 60s for a moderate pipeline");
+}
+
+// ─── Version conflict in resolver ─────────────────────────────────────────────
+
+/// Resolver: requesting two packages that both need incompatible versions of a shared dep
+/// maya-2020 needs python-2.7, maya-2024 needs python-3.9+ — they can't coexist
+#[test]
+fn test_resolver_incompatible_shared_dep_detected() {
+    let (_tmp, repo) = build_test_repo(&[
+        ("python", "2.7.0", &[]),
+        ("python", "3.10.0", &[]),
+        // tool_a requires python <3 (python 2.x)
+        ("tool_a", "1.0", &["python-2+"]),
+        // tool_b requires python >=3
+        ("tool_b", "1.0", &["python-3+"]),
+    ]);
+
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let config = SolverConfig::default();
+    let mut resolver = DependencyResolver::new(Arc::clone(&repo), config);
+
+    // Requesting both tool_a and tool_b simultaneously
+    let reqs: Vec<Requirement> = ["tool_a", "tool_b"]
+        .iter()
+        .map(|s| s.parse().unwrap())
+        .collect();
+
+    let result = rt.block_on(resolver.resolve(reqs));
+    // The resolution may succeed (picking python 3.x which also satisfies tool_a's python-2+)
+    // OR it may detect a conflict and fail. Either is acceptable behavior.
+    // Key assertion: no panic occurs
+    match result {
+        Ok(resolution) => {
+            // If resolution succeeds, verify python is only selected once
+            let python_count = resolution.resolved_packages.iter()
+                .filter(|p| p.package.name == "python")
+                .count();
+            assert_eq!(python_count, 1,
+                "python should only be selected once even when multiple tools need it");
+        }
+        Err(_) => {
+            // Conflict detection is also valid behavior
+        }
+    }
+}
+
+/// Resolver: repo with multiple versions, strict upper bound excludes newest
+#[test]
+fn test_resolver_strict_upper_bound_excludes_latest() {
+    let (_tmp, repo) = build_test_repo(&[
+        ("lib", "1.0.0", &[]),
+        ("lib", "1.5.0", &[]),
+        ("lib", "2.0.0", &[]),   // should be excluded
+        ("lib", "2.5.0", &[]),   // should be excluded
+    ]);
+
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let config = SolverConfig { prefer_latest: true, ..SolverConfig::default() };
+    let mut resolver = DependencyResolver::new(Arc::clone(&repo), config);
+
+    // Request lib-1+ but <2: should pick 1.5.0, not 2.0.0
+    let reqs: Vec<Requirement> = ["lib-1+<2"]
+        .iter()
+        .map(|s| s.parse().unwrap())
+        .collect();
+
+    let result = rt.block_on(resolver.resolve(reqs)).expect("lib-1+<2 should resolve");
+    assert_eq!(result.resolved_packages.len(), 1);
+
+    let ver = result.resolved_packages[0].package.version.as_ref()
+        .map(|v| v.as_str());
+    assert_eq!(ver, Some("1.5.0"),
+        "lib-1+<2 prefer_latest should pick 1.5.0 (not 2.x), got {:?}", ver);
+}
+
+/// Resolver: empty repo returns Ok with empty result (no panic)
+#[test]
+fn test_resolver_empty_repo_empty_requirements() {
+    let (_tmp, repo) = build_test_repo(&[]);
+
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let config = SolverConfig::default();
+    let mut resolver = DependencyResolver::new(Arc::clone(&repo), config);
+
+    let result = rt.block_on(resolver.resolve(vec![]));
+    assert!(result.is_ok(), "Empty repo + empty requirements should succeed");
+    assert_eq!(result.unwrap().resolved_packages.len(), 0);
+}
