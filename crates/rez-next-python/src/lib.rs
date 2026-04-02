@@ -49,8 +49,8 @@ use suite_bindings::{PySuite, PySuiteManager};
 use system_bindings::PySystem;
 use version_bindings::{PyVersion, PyVersionRange};
 
-/// Main Python module `rez_next` — drop-in replacement for `rez`
-#[pymodule(name = "rez_next")]
+/// Native extension module `rez_next._native` — loaded by Python layer `rez_next/__init__.py`
+#[pymodule(name = "_native")]
 fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Version classes (rez.vendor.version)
     m.add_class::<PyVersion>()?;

@@ -3,7 +3,7 @@
 //! Implements the core A* search algorithm optimized for dependency resolution.
 //! Uses heuristic-guided search to find optimal dependency solutions efficiently.
 
-use super::search_state::{ConflictType, DependencyConflict, SearchState};
+use super::search_state::{ConflictType, DependencyConflict, OrdByEstimatedCost, SearchState};
 use crate::SolverConfig;
 use rez_next_common::RezCoreError;
 use rez_next_package::{Package, PackageRequirement};
@@ -16,8 +16,8 @@ use std::time::{Duration, Instant};
 
 /// A* search algorithm for dependency resolution
 pub struct AStarSearch {
-    /// Open set: states to be evaluated (priority queue / min-heap via reversed Ord)
-    open_set: BinaryHeap<SearchState>,
+    /// Open set: states to be evaluated (priority queue / min-heap via OrdByEstimatedCost)
+    open_set: BinaryHeap<OrdByEstimatedCost>,
 
     /// Closed set: hashes of states already evaluated
     closed_set: HashSet<u64>,
@@ -108,10 +108,10 @@ impl AStarSearch {
         let mut initial_state = SearchState::new_initial(initial_requirements);
         initial_state.estimated_total_cost = heuristic_fn(&initial_state);
 
-        self.open_set.push(initial_state);
+        self.open_set.push(OrdByEstimatedCost(initial_state));
         self.stats = SearchStats::default();
 
-        while let Some(current_state) = self.open_set.pop() {
+        while let Some(OrdByEstimatedCost(current_state)) = self.open_set.pop() {
             if start_time.elapsed() > self.max_search_time {
                 return Err(RezCoreError::Solver(
                     "A* search time limit exceeded".to_string(),
@@ -154,7 +154,7 @@ impl AStarSearch {
 
                 let h_value = heuristic_fn(&successor);
                 successor.estimated_total_cost = successor.cost_so_far + h_value;
-                self.open_set.push(successor);
+                self.open_set.push(OrdByEstimatedCost(successor));
             }
 
             // Update running average branching factor

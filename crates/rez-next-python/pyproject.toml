@@ -33,8 +33,9 @@ Issues = "https://github.com/loonghao/rez-next/issues"
 [tool.maturin]
 # Build the cdylib as Python extension
 features = ["pyo3/extension-module"]
-# Python module name (must match #[pymodule(name = "rez_next")] in lib.rs)
-module-name = "rez_next"
+# Python module name: native extension is installed as rez_next._native,
+# so Python layer (python/rez_next/__init__.py) can do `from rez_next._native import *`
+module-name = "rez_next._native"
 # Strip debug symbols in release
 strip = true
 
