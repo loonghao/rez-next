@@ -83,8 +83,10 @@ fn handle_grouped_command(args: Vec<String>) {
             }
         }
         Err(e) => {
-            eprintln!("Error parsing arguments: {}", e);
-            process::exit(1);
+            // clap returns Err for --help / --version display; honour exit code
+            let code = if e.use_stderr() { 1 } else { 0 };
+            e.print().ok();
+            process::exit(code);
         }
     }
 }
