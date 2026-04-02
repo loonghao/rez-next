@@ -58,10 +58,26 @@
 
 ## Medium Priority — TODO Audit
 
-1 TODO comment across the codebase (cycle 19 audit, down from 2 in cycle 18):
+1 TODO comment across the codebase (cycle 20 audit, unchanged from cycle 19):
 - **CLI stubs** (1): `view.rs` (1, context package viewing)
-- Resolved since cycle 18: `pkg_cache.rs` daemon logic implemented by iteration agent
 - The remaining TODO is a non-blocking stub implementation for future features.
+
+### 14. Disabled benchmark files removal
+- **Status**: COMPLETE ✓ (cycle 20)
+- Deleted 13 disabled benchmark files (~7400 lines, ~220KB): build_cache_benchmark, comprehensive_benchmark_suite, solver_benchmark, context_benchmark, simple_*_benchmark, performance_validation_*
+- These files were not in Cargo.toml `[[bench]]` entries and referenced deleted/renamed types (would not compile)
+- Updated `benches/README.md` to remove "Disabled" section
+
+### 15. Mock simulation tests removal
+- **Status**: COMPLETE ✓ (cycle 20)
+- Deleted `tests/integration/test_performance_optimizations.rs` (315 lines) — not in module tree, 0 project imports, all tests were `format!()` string operations
+- Deleted 5 mock simulation tests from `tests/integration_tests.rs::performance_tests` module — same pattern, no actual project code tested
+
+### 16. eprintln in library code — needs tracing dependency
+- **Status**: DEFERRED (cycle 20)
+- 3 library-code `eprintln!` calls in: `scanner.rs`, `filesystem.rs`, `intelligent_manager.rs`
+- Replacing with `tracing::warn!` requires adding `tracing` crate as a new dependency — outside cleanup scope
+- Recommended: iteration agent should add `tracing` to workspace deps, then cleanup agent can migrate
 
 ### 12. `build --help` / `env --help` returns exit code 1
 - **Status**: COMPLETE ✓ (cycle 19)
@@ -90,8 +106,8 @@
 
 ## Medium Priority — Clippy Warnings
 
-Clippy warnings: **~0** (cleared in iteration cycle 18, `--all-targets --all-features`)
-- Remaining: ~2 in `real_repo_integration.rs` (structural — false positive for unused import, PathBuf ownership needed)
+Clippy warnings: **0** (cycle 20, `--all-targets`)
+- Fixed items-after-test-module in `cache/lib.rs` and `solver/astar/mod.rs` (cycle 20)
 
 ### 9. Orphan CLI files
 - **Status**: COMPLETE ✓ (cycle 16)
