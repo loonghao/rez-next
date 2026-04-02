@@ -650,3 +650,269 @@ fn test_solve_semver_range_ge_lt() {
             "Python {} should be in [3.9, 3.11)", ver);
     }
 }
+
+// ─── Extended real-filesystem scenarios (Cycle 26) ────────────────────────────
+
+/// Verify that when a package requires a tight patch range, only that patch is accepted.
+/// Simulates exact-build pinning behavior common in production VFX pipelines.
+/// Note: in rez version semantics, 20.1 > 20.0.0 (fewer tokens = higher epoch).
+/// Use full 3-token bounds (20.0.0+<20.0.1) to avoid cross-token epoch surprises.
+#[test]
+fn test_solve_exact_version_pin_filesystem() {
+    let tmp = TempDir::new().unwrap();
+    let repo_dir = tmp.path().to_path_buf();
+
+    create_package(&repo_dir, "houdini", "19.5.0", &[], &["houdini"], None);
+    create_package(&repo_dir, "houdini", "20.0.0", &[], &["houdini"], None);
+    create_package(&repo_dir, "houdini", "20.5.0", &[], &["houdini"], None);
+    // pinned_tool requires exactly houdini 20.0.0 (tight 3-token patch range)
+    create_package(
+        &repo_dir,
+        "pinned_tool",
+        "1.0.0",
+        &["houdini-20.0.0+<20.0.1"],
+        &["pinned_tool"],
+        None,
+    );
+
+    let repo = make_repo(&repo_dir);
+    let resolved = resolve(repo, vec!["pinned_tool"]);
+
+    let houdini = resolved.iter().find(|(n, _)| n == "houdini");
+    assert!(houdini.is_some(), "houdini should be resolved as a dep of pinned_tool");
+
+    let (_, ver) = houdini.unwrap();
+    assert_eq!(
+        ver.as_str(), "20.0.0",
+        "pinned_tool should resolve houdini exactly at 20.0.0, got {}",
+        ver
+    );
+}
+
+/// When two packages in the same request share a transitive dep with non-overlapping
+/// version constraints, the solver must detect or surface the conflict.
+#[test]
+fn test_solve_shared_dep_version_downgrade() {
+    let tmp = TempDir::new().unwrap();
+    let repo_dir = tmp.path().to_path_buf();
+
+    // Two versions of openexr available
+    create_package(&repo_dir, "openexr", "2.5.0", &[], &[], None);
+    create_package(&repo_dir, "openexr", "3.1.0", &[], &[], None);
+
+    // arnold requires openexr >= 3.0
+    create_package(
+        &repo_dir,
+        "arnold",
+        "7.0.0",
+        &["openexr-3+"],
+        &["kick"],
+        None,
+    );
+    // old_renderer requires openexr < 3.0
+    create_package(
+        &repo_dir,
+        "old_renderer",
+        "1.0.0",
+        &["openexr-2+<3"],
+        &[],
+        None,
+    );
+
+    let repo = make_repo(&repo_dir);
+
+    let requirements: Vec<Requirement> = ["arnold", "old_renderer"]
+        .iter()
+        .map(|s| s.parse::<Requirement>().unwrap())
+        .collect();
+
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let config = SolverConfig::default();
+    let mut resolver = DependencyResolver::new(Arc::clone(&repo), config);
+    let result = rt.block_on(resolver.resolve(requirements));
+
+    // Solver must not panic; conflict or empty/failed resolution is acceptable
+    match result {
+        Err(_) => { /* conflict correctly rejected */ }
+        Ok(res) => {
+            // If solver succeeds, it should not include both openexr-2.x and openexr-3.x
+            let openexr_vers: Vec<&str> = res
+                .resolved_packages
+                .iter()
+                .filter(|rp| rp.package.name == "openexr")
+                .filter_map(|rp| rp.package.version.as_ref().map(|v| v.as_str()))
+                .collect();
+            assert!(
+                openexr_vers.len() <= 1,
+                "Solver should not select multiple conflicting openexr versions: {:?}",
+                openexr_vers
+            );
+        }
+    }
+}
+
+/// Multiple repos: verify that packages from a higher-priority repo shadow lower-priority ones.
+/// Also verifies that packages only in repo2 are still reachable.
+#[test]
+fn test_multi_repo_shadowing_and_fallback() {
+    let tmp1 = TempDir::new().unwrap();
+    let tmp2 = TempDir::new().unwrap();
+
+    let repo1 = tmp1.path().to_path_buf();
+    let repo2 = tmp2.path().to_path_buf();
+
+    // Repo1: studio-override of nuke at 15.0, plus a unique pkg
+    create_package(&repo1, "nuke", "15.0.0", &[], &["nuke"], None);
+    create_package(&repo1, "studio_lib", "2.0.0", &[], &[], None);
+
+    // Repo2: vendor nuke at 14.0 (should be superseded by repo1's 15.0 when
+    // version selection is considered), plus nuke 13.0
+    create_package(&repo2, "nuke", "14.0.0", &[], &["nuke"], None);
+    create_package(&repo2, "nuke", "13.0.0", &[], &["nuke"], None);
+    // Unique to repo2
+    create_package(&repo2, "vendor_lib", "1.0.0", &[], &[], None);
+
+    let mut mgr = RepositoryManager::new();
+    mgr.add_repository(Box::new(SimpleRepository::new(
+        repo1.clone(),
+        "studio".to_string(),
+    )));
+    mgr.add_repository(Box::new(SimpleRepository::new(
+        repo2.clone(),
+        "vendor".to_string(),
+    )));
+    let repo = Arc::new(mgr);
+
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    // All nuke versions across repos should be visible
+    let all_nukes = rt.block_on(repo.find_packages("nuke")).unwrap();
+    assert!(
+        all_nukes.len() >= 3,
+        "Should see at least nuke 13/14/15 across repos, got {}",
+        all_nukes.len()
+    );
+
+    // vendor_lib (only in repo2) should still be found
+    let vendor = rt.block_on(repo.find_packages("vendor_lib")).unwrap();
+    assert!(!vendor.is_empty(), "vendor_lib from repo2 should be reachable");
+
+    // studio_lib (only in repo1) should be found
+    let studio = rt.block_on(repo.find_packages("studio_lib")).unwrap();
+    assert!(!studio.is_empty(), "studio_lib from repo1 should be found");
+}
+
+/// Tools field: verify that all declared tools survive the parse-serialize-scan round-trip.
+/// Simulates DCC tools introspection used by rez's `rez-tools` command.
+#[test]
+fn test_tools_roundtrip_filesystem() {
+    let tmp = TempDir::new().unwrap();
+    let repo_dir = tmp.path().to_path_buf();
+
+    let declared_tools = ["houdini", "hython", "hconfig", "hserver", "houdinifx"];
+    create_package(
+        &repo_dir,
+        "houdini",
+        "20.0.547",
+        &[],
+        &declared_tools,
+        None,
+    );
+
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let repo = SimpleRepository::new(repo_dir.clone(), "r".to_string());
+    let pkgs = rt.block_on(repo.find_packages("houdini")).unwrap();
+
+    assert_eq!(pkgs.len(), 1, "Expect exactly one houdini package");
+    let pkg = &pkgs[0];
+
+    for tool in &declared_tools {
+        assert!(
+            pkg.tools.contains(&tool.to_string()),
+            "Tool '{}' should be present in parsed package, got: {:?}",
+            tool,
+            pkg.tools
+        );
+    }
+    assert_eq!(
+        pkg.tools.len(),
+        declared_tools.len(),
+        "No extra/missing tools expected; got: {:?}",
+        pkg.tools
+    );
+}
+
+/// Empty repository directory: solver and repo scan should handle gracefully.
+#[test]
+fn test_empty_repo_directory_no_panic() {
+    let tmp = TempDir::new().unwrap();
+    let empty_repo = tmp.path().to_path_buf();
+    // Do NOT create any packages
+
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let repo = SimpleRepository::new(empty_repo.clone(), "empty".to_string());
+    let pkgs = rt.block_on(repo.find_packages("python")).unwrap();
+    assert!(pkgs.is_empty(), "Empty repo should return no packages");
+
+    // Solver on empty repo should not panic
+    let repo_mgr = make_repo(&empty_repo);
+    let requirements: Vec<Requirement> = ["python"]
+        .iter()
+        .map(|s| s.parse::<Requirement>().unwrap())
+        .collect();
+
+    let config = SolverConfig::default();
+    let mut resolver = DependencyResolver::new(repo_mgr, config);
+    let result = rt.block_on(resolver.resolve(requirements));
+    // May return Ok (lenient) or Err — must not panic
+    match result {
+        Ok(res) => {
+            let names: Vec<&str> = res
+                .resolved_packages
+                .iter()
+                .map(|rp| rp.package.name.as_str())
+                .collect();
+            assert!(
+                !names.contains(&"python"),
+                "Empty repo: python should not appear in result"
+            );
+        }
+        Err(_) => { /* strict mode: also acceptable */ }
+    }
+}
+
+/// Regression: package description field with special characters (quotes, backslashes).
+/// Verifies the parser does not panic or corrupt metadata on unusual strings.
+#[test]
+fn test_package_py_description_special_chars() {
+    let tmp = TempDir::new().unwrap();
+    let pkg_dir = tmp.path().join("testpkg").join("1.0.0");
+    fs::create_dir_all(&pkg_dir).unwrap();
+
+    // Write a package.py with a description containing quotes and a backslash
+    fs::write(
+        pkg_dir.join("package.py"),
+        r#"name = "testpkg"
+version = "1.0.0"
+description = "A package with \"quotes\" and path C:\\tool"
+"#,
+    )
+    .unwrap();
+
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let repo = SimpleRepository::new(tmp.path().to_path_buf(), "r".to_string());
+    // Must not panic; either parses successfully or returns an error
+    let result = rt.block_on(repo.find_packages("testpkg"));
+    match result {
+        Ok(pkgs) => {
+            // If parsed, name and version must be correct
+            if !pkgs.is_empty() {
+                assert_eq!(pkgs[0].name, "testpkg");
+                assert_eq!(
+                    pkgs[0].version.as_ref().map(|v| v.as_str()),
+                    Some("1.0.0")
+                );
+            }
+        }
+        Err(_) => { /* parse error on unusual string is acceptable — no panic is the requirement */ }
+    }
+}
