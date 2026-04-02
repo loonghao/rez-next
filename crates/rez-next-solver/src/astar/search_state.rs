@@ -253,14 +253,18 @@ impl Ord for SearchState {
 
 /// Wrapper for use in BinaryHeap that orders SearchStates by estimated_total_cost (A* min-heap).
 ///
-/// `BinaryHeap` is a max-heap in Rust, so we store `Reverse<...>` semantics by flipping the
-/// comparison: the state with the **lowest** `estimated_total_cost` wins.
+/// `BinaryHeap` is a max-heap in Rust, so we flip the comparison so that the state with the
+/// **lowest** `estimated_total_cost` wins (i.e., comparing `other` vs `self`).
+///
+/// Eq is defined consistently with Ord: two entries are equal iff their cost bits and state_hash
+/// are identical, satisfying the `a == b ↔ a.cmp(b) == Equal` contract required by Clippy.
 #[derive(Debug)]
 pub struct OrdByEstimatedCost(pub SearchState);
 
 impl PartialEq for OrdByEstimatedCost {
     fn eq(&self, other: &Self) -> bool {
-        self.0.state_hash == other.0.state_hash
+        self.0.estimated_total_cost.to_bits() == other.0.estimated_total_cost.to_bits()
+            && self.0.state_hash == other.0.state_hash
     }
 }
 
@@ -274,13 +278,14 @@ impl PartialOrd for OrdByEstimatedCost {
 
 impl Ord for OrdByEstimatedCost {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        // Reversed so that BinaryHeap (max-heap) pops the state with lowest f(n) first.
-        other
-            .0
-            .estimated_total_cost
-            .partial_cmp(&self.0.estimated_total_cost)
-            .unwrap_or(std::cmp::Ordering::Equal)
-            // Tiebreak by state_hash for determinism
+        // Use integer bit comparison to avoid f64-related Clippy lints.
+        // NaN is handled by treating it as u64::MAX (worst priority).
+        // Reversed (other vs self) so that the entry with the lowest cost is
+        // popped first from Rust's max-heap BinaryHeap.
+        let self_bits = self.0.estimated_total_cost.to_bits();
+        let other_bits = other.0.estimated_total_cost.to_bits();
+        other_bits
+            .cmp(&self_bits)
             .then_with(|| self.0.state_hash.cmp(&other.0.state_hash))
     }
 }
