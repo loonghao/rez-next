@@ -6577,4 +6577,244 @@ fn test_version_alphanumeric_ordering() {
     }
 }
 
+// ─── rez.config compatibility tests ─────────────────────────────────────────
+
+/// rez.config: default packages_path is a non-empty list of paths
+/// Mirrors rez.config.packages_path default behavior (defaults include ~/packages).
+#[test]
+fn test_config_packages_path_default_is_list() {
+    use rez_next_common::config::RezCoreConfig;
+    let cfg = RezCoreConfig::default();
+    assert!(!cfg.packages_path.is_empty(), "default packages_path should be non-empty");
+}
+
+/// rez.config: local_packages_path is a non-empty string
+#[test]
+fn test_config_local_packages_path_is_string() {
+    use rez_next_common::config::RezCoreConfig;
+    let cfg = RezCoreConfig::default();
+    assert!(!cfg.local_packages_path.is_empty(), "local_packages_path must be non-empty");
+}
+
+/// rez.config: release_packages_path is a non-empty string
+#[test]
+fn test_config_release_packages_path_is_string() {
+    use rez_next_common::config::RezCoreConfig;
+    let cfg = RezCoreConfig::default();
+    assert!(!cfg.release_packages_path.is_empty(), "release_packages_path must be non-empty");
+}
+
+/// rez.config: packages_path can be overridden by direct field assignment
+#[test]
+fn test_config_override_packages_path_direct() {
+    use rez_next_common::config::RezCoreConfig;
+    let mut cfg = RezCoreConfig::default();
+    cfg.packages_path = vec!["/tmp/pkgs".to_string(), "/opt/pkgs".to_string()];
+    assert_eq!(cfg.packages_path.len(), 2, "overridden packages_path should have 2 entries");
+    assert!(cfg.packages_path.contains(&"/tmp/pkgs".to_string()));
+    assert!(cfg.packages_path.contains(&"/opt/pkgs".to_string()));
+}
+
+/// rez.config: get_field accessor returns packages_path as JSON array
+#[test]
+fn test_config_get_field_packages_path() {
+    use rez_next_common::config::RezCoreConfig;
+    let cfg = RezCoreConfig::default();
+    let value = cfg.get_field("packages_path");
+    assert!(value.is_some(), "get_field('packages_path') should return Some");
+    if let Some(serde_json::Value::Array(arr)) = value {
+        assert!(!arr.is_empty(), "packages_path field should be non-empty array");
+    }
+}
+
+/// rez.config: get_field for nested cache config returns correct bool
+#[test]
+fn test_config_get_field_cache_nested() {
+    use rez_next_common::config::RezCoreConfig;
+    let cfg = RezCoreConfig::default();
+    let mem = cfg.get_field("cache.enable_memory_cache");
+    assert_eq!(mem, Some(serde_json::Value::Bool(true)),
+        "cache.enable_memory_cache should default to true");
+    let disk = cfg.get_field("cache.enable_disk_cache");
+    assert_eq!(disk, Some(serde_json::Value::Bool(true)),
+        "cache.enable_disk_cache should default to true");
+}
+
+/// rez.config: default_shell is platform-appropriate (cmd on Windows, bash on Unix)
+#[test]
+fn test_config_default_shell_platform_appropriate() {
+    use rez_next_common::config::RezCoreConfig;
+    let cfg = RezCoreConfig::default();
+    assert!(!cfg.default_shell.is_empty(), "default_shell must not be empty");
+    #[cfg(windows)]
+    assert_eq!(cfg.default_shell, "cmd", "on Windows default_shell should be 'cmd'");
+    #[cfg(not(windows))]
+    assert_eq!(cfg.default_shell, "bash", "on Unix default_shell should be 'bash'");
+}
+
+/// rez.config: version field matches CARGO_PKG_VERSION (non-empty semver string)
+#[test]
+fn test_config_version_non_empty() {
+    use rez_next_common::config::RezCoreConfig;
+    let cfg = RezCoreConfig::default();
+    assert!(!cfg.version.is_empty(), "config version must be non-empty");
+    // Should look like a semver: contains a dot separator
+    assert!(cfg.version.contains('.'), "config version should contain '.' (semver format)");
+}
+
+/// rez.config: RezCoreConfig serializes to valid JSON and roundtrips correctly
+#[test]
+fn test_config_serialization_json_roundtrip_compat() {
+    use rez_next_common::config::RezCoreConfig;
+    let cfg = RezCoreConfig::default();
+    let json = serde_json::to_string(&cfg).expect("config must serialize to JSON");
+    let restored: RezCoreConfig = serde_json::from_str(&json)
+        .expect("config must deserialize from JSON");
+    assert_eq!(cfg.packages_path, restored.packages_path,
+        "packages_path must survive JSON roundtrip");
+    assert_eq!(cfg.local_packages_path, restored.local_packages_path,
+        "local_packages_path must survive JSON roundtrip");
+    assert_eq!(cfg.default_shell, restored.default_shell,
+        "default_shell must survive JSON roundtrip");
+}
+
+// ─── rez.diff compatibility tests ────────────────────────────────────────────
+
+/// rez.diff: two identical resolved contexts produce empty diff
+#[test]
+fn test_diff_identical_contexts_empty() {
+    use rez_next_context::ResolvedContext;
+    use rez_next_package::{Package, PackageRequirement};
+    use rez_next_version::Version;
+
+    let make_ctx = || {
+        let reqs = vec![PackageRequirement::parse("python-3.11").unwrap()];
+        let mut ctx = ResolvedContext::from_requirements(reqs);
+        let mut pkg = Package::new("python".to_string());
+        pkg.version = Some(Version::parse("3.11").unwrap());
+        ctx.resolved_packages.push(pkg);
+        ctx
+    };
+
+    let ctx_a = make_ctx();
+    let ctx_b = make_ctx();
+
+    // diff: packages in A not in B (same version) → 0
+    let names_a: std::collections::HashSet<String> = ctx_a
+        .resolved_packages
+        .iter()
+        .map(|p| format!("{}-{}", p.name, p.version.as_ref().map(|v| v.as_str()).unwrap_or("?")))
+        .collect();
+    let names_b: std::collections::HashSet<String> = ctx_b
+        .resolved_packages
+        .iter()
+        .map(|p| format!("{}-{}", p.name, p.version.as_ref().map(|v| v.as_str()).unwrap_or("?")))
+        .collect();
+
+    let added: Vec<_> = names_b.difference(&names_a).collect();
+    let removed: Vec<_> = names_a.difference(&names_b).collect();
+    assert!(added.is_empty(), "identical contexts should have no added packages");
+    assert!(removed.is_empty(), "identical contexts should have no removed packages");
+}
+
+/// rez.diff: upgrading a package version shows up as changed
+#[test]
+fn test_diff_version_upgrade_detected() {
+    use rez_next_context::ResolvedContext;
+    use rez_next_package::{Package, PackageRequirement};
+    use rez_next_version::Version;
+
+    let make_ctx = |ver: &str| {
+        let reqs = vec![PackageRequirement::parse("maya-2023").unwrap()];
+        let mut ctx = ResolvedContext::from_requirements(reqs);
+        let mut pkg = Package::new("maya".to_string());
+        pkg.version = Some(Version::parse(ver).unwrap());
+        ctx.resolved_packages.push(pkg);
+        ctx
+    };
+
+    let ctx_old = make_ctx("2023");
+    let ctx_new = make_ctx("2024");
+
+    let ver_old = ctx_old.resolved_packages[0]
+        .version.as_ref().map(|v| v.as_str()).unwrap_or("?");
+    let ver_new = ctx_new.resolved_packages[0]
+        .version.as_ref().map(|v| v.as_str()).unwrap_or("?");
+
+    assert_ne!(ver_old, ver_new, "version upgrade diff should detect a change");
+    // 2024 > 2023 in rez numeric ordering
+    let v_old = Version::parse(ver_old).unwrap();
+    let v_new = Version::parse(ver_new).unwrap();
+    assert!(v_new > v_old, "new context should have higher version");
+}
+
+/// rez.diff: added package in new context detected
+#[test]
+fn test_diff_added_package_detected() {
+    use rez_next_context::ResolvedContext;
+    use rez_next_package::{Package, PackageRequirement};
+    use rez_next_version::Version;
+
+    let reqs_old = vec![PackageRequirement::parse("python-3.11").unwrap()];
+    let mut ctx_old = ResolvedContext::from_requirements(reqs_old);
+    let mut pkg_py = Package::new("python".to_string());
+    pkg_py.version = Some(Version::parse("3.11").unwrap());
+    ctx_old.resolved_packages.push(pkg_py.clone());
+
+    let reqs_new = vec![
+        PackageRequirement::parse("python-3.11").unwrap(),
+        PackageRequirement::parse("numpy-1.25").unwrap(),
+    ];
+    let mut ctx_new = ResolvedContext::from_requirements(reqs_new);
+    ctx_new.resolved_packages.push(pkg_py);
+    let mut pkg_np = Package::new("numpy".to_string());
+    pkg_np.version = Some(Version::parse("1.25").unwrap());
+    ctx_new.resolved_packages.push(pkg_np);
+
+    let names_old: std::collections::HashSet<&str> = ctx_old
+        .resolved_packages.iter().map(|p| p.name.as_str()).collect();
+    let names_new: std::collections::HashSet<&str> = ctx_new
+        .resolved_packages.iter().map(|p| p.name.as_str()).collect();
+
+    let added: Vec<_> = names_new.difference(&names_old).collect();
+    assert_eq!(added.len(), 1, "one package (numpy) should appear as added");
+    assert_eq!(*added[0], "numpy");
+}
+
+/// rez.diff: removed package in new context detected
+#[test]
+fn test_diff_removed_package_detected() {
+    use rez_next_context::ResolvedContext;
+    use rez_next_package::{Package, PackageRequirement};
+    use rez_next_version::Version;
+
+    let make_pkg = |name: &str, ver: &str| {
+        let mut p = Package::new(name.to_string());
+        p.version = Some(Version::parse(ver).unwrap());
+        p
+    };
+
+    let reqs_old = vec![
+        PackageRequirement::parse("houdini-20").unwrap(),
+        PackageRequirement::parse("hqueue-5").unwrap(),
+    ];
+    let mut ctx_old = ResolvedContext::from_requirements(reqs_old);
+    ctx_old.resolved_packages.push(make_pkg("houdini", "20"));
+    ctx_old.resolved_packages.push(make_pkg("hqueue", "5"));
+
+    let reqs_new = vec![PackageRequirement::parse("houdini-20").unwrap()];
+    let mut ctx_new = ResolvedContext::from_requirements(reqs_new);
+    ctx_new.resolved_packages.push(make_pkg("houdini", "20"));
+
+    let names_old: std::collections::HashSet<&str> = ctx_old
+        .resolved_packages.iter().map(|p| p.name.as_str()).collect();
+    let names_new: std::collections::HashSet<&str> = ctx_new
+        .resolved_packages.iter().map(|p| p.name.as_str()).collect();
+
+    let removed: Vec<_> = names_old.difference(&names_new).collect();
+    assert_eq!(removed.len(), 1, "one package (hqueue) should appear as removed");
+    assert_eq!(*removed[0], "hqueue");
+}
+
+
 

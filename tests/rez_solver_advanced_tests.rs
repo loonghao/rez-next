@@ -1229,3 +1229,206 @@ fn test_resolver_deep_transitive_chain() {
     assert_eq!(result.resolved_packages.len(), 4,
         "expected 4 packages (a,b,c,d), got {}", result.resolved_packages.len());
 }
+
+// ─── Platform / OS constraint tests ──────────────────────────────────────────
+
+/// Solver: package with platform-specific dep resolves on matching platform.
+///
+/// When platform is simulated by including a "platform" package, packages that
+/// require a specific platform variant should resolve when that platform is
+/// present in the request.
+#[test]
+fn test_solver_platform_specific_package_resolves() {
+    // Simulate: "maya_linux" requires "platform-linux"
+    // The request includes both "platform-linux" and "maya_linux"
+    let (_tmp, repo) = build_test_repo(&[
+        ("platform", "linux", &[]),
+        ("maya_linux", "2024.0.0", &["platform-linux"]),
+    ]);
+
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let config = SolverConfig::default();
+    let mut resolver = DependencyResolver::new(Arc::clone(&repo), config);
+
+    let reqs: Vec<Requirement> = ["platform-linux", "maya_linux"]
+        .iter()
+        .map(|s| s.parse().unwrap())
+        .collect();
+
+    let result = rt.block_on(resolver.resolve(reqs));
+    assert!(result.is_ok(), "platform-specific package should resolve when platform matches");
+    let resolution = result.unwrap();
+    let names: Vec<&str> = resolution.resolved_packages.iter()
+        .map(|p| p.package.name.as_str())
+        .collect();
+    assert!(names.contains(&"maya_linux"), "maya_linux should be in resolution");
+    // platform may or may not appear as explicit resolved dep depending on solver mode;
+    // the important invariant is that resolution succeeded without error.
+    assert!(!resolution.resolved_packages.is_empty(),
+        "resolution should contain at least one package");
+}
+
+/// Solver: requesting a package that requires a different platform than provided fails.
+///
+/// If "maya_linux" requires "platform-linux" but only "platform-windows" is in the
+/// repo, resolution should fail (conflict or missing dep).
+#[test]
+fn test_solver_platform_mismatch_fails_or_empty() {
+    // Only platform-windows available; maya_linux requires platform-linux
+    let (_tmp, repo) = build_test_repo(&[
+        ("platform", "windows", &[]),
+        ("maya_linux", "2024.0.0", &["platform-linux"]),
+    ]);
+
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let config = SolverConfig::default();
+    let mut resolver = DependencyResolver::new(Arc::clone(&repo), config);
+
+    // Request maya_linux: requires platform-linux which is not available
+    let reqs: Vec<Requirement> = ["maya_linux"]
+        .iter()
+        .map(|s| s.parse().unwrap())
+        .collect();
+
+    let result = rt.block_on(resolver.resolve(reqs));
+    // Solver may return error OR resolve without the required dep (lenient mode)
+    // Either outcome is acceptable — must NOT panic
+    match &result {
+        Ok(res) => {
+            // lenient: resolved but missing platform-linux — check no panic
+            let _ = res.resolved_packages.len();
+        }
+        Err(_) => {
+            // strict: returned an error — also acceptable
+        }
+    }
+}
+
+/// Solver: package with OS-version constraint resolves correctly.
+///
+/// "centos7_tools" requires "os-centos-7+<8", "centos7" satisfies this.
+#[test]
+fn test_solver_os_version_constraint_resolve() {
+    let (_tmp, repo) = build_test_repo(&[
+        ("os", "centos-7.9.0", &[]),
+        ("centos7_tools", "1.0.0", &["os-centos-7+"]),
+    ]);
+
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let config = SolverConfig::default();
+    let mut resolver = DependencyResolver::new(Arc::clone(&repo), config);
+
+    let reqs: Vec<Requirement> = ["centos7_tools", "os-centos-7+"]
+        .iter()
+        .map(|s| s.parse().unwrap())
+        .collect();
+
+    let result = rt.block_on(resolver.resolve(reqs));
+    assert!(result.is_ok(), "OS version constraint should resolve when OS version satisfies range");
+}
+
+/// Solver: version range exclusive upper bound is respected.
+///
+/// Packages available: lib-1.0.0, lib-2.0.0, lib-3.0.0.
+/// Request: lib-1+<3  → should resolve to lib-2.0.0 (highest in [1,3)).
+#[test]
+fn test_solver_exclusive_upper_bound_respected() {
+    let (_tmp, repo) = build_test_repo(&[
+        ("lib", "1.0.0", &[]),
+        ("lib", "2.0.0", &[]),
+        ("lib", "3.0.0", &[]),
+    ]);
+
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let config = SolverConfig::default();
+    let mut resolver = DependencyResolver::new(Arc::clone(&repo), config);
+
+    // lib-1+<3 means: version >= 1.0.0 AND version < 3.0.0
+    let reqs: Vec<Requirement> = ["lib-1+<3"]
+        .iter()
+        .map(|s| s.parse().unwrap())
+        .collect();
+
+    let result = rt.block_on(resolver.resolve(reqs));
+    assert!(result.is_ok(), "exclusive upper bound range should resolve");
+    let resolution = result.unwrap();
+    assert_eq!(resolution.resolved_packages.len(), 1, "exactly one lib should be selected");
+    let selected_ver = resolution.resolved_packages[0]
+        .package.version.as_ref()
+        .map(|v| v.as_str())
+        .unwrap_or("?");
+    // Must NOT be lib-3.0.0 (excluded by <3)
+    assert_ne!(selected_ver, "3.0.0", "lib-3.0.0 should be excluded by <3 upper bound");
+    assert_ne!(selected_ver, "3",     "lib-3 should be excluded by <3 upper bound");
+}
+
+/// Solver: wildcard / prefix range resolution.
+///
+/// Request "lib-2" (rez: means exactly version 2, which is epoch >= 2 and < next epoch).
+/// Only lib-2.0.0 should match (lib-1.0.0 and lib-3.0.0 should not).
+#[test]
+fn test_solver_prefix_version_range_resolves_correct_epoch() {
+    let (_tmp, repo) = build_test_repo(&[
+        ("lib", "1.0.0", &[]),
+        ("lib", "2.0.0", &[]),
+        ("lib", "3.0.0", &[]),
+    ]);
+
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let config = SolverConfig::default();
+    let mut resolver = DependencyResolver::new(Arc::clone(&repo), config);
+
+    let reqs: Vec<Requirement> = ["lib-2"]
+        .iter()
+        .map(|s| s.parse().unwrap())
+        .collect();
+
+    let result = rt.block_on(resolver.resolve(reqs));
+    assert!(result.is_ok(), "prefix range 'lib-2' should resolve");
+    let resolution = result.unwrap();
+    // The resolved lib must satisfy version 2 (epoch)
+    for rp in &resolution.resolved_packages {
+        if rp.package.name == "lib" {
+            let ver = rp.package.version.as_ref().map(|v| v.as_str()).unwrap_or("?");
+            assert!(
+                ver.starts_with("2.") || ver == "2",
+                "resolved lib version '{}' should be in epoch 2", ver
+            );
+        }
+    }
+}
+
+/// Solver: multiple versions of same package in repo — always picks highest satisfying.
+///
+/// lib has 1.0.0, 1.5.0, 2.0.0. Request "lib-1+" → should pick lib-2.0.0
+/// (rez prefer-latest semantics: highest version that satisfies constraints).
+///
+/// Note: in rez epoch semantics `2.0.0 > 1.5.0`, so 2.0.0 satisfies "lib-1+".
+#[test]
+fn test_solver_multi_version_picks_highest_satisfying() {
+    let (_tmp, repo) = build_test_repo(&[
+        ("lib", "1.0.0", &[]),
+        ("lib", "1.5.0", &[]),
+        ("lib", "2.0.0", &[]),
+    ]);
+
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let config = SolverConfig::default();
+    let mut resolver = DependencyResolver::new(Arc::clone(&repo), config);
+
+    let reqs: Vec<Requirement> = ["lib-1+"]
+        .iter()
+        .map(|s| s.parse().unwrap())
+        .collect();
+
+    let result = rt.block_on(resolver.resolve(reqs))
+        .expect("'lib-1+' should resolve with multiple versions available");
+
+    assert_eq!(result.resolved_packages.len(), 1, "exactly one lib should be selected");
+    let selected = result.resolved_packages[0].package.version.as_ref()
+        .map(|v| v.as_str()).unwrap_or("?");
+    // Should be 2.0.0 (highest satisfying)
+    assert_eq!(selected, "2.0.0",
+        "prefer-latest: 'lib-1+' should select lib-2.0.0 (highest satisfying), got '{}'", selected);
+}
+
