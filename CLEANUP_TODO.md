@@ -58,10 +58,21 @@
 
 ## Medium Priority — TODO Audit
 
-2 TODO comments across the codebase (cycle 18 audit, down from 18 in cycle 17). Key categories:
-- **CLI stubs** (2): `view.rs` (1, context package viewing), `pkg_cache.rs` (1, daemon logic)
-- Resolved since cycle 17: 16 TODOs implemented by iteration agent — `performance_monitor.rs` (eviction latency, allocation rate, CPU usage, io/parsing time), `high_performance_scanner.rs` (io/parsing metrics), `scanner.rs` (LRU eviction, memory tracking), `rm.rs` (time-based removal), `rez-next.rs` (build command extra args), `artifacts.rs` (SHA256 checksum), `utils.rs` (terminal size), `mod.rs` (system info), `data_bindings.rs` (fish completions)
-- The remaining 2 TODOs are non-blocking stub implementations for future features.
+1 TODO comment across the codebase (cycle 19 audit, down from 2 in cycle 18):
+- **CLI stubs** (1): `view.rs` (1, context package viewing)
+- Resolved since cycle 18: `pkg_cache.rs` daemon logic implemented by iteration agent
+- The remaining TODO is a non-blocking stub implementation for future features.
+
+### 12. `build --help` / `env --help` returns exit code 1
+- **Status**: COMPLETE ✓ (cycle 19)
+- Fixed `handle_grouped_command` in `rez-next.rs`: clap returns `Err` for `--help`/`--version` display; now uses `e.use_stderr()` to decide exit code (0 for help/version, 1 for real errors)
+- Previously `eprintln!` + `exit(1)` swallowed the help output and returned wrong exit code
+
+### 13. Dead regex fields in RequirementPatterns
+- **Status**: COMPLETE ✓ (cycle 19)
+- Removed 3 unused fields: `range`, `platform_condition`, `env_condition`
+- Only `basic_version`, `namespace`, `wildcard` are actually used in parsing
+- `#[allow(dead_code)]` annotation removed entirely
 
 ### 11. PerformanceMonitor::reset() incomplete counter reset
 - **Status**: COMPLETE ✓ (cycle 18)
