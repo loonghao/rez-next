@@ -1581,3 +1581,330 @@ fn test_solver_strict_mode_version_mismatch_returns_err() {
     );
 }
 
+// ─── Pre-release / alpha token ordering tests ────────────────────────────────
+
+/// Pre-release exclusion: allow_prerelease=false should not pick alpha version
+/// when a stable release exists.
+///
+/// Repo has lib-1.0.0 (stable) and lib-1.1.alpha1 (pre-release).
+/// With allow_prerelease=false, solver must pick lib-1.0.0.
+#[test]
+fn test_solver_prerelease_excluded_when_stable_available() {
+    let (_tmp, repo) = build_test_repo(&[
+        ("lib", "1.0.0", &[]),
+        ("lib", "1.1.alpha1", &[]),
+    ]);
+
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let config = SolverConfig { allow_prerelease: false, ..SolverConfig::default() };
+    let mut resolver = DependencyResolver::new(Arc::clone(&repo), config);
+
+    let reqs: Vec<Requirement> = ["lib-1+"]
+        .iter()
+        .map(|s| s.parse().unwrap())
+        .collect();
+
+    let result = rt.block_on(resolver.resolve(reqs))
+        .expect("resolution with stable version should succeed");
+
+    assert_eq!(result.resolved_packages.len(), 1);
+    let selected = result.resolved_packages[0].package.version.as_ref()
+        .map(|v| v.as_str()).unwrap_or("?");
+    assert_eq!(
+        selected, "1.0.0",
+        "with allow_prerelease=false, should pick stable 1.0.0, got '{}'", selected
+    );
+}
+
+/// Pre-release inclusion: allow_prerelease=true picks highest version including alpha.
+///
+/// Repo has lib-1.0.0 and lib-2.alpha1. With allow_prerelease=true and
+/// prefer_latest=true, solver should select lib-2.alpha1 as the highest
+/// version that satisfies "lib-1+".
+#[test]
+fn test_solver_prerelease_included_when_allowed() {
+    let (_tmp, repo) = build_test_repo(&[
+        ("lib", "1.0.0", &[]),
+        ("lib", "2.alpha1", &[]),
+    ]);
+
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let config = SolverConfig {
+        allow_prerelease: true,
+        prefer_latest: true,
+        ..SolverConfig::default()
+    };
+    let mut resolver = DependencyResolver::new(Arc::clone(&repo), config);
+
+    let reqs: Vec<Requirement> = ["lib-1+"]
+        .iter()
+        .map(|s| s.parse().unwrap())
+        .collect();
+
+    let result = rt.block_on(resolver.resolve(reqs))
+        .expect("resolution with prerelease allowed should succeed");
+
+    assert_eq!(result.resolved_packages.len(), 1);
+    let selected = result.resolved_packages[0].package.version.as_ref()
+        .map(|v| v.as_str()).unwrap_or("?");
+    // 2.alpha1 > 1.0.0 numerically (epoch 2 > epoch 1)
+    assert_eq!(
+        selected, "2.alpha1",
+        "with allow_prerelease=true, should pick 2.alpha1 (highest), got '{}'", selected
+    );
+}
+
+/// Pre-release only repo: when only pre-release versions exist and
+/// allow_prerelease=false, the requirement should go into failed_requirements.
+#[test]
+fn test_solver_prerelease_only_repo_fails_when_not_allowed() {
+    let (_tmp, repo) = build_test_repo(&[
+        ("lib", "1.0.alpha1", &[]),
+        ("lib", "1.0.beta2", &[]),
+    ]);
+
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let config = SolverConfig { allow_prerelease: false, ..SolverConfig::default() };
+    let mut resolver = DependencyResolver::new(Arc::clone(&repo), config);
+
+    let reqs: Vec<Requirement> = ["lib-1+"]
+        .iter()
+        .map(|s| s.parse().unwrap())
+        .collect();
+
+    let result = rt.block_on(resolver.resolve(reqs))
+        .expect("lenient mode should return Ok even when only prerelease available");
+
+    // In lenient mode: failed_requirements contains "lib", resolved_packages is empty
+    assert!(
+        result.failed_requirements.iter().any(|r| r.name == "lib"),
+        "lib should be in failed_requirements when no stable version exists and prerelease is not allowed"
+    );
+    assert!(
+        !result.resolved_packages.iter().any(|p| p.package.name == "lib"),
+        "lib should not be in resolved_packages when prerelease not allowed and no stable exists"
+    );
+}
+
+// ─── Variant index scenario tests ────────────────────────────────────────────
+
+/// Variant index: resolved package with variant_index=None means no variant was selected.
+///
+/// Standard packages (no variants in package.py) should have variant_index = None
+/// in the resolution result.
+#[test]
+fn test_resolver_variant_index_none_for_plain_package() {
+    let (_tmp, repo) = build_test_repo(&[
+        ("python", "3.11.0", &[]),
+    ]);
+
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let config = SolverConfig::default();
+    let mut resolver = DependencyResolver::new(Arc::clone(&repo), config);
+
+    let reqs: Vec<Requirement> = ["python-3+"]
+        .iter()
+        .map(|s| s.parse().unwrap())
+        .collect();
+
+    let result = rt.block_on(resolver.resolve(reqs))
+        .expect("plain package should resolve");
+
+    assert_eq!(result.resolved_packages.len(), 1);
+    // Plain packages have no variant index
+    assert_eq!(
+        result.resolved_packages[0].variant_index, None,
+        "plain package should have variant_index = None"
+    );
+}
+
+/// Multiple packages resolved — each carries correct variant_index=None.
+///
+/// Verifies that the variant_index field is consistently None across all
+/// resolved packages when the repo packages have no variants.
+#[test]
+fn test_resolver_all_resolved_packages_have_variant_index_none() {
+    let (_tmp, repo) = build_test_repo(&[
+        ("python", "3.10.0", &[]),
+        ("numpy", "1.24.0", &["python-3+"]),
+        ("scipy", "1.10.0", &["python-3+", "numpy-1+"]),
+    ]);
+
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let config = SolverConfig::default();
+    let mut resolver = DependencyResolver::new(Arc::clone(&repo), config);
+
+    let reqs: Vec<Requirement> = ["scipy-1+"]
+        .iter()
+        .map(|s| s.parse().unwrap())
+        .collect();
+
+    let result = rt.block_on(resolver.resolve(reqs))
+        .expect("scipy with transitive deps should resolve");
+
+    assert!(
+        !result.resolved_packages.is_empty(),
+        "should have resolved packages"
+    );
+    for pkg in &result.resolved_packages {
+        assert_eq!(
+            pkg.variant_index, None,
+            "package '{}' should have variant_index=None (no variants in test repo)",
+            pkg.package.name
+        );
+    }
+}
+
+/// Variant index field: ResolvedPackageInfo::variant_index can be set to Some(0).
+///
+/// This is a unit-level structural test: resolve a package, then verify the
+/// variant_index field can be mutated to Some(0) (important for future variant-aware resolution).
+#[test]
+fn test_resolver_variant_index_some_can_be_constructed() {
+    use rez_next_solver::dependency_resolver::ResolvedPackageInfo;
+
+    let (_tmp, repo) = build_test_repo(&[
+        ("maya", "2024.0.0", &[]),
+    ]);
+
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let config = SolverConfig::default();
+    let mut resolver = DependencyResolver::new(Arc::clone(&repo), config);
+
+    let reqs: Vec<Requirement> = ["maya-2024+"]
+        .iter()
+        .map(|s| s.parse().unwrap())
+        .collect();
+
+    let mut result = rt.block_on(resolver.resolve(reqs))
+        .expect("maya should resolve");
+
+    assert_eq!(result.resolved_packages.len(), 1);
+
+    // Simulate a variant being assigned post-resolution
+    result.resolved_packages[0].variant_index = Some(0);
+
+    let info: &ResolvedPackageInfo = &result.resolved_packages[0];
+    assert_eq!(info.variant_index, Some(0), "variant_index should be assignable to Some(0)");
+    assert_eq!(info.package.name, "maya");
+}
+
+// ─── Solver error message content assertion tests ────────────────────────────
+
+/// Strict mode error message: must contain "Strict mode" prefix.
+///
+/// The error message format from DependencyResolver is:
+/// "Strict mode: failed to satisfy requirements: <req1>, <req2>, ..."
+/// Callers may parse this — the prefix must remain stable.
+#[test]
+fn test_solver_strict_mode_error_message_prefix() {
+    let (_tmp, repo) = build_test_repo(&[]);
+
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let config = SolverConfig { strict_mode: true, ..SolverConfig::default() };
+    let mut resolver = DependencyResolver::new(Arc::clone(&repo), config);
+
+    let reqs: Vec<Requirement> = ["ghost_package-1.0"]
+        .iter()
+        .map(|s| s.parse().unwrap())
+        .collect();
+
+    let err = rt.block_on(resolver.resolve(reqs)).unwrap_err();
+    let msg = err.to_string();
+    assert!(
+        msg.contains("Strict mode"),
+        "strict mode error must start with 'Strict mode', got: '{}'", msg
+    );
+}
+
+/// Strict mode error message: lists all failed requirements by name.
+///
+/// When multiple requirements fail, all should appear in the error string
+/// so users know exactly what went wrong.
+#[test]
+fn test_solver_strict_mode_error_message_lists_all_failed() {
+    let (_tmp, repo) = build_test_repo(&[]);  // empty repo → all reqs fail
+
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let config = SolverConfig { strict_mode: true, ..SolverConfig::default() };
+    let mut resolver = DependencyResolver::new(Arc::clone(&repo), config);
+
+    let reqs: Vec<Requirement> = ["pkgA-1.0", "pkgB-2.0", "pkgC-3.0"]
+        .iter()
+        .map(|s| s.parse().unwrap())
+        .collect();
+
+    let err = rt.block_on(resolver.resolve(reqs)).unwrap_err();
+    let msg = err.to_string();
+    assert!(msg.contains("pkgA"), "error should mention pkgA, got: '{}'", msg);
+    assert!(msg.contains("pkgB"), "error should mention pkgB, got: '{}'", msg);
+    assert!(msg.contains("pkgC"), "error should mention pkgC, got: '{}'", msg);
+}
+
+/// Lenient mode: failed_requirements list preserves the exact requirement name.
+///
+/// When a requirement cannot be satisfied in lenient mode, the original
+/// Requirement struct should appear in failed_requirements with the correct name.
+#[test]
+fn test_solver_lenient_failed_requirements_preserves_name() {
+    let (_tmp, repo) = build_test_repo(&[
+        ("python", "3.11.0", &[]),
+    ]);
+
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let config = SolverConfig::default();  // lenient
+    let mut resolver = DependencyResolver::new(Arc::clone(&repo), config);
+
+    let reqs: Vec<Requirement> = ["totally_nonexistent_package-99.0"]
+        .iter()
+        .map(|s| s.parse().unwrap())
+        .collect();
+
+    let result = rt.block_on(resolver.resolve(reqs))
+        .expect("lenient mode should return Ok");
+
+    assert_eq!(result.failed_requirements.len(), 1);
+    assert_eq!(
+        result.failed_requirements[0].name,
+        "totally_nonexistent_package",
+        "failed_requirements should preserve the exact package name"
+    );
+}
+
+/// Resolution stats: packages_considered increases with more packages in repo.
+///
+/// A repo with 5 packages should result in packages_considered >= 1.
+/// This validates the stats tracking path is exercised.
+#[test]
+fn test_solver_stats_packages_considered_is_nonzero() {
+    let (_tmp, repo) = build_test_repo(&[
+        ("libA", "1.0.0", &[]),
+        ("libB", "2.0.0", &[]),
+        ("libC", "3.0.0", &[]),
+        ("libD", "1.5.0", &[]),
+        ("libE", "0.9.0", &[]),
+    ]);
+
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let config = SolverConfig::default();
+    let mut resolver = DependencyResolver::new(Arc::clone(&repo), config);
+
+    let reqs: Vec<Requirement> = ["libA-1+", "libB-2+"]
+        .iter()
+        .map(|s| s.parse().unwrap())
+        .collect();
+
+    let result = rt.block_on(resolver.resolve(reqs))
+        .expect("resolution of libA and libB should succeed");
+
+    assert!(
+        result.stats.packages_considered >= 1,
+        "at least 1 package should have been considered, got {}",
+        result.stats.packages_considered
+    );
+    assert_eq!(
+        result.resolved_packages.len(), 2,
+        "libA and libB should both be resolved"
+    );
+}
+

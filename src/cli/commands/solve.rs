@@ -34,6 +34,10 @@ pub struct SolveArgs {
     /// Output format (summary, detailed, json)
     #[arg(short, long, default_value = "summary")]
     pub format: String,
+
+    /// Enable strict mode: fail if any requirement cannot be satisfied
+    #[arg(long)]
+    pub strict: bool,
 }
 
 /// Execute the solve command
@@ -80,7 +84,7 @@ async fn solve_async(args: SolveArgs) -> RezCoreResult<()> {
         prefer_latest: true,
         allow_prerelease: false,
         conflict_strategy: ConflictStrategy::LatestWins,
-        strict_mode: false,
+        strict_mode: args.strict,
     };
 
     // Create dependency resolver
@@ -327,11 +331,13 @@ mod tests {
             timeout: 30,
             stats: false,
             format: "summary".to_string(),
+            strict: false,
         };
         assert_eq!(args.timeout, 30);
         assert_eq!(args.format, "summary");
         assert!(!args.verbose);
         assert!(!args.stats);
+        assert!(!args.strict);
     }
 
     #[test]
@@ -343,10 +349,12 @@ mod tests {
             timeout: 60,
             stats: true,
             format: "json".to_string(),
+            strict: true,
         };
         assert_eq!(args.format, "json");
         assert!(args.verbose);
         assert!(args.stats);
+        assert!(args.strict);
         assert_eq!(args.requirements.len(), 2);
     }
 

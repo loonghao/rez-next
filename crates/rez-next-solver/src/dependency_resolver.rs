@@ -231,6 +231,10 @@ impl DependencyResolver {
             .iter()
             .filter(|pkg| {
                 if let Some(ref version) = pkg.version {
+                    // Respect allow_prerelease flag
+                    if !self.config.allow_prerelease && version.is_prerelease() {
+                        return false;
+                    }
                     requirement.is_satisfied_by(version)
                 } else {
                     true
