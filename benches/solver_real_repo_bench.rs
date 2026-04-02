@@ -8,11 +8,11 @@
 //! - Comparison of A* vs greedy resolution strategies
 
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
-use std::hint::black_box;
 use rez_next_package::Requirement;
 use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
 use rez_next_solver::{DependencyResolver, SolverConfig};
 use std::fs;
+use std::hint::black_box;
 use std::sync::Arc;
 use std::time::Duration;
 use tempfile::TempDir;
@@ -60,24 +60,59 @@ fn build_dcc_repo() -> (TempDir, Arc<RepositoryManager>) {
     create_package(&repo_dir, "numpy", "1.24.0", &["python-3.8+"]);
     create_package(&repo_dir, "numpy", "1.25.2", &["python-3.9+"]);
     create_package(&repo_dir, "scipy", "1.9.0", &["python-3.8+", "numpy-1.18+"]);
-    create_package(&repo_dir, "scipy", "1.11.0", &["python-3.9+", "numpy-1.20+"]);
+    create_package(
+        &repo_dir,
+        "scipy",
+        "1.11.0",
+        &["python-3.9+", "numpy-1.20+"],
+    );
 
     // UI frameworks
     create_package(&repo_dir, "pyside2", "5.15.0", &["python-3+<4"]);
     create_package(&repo_dir, "pyside6", "6.5.0", &["python-3.9+"]);
 
     // DCC apps
-    create_package(&repo_dir, "maya", "2023.0", &["python-3.9+<3.11", "pyside2-5+"]);
-    create_package(&repo_dir, "maya", "2024.0", &["python-3.10+<3.12", "pyside2-5+"]);
+    create_package(
+        &repo_dir,
+        "maya",
+        "2023.0",
+        &["python-3.9+<3.11", "pyside2-5+"],
+    );
+    create_package(
+        &repo_dir,
+        "maya",
+        "2024.0",
+        &["python-3.10+<3.12", "pyside2-5+"],
+    );
     create_package(&repo_dir, "houdini", "19.5.0", &["python-3.9+<3.11"]);
     create_package(&repo_dir, "houdini", "20.0.547", &["python-3.10+<3.12"]);
-    create_package(&repo_dir, "nuke", "14.0.0", &["python-3.9+<3.11", "pyside2-5+"]);
-    create_package(&repo_dir, "nuke", "15.0.0", &["python-3.10+<3.12", "pyside2-5+"]);
+    create_package(
+        &repo_dir,
+        "nuke",
+        "14.0.0",
+        &["python-3.9+<3.11", "pyside2-5+"],
+    );
+    create_package(
+        &repo_dir,
+        "nuke",
+        "15.0.0",
+        &["python-3.10+<3.12", "pyside2-5+"],
+    );
 
     // Pipeline tools
     create_package(&repo_dir, "rez", "3.0.0", &["python-3.7+"]);
-    create_package(&repo_dir, "pipeline_core", "1.0.0", &["python-3.9+", "numpy-1.20+"]);
-    create_package(&repo_dir, "pipeline_core", "2.0.0", &["python-3.10+", "numpy-1.24+", "scipy-1.9+"]);
+    create_package(
+        &repo_dir,
+        "pipeline_core",
+        "1.0.0",
+        &["python-3.9+", "numpy-1.20+"],
+    );
+    create_package(
+        &repo_dir,
+        "pipeline_core",
+        "2.0.0",
+        &["python-3.10+", "numpy-1.24+", "scipy-1.9+"],
+    );
 
     let mut mgr = RepositoryManager::new();
     mgr.add_repository(Box::new(SimpleRepository::new(
@@ -186,8 +221,8 @@ fn bench_resolve_transitive_dcc(c: &mut Criterion) {
     // Scenarios with varying depth of transitive dependencies
     let scenarios: &[(&str, &[&str])] = &[
         ("python_only", &["python"]),
-        ("maya_full", &["maya"]),          // maya → python + pyside2
-        ("pipeline", &["pipeline_core"]),  // pipeline_core → python + numpy + scipy
+        ("maya_full", &["maya"]),         // maya → python + pyside2
+        ("pipeline", &["pipeline_core"]), // pipeline_core → python + numpy + scipy
         ("dcc_suite", &["maya", "houdini", "numpy"]),
     ];
 
@@ -197,7 +232,8 @@ fn bench_resolve_transitive_dcc(c: &mut Criterion) {
                 let requirements: Vec<Requirement> =
                     reqs.iter().map(|s| s.parse().unwrap()).collect();
                 let mut resolver = DependencyResolver::new(Arc::clone(&repo), config.clone());
-                rt.block_on(resolver.resolve(black_box(requirements))).unwrap()
+                rt.block_on(resolver.resolve(black_box(requirements)))
+                    .unwrap()
             })
         });
     }
@@ -227,9 +263,10 @@ fn bench_requirement_parsing(c: &mut Criterion) {
     group.bench_function("parse_all_formats", |b| {
         b.iter(|| {
             for f in &formats {
-                let _ = black_box(f.parse::<Requirement>().unwrap_or_else(|_| {
-                    Requirement::new(f.to_string())
-                }));
+                let _ = black_box(
+                    f.parse::<Requirement>()
+                        .unwrap_or_else(|_| Requirement::new(f.to_string())),
+                );
             }
         })
     });
@@ -237,9 +274,10 @@ fn bench_requirement_parsing(c: &mut Criterion) {
     for fmt in &formats {
         group.bench_with_input(BenchmarkId::new("parse", fmt), fmt, |b, &f| {
             b.iter(|| {
-                black_box(f.parse::<Requirement>().unwrap_or_else(|_| {
-                    Requirement::new(f.to_string())
-                }))
+                black_box(
+                    f.parse::<Requirement>()
+                        .unwrap_or_else(|_| Requirement::new(f.to_string())),
+                )
             })
         });
     }
@@ -306,11 +344,10 @@ fn bench_resolve_large_repo(c: &mut Criterion) {
     group.bench_function("small_repo_linear_chain", |b| {
         let req: Requirement = "package_009".parse().unwrap();
         b.iter(|| {
-            let mut resolver = DependencyResolver::new(
-                Arc::clone(&repo_small),
-                SolverConfig::default(),
-            );
-            rt.block_on(resolver.resolve(vec![black_box(req.clone())])).unwrap()
+            let mut resolver =
+                DependencyResolver::new(Arc::clone(&repo_small), SolverConfig::default());
+            rt.block_on(resolver.resolve(vec![black_box(req.clone())]))
+                .unwrap()
         })
     });
 
@@ -319,11 +356,10 @@ fn bench_resolve_large_repo(c: &mut Criterion) {
     group.bench_function("medium_repo_linear_chain", |b| {
         let req: Requirement = "package_019".parse().unwrap();
         b.iter(|| {
-            let mut resolver = DependencyResolver::new(
-                Arc::clone(&repo_medium),
-                SolverConfig::default(),
-            );
-            rt.block_on(resolver.resolve(vec![black_box(req.clone())])).unwrap()
+            let mut resolver =
+                DependencyResolver::new(Arc::clone(&repo_medium), SolverConfig::default());
+            rt.block_on(resolver.resolve(vec![black_box(req.clone())]))
+                .unwrap()
         })
     });
 

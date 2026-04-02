@@ -140,7 +140,10 @@ async fn add_default_repositories(repo_manager: &mut RepositoryManager) -> RezCo
 }
 
 /// Display resolution result
-fn display_resolution_result(result: &DetailedResolutionResult, args: &SolveArgs) -> RezCoreResult<()> {
+fn display_resolution_result(
+    result: &DetailedResolutionResult,
+    args: &SolveArgs,
+) -> RezCoreResult<()> {
     match args.format.as_str() {
         "summary" => display_summary(result, args),
         "detailed" => display_detailed(result, args),

@@ -63,7 +63,11 @@ pub fn extract_version_from_output(output: &str) -> Option<String> {
     // Fallback: first word-like token that contains a digit
     for token in output.split_whitespace() {
         if token.chars().any(|c| c.is_ascii_digit()) {
-            return Some(token.trim_matches(|c: char| !c.is_alphanumeric() && c != '.').to_string());
+            return Some(
+                token
+                    .trim_matches(|c: char| !c.is_alphanumeric() && c != '.')
+                    .to_string(),
+            );
         }
     }
     None

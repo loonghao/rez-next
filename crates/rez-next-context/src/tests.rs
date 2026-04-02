@@ -1,4 +1,4 @@
-﻿//! Unit tests for rez-next-context
+//! Unit tests for rez-next-context
 
 #[cfg(test)]
 mod context_tests {
@@ -103,7 +103,8 @@ mod context_tests {
     fn test_resolved_context_get_package_names() {
         let mut ctx = ResolvedContext::from_requirements(vec![]);
         ctx.resolved_packages.push(make_package("python", "3.9.0"));
-        ctx.resolved_packages.push(make_package("houdini", "19.5.0"));
+        ctx.resolved_packages
+            .push(make_package("houdini", "19.5.0"));
         let names = ctx.get_package_names();
         assert!(names.contains(&"python".to_string()));
         assert!(names.contains(&"houdini".to_string()));
@@ -147,10 +148,7 @@ mod context_tests {
         let pkg = make_package("maya", "2023.0");
         let rt = tokio::runtime::Runtime::new().unwrap();
         let vars = rt.block_on(mgr.generate_environment(&[pkg])).unwrap();
-        assert_eq!(
-            vars.get("MAYA_VERSION").map(|s| s.as_str()),
-            Some("2023.0")
-        );
+        assert_eq!(vars.get("MAYA_VERSION").map(|s| s.as_str()), Some("2023.0"));
     }
 
     #[test]
@@ -243,8 +241,8 @@ mod shell_tests {
 /// Phase 86: Context rxt file async save/load integration tests
 #[cfg(test)]
 mod rxt_file_tests {
-    use crate::{ResolvedContext, ContextStatus};
     use crate::serialization::{ContextFormat, ContextSerializer};
+    use crate::{ContextStatus, ResolvedContext};
     use rez_next_package::Package;
     use rez_next_version::Version;
     use tempfile::TempDir;
@@ -282,7 +280,11 @@ mod rxt_file_tests {
             .expect("load should succeed");
 
         assert_eq!(loaded.id, orig_id, "ID should roundtrip");
-        assert_eq!(loaded.status, ContextStatus::Resolved, "Status should roundtrip");
+        assert_eq!(
+            loaded.status,
+            ContextStatus::Resolved,
+            "Status should roundtrip"
+        );
         assert_eq!(
             loaded.resolved_packages.len(),
             2,
@@ -334,7 +336,10 @@ mod rxt_file_tests {
         let path = tmp.path().join("env_ctx.rxt");
 
         let mut ctx = make_ctx(&[("python", "3.9.0")]);
-        ctx.set_env_var("REZ_CONTEXT_FILE".to_string(), path.to_str().unwrap().to_string());
+        ctx.set_env_var(
+            "REZ_CONTEXT_FILE".to_string(),
+            path.to_str().unwrap().to_string(),
+        );
         ctx.set_env_var("MY_CUSTOM_VAR".to_string(), "my_custom_value".to_string());
 
         ContextSerializer::save_to_file(&ctx, &path, ContextFormat::Json)
@@ -393,7 +398,10 @@ mod activation_script_tests {
         let mut env = HashMap::new();
         env.insert("PATH".to_string(), "/usr/local/bin".to_string());
         env.insert("PYTHON_ROOT".to_string(), "/opt/python/3.9".to_string());
-        env.insert("MAYA_ROOT".to_string(), "/opt/autodesk/maya2023".to_string());
+        env.insert(
+            "MAYA_ROOT".to_string(),
+            "/opt/autodesk/maya2023".to_string(),
+        );
         env.insert("MY_TOOL".to_string(), "my_value".to_string());
         env
     }
@@ -483,8 +491,8 @@ mod activation_script_tests {
 #[cfg(test)]
 mod rxtb_tests {
     use crate::{
-        ContextStatus, ResolvedContext,
         serialization::{ContextFormat, ContextSerializer},
+        ContextStatus, ResolvedContext,
     };
     use rez_next_package::Package;
     use rez_next_version::Version;
@@ -514,26 +522,45 @@ mod rxtb_tests {
 
         assert!(path.exists(), "rxtb file should be created");
         let loaded = ContextSerializer::load_from_file(&path).await.unwrap();
-        assert_eq!(loaded.resolved_packages.len(), 2, "Should reload 2 packages from rxtb");
-        let names: Vec<_> = loaded.resolved_packages.iter().map(|p| p.name.as_str()).collect();
+        assert_eq!(
+            loaded.resolved_packages.len(),
+            2,
+            "Should reload 2 packages from rxtb"
+        );
+        let names: Vec<_> = loaded
+            .resolved_packages
+            .iter()
+            .map(|p| p.name.as_str())
+            .collect();
         assert!(names.contains(&"maya"), "maya should be in loaded packages");
-        assert!(names.contains(&"python"), "python should be in loaded packages");
+        assert!(
+            names.contains(&"python"),
+            "python should be in loaded packages"
+        );
     }
 
     /// rxtb roundtrip: packages and env_vars survive serialize → deserialize
     #[test]
     fn test_rxtb_serialize_deserialize_roundtrip() {
         let mut ctx = make_ctx(&[("nuke", "14.0"), ("ocio", "2.2")]);
-        ctx.environment_vars.insert("OCIO".to_string(), "/opt/ocio/config.ocio".to_string());
-        ctx.environment_vars.insert("NUKE_PATH".to_string(), "/opt/nuke/14.0".to_string());
+        ctx.environment_vars
+            .insert("OCIO".to_string(), "/opt/ocio/config.ocio".to_string());
+        ctx.environment_vars
+            .insert("NUKE_PATH".to_string(), "/opt/nuke/14.0".to_string());
 
         let bytes = ContextSerializer::serialize(&ctx, ContextFormat::Binary).unwrap();
         assert!(!bytes.is_empty(), "Serialized bytes should not be empty");
 
         let restored = ContextSerializer::deserialize(&bytes, ContextFormat::Binary).unwrap();
         assert_eq!(restored.resolved_packages.len(), 2);
-        assert_eq!(restored.environment_vars.get("OCIO"), ctx.environment_vars.get("OCIO"));
-        assert_eq!(restored.environment_vars.get("NUKE_PATH"), ctx.environment_vars.get("NUKE_PATH"));
+        assert_eq!(
+            restored.environment_vars.get("OCIO"),
+            ctx.environment_vars.get("OCIO")
+        );
+        assert_eq!(
+            restored.environment_vars.get("NUKE_PATH"),
+            ctx.environment_vars.get("NUKE_PATH")
+        );
     }
 
     /// from_string / to_string with Binary format uses base64 encoding
@@ -543,10 +570,14 @@ mod rxtb_tests {
         let b64_str = ContextSerializer::to_string(&ctx, ContextFormat::Binary).unwrap();
 
         // base64 strings only contain A-Z, a-z, 0-9, +, /, =
-        let is_base64 = b64_str.chars().all(|c| {
-            c.is_alphanumeric() || c == '+' || c == '/' || c == '=' || c == '\n'
-        });
-        assert!(is_base64, "Binary format to_string should return base64: {}", &b64_str[..b64_str.len().min(50)]);
+        let is_base64 = b64_str
+            .chars()
+            .all(|c| c.is_alphanumeric() || c == '+' || c == '/' || c == '=' || c == '\n');
+        assert!(
+            is_base64,
+            "Binary format to_string should return base64: {}",
+            &b64_str[..b64_str.len().min(50)]
+        );
     }
 
     /// from_string roundtrip with Binary format
@@ -556,9 +587,19 @@ mod rxtb_tests {
         let b64 = ContextSerializer::to_string(&ctx, ContextFormat::Binary).unwrap();
         let restored = ContextSerializer::from_string(&b64, ContextFormat::Binary).unwrap();
 
-        let names: Vec<_> = restored.resolved_packages.iter().map(|p| p.name.clone()).collect();
-        assert!(names.contains(&"renderman".to_string()), "renderman should survive binary roundtrip");
-        assert!(names.contains(&"katana".to_string()), "katana should survive binary roundtrip");
+        let names: Vec<_> = restored
+            .resolved_packages
+            .iter()
+            .map(|p| p.name.clone())
+            .collect();
+        assert!(
+            names.contains(&"renderman".to_string()),
+            "renderman should survive binary roundtrip"
+        );
+        assert!(
+            names.contains(&"katana".to_string()),
+            "katana should survive binary roundtrip"
+        );
     }
 
     /// ContextFormat extension detection for rxtb
@@ -566,11 +607,19 @@ mod rxtb_tests {
     fn test_rxtb_format_detection() {
         let path = std::path::Path::new("mycontext.rxtb");
         let fmt = ContextFormat::from_extension(path);
-        assert_eq!(fmt, Some(ContextFormat::Binary), "rxtb should be detected as Binary");
+        assert_eq!(
+            fmt,
+            Some(ContextFormat::Binary),
+            "rxtb should be detected as Binary"
+        );
 
         let path2 = std::path::Path::new("mycontext.rxt");
         let fmt2 = ContextFormat::from_extension(path2);
-        assert_eq!(fmt2, Some(ContextFormat::Json), "rxt should be detected as Json");
+        assert_eq!(
+            fmt2,
+            Some(ContextFormat::Json),
+            "rxt should be detected as Json"
+        );
     }
 
     /// JSON format extension is still "rxt", binary is "rxtb"
@@ -606,8 +655,8 @@ mod rxtb_tests {
 #[cfg(test)]
 mod context_load_from_file_tests {
     use crate::{
-        ContextStatus, ResolvedContext,
         serialization::{ContextFormat, ContextSerializer},
+        ContextStatus, ResolvedContext,
     };
     use rez_next_package::Package;
     use rez_next_version::Version;
@@ -636,7 +685,9 @@ mod context_load_from_file_tests {
         let path = tmp.path().join("restore.rxt");
 
         let ctx = make_full_ctx();
-        ContextSerializer::save_to_file(&ctx, &path, ContextFormat::Json).await.unwrap();
+        ContextSerializer::save_to_file(&ctx, &path, ContextFormat::Json)
+            .await
+            .unwrap();
         let loaded = ContextSerializer::load_from_file(&path).await.unwrap();
         assert_eq!(loaded.resolved_packages.len(), 2);
     }
@@ -648,7 +699,9 @@ mod context_load_from_file_tests {
         let path = tmp.path().join("env.rxt");
 
         let ctx = make_full_ctx();
-        ContextSerializer::save_to_file(&ctx, &path, ContextFormat::Json).await.unwrap();
+        ContextSerializer::save_to_file(&ctx, &path, ContextFormat::Json)
+            .await
+            .unwrap();
         let loaded = ContextSerializer::load_from_file(&path).await.unwrap();
 
         assert_eq!(
@@ -664,7 +717,9 @@ mod context_load_from_file_tests {
         let path = tmp.path().join("status.rxt");
 
         let ctx = make_full_ctx();
-        ContextSerializer::save_to_file(&ctx, &path, ContextFormat::Json).await.unwrap();
+        ContextSerializer::save_to_file(&ctx, &path, ContextFormat::Json)
+            .await
+            .unwrap();
         let loaded = ContextSerializer::load_from_file(&path).await.unwrap();
         assert_eq!(loaded.status, ContextStatus::Resolved);
     }
@@ -676,7 +731,9 @@ mod context_load_from_file_tests {
         let path = tmp.path().join("corrupt.rxt");
 
         // Write invalid JSON
-        tokio::fs::write(&path, b"not valid json at all!!!").await.unwrap();
+        tokio::fs::write(&path, b"not valid json at all!!!")
+            .await
+            .unwrap();
         let result = ContextSerializer::load_from_file(&path).await;
         assert!(result.is_err(), "Corrupted file should fail to load");
     }
@@ -688,7 +745,9 @@ mod context_load_from_file_tests {
         let path = tmp.path().join("context.rxtb");
 
         let ctx = make_full_ctx();
-        ContextSerializer::save_to_file(&ctx, &path, ContextFormat::Binary).await.unwrap();
+        ContextSerializer::save_to_file(&ctx, &path, ContextFormat::Binary)
+            .await
+            .unwrap();
         let loaded = ContextSerializer::load_from_file(&path).await.unwrap();
         assert_eq!(loaded.resolved_packages.len(), 2);
     }
@@ -715,7 +774,9 @@ mod context_load_from_file_tests {
         let mut ctx1 = ResolvedContext::from_requirements(vec![]);
         ctx1.status = ContextStatus::Resolved;
         ctx1.resolved_packages.push(make_package("python", "3.9.0"));
-        ContextSerializer::save_to_file(&ctx1, &path, ContextFormat::Json).await.unwrap();
+        ContextSerializer::save_to_file(&ctx1, &path, ContextFormat::Json)
+            .await
+            .unwrap();
 
         // Second save: 3 packages (overwrites)
         let mut ctx2 = ResolvedContext::from_requirements(vec![]);
@@ -723,11 +784,17 @@ mod context_load_from_file_tests {
         for (n, v) in &[("python", "3.11.0"), ("maya", "2024.0"), ("nuke", "14.0")] {
             ctx2.resolved_packages.push(make_package(n, v));
         }
-        ContextSerializer::save_to_file(&ctx2, &path, ContextFormat::Json).await.unwrap();
+        ContextSerializer::save_to_file(&ctx2, &path, ContextFormat::Json)
+            .await
+            .unwrap();
 
         // Load should reflect second save
         let loaded = ContextSerializer::load_from_file(&path).await.unwrap();
-        assert_eq!(loaded.resolved_packages.len(), 3, "Should have 3 packages from second save");
+        assert_eq!(
+            loaded.resolved_packages.len(),
+            3,
+            "Should have 3 packages from second save"
+        );
     }
 }
 
@@ -760,7 +827,10 @@ mod execution_tests {
     #[test]
     fn test_execution_config_defaults() {
         let cfg = ExecutionConfig::default();
-        assert!(cfg.inherit_parent_env, "Should inherit parent env by default");
+        assert!(
+            cfg.inherit_parent_env,
+            "Should inherit parent env by default"
+        );
         assert!(cfg.additional_env_vars.is_empty());
         assert!(cfg.working_directory.is_none());
         assert_eq!(cfg.timeout_seconds, 300);
@@ -781,7 +851,10 @@ mod execution_tests {
         };
         assert_eq!(cfg.timeout_seconds, 60);
         assert!(cfg.working_directory.is_some());
-        assert_eq!(cfg.additional_env_vars.get("MY_VAR"), Some(&"hello".to_string()));
+        assert_eq!(
+            cfg.additional_env_vars.get("MY_VAR"),
+            Some(&"hello".to_string())
+        );
     }
 
     /// ContextExecutor::new creates executor with default config
@@ -880,4 +953,3 @@ mod execution_tests {
         assert_eq!(restored.package_count, 3);
     }
 }
-

@@ -49,11 +49,7 @@ impl PyRezForward {
 
     /// Execute the forward (dry run: returns the command string)
     #[pyo3(signature = (args=None, dry_run=false))]
-    fn execute(
-        &self,
-        args: Option<Vec<String>>,
-        dry_run: bool,
-    ) -> PyResult<String> {
+    fn execute(&self, args: Option<Vec<String>>, dry_run: bool) -> PyResult<String> {
         let args = args.unwrap_or_default();
         let cmd = if args.is_empty() {
             self.tool.clone()
@@ -67,9 +63,7 @@ impl PyRezForward {
 
         // In real usage this would spawn the binary in the correct context.
         // Here we validate the tool exists in PATH or return a descriptive error.
-        let status = std::process::Command::new(&self.tool)
-            .args(&args)
-            .status();
+        let status = std::process::Command::new(&self.tool).args(&args).status();
 
         match status {
             Ok(s) => Ok(format!("exit:{}", s.code().unwrap_or(-1))),
@@ -104,10 +98,8 @@ pub fn resolve_forward_tool(
     for (i, p) in config.packages_path.iter().enumerate() {
         let path = PathBuf::from(crate::expand_home(p));
         if path.exists() {
-            repo_manager.add_repository(Box::new(SimpleRepository::new(
-                path,
-                format!("repo_{}", i),
-            )));
+            repo_manager
+                .add_repository(Box::new(SimpleRepository::new(path, format!("repo_{}", i))));
         }
     }
 
@@ -122,10 +114,7 @@ pub fn resolve_forward_tool(
                 .as_ref()
                 .map(|v| v.as_str())
                 .unwrap_or("unknown");
-            return Ok(Some((
-                format!("{}-{}", pkg.name, ver),
-                pkg.name.clone(),
-            )));
+            return Ok(Some((format!("{}-{}", pkg.name, ver), pkg.name.clone())));
         }
     }
 

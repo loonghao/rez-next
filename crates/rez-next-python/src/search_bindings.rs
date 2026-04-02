@@ -4,10 +4,7 @@
 
 use pyo3::prelude::*;
 use pyo3::types::PyList;
-use rez_next_search::{
-    PackageSearcher, SearchOptions, SearchScope,
-    SearchFilter, SearchResult,
-};
+use rez_next_search::{PackageSearcher, SearchFilter, SearchOptions, SearchResult, SearchScope};
 use std::path::PathBuf;
 
 /// Python wrapper for a single search result
@@ -98,7 +95,10 @@ impl PyPackageSearcher {
         }
 
         let opts = SearchOptions {
-            paths: self.paths.as_ref().map(|p| p.iter().map(PathBuf::from).collect()),
+            paths: self
+                .paths
+                .as_ref()
+                .map(|p| p.iter().map(PathBuf::from).collect()),
             scope,
             filter,
             include_hidden: false,
@@ -116,7 +116,10 @@ impl PyPackageSearcher {
     }
 
     fn __repr__(&self) -> String {
-        format!("PackageSearcher(pattern={:?}, scope={:?})", self.pattern, self.scope)
+        format!(
+            "PackageSearcher(pattern={:?}, scope={:?})",
+            self.pattern, self.scope
+        )
     }
 }
 
@@ -150,10 +153,7 @@ pub fn search_packages(
 /// Fast variant that avoids loading full package data.
 #[pyfunction]
 #[pyo3(signature = (pattern="", paths=None))]
-pub fn search_package_names(
-    pattern: &str,
-    paths: Option<Vec<String>>,
-) -> PyResult<Vec<String>> {
+pub fn search_package_names(pattern: &str, paths: Option<Vec<String>>) -> PyResult<Vec<String>> {
     let filter = SearchFilter::new(pattern);
     let opts = SearchOptions {
         paths: paths.map(|p| p.into_iter().map(PathBuf::from).collect()),
@@ -163,7 +163,11 @@ pub fn search_package_names(
     };
     let searcher = PackageSearcher::new(opts);
     let result_set = searcher.search();
-    Ok(result_set.family_names().into_iter().map(|s| s.to_string()).collect())
+    Ok(result_set
+        .family_names()
+        .into_iter()
+        .map(|s| s.to_string())
+        .collect())
 }
 
 /// Get the latest version of each package matching the pattern.

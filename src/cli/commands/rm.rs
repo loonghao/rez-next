@@ -2,8 +2,8 @@
 //!
 //! Implements the `rez rm` command for removing packages from repositories.
 
-use clap::Args;
 use chrono::NaiveDate;
+use clap::Args;
 use rez_next_common::{error::RezCoreResult, RezCoreError};
 use rez_next_package::Package;
 use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
@@ -291,7 +291,11 @@ async fn remove_ignored_since(args: &RmArgs) -> RezCoreResult<()> {
             let pkg = (*pkg_arc).clone();
             // Retrieve install dir by walking the configured repo paths
             let pkg_path = {
-                let ver_str = pkg.version.as_ref().map(|v| v.as_str()).unwrap_or("unknown");
+                let ver_str = pkg
+                    .version
+                    .as_ref()
+                    .map(|v| v.as_str())
+                    .unwrap_or("unknown");
                 // Construct candidate paths: <repo>/<name>/<version>/package.py
                 let mut found_path = std::path::PathBuf::new();
                 for path in &args.paths {
@@ -356,7 +360,10 @@ async fn remove_ignored_since(args: &RmArgs) -> RezCoreResult<()> {
                     println!(
                         "  Removed {}-{}",
                         pkg.name,
-                        pkg.version.as_ref().map(|v| v.as_str()).unwrap_or("unknown")
+                        pkg.version
+                            .as_ref()
+                            .map(|v| v.as_str())
+                            .unwrap_or("unknown")
                     );
                 }
             }
@@ -571,9 +578,7 @@ fn confirm_removal(package: &Package) -> RezCoreResult<bool> {
     use std::io::{self, Write};
 
     print!("Remove package '{}'? [y/N]: ", package.name);
-    io::stdout()
-        .flush()
-        .map_err(RezCoreError::Io)?;
+    io::stdout().flush().map_err(RezCoreError::Io)?;
 
     let mut input = String::new();
     io::stdin()
@@ -588,9 +593,7 @@ fn confirm_family_removal(family_name: &str) -> RezCoreResult<bool> {
     use std::io::{self, Write};
 
     print!("Remove ENTIRE package family '{}'? [y/N]: ", family_name);
-    io::stdout()
-        .flush()
-        .map_err(RezCoreError::Io)?;
+    io::stdout().flush().map_err(RezCoreError::Io)?;
 
     let mut input = String::new();
     io::stdin()

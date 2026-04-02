@@ -15,14 +15,9 @@ pub struct RexAction {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum RexActionType {
     /// Set an environment variable
-    Setenv {
-        name: String,
-        value: String,
-    },
+    Setenv { name: String, value: String },
     /// Unset an environment variable
-    Unsetenv {
-        name: String,
-    },
+    Unsetenv { name: String },
     /// Prepend to a path-like environment variable
     PrependPath {
         name: String,
@@ -36,43 +31,23 @@ pub enum RexActionType {
         separator: Option<String>,
     },
     /// Set env var only if not already set
-    SetenvIfEmpty {
-        name: String,
-        value: String,
-    },
+    SetenvIfEmpty { name: String, value: String },
     /// Create an alias
-    Alias {
-        name: String,
-        value: String,
-    },
+    Alias { name: String, value: String },
     /// Execute a command
-    Command {
-        cmd: String,
-    },
+    Command { cmd: String },
     /// Source a shell script file
-    Source {
-        path: String,
-    },
+    Source { path: String },
     /// Comment (ignored)
-    Comment {
-        text: String,
-    },
+    Comment { text: String },
     /// Reset an environment variable to its original (pre-context) value
-    Resetenv {
-        name: String,
-    },
+    Resetenv { name: String },
     /// Informational message (rez info() - no env effect)
-    Info {
-        message: String,
-    },
+    Info { message: String },
     /// Error message (rez error() - raises on non-strict mode)
-    Error {
-        message: String,
-    },
+    Error { message: String },
     /// Stop execution of commands (rez stop())
-    Stop {
-        message: Option<String>,
-    },
+    Stop { message: Option<String> },
 }
 
 impl RexAction {

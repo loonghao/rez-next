@@ -25,12 +25,7 @@ pub struct PyPipPackage {
 impl PyPipPackage {
     #[new]
     #[pyo3(signature = (name, version="0.0.0", requires=None, description=""))]
-    fn new(
-        name: &str,
-        version: &str,
-        requires: Option<Vec<String>>,
-        description: &str,
-    ) -> Self {
+    fn new(name: &str, version: &str, requires: Option<Vec<String>>, description: &str) -> Self {
         PyPipPackage {
             name: name.to_string(),
             version: version.to_string(),
@@ -53,7 +48,8 @@ impl PyPipPackage {
         let requires_str = if self.requires.is_empty() {
             String::new()
         } else {
-            let req_list = self.requires
+            let req_list = self
+                .requires
                 .iter()
                 .map(|r| format!("    \"{}\",", r))
                 .collect::<Vec<_>>()
@@ -124,7 +120,9 @@ pub fn pip_version_to_rez(pip_ver: &str) -> String {
 
     // Two-part: typically ">=X,<Y" -> "X+<Y"
     if parts.len() == 2 {
-        let lower = parts.iter().find(|p| p.starts_with(">=") || p.starts_with('>'));
+        let lower = parts
+            .iter()
+            .find(|p| p.starts_with(">=") || p.starts_with('>'));
         let upper = parts.iter().find(|p| p.starts_with('<'));
         if let (Some(lo), Some(hi)) = (lower, upper) {
             let lo_ver = lo.trim_start_matches(">=").trim_start_matches('>');
@@ -187,7 +185,8 @@ pub fn convert_pip_to_rez(
 ) -> PyResult<PyPipPackage> {
     let rez_name = normalize_package_name(name);
     // Convert pip requires to rez format
-    let rez_requires = requires.unwrap_or_default()
+    let rez_requires = requires
+        .unwrap_or_default()
         .into_iter()
         .map(|r| {
             // Simplified: strip extras and convert version specifiers
@@ -246,7 +245,8 @@ pub fn write_pip_package(
 
     if !overwrite && pkg_dir.exists() {
         return Err(pyo3::exceptions::PyFileExistsError::new_err(format!(
-            "Package already exists at {}", pkg_dir.display()
+            "Package already exists at {}",
+            pkg_dir.display()
         )));
     }
 

@@ -549,8 +549,9 @@ mod graph_tests {
     fn test_requirements_compatible_unconstrained() {
         let r1 = PackageRequirement::parse("python").unwrap();
         let r2 = PackageRequirement::parse("python").unwrap();
-        assert!(requirements_compatible(&r1, &r2),
-            "Two unconstrained requirements for same package should be compatible");
+        assert!(
+            requirements_compatible(&r1, &r2),
+            "Two unconstrained requirements for same package should be compatible"
+        );
     }
 }
-

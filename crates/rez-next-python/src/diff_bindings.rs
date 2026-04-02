@@ -33,8 +33,16 @@ pub struct PyPackageDiff {
 impl PyPackageDiff {
     fn __repr__(&self) -> String {
         match self.change_type.as_str() {
-            "added" => format!("PackageDiff(+{} {})", self.name, self.new_version.as_deref().unwrap_or("?")),
-            "removed" => format!("PackageDiff(-{} {})", self.name, self.old_version.as_deref().unwrap_or("?")),
+            "added" => format!(
+                "PackageDiff(+{} {})",
+                self.name,
+                self.new_version.as_deref().unwrap_or("?")
+            ),
+            "removed" => format!(
+                "PackageDiff(-{} {})",
+                self.name,
+                self.old_version.as_deref().unwrap_or("?")
+            ),
             "upgraded" => format!(
                 "PackageDiff({}: {} -> {})",
                 self.name,
@@ -106,7 +114,11 @@ impl PyContextDiff {
     fn __repr__(&self) -> String {
         format!(
             "ContextDiff(+{} -{} ^{} v{} ={})",
-            self.num_added, self.num_removed, self.num_upgraded, self.num_downgraded, self.num_unchanged
+            self.num_added,
+            self.num_removed,
+            self.num_upgraded,
+            self.num_downgraded,
+            self.num_unchanged
         )
     }
 
@@ -130,10 +142,7 @@ impl PyContextDiff {
 
 /// Compute the difference between two package lists.
 /// Each package list is a `Vec<PyPackage>` as returned by `ResolvedContext.resolved_packages`.
-pub fn compute_diff(
-    old_packages: &[Package],
-    new_packages: &[Package],
-) -> Vec<PyPackageDiff> {
+pub fn compute_diff(old_packages: &[Package], new_packages: &[Package]) -> Vec<PyPackageDiff> {
     use std::collections::HashMap;
 
     let old_map: HashMap<&str, &Version> = old_packages
@@ -239,8 +248,11 @@ pub fn diff_contexts(
             .iter()
             .map(|s| {
                 // Try "name-version" rez format first, then fallback
-                let pr = PackageRequirement::parse(s).unwrap_or_else(|_| {
-                    PackageRequirement { name: s.clone(), version_spec: None, weak: false, conflict: false }
+                let pr = PackageRequirement::parse(s).unwrap_or_else(|_| PackageRequirement {
+                    name: s.clone(),
+                    version_spec: None,
+                    weak: false,
+                    conflict: false,
                 });
                 let mut pkg = Package::new(pr.name.clone());
                 if let Some(ref spec) = pr.version_spec {
@@ -260,10 +272,23 @@ pub fn diff_contexts(
     let num_added = diffs.iter().filter(|d| d.change_type == "added").count();
     let num_removed = diffs.iter().filter(|d| d.change_type == "removed").count();
     let num_upgraded = diffs.iter().filter(|d| d.change_type == "upgraded").count();
-    let num_downgraded = diffs.iter().filter(|d| d.change_type == "downgraded").count();
-    let num_unchanged = diffs.iter().filter(|d| d.change_type == "unchanged").count();
+    let num_downgraded = diffs
+        .iter()
+        .filter(|d| d.change_type == "downgraded")
+        .count();
+    let num_unchanged = diffs
+        .iter()
+        .filter(|d| d.change_type == "unchanged")
+        .count();
 
-    Ok(PyContextDiff { diffs, num_added, num_removed, num_upgraded, num_downgraded, num_unchanged })
+    Ok(PyContextDiff {
+        diffs,
+        num_added,
+        num_removed,
+        num_upgraded,
+        num_downgraded,
+        num_unchanged,
+    })
 }
 
 /// Diff two resolved context files (.rxt).
@@ -276,30 +301,48 @@ pub fn diff_contexts(
 /// Returns `ContextDiff`.
 #[pyfunction]
 #[pyo3(signature = (rxt_path_a, rxt_path_b))]
-pub fn diff_context_files(
-    rxt_path_a: &str,
-    rxt_path_b: &str,
-) -> PyResult<PyContextDiff> {
+pub fn diff_context_files(rxt_path_a: &str, rxt_path_b: &str) -> PyResult<PyContextDiff> {
     use rez_next_context::ContextSerializer;
 
     let rt = tokio::runtime::Runtime::new()
         .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
 
     let ctx_a = rt
-        .block_on(ContextSerializer::load_from_file(std::path::Path::new(rxt_path_a)))
-        .map_err(|e| pyo3::exceptions::PyIOError::new_err(format!("Failed to load {}: {}", rxt_path_a, e)))?;
+        .block_on(ContextSerializer::load_from_file(std::path::Path::new(
+            rxt_path_a,
+        )))
+        .map_err(|e| {
+            pyo3::exceptions::PyIOError::new_err(format!("Failed to load {}: {}", rxt_path_a, e))
+        })?;
     let ctx_b = rt
-        .block_on(ContextSerializer::load_from_file(std::path::Path::new(rxt_path_b)))
-        .map_err(|e| pyo3::exceptions::PyIOError::new_err(format!("Failed to load {}: {}", rxt_path_b, e)))?;
+        .block_on(ContextSerializer::load_from_file(std::path::Path::new(
+            rxt_path_b,
+        )))
+        .map_err(|e| {
+            pyo3::exceptions::PyIOError::new_err(format!("Failed to load {}: {}", rxt_path_b, e))
+        })?;
 
     let diffs = compute_diff(&ctx_a.resolved_packages, &ctx_b.resolved_packages);
     let num_added = diffs.iter().filter(|d| d.change_type == "added").count();
     let num_removed = diffs.iter().filter(|d| d.change_type == "removed").count();
     let num_upgraded = diffs.iter().filter(|d| d.change_type == "upgraded").count();
-    let num_downgraded = diffs.iter().filter(|d| d.change_type == "downgraded").count();
-    let num_unchanged = diffs.iter().filter(|d| d.change_type == "unchanged").count();
+    let num_downgraded = diffs
+        .iter()
+        .filter(|d| d.change_type == "downgraded")
+        .count();
+    let num_unchanged = diffs
+        .iter()
+        .filter(|d| d.change_type == "unchanged")
+        .count();
 
-    Ok(PyContextDiff { diffs, num_added, num_removed, num_upgraded, num_downgraded, num_unchanged })
+    Ok(PyContextDiff {
+        diffs,
+        num_added,
+        num_removed,
+        num_upgraded,
+        num_downgraded,
+        num_unchanged,
+    })
 }
 
 /// Format a ContextDiff as a human-readable string (like `rez diff` terminal output).
@@ -351,8 +394,14 @@ mod diff_bindings_tests {
     fn test_identical_contexts_no_diff() {
         let pkgs = vec![make_pkg("python", "3.9.0"), make_pkg("maya", "2024.1")];
         let diffs = compute_diff(&pkgs, &pkgs);
-        let changed: Vec<_> = diffs.iter().filter(|d| d.change_type != "unchanged").collect();
-        assert!(changed.is_empty(), "Identical contexts should have no changes");
+        let changed: Vec<_> = diffs
+            .iter()
+            .filter(|d| d.change_type != "unchanged")
+            .collect();
+        assert!(
+            changed.is_empty(),
+            "Identical contexts should have no changes"
+        );
     }
 
     #[test]
@@ -370,7 +419,10 @@ mod diff_bindings_tests {
         let old = vec![make_pkg("python", "3.9.0"), make_pkg("maya", "2023.1")];
         let new = vec![make_pkg("python", "3.9.0")];
         let diffs = compute_diff(&old, &new);
-        let removed: Vec<_> = diffs.iter().filter(|d| d.change_type == "removed").collect();
+        let removed: Vec<_> = diffs
+            .iter()
+            .filter(|d| d.change_type == "removed")
+            .collect();
         assert_eq!(removed.len(), 1);
         assert_eq!(removed[0].name, "maya");
         assert_eq!(removed[0].old_version.as_deref(), Some("2023.1"));
@@ -381,7 +433,10 @@ mod diff_bindings_tests {
         let old = vec![make_pkg("python", "3.9.0")];
         let new = vec![make_pkg("python", "3.11.0")];
         let diffs = compute_diff(&old, &new);
-        let upgraded: Vec<_> = diffs.iter().filter(|d| d.change_type == "upgraded").collect();
+        let upgraded: Vec<_> = diffs
+            .iter()
+            .filter(|d| d.change_type == "upgraded")
+            .collect();
         assert_eq!(upgraded.len(), 1);
         assert_eq!(upgraded[0].old_version.as_deref(), Some("3.9.0"));
         assert_eq!(upgraded[0].new_version.as_deref(), Some("3.11.0"));
@@ -392,7 +447,10 @@ mod diff_bindings_tests {
         let old = vec![make_pkg("maya", "2024.1")];
         let new = vec![make_pkg("maya", "2023.1")];
         let diffs = compute_diff(&old, &new);
-        let down: Vec<_> = diffs.iter().filter(|d| d.change_type == "downgraded").collect();
+        let down: Vec<_> = diffs
+            .iter()
+            .filter(|d| d.change_type == "downgraded")
+            .collect();
         assert_eq!(down.len(), 1);
         assert_eq!(down[0].name, "maya");
     }
@@ -405,16 +463,19 @@ mod diff_bindings_tests {
             make_pkg("houdini", "19.5"),
         ];
         let new = vec![
-            make_pkg("python", "3.11.0"),  // upgraded
-            make_pkg("houdini", "19.5"),   // unchanged
-            make_pkg("nuke", "14.0"),       // added
-            // maya removed
+            make_pkg("python", "3.11.0"), // upgraded
+            make_pkg("houdini", "19.5"),  // unchanged
+            make_pkg("nuke", "14.0"),     // added
+                                          // maya removed
         ];
         let diffs = compute_diff(&old, &new);
         let added = diffs.iter().filter(|d| d.change_type == "added").count();
         let removed = diffs.iter().filter(|d| d.change_type == "removed").count();
         let upgraded = diffs.iter().filter(|d| d.change_type == "upgraded").count();
-        let unchanged = diffs.iter().filter(|d| d.change_type == "unchanged").count();
+        let unchanged = diffs
+            .iter()
+            .filter(|d| d.change_type == "unchanged")
+            .count();
         assert_eq!(added, 1, "nuke should be added");
         assert_eq!(removed, 1, "maya should be removed");
         assert_eq!(upgraded, 1, "python should be upgraded");
@@ -444,7 +505,10 @@ mod diff_bindings_tests {
             &[make_pkg("python", "3.9.0")],
         );
         let dummy = PyContextDiff {
-            num_added: 0, num_removed: 0, num_upgraded: 0, num_downgraded: 0,
+            num_added: 0,
+            num_removed: 0,
+            num_upgraded: 0,
+            num_downgraded: 0,
             num_unchanged: diffs.len(),
             diffs,
         };
@@ -458,7 +522,10 @@ mod diff_bindings_tests {
         let new = vec![make_pkg("python", "3.11.0"), make_pkg("maya", "2024.1")];
         let diffs = compute_diff(&old, &new);
         let diff_obj = PyContextDiff {
-            num_added: 1, num_removed: 0, num_upgraded: 1, num_downgraded: 0,
+            num_added: 1,
+            num_removed: 0,
+            num_upgraded: 1,
+            num_downgraded: 0,
             num_unchanged: 0,
             diffs,
         };
@@ -474,8 +541,12 @@ mod diff_bindings_tests {
             &[make_pkg("python", "3.9.0")],
         );
         let diff_obj = PyContextDiff {
-            num_added: 0, num_removed: 0, num_upgraded: 0, num_downgraded: 0,
-            num_unchanged: 1, diffs,
+            num_added: 0,
+            num_removed: 0,
+            num_upgraded: 0,
+            num_downgraded: 0,
+            num_unchanged: 1,
+            diffs,
         };
         assert!(diff_obj.is_identical());
     }
@@ -486,8 +557,12 @@ mod diff_bindings_tests {
         let new = vec![make_pkg("python", "3.11.0")];
         let diffs = compute_diff(&old, &new);
         let diff_obj = PyContextDiff {
-            num_added: 0, num_removed: 0, num_upgraded: 1, num_downgraded: 0,
-            num_unchanged: 0, diffs,
+            num_added: 0,
+            num_removed: 0,
+            num_upgraded: 1,
+            num_downgraded: 0,
+            num_unchanged: 0,
+            diffs,
         };
         assert!(!diff_obj.is_identical());
     }

@@ -10,8 +10,8 @@ pub mod release;
 pub mod test;
 pub mod view;
 
-pub mod build;
 pub mod bind;
+pub mod build;
 pub mod bundle;
 pub mod complete;
 pub mod cp;

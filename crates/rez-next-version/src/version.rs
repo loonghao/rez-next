@@ -173,7 +173,6 @@ impl Version {
         Ok((token_strings, sep_strings))
     }
 
-
     /// Create the infinite version (largest possible version)
     pub fn inf() -> Self {
         Self {

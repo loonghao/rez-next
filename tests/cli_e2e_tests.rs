@@ -56,7 +56,6 @@ fn rez_ok(args: &[&str]) -> String {
     stdout
 }
 
-
 // ── Package repo helpers ──────────────────────────────────────────────────────
 
 /// Write a minimal package.py under `<repo>/<name>/<version>/package.py`
@@ -639,7 +638,10 @@ fn test_info_shows_version_string() {
     let has_version = out
         .lines()
         .any(|l| l.to_lowercase().contains("version") && l.chars().any(|c| c.is_ascii_digit()));
-    assert!(has_version, "--info should include a version line with digits: {out}");
+    assert!(
+        has_version,
+        "--info should include a version line with digits: {out}"
+    );
 }
 
 #[test]

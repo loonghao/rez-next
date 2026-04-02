@@ -193,11 +193,7 @@ async fn run_daemon(
     let pending_files: Vec<_> = std::fs::read_dir(&pending_dir)
         .map(|rd| {
             rd.flatten()
-                .filter(|e| {
-                    e.path()
-                        .extension()
-                        .is_some_and(|ext| ext == "pending")
-                })
+                .filter(|e| e.path().extension().is_some_and(|ext| ext == "pending"))
                 .collect()
         })
         .unwrap_or_default();
@@ -664,7 +660,10 @@ mod tests {
         assert!(!args.logs);
         assert!(!args.daemon);
         assert!(!args.force);
-        assert_eq!(args.columns, vec!["status", "package", "variant_uri", "cache_path"]);
+        assert_eq!(
+            args.columns,
+            vec!["status", "package", "variant_uri", "cache_path"]
+        );
     }
 
     #[test]
@@ -680,8 +679,14 @@ mod tests {
     #[test]
     fn test_truncate_string_long() {
         let result = truncate_string("hello world long string", 10);
-        assert!(result.len() <= 10, "truncated string should be at most 10 chars");
-        assert!(result.ends_with("..."), "truncated string should end with '...'");
+        assert!(
+            result.len() <= 10,
+            "truncated string should be at most 10 chars"
+        );
+        assert!(
+            result.ends_with("..."),
+            "truncated string should end with '...'"
+        );
     }
 
     #[test]
@@ -708,7 +713,10 @@ mod tests {
     async fn test_scan_cache_directory_empty() {
         let tmp = tempfile::tempdir().unwrap();
         let entries = scan_cache_directory(&tmp.path().to_path_buf()).await;
-        assert!(entries.is_empty(), "empty directory should yield no entries");
+        assert!(
+            entries.is_empty(),
+            "empty directory should yield no entries"
+        );
     }
 
     #[tokio::test]
@@ -748,7 +756,10 @@ mod tests {
             IntelligentCacheManager::new(config);
         // Should succeed even if pending/ dir doesn't exist yet.
         let result = run_daemon(&manager, tmp.path()).await;
-        assert!(result.is_ok(), "daemon should succeed when no pending dir exists");
+        assert!(
+            result.is_ok(),
+            "daemon should succeed when no pending dir exists"
+        );
         // Pending dir should now be created.
         assert!(tmp.path().join("pending").exists());
     }
@@ -768,7 +779,10 @@ mod tests {
             IntelligentCacheManager::new(config);
 
         let result = run_daemon(&manager, &cache_dir).await;
-        assert!(result.is_ok(), "daemon should process pending file without error");
+        assert!(
+            result.is_ok(),
+            "daemon should process pending file without error"
+        );
 
         // The pending file should have been removed after processing.
         assert!(

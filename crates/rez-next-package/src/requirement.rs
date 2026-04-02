@@ -184,8 +184,7 @@ impl Requirement {
         for condition in &self.env_conditions {
             let var_exists = env_vars.contains_key(&condition.var_name);
             let value_match = if let Some(expected) = &condition.expected_value {
-                env_vars
-                    .get(&condition.var_name) == Some(expected)
+                env_vars.get(&condition.var_name) == Some(expected)
             } else {
                 var_exists
             };
@@ -249,13 +248,19 @@ impl VersionConstraint {
     ///        `<4` on `3.11.0`  → compare first token: `3 < 4` ✓
     pub fn is_satisfied_by(&self, version: &Version) -> bool {
         match self {
-            VersionConstraint::Exact(v) => Self::cmp_at_depth(version, v) == std::cmp::Ordering::Equal,
-            VersionConstraint::GreaterThan(v) => Self::cmp_at_depth(version, v) == std::cmp::Ordering::Greater,
+            VersionConstraint::Exact(v) => {
+                Self::cmp_at_depth(version, v) == std::cmp::Ordering::Equal
+            }
+            VersionConstraint::GreaterThan(v) => {
+                Self::cmp_at_depth(version, v) == std::cmp::Ordering::Greater
+            }
             VersionConstraint::GreaterThanOrEqual(v) => {
                 let ord = Self::cmp_at_depth(version, v);
                 ord == std::cmp::Ordering::Greater || ord == std::cmp::Ordering::Equal
             }
-            VersionConstraint::LessThan(v) => Self::cmp_at_depth(version, v) == std::cmp::Ordering::Less,
+            VersionConstraint::LessThan(v) => {
+                Self::cmp_at_depth(version, v) == std::cmp::Ordering::Less
+            }
             VersionConstraint::LessThanOrEqual(v) => {
                 let ord = Self::cmp_at_depth(version, v);
                 ord == std::cmp::Ordering::Less || ord == std::cmp::Ordering::Equal
@@ -331,8 +336,7 @@ impl VersionConstraint {
                 let ver_str = version.as_str();
                 let prefix_str = prefix.as_str();
                 // Either exact match, or version starts with "prefix."
-                ver_str == prefix_str
-                    || ver_str.starts_with(&format!("{}.", prefix_str))
+                ver_str == prefix_str || ver_str.starts_with(&format!("{}.", prefix_str))
             }
             VersionConstraint::Any => true,
         }
@@ -555,8 +559,9 @@ impl RequirementParser {
                 let arch = if condition.contains("arch") {
                     if let Some(arch_start) = condition.rfind("'") {
                         if arch_start > platform_start + 1 + platform_end {
-                            condition[arch_start + 1..].find("'").map(|arch_end| condition[arch_start + 1..arch_start + 1 + arch_end]
-                                        .to_string())
+                            condition[arch_start + 1..].find("'").map(|arch_end| {
+                                condition[arch_start + 1..arch_start + 1 + arch_end].to_string()
+                            })
                         } else {
                             None
                         }
@@ -779,7 +784,10 @@ impl RequirementParser {
                 VersionConstraint::LessThan(max_ver)
             };
             let min_constraint = VersionConstraint::GreaterThanOrEqual(min_ver);
-            Some(VersionConstraint::Multiple(vec![min_constraint, max_constraint]))
+            Some(VersionConstraint::Multiple(vec![
+                min_constraint,
+                max_constraint,
+            ]))
         } else if spec.ends_with('+') {
             // "ver+" → >= ver
             Some(VersionConstraint::GreaterThanOrEqual(min_ver))

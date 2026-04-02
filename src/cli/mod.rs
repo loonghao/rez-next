@@ -184,17 +184,18 @@ impl RezCli {
         } else {
             for path in &config.packages_path {
                 let exists = std::path::Path::new(path).exists();
-                println!("  {} {}", path, if exists { "[exists]" } else { "[missing]" });
+                println!(
+                    "  {} {}",
+                    path,
+                    if exists { "[exists]" } else { "[missing]" }
+                );
             }
         }
         println!();
 
         // Local packages path
         println!("Local Packages Path: {}", config.local_packages_path);
-        println!(
-            "Release Packages Path: {}",
-            config.release_packages_path
-        );
+        println!("Release Packages Path: {}", config.release_packages_path);
         println!();
 
         // Configuration file search paths

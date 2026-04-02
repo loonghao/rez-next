@@ -129,8 +129,7 @@ pub struct RepositoryCache {
 }
 
 /// Cache statistics
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct CacheStats {
     /// Total cache hits
     pub hits: u64,
@@ -143,7 +142,6 @@ pub struct CacheStats {
     /// Last cleanup time
     pub last_cleanup: Option<u64>,
 }
-
 
 impl RepositoryCache {
     /// Create a new repository cache

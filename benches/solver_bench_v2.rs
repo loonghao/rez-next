@@ -4,10 +4,10 @@
 //! Tests empty-repo resolution performance and config variations.
 
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
-use std::hint::black_box;
 use rez_next_package::Requirement;
 use rez_next_repository::simple_repository::RepositoryManager;
 use rez_next_solver::{DependencyResolver, SolverConfig};
+use std::hint::black_box;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -23,9 +23,7 @@ fn make_rt() -> tokio::runtime::Runtime {
 /// Benchmark: resolver construction overhead
 fn bench_resolver_creation(c: &mut Criterion) {
     c.bench_function("resolver_create_default", |b| {
-        b.iter(|| {
-            black_box(make_resolver(SolverConfig::default()))
-        })
+        b.iter(|| black_box(make_resolver(SolverConfig::default())))
     });
 }
 
@@ -51,7 +49,9 @@ fn bench_resolve_single_requirement(c: &mut Criterion) {
     for req_str in &req_strings {
         group.bench_with_input(BenchmarkId::new("req", req_str), req_str, |b, &s| {
             b.iter(|| {
-                let req: Requirement = s.parse().unwrap_or_else(|_| Requirement::new(s.to_string()));
+                let req: Requirement = s
+                    .parse()
+                    .unwrap_or_else(|_| Requirement::new(s.to_string()));
                 let mut resolver = make_resolver(SolverConfig::default());
                 rt.block_on(resolver.resolve(vec![black_box(req)])).unwrap()
             })
@@ -73,7 +73,8 @@ fn bench_resolve_multiple_requirements(c: &mut Criterion) {
                 .collect();
             b.iter(|| {
                 let mut resolver = make_resolver(SolverConfig::default());
-                rt.block_on(resolver.resolve(black_box(reqs.clone()))).unwrap()
+                rt.block_on(resolver.resolve(black_box(reqs.clone())))
+                    .unwrap()
             })
         });
     }

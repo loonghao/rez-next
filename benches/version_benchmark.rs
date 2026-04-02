@@ -1,11 +1,8 @@
 //! Version system benchmarks
 
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
-use std::hint::black_box;
 use rez_core::version::Version;
-
-#[cfg(feature = "flamegraph")]
-use pprof::criterion::{Output, PProfProfiler};
+use std::hint::black_box;
 
 fn version_parsing_benchmark(c: &mut Criterion) {
     c.bench_function("version_parsing", |b| {
@@ -126,21 +123,10 @@ fn configure_criterion() -> Criterion {
     };
     let sample_size: usize = if ci_quick { 30 } else { 100 };
 
-    #[cfg(feature = "flamegraph")]
-    {
-        Criterion::default()
-            .warm_up_time(warm_up)
-            .measurement_time(measurement)
-            .sample_size(sample_size)
-            .with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)))
-    }
-    #[cfg(not(feature = "flamegraph"))]
-    {
-        Criterion::default()
-            .warm_up_time(warm_up)
-            .measurement_time(measurement)
-            .sample_size(sample_size)
-    }
+    Criterion::default()
+        .warm_up_time(warm_up)
+        .measurement_time(measurement)
+        .sample_size(sample_size)
 }
 
 criterion_group! {

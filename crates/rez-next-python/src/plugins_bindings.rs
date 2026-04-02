@@ -20,7 +20,9 @@ pub struct PyPluginType {
 impl PyPluginType {
     #[new]
     fn new(name: &str) -> Self {
-        PyPluginType { name: name.to_string() }
+        PyPluginType {
+            name: name.to_string(),
+        }
     }
 
     fn __repr__(&self) -> String {
@@ -82,7 +84,9 @@ impl PyRezPluginManager {
     #[new]
     fn new() -> Self {
         // Register built-in rez-next plugins (mirrors rez's built-in plugin set)
-        let mut manager = PyRezPluginManager { plugins: Vec::new() };
+        let mut manager = PyRezPluginManager {
+            plugins: Vec::new(),
+        };
         manager.register_builtin_plugins();
         manager
     }
@@ -112,10 +116,8 @@ impl PyRezPluginManager {
 
     /// List all plugin type names.
     fn plugin_types(&self) -> Vec<String> {
-        let mut types: std::collections::HashSet<String> = self.plugins
-            .iter()
-            .map(|p| p.plugin_type.clone())
-            .collect();
+        let mut types: std::collections::HashSet<String> =
+            self.plugins.iter().map(|p| p.plugin_type.clone()).collect();
         let mut result: Vec<String> = types.drain().collect();
         result.sort();
         result
@@ -128,7 +130,9 @@ impl PyRezPluginManager {
 
     /// Check if a plugin is registered.
     fn has_plugin(&self, plugin_type: &str, name: &str) -> bool {
-        self.plugins.iter().any(|p| p.plugin_type == plugin_type && p.name == name)
+        self.plugins
+            .iter()
+            .any(|p| p.plugin_type == plugin_type && p.name == name)
     }
 
     /// Get all shell plugin names (convenience method).
@@ -213,9 +217,7 @@ impl PyRezPluginManager {
         }
 
         // Package repository plugins
-        let repo_types = [
-            ("filesystem", "Local filesystem package repository"),
-        ];
+        let repo_types = [("filesystem", "Local filesystem package repository")];
         for (name, desc) in &repo_types {
             self.plugins.push(PyPlugin {
                 name: name.to_string(),

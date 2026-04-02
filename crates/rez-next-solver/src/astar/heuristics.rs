@@ -228,7 +228,11 @@ impl VersionPreferenceHeuristic {
 
         if is_prerelease {
             // High cost: discourage pre-release packages when prefer_latest is set
-            return if self.config.prefer_latest_versions { 5.0 } else { 2.0 };
+            return if self.config.prefer_latest_versions {
+                5.0
+            } else {
+                2.0
+            };
         }
 
         // Parse numeric components to determine recency preference.
@@ -560,15 +564,20 @@ mod tests {
     fn test_conflict_penalty_heuristic_name_not_admissible() {
         let h = ConflictPenaltyHeuristic::new(HeuristicConfig::default());
         assert_eq!(h.name(), "ConflictPenalty");
-        assert!(!h.is_admissible(), "ConflictPenalty should NOT be admissible");
+        assert!(
+            !h.is_admissible(),
+            "ConflictPenalty should NOT be admissible"
+        );
     }
 
     #[test]
     fn test_composite_heuristic_not_admissible_with_conflict_penalty() {
         // CompositeHeuristic includes ConflictPenaltyHeuristic (not admissible)
         let h = CompositeHeuristic::new(HeuristicConfig::default());
-        assert!(!h.is_admissible(),
-            "CompositeHeuristic with ConflictPenalty should not be admissible");
+        assert!(
+            !h.is_admissible(),
+            "CompositeHeuristic with ConflictPenalty should not be admissible"
+        );
     }
 
     #[test]
@@ -576,8 +585,14 @@ mod tests {
         let fast = HeuristicFactory::create_for_scenario("fast");
         let thorough = HeuristicFactory::create_for_scenario("thorough");
         let state = create_test_state();
-        assert!(fast.calculate(&state) >= 0.0, "fast heuristic should return >= 0");
-        assert!(thorough.calculate(&state) >= 0.0, "thorough heuristic should return >= 0");
+        assert!(
+            fast.calculate(&state) >= 0.0,
+            "fast heuristic should return >= 0"
+        );
+        assert!(
+            thorough.calculate(&state) >= 0.0,
+            "thorough heuristic should return >= 0"
+        );
     }
 
     #[test]
@@ -592,8 +607,11 @@ mod tests {
         ));
         let cost = h.calculate(&state);
         // conflict_heavy has high penalty multiplier — cost should be substantial
-        assert!(cost > 1000.0,
-            "conflict_heavy scenario cost with version conflict should be > 1000, got {}", cost);
+        assert!(
+            cost > 1000.0,
+            "conflict_heavy scenario cost with version conflict should be > 1000, got {}",
+            cost
+        );
     }
 
     #[test]
@@ -611,9 +629,12 @@ mod tests {
 
         let cost_core = h.calculate(&state_core);
         let cost_app = h.calculate(&state_app);
-        assert!(cost_core < cost_app,
+        assert!(
+            cost_core < cost_app,
             "core package depth cost ({}) should be < app package depth cost ({})",
-            cost_core, cost_app);
+            cost_core,
+            cost_app
+        );
     }
 
     #[test]
@@ -629,35 +650,52 @@ mod tests {
         let mut state_stable = SearchState::new_initial(vec![]);
         let mut pkg_stable = Package::new("mypkg_stable".to_string());
         pkg_stable.version = Some(rez_next_version::Version::parse("2.0.0").unwrap());
-        state_stable.resolved_packages.insert("mypkg_stable".to_string(), pkg_stable);
+        state_stable
+            .resolved_packages
+            .insert("mypkg_stable".to_string(), pkg_stable);
         let cost_stable = h.calculate(&state_stable);
-        assert!(cost_stable > 0.0 && cost_stable < 1.0,
-            "Stable v2.0.0 cost should be 0 < cost < 1, got {}", cost_stable);
+        assert!(
+            cost_stable > 0.0 && cost_stable < 1.0,
+            "Stable v2.0.0 cost should be 0 < cost < 1, got {}",
+            cost_stable
+        );
 
         // package with no version → cost = 1.0 * weight
         let mut state_unknown = SearchState::new_initial(vec![]);
         let pkg_unknown = Package::new("mypkg_unknown".to_string());
-        state_unknown.resolved_packages.insert("mypkg_unknown".to_string(), pkg_unknown);
+        state_unknown
+            .resolved_packages
+            .insert("mypkg_unknown".to_string(), pkg_unknown);
         let cost_unknown = h.calculate(&state_unknown);
-        assert!((cost_unknown - 1.0).abs() < 1e-9,
-            "Unknown-version cost should be 1.0, got {}", cost_unknown);
+        assert!(
+            (cost_unknown - 1.0).abs() < 1e-9,
+            "Unknown-version cost should be 1.0, got {}",
+            cost_unknown
+        );
 
         // stable v1 vs stable v10: v10 should have lower cost (prefer latest)
         let mut state_v1 = SearchState::new_initial(vec![]);
         let mut pkg_v1 = Package::new("mypkg_v1".to_string());
         pkg_v1.version = Some(rez_next_version::Version::parse("1.0.0").unwrap());
-        state_v1.resolved_packages.insert("mypkg_v1".to_string(), pkg_v1);
+        state_v1
+            .resolved_packages
+            .insert("mypkg_v1".to_string(), pkg_v1);
 
         let mut state_v10 = SearchState::new_initial(vec![]);
         let mut pkg_v10 = Package::new("mypkg_v10".to_string());
         pkg_v10.version = Some(rez_next_version::Version::parse("10.0.0").unwrap());
-        state_v10.resolved_packages.insert("mypkg_v10".to_string(), pkg_v10);
+        state_v10
+            .resolved_packages
+            .insert("mypkg_v10".to_string(), pkg_v10);
 
         let cost_v1 = h.calculate(&state_v1);
         let cost_v10 = h.calculate(&state_v10);
-        assert!(cost_v10 < cost_v1,
+        assert!(
+            cost_v10 < cost_v1,
             "v10 ({}) should have lower preference cost than v1 ({}) when prefer_latest=true",
-            cost_v10, cost_v1);
+            cost_v10,
+            cost_v1
+        );
     }
 
     #[test]
@@ -666,10 +704,11 @@ mod tests {
         let h = VersionPreferenceHeuristic::new(config);
         let mut state = SearchState::new_initial(vec![]);
         let pkg = Package::new("unknown_ver_pkg".to_string()); // no version set
-        state.resolved_packages.insert("unknown_ver_pkg".to_string(), pkg);
+        state
+            .resolved_packages
+            .insert("unknown_ver_pkg".to_string(), pkg);
         let cost = h.calculate(&state);
         // Unknown version: base_cost=1.0 * weight=0.1 → 0.1
         assert!((cost - 0.1).abs() < 1e-9, "Expected 0.1, got {}", cost);
     }
 }
-

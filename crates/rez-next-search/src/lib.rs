@@ -4,10 +4,10 @@
 //! matching a name pattern or version range. Mirrors rez's `rez search` CLI and
 //! `rez.packages_.iter_packages` / family listing semantics.
 
-pub mod searcher;
 pub mod filter;
 pub mod result;
+pub mod searcher;
 
-pub use searcher::{PackageSearcher, SearchOptions, SearchScope};
-pub use filter::{SearchFilter, FilterMode};
+pub use filter::{FilterMode, SearchFilter};
 pub use result::{SearchResult, SearchResultSet};
+pub use searcher::{PackageSearcher, SearchOptions, SearchScope};

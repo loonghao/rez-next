@@ -129,8 +129,7 @@ impl Repository for FileSystemRepository {
     }
 
     fn is_initialized(&self) -> bool {
-        self.initialized
-            .load(std::sync::atomic::Ordering::Acquire)
+        self.initialized.load(std::sync::atomic::Ordering::Acquire)
     }
 
     async fn refresh(&mut self) -> Result<(), RezCoreError> {

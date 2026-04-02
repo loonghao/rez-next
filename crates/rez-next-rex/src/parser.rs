@@ -1,8 +1,8 @@
 //! Rex command parser: parses package commands strings into RexActions
 
 use crate::actions::{RexAction, RexActionType};
-use rez_next_common::RezCoreError;
 use regex::Regex;
+use rez_next_common::RezCoreError;
 
 /// Parser for Rex command strings
 pub struct RexParser {
@@ -341,7 +341,11 @@ command('/opt/pkg/bin/pkg-config --init')
         assert_eq!(actions.len(), 2);
         match &actions[1].action_type {
             RexActionType::Command { cmd } => {
-                assert!(cmd.contains("pkg-config"), "cmd should contain pkg-config: {}", cmd);
+                assert!(
+                    cmd.contains("pkg-config"),
+                    "cmd should contain pkg-config: {}",
+                    cmd
+                );
             }
             other => panic!("Expected Command, got {:?}", other),
         }
@@ -428,7 +432,9 @@ command('update-alternatives --install /usr/bin/python python /usr/bin/python3 1
     #[test]
     fn test_parse_source_double_quotes() {
         let parser = RexParser::new();
-        let actions = parser.parse(r#"source("/etc/profile.d/myapp.sh")"#).unwrap();
+        let actions = parser
+            .parse(r#"source("/etc/profile.d/myapp.sh")"#)
+            .unwrap();
         assert_eq!(actions.len(), 1);
         match &actions[0].action_type {
             RexActionType::Source { path } => assert_eq!(path, "/etc/profile.d/myapp.sh"),
@@ -457,21 +463,32 @@ env.prepend_path('PATH', '{root}/bin')
 "#;
         let actions = parser.parse(commands).unwrap();
         assert_eq!(actions.len(), 3);
-        assert!(matches!(&actions[0].action_type, RexActionType::Setenv { .. }));
-        assert!(matches!(&actions[1].action_type, RexActionType::Source { .. }));
-        assert!(matches!(&actions[2].action_type, RexActionType::PrependPath { .. }));
+        assert!(matches!(
+            &actions[0].action_type,
+            RexActionType::Setenv { .. }
+        ));
+        assert!(matches!(
+            &actions[1].action_type,
+            RexActionType::Source { .. }
+        ));
+        assert!(matches!(
+            &actions[2].action_type,
+            RexActionType::PrependPath { .. }
+        ));
     }
 
     #[test]
     fn test_parse_source_expands_via_executor() {
         use crate::executor::RexExecutor;
         let mut exec = RexExecutor::new();
-        let env = exec.execute_commands(
-            r#"source('{root}/etc/setup.sh')"#,
-            "mypkg",
-            Some("/opt/mypkg/1.0"),
-            None,
-        ).unwrap();
+        let env = exec
+            .execute_commands(
+                r#"source('{root}/etc/setup.sh')"#,
+                "mypkg",
+                Some("/opt/mypkg/1.0"),
+                None,
+            )
+            .unwrap();
         assert_eq!(env.sourced_scripts.len(), 1);
         assert_eq!(env.sourced_scripts[0], "/opt/mypkg/1.0/etc/setup.sh");
     }
@@ -494,16 +511,25 @@ env.prepend_path('PATH', '{root}/bin')
         let parser = RexParser::new();
         let actions = parser.parse(r#"env.resetenv("MY_VAR")"#).unwrap();
         assert_eq!(actions.len(), 1);
-        assert!(matches!(&actions[0].action_type, RexActionType::Resetenv { .. }));
+        assert!(matches!(
+            &actions[0].action_type,
+            RexActionType::Resetenv { .. }
+        ));
     }
 
     #[test]
     fn test_resetenv_removes_var_from_env() {
         use crate::executor::RexExecutor;
         let mut exec = RexExecutor::new();
-        exec.execute_commands(r#"env.setenv('LEGACY', 'old')"#, "pkg", None, None).unwrap();
-        let env = exec.execute_commands(r#"resetenv('LEGACY')"#, "pkg", None, None).unwrap();
-        assert!(!env.vars.contains_key("LEGACY"), "resetenv should remove the var");
+        exec.execute_commands(r#"env.setenv('LEGACY', 'old')"#, "pkg", None, None)
+            .unwrap();
+        let env = exec
+            .execute_commands(r#"resetenv('LEGACY')"#, "pkg", None, None)
+            .unwrap();
+        assert!(
+            !env.vars.contains_key("LEGACY"),
+            "resetenv should remove the var"
+        );
     }
 
     #[test]
@@ -521,12 +547,9 @@ env.prepend_path('PATH', '{root}/bin')
     fn test_info_message_recorded_in_env() {
         use crate::executor::RexExecutor;
         let mut exec = RexExecutor::new();
-        let env = exec.execute_commands(
-            r#"info("myapp 1.0 loaded")"#,
-            "myapp",
-            None,
-            None,
-        ).unwrap();
+        let env = exec
+            .execute_commands(r#"info("myapp 1.0 loaded")"#, "myapp", None, None)
+            .unwrap();
         assert_eq!(env.info_messages.len(), 1);
         assert_eq!(env.info_messages[0], "myapp 1.0 loaded");
     }
@@ -568,7 +591,9 @@ env.prepend_path('PATH', '{root}/bin')
     fn test_stop_sets_stopped_flag() {
         use crate::executor::RexExecutor;
         let mut exec = RexExecutor::new();
-        let env = exec.execute_commands(r#"stop("abort")"#, "mypkg", None, None).unwrap();
+        let env = exec
+            .execute_commands(r#"stop("abort")"#, "mypkg", None, None)
+            .unwrap();
         assert!(env.stopped, "stop() should set stopped=true");
         assert_eq!(env.stop_message.as_deref(), Some("abort"));
     }
@@ -577,12 +602,14 @@ env.prepend_path('PATH', '{root}/bin')
     fn test_info_with_root_expansion() {
         use crate::executor::RexExecutor;
         let mut exec = RexExecutor::new();
-        let env = exec.execute_commands(
-            r#"info("root is {root}")"#,
-            "mypkg",
-            Some("/opt/mypkg/2.0"),
-            None,
-        ).unwrap();
+        let env = exec
+            .execute_commands(
+                r#"info("root is {root}")"#,
+                "mypkg",
+                Some("/opt/mypkg/2.0"),
+                None,
+            )
+            .unwrap();
         assert_eq!(env.info_messages.len(), 1);
         assert_eq!(env.info_messages[0], "root is /opt/mypkg/2.0");
     }
@@ -592,8 +619,14 @@ env.prepend_path('PATH', '{root}/bin')
     #[test]
     fn test_parse_comment_fn_single_quotes() {
         let parser = RexParser::new();
-        let actions = parser.parse(r#"comment('Set up mylib environment')"#).unwrap();
-        assert_eq!(actions.len(), 1, "comment() should produce exactly 1 action");
+        let actions = parser
+            .parse(r#"comment('Set up mylib environment')"#)
+            .unwrap();
+        assert_eq!(
+            actions.len(),
+            1,
+            "comment() should produce exactly 1 action"
+        );
         match &actions[0].action_type {
             RexActionType::Comment { text } => assert_eq!(text, "Set up mylib environment"),
             other => panic!("Expected Comment, got {:?}", other),
@@ -603,7 +636,9 @@ env.prepend_path('PATH', '{root}/bin')
     #[test]
     fn test_parse_comment_fn_double_quotes() {
         let parser = RexParser::new();
-        let actions = parser.parse(r#"comment("Package environment initialized")"#).unwrap();
+        let actions = parser
+            .parse(r#"comment("Package environment initialized")"#)
+            .unwrap();
         assert_eq!(actions.len(), 1);
         match &actions[0].action_type {
             RexActionType::Comment { text } => assert_eq!(text, "Package environment initialized"),
@@ -622,11 +657,27 @@ env.prepend_path('PATH', '{root}/bin')
 "#;
         let actions = parser.parse(commands).unwrap();
         // 2 comment() + 2 real actions = 4 total
-        assert_eq!(actions.len(), 4, "Should have 4 actions (2 comments + 2 env ops)");
-        assert!(matches!(&actions[0].action_type, RexActionType::Comment { .. }), "first should be Comment");
-        assert!(matches!(&actions[1].action_type, RexActionType::Setenv { .. }), "second should be Setenv");
-        assert!(matches!(&actions[2].action_type, RexActionType::Comment { .. }), "third should be Comment");
-        assert!(matches!(&actions[3].action_type, RexActionType::PrependPath { .. }), "fourth should be PrependPath");
+        assert_eq!(
+            actions.len(),
+            4,
+            "Should have 4 actions (2 comments + 2 env ops)"
+        );
+        assert!(
+            matches!(&actions[0].action_type, RexActionType::Comment { .. }),
+            "first should be Comment"
+        );
+        assert!(
+            matches!(&actions[1].action_type, RexActionType::Setenv { .. }),
+            "second should be Setenv"
+        );
+        assert!(
+            matches!(&actions[2].action_type, RexActionType::Comment { .. }),
+            "third should be Comment"
+        );
+        assert!(
+            matches!(&actions[3].action_type, RexActionType::PrependPath { .. }),
+            "fourth should be PrependPath"
+        );
     }
 
     #[test]
@@ -637,14 +688,17 @@ env.prepend_path('PATH', '{root}/bin')
 comment('function-style comment')
 "#;
         let actions = parser.parse(commands).unwrap();
-        assert_eq!(actions.len(), 2, "Both # and comment() should produce Comment actions");
+        assert_eq!(
+            actions.len(),
+            2,
+            "Both # and comment() should produce Comment actions"
+        );
         for action in &actions {
             assert!(
                 matches!(&action.action_type, RexActionType::Comment { .. }),
-                "Expected Comment, got {:?}", action.action_type
+                "Expected Comment, got {:?}",
+                action.action_type
             );
         }
     }
 }
-
-

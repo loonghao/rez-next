@@ -780,7 +780,11 @@ mod tests {
         let ts = parse_relative_time("7d").unwrap();
         let diff = now - ts;
         // Should be approximately 7 days in seconds ± 2 seconds tolerance
-        assert!((diff - 7 * 86400).abs() <= 2, "Expected ~7d ago, got diff={}", diff);
+        assert!(
+            (diff - 7 * 86400).abs() <= 2,
+            "Expected ~7d ago, got diff={}",
+            diff
+        );
     }
 
     #[test]
@@ -788,7 +792,11 @@ mod tests {
         let now = chrono::Utc::now().timestamp();
         let ts = parse_relative_time("2w").unwrap();
         let diff = now - ts;
-        assert!((diff - 14 * 86400).abs() <= 2, "Expected ~14d ago, got diff={}", diff);
+        assert!(
+            (diff - 14 * 86400).abs() <= 2,
+            "Expected ~14d ago, got diff={}",
+            diff
+        );
     }
 
     #[test]
@@ -796,7 +804,11 @@ mod tests {
         let now = chrono::Utc::now().timestamp();
         let ts = parse_relative_time("1m").unwrap();
         let diff = now - ts;
-        assert!((diff - 30 * 86400).abs() <= 2, "Expected ~30d ago, got diff={}", diff);
+        assert!(
+            (diff - 30 * 86400).abs() <= 2,
+            "Expected ~30d ago, got diff={}",
+            diff
+        );
     }
 
     #[test]
@@ -804,7 +816,11 @@ mod tests {
         let now = chrono::Utc::now().timestamp();
         let ts = parse_relative_time("1y").unwrap();
         let diff = now - ts;
-        assert!((diff - 365 * 86400).abs() <= 2, "Expected ~365d ago, got diff={}", diff);
+        assert!(
+            (diff - 365 * 86400).abs() <= 2,
+            "Expected ~365d ago, got diff={}",
+            diff
+        );
     }
 
     #[test]

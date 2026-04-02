@@ -57,7 +57,9 @@ pub fn execute(args: PluginsArgs) -> RezCoreResult<()> {
 
     // If no package specified, just list available plugin types and exit successfully
     if args.package.is_none() {
-        println!("Available plugin types: build_process, build_system, release_hook, release_vcs, shell");
+        println!(
+            "Available plugin types: build_process, build_system, release_hook, release_vcs, shell"
+        );
         println!("Use 'rez plugins <package>' to list plugins for a specific package.");
         return Ok(());
     }

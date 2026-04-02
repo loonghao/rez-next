@@ -117,8 +117,7 @@ pub struct BuildRequest {
 }
 
 /// Build options
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct BuildOptions {
     /// Force rebuild even if artifacts exist
     pub force_rebuild: bool,
@@ -131,7 +130,6 @@ pub struct BuildOptions {
     /// Custom environment variables
     pub env_vars: HashMap<String, String>,
 }
-
 
 /// Build result
 #[derive(Debug, Clone, Serialize, Deserialize)]

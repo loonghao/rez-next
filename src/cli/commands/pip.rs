@@ -86,8 +86,7 @@ pub fn execute(args: PipArgs) -> RezCoreResult<()> {
 
     // Also read from requirements.txt if specified
     if let Some(ref req_file) = args.requirement {
-        let content = std::fs::read_to_string(req_file)
-            .map_err(RezCoreError::Io)?;
+        let content = std::fs::read_to_string(req_file).map_err(RezCoreError::Io)?;
         for line in content.lines() {
             let trimmed = line.trim();
             if !trimmed.is_empty() && !trimmed.starts_with('#') {
@@ -130,10 +129,7 @@ pub fn execute(args: PipArgs) -> RezCoreResult<()> {
 
             create_rez_package(&info, &tmp_path, &rez_pkg_dir, &args)?;
 
-            println!(
-                "  -> Rez package created: {}",
-                rez_pkg_dir.display()
-            );
+            println!("  -> Rez package created: {}", rez_pkg_dir.display());
         }
     }
 
@@ -219,13 +215,7 @@ fn discover_installed_package(
     let pkg_name = parse_pkg_name_from_spec(spec);
 
     let output = Command::new(python)
-        .args([
-            "-m",
-            "pip",
-            "show",
-            "--files",
-            &pkg_name,
-        ])
+        .args(["-m", "pip", "show", "--files", &pkg_name])
         .env("PYTHONPATH", target.to_string_lossy().as_ref())
         .output();
 
@@ -277,10 +267,7 @@ fn parse_pip_show_output(output: &str, _target: &Path) -> RezCoreResult<Option<P
 }
 
 /// Scan the target directory to find an installed package
-fn scan_target_for_package(
-    name: &str,
-    target: &Path,
-) -> RezCoreResult<Option<PipPackageInfo>> {
+fn scan_target_for_package(name: &str, target: &Path) -> RezCoreResult<Option<PipPackageInfo>> {
     if !target.exists() {
         return Ok(None);
     }
@@ -344,10 +331,7 @@ fn create_rez_package(
         .requires
         .iter()
         .filter(|r| !r.is_empty())
-        .map(|r| {
-            
-            r.to_lowercase().replace('-', "_")
-        })
+        .map(|r| r.to_lowercase().replace('-', "_"))
         .collect();
 
     // Generate package.py
@@ -405,8 +389,7 @@ fn copy_dir_recursive(src: &Path, dest: &Path) -> RezCoreResult<()> {
         if src_path.is_dir() {
             copy_dir_recursive(&src_path, &dest_path)?;
         } else {
-            std::fs::copy(&src_path, &dest_path)
-                .map_err(RezCoreError::Io)?;
+            std::fs::copy(&src_path, &dest_path).map_err(RezCoreError::Io)?;
         }
     }
     Ok(())
@@ -561,9 +544,18 @@ Requires: certifi, charset-normalizer, idna, urllib3
         let content = std::fs::read_to_string(&pkg_py).unwrap();
         assert!(content.contains("requests"), "package.py should have name");
         assert!(content.contains("2.28.0"), "package.py should have version");
-        assert!(content.contains("certifi"), "package.py should list certifi dependency");
-        assert!(content.contains("urllib3"), "package.py should list urllib3 dependency");
-        assert!(content.contains("PYTHONPATH"), "package.py commands should set PYTHONPATH");
+        assert!(
+            content.contains("certifi"),
+            "package.py should list certifi dependency"
+        );
+        assert!(
+            content.contains("urllib3"),
+            "package.py should list urllib3 dependency"
+        );
+        assert!(
+            content.contains("PYTHONPATH"),
+            "package.py commands should set PYTHONPATH"
+        );
     }
 
     /// parse_pkg_name: tilde-equals ignored, name extracted
@@ -583,11 +575,13 @@ Requires: certifi, charset-normalizer, idna, urllib3
     fn test_pip_requirements_file_parsing() {
         let tmp = tempfile::TempDir::new().unwrap();
         let req_path = tmp.path().join("requirements.txt");
-        let content = "# This is a comment\n\nrequests==2.28.0\nnumpy>=1.24\n\n# another comment\ndjango\n";
+        let content =
+            "# This is a comment\n\nrequests==2.28.0\nnumpy>=1.24\n\n# another comment\ndjango\n";
         std::fs::write(&req_path, content).unwrap();
 
         let read = std::fs::read_to_string(&req_path).unwrap();
-        let pkgs: Vec<String> = read.lines()
+        let pkgs: Vec<String> = read
+            .lines()
             .map(|l| l.trim())
             .filter(|l| !l.is_empty() && !l.starts_with('#'))
             .map(|l| l.to_string())

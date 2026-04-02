@@ -5,7 +5,7 @@
 //! POSIX shells, or `. <script>` in PowerShell.
 
 use pyo3::prelude::*;
-use rez_next_rex::{RexEnvironment, ShellType, generate_shell_script};
+use rez_next_rex::{generate_shell_script, RexEnvironment, ShellType};
 use std::path::PathBuf;
 
 /// Supported activation modes matching rez's `rez source` command.
@@ -44,7 +44,10 @@ impl PySourceManager {
     #[pyo3(signature = (packages, shell = None))]
     pub fn new(packages: Vec<String>, shell: Option<String>) -> Self {
         let shell_type = shell.unwrap_or_else(detect_current_shell);
-        Self { packages, shell_type }
+        Self {
+            packages,
+            shell_type,
+        }
     }
 
     /// Write an activation script to `dest_path`.
@@ -69,7 +72,8 @@ impl PySourceManager {
         std::fs::write(&path, &script)
             .map_err(|e| pyo3::exceptions::PyIOError::new_err(e.to_string()))?;
 
-        Ok(path.canonicalize()
+        Ok(path
+            .canonicalize()
             .unwrap_or(path)
             .to_string_lossy()
             .to_string())
@@ -84,8 +88,8 @@ impl PySourceManager {
             "cmd" => "bat",
             _ => "sh",
         };
-        let tmp_path = std::env::temp_dir()
-            .join(format!("rez_next_activate_{}.{}", std::process::id(), ext));
+        let tmp_path =
+            std::env::temp_dir().join(format!("rez_next_activate_{}.{}", std::process::id(), ext));
         self.write_activation_script(&tmp_path.to_string_lossy(), shell)
     }
 
@@ -161,10 +165,8 @@ fn build_activation_script(packages: &[String], shell_name: &str) -> String {
         "/tmp/rez_context.rxt".to_string(),
     );
     // REZ_RESOLVE: space-separated resolved package list
-    env.vars.insert(
-        "REZ_RESOLVE".to_string(),
-        packages.join(" "),
-    );
+    env.vars
+        .insert("REZ_RESOLVE".to_string(), packages.join(" "));
     // REZ_PACKAGES_PATH: sourced from config
     if let Ok(p) = std::env::var("REZ_PACKAGES_PATH") {
         env.vars.insert("REZ_PACKAGES_PATH".to_string(), p);
@@ -175,10 +177,8 @@ fn build_activation_script(packages: &[String], shell_name: &str) -> String {
         let parts: Vec<&str> = pkg.splitn(2, '-').collect();
         let pkg_name = parts[0].to_uppercase().replace(['-', '.'], "_");
         let ver = if parts.len() > 1 { parts[1] } else { "" };
-        env.vars.insert(
-            format!("REZPKG_{}", pkg_name),
-            ver.to_string(),
-        );
+        env.vars
+            .insert(format!("REZPKG_{}", pkg_name), ver.to_string());
     }
 
     let mut script = generate_shell_script(&env, &shell_type);
@@ -264,17 +264,18 @@ pub fn resolve_source_mode(
     };
 
     match mode {
-        SourceMode::Inline => {
-            Ok(build_activation_script(&packages, &shell_resolved))
-        }
+        SourceMode::Inline => Ok(build_activation_script(&packages, &shell_resolved)),
         SourceMode::TempFile => {
             let ext = match shell_resolved.as_str() {
                 "powershell" | "pwsh" => "ps1",
                 "cmd" => "bat",
                 _ => "sh",
             };
-            let tmp_path = std::env::temp_dir()
-                .join(format!("rez_next_activate_{}.{}", std::process::id(), ext));
+            let tmp_path = std::env::temp_dir().join(format!(
+                "rez_next_activate_{}.{}",
+                std::process::id(),
+                ext
+            ));
             let script = build_activation_script(&packages, &shell_resolved);
             std::fs::write(&tmp_path, &script)
                 .map_err(|e| pyo3::exceptions::PyIOError::new_err(e.to_string()))?;
@@ -317,18 +318,30 @@ mod tests {
     fn test_build_activation_script_bash() {
         let pkgs = vec!["python-3.9".to_string(), "maya-2024".to_string()];
         let script = build_activation_script(&pkgs, "bash");
-        assert!(script.contains("REZ_RESOLVE"), "bash script should set REZ_RESOLVE");
+        assert!(
+            script.contains("REZ_RESOLVE"),
+            "bash script should set REZ_RESOLVE"
+        );
         assert!(script.contains("export"), "bash script should use export");
-        assert!(script.contains("python-3.9"), "bash script should contain package name");
+        assert!(
+            script.contains("python-3.9"),
+            "bash script should contain package name"
+        );
     }
 
     #[test]
     fn test_build_activation_script_powershell() {
         let pkgs = vec!["python-3.9".to_string()];
         let script = build_activation_script(&pkgs, "powershell");
-        assert!(script.contains("REZ_RESOLVE"), "ps1 script should set REZ_RESOLVE");
+        assert!(
+            script.contains("REZ_RESOLVE"),
+            "ps1 script should set REZ_RESOLVE"
+        );
         // PowerShell uses $env: syntax
-        assert!(script.contains("$env:") || script.contains("REZ_"), "ps1 should use $env: syntax");
+        assert!(
+            script.contains("$env:") || script.contains("REZ_"),
+            "ps1 should use $env: syntax"
+        );
     }
 
     #[test]
@@ -355,10 +368,7 @@ mod tests {
 
     #[test]
     fn test_source_manager_new_explicit_shell() {
-        let mgr = PySourceManager::new(
-            vec!["maya-2024".to_string()],
-            Some("bash".to_string()),
-        );
+        let mgr = PySourceManager::new(vec!["maya-2024".to_string()], Some("bash".to_string()));
         assert_eq!(mgr.shell_type, "bash");
     }
 
@@ -378,10 +388,7 @@ mod tests {
         use tempfile::TempDir;
         let tmp = TempDir::new().unwrap();
         let dest = tmp.path().join("activate.sh");
-        let mgr = PySourceManager::new(
-            vec!["python-3.9".to_string()],
-            Some("bash".to_string()),
-        );
+        let mgr = PySourceManager::new(vec!["python-3.9".to_string()], Some("bash".to_string()));
         // No Python GIL available in unit tests — call the internal function directly
         let content = mgr.get_activation_script_content(None);
         std::fs::write(&dest, &content).unwrap();
