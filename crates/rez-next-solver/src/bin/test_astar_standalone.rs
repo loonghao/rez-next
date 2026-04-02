@@ -179,10 +179,9 @@ mod astar_standalone {
 
     impl Ord for SearchState {
         fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-            other
-                .estimated_total_cost
-                .partial_cmp(&self.estimated_total_cost)
-                .unwrap_or(std::cmp::Ordering::Equal)
+            // Consistent with Eq (state_hash-based).
+            // For priority ordering in BinaryHeap, use a dedicated wrapper type.
+            self.state_hash.cmp(&other.state_hash)
         }
     }
 
