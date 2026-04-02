@@ -272,8 +272,6 @@ impl DependencyHeuristic for VersionPreferenceHeuristic {
 /// Composite heuristic that combines multiple heuristics
 pub struct CompositeHeuristic {
     heuristics: Vec<Box<dyn DependencyHeuristic + Send + Sync>>,
-    #[allow(dead_code)]
-    config: HeuristicConfig,
 }
 
 impl CompositeHeuristic {
@@ -283,10 +281,10 @@ impl CompositeHeuristic {
             Box::new(RemainingRequirementsHeuristic::new(config.clone())),
             Box::new(ConflictPenaltyHeuristic::new(config.clone())),
             Box::new(DependencyDepthHeuristic::new(config.clone())),
-            Box::new(VersionPreferenceHeuristic::new(config.clone())),
+            Box::new(VersionPreferenceHeuristic::new(config)),
         ];
 
-        Self { heuristics, config }
+        Self { heuristics }
     }
 
     /// Create a fast heuristic optimized for performance
@@ -379,8 +377,6 @@ impl HeuristicFactory {
 
 /// Adaptive heuristic that adjusts based on search progress
 pub struct AdaptiveHeuristic {
-    #[allow(dead_code)]
-    base_heuristic: CompositeHeuristic,
     config: HeuristicConfig,
     /// Statistics for adaptation
     search_stats: AdaptiveStats,
@@ -397,7 +393,6 @@ struct AdaptiveStats {
 impl AdaptiveHeuristic {
     pub fn new(config: HeuristicConfig) -> Self {
         Self {
-            base_heuristic: CompositeHeuristic::new(config.clone()),
             config,
             search_stats: AdaptiveStats::default(),
         }
