@@ -38,6 +38,5 @@ impl From<RezCoreError> for VersionParseError {
     }
 }
 
-
 #[cfg(test)]
 mod tests;

@@ -15,14 +15,14 @@ pub mod search_state;
 pub mod standalone_test;
 pub mod test_framework;
 
-#[cfg(test)]
-pub mod heuristic_integration_test;
-
-#[cfg(test)]
-pub mod heuristic_benchmark;
-
 pub use astar_search::*;
 pub use heuristics::*;
 pub use search_state::*;
 pub use standalone_test::*;
 pub use test_framework::*;
+
+#[cfg(test)]
+pub mod heuristic_integration_test;
+
+#[cfg(test)]
+pub mod heuristic_benchmark;
