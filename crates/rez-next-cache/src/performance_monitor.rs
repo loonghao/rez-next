@@ -540,6 +540,9 @@ impl PerformanceMonitor {
         self.counters.put_operations.store(0, Ordering::Relaxed);
         self.counters.remove_operations.store(0, Ordering::Relaxed);
         self.counters
+            .eviction_operations
+            .store(0, Ordering::Relaxed);
+        self.counters
             .total_get_latency_us
             .store(0, Ordering::Relaxed);
         self.counters
@@ -547,6 +550,14 @@ impl PerformanceMonitor {
             .store(0, Ordering::Relaxed);
         self.counters
             .total_remove_latency_us
+            .store(0, Ordering::Relaxed);
+        self.counters
+            .total_eviction_latency_us
+            .store(0, Ordering::Relaxed);
+        self.counters.hit_count.store(0, Ordering::Relaxed);
+        self.counters.miss_count.store(0, Ordering::Relaxed);
+        self.counters
+            .total_bytes_allocated
             .store(0, Ordering::Relaxed);
         self.counters.peak_memory_usage.store(0, Ordering::Relaxed);
         self.counters

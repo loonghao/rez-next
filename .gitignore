@@ -90,3 +90,7 @@ local-*.ps1
 debug-extension.ps1
 fix-extension.ps1
 simple_lsp_test.ps1
+
+# Temporary test/debug output files
+*_output.txt
+*_test.txt
