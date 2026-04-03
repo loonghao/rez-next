@@ -203,7 +203,7 @@ jobs:
             os: windows-2022
           - name: macos
             os: macos-14
-        python-version: ["3.9", "3.10", "3.11", "3.12"]
+        python-version: ["3.7", "3.9", "3.10", "3.11", "3.12"]
 
     steps:
       - uses: actions/checkout@v6

@@ -1,0 +1,2 @@
+﻿whoami v2.1.1
+└── rez-next-context v0.3.0 (G:\PycharmProjects\github\rez-next\crates\rez-next-context)
