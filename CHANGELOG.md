@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.3](https://github.com/loonghao/rez-next/compare/v0.1.2...v0.1.3) (2026-04-03)
+
+
+### 🚀 Features
+
+* **bench:** automated performance comparison vs rez Python ([4e027ef](https://github.com/loonghao/rez-next/commit/4e027efe1ddaa51f0355f520fbeb429f06390890))
+* comprehensive Rez core implementation with tests and honest documentation ([8095f04](https://github.com/loonghao/rez-next/commit/8095f0476cd445e7217d30b7297f144c44245510))
+* comprehensive Rez Python API with 308 compatibility tests ([95cdae7](https://github.com/loonghao/rez-next/commit/95cdae7e8f1cd1243a9d8b7ff9fa55e818855690))
+* **test:** add CLI e2e tests for rez-next binary ([b52b63f](https://github.com/loonghao/rez-next/commit/b52b63fc5838af5873ffcff1f40f46ac745809e6))
+
+
+### 🐛 Bug Fixes
+
+* **bench:** add CRITERION_QUICK mode to prevent CI timeout ([a20f1c7](https://github.com/loonghao/rez-next/commit/a20f1c7680b99a5b9cb820c7cdc7d4658472481f))
+* **deps:** update rust crate base64 to 0.22 ([#74](https://github.com/loonghao/rez-next/issues/74)) ([d5fec05](https://github.com/loonghao/rez-next/commit/d5fec050a79f03ceb275379c90c941a29d8fcb52))
+* **deps:** update rust crate toml to v1 ([#83](https://github.com/loonghao/rez-next/issues/83)) ([21815de](https://github.com/loonghao/rez-next/commit/21815dec920a72a2647efe77a20de5724cb1dab5))
+* **fmt:** cargo fmt + pre-commit + extended Python tests ([cb21c0d](https://github.com/loonghao/rez-next/commit/cb21c0d7ec5c4eed269d29df033cecd00645a97b))
+* **python:** fix config/system submodule overwrite causing ModuleNotFoundError ([a8b67bb](https://github.com/loonghao/rez-next/commit/a8b67bb27643edd4ce668b9f3dbf9352eb798ba9))
+* **python:** register all submodules in sys.modules to fix dotted imports ([93b2eea](https://github.com/loonghao/rez-next/commit/93b2eea36825c8719d830f3d10d5dddf2ca5c6f2))
+
 ## [0.2.0] - 2026-03-30
 
 ### Added
