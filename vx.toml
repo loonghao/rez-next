@@ -1,0 +1,48 @@
+[tools]
+cargo-llvm-cov = "latest"
+just = "latest"
+maturin = "latest"
+rust = "stable"
+uv = "latest"
+
+[settings]
+# Automatically install missing tools when entering dev environment
+auto_install = true
+# Cache duration for version checks
+cache_duration = "7d"
+
+[scripts]
+bench = "cargo bench"
+build = "just build"
+build-bin = "just build-bin"
+build-release = "cargo build --release"
+check = "cargo check"
+ci = "just ci"
+clean = "just clean"
+cli-e2e = "just cli-e2e"
+cli-e2e-one = "just cli-e2e-one"
+cli-e2e-release = "just cli-e2e-release"
+default = "just default"
+doc = "just doc"
+doc-check = "just doc-check"
+fmt = "just fmt"
+fmt-check = "just fmt-check"
+format = "cargo fmt"
+install = "just install"
+lint = "just lint"
+lint-ci = "just lint-ci"
+pre-commit = "just pre-commit"
+pre-commit-install = "just pre-commit-install"
+pre-commit-staged = "just pre-commit-staged"
+pre-commit-update = "just pre-commit-update"
+py-build = "just py-build"
+py-ci = "just py-ci"
+py-fmt = "just py-fmt"
+py-lint = "just py-lint"
+py-test = "just py-test"
+py-test-e2e = "just py-test-e2e"
+py-test-fast = "just py-test-fast"
+py-test-module = "just py-test-module"
+run = "just run"
+test = "just test"
+test-verbose = "just test-verbose"

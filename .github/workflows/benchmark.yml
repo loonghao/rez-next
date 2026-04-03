@@ -31,7 +31,7 @@ jobs:
     timeout-minutes: 15
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: dtolnay/rust-toolchain@stable
 
@@ -42,7 +42,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.14"
 
       - name: Run quick benchmarks (version + package + rex)
         env:
@@ -70,7 +70,7 @@ jobs:
           head -60 metrics/benchmarking/RESULTS.md
 
       - name: Upload quick benchmark artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: bench-quick-${{ github.sha }}
           path: |
@@ -95,7 +95,7 @@ jobs:
       contents: write   # needed to push RESULTS.md back to main
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
@@ -109,7 +109,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.14"
 
       - name: Run full benchmark suite
         env:
@@ -178,7 +178,7 @@ jobs:
           fi
 
       - name: Upload full benchmark artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: bench-full-${{ github.sha }}
           path: |
@@ -199,10 +199,10 @@ jobs:
     if: github.event_name == 'pull_request'
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Download quick bench results
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: bench-quick-${{ github.sha }}
           path: bench-artifacts/

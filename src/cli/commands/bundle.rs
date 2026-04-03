@@ -150,8 +150,18 @@ pub fn execute(mut args: BundleArgs) -> RezCoreResult<()> {
         })
         .collect::<Result<_, _>>()?;
 
-    // Resolve context
-    let context = resolve_context(&requirements, &args)?;
+    // Resolve context — on failure (e.g. missing packages), degrade gracefully to an empty context
+    // so the bundle directory and bundle.yaml are still created.
+    let context = match resolve_context(&requirements, &args) {
+        Ok(ctx) => ctx,
+        Err(e) => {
+            println!(
+                "Warning: package resolution failed: {}. Bundle will only contain metadata.",
+                e
+            );
+            rez_next_context::ResolvedContext::from_requirements(requirements.clone())
+        }
+    };
 
     if context.resolved_packages.is_empty() && !requirements.is_empty() {
         println!("Warning: No packages resolved. Bundle will only contain metadata.");

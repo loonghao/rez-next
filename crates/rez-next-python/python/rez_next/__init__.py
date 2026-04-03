@@ -1,7 +1,9 @@
+import rez_next._native as _native  # noqa: F401
 from rez_next._native import *  # noqa: F401,F403
-from rez_next import _native
+
 __version__: str = _native.__version__
 __author__: str = _native.__author__
-from rez_next._native import Config, System  # noqa: F401
-config = Config()
-system = System()
+
+# Top-level singletons — compatible with `from rez import config` and `from rez import system`
+config = _native.Config()
+system = _native.System()

@@ -1,7 +1,7 @@
 //! Python bindings for rez.env — rez env command environment generation
 //!
 //! Provides:
-//! - `RezEnv`: complete environment activation (rez env <pkg>...)
+//! - `RezEnv`: complete environment activation (`rez env <PKG>...`)
 //! - `env_activate()`: generate activation scripts
 //! - `env_apply()`: apply environment to current process
 
