@@ -79,7 +79,14 @@
 - Replacing with `tracing::warn!` requires adding `tracing` crate as a new dependency — outside cleanup scope
 - Recommended: iteration agent should add `tracing` to workspace deps, then cleanup agent can migrate
 
+### 17. `pyo3` version drift between workspace and `rez-next-python`
+- **Status**: TODO (cycle 21)
+- Root `Cargo.toml` declares `pyo3 = 0.28` in `[workspace.dependencies]`, while `crates/rez-next-python/Cargo.toml` still pins `pyo3 = 0.25` directly
+- Needs a deliberate decision: either migrate `rez-next-python` to the workspace dependency, or remove the unused workspace entry after wheel/build validation
+- Do not change this blindly in cleanup: it needs explicit build + wheel verification to avoid ABI or packaging regressions
+
 ### 12. `build --help` / `env --help` returns exit code 1
+
 - **Status**: COMPLETE ✓ (cycle 19)
 - Fixed `handle_grouped_command` in `rez-next.rs`: clap returns `Err` for `--help`/`--version` display; now uses `e.use_stderr()` to decide exit code (0 for help/version, 1 for real errors)
 - Previously `eprintln!` + `exit(1)` swallowed the help output and returned wrong exit code

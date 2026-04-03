@@ -16,8 +16,7 @@ exclude = ["tests/fixtures/", "examples/"]
 [dependencies]
 rez-next-common = { version = "0.3.0", path = "../rez-next-common", default-features = false }
 rez-next-version = { version = "0.3.0", path = "../rez-next-version", default-features = false }
-# Temporarily disabled Python bindings
-# pyo3 = { workspace = true, optional = true }
+
 serde.workspace = true
 serde_json.workspace = true
 serde_yaml.workspace = true
