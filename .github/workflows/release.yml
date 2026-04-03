@@ -1,17 +1,13 @@
 # Release workflow — build cross-platform binaries, publish GitHub Release assets,
 # and publish Python wheels to PyPI.
-# Triggered by:
-#   1. GitHub Release published (primary — from release-please)
-#   2. Tag push matching v* (fallback)
-#   3. Manual workflow dispatch
+#
+# Triggered ONLY by workflow_dispatch (from release-please.yml or manual).
+# This avoids duplicate runs: release-please creates a GitHub Release AND dispatches
+# this workflow. If we also listened to `release: published` or `push: tags`, we'd
+# get 2-3 parallel runs for the same tag.
 name: Release
 
 on:
-  release:
-    types: [published]
-  push:
-    tags:
-      - "v*"
   workflow_dispatch:
 
 permissions:
@@ -263,9 +259,8 @@ jobs:
   publish-pypi:
     name: Publish Python wheels to PyPI
     needs: test-wheel
-    # Only publish in the explicit dispatch run to avoid duplicate uploads from
-    # the parallel release/tag triggers for the same tag.
-    if: ${{ github.event_name == 'workflow_dispatch' && startsWith(github.ref, 'refs/tags/v') }}
+    # Always publish — this workflow is only triggered by workflow_dispatch
+    # (from release-please or manual), so every run is intentional.
     runs-on: ubuntu-24.04
     permissions:
       id-token: write
