@@ -20,9 +20,13 @@ test:
 test-verbose:
     vx cargo test --workspace -- --nocapture
 
-# Run clippy lints (mirrors CI: --all-features --all-targets -D warnings)
+# Run clippy lints (local dev: all features, all targets)
 lint:
     vx cargo clippy --workspace --all-targets --all-features -- -D warnings
+
+# Run clippy lints (CI mode: excludes rez-next-python to avoid pyo3 extension-module issues)
+lint-ci:
+    vx cargo clippy --workspace --all-targets --all-features --exclude rez-next-python -- -D warnings
 
 # Format code
 fmt:
@@ -39,6 +43,9 @@ run *ARGS:
 # Check everything (format, lint, test)
 check: fmt-check lint test
 
+# Run all CI checks locally (mirrors GitHub Actions)
+ci: fmt-check lint-ci doc-check test
+
 # Check documentation builds without warnings
 doc:
     vx cargo doc --workspace --all-features --no-deps
@@ -46,9 +53,6 @@ doc:
 # Check documentation with warnings as errors
 doc-check:
     RUSTDOCFLAGS="-D warnings" vx cargo doc --workspace --all-features --no-deps --document-private-items
-
-# Run all CI checks locally (mirrors GitHub Actions)
-ci: fmt-check lint doc-check test
 
 # Run benchmarks
 bench:

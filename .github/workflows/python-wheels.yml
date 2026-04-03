@@ -23,20 +23,17 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: loonghao/vx@main
         with:
-          python-version: "3.11"
+          tools: "maturin"
+          cache: "true"
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Install maturin
-        run: pip install maturin
-
       - name: Build wheels
         working-directory: crates/rez-next-python
-        run: maturin build --release --features pyo3/extension-module --out dist
+        run: vx maturin build --release --features pyo3/extension-module --out dist
 
       - name: Upload wheels
         uses: actions/upload-artifact@v4
@@ -58,12 +55,14 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@v6
+      - uses: loonghao/vx@main
+        with:
+          tools: "uv"
+          cache: "true"
 
       - name: Download wheels
         uses: actions/download-artifact@v4
@@ -74,14 +73,12 @@ jobs:
       - name: Install wheel and test dependencies
         shell: bash
         run: |
-          uv pip install --system dist/*.whl
-          uv pip install --system pytest
+          vx uv pip install --system dist/*.whl
+          vx uv pip install --system pytest
 
       - name: Smoke test — basic import
         shell: bash
         run: |
-          # Print installed package info for diagnostics
-          python -c "import importlib.util, sys; spec = importlib.util.find_spec('rez_next'); print('rez_next location:', spec.origin if spec else 'NOT FOUND')" || true
           python -c "
           import traceback, sys
           try:
@@ -99,4 +96,3 @@ jobs:
       - name: Run all Python tests
         working-directory: crates/rez-next-python
         run: pytest tests/ -v --tb=short -x
-

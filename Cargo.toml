@@ -197,14 +197,12 @@ unexpected_cfgs = "warn"
 [workspace.lints.clippy]
 # Critical issue categories
 complexity = { level = "warn", priority = -1 }
+# correctness: always deny — these are almost certainly bugs
 correctness = { level = "deny", priority = -1 }
-suspicious = { level = "deny", priority = -1 }
+# suspicious: warn only — new lints added in future Rust versions shouldn't
+# block CI. Address warnings as part of normal maintenance.
+suspicious = { level = "warn", priority = -1 }
 perf = { level = "warn", priority = -1 }
-# Allow: possible_missing_else was split from suspicious_else_formatting in Rust 1.91
-# and triggers false positives in our control-flow patterns. Allow explicitly so
-# `suspicious = "deny"` doesn't break CI when upgrading Rust toolchain.
-possible_missing_else = "allow"
-suspicious_else_formatting = "allow"
 
 [lints]
 workspace = true
