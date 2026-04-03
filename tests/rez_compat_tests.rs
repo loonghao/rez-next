@@ -6923,3 +6923,119 @@ fn test_diff_removed_package_detected() {
     );
     assert_eq!(*removed[0], "hqueue");
 }
+
+// ─── Cycle 30: rez.status + rez.packages_ compat tests ────────────────────────
+
+/// rez.status compat: default created context starts in Resolving status.
+#[test]
+fn test_context_status_default_is_resolving() {
+    use rez_next_context::{ContextStatus, ResolvedContext};
+    use rez_next_package::PackageRequirement;
+
+    let reqs = vec![PackageRequirement::parse("houdini-20+").unwrap()];
+    let ctx = ResolvedContext::from_requirements(reqs);
+    assert_eq!(
+        ctx.status,
+        ContextStatus::Resolving,
+        "Freshly created context should be in Resolving state"
+    );
+}
+
+/// rez.status compat: manually set to Resolved is preserved.
+#[test]
+fn test_context_status_resolved_set_and_read() {
+    use rez_next_context::{ContextStatus, ResolvedContext};
+    use rez_next_package::PackageRequirement;
+
+    let reqs = vec![PackageRequirement::parse("maya-2024+").unwrap()];
+    let mut ctx = ResolvedContext::from_requirements(reqs);
+    ctx.status = ContextStatus::Resolved;
+    assert_eq!(ctx.status, ContextStatus::Resolved);
+}
+
+/// rez.status compat: Failed status is preserved.
+#[test]
+fn test_context_status_failed_set_and_read() {
+    use rez_next_context::{ContextStatus, ResolvedContext};
+    use rez_next_package::PackageRequirement;
+
+    let reqs = vec![PackageRequirement::parse("nonexistent-99+").unwrap()];
+    let mut ctx = ResolvedContext::from_requirements(reqs);
+    ctx.status = ContextStatus::Failed;
+    assert_eq!(ctx.status, ContextStatus::Failed);
+}
+
+/// rez.status compat: Cached status is preserved.
+#[test]
+fn test_context_status_cached_set_and_read() {
+    use rez_next_context::{ContextStatus, ResolvedContext};
+    use rez_next_package::PackageRequirement;
+
+    let reqs = vec![PackageRequirement::parse("nuke-15+").unwrap()];
+    let mut ctx = ResolvedContext::from_requirements(reqs);
+    ctx.status = ContextStatus::Cached;
+    assert_eq!(ctx.status, ContextStatus::Cached);
+}
+
+/// rez.packages_ compat: get_package returns None for unknown package name.
+#[test]
+fn test_context_get_package_unknown_returns_none() {
+    use rez_next_context::ResolvedContext;
+    use rez_next_package::{Package, PackageRequirement};
+    use rez_next_version::Version;
+
+    let reqs = vec![PackageRequirement::parse("maya-2024+").unwrap()];
+    let mut ctx = ResolvedContext::from_requirements(reqs);
+    let mut pkg = Package::new("maya".to_string());
+    pkg.version = Some(Version::parse("2024.0.0").unwrap());
+    ctx.resolved_packages.push(pkg);
+
+    assert!(ctx.get_package("maya").is_some());
+    assert!(ctx.get_package("houdini").is_none());
+}
+
+/// rez.packages_ compat: get_package_names returns all resolved package names.
+#[test]
+fn test_context_get_package_names_lists_all() {
+    use rez_next_context::ResolvedContext;
+    use rez_next_package::{Package, PackageRequirement};
+    use rez_next_version::Version;
+
+    let reqs = vec![
+        PackageRequirement::parse("maya-2024+").unwrap(),
+        PackageRequirement::parse("nuke-15+").unwrap(),
+    ];
+    let mut ctx = ResolvedContext::from_requirements(reqs);
+
+    let mut pkg_maya = Package::new("maya".to_string());
+    pkg_maya.version = Some(Version::parse("2024.0.0").unwrap());
+    ctx.resolved_packages.push(pkg_maya);
+
+    let mut pkg_nuke = Package::new("nuke".to_string());
+    pkg_nuke.version = Some(Version::parse("15.0.0").unwrap());
+    ctx.resolved_packages.push(pkg_nuke);
+
+    let names = ctx.get_package_names();
+    assert_eq!(names.len(), 2);
+    assert!(names.contains(&"maya".to_string()));
+    assert!(names.contains(&"nuke".to_string()));
+}
+
+/// rez.packages_ compat: contains_package correctly identifies presence/absence.
+#[test]
+fn test_context_contains_package_presence_and_absence() {
+    use rez_next_context::ResolvedContext;
+    use rez_next_package::{Package, PackageRequirement};
+    use rez_next_version::Version;
+
+    let reqs = vec![PackageRequirement::parse("python-3.11+").unwrap()];
+    let mut ctx = ResolvedContext::from_requirements(reqs);
+
+    let mut py = Package::new("python".to_string());
+    py.version = Some(Version::parse("3.11.0").unwrap());
+    ctx.resolved_packages.push(py);
+
+    assert!(ctx.contains_package("python"));
+    assert!(!ctx.contains_package("numpy"));
+    assert!(!ctx.contains_package(""));
+}

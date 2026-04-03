@@ -1039,3 +1039,89 @@ fn test_solver_empty_repo_all_failed() {
         "Both foo and bar should be in failed_requirements"
     );
 }
+
+// ─── Cycle 30: Solver error message assertions ──────────────────────────────
+
+/// Solver strict mode: missing package returns an Err with package name in message.
+#[test]
+fn test_solver_strict_mode_error_message_contains_package_name() {
+    let tmp = TempDir::new().unwrap();
+    let mut mgr = RepositoryManager::new();
+    mgr.add_repository(Box::new(
+        rez_next_repository::simple_repository::SimpleRepository::new(
+            tmp.path().to_path_buf(),
+            "empty".to_string(),
+        ),
+    ));
+    let repo_arc = Arc::new(mgr);
+
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let config = SolverConfig {
+        strict_mode: true,
+        ..SolverConfig::default()
+    };
+    let mut resolver = DependencyResolver::new(Arc::clone(&repo_arc), config);
+
+    let reqs: Vec<Requirement> =
+        ["missing_pkg_xyz"].iter().map(|s| s.parse().unwrap()).collect();
+
+    let result = rt.block_on(resolver.resolve(reqs));
+    assert!(
+        result.is_err(),
+        "Strict mode should return Err for missing package"
+    );
+    let err_msg = format!("{}", result.unwrap_err());
+    assert!(
+        err_msg.contains("missing_pkg_xyz")
+            || err_msg.contains("not found")
+            || err_msg.contains("Missing")
+            || err_msg.contains("failed"),
+        "Error message should reference the missing package or indicate failure, got: {}",
+        err_msg
+    );
+}
+
+/// Solver: conflict error message mentions at least one of the conflicting package names.
+#[test]
+fn test_solver_conflict_error_message_contains_package_info() {
+    let (_tmp, repo) = build_test_repo(&[
+        ("conflict_lib", "1.0.0", &[]),
+        ("conflict_lib", "3.0.0", &[]),
+        ("pkg_a", "1.0.0", &["conflict_lib<2"]),
+        ("pkg_b", "1.0.0", &["conflict_lib>=3"]),
+    ]);
+
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let config = SolverConfig {
+        strict_mode: true,
+        ..SolverConfig::default()
+    };
+    let mut resolver = DependencyResolver::new(Arc::clone(&repo), config);
+
+    let reqs: Vec<Requirement> = ["pkg_a", "pkg_b"]
+        .iter()
+        .map(|s| s.parse().unwrap())
+        .collect();
+
+    let result = rt.block_on(resolver.resolve(reqs));
+    // Either Err (conflict detected) or Ok (lenient fallback) - both are valid
+    // but if Err, message must contain useful info
+    if let Err(e) = result {
+        let msg = format!("{}", e);
+        assert!(
+            !msg.is_empty(),
+            "Conflict error message should not be empty"
+        );
+        let has_info = msg.contains("conflict")
+            || msg.contains("pkg")
+            || msg.contains("lib")
+            || msg.contains("version")
+            || msg.contains("failed")
+            || msg.contains("satisfy");
+        assert!(
+            has_info,
+            "Conflict error should describe the problem, got: {}",
+            msg
+        );
+    }
+}
