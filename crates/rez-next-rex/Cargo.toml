@@ -12,8 +12,8 @@ name = "rez_next_rex"
 crate-type = ["rlib"]
 
 [dependencies]
-rez-next-common = { version = "0.2.0", path = "../rez-next-common" }
-rez-next-version = { version = "0.2.0", path = "../rez-next-version" }
+rez-next-common = { version = "0.3.0", path = "../rez-next-common" }
+rez-next-version = { version = "0.3.0", path = "../rez-next-version" }
 serde = { workspace = true }
 regex = { workspace = true }
 thiserror = { workspace = true }

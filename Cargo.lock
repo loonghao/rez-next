@@ -2071,7 +2071,7 @@ dependencies = [
 
 [[package]]
 name = "rez-next"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "assert_matches",
  "chrono",
@@ -2106,7 +2106,7 @@ dependencies = [
 
 [[package]]
 name = "rez-next-bind"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "regex",
  "rez-next-common",
@@ -2119,7 +2119,7 @@ dependencies = [
 
 [[package]]
 name = "rez-next-build"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "assert_matches",
  "async-trait",
@@ -2145,7 +2145,7 @@ dependencies = [
 
 [[package]]
 name = "rez-next-cache"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "async-trait",
  "criterion",
@@ -2162,7 +2162,7 @@ dependencies = [
 
 [[package]]
 name = "rez-next-common"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "pretty_assertions",
  "rstest",
@@ -2175,7 +2175,7 @@ dependencies = [
 
 [[package]]
 name = "rez-next-context"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "assert_matches",
  "base64",
@@ -2203,7 +2203,7 @@ dependencies = [
 
 [[package]]
 name = "rez-next-package"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "assert_matches",
  "base64",
@@ -2228,7 +2228,7 @@ dependencies = [
 
 [[package]]
 name = "rez-next-python"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "pyo3",
  "rez-next-bind",
@@ -2250,7 +2250,7 @@ dependencies = [
 
 [[package]]
 name = "rez-next-repository"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "ahash",
  "assert_matches",
@@ -2282,7 +2282,7 @@ dependencies = [
 
 [[package]]
 name = "rez-next-rex"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "regex",
  "rez-next-common",
@@ -2293,7 +2293,7 @@ dependencies = [
 
 [[package]]
 name = "rez-next-search"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "regex",
  "rez-next-common",
@@ -2308,7 +2308,7 @@ dependencies = [
 
 [[package]]
 name = "rez-next-solver"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "assert_matches",
  "dashmap",
@@ -2332,7 +2332,7 @@ dependencies = [
 
 [[package]]
 name = "rez-next-suites"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "pretty_assertions",
  "rez-next-common",
@@ -2351,7 +2351,7 @@ dependencies = [
 
 [[package]]
 name = "rez-next-version"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "ahash",
  "assert_matches",
