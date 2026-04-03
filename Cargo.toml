@@ -193,6 +193,9 @@ irrefutable_let_patterns = "warn"
 unused_mut = "warn"
 # Warn on unexpected cfg checks (tightened from allow — python-bindings cleanup complete)
 unexpected_cfgs = "warn"
+# Allow unknown lints: forward-compat allowances for newer Rust lints cause
+# E0602 warnings on older toolchains. Suppress to keep -D warnings clean.
+unknown_lints = "allow"
 
 [workspace.lints.clippy]
 # Critical issue categories
@@ -203,6 +206,12 @@ correctness = { level = "deny", priority = -1 }
 # block CI. Address warnings as part of normal maintenance.
 suspicious = { level = "warn", priority = -1 }
 perf = { level = "warn", priority = -1 }
+# Forward-compat: possible_missing_else and suspicious_else_formatting were
+# split/added in Rust 1.91+. Allow explicitly so -D warnings doesn't break CI
+# on toolchains that have these lints. On older toolchains the allow is
+# silently ignored (unknown_lints = "allow" prevents E0602 warnings).
+possible_missing_else = { level = "allow", priority = 1 }
+suspicious_else_formatting = { level = "allow", priority = 1 }
 
 [lints]
 workspace = true
