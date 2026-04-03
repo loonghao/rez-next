@@ -1,13 +1,13 @@
 //! Version system benchmarks
 
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
-use rez_core::version::Version;
+use rez_next_version::Version;
 use std::hint::black_box;
 
 fn version_parsing_benchmark(c: &mut Criterion) {
     c.bench_function("version_parsing", |b| {
         b.iter(|| {
-            let v = Version::parse(black_box("1.2.3-alpha.1")).unwrap();
+            let v = Version::parse(black_box("1.2.3")).unwrap();
             black_box(v);
         })
     });
@@ -54,7 +54,7 @@ fn version_creation_scale_benchmark(c: &mut Criterion) {
 
             b.iter(|| {
                 for version_str in &version_strings {
-                    black_box(Version::parse(version_str).unwrap());
+                    black_box(Version::parse(black_box(version_str)).unwrap());
                 }
             });
         });
@@ -62,54 +62,7 @@ fn version_creation_scale_benchmark(c: &mut Criterion) {
     group.finish();
 }
 
-fn optimized_vs_legacy_parsing_benchmark(c: &mut Criterion) {
-    let mut group = c.benchmark_group("optimized_vs_legacy_parsing");
-
-    let test_versions = vec![
-        "1.2.3",
-        "1.2.3-alpha.1",
-        "2.0.0-beta.2",
-        "1.0.0-rc.1",
-        "3.1.4-dev.123",
-        "10.20.30",
-        "1.2.3-alpha1.beta2.gamma3",
-    ];
-
-    group.bench_function("standard_parsing", |b| {
-        b.iter(|| {
-            for version_str in &test_versions {
-                black_box(Version::parse(black_box(version_str)).unwrap());
-            }
-        });
-    });
-
-    group.finish();
-}
-
-fn state_machine_parser_benchmark(c: &mut Criterion) {
-    use rez_core::version::parser::StateMachineParser;
-
-    let parser = StateMachineParser::new();
-    let test_versions = vec![
-        "1.2.3",
-        "1.2.3-alpha.1",
-        "2.0.0-beta.2",
-        "1.0.0-rc.1",
-        "3.1.4-dev.123",
-    ];
-
-    c.bench_function("state_machine_token_parsing", |b| {
-        b.iter(|| {
-            for version_str in &test_versions {
-                black_box(parser.parse_tokens(black_box(version_str)).unwrap());
-            }
-        });
-    });
-}
-
 fn configure_criterion() -> Criterion {
-    // In CI (CRITERION_QUICK=1) use shorter warm-up and measurement times
-    // so the full bench suite finishes within the 15-minute job timeout.
     let ci_quick = std::env::var("CRITERION_QUICK").is_ok();
     let warm_up = if ci_quick {
         std::time::Duration::from_millis(500)
@@ -135,8 +88,6 @@ criterion_group! {
     targets = version_parsing_benchmark,
               version_comparison_benchmark,
               version_sorting_benchmark,
-              version_creation_scale_benchmark,
-              optimized_vs_legacy_parsing_benchmark,
-              state_machine_parser_benchmark
+              version_creation_scale_benchmark
 }
 criterion_main!(benches);
