@@ -1,4 +1,5 @@
-# Release workflow — build cross-platform binaries and upload to GitHub Release
+# Release workflow — build cross-platform binaries, publish GitHub Release assets,
+# and publish Python wheels to PyPI.
 # Triggered by:
 #   1. GitHub Release published (primary — from release-please)
 #   2. Tag push matching v* (fallback)
@@ -150,7 +151,145 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            artifacts/**/*
+            artifacts/rez-next-*/*
             checksums-sha256.txt
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-wheels:
+    name: Build Python wheels (${{ matrix.name }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux
+            os: ubuntu-22.04
+          - name: windows
+            os: windows-2022
+          - name: macos
+            os: macos-14
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: loonghao/vx@main
+        with:
+          tools: "maturin"
+          cache: "true"
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build wheels
+        working-directory: crates/rez-next-python
+        run: vx maturin build --release --features pyo3/extension-module --out dist
+
+      - name: Upload wheels
+        uses: actions/upload-artifact@v7
+        with:
+          name: wheels-${{ matrix.name }}
+          path: crates/rez-next-python/dist/*.whl
+          retention-days: 1
+
+  test-wheel:
+    name: Test wheel (${{ matrix.name }}, py${{ matrix.python-version }})
+    needs: build-wheels
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux
+            os: ubuntu-22.04
+          - name: windows
+            os: windows-2022
+          - name: macos
+            os: macos-14
+        python-version: ["3.9", "3.10", "3.11", "3.12"]
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Download wheels
+        uses: actions/download-artifact@v8
+        with:
+          name: wheels-${{ matrix.name }}
+          path: dist/
+
+      - name: Install wheel and test dependencies
+        shell: bash
+        run: |
+          echo "=== Listing dist/ ==="
+          ls -la dist/ || echo "(dist is empty or missing)"
+          echo "=== Installing wheel ==="
+          python -m pip install dist/*.whl
+          python -m pip install pytest
+          echo "=== Installed packages ==="
+          python -m pip show rez-next || true
+
+      - name: Smoke test — basic import
+        shell: bash
+        run: |
+          python -c "
+          import traceback, sys
+          print('Python:', sys.version)
+          print('sys.path:', sys.path[:5])
+          try:
+              import rez_next
+              print('rez_next location:', rez_next.__file__)
+              print('rez_next version:', rez_next.__version__)
+              v = rez_next.Version('1.2.3')
+              print('Version created:', v)
+              r = rez_next.VersionRange('1.0+')
+              print('VersionRange created:', r)
+              assert r.contains(v), 'VersionRange.contains failed'
+              print('Smoke test passed!')
+          except Exception as e:
+              traceback.print_exc()
+              sys.exit(1)
+          "
+
+      - name: Run all Python tests
+        working-directory: crates/rez-next-python
+        run: python -m pytest tests/ -v --tb=short
+
+  publish-pypi:
+    name: Publish Python wheels to PyPI
+    needs: test-wheel
+    # Only publish in the explicit dispatch run to avoid duplicate uploads from
+    # the parallel release/tag triggers for the same tag.
+    if: ${{ github.event_name == 'workflow_dispatch' && startsWith(github.ref, 'refs/tags/v') }}
+    runs-on: ubuntu-24.04
+    permissions:
+      id-token: write
+    steps:
+      - name: Download Linux wheels
+        uses: actions/download-artifact@v8
+        with:
+          name: wheels-linux
+          path: dist/
+
+      - name: Download Windows wheels
+        uses: actions/download-artifact@v8
+        with:
+          name: wheels-windows
+          path: dist/
+
+      - name: Download macOS wheels
+        uses: actions/download-artifact@v8
+        with:
+          name: wheels-macos
+          path: dist/
+
+      - name: List Python distributions
+        run: ls -la dist/
+
+      - name: Publish wheel distributions to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
