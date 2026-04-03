@@ -1,7 +1,7 @@
 # Automated release management using release-please
 # - On push to main: creates/updates a release PR with version bump and changelog
 # - When release PR is merged: creates GitHub release with tag
-# - After release is created: dispatches release.yml to build cross-platform binaries
+# - After release is created: dispatches release.yml to build release assets and publish Python wheels
 #
 # Note: Tags created by GITHUB_TOKEN do not trigger other workflows (GitHub limitation).
 # This workflow explicitly dispatches release.yml via the API to work around this.

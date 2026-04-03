@@ -12,7 +12,8 @@
       "bump-patch-for-minor-pre-major": true,
       "changelog-path": "CHANGELOG.md",
       "extra-files": [
-        "Cargo.toml"
+        "Cargo.toml",
+        "crates/rez-next-python/pyproject.toml"
       ],
       "changelog-sections": [
         {"type": "feat", "section": "🚀 Features", "hidden": false},
