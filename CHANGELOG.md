@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.4](https://github.com/loonghao/rez-next/compare/v0.1.3...v0.1.4) (2026-04-03)
+
+
+### 🚀 Features
+
+* **release:** squash merge auto-improve into v0.3.0 ([15df936](https://github.com/loonghao/rez-next/commit/15df9369f084309f1b742d9c5a1219d77d3b939c))
+
+
+### 🐛 Bug Fixes
+
+* **ci:** publish Python wheels to PyPI from release workflow ([35fafa6](https://github.com/loonghao/rez-next/commit/35fafa6023433e392cff91243dffdcdaa9d06000))
+* **deps:** update rust crate sha2 to 0.11 ([215870b](https://github.com/loonghao/rez-next/commit/215870bef3aac47e1a11f9ed5702ecae38a6c76a))
+* **deps:** update rust crate windows-sys to 0.61 ([cd1f2c2](https://github.com/loonghao/rez-next/commit/cd1f2c21ae18a2124714fd5e75cde14f0a51fe3c))
+* **python:** align pymodule name with maturin module-name config ([f2a8b4c](https://github.com/loonghao/rez-next/commit/f2a8b4cfa0e6b386281fc99e3fce93137db17b05))
+* **python:** register pyo3 submodules in sys.modules for dotted-path imports ([87cda78](https://github.com/loonghao/rez-next/commit/87cda787f61049840ff240cf549960ab73094cd2))
+
 ## [0.1.3](https://github.com/loonghao/rez-next/compare/v0.1.2...v0.1.3) (2026-04-03)
 
 
