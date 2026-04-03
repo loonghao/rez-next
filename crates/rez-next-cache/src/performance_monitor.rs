@@ -405,7 +405,10 @@ impl PerformanceMonitor {
                 let total_op_latency_us = total_get_latency
                     + total_put_latency
                     + total_eviction_latency
-                    + self.counters.total_remove_latency_us.load(Ordering::Relaxed);
+                    + self
+                        .counters
+                        .total_remove_latency_us
+                        .load(Ordering::Relaxed);
                 let elapsed_us = self.start_time.elapsed().as_micros() as f64;
                 if elapsed_us > 0.0 {
                     (total_op_latency_us as f64 / elapsed_us * 100.0).min(100.0)

@@ -7,7 +7,6 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-
 /// Repository metadata
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RepositoryMetadata {
@@ -263,7 +262,11 @@ mod repository_tests {
             make_pkg_no_ver("unnamed"), // duplicate with no version
         ];
         let result = deduplicate_packages(pkgs).unwrap();
-        assert_eq!(result.len(), 1, "no-version duplicates should be deduplicated");
+        assert_eq!(
+            result.len(),
+            1,
+            "no-version duplicates should be deduplicated"
+        );
     }
 
     // ── RepositoryMetadata creation ──────────────────────────────────
@@ -316,4 +319,3 @@ mod repository_tests {
         assert_eq!(result[0].name, "houdini");
     }
 }
-

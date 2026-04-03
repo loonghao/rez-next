@@ -91,10 +91,7 @@ impl BuildSystem {
     }
 
     /// Detect build system from source directory and package definition
-    pub fn detect_with_package(
-        source_dir: &Path,
-        package: &Package,
-    ) -> Result<Self, RezCoreError> {
+    pub fn detect_with_package(source_dir: &Path, package: &Package) -> Result<Self, RezCoreError> {
         // Check for explicit build_command first
         if let Some(ref build_command) = package.build_command {
             if build_command == "false" || build_command.is_empty() {

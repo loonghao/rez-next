@@ -195,9 +195,9 @@ impl BuildArtifacts {
 
     /// Compute SHA-256 checksum of a file; returns lowercase hex string.
     async fn compute_sha256(path: &Path) -> Result<String, RezCoreError> {
-        let data = tokio::fs::read(path)
-            .await
-            .map_err(|e| RezCoreError::BuildError(format!("Failed to read file for checksum: {}", e)))?;
+        let data = tokio::fs::read(path).await.map_err(|e| {
+            RezCoreError::BuildError(format!("Failed to read file for checksum: {}", e))
+        })?;
         let mut hasher = Sha256::new();
         hasher.update(&data);
         Ok(hex::encode(hasher.finalize()))

@@ -21,7 +21,10 @@ async fn test_heuristic_integration_empty_requirements() {
     let heuristic_fn = |state: &SearchState| heuristic.calculate(state);
 
     let result = search.search(vec![], heuristic_fn).await;
-    assert!(result.is_ok(), "Search with empty requirements should succeed");
+    assert!(
+        result.is_ok(),
+        "Search with empty requirements should succeed"
+    );
     assert!(result.unwrap().is_some(), "Should find a goal immediately");
 }
 
@@ -75,7 +78,11 @@ async fn test_heuristic_factory_complexity_levels() {
         let heuristic = HeuristicFactory::create_for_complexity(complexity);
         let heuristic_fn = |state: &SearchState| heuristic.calculate(state);
         let result = search.search(vec![], heuristic_fn).await;
-        assert!(result.is_ok(), "complexity={} should not error on empty reqs", complexity);
+        assert!(
+            result.is_ok(),
+            "complexity={} should not error on empty reqs",
+            complexity
+        );
     }
 }
 
@@ -94,6 +101,10 @@ async fn test_scenario_heuristics_fast_thorough_conflict_heavy() {
         let heuristic = HeuristicFactory::create_for_scenario(scenario);
         let heuristic_fn = |state: &SearchState| heuristic.calculate(state);
         let result = search.search(vec![], heuristic_fn).await;
-        assert!(result.is_ok(), "scenario={} should not error on empty reqs", scenario);
+        assert!(
+            result.is_ok(),
+            "scenario={} should not error on empty reqs",
+            scenario
+        );
     }
 }

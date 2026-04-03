@@ -4,9 +4,6 @@ use std::path::PathBuf;
 use std::time::Instant;
 use tokio::fs;
 
-
-
-
 // Simplified scanner configuration for testing
 #[derive(Debug, Clone)]
 pub struct SimpleScannerConfig {

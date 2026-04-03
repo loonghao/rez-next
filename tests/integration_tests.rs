@@ -432,10 +432,8 @@ mod package_requirement_cross_validation {
 
     #[test]
     fn test_requirement_exact_version_constraint() {
-        let req = Requirement::with_version(
-            "maya".to_string(),
-            VersionConstraint::Exact(v("2024.0.0")),
-        );
+        let req =
+            Requirement::with_version("maya".to_string(), VersionConstraint::Exact(v("2024.0.0")));
         assert!(req.is_satisfied_by(&v("2024.0.0")));
         assert!(!req.is_satisfied_by(&v("2023.0.0")));
         assert!(!req.is_satisfied_by(&v("2024.0.1")));
@@ -476,10 +474,8 @@ mod package_requirement_cross_validation {
 
     #[test]
     fn test_requirement_lt_constraint_excludes_exact() {
-        let req = Requirement::with_version(
-            "pkg".to_string(),
-            VersionConstraint::LessThan(v("3.0")),
-        );
+        let req =
+            Requirement::with_version("pkg".to_string(), VersionConstraint::LessThan(v("3.0")));
         assert!(req.is_satisfied_by(&v("2.9.9")));
         assert!(!req.is_satisfied_by(&v("3.0")));
         assert!(!req.is_satisfied_by(&v("3.1")));
@@ -530,7 +526,10 @@ mod rez_version_package_interop {
         pkg.set_version(v("3.10.5"));
         let range = vr(">=3.9,<4.0");
         let pkg_ver = pkg.version.as_ref().unwrap();
-        assert!(range.contains(pkg_ver), "python-3.10.5 should satisfy >=3.9,<4.0");
+        assert!(
+            range.contains(pkg_ver),
+            "python-3.10.5 should satisfy >=3.9,<4.0"
+        );
     }
 
     #[test]
@@ -539,14 +538,20 @@ mod rez_version_package_interop {
         pkg.set_version(v("2.7.18"));
         let range = vr(">=3.0");
         let pkg_ver = pkg.version.as_ref().unwrap();
-        assert!(!range.contains(pkg_ver), "python-2.7.18 should not satisfy >=3.0");
+        assert!(
+            !range.contains(pkg_ver),
+            "python-2.7.18 should not satisfy >=3.0"
+        );
     }
 
     #[test]
     fn test_package_requirement_parse_name_and_spec() {
         let pr = PackageRequirement::parse("python-3.9+").unwrap();
         assert_eq!(pr.name, "python");
-        assert!(pr.version_spec.is_some(), "version_spec should be Some for python-3.9+");
+        assert!(
+            pr.version_spec.is_some(),
+            "version_spec should be Some for python-3.9+"
+        );
     }
 
     #[test]
@@ -562,7 +567,10 @@ mod rez_version_package_interop {
             .filter(|ver| range.contains(ver))
             .collect();
 
-        assert!(!candidates.is_empty(), "at least one version should satisfy >=3.9,<4.0.0");
+        assert!(
+            !candidates.is_empty(),
+            "at least one version should satisfy >=3.9,<4.0.0"
+        );
         // All candidates must be within range
         for c in &candidates {
             assert!(range.contains(c), "{} should satisfy the range", c.as_str());
@@ -583,12 +591,18 @@ mod rez_version_package_interop {
     fn test_version_range_any_contains_package_version() {
         let any_range = vr("");
         let pkg_ver = v("1.2.3");
-        assert!(any_range.contains(&pkg_ver), "Any range should accept any package version");
+        assert!(
+            any_range.contains(&pkg_ver),
+            "Any range should accept any package version"
+        );
     }
 
     #[test]
     fn test_package_no_version_field_is_none() {
         let pkg = Package::new("unversioned".to_string());
-        assert!(pkg.version.is_none(), "Package with no version should have version=None");
+        assert!(
+            pkg.version.is_none(),
+            "Package with no version should have version=None"
+        );
     }
 }

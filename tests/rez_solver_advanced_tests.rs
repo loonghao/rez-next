@@ -15,12 +15,12 @@
 //! - rez_solver_graph_tests.rs  — graph topology, cycle detection, large VFX, edge cases
 //! - rez_solver_platform_tests.rs — platform/OS, strict mode, pre-release, variants, error messages
 
-use std::sync::Arc;
-use tempfile::TempDir;
-use rez_next_solver::{DependencyResolver, SolverConfig, DependencyGraph};
 use rez_next_package::{PackageRequirement, Requirement};
 use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
+use rez_next_solver::{DependencyGraph, DependencyResolver, SolverConfig};
 use rez_next_version::Version;
+use std::sync::Arc;
+use tempfile::TempDir;
 
 /// Build a temporary package repository with multiple packages.
 /// Returns the TempDir (must be kept alive) and the RepositoryManager.
@@ -34,15 +34,17 @@ fn build_test_repo(packages: &[(&str, &str, &[&str])]) -> (TempDir, Arc<Reposito
         let requires_block = if requires.is_empty() {
             String::new()
         } else {
-            let items: Vec<String> = requires.iter()
-                .map(|r| format!("    '{}',", r))
-                .collect();
+            let items: Vec<String> = requires.iter().map(|r| format!("    '{}',", r)).collect();
             format!("requires = [\n{}\n]\n", items.join("\n"))
         };
         std::fs::write(
             pkg_dir.join("package.py"),
-            format!("name = '{}'\nversion = '{}'\n{}", name, version, requires_block),
-        ).unwrap();
+            format!(
+                "name = '{}'\nversion = '{}'\n{}",
+                name, version, requires_block
+            ),
+        )
+        .unwrap();
     }
 
     let mut mgr = RepositoryManager::new();
@@ -70,22 +72,33 @@ fn test_diamond_dependency_compatible() {
     let config = SolverConfig::default();
     let mut resolver = DependencyResolver::new(Arc::clone(&repo), config);
 
-    let reqs: Vec<Requirement> = ["my_lib"]
-        .iter()
-        .map(|s| s.parse().unwrap())
-        .collect();
+    let reqs: Vec<Requirement> = ["my_lib"].iter().map(|s| s.parse().unwrap()).collect();
 
     let result = rt.block_on(resolver.resolve(reqs));
-    assert!(result.is_ok(), "Diamond dependency with compatible versions should resolve");
+    assert!(
+        result.is_ok(),
+        "Diamond dependency with compatible versions should resolve"
+    );
     let resolution = result.unwrap();
 
-    let names: Vec<&str> = resolution.resolved_packages.iter()
+    let names: Vec<&str> = resolution
+        .resolved_packages
+        .iter()
         .map(|p| p.package.name.as_str())
         .collect();
     assert!(names.contains(&"my_lib"), "my_lib should be resolved");
-    assert!(names.contains(&"numpy"), "numpy should be pulled in transitively");
-    assert!(names.contains(&"scipy"), "scipy should be pulled in transitively");
-    assert!(names.contains(&"python"), "python should be pulled in transitively");
+    assert!(
+        names.contains(&"numpy"),
+        "numpy should be pulled in transitively"
+    );
+    assert!(
+        names.contains(&"scipy"),
+        "scipy should be pulled in transitively"
+    );
+    assert!(
+        names.contains(&"python"),
+        "python should be pulled in transitively"
+    );
 }
 
 /// Diamond dependency resolution: B requires D-1+, C requires D-1+
@@ -105,24 +118,31 @@ fn test_diamond_dependency_same_range_unifies() {
     let config = SolverConfig::default();
     let mut resolver = DependencyResolver::new(Arc::clone(&repo), config);
 
-    let reqs: Vec<Requirement> = ["A"]
-        .iter()
-        .map(|s| s.parse().unwrap())
-        .collect();
+    let reqs: Vec<Requirement> = ["A"].iter().map(|s| s.parse().unwrap()).collect();
 
     let result = rt.block_on(resolver.resolve(reqs));
-    assert!(result.is_ok(), "Same-range diamond dependency should resolve");
+    assert!(
+        result.is_ok(),
+        "Same-range diamond dependency should resolve"
+    );
     let resolution = result.unwrap();
 
-    let d_packages: Vec<_> = resolution.resolved_packages.iter()
+    let d_packages: Vec<_> = resolution
+        .resolved_packages
+        .iter()
         .filter(|p| p.package.name == "D")
         .collect();
-    assert_eq!(d_packages.len(), 1, "D should be resolved exactly once (not duplicated)");
+    assert_eq!(
+        d_packages.len(),
+        1,
+        "D should be resolved exactly once (not duplicated)"
+    );
 
     let d_ver = d_packages[0].package.version.as_ref().map(|v| v.as_str());
     assert!(
         d_ver == Some("2.0.0") || d_ver == Some("1.5.0"),
-        "D should be resolved to a valid version (2.0.0 or 1.5.0), got: {:?}", d_ver
+        "D should be resolved to a valid version (2.0.0 or 1.5.0), got: {:?}",
+        d_ver
     );
 }
 
@@ -132,46 +152,70 @@ fn test_diamond_dependency_same_range_unifies() {
 #[test]
 fn test_graph_conflict_disjoint_versions() {
     let mut graph = DependencyGraph::new();
-    graph.add_requirement(
-        PackageRequirement::with_version("python".to_string(), ">=3.9,<3.10".to_string())
-    ).unwrap();
-    graph.add_requirement(
-        PackageRequirement::with_version("python".to_string(), ">=3.11".to_string())
-    ).unwrap();
+    graph
+        .add_requirement(PackageRequirement::with_version(
+            "python".to_string(),
+            ">=3.9,<3.10".to_string(),
+        ))
+        .unwrap();
+    graph
+        .add_requirement(PackageRequirement::with_version(
+            "python".to_string(),
+            ">=3.11".to_string(),
+        ))
+        .unwrap();
 
     let conflicts = graph.detect_conflicts();
-    assert!(!conflicts.is_empty(),
-        "Disjoint version ranges [3.9,3.10) and [3.11,∞) should produce a conflict");
-    assert!(conflicts.iter().any(|c| c.package_name == "python"),
-        "Conflict should identify 'python' as the conflicting package");
+    assert!(
+        !conflicts.is_empty(),
+        "Disjoint version ranges [3.9,3.10) and [3.11,∞) should produce a conflict"
+    );
+    assert!(
+        conflicts.iter().any(|c| c.package_name == "python"),
+        "Conflict should identify 'python' as the conflicting package"
+    );
 }
 
 /// DependencyGraph: overlapping constraints for same package = no conflict
 #[test]
 fn test_graph_no_conflict_overlapping_versions() {
     let mut graph = DependencyGraph::new();
-    graph.add_requirement(
-        PackageRequirement::with_version("scipy".to_string(), ">=1.0".to_string())
-    ).unwrap();
-    graph.add_requirement(
-        PackageRequirement::with_version("scipy".to_string(), "<3.0".to_string())
-    ).unwrap();
+    graph
+        .add_requirement(PackageRequirement::with_version(
+            "scipy".to_string(),
+            ">=1.0".to_string(),
+        ))
+        .unwrap();
+    graph
+        .add_requirement(PackageRequirement::with_version(
+            "scipy".to_string(),
+            "<3.0".to_string(),
+        ))
+        .unwrap();
 
     let conflicts = graph.detect_conflicts();
-    assert!(conflicts.is_empty(),
-        "Overlapping ranges >=1.0 and <3.0 should NOT produce a conflict");
+    assert!(
+        conflicts.is_empty(),
+        "Overlapping ranges >=1.0 and <3.0 should NOT produce a conflict"
+    );
 }
 
 /// DependencyGraph: single constraint for a package = no conflict
 #[test]
 fn test_graph_no_conflict_single_requirement() {
     let mut graph = DependencyGraph::new();
-    graph.add_requirement(
-        PackageRequirement::with_version("maya".to_string(), ">=2024".to_string())
-    ).unwrap();
+    graph
+        .add_requirement(PackageRequirement::with_version(
+            "maya".to_string(),
+            ">=2024".to_string(),
+        ))
+        .unwrap();
 
     let conflicts = graph.detect_conflicts();
-    assert!(conflicts.is_empty(), "Single constraint should never produce a conflict");
+    assert!(
+        conflicts.is_empty(),
+        "Single constraint should never produce a conflict"
+    );
 }
 
 /// DependencyGraph: multiple packages, conflicts only for conflicting one
@@ -179,23 +223,38 @@ fn test_graph_no_conflict_single_requirement() {
 fn test_graph_partial_conflict() {
     let mut graph = DependencyGraph::new();
 
-    graph.add_requirement(
-        PackageRequirement::with_version("python".to_string(), ">=3.9".to_string())
-    ).unwrap();
-    graph.add_requirement(
-        PackageRequirement::with_version("python".to_string(), "<4".to_string())
-    ).unwrap();
+    graph
+        .add_requirement(PackageRequirement::with_version(
+            "python".to_string(),
+            ">=3.9".to_string(),
+        ))
+        .unwrap();
+    graph
+        .add_requirement(PackageRequirement::with_version(
+            "python".to_string(),
+            "<4".to_string(),
+        ))
+        .unwrap();
 
-    graph.add_requirement(
-        PackageRequirement::with_version("numpy".to_string(), ">=1.20,<1.22".to_string())
-    ).unwrap();
-    graph.add_requirement(
-        PackageRequirement::with_version("numpy".to_string(), ">=1.25".to_string())
-    ).unwrap();
+    graph
+        .add_requirement(PackageRequirement::with_version(
+            "numpy".to_string(),
+            ">=1.20,<1.22".to_string(),
+        ))
+        .unwrap();
+    graph
+        .add_requirement(PackageRequirement::with_version(
+            "numpy".to_string(),
+            ">=1.25".to_string(),
+        ))
+        .unwrap();
 
     let conflicts = graph.detect_conflicts();
     let conflict_names: Vec<&str> = conflicts.iter().map(|c| c.package_name.as_str()).collect();
-    assert!(!conflict_names.contains(&"python"), "python should NOT conflict");
+    assert!(
+        !conflict_names.contains(&"python"),
+        "python should NOT conflict"
+    );
     assert!(conflict_names.contains(&"numpy"), "numpy should conflict");
 }
 
@@ -216,22 +275,24 @@ fn test_transitive_chain_resolution() {
     let config = SolverConfig::default();
     let mut resolver = DependencyResolver::new(Arc::clone(&repo), config);
 
-    let reqs: Vec<Requirement> = ["A"]
-        .iter()
-        .map(|s| s.parse().unwrap())
-        .collect();
+    let reqs: Vec<Requirement> = ["A"].iter().map(|s| s.parse().unwrap()).collect();
 
     let result = rt.block_on(resolver.resolve(reqs));
     assert!(result.is_ok(), "Transitive chain resolution should succeed");
     let resolution = result.unwrap();
 
-    let names: std::collections::HashSet<&str> = resolution.resolved_packages.iter()
+    let names: std::collections::HashSet<&str> = resolution
+        .resolved_packages
+        .iter()
         .map(|p| p.package.name.as_str())
         .collect();
 
     for pkg in &["A", "B", "C", "D", "E"] {
-        assert!(names.contains(*pkg),
-            "Package '{}' should be in resolved set (transitive)", pkg);
+        assert!(
+            names.contains(*pkg),
+            "Package '{}' should be in resolved set (transitive)",
+            pkg
+        );
     }
 }
 
@@ -255,19 +316,35 @@ fn test_multiple_root_requirements_shared_dep() {
         .collect();
 
     let result = rt.block_on(resolver.resolve(reqs));
-    assert!(result.is_ok(), "Multiple roots with shared dependencies should resolve");
+    assert!(
+        result.is_ok(),
+        "Multiple roots with shared dependencies should resolve"
+    );
     let resolution = result.unwrap();
 
-    let names: std::collections::HashSet<&str> = resolution.resolved_packages.iter()
+    let names: std::collections::HashSet<&str> = resolution
+        .resolved_packages
+        .iter()
         .map(|p| p.package.name.as_str())
         .collect();
 
     assert!(names.contains("pandas"), "pandas should be resolved");
-    assert!(names.contains("matplotlib"), "matplotlib should be resolved");
-    assert!(names.contains("numpy"), "numpy should be resolved as shared dep");
-    assert!(names.contains("python"), "python should be resolved as shared dep");
+    assert!(
+        names.contains("matplotlib"),
+        "matplotlib should be resolved"
+    );
+    assert!(
+        names.contains("numpy"),
+        "numpy should be resolved as shared dep"
+    );
+    assert!(
+        names.contains("python"),
+        "python should be resolved as shared dep"
+    );
 
-    let numpy_count = resolution.resolved_packages.iter()
+    let numpy_count = resolution
+        .resolved_packages
+        .iter()
         .filter(|p| p.package.name == "numpy")
         .count();
     assert_eq!(numpy_count, 1, "numpy should be deduplicated (shared dep)");
@@ -278,9 +355,7 @@ fn test_multiple_root_requirements_shared_dep() {
 /// Empty requirements resolve to empty package set
 #[test]
 fn test_resolver_empty_requirements() {
-    let (_tmp, repo) = build_test_repo(&[
-        ("python", "3.11.0", &[]),
-    ]);
+    let (_tmp, repo) = build_test_repo(&[("python", "3.11.0", &[])]);
 
     let rt = tokio::runtime::Runtime::new().unwrap();
     let config = SolverConfig::default();
@@ -289,16 +364,17 @@ fn test_resolver_empty_requirements() {
     let result = rt.block_on(resolver.resolve(vec![]));
     assert!(result.is_ok(), "Empty requirements should succeed");
     let resolution = result.unwrap();
-    assert_eq!(resolution.resolved_packages.len(), 0,
-        "Empty requirements should produce 0 resolved packages");
+    assert_eq!(
+        resolution.resolved_packages.len(),
+        0,
+        "Empty requirements should produce 0 resolved packages"
+    );
 }
 
 /// Unknown package (not in repo) handled gracefully
 #[test]
 fn test_resolver_unknown_package_graceful() {
-    let (_tmp, repo) = build_test_repo(&[
-        ("python", "3.11.0", &[]),
-    ]);
+    let (_tmp, repo) = build_test_repo(&[("python", "3.11.0", &[])]);
 
     let rt = tokio::runtime::Runtime::new().unwrap();
     let config = SolverConfig::default();
@@ -327,21 +403,34 @@ fn test_resolver_unknown_package_graceful() {
 fn test_dependency_graph_multiple_packages() {
     let mut graph = DependencyGraph::new();
 
-    graph.add_requirement(
-        PackageRequirement::with_version("python".to_string(), ">=3.9".to_string())
-    ).unwrap();
-    graph.add_requirement(
-        PackageRequirement::with_version("pyside2".to_string(), ">=5.15".to_string())
-    ).unwrap();
+    graph
+        .add_requirement(PackageRequirement::with_version(
+            "python".to_string(),
+            ">=3.9".to_string(),
+        ))
+        .unwrap();
+    graph
+        .add_requirement(PackageRequirement::with_version(
+            "pyside2".to_string(),
+            ">=5.15".to_string(),
+        ))
+        .unwrap();
 
-    graph.add_requirement(
-        PackageRequirement::with_version("python".to_string(), "<4".to_string())
-    ).unwrap();
+    graph
+        .add_requirement(PackageRequirement::with_version(
+            "python".to_string(),
+            "<4".to_string(),
+        ))
+        .unwrap();
 
     let conflicts = graph.detect_conflicts();
-    assert!(conflicts.is_empty(),
+    assert!(
+        conflicts.is_empty(),
         "Compatible multi-package graph should have no conflicts, got: {:?}",
-        conflicts.iter().map(|c| &c.package_name).collect::<Vec<_>>()
+        conflicts
+            .iter()
+            .map(|c| &c.package_name)
+            .collect::<Vec<_>>()
     );
 }
 
@@ -350,15 +439,24 @@ fn test_dependency_graph_multiple_packages() {
 fn test_dependency_graph_duplicate_requirement_no_conflict() {
     let mut graph = DependencyGraph::new();
 
-    graph.add_requirement(
-        PackageRequirement::with_version("python".to_string(), ">=3.9".to_string())
-    ).unwrap();
-    graph.add_requirement(
-        PackageRequirement::with_version("python".to_string(), ">=3.9".to_string())
-    ).unwrap();
+    graph
+        .add_requirement(PackageRequirement::with_version(
+            "python".to_string(),
+            ">=3.9".to_string(),
+        ))
+        .unwrap();
+    graph
+        .add_requirement(PackageRequirement::with_version(
+            "python".to_string(),
+            ">=3.9".to_string(),
+        ))
+        .unwrap();
 
     let conflicts = graph.detect_conflicts();
-    assert!(conflicts.is_empty(), "Identical requirements should not produce a conflict");
+    assert!(
+        conflicts.is_empty(),
+        "Identical requirements should not produce a conflict"
+    );
 }
 
 // ─── VFX pipeline integration scenario ───────────────────────────────────────
@@ -383,16 +481,24 @@ fn test_vfx_pipeline_shared_python_resolve() {
         .collect();
 
     let result = rt.block_on(resolver.resolve(reqs));
-    assert!(result.is_ok(), "VFX pipeline maya+houdini resolve should succeed");
+    assert!(
+        result.is_ok(),
+        "VFX pipeline maya+houdini resolve should succeed"
+    );
     let resolution = result.unwrap();
 
-    let names: std::collections::HashSet<&str> = resolution.resolved_packages.iter()
+    let names: std::collections::HashSet<&str> = resolution
+        .resolved_packages
+        .iter()
         .map(|p| p.package.name.as_str())
         .collect();
 
     assert!(names.contains("maya"), "maya should be resolved");
     assert!(names.contains("houdini"), "houdini should be resolved");
-    assert!(names.contains("python"), "python should be resolved as shared dep");
+    assert!(
+        names.contains("python"),
+        "python should be resolved as shared dep"
+    );
 }
 
 // ─── Requirement satisfaction edge cases ─────────────────────────────────────
@@ -403,9 +509,18 @@ fn test_version_constraint_lte_boundary() {
     use rez_next_package::requirement::VersionConstraint;
 
     let lte = VersionConstraint::LessThanOrEqual(Version::parse("2.0").unwrap());
-    assert!(lte.is_satisfied_by(&Version::parse("2.0").unwrap()), "2.0 <= 2.0 should be true");
-    assert!(lte.is_satisfied_by(&Version::parse("1.9").unwrap()), "1.9 <= 2.0 should be true");
-    assert!(!lte.is_satisfied_by(&Version::parse("2.1").unwrap()), "2.1 <= 2.0 should be false");
+    assert!(
+        lte.is_satisfied_by(&Version::parse("2.0").unwrap()),
+        "2.0 <= 2.0 should be true"
+    );
+    assert!(
+        lte.is_satisfied_by(&Version::parse("1.9").unwrap()),
+        "1.9 <= 2.0 should be true"
+    );
+    assert!(
+        !lte.is_satisfied_by(&Version::parse("2.1").unwrap()),
+        "2.1 <= 2.0 should be false"
+    );
 }
 
 /// VersionConstraint edge: GreaterThan strict boundary
@@ -418,12 +533,22 @@ fn test_version_constraint_gt_strict_boundary() {
     use rez_next_package::requirement::VersionConstraint;
 
     let gt = VersionConstraint::GreaterThan(Version::parse("1.0").unwrap());
-    assert!(!gt.is_satisfied_by(&Version::parse("1.0").unwrap()), "1.0 > 1.0 should be false");
-    assert!(!gt.is_satisfied_by(&Version::parse("1.0.1").unwrap()),
-        "1.0.1 > 1.0: depth-truncated at 2 tokens → Equal, not Greater (rez semantics)");
-    assert!(gt.is_satisfied_by(&Version::parse("1.1").unwrap()),
-        "1.1 > 1.0: second token 1 > 0 → Greater");
-    assert!(gt.is_satisfied_by(&Version::parse("2.0").unwrap()), "2.0 > 1.0 should be true");
+    assert!(
+        !gt.is_satisfied_by(&Version::parse("1.0").unwrap()),
+        "1.0 > 1.0 should be false"
+    );
+    assert!(
+        !gt.is_satisfied_by(&Version::parse("1.0.1").unwrap()),
+        "1.0.1 > 1.0: depth-truncated at 2 tokens → Equal, not Greater (rez semantics)"
+    );
+    assert!(
+        gt.is_satisfied_by(&Version::parse("1.1").unwrap()),
+        "1.1 > 1.0: second token 1 > 0 → Greater"
+    );
+    assert!(
+        gt.is_satisfied_by(&Version::parse("2.0").unwrap()),
+        "2.0 > 1.0 should be true"
+    );
 }
 
 /// Range constraint: [min, max) boundaries are correct
@@ -436,10 +561,22 @@ fn test_version_constraint_range_boundaries() {
         Version::parse("2.0").unwrap(),
     );
 
-    assert!(range.is_satisfied_by(&Version::parse("1.0").unwrap()), "1.0 is in [1.0, 2.0)");
-    assert!(range.is_satisfied_by(&Version::parse("1.9.9").unwrap()), "1.9.9 is in [1.0, 2.0)");
-    assert!(!range.is_satisfied_by(&Version::parse("2.0").unwrap()), "2.0 is NOT in [1.0, 2.0)");
-    assert!(!range.is_satisfied_by(&Version::parse("0.9").unwrap()), "0.9 is NOT in [1.0, 2.0)");
+    assert!(
+        range.is_satisfied_by(&Version::parse("1.0").unwrap()),
+        "1.0 is in [1.0, 2.0)"
+    );
+    assert!(
+        range.is_satisfied_by(&Version::parse("1.9.9").unwrap()),
+        "1.9.9 is in [1.0, 2.0)"
+    );
+    assert!(
+        !range.is_satisfied_by(&Version::parse("2.0").unwrap()),
+        "2.0 is NOT in [1.0, 2.0)"
+    );
+    assert!(
+        !range.is_satisfied_by(&Version::parse("0.9").unwrap()),
+        "0.9 is NOT in [1.0, 2.0)"
+    );
 }
 
 /// VersionConstraint: Any matches everything
@@ -450,8 +587,11 @@ fn test_version_constraint_any_matches_all() {
     let any = VersionConstraint::Any;
     let versions = ["0.0.1", "1.0", "100.200.300", "2.3.4.5.6"];
     for v in &versions {
-        assert!(any.is_satisfied_by(&Version::parse(v).unwrap()),
-            "Any should match {}", v);
+        assert!(
+            any.is_satisfied_by(&Version::parse(v).unwrap()),
+            "Any should match {}",
+            v
+        );
     }
 }
 
@@ -485,12 +625,18 @@ fn test_requirement_from_str_rez_native_plus() {
         req.version_constraint,
         Some(rez_next_package::requirement::VersionConstraint::GreaterThanOrEqual(_))
     ));
-    assert!(req.is_satisfied_by(&Version::parse("2024.0").unwrap()),
-        "maya-2024+ should satisfy 2024.0");
-    assert!(req.is_satisfied_by(&Version::parse("2025.0").unwrap()),
-        "maya-2024+ should satisfy 2025.0");
-    assert!(!req.is_satisfied_by(&Version::parse("2023.5").unwrap()),
-        "maya-2024+ should NOT satisfy 2023.5");
+    assert!(
+        req.is_satisfied_by(&Version::parse("2024.0").unwrap()),
+        "maya-2024+ should satisfy 2024.0"
+    );
+    assert!(
+        req.is_satisfied_by(&Version::parse("2025.0").unwrap()),
+        "maya-2024+ should satisfy 2025.0"
+    );
+    assert!(
+        !req.is_satisfied_by(&Version::parse("2023.5").unwrap()),
+        "maya-2024+ should NOT satisfy 2023.5"
+    );
 }
 
 /// from_str: rez-native "pkg-ver+<max" format
@@ -500,10 +646,14 @@ fn test_requirement_from_str_rez_native_range() {
     assert_eq!(req.name, "python");
     assert!(req.is_satisfied_by(&Version::parse("3.9").unwrap()));
     assert!(req.is_satisfied_by(&Version::parse("3.11.0").unwrap()));
-    assert!(!req.is_satisfied_by(&Version::parse("3.8").unwrap()),
-        "3.8 < 3.9: should not satisfy");
-    assert!(!req.is_satisfied_by(&Version::parse("4.0.0").unwrap()),
-        "4.0.0: same epoch as 4, should not satisfy <4");
+    assert!(
+        !req.is_satisfied_by(&Version::parse("3.8").unwrap()),
+        "3.8 < 3.9: should not satisfy"
+    );
+    assert!(
+        !req.is_satisfied_by(&Version::parse("4.0.0").unwrap()),
+        "4.0.0: same epoch as 4, should not satisfy <4"
+    );
 }
 
 /// from_str: rez-native "pkg-ver" point release
@@ -511,16 +661,26 @@ fn test_requirement_from_str_rez_native_range() {
 fn test_requirement_from_str_rez_point_release() {
     let req = "numpy-1.25".parse::<Requirement>().unwrap();
     assert_eq!(req.name, "numpy");
-    assert!(req.is_satisfied_by(&Version::parse("1.25").unwrap()),
-        "1.25 satisfies point release numpy-1.25");
-    assert!(req.is_satisfied_by(&Version::parse("1.25.0").unwrap()),
-        "1.25.0 satisfies point release numpy-1.25");
-    assert!(req.is_satisfied_by(&Version::parse("1.25.3").unwrap()),
-        "1.25.3 satisfies point release numpy-1.25");
-    assert!(!req.is_satisfied_by(&Version::parse("1.26.0").unwrap()),
-        "1.26.0 does NOT satisfy point release numpy-1.25");
-    assert!(!req.is_satisfied_by(&Version::parse("1.24.9").unwrap()),
-        "1.24.9 does NOT satisfy point release numpy-1.25");
+    assert!(
+        req.is_satisfied_by(&Version::parse("1.25").unwrap()),
+        "1.25 satisfies point release numpy-1.25"
+    );
+    assert!(
+        req.is_satisfied_by(&Version::parse("1.25.0").unwrap()),
+        "1.25.0 satisfies point release numpy-1.25"
+    );
+    assert!(
+        req.is_satisfied_by(&Version::parse("1.25.3").unwrap()),
+        "1.25.3 satisfies point release numpy-1.25"
+    );
+    assert!(
+        !req.is_satisfied_by(&Version::parse("1.26.0").unwrap()),
+        "1.26.0 does NOT satisfy point release numpy-1.25"
+    );
+    assert!(
+        !req.is_satisfied_by(&Version::parse("1.24.9").unwrap()),
+        "1.24.9 does NOT satisfy point release numpy-1.25"
+    );
 }
 
 // ─── Solver version selection strategy tests ─────────────────────────────────
@@ -544,14 +704,24 @@ fn test_resolver_prefer_latest_version() {
     let reqs: Vec<Requirement> = ["numpy"].iter().map(|s| s.parse().unwrap()).collect();
 
     let result = rt.block_on(resolver.resolve(reqs));
-    assert!(result.is_ok(), "Resolver should succeed with multiple numpy versions");
+    assert!(
+        result.is_ok(),
+        "Resolver should succeed with multiple numpy versions"
+    );
 
     let resolution = result.unwrap();
     assert_eq!(resolution.resolved_packages.len(), 1);
 
-    let ver = resolution.resolved_packages[0].package.version.as_ref()
+    let ver = resolution.resolved_packages[0]
+        .package
+        .version
+        .as_ref()
         .map(|v| v.as_str());
-    assert_eq!(ver, Some("1.25.0"), "prefer_latest should pick numpy-1.25.0");
+    assert_eq!(
+        ver,
+        Some("1.25.0"),
+        "prefer_latest should pick numpy-1.25.0"
+    );
 }
 
 /// prefer_latest=false: resolver picks lowest available version (oldest first)
@@ -572,12 +742,21 @@ fn test_resolver_prefer_oldest_version() {
 
     let reqs: Vec<Requirement> = ["scipy"].iter().map(|s| s.parse().unwrap()).collect();
 
-    let resolution = rt.block_on(resolver.resolve(reqs)).expect("Resolver should succeed");
+    let resolution = rt
+        .block_on(resolver.resolve(reqs))
+        .expect("Resolver should succeed");
     assert_eq!(resolution.resolved_packages.len(), 1);
 
-    let ver = resolution.resolved_packages[0].package.version.as_ref()
+    let ver = resolution.resolved_packages[0]
+        .package
+        .version
+        .as_ref()
         .map(|v| v.as_str());
-    assert_eq!(ver, Some("1.8.0"), "prefer_latest=false should pick scipy-1.8.0");
+    assert_eq!(
+        ver,
+        Some("1.8.0"),
+        "prefer_latest=false should pick scipy-1.8.0"
+    );
 }
 
 /// Resolution statistics: packages_considered > 0 after a successful resolve
@@ -594,12 +773,19 @@ fn test_resolver_stats_populated() {
 
     let reqs: Vec<Requirement> = ["numpy"].iter().map(|s| s.parse().unwrap()).collect();
 
-    let result = rt.block_on(resolver.resolve(reqs)).expect("Resolver should succeed");
+    let result = rt
+        .block_on(resolver.resolve(reqs))
+        .expect("Resolver should succeed");
 
-    assert!(result.stats.packages_considered > 0,
-        "packages_considered should be > 0 after resolving numpy+python");
-    assert!(result.stats.resolution_time_ms < 30_000,
-        "Resolution time should be reasonable (<30s), got {}ms", result.stats.resolution_time_ms);
+    assert!(
+        result.stats.packages_considered > 0,
+        "packages_considered should be > 0 after resolving numpy+python"
+    );
+    assert!(
+        result.stats.resolution_time_ms < 30_000,
+        "Resolution time should be reasonable (<30s), got {}ms",
+        result.stats.resolution_time_ms
+    );
 }
 
 /// Resolution with explicit version upper bound: only picks versions within range
@@ -621,11 +807,20 @@ fn test_resolver_version_upper_bound_respected() {
         .map(|s| s.parse().unwrap())
         .collect();
 
-    let result = rt.block_on(resolver.resolve(reqs)).expect("Resolver should succeed");
+    let result = rt
+        .block_on(resolver.resolve(reqs))
+        .expect("Resolver should succeed");
     assert_eq!(result.resolved_packages.len(), 1);
 
-    let ver = result.resolved_packages[0].package.version.as_ref()
+    let ver = result.resolved_packages[0]
+        .package
+        .version
+        .as_ref()
         .map(|v| v.as_str());
-    assert_eq!(ver, Some("3.11.0"),
-        "python-3.9+<3.12 with prefer_latest should pick 3.11.0, got {:?}", ver);
+    assert_eq!(
+        ver,
+        Some("3.11.0"),
+        "python-3.9+<3.12 with prefer_latest should pick 3.11.0, got {:?}",
+        ver
+    );
 }

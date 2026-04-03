@@ -10,10 +10,10 @@
 //! performance comparisons once the Python layer is wired up.
 
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
-use std::hint::black_box;
 use rez_next_context::{ContextFormat, ContextSerializer, ContextStatus, ResolvedContext};
 use rez_next_package::{Package, PackageRequirement};
 use rez_next_version::Version;
+use std::hint::black_box;
 use std::time::Duration;
 
 // ── Helper builders ────────────────────────────────────────────────────────────
@@ -85,7 +85,9 @@ fn bench_json_serialize(c: &mut Criterion) {
 
         group.bench_with_input(BenchmarkId::new("n_pkgs", n), &ctx, |b, ctx| {
             b.iter(|| {
-                black_box(ContextSerializer::serialize(black_box(ctx), ContextFormat::Json).unwrap())
+                black_box(
+                    ContextSerializer::serialize(black_box(ctx), ContextFormat::Json).unwrap(),
+                )
             })
         });
     }
@@ -124,7 +126,8 @@ fn bench_json_roundtrip(c: &mut Criterion) {
 
         group.bench_with_input(BenchmarkId::new("n_pkgs", n), &ctx, |b, ctx| {
             b.iter(|| {
-                let bytes = ContextSerializer::serialize(black_box(ctx), ContextFormat::Json).unwrap();
+                let bytes =
+                    ContextSerializer::serialize(black_box(ctx), ContextFormat::Json).unwrap();
                 black_box(ContextSerializer::deserialize(&bytes, ContextFormat::Json).unwrap())
             })
         });

@@ -89,7 +89,10 @@ description = "Test package {name}-{version}"
 fn make_repo(dir: &std::path::Path) -> Arc<RepositoryManager> {
     let mut mgr = RepositoryManager::new();
     if dir.exists() {
-        mgr.add_repository(Box::new(SimpleRepository::new(dir, "test_repo".to_string())));
+        mgr.add_repository(Box::new(SimpleRepository::new(
+            dir,
+            "test_repo".to_string(),
+        )));
     }
     Arc::new(mgr)
 }
@@ -129,9 +132,30 @@ fn test_repo_scan_finds_packages() {
     let tmp = TempDir::new().unwrap();
     let repo_dir = tmp.path().to_path_buf();
 
-    create_package(&repo_dir, "python", "3.9.0", &[], &["python", "python3"], None);
-    create_package(&repo_dir, "python", "3.11.0", &[], &["python", "python3"], None);
-    create_package(&repo_dir, "maya", "2024.0", &["python-3+<4"], &["maya"], None);
+    create_package(
+        &repo_dir,
+        "python",
+        "3.9.0",
+        &[],
+        &["python", "python3"],
+        None,
+    );
+    create_package(
+        &repo_dir,
+        "python",
+        "3.11.0",
+        &[],
+        &["python", "python3"],
+        None,
+    );
+    create_package(
+        &repo_dir,
+        "maya",
+        "2024.0",
+        &["python-3+<4"],
+        &["maya"],
+        None,
+    );
 
     let rt = tokio::runtime::Runtime::new().unwrap();
     let repo = SimpleRepository::new(repo_dir.clone(), "test_repo".to_string());
@@ -245,7 +269,14 @@ fn test_solve_transitive_dependencies() {
     let repo_dir = tmp.path().to_path_buf();
 
     create_package(&repo_dir, "python", "3.11.0", &[], &["python"], None);
-    create_package(&repo_dir, "numpy", "1.25.0", &["python-3.9+<4"], &["python"], None);
+    create_package(
+        &repo_dir,
+        "numpy",
+        "1.25.0",
+        &["python-3.9+<4"],
+        &["python"],
+        None,
+    );
     create_package(
         &repo_dir,
         "scipy",
@@ -261,8 +292,14 @@ fn test_solve_transitive_dependencies() {
     let names: Vec<&str> = resolved.iter().map(|(n, _)| n.as_str()).collect();
     // scipy should pull in numpy and python
     assert!(names.contains(&"scipy"), "scipy must be in result");
-    assert!(names.contains(&"numpy"), "numpy must be pulled in as transitive dep");
-    assert!(names.contains(&"python"), "python must be pulled in as transitive dep");
+    assert!(
+        names.contains(&"numpy"),
+        "numpy must be pulled in as transitive dep"
+    );
+    assert!(
+        names.contains(&"python"),
+        "python must be pulled in as transitive dep"
+    );
 }
 
 #[test]
@@ -290,19 +327,34 @@ fn test_solve_version_selection_prefers_latest() {
 fn test_requirement_parsing_rez_formats() {
     // "python-3.11" → name=python, >=3.11
     let req = "python-3.11".parse::<Requirement>().unwrap();
-    assert_eq!(req.name, "python", "python-3.11 name should be 'python', got '{}'", req.name);
+    assert_eq!(
+        req.name, "python",
+        "python-3.11 name should be 'python', got '{}'",
+        req.name
+    );
     let v311 = Version::parse("3.11.0").unwrap();
-    assert!(req.is_satisfied_by(&v311), "python-3.11 should be satisfied by 3.11.0");
+    assert!(
+        req.is_satisfied_by(&v311),
+        "python-3.11 should be satisfied by 3.11.0"
+    );
 
     // "python-3+<4" → name=python, >=3 <4
     let req2 = "python-3+<4".parse::<Requirement>().unwrap();
-    assert_eq!(req2.name, "python", "python-3+<4 name should be 'python', got '{}'", req2.name);
+    assert_eq!(
+        req2.name, "python",
+        "python-3+<4 name should be 'python', got '{}'",
+        req2.name
+    );
     assert!(req2.is_satisfied_by(&Version::parse("3.11.0").unwrap()));
     assert!(!req2.is_satisfied_by(&Version::parse("4.0.0").unwrap()));
 
     // "pip-20+" → name=pip, >=20
     let req3 = "pip-20+".parse::<Requirement>().unwrap();
-    assert_eq!(req3.name, "pip", "pip-20+ name should be 'pip', got '{}'", req3.name);
+    assert_eq!(
+        req3.name, "pip",
+        "pip-20+ name should be 'pip', got '{}'",
+        req3.name
+    );
     assert!(req3.is_satisfied_by(&Version::parse("23.0.0").unwrap()));
 
     // "numpy-1.20+" → name=numpy, >=1.20
@@ -325,7 +377,14 @@ fn test_solve_multiple_explicit_requests() {
 
     create_package(&repo_dir, "python", "3.11.0", &[], &[], None);
     create_package(&repo_dir, "pip", "23.0.0", &["python-3+<4"], &["pip"], None);
-    create_package(&repo_dir, "virtualenv", "20.0.0", &["python-3+<4", "pip-20+"], &[], None);
+    create_package(
+        &repo_dir,
+        "virtualenv",
+        "20.0.0",
+        &["python-3+<4", "pip-20+"],
+        &[],
+        None,
+    );
 
     let repo = make_repo(&repo_dir);
     let resolved = resolve(repo, vec!["python-3.11", "pip", "virtualenv"]);
@@ -367,17 +426,11 @@ fn test_env_context_has_rez_variables() {
 
     // REZ_USED_PACKAGES should be set by the context
     // At minimum we should have some env vars
-    assert!(
-        !env_vars.is_empty(),
-        "Environment should contain variables"
-    );
+    assert!(!env_vars.is_empty(), "Environment should contain variables");
 }
 
 #[test]
 fn test_env_context_path_prepend() {
-    
-    
-
     let tmp = TempDir::new().unwrap();
     let repo_dir = tmp.path().to_path_buf();
 
@@ -399,8 +452,11 @@ fn test_env_context_path_prepend() {
     let pkg = &pkgs[0];
     // Verify commands field was parsed
     if let Some(cmds) = &pkg.commands {
-        assert!(cmds.contains("PATH") || cmds.contains("prepend"), 
-            "Commands should contain PATH prepend, got: {}", cmds);
+        assert!(
+            cmds.contains("PATH") || cmds.contains("prepend"),
+            "Commands should contain PATH prepend, got: {}",
+            cmds
+        );
     }
 }
 
@@ -489,8 +545,14 @@ fn test_multi_repo_priority() {
     create_package(&repo2, "python", "3.9.0", &[], &[], None);
 
     let mut mgr = RepositoryManager::new();
-    mgr.add_repository(Box::new(SimpleRepository::new(repo1.clone(), "repo1".to_string())));
-    mgr.add_repository(Box::new(SimpleRepository::new(repo2.clone(), "repo2".to_string())));
+    mgr.add_repository(Box::new(SimpleRepository::new(
+        repo1.clone(),
+        "repo1".to_string(),
+    )));
+    mgr.add_repository(Box::new(SimpleRepository::new(
+        repo2.clone(),
+        "repo2".to_string(),
+    )));
 
     let rt = tokio::runtime::Runtime::new().unwrap();
     let pkgs = rt.block_on(mgr.find_packages("python")).unwrap();
@@ -508,7 +570,9 @@ fn test_repo_manager_missing_packages_returns_empty() {
 
     let rt = tokio::runtime::Runtime::new().unwrap();
     let repo = SimpleRepository::new(repo_dir, "r".to_string());
-    let pkgs = rt.block_on(repo.find_packages("nonexistent_package_xyz")).unwrap();
+    let pkgs = rt
+        .block_on(repo.find_packages("nonexistent_package_xyz"))
+        .unwrap();
 
     assert!(pkgs.is_empty(), "Should return empty for unknown package");
 }
@@ -524,7 +588,14 @@ fn test_full_pipeline_e2e() {
     let repo_dir = tmp.path().to_path_buf();
 
     // Create a small dependency tree
-    create_package(&repo_dir, "python", "3.11.2", &[], &["python", "python3"], None);
+    create_package(
+        &repo_dir,
+        "python",
+        "3.11.2",
+        &[],
+        &["python", "python3"],
+        None,
+    );
     create_package(&repo_dir, "numpy", "1.25.2", &["python-3.9+<4"], &[], None);
     create_package(
         &repo_dir,
@@ -548,7 +619,10 @@ fn test_full_pipeline_e2e() {
 
     let result = rt.block_on(resolver.resolve(requirements)).unwrap();
 
-    assert!(!result.resolved_packages.is_empty(), "Should resolve packages");
+    assert!(
+        !result.resolved_packages.is_empty(),
+        "Should resolve packages"
+    );
     let names: Vec<&str> = result
         .resolved_packages
         .iter()
@@ -615,7 +689,8 @@ fn test_solve_conflict_detection() {
         Ok(res) => {
             // If solver returns result, oldlib should not be included if python 3.11 is there
             // (conflict handling — result may have failed_requirements or conflicts)
-            println!("Conflict test: {} resolved, {} failed, {} conflicts",
+            println!(
+                "Conflict test: {} resolved, {} failed, {} conflicts",
                 res.resolved_packages.len(),
                 res.failed_requirements.len(),
                 res.conflicts.len()
@@ -634,7 +709,14 @@ fn test_solve_semver_range_ge_lt() {
         create_package(&repo_dir, "python", ver, &[], &[], None);
     }
     // Package that needs python >= 3.9, < 3.11
-    create_package(&repo_dir, "mylib", "1.0.0", &["python-3.9+<3.11"], &[], None);
+    create_package(
+        &repo_dir,
+        "mylib",
+        "1.0.0",
+        &["python-3.9+<3.11"],
+        &[],
+        None,
+    );
 
     let repo = make_repo(&repo_dir);
     let resolved = resolve(repo, vec!["mylib"]);
@@ -646,8 +728,11 @@ fn test_solve_semver_range_ge_lt() {
         let v = Version::parse(ver).unwrap();
         let min = Version::parse("3.9").unwrap();
         let max = Version::parse("3.11").unwrap();
-        assert!(v >= min && v < max, 
-            "Python {} should be in [3.9, 3.11)", ver);
+        assert!(
+            v >= min && v < max,
+            "Python {} should be in [3.9, 3.11)",
+            ver
+        );
     }
 }
 
@@ -679,11 +764,15 @@ fn test_solve_exact_version_pin_filesystem() {
     let resolved = resolve(repo, vec!["pinned_tool"]);
 
     let houdini = resolved.iter().find(|(n, _)| n == "houdini");
-    assert!(houdini.is_some(), "houdini should be resolved as a dep of pinned_tool");
+    assert!(
+        houdini.is_some(),
+        "houdini should be resolved as a dep of pinned_tool"
+    );
 
     let (_, ver) = houdini.unwrap();
     assert_eq!(
-        ver.as_str(), "20.0.0",
+        ver.as_str(),
+        "20.0.0",
         "pinned_tool should resolve houdini exactly at 20.0.0, got {}",
         ver
     );
@@ -794,7 +883,10 @@ fn test_multi_repo_shadowing_and_fallback() {
 
     // vendor_lib (only in repo2) should still be found
     let vendor = rt.block_on(repo.find_packages("vendor_lib")).unwrap();
-    assert!(!vendor.is_empty(), "vendor_lib from repo2 should be reachable");
+    assert!(
+        !vendor.is_empty(),
+        "vendor_lib from repo2 should be reachable"
+    );
 
     // studio_lib (only in repo1) should be found
     let studio = rt.block_on(repo.find_packages("studio_lib")).unwrap();
@@ -809,14 +901,7 @@ fn test_tools_roundtrip_filesystem() {
     let repo_dir = tmp.path().to_path_buf();
 
     let declared_tools = ["houdini", "hython", "hconfig", "hserver", "houdinifx"];
-    create_package(
-        &repo_dir,
-        "houdini",
-        "20.0.547",
-        &[],
-        &declared_tools,
-        None,
-    );
+    create_package(&repo_dir, "houdini", "20.0.547", &[], &declared_tools, None);
 
     let rt = tokio::runtime::Runtime::new().unwrap();
     let repo = SimpleRepository::new(repo_dir.clone(), "r".to_string());
@@ -907,12 +992,10 @@ description = "A package with \"quotes\" and path C:\\tool"
             // If parsed, name and version must be correct
             if !pkgs.is_empty() {
                 assert_eq!(pkgs[0].name, "testpkg");
-                assert_eq!(
-                    pkgs[0].version.as_ref().map(|v| v.as_str()),
-                    Some("1.0.0")
-                );
+                assert_eq!(pkgs[0].version.as_ref().map(|v| v.as_str()), Some("1.0.0"));
             }
         }
-        Err(_) => { /* parse error on unusual string is acceptable — no panic is the requirement */ }
+        Err(_) => { /* parse error on unusual string is acceptable — no panic is the requirement */
+        }
     }
 }

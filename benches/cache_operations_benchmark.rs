@@ -156,16 +156,22 @@ fn bench_hot_path_access(c: &mut Criterion) {
 
     // Simulate "package version list" values — larger payloads
     rt.block_on(async {
-        let pkgs = ["python", "maya", "houdini", "nuke", "katana", "mari", "clarisse"];
+        let pkgs = [
+            "python", "maya", "houdini", "nuke", "katana", "mari", "clarisse",
+        ];
         for pkg in &pkgs {
-            let versions: Vec<String> = (0..20).map(|i| format!("{}.{}.0", i / 10 + 1, i % 10)).collect();
+            let versions: Vec<String> = (0..20)
+                .map(|i| format!("{}.{}.0", i / 10 + 1, i % 10))
+                .collect();
             let payload = versions.join(",");
             cache.put(pkg.to_string(), payload).await.unwrap();
         }
     });
 
     c.bench_function("cache/hot_path_pkg_lookup", |b| {
-        let pkgs = ["python", "maya", "houdini", "nuke", "katana", "mari", "clarisse"];
+        let pkgs = [
+            "python", "maya", "houdini", "nuke", "katana", "mari", "clarisse",
+        ];
         let mut counter: usize = 0;
         b.iter(|| {
             let key = pkgs[counter % pkgs.len()].to_string();
@@ -185,7 +191,10 @@ fn bench_contains_key(c: &mut Criterion) {
 
     rt.block_on(async {
         for i in 0u32..500 {
-            cache.put(format!("ck_{}", i), "v".to_string()).await.unwrap();
+            cache
+                .put(format!("ck_{}", i), "v".to_string())
+                .await
+                .unwrap();
         }
     });
 

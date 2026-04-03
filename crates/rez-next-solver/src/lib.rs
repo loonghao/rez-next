@@ -8,22 +8,24 @@
 //! - Package selection strategies
 //! - Solver optimization techniques
 
+pub mod astar;
+pub mod conflict;
 pub mod dependency_resolver;
 mod graph;
-mod solver;
 pub mod resolution;
-pub mod conflict;
-pub mod astar;
+mod solver;
 
-pub use dependency_resolver::*;
-pub use graph::*;
-pub use solver::*;
-pub use resolution::*;
-pub use conflict::*;
 pub use astar::astar_search::{AStarSearch, SearchStats};
 pub use astar::heuristics::{
     AdaptiveHeuristic, CompositeHeuristic, ConflictPenaltyHeuristic, DependencyDepthHeuristic,
     DependencyHeuristic, HeuristicConfig, HeuristicFactory, RemainingRequirementsHeuristic,
     VersionPreferenceHeuristic,
 };
-pub use astar::search_state::{ConflictType as AStarConflictType, DependencyConflict as AStarDependencyConflict, SearchState};
+pub use astar::search_state::{
+    ConflictType as AStarConflictType, DependencyConflict as AStarDependencyConflict, SearchState,
+};
+pub use conflict::*;
+pub use dependency_resolver::*;
+pub use graph::*;
+pub use resolution::*;
+pub use solver::*;

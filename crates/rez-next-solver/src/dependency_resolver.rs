@@ -68,8 +68,7 @@ pub struct ResolutionConflict {
 }
 
 /// Statistics about the resolution process
-#[derive(Debug, Clone, serde::Serialize)]
-#[derive(Default)]
+#[derive(Debug, Clone, serde::Serialize, Default)]
 pub struct ResolutionStats {
     /// Number of packages considered
     pub packages_considered: usize,
@@ -548,7 +547,6 @@ impl ResolutionState {
             .any(|orig| orig.name == requirement.name)
     }
 }
-
 
 #[cfg(test)]
 mod tests {

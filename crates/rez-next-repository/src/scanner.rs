@@ -338,14 +338,16 @@ impl RepositoryScanner {
         // Try prefix matching
         for mut cached_entry in self.scan_cache.iter_mut() {
             let cached_path = cached_entry.key();
-            if (normalized_path.starts_with(cached_path) || cached_path.starts_with(&normalized_path))
-                && self.is_cache_entry_valid(cached_entry.value()) {
-                    // Update access statistics for prefix match
-                    cached_entry.value_mut().access_count += 1;
-                    cached_entry.value_mut().last_accessed = SystemTime::now();
-                    self.prefix_hits.fetch_add(1, Ordering::Relaxed);
-                    return Some(cached_entry.value().result.clone());
-                }
+            if (normalized_path.starts_with(cached_path)
+                || cached_path.starts_with(&normalized_path))
+                && self.is_cache_entry_valid(cached_entry.value())
+            {
+                // Update access statistics for prefix match
+                cached_entry.value_mut().access_count += 1;
+                cached_entry.value_mut().last_accessed = SystemTime::now();
+                self.prefix_hits.fetch_add(1, Ordering::Relaxed);
+                return Some(cached_entry.value().result.clone());
+            }
         }
 
         None

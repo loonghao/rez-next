@@ -91,7 +91,12 @@ impl PackageRequirement {
             let potential_name = &s[..dash_pos];
             let potential_version = &s[dash_pos + 1..];
             // A version separator dash is followed by a digit
-            if potential_version.chars().next().map(|c| c.is_ascii_digit()).unwrap_or(false) {
+            if potential_version
+                .chars()
+                .next()
+                .map(|c| c.is_ascii_digit())
+                .unwrap_or(false)
+            {
                 Self::with_version(potential_name.to_string(), potential_version.to_string())
             } else {
                 Self::new(s.to_string())

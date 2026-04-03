@@ -99,7 +99,10 @@ fn test_state_transitions() -> Result<(), String> {
     let child = SearchState::new_from_parent(&parent, pkg, vec![], 1.0);
 
     if child.depth != 1 {
-        return Err(format!("Child state should have depth 1, got {}", child.depth));
+        return Err(format!(
+            "Child state should have depth 1, got {}",
+            child.depth
+        ));
     }
     if child.parent_id != Some(parent.state_id) {
         return Err("Child state should have parent's id".to_string());

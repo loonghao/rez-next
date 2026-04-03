@@ -9,10 +9,10 @@
 //! - Requirements processing performance
 
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
-use std::hint::black_box;
 use rez_next_package::{Package, PackageSerializer};
 use rez_next_version::Version;
 use std::collections::HashMap;
+use std::hint::black_box;
 use std::time::SystemTime;
 use thiserror::Error;
 

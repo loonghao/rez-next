@@ -1,7 +1,7 @@
 //! Package serialization and deserialization
 
-use base64::Engine as _;
 use crate::{Package, PythonAstParser};
+use base64::Engine as _;
 use chrono::Utc;
 use flate2::write::GzEncoder;
 use flate2::Compression;
@@ -14,9 +14,6 @@ use std::collections::HashMap;
 use std::fs;
 use std::io::Write;
 use std::path::Path;
-
-
-
 
 /// Package serialization format
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -746,8 +743,9 @@ impl PackageSerializer {
         package: &Package,
         options: &SerializationOptions,
     ) -> Result<String, RezCoreError> {
-        let raw = serde_yaml::to_string(package)
-            .map_err(|e| RezCoreError::PackageParse(format!("Failed to serialize to YAML: {}", e)))?;
+        let raw = serde_yaml::to_string(package).map_err(|e| {
+            RezCoreError::PackageParse(format!("Failed to serialize to YAML: {}", e))
+        })?;
 
         if !options.pretty_print {
             return Ok(raw);

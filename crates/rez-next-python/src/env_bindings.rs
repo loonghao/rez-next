@@ -5,14 +5,14 @@
 //! - `env_activate()`: generate activation scripts
 //! - `env_apply()`: apply environment to current process
 
-use crate::package_bindings::PyPackage;
 use crate::expand_home;
+use crate::package_bindings::PyPackage;
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use rez_next_package::{PackageRequirement, Requirement};
 use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
+use rez_next_rex::{generate_shell_script, RexExecutor, ShellType};
 use rez_next_solver::{DependencyResolver, SolverConfig};
-use rez_next_rex::{RexExecutor, ShellType, generate_shell_script};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -54,7 +54,9 @@ impl PyRezEnv {
         let pkg_paths: Vec<PathBuf> = paths
             .map(|p| p.into_iter().map(PathBuf::from).collect())
             .unwrap_or_else(|| {
-                config.packages_path.iter()
+                config
+                    .packages_path
+                    .iter()
                     .map(|p| PathBuf::from(expand_home(p)))
                     .collect()
             });
@@ -91,10 +93,15 @@ impl PyRezEnv {
         }
 
         // Convert to Requirement for resolver
-        let resolver_reqs: Vec<Requirement> = requirements.iter().map(|pr| {
-            let req_str = pr.to_string();
-            req_str.parse::<Requirement>().unwrap_or_else(|_| Requirement::new(pr.name.clone()))
-        }).collect();
+        let resolver_reqs: Vec<Requirement> = requirements
+            .iter()
+            .map(|pr| {
+                let req_str = pr.to_string();
+                req_str
+                    .parse::<Requirement>()
+                    .unwrap_or_else(|_| Requirement::new(pr.name.clone()))
+            })
+            .collect();
 
         let rt = tokio::runtime::Runtime::new()
             .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
@@ -116,7 +123,8 @@ impl PyRezEnv {
             }
         };
 
-        let resolved_packages: Vec<PyPackage> = resolution.resolved_packages
+        let resolved_packages: Vec<PyPackage> = resolution
+            .resolved_packages
             .iter()
             .map(|info| PyPackage((*info.package).clone()))
             .collect();
@@ -126,7 +134,9 @@ impl PyRezEnv {
         for pkg_info in &resolution.resolved_packages {
             let pkg = &pkg_info.package;
             if let Some(ref cmds) = pkg.commands {
-                let root = pkg.version.as_ref()
+                let root = pkg
+                    .version
+                    .as_ref()
                     .map(|v| format!("/opt/{}/{}", pkg.name, v.as_str()))
                     .unwrap_or_else(|| format!("/opt/{}", pkg.name));
 
@@ -148,7 +158,12 @@ impl PyRezEnv {
         let shell_types_to_generate = if let Some(shell_name) = shell {
             vec![shell_name.to_string()]
         } else {
-            vec!["bash".to_string(), "powershell".to_string(), "fish".to_string(), "cmd".to_string()]
+            vec![
+                "bash".to_string(),
+                "powershell".to_string(),
+                "fish".to_string(),
+                "cmd".to_string(),
+            ]
         };
 
         let mut scripts: HashMap<String, String> = HashMap::new();
@@ -241,7 +256,8 @@ impl PyRezEnv {
         } else {
             Err(pyo3::exceptions::PyValueError::new_err(format!(
                 "No script generated for shell '{}'. Available: {:?}",
-                shell, self.available_shells()
+                shell,
+                self.available_shells()
             )))
         }
     }
@@ -271,7 +287,8 @@ pub fn get_activation_script(
     let env = PyRezEnv::new(packages, Some(shell), paths)?;
     if !env.success {
         return Err(pyo3::exceptions::PyRuntimeError::new_err(
-            env.failure_reason.unwrap_or_else(|| "Unknown error".to_string())
+            env.failure_reason
+                .unwrap_or_else(|| "Unknown error".to_string()),
         ));
     }
     Ok(env.scripts.get(shell).cloned().unwrap_or_default())
@@ -308,11 +325,18 @@ pub struct PyPackageFamily {
 impl PyPackageFamily {
     #[new]
     fn new(name: String) -> Self {
-        PyPackageFamily { name, packages: Vec::new() }
+        PyPackageFamily {
+            name,
+            packages: Vec::new(),
+        }
     }
 
     fn __repr__(&self) -> String {
-        format!("PackageFamily('{}', {} versions)", self.name, self.packages.len())
+        format!(
+            "PackageFamily('{}', {} versions)",
+            self.name,
+            self.packages.len()
+        )
     }
 
     fn __str__(&self) -> String {
@@ -328,7 +352,8 @@ impl PyPackageFamily {
     /// All versions (as strings)
     #[getter]
     fn versions(&self) -> Vec<String> {
-        self.packages.iter()
+        self.packages
+            .iter()
             .filter_map(|p| p.0.version.as_ref().map(|v| v.as_str().to_string()))
             .collect()
     }
@@ -338,7 +363,8 @@ impl PyPackageFamily {
     fn latest_version(&self) -> Option<PyPackage> {
         let mut sorted = self.packages.clone();
         sorted.sort_by(|a, b| {
-            b.0.version.as_ref()
+            b.0.version
+                .as_ref()
                 .and_then(|bv| a.0.version.as_ref().map(|av| av.cmp(bv)))
                 .unwrap_or(std::cmp::Ordering::Equal)
         });
@@ -395,7 +421,10 @@ mod tests {
         }
         // latest_version should return Some (not None) with 4 versions
         let latest = family.latest_version();
-        assert!(latest.is_some(), "latest_version should not be None with 4 versions");
+        assert!(
+            latest.is_some(),
+            "latest_version should not be None with 4 versions"
+        );
         // Version should be one of the added versions
         let latest_ver = latest.unwrap().0.version.unwrap();
         let valid = ["3.8.0", "3.9.0", "3.10.0", "3.11.0"];

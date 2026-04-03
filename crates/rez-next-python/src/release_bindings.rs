@@ -102,10 +102,14 @@ impl PyReleaseManager {
     /// Release a package from a source directory.
     /// Equivalent to running `rez release` from the package directory.
     #[pyo3(signature = (source_dir=None, message=None))]
-    fn release(&self, source_dir: Option<&str>, message: Option<&str>) -> PyResult<PyReleaseResult> {
+    fn release(
+        &self,
+        source_dir: Option<&str>,
+        message: Option<&str>,
+    ) -> PyResult<PyReleaseResult> {
+        use crate::expand_home;
         use rez_next_common::config::RezCoreConfig;
         use rez_next_package::serialization::PackageSerializer;
-        use crate::expand_home;
 
         let cwd = std::env::current_dir()
             .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
@@ -159,9 +163,7 @@ impl PyReleaseManager {
             }
         };
 
-        let install_path = install_base
-            .join(&package.name)
-            .join(&version_str);
+        let install_path = install_base.join(&package.name).join(&version_str);
 
         let path_str = install_path.to_string_lossy().to_string();
 
@@ -183,10 +185,16 @@ impl PyReleaseManager {
             .map_err(|e| pyo3::exceptions::PyIOError::new_err(e.to_string()))?;
 
         // 4. Copy package definition file
-        let dest_pkg_file = install_path.join(
-            if pkg_file.exists() { "package.py" } else { "package.yaml" }
-        );
-        let src_pkg_file = if pkg_file.exists() { &pkg_file } else { &pkg_yaml };
+        let dest_pkg_file = install_path.join(if pkg_file.exists() {
+            "package.py"
+        } else {
+            "package.yaml"
+        });
+        let src_pkg_file = if pkg_file.exists() {
+            &pkg_file
+        } else {
+            &pkg_yaml
+        };
         std::fs::copy(src_pkg_file, &dest_pkg_file)
             .map_err(|e| pyo3::exceptions::PyIOError::new_err(e.to_string()))?;
 
@@ -225,7 +233,11 @@ impl PyReleaseManager {
             return Ok((false, issues));
         }
 
-        let pkg_path = if pkg_file.exists() { &pkg_file } else { &pkg_yaml };
+        let pkg_path = if pkg_file.exists() {
+            &pkg_file
+        } else {
+            &pkg_yaml
+        };
         match PackageSerializer::load_from_file(pkg_path) {
             Ok(pkg) => {
                 if pkg.name.is_empty() {
@@ -250,9 +262,9 @@ impl PyReleaseManager {
         package_name: &str,
         paths: Option<Vec<String>>,
     ) -> PyResult<Vec<String>> {
+        use crate::expand_home;
         use rez_next_common::config::RezCoreConfig;
         use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
-        use crate::expand_home;
         use std::path::PathBuf;
 
         let rt = tokio::runtime::Runtime::new()
@@ -347,8 +359,7 @@ mod release_tests {
     #[test]
     fn test_validate_missing_dir_returns_issues() {
         let mgr = PyReleaseManager::new(None, false, false);
-        let (valid, issues) =
-            mgr.validate(Some("/nonexistent/path/xyz_abc_123")).unwrap();
+        let (valid, issues) = mgr.validate(Some("/nonexistent/path/xyz_abc_123")).unwrap();
         assert!(!valid);
         assert!(!issues.is_empty());
     }
@@ -371,8 +382,14 @@ mod release_tests {
         writeln!(f, "name = 'testpkg'\nversion = '1.0.0'\n").unwrap();
 
         let mgr = PyReleaseManager::new(Some("dry_run"), false, false);
-        let result = mgr.release(Some(dir.path().to_str().unwrap()), Some("test release")).unwrap();
-        assert!(result.success, "dry_run should succeed: {:?}", result.errors);
+        let result = mgr
+            .release(Some(dir.path().to_str().unwrap()), Some("test release"))
+            .unwrap();
+        assert!(
+            result.success,
+            "dry_run should succeed: {:?}",
+            result.errors
+        );
         assert!(result.install_path.contains("[dry-run]"));
         assert_eq!(result.package_name, "testpkg");
         assert_eq!(result.version, "1.0.0");

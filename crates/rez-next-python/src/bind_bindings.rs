@@ -4,10 +4,8 @@
 
 use pyo3::prelude::*;
 use rez_next_bind::{
-    BindOptions, PackageBinder,
-    list_builtin_binders, get_builtin_binder,
-    detect_tool_version, find_tool_executable,
-    extract_version_from_output,
+    detect_tool_version, extract_version_from_output, find_tool_executable, get_builtin_binder,
+    list_builtin_binders, BindOptions, PackageBinder,
 };
 use std::path::PathBuf;
 
@@ -28,20 +26,30 @@ pub struct PyBindResult {
 #[pymethods]
 impl PyBindResult {
     #[getter]
-    fn name(&self) -> &str { &self.name }
+    fn name(&self) -> &str {
+        &self.name
+    }
 
     #[getter]
-    fn version(&self) -> &str { &self.version }
+    fn version(&self) -> &str {
+        &self.version
+    }
 
     #[getter]
-    fn install_path(&self) -> &str { &self.install_path }
+    fn install_path(&self) -> &str {
+        &self.install_path
+    }
 
     #[getter]
-    fn executable_path(&self) -> Option<&str> { self.executable_path.as_deref() }
+    fn executable_path(&self) -> Option<&str> {
+        self.executable_path.as_deref()
+    }
 
     fn __repr__(&self) -> String {
-        format!("BindResult(name='{}', version='{}', path='{}')",
-            self.name, self.version, self.install_path)
+        format!(
+            "BindResult(name='{}', version='{}', path='{}')",
+            self.name, self.version, self.install_path
+        )
     }
 }
 
@@ -58,7 +66,9 @@ impl Default for PyBindManager {
 #[pymethods]
 impl PyBindManager {
     #[new]
-    pub fn new() -> Self { Self {} }
+    pub fn new() -> Self {
+        Self {}
+    }
 
     /// Bind a system tool as a rez package.
     /// Equivalent to `rez bind <tool_name> [--version <ver>] [--install-path <path>]`
@@ -79,21 +89,26 @@ impl PyBindManager {
             extra_metadata: Vec::new(),
         };
 
-        let result = binder.bind(tool_name, &opts)
+        let result = binder
+            .bind(tool_name, &opts)
             .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
 
         Ok(PyBindResult {
             name: result.name,
             version: result.version,
             install_path: result.install_path.to_string_lossy().to_string(),
-            executable_path: result.executable_path
+            executable_path: result
+                .executable_path
                 .map(|p| p.to_string_lossy().to_string()),
         })
     }
 
     /// List all built-in bindable tool names.
     fn list_binders(&self) -> Vec<String> {
-        list_builtin_binders().into_iter().map(|s| s.to_string()).collect()
+        list_builtin_binders()
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect()
     }
 
     /// Check whether a given tool name is a known built-in binder.
@@ -123,7 +138,10 @@ pub fn bind_tool(
 /// List all known built-in binder names.
 #[pyfunction]
 pub fn list_binders() -> Vec<String> {
-    list_builtin_binders().into_iter().map(|s| s.to_string()).collect()
+    list_builtin_binders()
+        .into_iter()
+        .map(|s| s.to_string())
+        .collect()
 }
 
 /// Detect the version of a system tool.

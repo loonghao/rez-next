@@ -7,9 +7,9 @@
 //! - Pip-converted package resolution simulation
 
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
-use std::hint::black_box;
 use rez_core::version::{Version, VersionRange};
 use rez_next_package::{Package, PackageRequirement};
+use std::hint::black_box;
 
 // ── Name normalization ─────────────────────────────────────────────────────
 
@@ -19,10 +19,26 @@ fn normalize_pip_name(name: &str) -> String {
 
 fn bench_name_normalization(c: &mut Criterion) {
     let names = vec![
-        "NumPy", "Pillow", "PyYAML", "scikit_learn", "Django",
-        "Twisted", "SQLAlchemy", "Werkzeug", "MarkupSafe", "Jinja2",
-        "cryptography", "cffi", "six", "python_dateutil", "pytz",
-        "certifi", "urllib3", "idna", "charset_normalizer", "requests",
+        "NumPy",
+        "Pillow",
+        "PyYAML",
+        "scikit_learn",
+        "Django",
+        "Twisted",
+        "SQLAlchemy",
+        "Werkzeug",
+        "MarkupSafe",
+        "Jinja2",
+        "cryptography",
+        "cffi",
+        "six",
+        "python_dateutil",
+        "pytz",
+        "certifi",
+        "urllib3",
+        "idna",
+        "charset_normalizer",
+        "requests",
     ];
 
     c.bench_function("pip_name_normalization_20_pkgs", |b| {
@@ -35,9 +51,7 @@ fn bench_name_normalization(c: &mut Criterion) {
 
     let mut group = c.benchmark_group("pip_name_normalization_scale");
     for count in [10, 100, 1000].iter() {
-        let large_names: Vec<String> = (0..*count)
-            .map(|i| format!("Package_Name_{}", i))
-            .collect();
+        let large_names: Vec<String> = (0..*count).map(|i| format!("Package_Name_{}", i)).collect();
 
         group.bench_with_input(BenchmarkId::from_parameter(count), count, |b, _| {
             b.iter(|| {
@@ -149,7 +163,10 @@ fn bench_pip_version_satisfaction(c: &mut Criterion) {
         ("matplotlib", "3.7.0"),
         ("pandas", "2.0.0"),
         ("requests", "2.31.0"),
-    ].into_iter().map(|(n, v)| (n.to_string(), Version::parse(v).unwrap())).collect();
+    ]
+    .into_iter()
+    .map(|(n, v)| (n.to_string(), Version::parse(v).unwrap()))
+    .collect();
 
     let requirements: Vec<(String, VersionRange)> = vec![
         ("numpy", "1.20+"),
@@ -157,7 +174,10 @@ fn bench_pip_version_satisfaction(c: &mut Criterion) {
         ("matplotlib", "3.0+<4.0"),
         ("pandas", "1.5+"),
         ("requests", "2.28+"),
-    ].into_iter().map(|(n, r)| (n.to_string(), VersionRange::parse(r).unwrap())).collect();
+    ]
+    .into_iter()
+    .map(|(n, r)| (n.to_string(), VersionRange::parse(r).unwrap()))
+    .collect();
 
     c.bench_function("pip_version_satisfaction_5_pkgs", |b| {
         b.iter(|| {
@@ -178,13 +198,26 @@ fn bench_pip_version_satisfaction(c: &mut Criterion) {
 fn bench_bulk_pip_metadata_conversion(c: &mut Criterion) {
     // Simulate processing a large pip freeze output
     let pip_packages: Vec<(&str, &str)> = vec![
-        ("numpy", "1.25.0"), ("scipy", "1.11.0"), ("matplotlib", "3.7.0"),
-        ("pandas", "2.0.0"), ("requests", "2.31.0"), ("pillow", "10.0.0"),
-        ("pyyaml", "6.0.0"), ("cryptography", "41.0.0"), ("certifi", "2023.7.22"),
-        ("urllib3", "2.0.0"), ("django", "4.2.0"), ("flask", "2.3.0"),
-        ("sqlalchemy", "2.0.0"), ("celery", "5.3.0"), ("boto3", "1.28.0"),
-        ("paramiko", "3.3.0"), ("aiohttp", "3.8.0"), ("fastapi", "0.103.0"),
-        ("pydantic", "2.3.0"), ("httpx", "0.25.0"),
+        ("numpy", "1.25.0"),
+        ("scipy", "1.11.0"),
+        ("matplotlib", "3.7.0"),
+        ("pandas", "2.0.0"),
+        ("requests", "2.31.0"),
+        ("pillow", "10.0.0"),
+        ("pyyaml", "6.0.0"),
+        ("cryptography", "41.0.0"),
+        ("certifi", "2023.7.22"),
+        ("urllib3", "2.0.0"),
+        ("django", "4.2.0"),
+        ("flask", "2.3.0"),
+        ("sqlalchemy", "2.0.0"),
+        ("celery", "5.3.0"),
+        ("boto3", "1.28.0"),
+        ("paramiko", "3.3.0"),
+        ("aiohttp", "3.8.0"),
+        ("fastapi", "0.103.0"),
+        ("pydantic", "2.3.0"),
+        ("httpx", "0.25.0"),
     ];
 
     c.bench_function("pip_bulk_metadata_conversion_20_pkgs", |b| {

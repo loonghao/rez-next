@@ -87,7 +87,10 @@ impl PyDependsResult {
     /// Format as human-readable text (like `rez depends` terminal output).
     fn format(&self) -> String {
         let mut lines = Vec::new();
-        lines.push(format!("Reverse dependencies for '{}':", self.queried_package));
+        lines.push(format!(
+            "Reverse dependencies for '{}':",
+            self.queried_package
+        ));
         if self.direct_dependants.is_empty() && self.transitive_dependants.is_empty() {
             lines.push("  (no dependants found)".to_string());
         } else {
@@ -96,7 +99,10 @@ impl PyDependsResult {
                 let mut sorted = self.direct_dependants.clone();
                 sorted.sort_by(|a, b| a.name.cmp(&b.name).then(a.version.cmp(&b.version)));
                 for e in &sorted {
-                    lines.push(format!("    {}-{}  (requires '{}')", e.name, e.version, e.requirement));
+                    lines.push(format!(
+                        "    {}-{}  (requires '{}')",
+                        e.name, e.version, e.requirement
+                    ));
                 }
             }
             if !self.transitive_dependants.is_empty() {
@@ -104,7 +110,10 @@ impl PyDependsResult {
                 let mut sorted = self.transitive_dependants.clone();
                 sorted.sort_by(|a, b| a.name.cmp(&b.name).then(a.version.cmp(&b.version)));
                 for e in &sorted {
-                    lines.push(format!("    {}-{}  (requires '{}')", e.name, e.version, e.requirement));
+                    lines.push(format!(
+                        "    {}-{}  (requires '{}')",
+                        e.name, e.version, e.requirement
+                    ));
                 }
             }
         }
@@ -216,10 +225,8 @@ pub fn compute_depends(
     // For transitive: find packages that depend on any direct dependant
     let mut transitive_dependants = Vec::new();
     if transitive {
-        let direct_names: std::collections::HashSet<&str> = direct_dependants
-            .iter()
-            .map(|e| e.name.as_str())
-            .collect();
+        let direct_names: std::collections::HashSet<&str> =
+            direct_dependants.iter().map(|e| e.name.as_str()).collect();
 
         for pkg in &all_packages {
             if pkg.name == target_name || direct_names.contains(pkg.name.as_str()) {
@@ -284,8 +291,8 @@ pub fn get_reverse_dependencies(
     paths: Option<Vec<String>>,
     transitive: bool,
 ) -> PyResult<PyDependsResult> {
-    use rez_next_common::config::RezCoreConfig;
     use crate::expand_home;
+    use rez_next_common::config::RezCoreConfig;
     use std::path::PathBuf;
 
     let config = RezCoreConfig::load();
@@ -431,22 +438,18 @@ mod depends_bindings_tests {
     fn test_depends_result_total_count_dedup() {
         let result = PyDependsResult {
             queried_package: "python".to_string(),
-            direct_dependants: vec![
-                PyDependsEntry {
-                    name: "maya".to_string(),
-                    version: "2024.1".to_string(),
-                    requirement: "python-3.9".to_string(),
-                    dependency_type: "direct".to_string(),
-                },
-            ],
-            transitive_dependants: vec![
-                PyDependsEntry {
-                    name: "nuke".to_string(),
-                    version: "14.0".to_string(),
-                    requirement: "maya-2024".to_string(),
-                    dependency_type: "transitive".to_string(),
-                },
-            ],
+            direct_dependants: vec![PyDependsEntry {
+                name: "maya".to_string(),
+                version: "2024.1".to_string(),
+                requirement: "python-3.9".to_string(),
+                dependency_type: "direct".to_string(),
+            }],
+            transitive_dependants: vec![PyDependsEntry {
+                name: "nuke".to_string(),
+                version: "14.0".to_string(),
+                requirement: "maya-2024".to_string(),
+                dependency_type: "transitive".to_string(),
+            }],
         };
         assert_eq!(result.total_count(), 2);
     }
@@ -455,22 +458,18 @@ mod depends_bindings_tests {
     fn test_depends_result_all_dependants() {
         let result = PyDependsResult {
             queried_package: "python".to_string(),
-            direct_dependants: vec![
-                PyDependsEntry {
-                    name: "maya".to_string(),
-                    version: "2024.1".to_string(),
-                    requirement: "python-3.9".to_string(),
-                    dependency_type: "direct".to_string(),
-                },
-            ],
-            transitive_dependants: vec![
-                PyDependsEntry {
-                    name: "nuke".to_string(),
-                    version: "14.0".to_string(),
-                    requirement: "maya-2024".to_string(),
-                    dependency_type: "transitive".to_string(),
-                },
-            ],
+            direct_dependants: vec![PyDependsEntry {
+                name: "maya".to_string(),
+                version: "2024.1".to_string(),
+                requirement: "python-3.9".to_string(),
+                dependency_type: "direct".to_string(),
+            }],
+            transitive_dependants: vec![PyDependsEntry {
+                name: "nuke".to_string(),
+                version: "14.0".to_string(),
+                requirement: "maya-2024".to_string(),
+                dependency_type: "transitive".to_string(),
+            }],
         };
         let all = result.all_dependants();
         assert_eq!(all.len(), 2);
@@ -522,22 +521,18 @@ mod depends_bindings_tests {
     fn test_format_with_transitive_section() {
         let result = PyDependsResult {
             queried_package: "python".to_string(),
-            direct_dependants: vec![
-                PyDependsEntry {
-                    name: "maya".to_string(),
-                    version: "2024.1".to_string(),
-                    requirement: "python-3.9".to_string(),
-                    dependency_type: "direct".to_string(),
-                },
-            ],
-            transitive_dependants: vec![
-                PyDependsEntry {
-                    name: "nuke".to_string(),
-                    version: "14.0".to_string(),
-                    requirement: "maya-2024".to_string(),
-                    dependency_type: "transitive".to_string(),
-                },
-            ],
+            direct_dependants: vec![PyDependsEntry {
+                name: "maya".to_string(),
+                version: "2024.1".to_string(),
+                requirement: "python-3.9".to_string(),
+                dependency_type: "direct".to_string(),
+            }],
+            transitive_dependants: vec![PyDependsEntry {
+                name: "nuke".to_string(),
+                version: "14.0".to_string(),
+                requirement: "maya-2024".to_string(),
+                dependency_type: "transitive".to_string(),
+            }],
         };
         let output = result.format();
         assert!(output.contains("Direct"));

@@ -44,7 +44,6 @@ pub struct EnvVarDefinition {
     pub priority: i32,
 }
 
-
 impl EnvironmentManager {
     /// Create a new environment manager
     pub fn new(config: ContextConfig) -> Self {

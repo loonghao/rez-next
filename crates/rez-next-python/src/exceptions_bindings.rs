@@ -25,12 +25,15 @@
 //!     +-- RezSystemError
 //! ```
 
-use pyo3::prelude::*;
 use pyo3::exceptions::PyException;
+use pyo3::prelude::*;
 
 // ─── Root exception ───────────────────────────────────────────────────────────
 
-pyo3::create_exception!(rez_next, RezError, PyException,
+pyo3::create_exception!(
+    rez_next,
+    RezError,
+    PyException,
     "Base exception for all rez-next errors.\n\nAll rez-next exceptions inherit from this class."
 );
 
@@ -58,7 +61,10 @@ pyo3::create_exception!(rez_next, PackageParseError, RezError,
 
 // ─── Resolve exceptions ───────────────────────────────────────────────────────
 
-pyo3::create_exception!(rez_next, ResolveError, RezError,
+pyo3::create_exception!(
+    rez_next,
+    ResolveError,
+    RezError,
     "Raised when dependency resolution fails.\n\nEquivalent to rez.exceptions.ResolveError."
 );
 
@@ -72,11 +78,17 @@ pyo3::create_exception!(rez_next, PackageConflict, ResolveError,
 
 // ─── Build / release exceptions ───────────────────────────────────────────────
 
-pyo3::create_exception!(rez_next, RezBuildError, RezError,
+pyo3::create_exception!(
+    rez_next,
+    RezBuildError,
+    RezError,
     "Raised when a package build fails.\n\nEquivalent to rez.exceptions.RezBuildError."
 );
 
-pyo3::create_exception!(rez_next, RezReleaseError, RezError,
+pyo3::create_exception!(
+    rez_next,
+    RezReleaseError,
+    RezError,
     "Raised when a package release fails.\n\nEquivalent to rez.exceptions.RezReleaseError."
 );
 
@@ -94,7 +106,10 @@ pyo3::create_exception!(rez_next, ContextBundleError, RezError,
 
 // ─── Suite exceptions ────────────────────────────────────────────────────────
 
-pyo3::create_exception!(rez_next, SuiteError, RezError,
+pyo3::create_exception!(
+    rez_next,
+    SuiteError,
+    RezError,
     "Raised when suite management operations fail.\n\nEquivalent to rez.exceptions.SuiteError."
 );
 
@@ -110,7 +125,10 @@ pyo3::create_exception!(rez_next, RexUndefinedVariableError, RexError,
 
 // ─── System exceptions ────────────────────────────────────────────────────────
 
-pyo3::create_exception!(rez_next, RezSystemError, RezError,
+pyo3::create_exception!(
+    rez_next,
+    RezSystemError,
+    RezError,
     "Raised for internal rez-next errors.\n\nEquivalent to rez.exceptions.RezSystemError."
 );
 
@@ -123,9 +141,18 @@ pub fn register_all_exceptions(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
     // Package
     m.add("PackageNotFound", m.py().get_type::<PackageNotFound>())?;
-    m.add("PackageFamilyNotFound", m.py().get_type::<PackageFamilyNotFound>())?;
-    m.add("PackageVersionConflict", m.py().get_type::<PackageVersionConflict>())?;
-    m.add("PackageRequestError", m.py().get_type::<PackageRequestError>())?;
+    m.add(
+        "PackageFamilyNotFound",
+        m.py().get_type::<PackageFamilyNotFound>(),
+    )?;
+    m.add(
+        "PackageVersionConflict",
+        m.py().get_type::<PackageVersionConflict>(),
+    )?;
+    m.add(
+        "PackageRequestError",
+        m.py().get_type::<PackageRequestError>(),
+    )?;
     m.add("PackageParseError", m.py().get_type::<PackageParseError>())?;
 
     // Resolve
@@ -138,22 +165,29 @@ pub fn register_all_exceptions(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("RezReleaseError", m.py().get_type::<RezReleaseError>())?;
 
     // Config
-    m.add("ConfigurationError", m.py().get_type::<ConfigurationError>())?;
+    m.add(
+        "ConfigurationError",
+        m.py().get_type::<ConfigurationError>(),
+    )?;
 
     // Context / bundle
-    m.add("ContextBundleError", m.py().get_type::<ContextBundleError>())?;
+    m.add(
+        "ContextBundleError",
+        m.py().get_type::<ContextBundleError>(),
+    )?;
 
     // Suite
     m.add("SuiteError", m.py().get_type::<SuiteError>())?;
 
     // Rex
     m.add("RexError", m.py().get_type::<RexError>())?;
-    m.add("RexUndefinedVariableError", m.py().get_type::<RexUndefinedVariableError>())?;
+    m.add(
+        "RexUndefinedVariableError",
+        m.py().get_type::<RexUndefinedVariableError>(),
+    )?;
 
     // System
     m.add("RezSystemError", m.py().get_type::<RezSystemError>())?;
 
     Ok(())
 }
-
-

@@ -29,7 +29,7 @@ num_cpus = "1.17"
 rand = "0.9"
 
 # Internal dependencies
-rez-next-common = { version = "0.2.0", path = "../rez-next-common" }
+rez-next-common = { version = "0.3.0", path = "../rez-next-common" }
 
 [dev-dependencies]
 criterion = { version = "0.8", features = ["html_reports"] }

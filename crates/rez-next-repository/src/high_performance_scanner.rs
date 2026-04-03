@@ -264,9 +264,7 @@ impl HighPerformanceScanner {
             // Use Rayon for work-stealing parallelism on large datasets
             let results_vec: Vec<_> = package_files
                 .iter()
-                .filter_map(|path| {
-                    futures::executor::block_on(self.scan_file_optimized(path)).ok()
-                })
+                .filter_map(|path| futures::executor::block_on(self.scan_file_optimized(path)).ok())
                 .collect();
 
             Ok(results_vec)

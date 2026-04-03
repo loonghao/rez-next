@@ -7,7 +7,6 @@ mod astar_standalone {
     use serde::{Deserialize, Serialize};
     use std::collections::HashMap;
     use std::hash::{Hash, Hasher};
-    
 
     // Standalone type definitions
     #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]

@@ -615,7 +615,10 @@ mod tests {
         let config = UnifiedCacheConfig::default();
         let cache = IntelligentCacheManager::<String, String>::new(config);
         let type_id = cache.cache_type();
-        assert!(!type_id.is_empty(), "cache_type() should return a non-empty string");
+        assert!(
+            !type_id.is_empty(),
+            "cache_type() should return a non-empty string"
+        );
     }
 
     /// Test summary_report contains expected fields
@@ -627,8 +630,14 @@ mod tests {
         stats.l1_stats.misses = 30;
         stats.update_overall_stats();
         let report = stats.summary_report();
-        assert!(report.contains("Hit Rate"), "Report should contain 'Hit Rate'");
-        assert!(report.contains("Entries"), "Report should contain 'Entries'");
+        assert!(
+            report.contains("Hit Rate"),
+            "Report should contain 'Hit Rate'"
+        );
+        assert!(
+            report.contains("Entries"),
+            "Report should contain 'Entries'"
+        );
     }
 
     /// Test CacheLevelStats hit_rate calculation
@@ -643,9 +652,13 @@ mod tests {
             ..Default::default()
         };
         stats.update_calculated_fields();
-        assert!((stats.hit_rate - 0.75).abs() < 1e-10,
-            "Hit rate should be exactly 0.75 for 3 hits / 4 total");
-        assert!((stats.load_factor - 0.5).abs() < 1e-10,
-            "Load factor should be 0.5 for 5 entries / 10 capacity");
+        assert!(
+            (stats.hit_rate - 0.75).abs() < 1e-10,
+            "Hit rate should be exactly 0.75 for 3 hits / 4 total"
+        );
+        assert!(
+            (stats.load_factor - 0.5).abs() < 1e-10,
+            "Load factor should be 0.5 for 5 entries / 10 capacity"
+        );
     }
 }

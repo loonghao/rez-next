@@ -91,10 +91,8 @@ impl AStarSearch {
     ) -> Self {
         let mut repo_manager = RepositoryManager::new();
         for (i, path) in paths.into_iter().filter(|p| p.exists()).enumerate() {
-            repo_manager.add_repository(Box::new(SimpleRepository::new(
-                path,
-                format!("repo_{}", i),
-            )));
+            repo_manager
+                .add_repository(Box::new(SimpleRepository::new(path, format!("repo_{}", i))));
         }
         Self::new(Arc::new(repo_manager), config, max_search_time, max_states)
     }
@@ -355,8 +353,7 @@ impl AStarSearch {
 
     /// Reconstruct solution packages from goal state (sorted by dependency order)
     pub fn reconstruct_path(&self, goal_state: &SearchState) -> Vec<Package> {
-        let mut packages: Vec<Package> =
-            goal_state.resolved_packages.values().cloned().collect();
+        let mut packages: Vec<Package> = goal_state.resolved_packages.values().cloned().collect();
         // Sort by version descending for determinism
         packages.sort_by(|a, b| match (&b.version, &a.version) {
             (Some(v1), Some(v2)) => v1.cmp(v2),
@@ -383,7 +380,9 @@ mod tests {
             "name = \"{}\"\nversion = \"{}\"\ndescription = \"Test\"\n",
             name, version
         );
-        fs::write(pkg_dir.join("package.py"), content).await.unwrap();
+        fs::write(pkg_dir.join("package.py"), content)
+            .await
+            .unwrap();
     }
 
     #[tokio::test]
@@ -401,15 +400,17 @@ mod tests {
     async fn test_astar_empty_requirements_returns_goal() {
         let repo_manager = Arc::new(RepositoryManager::new());
         let config = SolverConfig::default();
-        let mut search =
-            AStarSearch::new(repo_manager, config, Duration::from_secs(30), 1000);
+        let mut search = AStarSearch::new(repo_manager, config, Duration::from_secs(30), 1000);
 
         let result = search
             .search(vec![], |_| 0.0)
             .await
             .expect("search should not fail");
 
-        assert!(result.is_some(), "Empty requirements => immediate goal state");
+        assert!(
+            result.is_some(),
+            "Empty requirements => immediate goal state"
+        );
         assert!(result.unwrap().is_goal());
     }
 
@@ -425,12 +426,8 @@ mod tests {
         )));
 
         let config = SolverConfig::default();
-        let mut search = AStarSearch::new(
-            Arc::new(repo_manager),
-            config,
-            Duration::from_secs(10),
-            500,
-        );
+        let mut search =
+            AStarSearch::new(Arc::new(repo_manager), config, Duration::from_secs(10), 500);
 
         let req = PackageRequirement::new("python".to_string());
         let result = search
@@ -467,27 +464,34 @@ mod tests {
 
         let cost_no = search.calculate_package_cost(&pkg_no_deps);
         let cost_with = search.calculate_package_cost(&pkg_with_deps);
-        assert!(cost_with > cost_no, "Packages with more deps should cost more");
+        assert!(
+            cost_with > cost_no,
+            "Packages with more deps should cost more"
+        );
     }
 
     #[tokio::test]
     async fn test_astar_stats_updated_after_search() {
         let repo_manager = Arc::new(RepositoryManager::new());
         let config = SolverConfig::default();
-        let mut search =
-            AStarSearch::new(repo_manager, config, Duration::from_secs(30), 1000);
+        let mut search = AStarSearch::new(repo_manager, config, Duration::from_secs(30), 1000);
 
         search.search(vec![], |_| 0.0).await.unwrap();
-        assert!(search.stats.states_explored >= 1, "At least 1 state explored");
-        assert!(search.stats.search_time_ms < 5000, "Should complete quickly");
+        assert!(
+            search.stats.states_explored >= 1,
+            "At least 1 state explored"
+        );
+        assert!(
+            search.stats.search_time_ms < 5000,
+            "Should complete quickly"
+        );
     }
 
     #[tokio::test]
     async fn test_astar_clear_resets_state() {
         let repo_manager = Arc::new(RepositoryManager::new());
         let config = SolverConfig::default();
-        let mut search =
-            AStarSearch::new(repo_manager, config, Duration::from_secs(30), 1000);
+        let mut search = AStarSearch::new(repo_manager, config, Duration::from_secs(30), 1000);
 
         search.search(vec![], |_| 0.0).await.unwrap();
         search.clear();
