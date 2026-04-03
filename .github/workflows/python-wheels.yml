@@ -60,12 +60,6 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - uses: loonghao/vx@main
-        with:
-          tools: "uv"
-          cache: "true"
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Download wheels
         uses: actions/download-artifact@v4
         with:
@@ -75,19 +69,29 @@ jobs:
       - name: Install wheel and test dependencies
         shell: bash
         run: |
-          vx uv pip install --system dist/*.whl
-          vx uv pip install --system pytest
+          echo "=== Listing dist/ ==="
+          ls -la dist/ || echo "(dist is empty or missing)"
+          echo "=== Installing wheel ==="
+          python -m pip install dist/*.whl
+          python -m pip install pytest
+          echo "=== Installed packages ==="
+          python -m pip show rez-next || true
 
       - name: Smoke test — basic import
         shell: bash
         run: |
           python -c "
           import traceback, sys
+          print('Python:', sys.version)
+          print('sys.path:', sys.path[:5])
           try:
               import rez_next
+              print('rez_next location:', rez_next.__file__)
               print('rez_next version:', rez_next.__version__)
               v = rez_next.Version('1.2.3')
+              print('Version created:', v)
               r = rez_next.VersionRange('1.0+')
+              print('VersionRange created:', r)
               assert r.contains(v), 'VersionRange.contains failed'
               print('Smoke test passed!')
           except Exception as e:
@@ -97,4 +101,4 @@ jobs:
 
       - name: Run all Python tests
         working-directory: crates/rez-next-python
-        run: pytest tests/ -v --tb=short -x
+        run: python -m pytest tests/ -v --tb=short -x
