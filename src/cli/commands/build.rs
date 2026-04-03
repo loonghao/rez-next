@@ -3,7 +3,7 @@
 //! Implements the `rez build` command for building packages from source.
 
 use clap::Args;
-use rez_next_build::{BuildManager, BuildOptions, BuildRequest, BuildStatus};
+use rez_next_build::{BuildManager, BuildOptions, BuildRequest};
 use rez_next_common::{error::RezCoreResult, RezCoreError};
 use rez_next_package::Package;
 use std::collections::HashMap;
@@ -103,7 +103,7 @@ pub fn execute(args: BuildArgs) -> RezCoreResult<()> {
         fetch_and_load_remote_source(source_url, &args)?
     } else {
         // Local source (current directory)
-        let working_dir = std::env::current_dir().map_err(|e| RezCoreError::Io(e))?;
+        let working_dir = std::env::current_dir().map_err(RezCoreError::Io)?;
         let package = load_current_package(&working_dir)?;
         (working_dir, package)
     };
@@ -216,7 +216,7 @@ fn fetch_and_load_remote_source(
     source_url: &str,
     args: &BuildArgs,
 ) -> RezCoreResult<(PathBuf, Package)> {
-    use rez_next_build::{NetworkSource, SourceManager};
+    use rez_next_build::SourceManager;
     use tempfile::TempDir;
 
     if args.verbose {
@@ -247,7 +247,7 @@ fn fetch_and_load_remote_source(
 
     let source_path = runtime.block_on(async {
         source_manager
-            .fetch_source(&network_source, &temp_dir.path().to_path_buf())
+            .fetch_source(&network_source, temp_dir.path())
             .await
     })?;
 
@@ -327,7 +327,7 @@ fn copy_dir_recursive(src: &PathBuf, dest: &PathBuf) -> RezCoreResult<()> {
 }
 
 /// Load package from current directory
-fn load_current_package(working_dir: &PathBuf) -> RezCoreResult<Package> {
+fn load_current_package(working_dir: &Path) -> RezCoreResult<Package> {
     use rez_next_package::serialization::PackageSerializer;
 
     // Look for package.py or package.yaml
@@ -358,43 +358,6 @@ fn parse_build_args(args_str: &Option<String>) -> Vec<String> {
         Some(args) => args.split_whitespace().map(|s| s.to_string()).collect(),
         None => Vec::new(),
     }
-}
-
-/// View preprocessed package definition
-fn view_preprocessed_package(args: &BuildArgs) -> RezCoreResult<()> {
-    let working_dir = std::env::current_dir().map_err(|e| RezCoreError::Io(e))?;
-
-    let package = load_current_package(&working_dir)?;
-
-    // Print package information in Python format
-    println!("# Preprocessed package definition");
-    println!("name = '{}'", package.name);
-
-    if let Some(ref version) = package.version {
-        println!("version = '{}'", version.as_str());
-    }
-
-    if let Some(ref description) = package.description {
-        println!("description = '{}'", description);
-    }
-
-    if !package.requires.is_empty() {
-        println!("requires = [");
-        for req in &package.requires {
-            println!("    '{}',", req);
-        }
-        println!("]");
-    }
-
-    if !package.build_requires.is_empty() {
-        println!("build_requires = [");
-        for req in &package.build_requires {
-            println!("    '{}',", req);
-        }
-        println!("]");
-    }
-
-    Ok(())
 }
 
 /// View preprocessed package definition with package data
@@ -434,8 +397,8 @@ fn view_preprocessed_package_with_data(package: &Package) -> RezCoreResult<()> {
 fn execute_build(
     request: BuildRequest,
     args: &BuildArgs,
-    package: &Package,
-    source_dir: &PathBuf,
+    _package: &Package,
+    _source_dir: &PathBuf,
 ) -> RezCoreResult<()> {
     // Create build manager
     let mut build_manager = BuildManager::new();
@@ -541,7 +504,7 @@ fn validate_drive_path(path: &str) -> RezCoreResult<String> {
         ));
     }
 
-    let drive_char = path.chars().nth(0).unwrap();
+    let drive_char = path.chars().next().unwrap();
     if !drive_char.is_ascii_alphabetic() || path.chars().nth(1) != Some(':') {
         return Err(RezCoreError::ConfigError(
             "Drive path must start with a letter followed by colon (e.g., C:)".to_string(),
@@ -612,13 +575,4 @@ fn get_install_path(args: &BuildArgs) -> RezCoreResult<PathBuf> {
     };
 
     Ok(PathBuf::from(install_path_str))
-}
-
-/// Generate package.py content
-fn generate_package_content(package: &Package) -> RezCoreResult<String> {
-    use rez_next_package::serialization::{PackageFormat, PackageSerializer};
-
-    PackageSerializer::save_to_string(package, PackageFormat::Python).map_err(|e| {
-        RezCoreError::PackageParse(format!("Failed to generate package content: {}", e))
-    })
 }

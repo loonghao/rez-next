@@ -263,7 +263,7 @@ impl SpawnedProcess {
     }
 
     /// Wait for the process to complete
-    pub async fn wait(mut self) -> Result<ProcessResult, RezCoreError> {
+    pub async fn wait(self) -> Result<ProcessResult, RezCoreError> {
         let output = self.child.wait_with_output().await.map_err(|e| {
             RezCoreError::ExecutionError(format!("Failed to wait for process: {}", e))
         })?;

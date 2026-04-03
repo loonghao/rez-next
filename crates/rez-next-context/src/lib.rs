@@ -24,17 +24,3 @@ pub use shell::*;
 
 #[cfg(test)]
 mod tests;
-
-// use pyo3::prelude::*;  // Temporarily disabled due to DLL issues
-
-// Python module temporarily disabled due to DLL issues
-/*
-/// Initialize the context module for Python
-#[pymodule]
-fn rez_next_context(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_class::<ResolvedContext>()?;
-    m.add_class::<EnvironmentManager>()?;
-    m.add_class::<ShellExecutor>()?;
-    Ok(())
-}
-*/

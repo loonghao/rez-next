@@ -9,20 +9,13 @@ Benchmarks for rez-next using [Criterion.rs](https://docs.rs/criterion/).
 | `version_benchmark.rs` | Version parsing, comparison, sorting, state-machine parser |
 | `package_benchmark.rs` | Package creation, serialization, deserialization, validation, variants |
 | `simple_package_benchmark.rs` | Standalone package benchmarks |
-
-```bash
-vx just bench
-```
-
-## Disabled
-
-The following exist but are commented out in `Cargo.toml` due to API changes:
-
-- `comprehensive_benchmark_suite.rs`
-- `solver_benchmark.rs` / `solver_benchmark_main.rs`
-- `context_benchmark.rs` / `context_benchmark_main.rs` / `simple_context_benchmark.rs`
-- `build_cache_benchmark.rs` / `build_cache_benchmark_main.rs` / `simple_build_cache_benchmark.rs`
-- `performance_validation_benchmark.rs` / `performance_validation_main.rs`
+| `solver_real_repo_bench.rs` | Solver resolution on real filesystem repos; A* vs greedy comparison |
+| `solver_bench_v2.rs` | Solver v2 micro-benchmarks: single/multi-package, conflict detection |
+| `rex_benchmark.rs` | Rex command interpreter execution throughput |
+| `pip_conversion_benchmark.rs` | pip→rez requirement conversion throughput |
+| `context_operations_benchmark.rs` | Context creation, env-var generation, PATH prepend |
+| `depends_benchmark.rs` | Dependency graph traversal and ranking |
+| `cache_operations_benchmark.rs` | Cache put/get/eviction, hot-path pkg lookup (7 scenarios) |
 
 ## Recent results (Windows, release profile)
 

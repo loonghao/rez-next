@@ -157,7 +157,7 @@ impl DependencyGraph {
     pub fn add_requirement(&mut self, requirement: PackageRequirement) -> Result<(), RezCoreError> {
         self.requirements
             .entry(requirement.name.clone())
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(requirement);
 
         Ok(())
@@ -480,5 +480,78 @@ fn requirements_compatible(req1: &PackageRequirement, req2: &PackageRequirement)
     ) {
         (Ok(r1), Ok(r2)) => r1.intersect(&r2).is_some(),
         _ => true, // If parsing fails, assume compatible (don't false-flag)
+    }
+}
+
+#[cfg(test)]
+mod graph_tests {
+    use super::*;
+
+    fn make_pkg(name: &str, ver: &str) -> Package {
+        let mut p = Package::new(name.to_string());
+        p.version = Some(Version::parse(ver).unwrap());
+        p
+    }
+
+    /// New graph starts empty
+    #[test]
+    fn test_graph_new_is_empty() {
+        let g = DependencyGraph::new();
+        let stats = g.get_stats();
+        assert_eq!(stats.node_count, 0);
+        assert_eq!(stats.edge_count, 0);
+        assert_eq!(stats.conflict_count, 0);
+    }
+
+    /// Adding a package increases node count
+    #[test]
+    fn test_graph_add_package_increments_nodes() {
+        let mut g = DependencyGraph::new();
+        g.add_package(make_pkg("python", "3.9.0")).unwrap();
+        let stats = g.get_stats();
+        assert_eq!(stats.node_count, 1);
+    }
+
+    /// Adding duplicate package is idempotent (no error, same count)
+    #[test]
+    fn test_graph_add_duplicate_package_no_error() {
+        let mut g = DependencyGraph::new();
+        g.add_package(make_pkg("maya", "2023.0")).unwrap();
+        // Adding same package again should be ok (update or ignore)
+        let result = g.add_package(make_pkg("maya", "2023.0"));
+        assert!(result.is_ok(), "Re-adding same package should not error");
+    }
+
+    /// clear() resets graph to empty
+    #[test]
+    fn test_graph_clear_resets_state() {
+        let mut g = DependencyGraph::new();
+        g.add_package(make_pkg("houdini", "20.0")).unwrap();
+        g.add_package(make_pkg("python", "3.10.0")).unwrap();
+        g.clear();
+        let stats = g.get_stats();
+        assert_eq!(stats.node_count, 0);
+        assert_eq!(stats.conflict_count, 0);
+    }
+
+    /// get_resolved_packages returns packages with no conflicts
+    #[test]
+    fn test_graph_get_resolved_packages_no_conflicts() {
+        let mut g = DependencyGraph::new();
+        g.add_package(make_pkg("nuke", "14.0")).unwrap();
+        g.add_package(make_pkg("ocio", "2.1")).unwrap();
+        let resolved = g.get_resolved_packages().unwrap();
+        assert_eq!(resolved.len(), 2);
+    }
+
+    /// requirements_compatible: unconstrained requirements are always compatible
+    #[test]
+    fn test_requirements_compatible_unconstrained() {
+        let r1 = PackageRequirement::parse("python").unwrap();
+        let r2 = PackageRequirement::parse("python").unwrap();
+        assert!(
+            requirements_compatible(&r1, &r2),
+            "Two unconstrained requirements for same package should be compatible"
+        );
     }
 }

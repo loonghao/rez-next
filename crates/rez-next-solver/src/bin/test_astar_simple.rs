@@ -390,7 +390,7 @@ fn test_state_transitions() -> Result<(), String> {
     }
 
     let complexity = child_state.calculate_complexity();
-    let expected_complexity = 1 + 3 + 0; // 1 resolved + 3 pending + 0 conflicts
+    let expected_complexity = 1 + 3; // 1 resolved + 3 pending + 0 conflicts
     if complexity != expected_complexity {
         return Err(format!(
             "Expected complexity {}, got {}",

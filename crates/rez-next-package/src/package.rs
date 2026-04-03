@@ -1,7 +1,5 @@
 //! Package implementation
 
-#[cfg(feature = "python-bindings")]
-use pyo3::prelude::*;
 use rez_next_common::RezCoreError;
 use rez_next_version::Version;
 
@@ -15,8 +13,27 @@ pub struct PackageRequirement {
     pub name: String,
     /// Version requirement (optional)
     pub version_spec: Option<String>,
-    /// Whether this is a weak requirement
+    /// Whether this is a weak requirement (prefix ~)
     pub weak: bool,
+    /// Whether this is a conflict requirement (prefix !)
+    pub conflict: bool,
+}
+
+impl std::fmt::Display for PackageRequirement {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let base = if let Some(ref version) = self.version_spec {
+            format!("{}-{}", self.name, version)
+        } else {
+            self.name.clone()
+        };
+        if self.conflict {
+            write!(f, "!{}", base)
+        } else if self.weak {
+            write!(f, "~{}", base)
+        } else {
+            write!(f, "{}", base)
+        }
+    }
 }
 
 impl PackageRequirement {
@@ -26,6 +43,7 @@ impl PackageRequirement {
             name,
             version_spec: None,
             weak: false,
+            conflict: false,
         }
     }
 
@@ -35,19 +53,60 @@ impl PackageRequirement {
             name,
             version_spec: Some(version_spec),
             weak: false,
+            conflict: false,
         }
     }
 
-    /// Parse a requirement string like "python-3.9" or "maya>=2023"
+    /// Parse a requirement string.
+    ///
+    /// Supports the following rez requirement formats:
+    /// - `python` — plain name requirement
+    /// - `python-3.9` — name with version
+    /// - `python>=3.9` — name with operator-prefixed version spec
+    /// - `~python` — weak (optional) requirement
+    /// - `!python` — conflict requirement (must NOT be present)
+    /// - `!python-3.9` — conflict requirement with version
     pub fn parse(requirement_str: &str) -> Result<Self, RezCoreError> {
-        // Simple parsing - can be enhanced later
-        if let Some(dash_pos) = requirement_str.rfind('-') {
-            let name = requirement_str[..dash_pos].to_string();
-            let version = requirement_str[dash_pos + 1..].to_string();
-            Ok(Self::with_version(name, version))
+        // Handle conflict requirement prefix (!)
+        let (s, conflict) = if let Some(rest) = requirement_str.strip_prefix('!') {
+            (rest, true)
         } else {
-            Ok(Self::new(requirement_str.to_string()))
-        }
+            (requirement_str, false)
+        };
+
+        // Handle weak requirement prefix (~), but not ~= which is a version operator
+        let (s, weak) = if s.starts_with('~') && !s.starts_with("~=") {
+            if let Some(rest) = s.strip_prefix('~') {
+                (rest, true)
+            } else {
+                (s, false)
+            }
+        } else {
+            (s, false)
+        };
+
+        // Parse name and version
+        let mut req = if let Some(dash_pos) = s.rfind('-') {
+            // Ensure it's a version separator and not part of the name
+            let potential_name = &s[..dash_pos];
+            let potential_version = &s[dash_pos + 1..];
+            // A version separator dash is followed by a digit
+            if potential_version
+                .chars()
+                .next()
+                .map(|c| c.is_ascii_digit())
+                .unwrap_or(false)
+            {
+                Self::with_version(potential_name.to_string(), potential_version.to_string())
+            } else {
+                Self::new(s.to_string())
+            }
+        } else {
+            Self::new(s.to_string())
+        };
+        req.weak = weak;
+        req.conflict = conflict;
+        Ok(req)
     }
 
     /// Get the package name
@@ -58,15 +117,6 @@ impl PackageRequirement {
     /// Get the version specification
     pub fn version_spec(&self) -> Option<&str> {
         self.version_spec.as_deref()
-    }
-
-    /// Convert to string representation
-    pub fn to_string(&self) -> String {
-        if let Some(ref version) = self.version_spec {
-            format!("{}-{}", self.name, version)
-        } else {
-            self.name.clone()
-        }
     }
 
     /// Get requirement string (for compatibility)
@@ -102,20 +152,20 @@ impl PackageRequirement {
         use rez_next_version::VersionRange;
 
         // Handle PEP 440 / rez operators first (before VersionRange stub)
-        let (op, ver_str) = if spec.starts_with(">=") {
-            (">=", &spec[2..])
-        } else if spec.starts_with("<=") {
-            ("<=", &spec[2..])
-        } else if spec.starts_with("!=") {
-            ("!=", &spec[2..])
-        } else if spec.starts_with("~=") {
-            ("~=", &spec[2..])
-        } else if spec.starts_with("==") {
-            ("==", &spec[2..])
-        } else if spec.starts_with('>') {
-            (">", &spec[1..])
-        } else if spec.starts_with('<') {
-            ("<", &spec[1..])
+        let (op, ver_str) = if let Some(rest) = spec.strip_prefix(">=") {
+            (">=", rest)
+        } else if let Some(rest) = spec.strip_prefix("<=") {
+            ("<=", rest)
+        } else if let Some(rest) = spec.strip_prefix("!=") {
+            ("!=", rest)
+        } else if let Some(rest) = spec.strip_prefix("~=") {
+            ("~=", rest)
+        } else if let Some(rest) = spec.strip_prefix("==") {
+            ("==", rest)
+        } else if let Some(rest) = spec.strip_prefix('>') {
+            (">", rest)
+        } else if let Some(rest) = spec.strip_prefix('<') {
+            ("<", rest)
         } else {
             // No leading operator: try rez-style range first (e.g. "1.0+", "1.2<2.0")
             if let Ok(range) = VersionRange::parse(spec) {
@@ -146,39 +196,18 @@ impl PackageRequirement {
 }
 
 /// High-performance package representation compatible with rez
-#[cfg_attr(feature = "python-bindings", pyclass)]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Package {
     /// Package name
-    #[cfg(feature = "python-bindings")]
-    #[pyo3(get)]
-    pub name: String,
-    /// Package name (non-Python version)
-    #[cfg(not(feature = "python-bindings"))]
     pub name: String,
 
     /// Package version
-    #[cfg(feature = "python-bindings")]
-    #[pyo3(get)]
-    pub version: Option<Version>,
-    /// Package version (non-Python version)
-    #[cfg(not(feature = "python-bindings"))]
     pub version: Option<Version>,
 
     /// Package description
-    #[cfg(feature = "python-bindings")]
-    #[pyo3(get)]
-    pub description: Option<String>,
-    /// Package description (non-Python version)
-    #[cfg(not(feature = "python-bindings"))]
     pub description: Option<String>,
 
     /// Package authors
-    #[cfg(feature = "python-bindings")]
-    #[pyo3(get)]
-    pub authors: Vec<String>,
-    /// Package authors (non-Python version)
-    #[cfg(not(feature = "python-bindings"))]
     pub authors: Vec<String>,
 
     /// Package requirements
@@ -227,19 +256,9 @@ pub struct Package {
     pub requires_rez_version: Option<String>,
 
     /// Package UUID
-    #[cfg(feature = "python-bindings")]
-    #[pyo3(get)]
-    pub uuid: Option<String>,
-    /// Package UUID (non-Python version)
-    #[cfg(not(feature = "python-bindings"))]
     pub uuid: Option<String>,
 
     /// Package config
-    #[cfg(feature = "python-bindings")]
-    pub config: HashMap<String, PyObject>,
-
-    /// Package config (non-Python version)
-    #[cfg(not(feature = "python-bindings"))]
     pub config: HashMap<String, String>,
 
     /// Package help
@@ -291,103 +310,8 @@ pub struct Package {
     pub preprocess: Option<String>,
 }
 
-#[cfg(feature = "python-bindings")]
-impl Clone for Package {
-    fn clone(&self) -> Self {
-        Python::with_gil(|py| {
-            let cloned_config: HashMap<String, PyObject> = self
-                .config
-                .iter()
-                .map(|(k, v)| (k.clone(), v.clone_ref(py)))
-                .collect();
-
-            Self {
-                name: self.name.clone(),
-                version: self.version.clone(),
-                description: self.description.clone(),
-                authors: self.authors.clone(),
-                requires: self.requires.clone(),
-                build_requires: self.build_requires.clone(),
-                private_build_requires: self.private_build_requires.clone(),
-                variants: self.variants.clone(),
-                tools: self.tools.clone(),
-                commands: self.commands.clone(),
-                commands_function: self.commands_function.clone(),
-                build_command: self.build_command.clone(),
-                build_system: self.build_system.clone(),
-                pre_commands: self.pre_commands.clone(),
-                post_commands: self.post_commands.clone(),
-                pre_test_commands: self.pre_test_commands.clone(),
-                pre_build_commands: self.pre_build_commands.clone(),
-                tests: self.tests.clone(),
-                requires_rez_version: self.requires_rez_version.clone(),
-                uuid: self.uuid.clone(),
-                config: cloned_config,
-                help: self.help.clone(),
-                relocatable: self.relocatable,
-                cachable: self.cachable,
-                timestamp: self.timestamp,
-                revision: self.revision.clone(),
-                changelog: self.changelog.clone(),
-                release_message: self.release_message.clone(),
-                previous_version: self.previous_version.clone(),
-                previous_revision: self.previous_revision.clone(),
-                vcs: self.vcs.clone(),
-                format_version: self.format_version,
-                base: self.base.clone(),
-                has_plugins: self.has_plugins,
-                plugin_for: self.plugin_for.clone(),
-                hashed_variants: self.hashed_variants,
-                preprocess: self.preprocess.clone(),
-            }
-        })
-    }
-}
-
-#[cfg(not(feature = "python-bindings"))]
-impl Clone for Package {
-    fn clone(&self) -> Self {
-        Self {
-            name: self.name.clone(),
-            version: self.version.clone(),
-            description: self.description.clone(),
-            authors: self.authors.clone(),
-            requires: self.requires.clone(),
-            build_requires: self.build_requires.clone(),
-            private_build_requires: self.private_build_requires.clone(),
-            variants: self.variants.clone(),
-            tools: self.tools.clone(),
-            commands: self.commands.clone(),
-            commands_function: self.commands_function.clone(),
-            build_command: self.build_command.clone(),
-            build_system: self.build_system.clone(),
-            pre_commands: self.pre_commands.clone(),
-            post_commands: self.post_commands.clone(),
-            pre_test_commands: self.pre_test_commands.clone(),
-            pre_build_commands: self.pre_build_commands.clone(),
-            tests: self.tests.clone(),
-            requires_rez_version: self.requires_rez_version.clone(),
-            uuid: self.uuid.clone(),
-            config: self.config.clone(),
-            help: self.help.clone(),
-            relocatable: self.relocatable,
-            cachable: self.cachable,
-            timestamp: self.timestamp,
-            revision: self.revision.clone(),
-            changelog: self.changelog.clone(),
-            release_message: self.release_message.clone(),
-            previous_version: self.previous_version.clone(),
-            previous_revision: self.previous_revision.clone(),
-            vcs: self.vcs.clone(),
-            format_version: self.format_version,
-            base: self.base.clone(),
-            has_plugins: self.has_plugins,
-            plugin_for: self.plugin_for.clone(),
-            hashed_variants: self.hashed_variants,
-            preprocess: self.preprocess.clone(),
-        }
-    }
-}
+/// Number of fields serialized in the Package struct (excludes `config` and `commands_function`).
+const PACKAGE_SERIALIZED_FIELD_COUNT: usize = 35;
 
 impl Serialize for Package {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -395,7 +319,7 @@ impl Serialize for Package {
         S: serde::Serializer,
     {
         use serde::ser::SerializeStruct;
-        let mut state = serializer.serialize_struct("Package", 24)?;
+        let mut state = serializer.serialize_struct("Package", PACKAGE_SERIALIZED_FIELD_COUNT)?;
         state.serialize_field("name", &self.name)?;
         state.serialize_field("version", &self.version)?;
         state.serialize_field("description", &self.description)?;
@@ -415,7 +339,7 @@ impl Serialize for Package {
         state.serialize_field("tests", &self.tests)?;
         state.serialize_field("requires_rez_version", &self.requires_rez_version)?;
         state.serialize_field("uuid", &self.uuid)?;
-        // Skip config field as PyObject cannot be serialized
+        // Note: config field is excluded from serialization for compatibility
         state.serialize_field("help", &self.help)?;
         state.serialize_field("relocatable", &self.relocatable)?;
         state.serialize_field("cachable", &self.cachable)?;
@@ -791,7 +715,7 @@ impl<'de> Deserialize<'de> for Package {
             }
         }
 
-        const FIELDS: &'static [&'static str] = &[
+        const FIELDS: &[&str] = &[
             "name",
             "version",
             "description",
@@ -832,150 +756,6 @@ impl<'de> Deserialize<'de> for Package {
     }
 }
 
-#[cfg(feature = "python-bindings")]
-#[pymethods]
-impl Package {
-    #[new]
-    pub fn new(name: String) -> Self {
-        Self {
-            name,
-            version: None,
-            description: None,
-            authors: Vec::new(),
-            requires: Vec::new(),
-            build_requires: Vec::new(),
-            private_build_requires: Vec::new(),
-            variants: Vec::new(),
-            tools: Vec::new(),
-            commands: None,
-            commands_function: None,
-            build_command: None,
-            build_system: None,
-            pre_commands: None,
-            post_commands: None,
-            pre_test_commands: None,
-            pre_build_commands: None,
-            tests: HashMap::new(),
-            requires_rez_version: None,
-            uuid: None,
-            config: HashMap::new(),
-            help: None,
-            relocatable: None,
-            cachable: None,
-            timestamp: None,
-            revision: None,
-            changelog: None,
-            release_message: None,
-            previous_version: None,
-            previous_revision: None,
-            vcs: None,
-            format_version: None,
-            base: None,
-            has_plugins: None,
-            plugin_for: Vec::new(),
-            hashed_variants: None,
-            preprocess: None,
-        }
-    }
-
-    /// Get the qualified name of the package (name-version)
-    #[getter]
-    pub fn qualified_name(&self) -> String {
-        match &self.version {
-            Some(version) => format!("{}-{}", self.name, version.as_str()),
-            None => self.name.clone(),
-        }
-    }
-
-    /// Get the package as an exact requirement string
-    pub fn as_exact_requirement(&self) -> String {
-        match &self.version {
-            Some(version) => format!("{}=={}", self.name, version.as_str()),
-            None => self.name.clone(),
-        }
-    }
-
-    /// Check if this is a package (always true for Package)
-    #[getter]
-    pub fn is_package(&self) -> bool {
-        true
-    }
-
-    /// Check if this is a variant (always false for Package)
-    #[getter]
-    pub fn is_variant(&self) -> bool {
-        false
-    }
-
-    /// Get the number of variants
-    #[getter]
-    pub fn num_variants(&self) -> usize {
-        self.variants.len()
-    }
-
-    /// Set the package version
-    pub fn set_version(&mut self, version: Version) {
-        self.version = Some(version);
-    }
-
-    /// Set the package description
-    pub fn set_description(&mut self, description: String) {
-        self.description = Some(description);
-    }
-
-    /// Add an author
-    pub fn add_author(&mut self, author: String) {
-        self.authors.push(author);
-    }
-
-    /// Add a requirement
-    pub fn add_requirement(&mut self, requirement: String) {
-        self.requires.push(requirement);
-    }
-
-    /// Add a build requirement
-    pub fn add_build_requirement(&mut self, requirement: String) {
-        self.build_requires.push(requirement);
-    }
-
-    /// Add a private build requirement
-    pub fn add_private_build_requirement(&mut self, requirement: String) {
-        self.private_build_requires.push(requirement);
-    }
-
-    /// Add a variant
-    pub fn add_variant(&mut self, variant: Vec<String>) {
-        self.variants.push(variant);
-    }
-
-    /// Add a tool
-    pub fn add_tool(&mut self, tool: String) {
-        self.tools.push(tool);
-    }
-
-    /// Set commands
-    pub fn set_commands(&mut self, commands: String) {
-        self.commands = Some(commands);
-    }
-
-    /// Get string representation
-    fn __str__(&self) -> String {
-        self.qualified_name()
-    }
-
-    /// Get representation
-    fn __repr__(&self) -> String {
-        format!("Package('{}')", self.qualified_name())
-    }
-
-    /// Create a new package (static method)
-    #[staticmethod]
-    pub fn new_static(name: String) -> Self {
-        Self::new(name)
-    }
-}
-
-#[cfg(not(feature = "python-bindings"))]
 impl Package {
     pub fn new(name: String) -> Self {
         Self {
@@ -1093,151 +873,6 @@ impl Package {
     /// Set commands
     pub fn set_commands(&mut self, commands: String) {
         self.commands = Some(commands);
-    }
-
-    /// Check if the package definition is valid (convenience bool version of validate())
-    pub fn is_valid(&self) -> bool {
-        self.validate().is_ok()
-    }
-
-    /// Validate the package definition
-    pub fn validate(&self) -> Result<(), RezCoreError> {
-        // Check required fields
-        if self.name.is_empty() {
-            return Err(RezCoreError::PackageParse(
-                "Package name cannot be empty".to_string(),
-            ));
-        }
-
-        // Validate name format (alphanumeric, underscore, hyphen)
-        if !self
-            .name
-            .chars()
-            .all(|c| c.is_alphanumeric() || c == '_' || c == '-')
-        {
-            return Err(RezCoreError::PackageParse(format!(
-                "Invalid package name '{}': only alphanumeric, underscore, and hyphen allowed",
-                self.name
-            )));
-        }
-
-        // Validate version if present
-        if let Some(ref version) = self.version {
-            // Version validation is handled by the Version type itself
-            if version.as_str().is_empty() {
-                return Err(RezCoreError::PackageParse(
-                    "Package version cannot be empty".to_string(),
-                ));
-            }
-        }
-
-        // Validate requirements format
-        for req in &self.requires {
-            if req.is_empty() {
-                return Err(RezCoreError::PackageParse(
-                    "Requirement cannot be empty".to_string(),
-                ));
-            }
-        }
-
-        for req in &self.build_requires {
-            if req.is_empty() {
-                return Err(RezCoreError::PackageParse(
-                    "Build requirement cannot be empty".to_string(),
-                ));
-            }
-        }
-
-        for req in &self.private_build_requires {
-            if req.is_empty() {
-                return Err(RezCoreError::PackageParse(
-                    "Private build requirement cannot be empty".to_string(),
-                ));
-            }
-        }
-
-        // Validate variants
-        for variant in &self.variants {
-            for req in variant {
-                if req.is_empty() {
-                    return Err(RezCoreError::PackageParse(
-                        "Variant requirement cannot be empty".to_string(),
-                    ));
-                }
-            }
-        }
-
-        Ok(())
-    }
-}
-
-#[cfg(feature = "python-bindings")]
-impl Package {
-    /// Create a package from a dictionary/map
-    pub fn from_dict(data: HashMap<String, PyObject>) -> Result<Self, RezCoreError> {
-        Python::with_gil(|py| {
-            let name = data
-                .get("name")
-                .ok_or_else(|| RezCoreError::PackageParse("Missing 'name' field".to_string()))?
-                .extract::<String>(py)
-                .map_err(|e| RezCoreError::PackageParse(format!("Invalid 'name' field: {}", e)))?;
-
-            let mut package = Package::new(name);
-
-            // Set version if present
-            if let Some(version_obj) = data.get("version") {
-                if let Ok(version_str) = version_obj.extract::<String>(py) {
-                    let version = Version::parse(&version_str).map_err(|e| {
-                        RezCoreError::PackageParse(format!("Invalid version: {}", e))
-                    })?;
-                    package.version = Some(version);
-                }
-            }
-
-            // Set description if present
-            if let Some(desc_obj) = data.get("description") {
-                if let Ok(desc) = desc_obj.extract::<String>(py) {
-                    package.description = Some(desc);
-                }
-            }
-
-            // Set authors if present
-            if let Some(authors_obj) = data.get("authors") {
-                if let Ok(authors) = authors_obj.extract::<Vec<String>>(py) {
-                    package.authors = authors;
-                }
-            }
-
-            // Set requires if present
-            if let Some(requires_obj) = data.get("requires") {
-                if let Ok(requires) = requires_obj.extract::<Vec<String>>(py) {
-                    package.requires = requires;
-                }
-            }
-
-            // Set build_requires if present
-            if let Some(build_requires_obj) = data.get("build_requires") {
-                if let Ok(build_requires) = build_requires_obj.extract::<Vec<String>>(py) {
-                    package.build_requires = build_requires;
-                }
-            }
-
-            // Set variants if present
-            if let Some(variants_obj) = data.get("variants") {
-                if let Ok(variants) = variants_obj.extract::<Vec<Vec<String>>>(py) {
-                    package.variants = variants;
-                }
-            }
-
-            // Set tools if present
-            if let Some(tools_obj) = data.get("tools") {
-                if let Ok(tools) = tools_obj.extract::<Vec<String>>(py) {
-                    package.tools = tools;
-                }
-            }
-
-            Ok(package)
-        })
     }
 
     /// Check if the package definition is valid (convenience bool version of validate())
@@ -1375,5 +1010,63 @@ mod package_tests {
     #[test]
     fn test_package_empty_name_invalid() {
         assert!(Package::new("".to_string()).validate().is_err());
+    }
+
+    // ── conflict requirement (!pkg) ───────────────────────────────────
+
+    #[test]
+    fn test_conflict_requirement_parse() {
+        let req = PackageRequirement::parse("!python").unwrap();
+        assert_eq!(req.name, "python");
+        assert!(req.conflict, "!python must be a conflict requirement");
+        assert!(!req.weak);
+        assert!(req.version_spec.is_none());
+    }
+
+    #[test]
+    fn test_conflict_requirement_with_version() {
+        let req = PackageRequirement::parse("!python-3.9").unwrap();
+        assert_eq!(req.name, "python");
+        assert!(req.conflict);
+        assert_eq!(req.version_spec.as_deref(), Some("3.9"));
+    }
+
+    #[test]
+    fn test_conflict_requirement_to_string() {
+        let req = PackageRequirement::parse("!python").unwrap();
+        assert_eq!(req.to_string(), "!python");
+    }
+
+    #[test]
+    fn test_conflict_requirement_with_version_to_string() {
+        let req = PackageRequirement::parse("!python-3.9").unwrap();
+        assert_eq!(req.to_string(), "!python-3.9");
+    }
+
+    #[test]
+    fn test_weak_requirement_to_string() {
+        let req = PackageRequirement::parse("~numpy").unwrap();
+        assert_eq!(req.name, "numpy");
+        assert!(req.weak);
+        assert!(!req.conflict);
+        assert_eq!(req.to_string(), "~numpy");
+    }
+
+    #[test]
+    fn test_normal_requirement_not_conflict_not_weak() {
+        let req = PackageRequirement::parse("maya-2024").unwrap();
+        assert!(!req.conflict);
+        assert!(!req.weak);
+        assert_eq!(req.name, "maya");
+        assert_eq!(req.version_spec.as_deref(), Some("2024"));
+    }
+
+    #[test]
+    fn test_conflict_takes_priority_over_weak() {
+        // "!" prefix is checked before "~", so "!~pkg" would be conflict + name "~pkg"
+        // but "~!pkg" is NOT valid rez syntax (~ before ! is not standard)
+        let req = PackageRequirement::parse("!python").unwrap();
+        assert!(req.conflict);
+        assert!(!req.weak);
     }
 }

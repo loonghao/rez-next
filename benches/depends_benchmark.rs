@@ -3,8 +3,9 @@
 //! Measures the cost of scanning a synthetic package set to find
 //! all packages that depend on a given target package name.
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use rez_next_package::Package;
+use std::hint::black_box;
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -66,7 +67,7 @@ fn bench_package_construction(c: &mut Criterion) {
 
 /// Benchmark: requirement string parsing (core of depends analysis).
 fn bench_requirement_string_ops(c: &mut Criterion) {
-    let req_strings = vec![
+    let req_strings = [
         "python-3+",
         "numpy-1.20+<2",
         "maya-2024",
@@ -112,11 +113,7 @@ fn bench_build_depends_index(c: &mut Criterion) {
                 for pkg in black_box(pkgs) {
                     for req in &pkg.requires {
                         // Extract package name prefix (take chars up to first non-alpha/digit/underscore)
-                        let name_end = req
-                            .find(|c: char| {
-                                c == '-' || c == '+' || c == '<' || c == '>' || c == '='
-                            })
-                            .unwrap_or(req.len());
+                        let name_end = req.find(['-', '+', '<', '>', '=']).unwrap_or(req.len());
                         let pkg_name = &req[..name_end];
                         index
                             .entry(pkg_name.to_string())
@@ -131,26 +128,12 @@ fn bench_build_depends_index(c: &mut Criterion) {
     group.finish();
 }
 
-fn ci_criterion() -> Criterion {
-    let ci = std::env::var("CRITERION_QUICK").is_ok();
-    Criterion::default()
-        .sample_size(if ci { 20 } else { 100 })
-        .measurement_time(std::time::Duration::from_secs(if ci { 2 } else { 5 }))
-        .warm_up_time(std::time::Duration::from_millis(if ci {
-            300
-        } else {
-            3000
-        }))
-}
-
 criterion_group!(
-    name = benches;
-    config = ci_criterion();
-    targets =
-        bench_depends_scan,
-        bench_package_construction,
-        bench_requirement_string_ops,
-        bench_multi_target_depends,
-        bench_build_depends_index
+    benches,
+    bench_depends_scan,
+    bench_package_construction,
+    bench_requirement_string_ops,
+    bench_multi_target_depends,
+    bench_build_depends_index,
 );
 criterion_main!(benches);

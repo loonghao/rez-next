@@ -10,16 +10,9 @@ replacement for `import rez`.
 """
 import pytest
 
-# The main compatibility test: import rez_next as rez
-try:
-    import rez_next as rez
-    REZ_NEXT_AVAILABLE = True
-except ImportError:
-    REZ_NEXT_AVAILABLE = False
-
-pytestmark = pytest.mark.skipif(
-    not REZ_NEXT_AVAILABLE,
-    reason="rez_next not built yet. Run: maturin develop --features extension-module"
+rez = pytest.importorskip(
+    "rez_next",
+    reason="rez_next not built yet — run: maturin develop --features extension-module",
 )
 
 
@@ -704,6 +697,59 @@ class TestPipModule:
         result = rez.pip_install(["requests==2.31.0"])
         assert len(result) == 1
         assert "requests" in result[0]
+
+
+class TestConflictWeakRequirement:
+    """Verify conflict (!pkg) and weak (~pkg) requirement semantics."""
+
+    def test_conflict_requirement_flag(self):
+        req = rez.PackageRequirement("!python")
+        assert req.conflict is True
+        assert req.weak is False
+
+    def test_weak_requirement_flag(self):
+        req = rez.PackageRequirement("~python")
+        assert req.weak is True
+        assert req.conflict is False
+
+    def test_normal_requirement_no_flags(self):
+        req = rez.PackageRequirement("python-3.9")
+        assert req.conflict is False
+        assert req.weak is False
+
+    def test_conflict_requirement_with_version(self):
+        req = rez.PackageRequirement("!python-3.9")
+        assert req.name == "python"
+        assert req.conflict is True
+
+    def test_conflict_requirement_str_starts_with_bang(self):
+        req = rez.PackageRequirement("!python")
+        s = str(req)
+        assert s.startswith("!"), f"Expected '!' prefix in '{s}'"
+
+    def test_weak_requirement_str_starts_with_tilde(self):
+        req = rez.PackageRequirement("~python")
+        s = str(req)
+        assert s.startswith("~"), f"Expected '~' prefix in '{s}'"
+
+    def test_conflict_requirement_method(self):
+        req = rez.PackageRequirement("python-3.9")
+        conflict_str = req.conflict_requirement()
+        assert conflict_str.startswith("!")
+        assert "python" in conflict_str
+
+    def test_vendor_version_range_any_none(self):
+        from rez_next.vendor.version import VersionRange
+        any_r = VersionRange.any()
+        assert any_r.is_any()
+        none_r = VersionRange.none()
+        assert none_r.is_empty()
+
+    def test_vendor_version_range_from_str(self):
+        from rez_next.vendor.version import VersionRange, Version
+        r = VersionRange.from_str(">=2.0,<3.0")
+        assert r.contains(Version("2.5"))
+        assert not r.contains(Version("3.0"))
 
 
 if __name__ == "__main__":

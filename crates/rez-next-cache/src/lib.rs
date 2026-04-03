@@ -40,9 +40,6 @@ pub mod performance_monitor;
 pub mod predictive_preheater;
 pub mod unified_cache;
 
-#[cfg(test)]
-mod tests;
-
 // Re-export core types
 pub use adaptive_tuner::*;
 pub use benchmarks::*;
@@ -75,3 +72,6 @@ pub const DEFAULT_L1_CAPACITY: usize = 10000;
 pub const DEFAULT_L2_CAPACITY: usize = 100000;
 pub const DEFAULT_TTL_SECONDS: u64 = 3600;
 pub const DEFAULT_MEMORY_LIMIT_MB: u64 = 100;
+
+#[cfg(test)]
+mod tests;

@@ -1,28 +1,13 @@
 //! Core solver implementation
 
 use crate::dependency_resolver::DependencyResolver;
-#[cfg(feature = "python-bindings")]
-use pyo3::prelude::*;
+use crate::resolution::ResolutionResult;
 use rez_next_common::RezCoreError;
 use rez_next_package::{Package, PackageRequirement, Requirement};
 use rez_next_repository::simple_repository::RepositoryManager;
-use rez_next_version::Version;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
-
-/// Resolution result
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ResolutionResult {
-    /// Resolved packages
-    pub packages: Vec<Package>,
-    /// Whether conflicts were resolved
-    pub conflicts_resolved: bool,
-    /// Resolution time in milliseconds
-    pub resolution_time_ms: u64,
-    /// Additional metadata
-    pub metadata: HashMap<String, String>,
-}
 
 /// Solver configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -45,6 +30,10 @@ pub struct SolverConfig {
     pub allow_prerelease: bool,
     /// Conflict resolution strategy
     pub conflict_strategy: ConflictStrategy,
+    /// Strict mode: return Err if any requirement cannot be satisfied.
+    /// When false (lenient/default), unsatisfied requirements are recorded in
+    /// `DetailedResolutionResult::failed_requirements` and resolution continues.
+    pub strict_mode: bool,
 }
 
 impl Default for SolverConfig {
@@ -59,6 +48,7 @@ impl Default for SolverConfig {
             prefer_latest: true,
             allow_prerelease: false,
             conflict_strategy: ConflictStrategy::LatestWins,
+            strict_mode: false,
         }
     }
 }
@@ -132,12 +122,9 @@ impl SolverRequest {
 }
 
 /// High-performance dependency solver
-#[cfg_attr(feature = "python-bindings", pyclass)]
 pub struct DependencySolver {
     /// Solver configuration
     config: SolverConfig,
-    /// Solver statistics
-    stats: SolverStats,
     /// Repository manager for package discovery
     repository_manager: Option<Arc<RepositoryManager>>,
 }
@@ -184,33 +171,12 @@ impl Default for SolverStats {
     }
 }
 
-// Python methods - conditionally compiled
-#[cfg(feature = "python-bindings")]
-#[pymethods]
-impl DependencySolver {
-    #[new]
-    pub fn new_py() -> Self {
-        let config = SolverConfig::default();
-        Self {
-            config,
-            stats: SolverStats::default(),
-        }
-    }
-
-    /// Get solver statistics
-    #[getter]
-    pub fn stats(&self) -> String {
-        serde_json::to_string(&self.stats).unwrap_or_else(|_| "{}".to_string())
-    }
-}
-
 impl DependencySolver {
     /// Create a new solver with default configuration
     pub fn new() -> Self {
         let config = SolverConfig::default();
         Self {
             config,
-            stats: SolverStats::default(),
             repository_manager: None,
         }
     }
@@ -219,7 +185,6 @@ impl DependencySolver {
     pub fn with_config(config: SolverConfig) -> Self {
         Self {
             config,
-            stats: SolverStats::default(),
             repository_manager: None,
         }
     }

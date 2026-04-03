@@ -111,6 +111,7 @@ impl SimpleScanner {
         })
     }
 
+    #[allow(clippy::type_complexity)]
     fn collect_directories_recursive<'a>(
         &'a self,
         root_path: &'a PathBuf,

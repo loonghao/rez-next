@@ -1,22 +1,18 @@
 //! High-performance repository scanning utilities with optimized I/O
 
-use ahash::AHashMap;
 use dashmap::DashMap;
-use futures::stream::{self, StreamExt};
 use memmap2::Mmap;
 use rez_next_common::RezCoreError;
 use rez_next_package::Package;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
-use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 use tokio::fs;
 use tokio::sync::{RwLock, Semaphore};
-use tokio::task::JoinSet;
-use tokio::time::{interval, Instant};
+use tokio::time::interval;
 
 /// Enhanced scanner configuration with performance optimizations
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -187,8 +183,6 @@ struct ScanCacheEntry {
     mtime: std::time::SystemTime,
     /// File size when cached
     size: u64,
-    /// Cache creation time
-    cached_at: SystemTime,
     /// Access count for LRU tracking
     access_count: u64,
     /// Last access time
@@ -232,6 +226,8 @@ pub struct RepositoryScanner {
     prefix_hits: Arc<AtomicUsize>,
     peak_concurrency: Arc<AtomicUsize>,
     current_concurrency: Arc<AtomicUsize>,
+    /// Peak memory approximation: sum of file sizes read so far (bytes)
+    peak_memory_bytes: Arc<AtomicU64>,
     /// Path prefix cache for faster lookups
     prefix_cache: Arc<DashMap<PathBuf, Vec<PathBuf>>>,
     /// Background refresh task handle
@@ -255,6 +251,7 @@ impl RepositoryScanner {
             prefix_hits: Arc::new(AtomicUsize::new(0)),
             peak_concurrency: Arc::new(AtomicUsize::new(0)),
             current_concurrency: Arc::new(AtomicUsize::new(0)),
+            peak_memory_bytes: Arc::new(AtomicU64::new(0)),
             prefix_cache: Arc::new(DashMap::new()),
             refresh_handle: Arc::new(RwLock::new(None)),
         };
@@ -280,6 +277,7 @@ impl RepositoryScanner {
         self.prefix_hits.store(0, Ordering::Relaxed);
         self.peak_concurrency.store(0, Ordering::Relaxed);
         self.current_concurrency.store(0, Ordering::Relaxed);
+        self.peak_memory_bytes.store(0, Ordering::Relaxed);
     }
 
     /// Get current cache size
@@ -340,15 +338,15 @@ impl RepositoryScanner {
         // Try prefix matching
         for mut cached_entry in self.scan_cache.iter_mut() {
             let cached_path = cached_entry.key();
-            if normalized_path.starts_with(cached_path) || cached_path.starts_with(&normalized_path)
+            if (normalized_path.starts_with(cached_path)
+                || cached_path.starts_with(&normalized_path))
+                && self.is_cache_entry_valid(cached_entry.value())
             {
-                if self.is_cache_entry_valid(&cached_entry.value()) {
-                    // Update access statistics for prefix match
-                    cached_entry.value_mut().access_count += 1;
-                    cached_entry.value_mut().last_accessed = SystemTime::now();
-                    self.prefix_hits.fetch_add(1, Ordering::Relaxed);
-                    return Some(cached_entry.value().result.clone());
-                }
+                // Update access statistics for prefix match
+                cached_entry.value_mut().access_count += 1;
+                cached_entry.value_mut().last_accessed = SystemTime::now();
+                self.prefix_hits.fetch_add(1, Ordering::Relaxed);
+                return Some(cached_entry.value().result.clone());
             }
         }
 
@@ -394,10 +392,9 @@ impl RepositoryScanner {
 
     /// Stop background cache refresh task
     pub async fn stop_background_refresh(&self) {
-        if let mut refresh_handle = self.refresh_handle.write().await {
-            if let Some(handle) = refresh_handle.take() {
-                handle.abort();
-            }
+        let mut refresh_handle = self.refresh_handle.write().await;
+        if let Some(handle) = refresh_handle.take() {
+            handle.abort();
         }
     }
 
@@ -417,7 +414,7 @@ impl RepositoryScanner {
                 // Refresh expired cache entries
                 let mut expired_keys = Vec::new();
                 for entry in scan_cache.iter() {
-                    if !Self::is_cache_entry_valid_static(&entry.value()) {
+                    if !Self::is_cache_entry_valid_static(entry.value()) {
                         expired_keys.push(entry.key().clone());
                     }
                 }
@@ -536,7 +533,7 @@ impl RepositoryScanner {
             cache_hits: self.cache_hits.load(Ordering::Relaxed),
             cache_misses: self.cache_misses.load(Ordering::Relaxed),
             avg_file_size,
-            peak_memory_usage: 0, // TODO: Implement memory tracking
+            peak_memory_usage: self.peak_memory_bytes.load(Ordering::Relaxed),
             peak_concurrency: self.peak_concurrency.load(Ordering::Relaxed),
         };
 
@@ -688,105 +685,6 @@ impl RepositoryScanner {
         Ok(())
     }
 
-    /// Legacy recursive scan method (kept for compatibility)
-    async fn scan_directory_recursive(
-        &self,
-        dir_path: &Path,
-        depth: usize,
-        join_set: &mut JoinSet<()>,
-        packages: Arc<RwLock<Vec<PackageScanResult>>>,
-        errors: Arc<RwLock<Vec<ScanError>>>,
-        directories_scanned: Arc<RwLock<usize>>,
-        files_examined: Arc<RwLock<usize>>,
-    ) -> Result<(), RezCoreError> {
-        // Check depth limit
-        if depth > self.config.max_depth {
-            return Ok(());
-        }
-
-        // Increment directories scanned counter
-        {
-            let mut count = directories_scanned.write().await;
-            *count += 1;
-        }
-
-        // Check if this directory should be excluded
-        if self.should_exclude_path(dir_path) {
-            return Ok(());
-        }
-
-        // Read directory entries
-        let mut entries = match fs::read_dir(dir_path).await {
-            Ok(entries) => entries,
-            Err(e) => {
-                let mut errors_guard = errors.write().await;
-                errors_guard.push(ScanError {
-                    path: dir_path.to_path_buf(),
-                    message: format!("Failed to read directory: {}", e),
-                    error_type: ScanErrorType::FileSystemError,
-                });
-                return Ok(());
-            }
-        };
-
-        while let Some(entry) = entries.next_entry().await.map_err(|e| {
-            RezCoreError::Repository(format!("Failed to read directory entry: {}", e))
-        })? {
-            let path = entry.path();
-
-            if path.is_dir() {
-                // Recursively scan subdirectory
-                Box::pin(self.scan_directory_recursive(
-                    &path,
-                    depth + 1,
-                    join_set,
-                    packages.clone(),
-                    errors.clone(),
-                    directories_scanned.clone(),
-                    files_examined.clone(),
-                ))
-                .await?;
-            } else if path.is_file() {
-                // Check if this is a package file
-                if self.is_package_file(&path) {
-                    // Spawn a task to scan this package file
-                    let semaphore = self.semaphore.clone();
-                    let path_clone = path.clone();
-                    let packages_clone = packages.clone();
-                    let errors_clone = errors.clone();
-                    let files_examined_clone = files_examined.clone();
-
-                    join_set.spawn(async move {
-                        let _permit = semaphore.acquire().await.unwrap();
-
-                        // Increment files examined counter
-                        {
-                            let mut count = files_examined_clone.write().await;
-                            *count += 1;
-                        }
-
-                        match Self::scan_package_file(&path_clone).await {
-                            Ok(package_result) => {
-                                let mut packages_guard = packages_clone.write().await;
-                                packages_guard.push(package_result);
-                            }
-                            Err(e) => {
-                                let mut errors_guard = errors_clone.write().await;
-                                errors_guard.push(ScanError {
-                                    path: path_clone,
-                                    message: format!("Failed to scan package: {}", e),
-                                    error_type: ScanErrorType::PackageParseError,
-                                });
-                            }
-                        }
-                    });
-                }
-            }
-        }
-
-        Ok(())
-    }
-
     /// Optimized package file scanning with caching and memory mapping
     async fn scan_package_file_optimized(
         &self,
@@ -837,6 +735,14 @@ impl RepositoryScanner {
         let io_time = io_start.elapsed().as_millis() as u64;
         self.io_time.fetch_add(io_time, Ordering::Relaxed);
 
+        // Update peak memory approximation (content is in-memory now)
+        let content_bytes = content.len() as u64;
+        let prev = self.peak_memory_bytes.load(Ordering::Relaxed);
+        if content_bytes > prev {
+            self.peak_memory_bytes
+                .store(content_bytes, Ordering::Relaxed);
+        }
+
         // Parse package
         let parse_start = std::time::Instant::now();
         let package: Package = serde_yaml::from_str(&content).map_err(|e| {
@@ -863,19 +769,27 @@ impl RepositoryScanner {
                 result: result.clone(),
                 mtime,
                 size: file_size,
-                cached_at: now,
                 access_count: 1,
                 last_accessed: now,
             };
             self.scan_cache
                 .insert(package_file.to_path_buf(), cache_entry);
 
-            // Limit cache size
-            if self.scan_cache.len() > self.config.max_cache_size_mb * 1000 {
-                // Simple cache eviction: remove oldest entries
-                // TODO: Implement LRU eviction
-                if self.scan_cache.len() > self.config.max_cache_size_mb * 1200 {
-                    self.scan_cache.clear();
+            // Limit cache size using LRU eviction: remove least-recently-used entries
+            let max_entries = self.config.max_cache_size_mb * 1000;
+            if self.scan_cache.len() > max_entries {
+                // Collect (path, last_accessed) pairs and sort oldest first
+                let mut entries: Vec<(PathBuf, SystemTime)> = self
+                    .scan_cache
+                    .iter()
+                    .map(|r| (r.key().clone(), r.value().last_accessed))
+                    .collect();
+                entries.sort_by_key(|(_, ts)| *ts);
+                // Evict until we're at 80% capacity
+                let target = (max_entries as f64 * 0.8) as usize;
+                let to_remove = entries.len().saturating_sub(target);
+                for (path, _) in entries.into_iter().take(to_remove) {
+                    self.scan_cache.remove(&path);
                 }
             }
         }
@@ -938,39 +852,6 @@ impl RepositoryScanner {
                 "Failed to convert memory mapped file to string: {}",
                 e
             ))
-        })
-    }
-
-    /// Legacy package file scanning method (kept for compatibility)
-    async fn scan_package_file(package_file: &Path) -> Result<PackageScanResult, RezCoreError> {
-        let start_time = std::time::Instant::now();
-
-        // Get file metadata
-        let metadata = fs::metadata(package_file)
-            .await
-            .map_err(|e| RezCoreError::Repository(format!("Failed to get file metadata: {}", e)))?;
-
-        let file_size = metadata.len();
-
-        // Read and parse package file
-        let content = fs::read_to_string(package_file)
-            .await
-            .map_err(|e| RezCoreError::Repository(format!("Failed to read package file: {}", e)))?;
-
-        // Simple YAML parsing for now
-        let package: Package = serde_yaml::from_str(&content).map_err(|e| {
-            RezCoreError::Repository(format!("Failed to parse package file: {}", e))
-        })?;
-
-        let scan_duration_ms = start_time.elapsed().as_millis() as u64;
-        let package_dir = package_file.parent().unwrap_or(package_file).to_path_buf();
-
-        Ok(PackageScanResult {
-            package,
-            package_file: package_file.to_path_buf(),
-            package_dir,
-            file_size,
-            scan_duration_ms,
         })
     }
 

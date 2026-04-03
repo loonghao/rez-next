@@ -1,8 +1,6 @@
-# Custom CI workflow for rez-next
-# Replaces reusable-ci.yml to avoid preexisting flaky musl cross-compilation test.
-# Musl targets are validated by release.yml during actual releases.
-#
-# Aligned with: https://github.com/loonghao/clawup
+# CI workflow for rez-next
+# Uses vx (universal dev tool manager) + just (task runner) for consistent
+# local/CI parity. All Rust commands are defined in justfile.
 name: CI
 
 on:
@@ -27,30 +25,45 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+      - uses: loonghao/vx@main
+        with:
+          tools: "just"
+          cache: "true"
+          github-token: ${{ secrets.GITHUB_TOKEN }}
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt
-      - run: cargo fmt --all -- --check
+      - run: vx just fmt-check
 
   clippy:
     name: Clippy
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+      - uses: loonghao/vx@main
+        with:
+          tools: "just"
+          cache: "true"
+          github-token: ${{ secrets.GITHUB_TOKEN }}
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy
       - uses: Swatinem/rust-cache@v2
-      - run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+      - run: vx just lint-ci
 
   docs:
     name: Docs
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+      - uses: loonghao/vx@main
+        with:
+          tools: "just"
+          cache: "true"
+          github-token: ${{ secrets.GITHUB_TOKEN }}
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      - run: cargo doc --workspace --all-features --no-deps --exclude rez-next-python
+      - run: vx just doc-check
         env:
           RUSTDOCFLAGS: "-D warnings"
 
@@ -59,25 +72,30 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+      - uses: loonghao/vx@main
+        with:
+          tools: "just"
+          cache: "true"
+          github-token: ${{ secrets.GITHUB_TOKEN }}
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      - run: cargo test --workspace --exclude rez-next-python
+      - run: vx cargo test --workspace --exclude rez-next-python
 
   cli-e2e:
     name: CLI E2E Tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+      - uses: loonghao/vx@main
+        with:
+          tools: "just"
+          cache: "true"
+          github-token: ${{ secrets.GITHUB_TOKEN }}
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with:
-          key: cli-e2e-v1
-      - name: Build rez-next binary
-        run: cargo build --bin rez-next
-      - name: Run CLI e2e tests
-        env:
-          REZ_NEXT_E2E_BINARY: target/debug/rez-next
-        run: cargo test --test cli_e2e_tests -- --nocapture
+          key: cli-e2e-v4
+      - run: vx just cli-e2e
 
   test-macos:
     name: Test - macOS

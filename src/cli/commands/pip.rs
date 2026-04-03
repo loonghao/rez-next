@@ -54,10 +54,8 @@ pub struct PipArgs {
 struct PipPackageInfo {
     pub name: String,
     pub version: String,
-    pub location: PathBuf,
     pub requires: Vec<String>,
     pub summary: String,
-    pub home_page: String,
 }
 
 /// Execute the pip command
@@ -88,7 +86,7 @@ pub fn execute(args: PipArgs) -> RezCoreResult<()> {
 
     // Also read from requirements.txt if specified
     if let Some(ref req_file) = args.requirement {
-        let content = std::fs::read_to_string(req_file).map_err(|e| RezCoreError::Io(e.into()))?;
+        let content = std::fs::read_to_string(req_file).map_err(RezCoreError::Io)?;
         for line in content.lines() {
             let trimmed = line.trim();
             if !trimmed.is_empty() && !trimmed.starts_with('#') {
@@ -107,7 +105,7 @@ pub fn execute(args: PipArgs) -> RezCoreResult<()> {
     println!("Installing {} package(s) via pip...", pkg_specs.len());
 
     // Create a temporary virtualenv to install into, then repackage
-    let tmp_dir = tempfile::TempDir::new().map_err(|e| RezCoreError::Io(e.into()))?;
+    let tmp_dir = tempfile::TempDir::new().map_err(RezCoreError::Io)?;
     let tmp_path = tmp_dir.path().to_path_buf();
 
     // Install packages into temp location
@@ -126,7 +124,7 @@ pub fn execute(args: PipArgs) -> RezCoreResult<()> {
 
             // Create rez package
             let rez_pkg_dir = install_path
-                .join(&info.name.to_lowercase().replace('-', "_"))
+                .join(info.name.to_lowercase().replace('-', "_"))
                 .join(&info.version);
 
             create_rez_package(&info, &tmp_path, &rez_pkg_dir, &args)?;
@@ -234,12 +232,11 @@ fn discover_installed_package(
 }
 
 /// Parse pip show output into PipPackageInfo
-fn parse_pip_show_output(output: &str, target: &Path) -> RezCoreResult<Option<PipPackageInfo>> {
+fn parse_pip_show_output(output: &str, _target: &Path) -> RezCoreResult<Option<PipPackageInfo>> {
     let mut name = String::new();
     let mut version = String::new();
     let mut requires = Vec::new();
     let mut summary = String::new();
-    let mut home_page = String::new();
 
     for line in output.lines() {
         if let Some(val) = line.strip_prefix("Name: ") {
@@ -254,8 +251,6 @@ fn parse_pip_show_output(output: &str, target: &Path) -> RezCoreResult<Option<Pi
                 .collect();
         } else if let Some(val) = line.strip_prefix("Summary: ") {
             summary = val.trim().to_string();
-        } else if let Some(val) = line.strip_prefix("Home-page: ") {
-            home_page = val.trim().to_string();
         }
     }
 
@@ -266,10 +261,8 @@ fn parse_pip_show_output(output: &str, target: &Path) -> RezCoreResult<Option<Pi
     Ok(Some(PipPackageInfo {
         name,
         version,
-        location: target.to_path_buf(),
         requires,
         summary,
-        home_page,
     }))
 }
 
@@ -281,8 +274,8 @@ fn scan_target_for_package(name: &str, target: &Path) -> RezCoreResult<Option<Pi
 
     // Look for <name>-<version>.dist-info directories
     let normalized = name.to_lowercase().replace('-', "_");
-    for entry in std::fs::read_dir(target).map_err(|e| RezCoreError::Io(e.into()))? {
-        let entry = entry.map_err(|e| RezCoreError::Io(e.into()))?;
+    for entry in std::fs::read_dir(target).map_err(RezCoreError::Io)? {
+        let entry = entry.map_err(RezCoreError::Io)?;
         let fname = entry.file_name().to_string_lossy().to_string();
 
         if fname.ends_with(".dist-info") {
@@ -294,15 +287,12 @@ fn scan_target_for_package(name: &str, target: &Path) -> RezCoreResult<Option<Pi
                     // Read METADATA file
                     let metadata_path = entry.path().join("METADATA");
                     let mut summary = String::new();
-                    let mut home_page = String::new();
                     let mut requires = Vec::new();
 
                     if let Ok(content) = std::fs::read_to_string(&metadata_path) {
                         for line in content.lines() {
                             if let Some(val) = line.strip_prefix("Summary: ") {
                                 summary = val.to_string();
-                            } else if let Some(val) = line.strip_prefix("Home-page: ") {
-                                home_page = val.to_string();
                             } else if let Some(val) = line.strip_prefix("Requires-Dist: ") {
                                 let dep_name = val.split_whitespace().next().unwrap_or(val);
                                 requires.push(dep_name.to_string());
@@ -313,10 +303,8 @@ fn scan_target_for_package(name: &str, target: &Path) -> RezCoreResult<Option<Pi
                     return Ok(Some(PipPackageInfo {
                         name: without_suffix[..dash_pos].to_string(),
                         version: dist_version.to_string(),
-                        location: target.to_path_buf(),
                         requires,
                         summary,
-                        home_page,
                     }));
                 }
             }
@@ -332,7 +320,7 @@ fn create_rez_package(
     dest_dir: &Path,
     _args: &PipArgs,
 ) -> RezCoreResult<()> {
-    std::fs::create_dir_all(dest_dir).map_err(|e| RezCoreError::Io(e.into()))?;
+    std::fs::create_dir_all(dest_dir).map_err(RezCoreError::Io)?;
 
     // Copy python files into python sub-directory
     let python_dir = dest_dir.join("python");
@@ -380,14 +368,14 @@ def commands():
     );
 
     let pkg_py_path = dest_dir.join("package.py");
-    std::fs::write(&pkg_py_path, package_py).map_err(|e| RezCoreError::Io(e.into()))?;
+    std::fs::write(&pkg_py_path, package_py).map_err(RezCoreError::Io)?;
 
     Ok(())
 }
 
 /// Copy directory tree recursively
 fn copy_dir_recursive(src: &Path, dest: &Path) -> RezCoreResult<()> {
-    std::fs::create_dir_all(dest).map_err(|e| RezCoreError::Io(e.into()))?;
+    std::fs::create_dir_all(dest).map_err(RezCoreError::Io)?;
 
     let entries = match std::fs::read_dir(src) {
         Ok(e) => e,
@@ -395,13 +383,13 @@ fn copy_dir_recursive(src: &Path, dest: &Path) -> RezCoreResult<()> {
     };
 
     for entry in entries {
-        let entry = entry.map_err(|e| RezCoreError::Io(e.into()))?;
+        let entry = entry.map_err(RezCoreError::Io)?;
         let src_path = entry.path();
         let dest_path = dest.join(entry.file_name());
         if src_path.is_dir() {
             copy_dir_recursive(&src_path, &dest_path)?;
         } else {
-            std::fs::copy(&src_path, &dest_path).map_err(|e| RezCoreError::Io(e.into()))?;
+            std::fs::copy(&src_path, &dest_path).map_err(RezCoreError::Io)?;
         }
     }
     Ok(())
@@ -506,10 +494,8 @@ Requires: certifi, charset-normalizer, idna, urllib3
         let info = PipPackageInfo {
             name: "requests".to_string(),
             version: "2.28.0".to_string(),
-            location: PathBuf::from("/tmp"),
             requires: vec![],
             summary: "HTTP library".to_string(),
-            home_page: "https://requests.readthedocs.io".to_string(),
         };
         let rez_requires: Vec<String> = info
             .requires
@@ -534,10 +520,8 @@ Requires: certifi, charset-normalizer, idna, urllib3
         let info = PipPackageInfo {
             name: "requests".to_string(),
             version: "2.28.0".to_string(),
-            location: src_dir.clone(),
             requires: vec!["certifi".to_string(), "urllib3".to_string()],
             summary: "Python HTTP for Humans.".to_string(),
-            home_page: "https://requests.readthedocs.io".to_string(),
         };
 
         let args = PipArgs {

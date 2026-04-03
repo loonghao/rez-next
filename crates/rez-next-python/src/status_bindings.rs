@@ -42,6 +42,12 @@ pub struct PyRezStatus {
     rez_env_vars: HashMap<String, String>,
 }
 
+impl Default for PyRezStatus {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[pymethods]
 impl PyRezStatus {
     /// Detect the current rez context from environment variables.

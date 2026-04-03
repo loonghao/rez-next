@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2026-03-30
+
+### Added
+- **227 compat tests** (213 → 227): added 14 new integration tests covering:
+  - Version range union of disjoint ranges (`test_version_range_union_disjoint`)
+  - Pre-release version ordering with rez epoch semantics (`test_version_prerelease_ordering`)
+  - Version range exclusive upper bound with rez semantics documentation (`test_version_range_exclusive_upper`)
+  - Version range inclusive lower edge (`test_version_range_inclusive_lower_edge`)
+  - Rex DSL: `unsetenv` removes variables (`test_rex_unsetenv_removes_var`)
+  - Rex DSL: multiple `prepend_path` ordering (`test_rex_multiple_prepend_path_order`)
+  - Rex DSL: bash script generation contains exports (`test_rex_bash_script_contains_export`)
+  - Package name and version field validation (`test_package_name_non_empty`, `test_package_version_optional`)
+  - Requirement name-only parsing (`test_requirement_name_only`)
+  - Suite two-context tool management (`test_suite_two_contexts_tool_names`)
+  - Suite initial empty status (`test_suite_initial_status`)
+  - Solver empty requirements returns empty resolved packages (`test_solver_empty_requirements_returns_empty_package_list`)
+  - Solver version conflict handling without panic (`test_solver_version_conflict_detected`)
+- Version bump: all workspace crates updated from 0.1.0 to 0.2.0
+
+### Fixed
+- Documented rez version semantics: `3.0.1 < 3.0` (shorter = higher epoch), exclusive upper bound `<3.0` includes `3.0.1`
+
+
+
 ## [0.1.2](https://github.com/loonghao/rez-next/compare/v0.1.1...v0.1.2) (2026-03-28)
 
 

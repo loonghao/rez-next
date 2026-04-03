@@ -3,8 +3,6 @@
 use crate::{
     PackageSearchCriteria, Repository, RepositoryMetadata, RepositoryStats, RepositoryType,
 };
-#[cfg(feature = "python-bindings")]
-use pyo3::prelude::*;
 use rez_next_common::RezCoreError;
 use rez_next_package::Package;
 use rez_next_version::Version;
@@ -16,7 +14,6 @@ use tokio::fs;
 use tokio::sync::RwLock;
 
 /// Filesystem repository implementation
-#[cfg_attr(feature = "python-bindings", pyclass)]
 #[derive(Debug)]
 pub struct FileSystemRepository {
     /// Repository metadata
@@ -31,9 +28,7 @@ pub struct FileSystemRepository {
     initialized: Arc<std::sync::atomic::AtomicBool>,
 }
 
-#[cfg_attr(feature = "python-bindings", pymethods)]
 impl FileSystemRepository {
-    #[cfg_attr(feature = "python-bindings", new)]
     pub fn new(path: PathBuf, name: Option<String>) -> Self {
         let repo_name = name.unwrap_or_else(|| {
             path.file_name()
@@ -62,19 +57,16 @@ impl FileSystemRepository {
     }
 
     /// Get the repository path
-    #[cfg_attr(feature = "python-bindings", getter)]
     pub fn path(&self) -> String {
         self.metadata.path.to_string_lossy().to_string()
     }
 
     /// Get the repository name
-    #[cfg_attr(feature = "python-bindings", getter)]
     pub fn name(&self) -> String {
         self.metadata.name.clone()
     }
 
     /// Check if the repository is read-only
-    #[cfg_attr(feature = "python-bindings", getter)]
     pub fn read_only(&self) -> bool {
         self.metadata.read_only
     }
@@ -159,7 +151,7 @@ impl Repository for FileSystemRepository {
                 }
             }
 
-            for (version_str, package) in versions.iter() {
+            for (_version_str, package) in versions.iter() {
                 // Check version range
                 if let Some(ref requirement) = criteria.version_requirement {
                     if let Some(ref version) = package.version {
@@ -382,7 +374,7 @@ impl FileSystemRepository {
                         // Add to package cache
                         package_cache
                             .entry(package_name.clone())
-                            .or_insert_with(HashMap::new)
+                            .or_default()
                             .insert(version_str.clone(), package.clone());
 
                         packages_found += 1;

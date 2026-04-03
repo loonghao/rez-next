@@ -8,11 +8,12 @@
 //! - Package cloning and memory operations
 //! - Requirements processing performance
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
-use rez_next_package::{Package, PackageFormat, PackageSerializer};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
+use rez_next_package::{Package, PackageSerializer};
 use rez_next_version::Version;
 use std::collections::HashMap;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::hint::black_box;
+use std::time::SystemTime;
 use thiserror::Error;
 
 // Import the benchmark framework

@@ -7,8 +7,6 @@ use rez_next_common::{config::RezCoreConfig, error::RezCoreResult, RezCoreError}
 use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::Arc;
-use tokio::sync::RwLock;
 
 /// Arguments for the status command
 #[derive(Args, Clone, Debug)]
@@ -73,7 +71,7 @@ pub fn execute(args: StatusArgs) -> RezCoreResult<()> {
     }
 
     // Create async runtime
-    let runtime = tokio::runtime::Runtime::new().map_err(|e| RezCoreError::Io(e.into()))?;
+    let runtime = tokio::runtime::Runtime::new().map_err(RezCoreError::Io)?;
 
     runtime.block_on(async { execute_status_async(&args).await })
 }
@@ -244,7 +242,7 @@ async fn show_repository_status(
 /// Show package family status
 async fn show_family_status(
     repo_manager: &RepositoryManager,
-    args: &StatusArgs,
+    _args: &StatusArgs,
 ) -> RezCoreResult<()> {
     println!("Package Family Status");
     println!("====================");

@@ -6,14 +6,13 @@
 
 use clap::Args;
 use rez_next_common::{config::RezCoreConfig, error::RezCoreResult, RezCoreError};
-use rez_next_context::{ContextConfig, EnvironmentManager, ResolvedContext};
-use rez_next_package::{Package, PackageRequirement};
+use rez_next_context::{ContextConfig, ResolvedContext};
+use rez_next_package::PackageRequirement;
 use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
 use rez_next_rex::{generate_shell_script, RexEnvironment, ShellType};
 use rez_next_solver::{DependencyResolver, SolverConfig};
 use serde::{Deserialize, Serialize};
 use serde_json;
-use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -70,11 +69,50 @@ struct BundlePackageInfo {
     pub source_path: Option<String>,
 }
 
+/// Detect if a string looks like a filesystem path rather than a package spec.
+///
+/// A string is treated as a path if it:
+/// - is an absolute path (starts with `/`, `\`, or a Windows drive letter like `C:\`)
+/// - contains a path separator (`/` or `\`)
+fn looks_like_path(s: &str) -> bool {
+    // Windows absolute path: C:\... or C:/...
+    if s.len() >= 3 && s.chars().nth(1) == Some(':') {
+        return true;
+    }
+    // Unix absolute path or relative path with separator
+    if s.starts_with('/') || s.starts_with('\\') {
+        return true;
+    }
+    // Contains path separator
+    if s.contains('/') || s.contains('\\') {
+        return true;
+    }
+    false
+}
+
 /// Execute the bundle command
-pub fn execute(args: BundleArgs) -> RezCoreResult<()> {
+pub fn execute(mut args: BundleArgs) -> RezCoreResult<()> {
     if args.packages.is_empty() {
         return Err(RezCoreError::RequirementParse(
-            "No packages specified. Usage: rez bundle <pkg1> [pkg2 ...]".to_string(),
+            "No packages specified. Usage: rez bundle <pkg1> [pkg2 ...] [dest]".to_string(),
+        ));
+    }
+
+    // If the last positional argument looks like a path, treat it as the output directory.
+    // This supports the rez-style CLI: `rez bundle python-3.9 maya-2024 /path/to/bundle`
+    if args.output.is_none() {
+        if let Some(last) = args.packages.last() {
+            if looks_like_path(last) {
+                let dest = last.clone();
+                args.packages.pop();
+                args.output = Some(dest);
+            }
+        }
+    }
+
+    if args.packages.is_empty() {
+        return Err(RezCoreError::RequirementParse(
+            "No packages specified. Usage: rez bundle <pkg1> [pkg2 ...] [dest]".to_string(),
         ));
     }
 
@@ -87,8 +125,13 @@ pub fn execute(args: BundleArgs) -> RezCoreResult<()> {
             .join("_")
     });
 
-    // Determine output directory
-    let output_dir = PathBuf::from(args.output.as_deref().unwrap_or(".")).join(&bundle_name);
+    // Determine output directory: if output is explicitly specified, use it as-is.
+    // Otherwise, create a subdirectory named after the bundle.
+    let output_dir = if let Some(ref out) = args.output {
+        PathBuf::from(out)
+    } else {
+        PathBuf::from(".").join(&bundle_name)
+    };
 
     println!(
         "Creating bundle '{}' in: {}",
@@ -107,8 +150,18 @@ pub fn execute(args: BundleArgs) -> RezCoreResult<()> {
         })
         .collect::<Result<_, _>>()?;
 
-    // Resolve context
-    let context = resolve_context(&requirements, &args)?;
+    // Resolve context — on failure (e.g. missing packages), degrade gracefully to an empty context
+    // so the bundle directory and bundle.yaml are still created.
+    let context = match resolve_context(&requirements, &args) {
+        Ok(ctx) => ctx,
+        Err(e) => {
+            println!(
+                "Warning: package resolution failed: {}. Bundle will only contain metadata.",
+                e
+            );
+            rez_next_context::ResolvedContext::from_requirements(requirements.clone())
+        }
+    };
 
     if context.resolved_packages.is_empty() && !requirements.is_empty() {
         println!("Warning: No packages resolved. Bundle will only contain metadata.");
@@ -117,10 +170,10 @@ pub fn execute(args: BundleArgs) -> RezCoreResult<()> {
     }
 
     // Create bundle directory structure
-    std::fs::create_dir_all(&output_dir).map_err(|e| RezCoreError::Io(e.into()))?;
+    std::fs::create_dir_all(&output_dir).map_err(RezCoreError::Io)?;
 
     let packages_dir = output_dir.join("packages");
-    std::fs::create_dir_all(&packages_dir).map_err(|e| RezCoreError::Io(e.into()))?;
+    std::fs::create_dir_all(&packages_dir).map_err(RezCoreError::Io)?;
 
     // Setup search paths for finding package files
     let rez_config = RezCoreConfig::load();
@@ -179,12 +232,31 @@ pub fn execute(args: BundleArgs) -> RezCoreResult<()> {
 
     let metadata_json = serde_json::to_string_pretty(&metadata).map_err(RezCoreError::Serde)?;
     let metadata_path = output_dir.join("bundle.json");
-    std::fs::write(&metadata_path, &metadata_json).map_err(|e| RezCoreError::Io(e.into()))?;
+    std::fs::write(&metadata_path, &metadata_json).map_err(RezCoreError::Io)?;
+
+    // Also create bundle.yaml for rez compatibility (rez uses bundle.yaml as the bundle manifest)
+    let mut yaml_lines = vec![
+        format!("name: {}", metadata.name),
+        format!("version: {}", metadata.version),
+        format!("created_at: {}", metadata.created_at),
+        "requests:".to_string(),
+    ];
+    for req in &metadata.requests {
+        yaml_lines.push(format!("  - {}", req));
+    }
+    yaml_lines.push("packages:".to_string());
+    for pkg in &metadata.packages {
+        yaml_lines.push(format!("  - name: {}", pkg.name));
+        yaml_lines.push(format!("    version: {}", pkg.version));
+    }
+    let bundle_yaml = yaml_lines.join("\n") + "\n";
+    let yaml_path = output_dir.join("bundle.yaml");
+    std::fs::write(&yaml_path, &bundle_yaml).map_err(RezCoreError::Io)?;
 
     // Save context .rxt file
     let context_json = serde_json::to_string_pretty(&context).map_err(RezCoreError::Serde)?;
     let context_path = output_dir.join("context.rxt");
-    std::fs::write(&context_path, &context_json).map_err(|e| RezCoreError::Io(e.into()))?;
+    std::fs::write(&context_path, &context_json).map_err(RezCoreError::Io)?;
 
     // Generate activation scripts for common shells
     generate_activation_scripts(&output_dir, &context, &rez_config)?;
@@ -211,7 +283,7 @@ fn resolve_context(
     requirements: &[PackageRequirement],
     args: &BundleArgs,
 ) -> RezCoreResult<ResolvedContext> {
-    let config = ContextConfig::default();
+    let _config = ContextConfig::default();
     let rez_config = RezCoreConfig::load();
 
     let search_paths = get_search_paths(args, &rez_config);
@@ -238,7 +310,7 @@ fn resolve_context(
         })
         .collect();
 
-    let rt = tokio::runtime::Runtime::new().map_err(|e| RezCoreError::Io(e.into()))?;
+    let rt = tokio::runtime::Runtime::new().map_err(RezCoreError::Io)?;
     let solver_config = SolverConfig::default();
     let mut resolver = DependencyResolver::new(Arc::clone(&repo_arc), solver_config);
     let resolution = rt.block_on(resolver.resolve(resolver_reqs))?;
@@ -350,17 +422,17 @@ fn generate_activation_scripts(
     // Bash activation script
     let bash_script = generate_shell_script(&rex_env, &ShellType::Bash);
     let bash_path = bundle_dir.join("activate.sh");
-    std::fs::write(&bash_path, bash_script).map_err(|e| RezCoreError::Io(e.into()))?;
+    std::fs::write(&bash_path, bash_script).map_err(RezCoreError::Io)?;
 
     // PowerShell activation script
     let ps_script = generate_shell_script(&rex_env, &ShellType::PowerShell);
     let ps_path = bundle_dir.join("activate.ps1");
-    std::fs::write(&ps_path, ps_script).map_err(|e| RezCoreError::Io(e.into()))?;
+    std::fs::write(&ps_path, ps_script).map_err(RezCoreError::Io)?;
 
     // CMD activation script
     let cmd_script = generate_shell_script(&rex_env, &ShellType::Cmd);
     let cmd_path = bundle_dir.join("activate.bat");
-    std::fs::write(&cmd_path, cmd_script).map_err(|e| RezCoreError::Io(e.into()))?;
+    std::fs::write(&cmd_path, cmd_script).map_err(RezCoreError::Io)?;
 
     Ok(())
 }
@@ -386,7 +458,7 @@ mod tests {
 
     #[test]
     fn test_bundle_name_generation() {
-        let packages = vec!["python-3.9".to_string(), "maya-2023".to_string()];
+        let packages = ["python-3.9".to_string(), "maya-2023".to_string()];
         let bundle_name: String = packages
             .iter()
             .map(|p| p.replace(['-', '.'], "_"))
@@ -552,7 +624,7 @@ mod tests {
     /// Bundle name generation for single package
     #[test]
     fn test_bundle_name_single_package() {
-        let packages = vec!["maya-2024.1".to_string()];
+        let packages = ["maya-2024.1".to_string()];
         let name: String = packages
             .iter()
             .map(|p| p.replace(['-', '.'], "_"))

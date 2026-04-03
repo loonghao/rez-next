@@ -3,7 +3,6 @@
 use crate::ResolvedContext;
 use base64::{engine::general_purpose, Engine as _};
 use rez_next_common::RezCoreError;
-use serde_json;
 use std::path::Path;
 
 /// Context serialization format
@@ -202,7 +201,7 @@ impl ContextSerializer {
         if let Some(ref name) = context.name {
             env_content.push_str(&format!("# Name: {}\n", name));
         }
-        env_content.push_str("\n");
+        env_content.push('\n');
 
         for (name, value) in &context.environment_vars {
             env_content.push_str(&format!("{}={}\n", name, value));

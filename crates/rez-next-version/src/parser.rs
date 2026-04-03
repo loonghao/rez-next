@@ -1,8 +1,6 @@
 //! High-performance version parsing utilities with zero-copy state machine
 
 use super::Version;
-#[cfg(feature = "python-bindings")]
-use super::VersionToken;
 use ahash::AHashMap;
 use once_cell::sync::Lazy;
 use rez_next_common::RezCoreError;
@@ -272,23 +270,6 @@ impl VersionParser {
         }
     }
 
-    /// Parse a version string into tokens (legacy interface)
-    #[cfg(feature = "python-bindings")]
-    pub fn parse_tokens(
-        &self,
-        input: &str,
-    ) -> Result<(Vec<VersionToken>, Vec<char>), RezCoreError> {
-        let (_tokens, separators) = self.inner.parse_tokens(input)?;
-
-        // Convert to legacy format
-        let legacy_tokens = Vec::new();
-        let legacy_separators: Vec<char> = separators.into_iter().collect();
-
-        // For now, return empty vectors to maintain compatibility
-        // TODO: Implement proper conversion from TokenType to VersionToken
-        Ok((legacy_tokens, legacy_separators))
-    }
-
     /// Parse a complete version string
     pub fn parse_version(&self, input: &str) -> Result<Version, RezCoreError> {
         // Use the new state machine parser for better performance
@@ -317,8 +298,7 @@ mod tests {
     fn test_parser_creation() {
         let _parser = VersionParser::new();
         let _state_machine_parser = StateMachineParser::new();
-        // Basic test to ensure parsers can be created
-        assert!(true);
+        // Verify parsers can be created without panicking
     }
 
     #[test]

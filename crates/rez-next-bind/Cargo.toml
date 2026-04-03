@@ -12,8 +12,6 @@ keywords = ["rez", "bind", "package-manager"]
 rez-next-common = { version = "0.2.0", path = "../rez-next-common" }
 rez-next-version = { version = "0.2.0", path = "../rez-next-version" }
 rez-next-package = { version = "0.2.0", path = "../rez-next-package" }
-serde = { workspace = true, features = ["derive"] }
-serde_json.workspace = true
 thiserror.workspace = true
 regex.workspace = true
 

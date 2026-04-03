@@ -12,9 +12,9 @@ use std::path::PathBuf;
 /// Arguments for the plugins command
 #[derive(Args, Clone, Debug)]
 pub struct PluginsArgs {
-    /// Package to list plugins for
+    /// Package to list plugins for (optional; lists all if omitted)
     #[arg(value_name = "PKG")]
-    pub package: String,
+    pub package: Option<String>,
 
     /// Set package search path
     #[arg(long = "paths", value_name = "PATH")]
@@ -47,12 +47,25 @@ pub struct PluginDiscoveryResult {
 /// Execute the plugins command
 pub fn execute(args: PluginsArgs) -> RezCoreResult<()> {
     if args.verbose {
-        println!("🔌 Rez Plugins - Discovering package plugins...");
-        println!("Package: {}", args.package);
+        if let Some(ref pkg) = args.package {
+            println!("🔌 Rez Plugins - Discovering package plugins...");
+            println!("Package: {}", pkg);
+        } else {
+            println!("🔌 Rez Plugins - Listing all available plugins...");
+        }
+    }
+
+    // If no package specified, just list available plugin types and exit successfully
+    if args.package.is_none() {
+        println!(
+            "Available plugin types: build_process, build_system, release_hook, release_vcs, shell"
+        );
+        println!("Use 'rez plugins <package>' to list plugins for a specific package.");
+        return Ok(());
     }
 
     // Create async runtime
-    let runtime = tokio::runtime::Runtime::new().map_err(|e| RezCoreError::Io(e.into()))?;
+    let runtime = tokio::runtime::Runtime::new().map_err(RezCoreError::Io)?;
 
     runtime.block_on(async { execute_plugins_async(&args).await })
 }
@@ -63,7 +76,8 @@ async fn execute_plugins_async(args: &PluginsArgs) -> RezCoreResult<()> {
     let repo_manager = setup_repositories(args).await?;
 
     // Find package
-    let package = find_package(&repo_manager, &args.package).await?;
+    let pkg_name = args.package.as_deref().unwrap_or("*");
+    let package = find_package(&repo_manager, pkg_name).await?;
 
     if args.verbose {
         println!("Found package: {}", package.name);
@@ -268,7 +282,7 @@ fn display_plugins_result(result: &PluginDiscoveryResult, verbose: bool) {
         for plugin in &result.plugins {
             plugins_by_type
                 .entry(plugin.plugin_type.clone())
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push(plugin);
         }
 
@@ -307,12 +321,12 @@ mod tests {
     #[test]
     fn test_plugins_args_defaults() {
         let args = PluginsArgs {
-            package: "test".to_string(),
+            package: Some("test".to_string()),
             paths: vec![],
             verbose: false,
         };
 
-        assert_eq!(args.package, "test");
+        assert_eq!(args.package, Some("test".to_string()));
         assert!(!args.verbose);
     }
 

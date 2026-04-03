@@ -7,18 +7,15 @@
 //! - Advanced caching with LRU eviction
 //! - Predictive prefetching
 
-use crate::{PackageScanResult, ScanError, ScanErrorType, ScanPerformanceMetrics, ScanResult};
+use crate::{PackageScanResult, ScanPerformanceMetrics, ScanResult};
 use dashmap::DashMap;
 use lru::LruCache;
 use memmap2::Mmap;
 use parking_lot::RwLock;
-use rayon::prelude::*;
 use rez_next_common::RezCoreError;
 use rez_next_package::Package;
-use smallvec::SmallVec;
-use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::{Instant, SystemTime};
 use tokio::fs;
@@ -61,10 +58,13 @@ impl Default for HighPerformanceConfig {
 #[derive(Debug, Clone)]
 struct AdvancedCacheEntry {
     result: PackageScanResult,
+    #[allow(dead_code)] // Written for cache invalidation, not yet read
     mtime: SystemTime,
+    #[allow(dead_code)] // Written for cache invalidation, not yet read
     size: u64,
     access_count: u64,
     last_accessed: SystemTime,
+    #[allow(dead_code)] // Written by prefetch predictor, not yet read
     prediction_score: f64,
 }
 
@@ -84,6 +84,14 @@ pub struct HighPerformanceScanner {
     mmap_operations: AtomicU64,
     prefetch_hits: AtomicU64,
     total_scan_time: AtomicU64,
+    /// I/O time tracker (milliseconds)
+    io_time_ms: AtomicU64,
+    /// Parsing time tracker (milliseconds)
+    parsing_time_ms: AtomicU64,
+    /// Directories scanned counter
+    dirs_scanned: AtomicU64,
+    /// Scan error counter
+    scan_errors: AtomicU64,
 }
 
 impl HighPerformanceScanner {
@@ -103,6 +111,10 @@ impl HighPerformanceScanner {
             mmap_operations: AtomicU64::new(0),
             prefetch_hits: AtomicU64::new(0),
             total_scan_time: AtomicU64::new(0),
+            io_time_ms: AtomicU64::new(0),
+            parsing_time_ms: AtomicU64::new(0),
+            dirs_scanned: AtomicU64::new(0),
+            scan_errors: AtomicU64::new(0),
         }
     }
 
@@ -162,6 +174,8 @@ impl HighPerformanceScanner {
                     directories.push(subdir.clone());
                     stack.push(subdir);
                 }
+
+                self.dirs_scanned.fetch_add(1, Ordering::Relaxed);
             }
         }
 
@@ -244,18 +258,13 @@ impl HighPerformanceScanner {
         package_files: &[PathBuf],
     ) -> Result<Vec<PackageScanResult>, RezCoreError> {
         let semaphore = Arc::new(Semaphore::new(self.config.max_concurrency));
-        let results = Arc::new(DashMap::<PathBuf, PackageScanResult>::new());
+        let _results = Arc::new(DashMap::<PathBuf, PackageScanResult>::new());
 
         if self.config.enable_work_stealing && package_files.len() > 1000 {
             // Use Rayon for work-stealing parallelism on large datasets
             let results_vec: Vec<_> = package_files
                 .iter()
-                .filter_map(|path| {
-                    match futures::executor::block_on(self.scan_file_optimized(path)) {
-                        Ok(result) => Some(result),
-                        Err(_) => None,
-                    }
-                })
+                .filter_map(|path| futures::executor::block_on(self.scan_file_optimized(path)).ok())
                 .collect();
 
             Ok(results_vec)
@@ -294,27 +303,42 @@ impl HighPerformanceScanner {
 
         self.cache_misses.fetch_add(1, Ordering::Relaxed);
 
-        let start_time = Instant::now();
-
-        // Get file metadata
-        let metadata = fs::metadata(path).await?;
+        // Phase 1: I/O
+        let io_start = Instant::now();
+        let metadata = fs::metadata(path).await.map_err(|e| {
+            self.scan_errors.fetch_add(1, Ordering::Relaxed);
+            RezCoreError::from(e)
+        })?;
         let file_size = metadata.len();
         let mtime = metadata.modified().unwrap_or(SystemTime::UNIX_EPOCH);
 
         // Choose optimal reading strategy
         let content = if file_size > self.config.mmap_threshold {
-            self.read_file_mmap(path).await?
+            self.read_file_mmap(path).await.map_err(|e| {
+                self.scan_errors.fetch_add(1, Ordering::Relaxed);
+                e
+            })?
         } else {
-            fs::read_to_string(path).await?
+            fs::read_to_string(path).await.map_err(|e| {
+                self.scan_errors.fetch_add(1, Ordering::Relaxed);
+                RezCoreError::from(e)
+            })?
         };
+        let io_elapsed_ms = io_start.elapsed().as_millis() as u64;
+        self.io_time_ms.fetch_add(io_elapsed_ms, Ordering::Relaxed);
 
-        // Detect format and parse
+        // Phase 2: Parsing
+        let parse_start = Instant::now();
         let _format = self.detect_format_simd(path, &content)?;
         let package: Package = serde_yaml::from_str(&content).map_err(|e| {
+            self.scan_errors.fetch_add(1, Ordering::Relaxed);
             RezCoreError::Repository(format!("Failed to parse package file: {}", e))
         })?;
+        let parse_elapsed_ms = parse_start.elapsed().as_millis() as u64;
+        self.parsing_time_ms
+            .fetch_add(parse_elapsed_ms, Ordering::Relaxed);
 
-        let scan_duration = start_time.elapsed().as_millis() as u64;
+        let scan_duration = io_elapsed_ms + parse_elapsed_ms;
 
         let result = PackageScanResult {
             package,
@@ -395,24 +419,24 @@ impl HighPerformanceScanner {
     /// Build final scan result
     fn build_scan_result(&self, results: Vec<PackageScanResult>, total_time: u64) -> ScanResult {
         let performance_metrics = ScanPerformanceMetrics {
-            io_time_ms: 0,      // TODO: Track separately
-            parsing_time_ms: 0, // TODO: Track separately
+            io_time_ms: self.io_time_ms.load(Ordering::Relaxed),
+            parsing_time_ms: self.parsing_time_ms.load(Ordering::Relaxed),
             memory_mapped_files: self.mmap_operations.load(Ordering::Relaxed) as usize,
             cache_hits: self.cache_hits.load(Ordering::Relaxed) as usize,
             cache_misses: self.cache_misses.load(Ordering::Relaxed) as usize,
             avg_file_size: results.iter().map(|r| r.file_size).sum::<u64>()
                 / results.len().max(1) as u64,
-            peak_memory_usage: 0, // TODO: Implement
+            peak_memory_usage: 0, // platform-specific; not tracked without OS crate
             peak_concurrency: self.config.max_concurrency,
         };
 
         ScanResult {
             packages: results,
             total_duration_ms: total_time,
-            directories_scanned: 0, // TODO: Track
-            files_examined: self.cache_hits.load(Ordering::Relaxed) as usize
-                + self.cache_misses.load(Ordering::Relaxed) as usize,
-            errors: Vec::new(), // TODO: Collect errors
+            directories_scanned: self.dirs_scanned.load(Ordering::Relaxed) as usize,
+            files_examined: (self.cache_hits.load(Ordering::Relaxed)
+                + self.cache_misses.load(Ordering::Relaxed)) as usize,
+            errors: Vec::new(), // errors were counted in scan_errors; surfacing as Vec requires collection during scan
             performance_metrics,
         }
     }
@@ -432,6 +456,7 @@ impl HighPerformanceScanner {
 }
 
 /// SIMD pattern matcher for high-performance file filtering
+#[derive(Default)]
 pub struct SIMDPatternMatcher {
     // SIMD pattern matching implementation
 }
@@ -464,6 +489,7 @@ impl SIMDPatternMatcher {
 }
 
 /// Predictive prefetching system
+#[derive(Default)]
 pub struct PrefetchPredictor {
     // Machine learning model for prediction
 }

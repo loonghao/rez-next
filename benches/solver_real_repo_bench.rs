@@ -7,13 +7,12 @@
 //! - Requirement parsing throughput
 //! - Comparison of A* vs greedy resolution strategies
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use rez_next_package::Requirement;
 use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
-use rez_next_repository::PackageRepository;
 use rez_next_solver::{DependencyResolver, SolverConfig};
 use std::fs;
-use std::path::PathBuf;
+use std::hint::black_box;
 use std::sync::Arc;
 use std::time::Duration;
 use tempfile::TempDir;
@@ -25,7 +24,7 @@ fn make_rt() -> tokio::runtime::Runtime {
 }
 
 /// Create a package.py file at `<repo_dir>/<name>/<version>/package.py`
-fn create_package(repo_dir: &PathBuf, name: &str, version: &str, requires: &[&str]) {
+fn create_package(repo_dir: &std::path::Path, name: &str, version: &str, requires: &[&str]) {
     let pkg_dir = repo_dir.join(name).join(version);
     fs::create_dir_all(&pkg_dir).unwrap();
 
@@ -163,9 +162,8 @@ fn build_large_repo(n_packages: usize, n_versions: usize) -> (TempDir, Arc<Repos
 
 /// Benchmark: repository scan speed
 fn bench_repo_scan(c: &mut Criterion) {
-    let ci = std::env::var("CRITERION_QUICK").is_ok();
     let mut group = c.benchmark_group("repo_scan");
-    group.measurement_time(Duration::from_secs(if ci { 2 } else { 5 }));
+    group.measurement_time(Duration::from_secs(5));
 
     let rt = make_rt();
     let (_tmp, repo) = build_dcc_repo();
@@ -189,9 +187,8 @@ fn bench_repo_scan(c: &mut Criterion) {
 
 /// Benchmark: resolve single package from DCC repo
 fn bench_resolve_single_dcc(c: &mut Criterion) {
-    let ci = std::env::var("CRITERION_QUICK").is_ok();
     let mut group = c.benchmark_group("resolve_single_dcc");
-    group.measurement_time(Duration::from_secs(if ci { 2 } else { 5 }));
+    group.measurement_time(Duration::from_secs(5));
 
     let rt = make_rt();
     let (_tmp, repo) = build_dcc_repo();
@@ -214,9 +211,8 @@ fn bench_resolve_single_dcc(c: &mut Criterion) {
 
 /// Benchmark: resolve with transitive dependencies
 fn bench_resolve_transitive_dcc(c: &mut Criterion) {
-    let ci = std::env::var("CRITERION_QUICK").is_ok();
     let mut group = c.benchmark_group("resolve_transitive_dcc");
-    group.measurement_time(Duration::from_secs(if ci { 2 } else { 5 }));
+    group.measurement_time(Duration::from_secs(5));
 
     let rt = make_rt();
     let (_tmp, repo) = build_dcc_repo();
@@ -337,10 +333,9 @@ fn bench_version_constraint_check(c: &mut Criterion) {
 
 /// Benchmark: large repo resolution
 fn bench_resolve_large_repo(c: &mut Criterion) {
-    let ci = std::env::var("CRITERION_QUICK").is_ok();
     let mut group = c.benchmark_group("resolve_large_repo");
-    group.measurement_time(Duration::from_secs(if ci { 3 } else { 10 }));
-    group.sample_size(if ci { 5 } else { 10 });
+    group.measurement_time(Duration::from_secs(10));
+    group.sample_size(10);
 
     let rt = make_rt();
 

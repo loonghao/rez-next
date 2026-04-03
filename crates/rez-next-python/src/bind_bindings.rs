@@ -57,6 +57,12 @@ impl PyBindResult {
 #[pyclass(name = "BindManager")]
 pub struct PyBindManager {}
 
+impl Default for PyBindManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[pymethods]
 impl PyBindManager {
     #[new]

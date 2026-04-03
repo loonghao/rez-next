@@ -4,19 +4,13 @@ use crate::{
     BuildArtifacts, BuildConfig, BuildEnvironment, BuildRequest, BuildResult, BuildStatus,
     BuildSystem,
 };
-#[cfg(feature = "python-bindings")]
-use pyo3::prelude::*;
 use rez_next_common::RezCoreError;
-use rez_next_context::ShellExecutor;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::process::Child;
 use tokio::sync::{Mutex, RwLock};
 
 /// Build process for managing individual package builds
-#[cfg_attr(feature = "python-bindings", pyclass)]
 #[derive(Debug)]
 pub struct BuildProcess {
     /// Build ID
@@ -71,29 +65,6 @@ pub struct BuildStepResult {
     pub errors: String,
     /// Step duration in milliseconds
     pub duration_ms: u64,
-}
-
-#[cfg(feature = "python-bindings")]
-#[pymethods]
-impl BuildProcess {
-    /// Get build ID
-    #[getter]
-    pub fn build_id(&self) -> String {
-        self.build_id.clone()
-    }
-
-    /// Get build status
-    #[getter]
-    pub fn status(&self) -> String {
-        // This is a simplified sync version for Python binding
-        format!("{:?}", BuildStatus::Running) // TODO: Implement proper sync access
-    }
-
-    /// Get package name
-    #[getter]
-    pub fn package_name(&self) -> String {
-        self.request.package.name.clone()
-    }
 }
 
 impl BuildProcess {
@@ -241,7 +212,7 @@ impl BuildProcess {
 
     /// Run build steps
     async fn run_build_steps(
-        build_id: &str,
+        _build_id: &str,
         request: &BuildRequest,
         environment: &BuildEnvironment,
         config: &BuildConfig,
@@ -346,9 +317,9 @@ impl BuildProcess {
 
     /// Execute prepare step
     async fn execute_prepare_step(
-        request: &BuildRequest,
+        _request: &BuildRequest,
         environment: &BuildEnvironment,
-        config: &BuildConfig,
+        _config: &BuildConfig,
     ) -> Result<(bool, String, String), RezCoreError> {
         // Create build directories
         let build_dir = environment.get_build_dir();
@@ -375,7 +346,7 @@ impl BuildProcess {
     async fn execute_configure_step(
         request: &BuildRequest,
         environment: &BuildEnvironment,
-        config: &BuildConfig,
+        _config: &BuildConfig,
     ) -> Result<(bool, String, String), RezCoreError> {
         // Detect and configure build system
         let build_system = BuildSystem::detect_with_package(&request.source_dir, &request.package)?;
@@ -392,7 +363,7 @@ impl BuildProcess {
     async fn execute_compile_step(
         request: &BuildRequest,
         environment: &BuildEnvironment,
-        config: &BuildConfig,
+        _config: &BuildConfig,
         child_process: Arc<Mutex<Option<Child>>>,
     ) -> Result<(bool, String, String), RezCoreError> {
         let build_system = BuildSystem::detect_with_package(&request.source_dir, &request.package)?;
@@ -411,7 +382,7 @@ impl BuildProcess {
     async fn execute_test_step(
         request: &BuildRequest,
         environment: &BuildEnvironment,
-        config: &BuildConfig,
+        _config: &BuildConfig,
         child_process: Arc<Mutex<Option<Child>>>,
     ) -> Result<(bool, String, String), RezCoreError> {
         let build_system = BuildSystem::detect_with_package(&request.source_dir, &request.package)?;
@@ -426,7 +397,7 @@ impl BuildProcess {
     async fn execute_package_step(
         request: &BuildRequest,
         environment: &BuildEnvironment,
-        config: &BuildConfig,
+        _config: &BuildConfig,
     ) -> Result<(bool, String, String), RezCoreError> {
         let build_system = BuildSystem::detect_with_package(&request.source_dir, &request.package)?;
         let package_result = build_system.package(request, environment).await?;
@@ -442,7 +413,7 @@ impl BuildProcess {
     async fn execute_install_step(
         request: &BuildRequest,
         environment: &BuildEnvironment,
-        config: &BuildConfig,
+        _config: &BuildConfig,
     ) -> Result<(bool, String, String), RezCoreError> {
         let build_system = BuildSystem::detect_with_package(&request.source_dir, &request.package)?;
         let install_result = build_system.install(request, environment).await?;
@@ -456,7 +427,7 @@ impl BuildProcess {
 
     /// Execute cleanup step
     async fn execute_cleanup_step(
-        request: &BuildRequest,
+        _request: &BuildRequest,
         environment: &BuildEnvironment,
         config: &BuildConfig,
     ) -> Result<(bool, String, String), RezCoreError> {

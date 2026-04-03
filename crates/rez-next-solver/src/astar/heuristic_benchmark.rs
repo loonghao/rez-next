@@ -63,7 +63,7 @@ impl HeuristicBenchmark {
 
             let requirements: Vec<PackageRequirement> = (0..num_requirements)
                 .map(|j| {
-                    PackageRequirement::with_version(format!("package_{}", j), format!(">=1.0"))
+                    PackageRequirement::with_version(format!("package_{}", j), ">=1.0".to_string())
                 })
                 .collect();
 

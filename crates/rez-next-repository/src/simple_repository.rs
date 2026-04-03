@@ -1,6 +1,5 @@
 //! Simple file-based repository implementation
 
-use crate::Repository;
 use async_trait::async_trait;
 use rez_next_common::RezCoreError;
 use rez_next_package::{Package, PackageSerializer};
@@ -86,7 +85,7 @@ impl SimpleRepository {
                             let package_name = package.name.clone();
                             cache
                                 .entry(package_name)
-                                .or_insert_with(Vec::new)
+                                .or_default()
                                 .push(Arc::new(package));
                         }
                     } else {

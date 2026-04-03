@@ -1,10 +1,9 @@
 //! Dependency resolution implementation - equivalent to Python's solver
 
-use crate::{SolverConfig, SolverStats};
+use crate::SolverConfig;
 use rez_next_common::RezCoreError;
-use rez_next_package::{Package, Requirement, VersionConstraint};
-use rez_next_repository::simple_repository::{PackageRepository, RepositoryManager};
-use rez_next_version::Version;
+use rez_next_package::{Package, Requirement};
+use rez_next_repository::simple_repository::RepositoryManager;
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::Arc;
 
@@ -16,16 +15,13 @@ pub struct DependencyResolver {
     /// Solver configuration
     config: SolverConfig,
 
-    /// Solver statistics
-    stats: SolverStats,
-
     /// Cache of resolved packages
     package_cache: HashMap<String, Vec<Arc<Package>>>,
 }
 
-/// Resolution result containing resolved packages and metadata
+/// Detailed resolution result containing resolved packages, failures, conflicts and stats
 #[derive(Debug, Clone)]
-pub struct ResolutionResult {
+pub struct DetailedResolutionResult {
     /// Successfully resolved packages
     pub resolved_packages: Vec<ResolvedPackageInfo>,
 
@@ -72,7 +68,7 @@ pub struct ResolutionConflict {
 }
 
 /// Statistics about the resolution process
-#[derive(Debug, Clone, serde::Serialize)]
+#[derive(Debug, Clone, serde::Serialize, Default)]
 pub struct ResolutionStats {
     /// Number of packages considered
     pub packages_considered: usize,
@@ -96,7 +92,6 @@ impl DependencyResolver {
         Self {
             repository_manager,
             config,
-            stats: SolverStats::default(),
             package_cache: HashMap::new(),
         }
     }
@@ -105,7 +100,7 @@ impl DependencyResolver {
     pub async fn resolve(
         &mut self,
         requirements: Vec<Requirement>,
-    ) -> Result<ResolutionResult, RezCoreError> {
+    ) -> Result<DetailedResolutionResult, RezCoreError> {
         let start_time = std::time::Instant::now();
 
         // Initialize resolution state
@@ -132,9 +127,20 @@ impl DependencyResolver {
             backtrack_steps: resolution_state.backtrack_steps,
         };
 
-        Ok(ResolutionResult {
+        let failed = resolution_state.failed_requirements;
+
+        // Strict mode: any unsatisfied requirement is a hard error
+        if self.config.strict_mode && !failed.is_empty() {
+            let names: Vec<String> = failed.iter().map(|r| r.to_string()).collect();
+            return Err(RezCoreError::Solver(format!(
+                "Strict mode: failed to satisfy requirements: {}",
+                names.join(", ")
+            )));
+        }
+
+        Ok(DetailedResolutionResult {
             resolved_packages: result,
-            failed_requirements: resolution_state.failed_requirements,
+            failed_requirements: failed,
             conflicts: resolution_state.conflicts,
             stats,
         })
@@ -224,6 +230,10 @@ impl DependencyResolver {
             .iter()
             .filter(|pkg| {
                 if let Some(ref version) = pkg.version {
+                    // Respect allow_prerelease flag
+                    if !self.config.allow_prerelease && version.is_prerelease() {
+                        return false;
+                    }
                     requirement.is_satisfied_by(version)
                 } else {
                     true
@@ -251,15 +261,6 @@ impl DependencyResolver {
         }
 
         candidates
-    }
-
-    /// Filter candidate packages based on version constraints (legacy alias)
-    fn filter_candidates(
-        &self,
-        packages: &[Arc<Package>],
-        requirement: &Requirement,
-    ) -> Vec<Arc<Package>> {
-        self.filter_and_sort_candidates(packages, requirement)
     }
 
     /// Try to resolve using a specific candidate package
@@ -487,7 +488,7 @@ impl ResolutionState {
         }
     }
 
-    fn mark_requirement_satisfied(&mut self, requirement: &Requirement, package_name: String) {
+    fn mark_requirement_satisfied(&mut self, requirement: &Requirement, _package_name: String) {
         let req_key = format!(
             "{}:{}",
             requirement.name,
@@ -547,25 +548,12 @@ impl ResolutionState {
     }
 }
 
-impl Default for ResolutionStats {
-    fn default() -> Self {
-        Self {
-            packages_considered: 0,
-            variants_evaluated: 0,
-            resolution_time_ms: 0,
-            conflicts_encountered: 0,
-            backtrack_steps: 0,
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::solver::ConflictStrategy;
-    use rez_next_package::{Package, Requirement};
+    use rez_next_package::Requirement;
     use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
-    use rez_next_version::Version;
     use serde_json;
     use std::sync::Arc;
 
@@ -667,8 +655,10 @@ mod tests {
         )));
         let repo_arc = Arc::new(manager);
 
-        let mut config = SolverConfig::default();
-        config.prefer_latest = true;
+        let config = SolverConfig {
+            prefer_latest: true,
+            ..Default::default()
+        };
         let mut resolver = DependencyResolver::new(Arc::clone(&repo_arc), config);
 
         let req = Requirement::new("foo".to_string());
@@ -723,7 +713,7 @@ mod tests {
 
     #[test]
     fn test_resolution_result_structure() {
-        let result = ResolutionResult {
+        let result = DetailedResolutionResult {
             resolved_packages: vec![],
             failed_requirements: vec![],
             conflicts: vec![],
@@ -753,8 +743,10 @@ mod tests {
         )));
         let repo_arc = Arc::new(manager);
 
-        let mut config = SolverConfig::default();
-        config.prefer_latest = true;
+        let config = SolverConfig {
+            prefer_latest: true,
+            ..Default::default()
+        };
         let mut resolver = DependencyResolver::new(Arc::clone(&repo_arc), config);
 
         // Parse "foo>=1.0.0,<1.5.0" as a Requirement - strict range that excludes 1.5.0 and 2.0.0
@@ -933,8 +925,10 @@ mod tests {
         )));
         let repo_arc = Arc::new(manager);
 
-        let mut config = SolverConfig::default();
-        config.prefer_latest = false; // prefer earliest
+        let config = SolverConfig {
+            prefer_latest: false,
+            ..Default::default()
+        };
         let mut resolver = DependencyResolver::new(Arc::clone(&repo_arc), config);
 
         let req = Requirement::new("lib".to_string());
@@ -1137,8 +1131,10 @@ mod tests {
         )));
         let repo_arc = Arc::new(manager);
 
-        let mut config = SolverConfig::default();
-        config.prefer_latest = true;
+        let config = SolverConfig {
+            prefer_latest: true,
+            ..Default::default()
+        };
         let mut resolver = DependencyResolver::new(Arc::clone(&repo_arc), config);
         // Strict upper bound: <2.0.0 forces downgrade from 2.0
         let req: Requirement = "util>=1.8.0,<2.0.0".parse().unwrap();
@@ -1187,8 +1183,10 @@ mod tests {
     /// conflict_strategy=FailOnConflict config exists and is serializable
     #[test]
     fn test_conflict_strategy_fail_on_conflict_config() {
-        let mut config = SolverConfig::default();
-        config.conflict_strategy = ConflictStrategy::FailOnConflict;
+        let config = SolverConfig {
+            conflict_strategy: ConflictStrategy::FailOnConflict,
+            ..Default::default()
+        };
         let json = serde_json::to_string(&config).unwrap();
         assert!(
             json.contains("FailOnConflict"),
@@ -1319,8 +1317,10 @@ mod tests {
         )));
         let repo_arc = Arc::new(manager);
 
-        let mut config = SolverConfig::default();
-        config.prefer_latest = false;
+        let config = SolverConfig {
+            prefer_latest: false,
+            ..Default::default()
+        };
         let mut resolver = DependencyResolver::new(Arc::clone(&repo_arc), config);
         let req: Requirement = "rangelib>=1.0.0,<2.0.0".parse().unwrap();
         let result = rt.block_on(resolver.resolve(vec![req])).unwrap();
@@ -1384,8 +1384,10 @@ mod tests {
         )));
         let repo_arc = Arc::new(manager);
 
-        let mut config = SolverConfig::default();
-        config.prefer_latest = true;
+        let config = SolverConfig {
+            prefer_latest: true,
+            ..Default::default()
+        };
         let mut resolver = DependencyResolver::new(Arc::clone(&repo_arc), config);
         let req = Requirement::new("shared_pkg".to_string());
         let result = rt.block_on(resolver.resolve(vec![req])).unwrap();

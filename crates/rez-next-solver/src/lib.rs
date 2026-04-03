@@ -29,14 +29,3 @@ pub use dependency_resolver::*;
 pub use graph::*;
 pub use resolution::*;
 pub use solver::*;
-
-#[cfg(feature = "python-bindings")]
-use pyo3::prelude::*;
-
-/// Initialize the solver module for Python
-#[cfg(feature = "python-bindings")]
-#[pymodule]
-fn rez_next_solver(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_class::<DependencySolver>()?;
-    Ok(())
-}

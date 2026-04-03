@@ -1,7 +1,7 @@
 //! Version and VersionRange unit tests
 
 #[cfg(test)]
-mod version_tests {
+mod tests {
     use crate::version::Version;
 
     fn v(s: &str) -> Version {

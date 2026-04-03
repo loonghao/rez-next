@@ -252,6 +252,7 @@ pub fn diff_contexts(
                     name: s.clone(),
                     version_spec: None,
                     weak: false,
+                    conflict: false,
                 });
                 let mut pkg = Package::new(pr.name.clone());
                 if let Some(ref spec) = pr.version_spec {

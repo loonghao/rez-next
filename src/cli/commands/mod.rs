@@ -10,10 +10,8 @@ pub mod release;
 pub mod test;
 pub mod view;
 
-// TODO: Add more commands as they are implemented
-pub mod build;
-// pub mod search;
 pub mod bind;
+pub mod build;
 pub mod bundle;
 pub mod complete;
 pub mod cp;

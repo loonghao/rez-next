@@ -107,6 +107,26 @@ impl VersionRange {
         Self::parse(&range_str)
     }
 
+    /// Create a version range that matches any version (equivalent to `""` or `"*"`)
+    pub fn any() -> Self {
+        VersionRange {
+            range_str: String::new(),
+            bound_sets: vec![BoundSet::any()],
+            is_parsed: true,
+            subtract_from: Vec::new(),
+        }
+    }
+
+    /// Create a version range that matches no version (empty set)
+    pub fn none() -> Self {
+        VersionRange {
+            range_str: "!*".to_string(),
+            bound_sets: vec![BoundSet::none()],
+            is_parsed: true,
+            subtract_from: Vec::new(),
+        }
+    }
+
     /// Parse a version range string
     ///
     /// Supported formats:
@@ -289,28 +309,6 @@ impl VersionRange {
     /// Check if this range is a superset of another range
     pub fn is_superset_of(&self, other: &VersionRange) -> bool {
         other.is_subset_of(self)
-    }
-
-    /// Collect representative probe versions from the range's bounds for subset checking
-    fn collect_probe_versions(&self) -> Vec<Version> {
-        let mut versions = Vec::new();
-        for bs in &self.bound_sets {
-            for bound in &bs.bounds {
-                match bound {
-                    Bound::Ge(v)
-                    | Bound::Gt(v)
-                    | Bound::Le(v)
-                    | Bound::Lt(v)
-                    | Bound::Eq(v)
-                    | Bound::Ne(v)
-                    | Bound::Compatible(v) => {
-                        versions.push(v.clone());
-                    }
-                    _ => {}
-                }
-            }
-        }
-        versions
     }
 
     /// Collect probe versions from both self and other's bounds, plus "beyond" versions
@@ -589,31 +587,6 @@ fn parse_single_constraint(s: &str) -> Result<Bound, RezCoreError> {
     Ok(Bound::Eq(v))
 }
 
-/// Negate a BoundSet: flip each bound to its complement
-/// Used for computing set difference
-fn negate_bound_set(bs: &BoundSet) -> BoundSet {
-    // Negate each bound: AND of negated bounds = complement of AND of original bounds
-    // Actually for a BoundSet (conjunction), complement is a disjunction of negated bounds
-    // For simplicity we negate the first meaningful bound
-    // This is an approximation for the subtract operation
-    let negated: Vec<Bound> = bs
-        .bounds
-        .iter()
-        .map(|b| match b {
-            Bound::Any => Bound::None,
-            Bound::None => Bound::Any,
-            Bound::Ge(v) => Bound::Lt(v.clone()),
-            Bound::Gt(v) => Bound::Le(v.clone()),
-            Bound::Le(v) => Bound::Gt(v.clone()),
-            Bound::Lt(v) => Bound::Ge(v.clone()),
-            Bound::Eq(v) => Bound::Ne(v.clone()),
-            Bound::Ne(v) => Bound::Eq(v.clone()),
-            Bound::Compatible(v) => Bound::Lt(v.clone()), // approximate: below the base version
-        })
-        .collect();
-    BoundSet { bounds: negated }
-}
-
 /// Check if a single BoundSet is satisfiable (not trivially empty due to conflicting bounds)
 fn is_bound_set_satisfiable(bs: &BoundSet) -> bool {
     // Check for None bounds
@@ -806,6 +779,50 @@ mod tests {
 
         let range = VersionRange::parse("*").unwrap();
         assert!(range.is_any());
+    }
+
+    #[test]
+    fn test_version_range_any_constructor() {
+        let range = VersionRange::any();
+        assert!(range.is_any(), "VersionRange::any() must report is_any()");
+        assert!(range.contains(&v("0.0.1")));
+        assert!(range.contains(&v("1.0.0")));
+        assert!(range.contains(&v("99.99.99")));
+        // Intersecting any range with any other range returns the other range
+        let specific = VersionRange::parse(">=1.0,<2.0").unwrap();
+        let intersected = range
+            .intersect(&specific)
+            .expect("intersection with any must succeed");
+        assert!(!intersected.contains(&v("0.9.0")));
+        assert!(intersected.contains(&v("1.5.0")));
+    }
+
+    #[test]
+    fn test_version_range_none_constructor() {
+        let range = VersionRange::none();
+        assert!(
+            range.is_empty(),
+            "VersionRange::none() must report is_empty()"
+        );
+        assert!(!range.contains(&v("1.0.0")));
+        assert!(!range.contains(&v("0.0.1")));
+        assert!(!range.contains(&v("99.0")));
+        // Intersecting none with anything yields None
+        let specific = VersionRange::parse(">=1.0").unwrap();
+        assert!(
+            range.intersect(&specific).is_none(),
+            "none intersect anything must be None"
+        );
+    }
+
+    #[test]
+    fn test_version_range_any_union_identity() {
+        // any().union(x) should be a superset of x (is_any equivalent)
+        let any = VersionRange::any();
+        let specific = VersionRange::parse("==1.0.0").unwrap();
+        let unioned = any.union(&specific);
+        assert!(unioned.contains(&v("1.0.0")));
+        assert!(unioned.contains(&v("2.0.0")));
     }
 
     #[test]

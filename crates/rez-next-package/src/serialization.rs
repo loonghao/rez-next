@@ -1,7 +1,8 @@
 //! Package serialization and deserialization
 
 use crate::{Package, PythonAstParser};
-use chrono::{DateTime, Utc};
+use base64::Engine as _;
+use chrono::Utc;
 use flate2::write::GzEncoder;
 use flate2::Compression;
 use rez_next_common::RezCoreError;
@@ -11,11 +12,8 @@ use serde_json;
 use serde_yaml;
 use std::collections::HashMap;
 use std::fs;
-use std::io::{self, BufWriter, Write};
-use std::path::{Path, PathBuf};
-
-// PackageRequirement and PackageVariant imports removed as they're not used in this module
-// PyO3 imports removed as they're not used in this module
+use std::io::Write;
+use std::path::Path;
 
 /// Package serialization format
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -39,7 +37,6 @@ pub enum PackageFormat {
 }
 
 /// Serialization options
-#[cfg_attr(feature = "python-bindings", pyclass)]
 #[derive(Debug, Clone)]
 pub struct SerializationOptions {
     /// Pretty print output
@@ -61,7 +58,6 @@ pub struct SerializationOptions {
 }
 
 /// Package metadata for serialization
-#[cfg_attr(feature = "python-bindings", pyclass)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PackageMetadata {
     /// Serialization timestamp
@@ -269,7 +265,7 @@ impl PackageSerializer {
     /// Load a package from a file with options
     pub fn load_from_file_with_options(
         path: &Path,
-        options: Option<SerializationOptions>,
+        _options: Option<SerializationOptions>,
     ) -> Result<PackageContainer, RezCoreError> {
         let format = PackageFormat::from_extension(path).ok_or_else(|| {
             RezCoreError::PackageParse(format!("Unsupported file format: {}", path.display()))
@@ -335,11 +331,26 @@ impl PackageSerializer {
     where
         T: Into<serde_json::Value>,
     {
-        // Convert to JSON values for easier processing
         let json_data: HashMap<String, serde_json::Value> =
             data.into_iter().map(|(k, v)| (k, v.into())).collect();
+        Self::load_from_json_data(json_data)
+    }
 
-        // Extract required name field
+    /// Load a package from YAML data
+    fn load_from_yaml_data(
+        data: HashMap<String, serde_yaml::Value>,
+    ) -> Result<Package, RezCoreError> {
+        let json_data: HashMap<String, serde_json::Value> = data
+            .into_iter()
+            .map(|(k, v)| (k, yaml_to_json_value(v)))
+            .collect();
+        Self::load_from_json_data(json_data)
+    }
+
+    /// Shared implementation: build a Package from a JSON-compatible HashMap
+    fn load_from_json_data(
+        json_data: HashMap<String, serde_json::Value>,
+    ) -> Result<Package, RezCoreError> {
         let name = json_data
             .get("name")
             .and_then(|v| v.as_str())
@@ -350,7 +361,6 @@ impl PackageSerializer {
 
         let mut package = Package::new(name);
 
-        // Extract optional fields
         if let Some(version_value) = json_data.get("version") {
             if let Some(version_str) = version_value.as_str() {
                 let version = Version::parse(version_str)
@@ -431,105 +441,6 @@ impl PackageSerializer {
             }
         }
 
-        // Validate the package
-        package.validate()?;
-
-        Ok(package)
-    }
-
-    /// Load a package from YAML data
-    fn load_from_yaml_data(
-        data: HashMap<String, serde_yaml::Value>,
-    ) -> Result<Package, RezCoreError> {
-        // Convert YAML values to JSON values for easier processing
-        let json_data: HashMap<String, serde_json::Value> = data
-            .into_iter()
-            .map(|(k, v)| (k, yaml_to_json_value(v)))
-            .collect();
-
-        // Extract required name field
-        let name = json_data
-            .get("name")
-            .and_then(|v| v.as_str())
-            .ok_or_else(|| {
-                RezCoreError::PackageParse("Missing or invalid 'name' field".to_string())
-            })?
-            .to_string();
-
-        let mut package = Package::new(name);
-
-        // Extract optional fields (same logic as load_from_data)
-        if let Some(version_value) = json_data.get("version") {
-            if let Some(version_str) = version_value.as_str() {
-                let version = Version::parse(version_str)
-                    .map_err(|e| RezCoreError::PackageParse(format!("Invalid version: {}", e)))?;
-                package.version = Some(version);
-            }
-        }
-
-        if let Some(description_value) = json_data.get("description") {
-            if let Some(description) = description_value.as_str() {
-                package.description = Some(description.to_string());
-            }
-        }
-
-        if let Some(authors_value) = json_data.get("authors") {
-            if let Some(authors_array) = authors_value.as_array() {
-                package.authors = authors_array
-                    .iter()
-                    .filter_map(|v| v.as_str())
-                    .map(|s| s.to_string())
-                    .collect();
-            }
-        }
-
-        if let Some(requires_value) = json_data.get("requires") {
-            if let Some(requires_array) = requires_value.as_array() {
-                package.requires = requires_array
-                    .iter()
-                    .filter_map(|v| v.as_str())
-                    .map(|s| s.to_string())
-                    .collect();
-            }
-        }
-
-        if let Some(build_requires_value) = json_data.get("build_requires") {
-            if let Some(build_requires_array) = build_requires_value.as_array() {
-                package.build_requires = build_requires_array
-                    .iter()
-                    .filter_map(|v| v.as_str())
-                    .map(|s| s.to_string())
-                    .collect();
-            }
-        }
-
-        if let Some(variants_value) = json_data.get("variants") {
-            if let Some(variants_array) = variants_value.as_array() {
-                package.variants = variants_array
-                    .iter()
-                    .filter_map(|v| v.as_array())
-                    .map(|variant_array| {
-                        variant_array
-                            .iter()
-                            .filter_map(|v| v.as_str())
-                            .map(|s| s.to_string())
-                            .collect()
-                    })
-                    .collect();
-            }
-        }
-
-        if let Some(tools_value) = json_data.get("tools") {
-            if let Some(tools_array) = tools_value.as_array() {
-                package.tools = tools_array
-                    .iter()
-                    .filter_map(|v| v.as_str())
-                    .map(|s| s.to_string())
-                    .collect();
-            }
-        }
-
-        // Validate the package
         package.validate()?;
 
         Ok(package)
@@ -542,7 +453,7 @@ impl PackageSerializer {
         format: PackageFormat,
         options: Option<SerializationOptions>,
     ) -> Result<(), RezCoreError> {
-        let opts = options.unwrap_or_else(SerializationOptions::new);
+        let opts = options.unwrap_or_default();
 
         // Create container with metadata if requested
         let container = if opts.include_metadata {
@@ -608,72 +519,14 @@ impl PackageSerializer {
 
     /// Save a package to Python format (simplified)
     pub fn save_to_python(package: &Package) -> Result<String, RezCoreError> {
-        let mut content = String::new();
-
-        content.push_str(&format!("name = \"{}\"\n", package.name));
-
-        if let Some(ref version) = package.version {
-            content.push_str(&format!("version = \"{}\"\n", version.as_str()));
-        }
-
-        if let Some(ref description) = package.description {
-            content.push_str(&format!("description = \"{}\"\n", description));
-        }
-
-        if !package.authors.is_empty() {
-            content.push_str("authors = [\n");
-            for author in &package.authors {
-                content.push_str(&format!("    \"{}\",\n", author));
-            }
-            content.push_str("]\n");
-        }
-
-        if !package.requires.is_empty() {
-            content.push_str("requires = [\n");
-            for req in &package.requires {
-                content.push_str(&format!("    \"{}\",\n", req));
-            }
-            content.push_str("]\n");
-        }
-
-        if !package.build_requires.is_empty() {
-            content.push_str("build_requires = [\n");
-            for req in &package.build_requires {
-                content.push_str(&format!("    \"{}\",\n", req));
-            }
-            content.push_str("]\n");
-        }
-
-        if !package.variants.is_empty() {
-            content.push_str("variants = [\n");
-            for variant in &package.variants {
-                content.push_str("    [");
-                for (i, req) in variant.iter().enumerate() {
-                    if i > 0 {
-                        content.push_str(", ");
-                    }
-                    content.push_str(&format!("\"{}\"", req));
-                }
-                content.push_str("],\n");
-            }
-            content.push_str("]\n");
-        }
-
-        if !package.tools.is_empty() {
-            content.push_str("tools = [\n");
-            for tool in &package.tools {
-                content.push_str(&format!("    \"{}\",\n", tool));
-            }
-            content.push_str("]\n");
-        }
-
-        Ok(content)
+        Self::save_to_python_with_options(package, &SerializationOptions::minimal())
     }
 
     /// Load a package from binary content
     pub fn load_from_binary(content: &str) -> Result<Package, RezCoreError> {
         // Decode from base64
-        let binary_data = base64::decode(content)
+        let binary_data = base64::engine::general_purpose::STANDARD
+            .decode(content)
             .map_err(|e| RezCoreError::PackageParse(format!("Failed to decode base64: {}", e)))?;
 
         // Deserialize from binary
@@ -890,12 +743,26 @@ impl PackageSerializer {
         package: &Package,
         options: &SerializationOptions,
     ) -> Result<String, RezCoreError> {
-        if options.pretty_print {
-            serde_yaml::to_string(package)
-        } else {
-            serde_yaml::to_string(package)
+        let raw = serde_yaml::to_string(package).map_err(|e| {
+            RezCoreError::PackageParse(format!("Failed to serialize to YAML: {}", e))
+        })?;
+
+        if !options.pretty_print {
+            return Ok(raw);
         }
-        .map_err(|e| RezCoreError::PackageParse(format!("Failed to serialize to YAML: {}", e)))
+
+        // Pretty-print: add a leading separator comment and indent list items
+        let mut output = String::with_capacity(raw.len() + 64);
+        output.push_str("# ---\n");
+        for line in raw.lines() {
+            // Indent list items one extra level for readability
+            if line.starts_with("- ") {
+                output.push_str("  ");
+            }
+            output.push_str(line);
+            output.push('\n');
+        }
+        Ok(output)
     }
 
     /// Save package to JSON with options
@@ -995,7 +862,7 @@ impl PackageSerializer {
         })?;
 
         // Convert to base64 for text representation
-        Ok(base64::encode(binary_data))
+        Ok(base64::engine::general_purpose::STANDARD.encode(binary_data))
     }
 
     /// Save package to TOML format

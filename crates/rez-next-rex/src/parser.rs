@@ -34,6 +34,8 @@ pub struct RexParser {
     error_re: Regex,
     /// Regex for `stop()` or `stop("message")`
     stop_re: Regex,
+    /// Regex for `comment('text')` or `comment("text")`
+    comment_fn_re: Regex,
 }
 
 impl RexParser {
@@ -94,6 +96,10 @@ impl RexParser {
             // stop() or stop('message') or stop("message")
             stop_re: Regex::new(
                 r#"^stop\s*\(\s*(?:['"]([^'"]*)['"]\s*)?\)"#
+            ).unwrap(),
+            // comment('text') or comment("text")
+            comment_fn_re: Regex::new(
+                r#"^comment\s*\(\s*['"]([^'"]*)['"]\s*\)"#
             ).unwrap(),
         }
     }
@@ -207,6 +213,13 @@ impl RexParser {
                 actions.push(RexAction {
                     action_type: RexActionType::Stop {
                         message: caps.get(1).map(|m| m.as_str().to_string()),
+                    },
+                    source_package: None,
+                });
+            } else if let Some(caps) = self.comment_fn_re.captures(line) {
+                actions.push(RexAction {
+                    action_type: RexActionType::Comment {
+                        text: caps[1].to_string(),
                     },
                     source_package: None,
                 });
@@ -599,5 +612,93 @@ env.prepend_path('PATH', '{root}/bin')
             .unwrap();
         assert_eq!(env.info_messages.len(), 1);
         assert_eq!(env.info_messages[0], "root is /opt/mypkg/2.0");
+    }
+
+    // ── comment() function parsing tests ─────────────────────────────────────
+
+    #[test]
+    fn test_parse_comment_fn_single_quotes() {
+        let parser = RexParser::new();
+        let actions = parser
+            .parse(r#"comment('Set up mylib environment')"#)
+            .unwrap();
+        assert_eq!(
+            actions.len(),
+            1,
+            "comment() should produce exactly 1 action"
+        );
+        match &actions[0].action_type {
+            RexActionType::Comment { text } => assert_eq!(text, "Set up mylib environment"),
+            other => panic!("Expected Comment, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_parse_comment_fn_double_quotes() {
+        let parser = RexParser::new();
+        let actions = parser
+            .parse(r#"comment("Package environment initialized")"#)
+            .unwrap();
+        assert_eq!(actions.len(), 1);
+        match &actions[0].action_type {
+            RexActionType::Comment { text } => assert_eq!(text, "Package environment initialized"),
+            other => panic!("Expected Comment, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_parse_comment_fn_mixed_with_other_commands() {
+        let parser = RexParser::new();
+        let commands = r#"
+comment('Begin setup')
+env.setenv('MY_PKG_ROOT', '{root}')
+comment('PATH updated')
+env.prepend_path('PATH', '{root}/bin')
+"#;
+        let actions = parser.parse(commands).unwrap();
+        // 2 comment() + 2 real actions = 4 total
+        assert_eq!(
+            actions.len(),
+            4,
+            "Should have 4 actions (2 comments + 2 env ops)"
+        );
+        assert!(
+            matches!(&actions[0].action_type, RexActionType::Comment { .. }),
+            "first should be Comment"
+        );
+        assert!(
+            matches!(&actions[1].action_type, RexActionType::Setenv { .. }),
+            "second should be Setenv"
+        );
+        assert!(
+            matches!(&actions[2].action_type, RexActionType::Comment { .. }),
+            "third should be Comment"
+        );
+        assert!(
+            matches!(&actions[3].action_type, RexActionType::PrependPath { .. }),
+            "fourth should be PrependPath"
+        );
+    }
+
+    #[test]
+    fn test_comment_fn_and_hash_comment_both_produce_comment_action() {
+        let parser = RexParser::new();
+        let commands = r#"
+# hash-style comment
+comment('function-style comment')
+"#;
+        let actions = parser.parse(commands).unwrap();
+        assert_eq!(
+            actions.len(),
+            2,
+            "Both # and comment() should produce Comment actions"
+        );
+        for action in &actions {
+            assert!(
+                matches!(&action.action_type, RexActionType::Comment { .. }),
+                "Expected Comment, got {:?}",
+                action.action_type
+            );
+        }
     }
 }

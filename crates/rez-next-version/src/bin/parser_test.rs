@@ -18,6 +18,12 @@ enum ParseState {
 
 pub struct SimplifiedParser;
 
+impl Default for SimplifiedParser {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SimplifiedParser {
     pub fn new() -> Self {
         Self

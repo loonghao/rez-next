@@ -23,20 +23,18 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: loonghao/vx@main
         with:
-          python-version: "3.11"
+          tools: "maturin"
+          cache: "true"
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Install maturin
-        run: pip install maturin
-
       - name: Build wheels
         working-directory: crates/rez-next-python
-        run: maturin build --release --features pyo3/extension-module --out dist
+        run: vx maturin build --release --features pyo3/extension-module --out dist
 
       - name: Upload wheels
         uses: actions/upload-artifact@v4
@@ -58,12 +56,9 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v6
 
       - name: Download wheels
         uses: actions/download-artifact@v4
@@ -74,21 +69,36 @@ jobs:
       - name: Install wheel and test dependencies
         shell: bash
         run: |
-          uv pip install --system dist/*.whl
-          uv pip install --system pytest
+          echo "=== Listing dist/ ==="
+          ls -la dist/ || echo "(dist is empty or missing)"
+          echo "=== Installing wheel ==="
+          python -m pip install dist/*.whl
+          python -m pip install pytest
+          echo "=== Installed packages ==="
+          python -m pip show rez-next || true
 
       - name: Smoke test — basic import
+        shell: bash
         run: |
           python -c "
-          import rez_next
-          print('rez_next version:', rez_next.__version__)
-          v = rez_next.Version('1.2.3')
-          r = rez_next.VersionRange('1.0+')
-          assert r.contains(v), 'VersionRange.contains failed'
-          print('Smoke test passed!')
+          import traceback, sys
+          print('Python:', sys.version)
+          print('sys.path:', sys.path[:5])
+          try:
+              import rez_next
+              print('rez_next location:', rez_next.__file__)
+              print('rez_next version:', rez_next.__version__)
+              v = rez_next.Version('1.2.3')
+              print('Version created:', v)
+              r = rez_next.VersionRange('1.0+')
+              print('VersionRange created:', r)
+              assert r.contains(v), 'VersionRange.contains failed'
+              print('Smoke test passed!')
+          except Exception as e:
+              traceback.print_exc()
+              sys.exit(1)
           "
 
       - name: Run all Python tests
         working-directory: crates/rez-next-python
-        run: pytest tests/ -v --tb=short -x
-
+        run: python -m pytest tests/ -v --tb=short

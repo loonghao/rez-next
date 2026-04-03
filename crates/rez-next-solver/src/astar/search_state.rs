@@ -245,11 +245,48 @@ impl PartialOrd for SearchState {
 
 impl Ord for SearchState {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        // Min-heap: states with lower f(n) have higher priority
-        other
-            .estimated_total_cost
-            .partial_cmp(&self.estimated_total_cost)
-            .unwrap_or(std::cmp::Ordering::Equal)
+        // Consistent with Eq (state_hash-based): used for BinaryHeap closed_set dedup.
+        // A* priority ordering is handled by OrdByEstimatedCost wrapper in astar_search.rs.
+        self.state_hash.cmp(&other.state_hash)
+    }
+}
+
+/// Wrapper for use in BinaryHeap that orders SearchStates by estimated_total_cost (A* min-heap).
+///
+/// `BinaryHeap` is a max-heap in Rust, so we flip the comparison so that the state with the
+/// **lowest** `estimated_total_cost` wins (i.e., comparing `other` vs `self`).
+///
+/// Eq is defined consistently with Ord: two entries are equal iff their cost bits and state_hash
+/// are identical, satisfying the `a == b ↔ a.cmp(b) == Equal` contract required by Clippy.
+#[derive(Debug)]
+pub struct OrdByEstimatedCost(pub SearchState);
+
+impl PartialEq for OrdByEstimatedCost {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.estimated_total_cost.to_bits() == other.0.estimated_total_cost.to_bits()
+            && self.0.state_hash == other.0.state_hash
+    }
+}
+
+impl Eq for OrdByEstimatedCost {}
+
+impl PartialOrd for OrdByEstimatedCost {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for OrdByEstimatedCost {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        // Use integer bit comparison to avoid f64-related Clippy lints.
+        // NaN is handled by treating it as u64::MAX (worst priority).
+        // Reversed (other vs self) so that the entry with the lowest cost is
+        // popped first from Rust's max-heap BinaryHeap.
+        let self_bits = self.0.estimated_total_cost.to_bits();
+        let other_bits = other.0.estimated_total_cost.to_bits();
+        other_bits
+            .cmp(&self_bits)
+            .then_with(|| self.0.state_hash.cmp(&other.0.state_hash))
     }
 }
 
@@ -384,12 +421,12 @@ mod tests {
         s1.estimated_total_cost = 5.0;
         let mut s2 = SearchState::new_initial(vec![make_req("x")]);
         s2.estimated_total_cost = 10.0;
-        // In a max BinaryHeap (which we use as min-heap via reversed Ord), s1 should come out first
+        // OrdByEstimatedCost wraps SearchState so that BinaryHeap pops lowest cost first.
         use std::collections::BinaryHeap;
-        let mut heap = BinaryHeap::new();
-        heap.push(s1);
-        heap.push(s2);
-        let top = heap.pop().unwrap();
+        let mut heap: BinaryHeap<OrdByEstimatedCost> = BinaryHeap::new();
+        heap.push(OrdByEstimatedCost(s1));
+        heap.push(OrdByEstimatedCost(s2));
+        let top = heap.pop().unwrap().0;
         assert_eq!(
             top.estimated_total_cost, 5.0,
             "Lower cost should have higher priority"

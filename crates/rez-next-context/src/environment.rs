@@ -3,11 +3,10 @@
 use crate::{ContextConfig, PathStrategy, ShellType};
 use rez_next_common::RezCoreError;
 use rez_next_package::Package;
-use rez_next_rex::{RexEnvironment, RexExecutor};
+use rez_next_rex::RexExecutor;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::env;
-use std::path::{Path, PathBuf};
 
 /// Environment manager for generating package environments
 // #[pyclass]  // Temporarily disabled due to DLL issues
@@ -44,33 +43,6 @@ pub struct EnvVarDefinition {
     /// Priority (higher = applied later)
     pub priority: i32,
 }
-
-// Python methods temporarily disabled due to DLL issues
-/*
-#[pymethods]
-impl EnvironmentManager {
-    #[new]
-    pub fn new_py() -> Self {
-        Self::new(ContextConfig::default())
-    }
-
-    /// Generate environment variables for packages
-    #[cfg(feature = "python-bindings")]
-    pub fn generate_environment_py(&self, packages: Vec<Package>) -> PyResult<HashMap<String, String>> {
-        let result = tokio::runtime::Runtime::new()
-            .unwrap()
-            .block_on(self.generate_environment(&packages));
-
-        result.map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))
-    }
-
-    /// Get base environment variables
-    #[getter]
-    pub fn base_env(&self) -> HashMap<String, String> {
-        self.base_env.clone()
-    }
-}
-*/
 
 impl EnvironmentManager {
     /// Create a new environment manager
@@ -197,101 +169,6 @@ impl EnvironmentManager {
         Ok(definitions)
     }
 
-    /// Parse package commands for environment variable operations
-    fn parse_commands_for_env_vars(
-        &self,
-        commands: &str,
-        package_name: &str,
-        priority: i32,
-    ) -> Result<Vec<EnvVarDefinition>, RezCoreError> {
-        let mut definitions = Vec::new();
-
-        // Simple command parsing (in a real implementation, this would be more sophisticated)
-        for line in commands.lines() {
-            let line = line.trim();
-
-            if line.starts_with("export ") {
-                // Parse export statements
-                if let Some(env_def) = self.parse_export_statement(line, package_name, priority)? {
-                    definitions.push(env_def);
-                }
-            } else if line.starts_with("setenv ") {
-                // Parse setenv statements (csh/tcsh style)
-                if let Some(env_def) = self.parse_setenv_statement(line, package_name, priority)? {
-                    definitions.push(env_def);
-                }
-            }
-        }
-
-        Ok(definitions)
-    }
-
-    /// Parse an export statement
-    fn parse_export_statement(
-        &self,
-        line: &str,
-        package_name: &str,
-        priority: i32,
-    ) -> Result<Option<EnvVarDefinition>, RezCoreError> {
-        // Simple regex-based parsing
-        let export_regex = regex::Regex::new(r#"export\s+([A-Z_][A-Z0-9_]*)\s*=\s*"?([^"]*)"?"#)
-            .map_err(|e| RezCoreError::ContextError(format!("Regex error: {}", e)))?;
-
-        if let Some(captures) = export_regex.captures(line) {
-            let var_name = captures.get(1).unwrap().as_str().to_string();
-            let var_value = captures.get(2).unwrap().as_str().to_string();
-
-            // Expand variables in the value
-            let expanded_value = self.expand_variables(&var_value)?;
-
-            Ok(Some(EnvVarDefinition {
-                name: var_name,
-                operation: EnvOperation::Set(expanded_value),
-                source_package: Some(package_name.to_string()),
-                priority,
-            }))
-        } else {
-            Ok(None)
-        }
-    }
-
-    /// Parse a setenv statement
-    fn parse_setenv_statement(
-        &self,
-        line: &str,
-        package_name: &str,
-        priority: i32,
-    ) -> Result<Option<EnvVarDefinition>, RezCoreError> {
-        // Simple parsing for setenv VAR value
-        let parts: Vec<&str> = line.split_whitespace().collect();
-        if parts.len() >= 3 && parts[0] == "setenv" {
-            let var_name = parts[1].to_string();
-            let var_value = parts[2..].join(" ");
-
-            // Remove quotes if present
-            let var_value = var_value.trim_matches('"').trim_matches('\'');
-            let expanded_value = self.expand_variables(var_value)?;
-
-            Ok(Some(EnvVarDefinition {
-                name: var_name,
-                operation: EnvOperation::Set(expanded_value),
-                source_package: Some(package_name.to_string()),
-                priority,
-            }))
-        } else {
-            Ok(None)
-        }
-    }
-
-    /// Expand variables in a value string
-    fn expand_variables(&self, value: &str) -> Result<String, RezCoreError> {
-        // Simple variable expansion (${VAR} and $VAR)
-        let expanded = shellexpand::env(value)
-            .map_err(|e| RezCoreError::ContextError(format!("Variable expansion error: {}", e)))?;
-
-        Ok(expanded.to_string())
-    }
-
     /// Apply an environment variable definition
     fn apply_env_definition(
         &self,
@@ -342,7 +219,7 @@ impl EnvironmentManager {
 
         // Collect tool paths from packages
         for package in packages {
-            for tool in &package.tools {
+            for _tool in &package.tools {
                 let tool_path = format!("/packages/{}/bin", package.name);
                 if !tool_paths.contains(&tool_path) {
                     tool_paths.push(tool_path);

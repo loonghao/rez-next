@@ -18,7 +18,7 @@ impl PyShell {
     /// shell_type: "bash", "zsh", "fish", "cmd", "powershell"
     #[new]
     pub fn new(shell_type: &str) -> PyResult<Self> {
-        let st = ShellType::from_str(shell_type).ok_or_else(|| {
+        let st = ShellType::parse(shell_type).ok_or_else(|| {
             pyo3::exceptions::PyValueError::new_err(format!(
                 "Unknown shell type '{}'. Use: bash, zsh, fish, cmd, powershell",
                 shell_type
@@ -76,7 +76,7 @@ pub fn create_shell_script(
     aliases: Option<HashMap<String, String>>,
     startup_commands: Option<Vec<String>>,
 ) -> PyResult<String> {
-    let st = ShellType::from_str(shell_type).ok_or_else(|| {
+    let st = ShellType::parse(shell_type).ok_or_else(|| {
         pyo3::exceptions::PyValueError::new_err(format!(
             "Unknown shell type '{}'. Use: bash, zsh, fish, cmd, powershell",
             shell_type
