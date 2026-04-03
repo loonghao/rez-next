@@ -207,7 +207,7 @@ impl OptimizedDependencySolver {
     /// Select optimal package using advanced scoring algorithms
     fn select_optimal_package(&self, packages: &[Package]) -> Result<Package, RezCoreError> {
         if packages.is_empty() {
-            return Err(RezCoreError::SolverError(
+            return Err(RezCoreError::Solver(
                 "No packages available".to_string(),
             ));
         }
@@ -230,7 +230,7 @@ impl OptimizedDependencySolver {
             .iter()
             .max_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal))
             .map(|(_, pkg)| (*pkg).clone())
-            .ok_or_else(|| RezCoreError::SolverError("Failed to select package".to_string()))?;
+            .ok_or_else(|| RezCoreError::Solver("Failed to select package".to_string()))?;
 
         Ok(best_package)
     }
@@ -323,7 +323,7 @@ impl OptimizedDependencySolver {
                     // Implementation details...
                 }
                 ConflictStrategy::FailOnConflict => {
-                    return Err(RezCoreError::SolverError(format!(
+                    return Err(RezCoreError::Solver(format!(
                         "Conflict detected: {:?}",
                         conflict
                     )));

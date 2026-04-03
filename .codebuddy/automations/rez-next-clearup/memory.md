@@ -1,5 +1,26 @@
 # rez-next cleanup 执行记录
 
+## 最新执行 (2026-04-04 02:28, 第二十轮)
+
+### 执行摘要
+- 切换到 `auto-improve`，先做基线校验；发现 `crates/rez-next-python/src/lib.rs` 为 UTF-16 编码，先恢复为 UTF-8 以解除工具链阻塞
+- 完成 3 个 cleanup 提交并已推送远端：`42ad977`（lint/编码与重复报错清理）、`0aadd95`（过期文档刷新）、`45ea9e2`（依赖治理记录，含 `chore(cleanup): done` 标记）
+- 清理内容以低风险一致性治理为主：移除 `rez view --current` 重复错误输出、删除 2 处过时 `python-bindings` 注释、清理 benchmark 注释残留、刷新 3 份过期文档、在 `CLEANUP_TODO.md` 记录 `pyo3` 版本漂移
+
+### 验证结果
+- **分支**: `auto-improve`（已推送至 `45ea9e2`）
+- **测试**: `cargo test --workspace` 全量通过；本地可枚举测试用例约 **1432**
+- **Lint**: `cargo clippy --workspace --all-targets --all-features --exclude rez-next-python -- -A warnings -D clippy::correctness` 通过
+- **Docs**: `RUSTDOCFLAGS="-D warnings" cargo doc --workspace --all-features --no-deps --document-private-items` 通过
+- **覆盖率**: 本地未配置覆盖率命令，本轮未采集覆盖率基线
+
+### 下一轮重点
+1. 评估 `pyo3` workspace `0.28` 与 `rez-next-python` 直接依赖 `0.25` 的统一策略（需 wheel/build 验证）
+2. 继续跟进 3 处库代码 `eprintln!` → `tracing` 的依赖化改造
+3. 评估 `fix-ci-security-audit/` 是否应移出仓库源码树
+
+
+
 ## 最新执行 (2026-04-02 20:11, 第十九轮)
 
 ### 执行摘要
