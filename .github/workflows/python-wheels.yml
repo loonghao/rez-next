@@ -37,7 +37,7 @@ jobs:
         run: vx maturin build --release --features pyo3/extension-module --out dist
 
       - name: Upload wheels
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: wheels-${{ matrix.os }}
           path: crates/rez-next-python/dist/*.whl
@@ -61,7 +61,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Download wheels
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: wheels-${{ matrix.os }}
           path: dist/

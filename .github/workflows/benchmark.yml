@@ -70,7 +70,7 @@ jobs:
           head -60 metrics/benchmarking/RESULTS.md
 
       - name: Upload quick benchmark artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: bench-quick-${{ github.sha }}
           path: |
@@ -178,7 +178,7 @@ jobs:
           fi
 
       - name: Upload full benchmark artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: bench-full-${{ github.sha }}
           path: |
@@ -202,7 +202,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Download quick bench results
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: bench-quick-${{ github.sha }}
           path: bench-artifacts/
