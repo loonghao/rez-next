@@ -1,12 +1,10 @@
 # Automated release management using release-please
 # - On push to main: creates/updates a release PR with version bump and changelog
 # - When release PR is merged: creates GitHub release with tag
-# - After release is created: dispatches release.yml to build release assets and publish Python wheels
+# - After release is created: dispatches release.yml to build assets and publish wheels to PyPI
 #
-# Note: Tags created by GITHUB_TOKEN do not trigger other workflows (GitHub limitation).
-# This workflow explicitly dispatches release.yml via the API to work around this.
-# If RELEASE_PLZ_TOKEN (a PAT) is configured, the tag push will also trigger release.yml
-# directly, but the dispatch acts as a reliable fallback.
+# IMPORTANT: release.yml only listens to workflow_dispatch (not release:published or push:tags).
+# This dispatch is the SOLE trigger for the release pipeline, ensuring exactly one run per release.
 # See: https://github.com/googleapis/release-please-action
 name: Release Please
 
