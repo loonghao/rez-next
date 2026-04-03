@@ -17,17 +17,17 @@ default = []
 extension-module = ["pyo3/extension-module"]
 
 [dependencies]
-rez-next-common = { version = "0.2.0", path = "../rez-next-common" }
-rez-next-version = { version = "0.2.0", path = "../rez-next-version" }
-rez-next-package = { version = "0.2.0", path = "../rez-next-package" }
-rez-next-solver = { version = "0.2.0", path = "../rez-next-solver" }
-rez-next-repository = { version = "0.2.0", path = "../rez-next-repository" }
-rez-next-context = { version = "0.2.0", path = "../rez-next-context" }
-rez-next-build = { version = "0.2.0", path = "../rez-next-build" }
-rez-next-rex = { version = "0.2.0", path = "../rez-next-rex" }
-rez-next-suites = { version = "0.2.0", path = "../rez-next-suites" }
-rez-next-bind = { version = "0.2.0", path = "../rez-next-bind" }
-rez-next-search = { version = "0.2.0", path = "../rez-next-search" }
+rez-next-common = { version = "0.3.0", path = "../rez-next-common" }
+rez-next-version = { version = "0.3.0", path = "../rez-next-version" }
+rez-next-package = { version = "0.3.0", path = "../rez-next-package" }
+rez-next-solver = { version = "0.3.0", path = "../rez-next-solver" }
+rez-next-repository = { version = "0.3.0", path = "../rez-next-repository" }
+rez-next-context = { version = "0.3.0", path = "../rez-next-context" }
+rez-next-build = { version = "0.3.0", path = "../rez-next-build" }
+rez-next-rex = { version = "0.3.0", path = "../rez-next-rex" }
+rez-next-suites = { version = "0.3.0", path = "../rez-next-suites" }
+rez-next-bind = { version = "0.3.0", path = "../rez-next-bind" }
+rez-next-search = { version = "0.3.0", path = "../rez-next-search" }
 pyo3 = { version = "0.25", features = ["extension-module", "abi3-py38"] }
 serde = { workspace = true }
 serde_json = { workspace = true }

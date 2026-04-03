@@ -20,7 +20,7 @@ exclude = [
 resolver = "2"
 
 [workspace.package]
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 authors = ["LongHao <hal.long@outlook.com>"]
 license = "Apache-2.0"
@@ -81,17 +81,17 @@ path = "src/bin/rez-next.rs"
 
 [dependencies]
 # Workspace crates
-rez-next-common = { version = "0.2.0", path = "crates/rez-next-common", default-features = false }
-rez-next-version = { version = "0.2.0", path = "crates/rez-next-version", default-features = false }
-rez-next-package = { version = "0.2.0", path = "crates/rez-next-package", default-features = false }
-rez-next-solver = { version = "0.2.0", path = "crates/rez-next-solver", default-features = false }
-rez-next-repository = { version = "0.2.0", path = "crates/rez-next-repository", default-features = false }
-rez-next-context = { version = "0.2.0", path = "crates/rez-next-context", default-features = false }
+rez-next-common = { version = "0.3.0", path = "crates/rez-next-common", default-features = false }
+rez-next-version = { version = "0.3.0", path = "crates/rez-next-version", default-features = false }
+rez-next-package = { version = "0.3.0", path = "crates/rez-next-package", default-features = false }
+rez-next-solver = { version = "0.3.0", path = "crates/rez-next-solver", default-features = false }
+rez-next-repository = { version = "0.3.0", path = "crates/rez-next-repository", default-features = false }
+rez-next-context = { version = "0.3.0", path = "crates/rez-next-context", default-features = false }
 # rez-core-rex = { path = "crates/rez-core-rex" }  # Temporarily disabled due to compilation errors
-rez-next-build = { version = "0.2.0", path = "crates/rez-next-build" }
-rez-next-cache = { version = "0.2.0", path = "crates/rez-next-cache" }
-rez-next-suites = { version = "0.2.0", path = "crates/rez-next-suites" }
-rez-next-rex = { version = "0.2.0", path = "crates/rez-next-rex" }
+rez-next-build = { version = "0.3.0", path = "crates/rez-next-build" }
+rez-next-cache = { version = "0.3.0", path = "crates/rez-next-cache" }
+rez-next-suites = { version = "0.3.0", path = "crates/rez-next-suites" }
+rez-next-rex = { version = "0.3.0", path = "crates/rez-next-rex" }
 
 
 
@@ -122,13 +122,13 @@ serial_test.workspace = true
 serde.workspace = true
 serde_yaml.workspace = true
 thiserror.workspace = true
-rez-next-package = { version = "0.2.0", path = "crates/rez-next-package", default-features = false }
-rez-next-rex = { version = "0.2.0", path = "crates/rez-next-rex" }
-rez-next-version = { version = "0.2.0", path = "crates/rez-next-version", default-features = false }
-rez-next-suites = { version = "0.2.0", path = "crates/rez-next-suites" }
-rez-next-common = { version = "0.2.0", path = "crates/rez-next-common", default-features = false }
-rez-next-bind = { version = "0.2.0", path = "crates/rez-next-bind" }
-rez-next-search = { version = "0.2.0", path = "crates/rez-next-search" }
+rez-next-package = { version = "0.3.0", path = "crates/rez-next-package", default-features = false }
+rez-next-rex = { version = "0.3.0", path = "crates/rez-next-rex" }
+rez-next-version = { version = "0.3.0", path = "crates/rez-next-version", default-features = false }
+rez-next-suites = { version = "0.3.0", path = "crates/rez-next-suites" }
+rez-next-common = { version = "0.3.0", path = "crates/rez-next-common", default-features = false }
+rez-next-bind = { version = "0.3.0", path = "crates/rez-next-bind" }
+rez-next-search = { version = "0.3.0", path = "crates/rez-next-search" }
 
 
 
@@ -193,25 +193,13 @@ irrefutable_let_patterns = "warn"
 unused_mut = "warn"
 # Warn on unexpected cfg checks (tightened from allow — python-bindings cleanup complete)
 unexpected_cfgs = "warn"
-# Allow unknown lints: forward-compat allowances for newer Rust lints cause
-# E0602 warnings on older toolchains. Suppress to keep -D warnings clean.
-unknown_lints = "allow"
 
 [workspace.lints.clippy]
 # Critical issue categories
 complexity = { level = "warn", priority = -1 }
-# correctness: always deny — these are almost certainly bugs
 correctness = { level = "deny", priority = -1 }
-# suspicious: warn only — new lints added in future Rust versions shouldn't
-# block CI. Address warnings as part of normal maintenance.
-suspicious = { level = "warn", priority = -1 }
+suspicious = { level = "deny", priority = -1 }
 perf = { level = "warn", priority = -1 }
-# Forward-compat: possible_missing_else and suspicious_else_formatting were
-# split/added in Rust 1.91+. Allow explicitly so -D warnings doesn't break CI
-# on toolchains that have these lints. On older toolchains the allow is
-# silently ignored (unknown_lints = "allow" prevents E0602 warnings).
-possible_missing_else = { level = "allow", priority = 1 }
-suspicious_else_formatting = { level = "allow", priority = 1 }
 
 [lints]
 workspace = true
