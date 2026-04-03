@@ -308,29 +308,76 @@ impl Version {
         Self::compare_token_strings(&self.tokens, &other.tokens)
     }
 
-    /// Simple string-based token comparison
+    /// Compare a single token, handling mixed alphanumeric strings.
+    ///
+    /// Splits each token into alternating alpha and numeric segments, then compares
+    /// segment by segment (numeric segments compared as integers, alpha as strings).
+    /// This matches rez's token comparison behavior, e.g. "alpha10" > "alpha2".
+    fn compare_single_token(t1: &str, t2: &str) -> Ordering {
+        // Fast path: both purely numeric
+        match (t1.parse::<i64>(), t2.parse::<i64>()) {
+            (Ok(n1), Ok(n2)) => return n1.cmp(&n2),
+            _ => {}
+        }
+        // Fast path: both purely alphabetic (or equal strings)
+        if t1 == t2 {
+            return Ordering::Equal;
+        }
+
+        // Split into segments: sequences of digits or sequences of non-digits
+        let seg1 = Self::split_token_segments(t1);
+        let seg2 = Self::split_token_segments(t2);
+
+        for (s1, s2) in seg1.iter().zip(seg2.iter()) {
+            let cmp = match (s1.parse::<u64>(), s2.parse::<u64>()) {
+                (Ok(n1), Ok(n2)) => n1.cmp(&n2),
+                _ => s1.as_str().cmp(s2.as_str()),
+            };
+            if cmp != Ordering::Equal {
+                return cmp;
+            }
+        }
+        seg1.len().cmp(&seg2.len())
+    }
+
+    /// Split a token into alternating alpha/numeric segments.
+    /// E.g. "alpha10" → ["alpha", "10"], "rc2" → ["rc", "2"]
+    fn split_token_segments(s: &str) -> Vec<String> {
+        let mut segments = Vec::new();
+        let mut current = String::new();
+        let mut in_digits = false;
+
+        for ch in s.chars() {
+            let is_digit = ch.is_ascii_digit();
+            if current.is_empty() {
+                in_digits = is_digit;
+                current.push(ch);
+            } else if is_digit == in_digits {
+                current.push(ch);
+            } else {
+                segments.push(current.clone());
+                current.clear();
+                in_digits = is_digit;
+                current.push(ch);
+            }
+        }
+        if !current.is_empty() {
+            segments.push(current);
+        }
+        segments
+    }
+
+    /// Compare token arrays using rez-compatible rules.
     fn compare_token_strings(tokens1: &[String], tokens2: &[String]) -> Ordering {
         for (t1, t2) in tokens1.iter().zip(tokens2.iter()) {
-            // Try to parse as numbers first
-            match (t1.parse::<i64>(), t2.parse::<i64>()) {
-                (Ok(n1), Ok(n2)) => {
-                    let cmp = n1.cmp(&n2);
-                    if cmp != Ordering::Equal {
-                        return cmp;
-                    }
-                }
-                _ => {
-                    // Fall back to string comparison
-                    let cmp = t1.cmp(t2);
-                    if cmp != Ordering::Equal {
-                        return cmp;
-                    }
-                }
+            let cmp = Self::compare_single_token(t1, t2);
+            if cmp != Ordering::Equal {
+                return cmp;
             }
         }
 
-        // If all compared tokens are equal, shorter version is considered greater
-        // This follows semantic versioning where "2" > "2.alpha1"
+        // If all compared tokens are equal, shorter version is considered greater.
+        // This follows rez semantics where "2" > "2.alpha1".
         tokens2.len().cmp(&tokens1.len())
     }
 }
@@ -481,5 +528,106 @@ mod tests {
         let mut trimmed_tokens = version.tokens.clone();
         trimmed_tokens.truncate(2);
         assert_eq!(trimmed_tokens.len(), 2);
+    }
+
+    // ─── Pre-release token ordering chain tests (Cycle 29) ──────────────
+
+    #[test]
+    fn test_prerelease_alpha_beta_rc_ordering() {
+        // Standard prerelease ordering: alpha < beta < rc < release
+        let alpha = Version::parse("1.0.alpha").unwrap();
+        let beta = Version::parse("1.0.beta").unwrap();
+        let rc = Version::parse("1.0.rc").unwrap();
+        let release = Version::parse("1.0").unwrap();
+
+        assert!(alpha < beta, "alpha should be less than beta");
+        assert!(beta < rc, "beta should be less than rc");
+        assert!(rc < release, "rc should be less than release");
+        assert!(alpha < release, "alpha should be less than release");
+    }
+
+    #[test]
+    fn test_prerelease_alpha_numbered_variants() {
+        // Numbered alpha variants: alpha1 < alpha2 < alpha10
+        let a1 = Version::parse("1.0.alpha1").unwrap();
+        let a2 = Version::parse("1.0.alpha2").unwrap();
+        let a10 = Version::parse("1.0.alpha10").unwrap();
+
+        assert!(a1 < a2, "alpha1 < alpha2");
+        assert!(a2 < a10, "alpha2 < alpha10 (numeric comparison)");
+    }
+
+    #[test]
+    fn test_prerelease_dev_pre_snapshot_ordering() {
+        // In rez, token comparison is lexicographic for alphabetic tokens.
+        // "dev" (d...) > "alpha" (a...) by dictionary order.
+        // The key property is that all these sort BELOW the base release (shorter token list).
+        let dev = Version::parse("1.0.dev").unwrap();
+        let alpha = Version::parse("1.0.alpha").unwrap();
+        let pre = Version::parse("1.0.pre").unwrap();
+        let snapshot = Version::parse("1.0.snapshot").unwrap();
+        let release = Version::parse("1.0").unwrap();
+
+        // All prerelease variants are less than the base release (shorter = greater in rez)
+        assert!(dev < release, "1.0.dev < 1.0");
+        assert!(alpha < release, "1.0.alpha < 1.0");
+        assert!(pre < release, "1.0.pre < 1.0");
+        assert!(snapshot < release, "1.0.snapshot < 1.0");
+
+        // Lexicographic order among prerelease labels
+        assert!(alpha < dev, "alpha < dev (a < d)");
+        assert!(dev < pre, "dev < pre (d < p)");
+        assert!(pre < snapshot, "pre < snapshot (p < s)");
+
+        // is_prerelease detection
+        assert!(dev.is_prerelease(), "dev is detected as prerelease");
+        assert!(pre.is_prerelease(), "pre is detected as prerelease");
+        assert!(snapshot.is_prerelease(), "snapshot is detected as prerelease");
+    }
+
+    #[test]
+    fn test_prerelease_mixed_with_numeric_tokens() {
+        // Versions like 2.0.0-alpha vs 2.0.0-beta
+        let v_alpha = Version::parse("2.0.0-alpha").unwrap();
+        let v_beta = Version::parse("2.0.0-beta").unwrap();
+        let v_stable = Version::parse("2.0.0").unwrap();
+
+        assert!(v_alpha < v_beta, "2.0.0-alpha < 2.0.0-beta");
+        assert!(v_beta < v_stable, "2.0.0-beta < 2.0.0");
+        assert!(v_alpha.is_prerelease());
+        assert!(v_beta.is_prerelease());
+        assert!(!v_stable.is_prerelease());
+    }
+
+    #[test]
+    fn test_prerelease_rc_vs_stable_same_prefix() {
+        // RC versions sort below their corresponding release
+        let rc1 = Version::parse("3.0.rc1").unwrap();
+        let stable = Version::parse("3.0").unwrap();
+        let rc2 = Version::parse("3.0.rc2").unwrap();
+
+        assert!(rc1 < stable, "rc1 < stable 3.0");
+        assert!(rc2 < stable, "rc2 < stable 3.0");
+        assert!(rc1 < rc2, "rc1 < rc2");
+    }
+
+    #[test]
+    fn test_prerelease_is_prerelease_detection() {
+        // Verify all known prerelease markers are detected
+        assert!(Version::parse("1.alpha").unwrap().is_prerelease());
+        assert!(Version::parse("1.beta").unwrap().is_prerelease());
+        assert!(Version::parse("1.rc").unwrap().is_prerelease());
+        assert!(Version::parse("1.dev").unwrap().is_prerelease());
+        assert!(Version::parse("1.pre").unwrap().is_prerelease());
+        assert!(Version::parse("1.snapshot").unwrap().is_prerelease());
+
+        // Non-prerelease versions
+        assert!(!Version::parse("1.0").unwrap().is_prerelease());
+        assert!(!Version::parse("1.0.0").unwrap().is_prerelease());
+        assert!(!Version::parse("2024.5").unwrap().is_prerelease());
+
+        // Edge cases: empty/inf are not prerelease
+        assert!(!Version::empty().is_prerelease());
+        assert!(!Version::inf().is_prerelease());
     }
 }
