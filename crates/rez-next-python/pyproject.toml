@@ -38,6 +38,8 @@ features = ["pyo3/extension-module"]
 module-name = "rez_next._native"
 # Strip debug symbols in release
 strip = true
+# Python source directory: tells maturin where to find the Python package files
+python-source = "python"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

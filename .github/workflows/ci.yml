@@ -71,7 +71,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with:
-          key: cli-e2e-v1
+          key: cli-e2e-v2
       - name: Build rez-next binary
         run: cargo build --bin rez-next
       - name: Run CLI e2e tests

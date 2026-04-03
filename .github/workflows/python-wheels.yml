@@ -78,14 +78,22 @@ jobs:
           uv pip install --system pytest
 
       - name: Smoke test — basic import
+        shell: bash
         run: |
+          # Print installed package info for diagnostics
+          python -c "import importlib.util, sys; spec = importlib.util.find_spec('rez_next'); print('rez_next location:', spec.origin if spec else 'NOT FOUND')" || true
           python -c "
-          import rez_next
-          print('rez_next version:', rez_next.__version__)
-          v = rez_next.Version('1.2.3')
-          r = rez_next.VersionRange('1.0+')
-          assert r.contains(v), 'VersionRange.contains failed'
-          print('Smoke test passed!')
+          import traceback, sys
+          try:
+              import rez_next
+              print('rez_next version:', rez_next.__version__)
+              v = rez_next.Version('1.2.3')
+              r = rez_next.VersionRange('1.0+')
+              assert r.contains(v), 'VersionRange.contains failed'
+              print('Smoke test passed!')
+          except Exception as e:
+              traceback.print_exc()
+              sys.exit(1)
           "
 
       - name: Run all Python tests
