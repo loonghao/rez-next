@@ -1,42 +1,42 @@
 # Python Integration for rez-next
 
-**Status: Not implemented.**
+## Status
 
-This document describes planned Python bindings. The `rez-next-python` crate exists in the workspace but has no functional bindings.
+Python bindings are **implemented** in `crates/rez-next-python` and exposed through the `rez_next` Python package.
 
 ## Current state
 
-- `rez-next-python` depends on all other crates
-- Uses PyO3 0.25 with `abi3-py38`
-- Has scaffolding code but nothing is exposed to Python yet
-- Not published to PyPI
+- Native bindings are built with PyO3 and `abi3-py38`
+- The extension module is exposed as `rez_next._native`
+- Python shim modules mirror the Rez-style import surface, including modules such as `rez_next.version`, `rez_next.packages_`, and `rez_next.resolved_context`
+- The broader module matrix and compatibility notes are maintained in the root `README.md`
 
-## Planned API (aspirational)
+## Local development
+
+```bash
+just py-build
+just py-test
+```
+
+For direct development commands, use:
+
+```bash
+cd crates/rez-next-python
+vx maturin develop --features pyo3/extension-module
+vx pytest tests/ -v --tb=short
+```
+
+## Example
 
 ```python
 import rez_next as rez
+from rez_next.packages_ import get_latest_package
 
-# Version
-version = rez.Version("2.1.0")
-print(version.major, version.minor, version.patch)
-
-# Package
-package = rez.Package.load("package.py")
-print(package.name, package.version)
-
-# Solver
-solver = rez.Solver()
-context = solver.resolve(["python-3.9", "maya-2024"])
+pkg = get_latest_package("python")
+ctx = rez.resolve_packages(["python-3.9"])
+print(pkg.name, ctx.status)
 ```
 
-None of the above works today.
-
-## Building (when ready)
-
-```bash
-pip install maturin
-maturin develop
-```
 
 ## License
 
