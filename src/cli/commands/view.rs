@@ -56,7 +56,6 @@ fn view_current_package(_args: &ViewArgs) -> RezCoreResult<()> {
     // TODO: Implement current context package viewing
     // This requires integration with rez-core-context
 
-    eprintln!("Error: not in a resolved environment context.");
     Err(RezCoreError::Repository(
         "Not in a resolved environment context".to_string(),
     ))
