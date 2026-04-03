@@ -29,6 +29,7 @@ jobs:
         with:
           tools: "just"
           cache: "true"
+          github-token: ${{ secrets.GITHUB_TOKEN }}
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt
@@ -43,6 +44,7 @@ jobs:
         with:
           tools: "just"
           cache: "true"
+          github-token: ${{ secrets.GITHUB_TOKEN }}
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy
@@ -58,6 +60,7 @@ jobs:
         with:
           tools: "just"
           cache: "true"
+          github-token: ${{ secrets.GITHUB_TOKEN }}
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - run: vx just doc-check
@@ -73,6 +76,7 @@ jobs:
         with:
           tools: "just"
           cache: "true"
+          github-token: ${{ secrets.GITHUB_TOKEN }}
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - run: vx cargo test --workspace --exclude rez-next-python
@@ -86,6 +90,7 @@ jobs:
         with:
           tools: "just"
           cache: "true"
+          github-token: ${{ secrets.GITHUB_TOKEN }}
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with:

@@ -27,6 +27,7 @@ jobs:
         with:
           tools: "maturin"
           cache: "true"
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -63,6 +64,7 @@ jobs:
         with:
           tools: "uv"
           cache: "true"
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Download wheels
         uses: actions/download-artifact@v4
