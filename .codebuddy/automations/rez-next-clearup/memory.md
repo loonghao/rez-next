@@ -1,6 +1,23 @@
 # rez-next cleanup 执行记录
 
+## 最新执行 (2026-04-04 06:43, 第二十一轮)
+
+### 执行摘要
+- 审查最近迭代提交 `2534c3b` 和当前工作区，确认本轮只做低风险清理，并避开现有未提交的 `crates/rez-next-version/src/version.rs`
+- 更新 `CLEANUP_TODO.md`：关闭已过期的 `pyo3` 版本漂移记录（根 `Cargo.toml` 与 `rez-next-python/Cargo.toml` 当前都为 `0.25`），新增 1 条关于平台不匹配 solver 测试弱断言的后续项
+- 本轮未改运行时代码；结构性问题继续记录而非直接重构
+
+### 验证结果
+- **测试**: `vx cargo test --workspace` 未通过，但失败源于现有本地 `version.rs` 新增测试：`test_prerelease_alpha_numbered_variants` 与 `test_prerelease_dev_pre_snapshot_ordering`
+- **结论**: 当前失败属于工作区既有基线阻塞，与本轮文档/治理清理无直接关联
+
+### 下一轮重点
+1. 等 `version.rs` 本地改动稳定后，重新获取全量测试绿基线
+2. 继续评估库代码 3 处 `eprintln!` 迁移到结构化日志的可行性（需先明确 `tracing` 依赖策略）
+3. 明确 `test_solver_platform_mismatch_fails_or_empty` 的预期契约（`Err` 还是 `Ok(empty)`）
+
 ## 最新执行 (2026-04-04 02:28, 第二十轮)
+
 
 ### 执行摘要
 - 切换到 `auto-improve`，先做基线校验；发现 `crates/rez-next-python/src/lib.rs` 为 UTF-16 编码，先恢复为 UTF-8 以解除工具链阻塞

@@ -80,10 +80,17 @@
 - Recommended: iteration agent should add `tracing` to workspace deps, then cleanup agent can migrate
 
 ### 17. `pyo3` version drift between workspace and `rez-next-python`
-- **Status**: TODO (cycle 21)
-- Root `Cargo.toml` declares `pyo3 = 0.28` in `[workspace.dependencies]`, while `crates/rez-next-python/Cargo.toml` still pins `pyo3 = 0.25` directly
-- Needs a deliberate decision: either migrate `rez-next-python` to the workspace dependency, or remove the unused workspace entry after wheel/build validation
-- Do not change this blindly in cleanup: it needs explicit build + wheel verification to avoid ABI or packaging regressions
+- **Status**: COMPLETE ✓ (cycle 22)
+- Previous cycle-21 note was stale: root `Cargo.toml` and `crates/rez-next-python/Cargo.toml` currently both pin `pyo3 = 0.25`
+- No active workspace-vs-crate drift remains to clean up; this item is closed as an outdated cleanup record rather than a dependency change
+- Future `pyo3` upgrades should be handled as normal dependency work with wheel/build validation, not as existing cleanup debt
+
+### 18. Platform mismatch solver test has weak assertion
+- **Status**: TODO (cycle 22)
+- Added in iteration commit `2534c3b`: `tests/rez_solver_platform_tests.rs::test_solver_platform_mismatch_fails_or_empty`
+- The `Ok` branch only evaluates `let _ = res.resolved_packages.len();`, so the test accepts success without asserting any observable contract
+- Follow-up: decide whether platform mismatch should return `Err` or `Ok(empty)` and then assert that behavior explicitly
+
 
 ### 12. `build --help` / `env --help` returns exit code 1
 
