@@ -24,7 +24,7 @@ uuid = { version = "1.17", features = ["v4", "serde"] }
 url = "2.5"
 reqwest = { version = "0.13", features = ["stream"] }
 async-trait = "0.1"
-sha2 = "0.10"
+sha2 = "0.11"
 hex = "0.4"
 
 [dev-dependencies]
