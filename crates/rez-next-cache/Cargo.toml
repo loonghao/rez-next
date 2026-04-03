@@ -26,7 +26,7 @@ thiserror = "2.0"
 
 # System utilities
 num_cpus = "1.17"
-rand = "0.9"
+rand = "0.10"
 
 # Internal dependencies
 rez-next-common = { version = "0.3.0", path = "../rez-next-common" }
