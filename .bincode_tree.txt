@@ -1,0 +1,2 @@
+﻿bincode v2.0.1
+└── rez-next-package v0.3.0 (G:\PycharmProjects\github\rez-next\crates\rez-next-package)
