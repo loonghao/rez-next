@@ -101,4 +101,4 @@ jobs:
 
       - name: Run all Python tests
         working-directory: crates/rez-next-python
-        run: python -m pytest tests/ -v --tb=short -x
+        run: python -m pytest tests/ -v --tb=short
