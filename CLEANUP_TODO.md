@@ -91,6 +91,20 @@
 - The `Ok` branch only evaluates `let _ = res.resolved_packages.len();`, so the test accepts success without asserting any observable contract
 - Follow-up: decide whether platform mismatch should return `Err` or `Ok(empty)` and then assert that behavior explicitly
 
+### 19. Split solver test files still duplicate repository/runtime helpers
+- **Status**: TODO (cycle 23)
+- `build_test_repo` / `rt()` helper patterns are duplicated across `rez_solver_platform_tests.rs`, `rez_solver_graph_tests.rs`, `rez_solver_edge_case_tests.rs`, and `rez_solver_advanced_tests.rs`
+- Follow-up: extract shared test helpers into a common test support module to reduce drift after future test splits
+
+### 20. Cargo.lock policy note no longer matches repository state
+- **Status**: TODO (cycle 23)
+- `.gitignore` still says `Cargo.lock` is tracked for reproducible binary builds, but the repository root currently has no tracked `Cargo.lock`
+- Follow-up: decide whether the workspace should commit a lockfile or update the policy note to reflect current release/CI behavior
+
+### 21. Additional vacuous compatibility assertions remain in tests
+- **Status**: TODO (cycle 23)
+- After this cycle removed one pure field-assignment test, but several always-true or near-no-op assertions still remain in `rez_compat_tests.rs`, `rez_compat_solver_tests.rs`, and `rez_compat_misc_tests.rs`
+- Follow-up: continue replacing `A || !A` / "parse and compare without panic" style checks with observable contracts
 
 ### 12. `build --help` / `env --help` returns exit code 1
 
