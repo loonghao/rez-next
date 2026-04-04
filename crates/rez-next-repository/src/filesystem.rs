@@ -6,6 +6,7 @@ use crate::{
 use rez_next_common::RezCoreError;
 use rez_next_package::Package;
 use rez_next_version::Version;
+use tracing::warn;
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -401,7 +402,7 @@ impl FileSystemRepository {
                         break; // Found a package file, no need to check others
                     }
                     Err(e) => {
-                        eprintln!(
+                        warn!(
                             "Failed to load package from {}: {}",
                             package_file.display(),
                             e

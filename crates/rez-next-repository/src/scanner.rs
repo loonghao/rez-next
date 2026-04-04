@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
+use tracing::warn;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 use tokio::fs;
@@ -375,7 +376,7 @@ impl RepositoryScanner {
                         self.prefix_cache.insert(path.clone(), prefix_paths);
                     }
                     Err(e) => {
-                        eprintln!("Failed to preload path {}: {}", path.display(), e);
+                        warn!("Failed to preload path {}: {}", path.display(), e);
                     }
                 }
             }

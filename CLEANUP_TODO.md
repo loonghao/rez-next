@@ -74,10 +74,13 @@
 - Deleted 5 mock simulation tests from `tests/integration_tests.rs::performance_tests` module — same pattern, no actual project code tested
 
 ### 16. eprintln in library code — needs tracing dependency
-- **Status**: DEFERRED (cycle 20)
-- 3 library-code `eprintln!` calls in: `scanner.rs`, `filesystem.rs`, `intelligent_manager.rs`
-- Replacing with `tracing::warn!` requires adding `tracing` crate as a new dependency — outside cleanup scope
-- Recommended: iteration agent should add `tracing` to workspace deps, then cleanup agent can migrate
+- **Status**: COMPLETE ✓ (cycle 35 / iteration agent)
+- Added `tracing = "0.1"` to workspace dependencies and as a direct dep to `rez-next-cache` and `rez-next-repository`
+- Replaced 3 library-code `eprintln!` calls with `tracing::warn!`:
+  - `intelligent_manager.rs:391` — L1 cache promotion failure
+  - `filesystem.rs:404` — package load failure during repo scan
+  - `scanner.rs:378` — path preload failure
+- `eprintln!` calls in `bin/` and `examples/` are intentional CLI/demo output and remain unchanged
 
 ### 17. `pyo3` version drift between workspace and `rez-next-python`
 - **Status**: COMPLETE ✓ (cycle 22)
