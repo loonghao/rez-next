@@ -2,6 +2,7 @@
 //!
 //! Implements the `rez status` command for displaying package and repository status.
 
+use crate::cli::utils::{expand_home_path, expand_home_str};
 use clap::Args;
 use rez_next_common::{config::RezCoreConfig, error::RezCoreResult, RezCoreError};
 use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
@@ -199,16 +200,7 @@ async fn show_repository_status(
         let mut all_paths: Vec<PathBuf> = config
             .packages_path
             .iter()
-            .map(|p| {
-                if p.starts_with("~/") || p == "~" {
-                    if let Ok(home) =
-                        std::env::var("USERPROFILE").or_else(|_| std::env::var("HOME"))
-                    {
-                        return PathBuf::from(p.replacen("~", &home, 1));
-                    }
-                }
-                PathBuf::from(p)
-            })
+            .map(|p| expand_home_path(p))
             .collect();
         all_paths.push(PathBuf::from(expand_home_str(&config.local_packages_path)));
         all_paths
@@ -377,16 +369,6 @@ async fn show_general_status(
     }
 
     Ok(())
-}
-
-/// Expand ~ in path strings
-fn expand_home_str(p: &str) -> String {
-    if p.starts_with("~/") || p == "~" {
-        if let Ok(home) = std::env::var("USERPROFILE").or_else(|_| std::env::var("HOME")) {
-            return p.replacen("~", &home, 1);
-        }
-    }
-    p.to_string()
 }
 
 /// Analyze repository status

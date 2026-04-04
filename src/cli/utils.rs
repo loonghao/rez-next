@@ -4,6 +4,7 @@
 
 use rez_next_common::{error::RezCoreResult, RezCoreError};
 use std::io::{self, Write};
+use std::path::PathBuf;
 
 /// Print formatted output with proper error handling
 pub fn print_output(content: &str) -> RezCoreResult<()> {
@@ -81,6 +82,95 @@ pub fn parse_env_var(arg: &str) -> RezCoreResult<(String, String)> {
             arg
         )))
     }
+}
+
+/// Expand `~` at the start of a path string to the user's home directory.
+///
+/// Returns a [`PathBuf`].  If the path does not start with `~` it is returned
+/// unchanged.  Works on both Unix (reads `HOME`) and Windows (reads
+/// `USERPROFILE`).
+///
+/// # Examples
+/// ```
+/// use std::path::PathBuf;
+/// // When HOME/USERPROFILE is set, "~/foo" is expanded.
+/// ```
+pub fn expand_home_path(p: &str) -> PathBuf {
+    if p == "~" {
+        if let Some(home) = std::env::var_os("USERPROFILE").or_else(|| std::env::var_os("HOME")) {
+            return PathBuf::from(home);
+        }
+    } else if let Some(rest) = p.strip_prefix("~/").or_else(|| p.strip_prefix("~\\")) {
+        if let Some(home) = std::env::var_os("USERPROFILE").or_else(|| std::env::var_os("HOME")) {
+            return PathBuf::from(home).join(rest);
+        }
+    }
+    PathBuf::from(p)
+}
+
+/// Expand `~` at the start of a path string and return a [`String`].
+///
+/// Thin wrapper around [`expand_home_path`] for callers that need a `String`.
+pub fn expand_home_str(p: &str) -> String {
+    expand_home_path(p).to_string_lossy().into_owned()
+}
+
+/// Parse an ISO 8601 date/datetime string or relative-time expression into a
+/// Unix timestamp (seconds since epoch, **signed**).
+///
+/// Supported formats:
+/// - ISO 8601 datetime: `2024-01-01T12:00:00`
+/// - ISO 8601 date:     `2024-01-01`
+/// - Relative:          `1d` (days), `2w` (weeks), `1m` (months ≈ 30 d),
+///   `1y` (years ≈ 365 d) — anchored to *now* in UTC
+///
+/// Returns `None` if `s` does not match any supported format.
+pub fn parse_timestamp(s: &str) -> Option<i64> {
+    // ISO datetime: YYYY-MM-DDTHH:MM:SS
+    if let Ok(dt) = chrono::NaiveDateTime::parse_from_str(s, "%Y-%m-%dT%H:%M:%S") {
+        return Some(dt.and_utc().timestamp());
+    }
+    // ISO date: YYYY-MM-DD
+    if let Ok(d) = chrono::NaiveDate::parse_from_str(s, "%Y-%m-%d") {
+        return Some(d.and_hms_opt(0, 0, 0)?.and_utc().timestamp());
+    }
+    // Relative time: <number><unit>
+    parse_relative_time(s)
+}
+
+/// Parse a relative time string (`1d`, `2w`, `3m`, `1y`) into a past Unix
+/// timestamp (seconds).  Returns `None` for unknown formats.
+pub fn parse_relative_time(s: &str) -> Option<i64> {
+    let s = s.trim();
+    if s.is_empty() {
+        return None;
+    }
+    let (digits, unit) = s.split_at(s.len() - 1);
+    let n: i64 = digits.parse().ok()?;
+    let seconds_ago: i64 = match unit {
+        "d" | "D" => n * 86_400,
+        "w" | "W" => n * 7 * 86_400,
+        "m" | "M" => n * 30 * 86_400,
+        "y" | "Y" => n * 365 * 86_400,
+        _ => return None,
+    };
+    let now = chrono::Utc::now().timestamp();
+    Some(now - seconds_ago)
+}
+
+/// Parse a time specification into a Unix timestamp (`u64`, seconds since
+/// epoch).
+///
+/// Like [`parse_timestamp`] but returns a [`RezCoreResult<u64>`], making it
+/// suitable for CLI argument validation that must not silently succeed.
+pub fn parse_time_spec(spec: &str) -> RezCoreResult<u64> {
+    parse_timestamp(spec)
+        .and_then(|ts| if ts >= 0 { Some(ts as u64) } else { None })
+        .ok_or_else(|| {
+            RezCoreError::CliError(format!(
+                "Cannot parse time spec '{spec}'. Expected: 1d/2w/1m/1y or YYYY-MM-DD[THH:MM:SS]"
+            ))
+        })
 }
 
 /// Get terminal width for formatting
@@ -223,5 +313,129 @@ mod tests {
             "unexpected terminal width: {}",
             width
         );
+    }
+
+    // ── expand_home_path tests ───────────────────────────────────────────────
+
+    #[test]
+    fn test_expand_home_path_absolute_unchanged() {
+        let p = expand_home_path("/usr/local/packages");
+        assert_eq!(p, std::path::PathBuf::from("/usr/local/packages"));
+    }
+
+    #[test]
+    fn test_expand_home_path_relative_unchanged() {
+        let p = expand_home_path("relative/path");
+        assert_eq!(p, std::path::PathBuf::from("relative/path"));
+    }
+
+    #[test]
+    fn test_expand_home_path_tilde_only() {
+        // Just "~" should expand to home dir if set, or stay as "~" if not
+        let p = expand_home_path("~");
+        // Must not be empty
+        assert!(!p.as_os_str().is_empty());
+    }
+
+    #[test]
+    fn test_expand_home_path_tilde_slash() {
+        // "~/foo" should result in a path containing "foo" as the last component
+        let p = expand_home_path("~/mypackages");
+        let last = p.file_name().and_then(|n| n.to_str()).unwrap_or("");
+        assert_eq!(last, "mypackages");
+    }
+
+    #[test]
+    fn test_expand_home_str_absolute_unchanged() {
+        let s = expand_home_str("/absolute/path");
+        assert_eq!(s, "/absolute/path");
+    }
+
+    #[test]
+    fn test_expand_home_str_relative_unchanged() {
+        let s = expand_home_str("relative/path");
+        assert_eq!(s, "relative/path");
+    }
+
+    // ── parse_timestamp tests ────────────────────────────────────────────────
+
+    #[test]
+    fn test_parse_timestamp_iso_datetime() {
+        let ts = parse_timestamp("2024-01-15T10:30:00");
+        assert!(ts.is_some());
+        assert_eq!(ts.unwrap(), 1705314600);
+    }
+
+    #[test]
+    fn test_parse_timestamp_iso_date() {
+        let ts = parse_timestamp("2024-01-15");
+        assert!(ts.is_some());
+        assert_eq!(ts.unwrap(), 1705276800);
+    }
+
+    #[test]
+    fn test_parse_timestamp_relative_1d() {
+        let ts = parse_timestamp("1d");
+        assert!(ts.is_some());
+        let now = chrono::Utc::now().timestamp();
+        let diff = now - ts.unwrap();
+        // Should be within ±5 seconds of 86_400
+        assert!((86_395..=86_405).contains(&diff));
+    }
+
+    #[test]
+    fn test_parse_timestamp_relative_2w() {
+        let ts = parse_timestamp("2w");
+        assert!(ts.is_some());
+        let now = chrono::Utc::now().timestamp();
+        let diff = now - ts.unwrap();
+        assert!((2 * 7 * 86_400 - 5..=2 * 7 * 86_400 + 5).contains(&diff));
+    }
+
+    #[test]
+    fn test_parse_timestamp_invalid() {
+        assert!(parse_timestamp("not-a-date").is_none());
+        assert!(parse_timestamp("").is_none());
+        assert!(parse_timestamp("abc").is_none());
+    }
+
+    #[test]
+    fn test_parse_relative_time_units() {
+        let now = chrono::Utc::now().timestamp();
+        assert!(parse_relative_time("1d").is_some());
+        assert!(parse_relative_time("1D").is_some());
+        assert!(parse_relative_time("1w").is_some());
+        assert!(parse_relative_time("1m").is_some());
+        assert!(parse_relative_time("1y").is_some());
+        assert!(parse_relative_time("0d").is_some());
+        // All results should be <= now
+        for spec in &["1d", "1w", "1m", "1y"] {
+            let ts = parse_relative_time(spec).unwrap();
+            assert!(ts <= now, "{} yielded future timestamp", spec);
+        }
+    }
+
+    #[test]
+    fn test_parse_relative_time_unknown_unit() {
+        assert!(parse_relative_time("1x").is_none());
+        assert!(parse_relative_time("5h").is_none());
+        assert!(parse_relative_time("").is_none());
+    }
+
+    #[test]
+    fn test_parse_time_spec_ok() {
+        let ts = parse_time_spec("1d").unwrap();
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+        // Should be close to now - 86400
+        assert!(ts > 0 && ts <= now);
+    }
+
+    #[test]
+    fn test_parse_time_spec_error() {
+        assert!(parse_time_spec("not-a-time").is_err());
+        assert!(parse_time_spec("").is_err());
     }
 }

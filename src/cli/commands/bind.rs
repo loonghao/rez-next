@@ -3,6 +3,7 @@
 //! Implements the `rez bind` command for converting system software into rez packages.
 //! This performs actual system detection and writes real package.py files to disk.
 
+use crate::cli::utils::expand_home_path;
 use clap::Args;
 use rez_next_common::{config::RezCoreConfig, error::RezCoreResult, RezCoreError};
 use rez_next_package::Package;
@@ -339,25 +340,11 @@ fn get_bind_modules() -> RezCoreResult<HashMap<String, BindModule>> {
 fn get_install_path(args: &BindArgs) -> RezCoreResult<PathBuf> {
     let config = RezCoreConfig::load();
     if args.release {
-        let path = expand_home_path(&config.release_packages_path);
-        Ok(PathBuf::from(path))
+        Ok(expand_home_path(&config.release_packages_path))
     } else if let Some(ref path) = args.install_path {
         Ok(path.clone())
     } else {
-        let path = expand_home_path(&config.local_packages_path);
-        Ok(PathBuf::from(path))
-    }
-}
-
-/// Expand ~ in paths
-fn expand_home_path(path: &str) -> String {
-    if path.starts_with("~/") || path == "~" {
-        let home = std::env::var("USERPROFILE")
-            .or_else(|_| std::env::var("HOME"))
-            .unwrap_or_else(|_| ".".to_string());
-        path.replacen("~", &home, 1)
-    } else {
-        path.to_string()
+        Ok(expand_home_path(&config.local_packages_path))
     }
 }
 

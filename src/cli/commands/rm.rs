@@ -2,7 +2,7 @@
 //!
 //! Implements the `rez rm` command for removing packages from repositories.
 
-use chrono::NaiveDate;
+use crate::cli::utils::{expand_home_path, parse_time_spec};
 use clap::Args;
 use rez_next_common::{error::RezCoreResult, RezCoreError};
 use rez_next_package::Package;
@@ -378,57 +378,6 @@ async fn remove_ignored_since(args: &RmArgs) -> RezCoreResult<()> {
     Ok(())
 }
 
-/// Parse a time specification into a Unix timestamp (seconds since epoch).
-///
-/// Accepts:
-/// - Relative: `1d`, `2w`, `1m`, `1y` — seconds back from now
-/// - ISO date:  `2024-01-15`
-/// - ISO datetime: `2024-01-15T12:00:00`
-fn parse_time_spec(spec: &str) -> RezCoreResult<u64> {
-    use std::time::{SystemTime, UNIX_EPOCH};
-
-    let now = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map_err(|e| RezCoreError::CliError(format!("system time error: {}", e)))?
-        .as_secs();
-
-    // Relative time: number + suffix
-    if let Some(rest) = spec.strip_suffix('d') {
-        if let Ok(n) = rest.parse::<u64>() {
-            return Ok(now.saturating_sub(n * 86_400));
-        }
-    }
-    if let Some(rest) = spec.strip_suffix('w') {
-        if let Ok(n) = rest.parse::<u64>() {
-            return Ok(now.saturating_sub(n * 7 * 86_400));
-        }
-    }
-    if let Some(rest) = spec.strip_suffix('m') {
-        if let Ok(n) = rest.parse::<u64>() {
-            return Ok(now.saturating_sub(n * 30 * 86_400));
-        }
-    }
-    if let Some(rest) = spec.strip_suffix('y') {
-        if let Ok(n) = rest.parse::<u64>() {
-            return Ok(now.saturating_sub(n * 365 * 86_400));
-        }
-    }
-
-    // ISO datetime: YYYY-MM-DDTHH:MM:SS
-    if let Ok(dt) = chrono::NaiveDateTime::parse_from_str(spec, "%Y-%m-%dT%H:%M:%S") {
-        return Ok(dt.and_utc().timestamp() as u64);
-    }
-    // ISO date: YYYY-MM-DD
-    if let Ok(date) = NaiveDate::parse_from_str(spec, "%Y-%m-%d") {
-        return Ok(date.and_hms_opt(0, 0, 0).unwrap().and_utc().timestamp() as u64);
-    }
-
-    Err(RezCoreError::CliError(format!(
-        "Cannot parse time spec '{}'. Expected: 1d/2w/1m/1y or YYYY-MM-DD[THH:MM:SS]",
-        spec
-    )))
-}
-
 /// Setup repository manager
 async fn setup_repositories(args: &RmArgs) -> RezCoreResult<RepositoryManager> {
     use rez_next_common::config::RezCoreConfig;
@@ -441,7 +390,7 @@ async fn setup_repositories(args: &RmArgs) -> RezCoreResult<RepositoryManager> {
         config
             .packages_path
             .iter()
-            .map(|p| expand_home_dir(p))
+            .map(|p| expand_home_path(p))
             .filter(|p| p.exists())
             .collect()
     };
@@ -453,15 +402,6 @@ async fn setup_repositories(args: &RmArgs) -> RezCoreResult<RepositoryManager> {
     }
 
     Ok(repo_manager)
-}
-
-fn expand_home_dir(p: &str) -> PathBuf {
-    if p.starts_with("~/") || p == "~" {
-        if let Some(home) = std::env::var_os("USERPROFILE").or_else(|| std::env::var_os("HOME")) {
-            return PathBuf::from(home).join(&p[2..]);
-        }
-    }
-    PathBuf::from(p)
 }
 
 /// Find packages to remove (with version filter)
@@ -505,7 +445,7 @@ async fn remove_single_package(package: &Package, args: &RmArgs) -> RezCoreResul
         config
             .packages_path
             .iter()
-            .map(|p| expand_home_dir(p))
+            .map(|p| expand_home_path(p))
             .collect()
     };
 

@@ -2,6 +2,7 @@
 //!
 //! Implements the `rez mv` command for moving packages between repositories.
 
+use crate::cli::utils::expand_home_path;
 use clap::Args;
 use rez_next_common::{error::RezCoreResult, RezCoreError};
 use rez_next_package::Package;
@@ -107,7 +108,7 @@ async fn execute_move_async(args: &MvArgs) -> RezCoreResult<()> {
         config
             .packages_path
             .iter()
-            .map(|p| expand_home_dir(p))
+            .map(|p| expand_home_path(p))
             .filter(|p| p.exists())
             .collect()
     };
@@ -198,15 +199,6 @@ async fn execute_move_async(args: &MvArgs) -> RezCoreResult<()> {
     }
 
     Ok(())
-}
-
-fn expand_home_dir(p: &str) -> PathBuf {
-    if p.starts_with("~/") || p == "~" {
-        if let Some(home) = std::env::var_os("USERPROFILE").or_else(|| std::env::var_os("HOME")) {
-            return PathBuf::from(home).join(&p[2..]);
-        }
-    }
-    PathBuf::from(p)
 }
 
 /// Parse package specification into name and optional version
