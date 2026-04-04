@@ -136,11 +136,12 @@
 - Follow-up: extract shared CLI helpers for path expansion and timestamp parsing
 
 ### 25. Public compatibility stubs still need explicit product decisions
-- **Status**: TODO (cycle 24)
-- `crates/rez-next-python/src/pip_bindings.rs::get_pip_dependencies()` still returns an empty list compatibility stub
-- `crates/rez-next-solver/src/optimized_solver.rs::detect_conflicts_optimized()` still returns an empty placeholder result
-- `crates/rez-next-build/src/systems.rs` still contains placeholder build-system implementations
-- Follow-up: either implement these paths, gate them, or return explicit unsupported errors rather than silently succeeding
+- **Status**: PARTIAL (cycle 39)
+- `get_pip_dependencies()` — **FIXED**: now raises `NotImplementedError` instead of returning empty list silently (cycle 39)
+- `pip_install()` — **FIXED**: now raises `NotImplementedError` instead of fake-installing packages (cycle 39)
+- `optimized_solver.rs` — **DELETED**: dead file not in module tree, `detect_conflicts_optimized()` was only reachable via this dead code (cycle 39)
+- `crates/rez-next-build/src/systems.rs` still contains placeholder stub implementations for `PythonBuildSystem`, `NodeJsBuildSystem`, `CargoBuildSystem` — these call external tools (python, npm, cargo) but the invocation logic is incomplete / not tested
+- Follow-up: add integration tests for build system detection and execution
 
 
 

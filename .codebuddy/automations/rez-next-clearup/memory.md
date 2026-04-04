@@ -1,5 +1,24 @@
 # rez-next cleanup 执行记录
 
+## 最新执行 (2026-04-04 15:07, 第二十四轮)
+
+### 执行摘要
+- 审查最近基线 `131a0bb` 后，优先做低风险清理：文档承诺对齐、无效测试移除、未使用测试依赖治理
+- 完成 3 个 cleanup 提交并已推送：`94c3bd2`（README/README_zh/.gitignore 对齐当前实现状态）、`59d9a14`（删除 1 个宿主环境依赖型测试并移除未使用测试依赖）、`263c53e`（更新 `CLEANUP_TODO.md`，commit body 含 `chore(cleanup): done`）
+- 本轮净变更为 `17 files changed, 54 insertions(+), 361 deletions(-)`；未引入新功能
+
+### 验证结果
+- **测试**: `cargo test --workspace --all-targets --quiet` 通过；当前可枚举测试总数约 **1479**
+- **Lint**: `cargo clippy --workspace --all-targets --quiet -- -D warnings` 通过；编辑文件 IDE 诊断为 0
+- **推送**: `auto-improve` 已推送到 `263c53e`
+
+### 下一轮重点
+1. 提取 CLI 公共 helper（home path 展开、时间解析）
+2. 明确公开 stub 的产品策略：实现、显式 unsupported，或 feature gate
+3. 评估从 `search_v2.rs` 或 `pkg_cache.rs` 开始做低风险文件拆分
+
+
+
 ## 最新执行 (2026-04-04 11:12, 第二十二轮)
 
 ### 执行摘要
