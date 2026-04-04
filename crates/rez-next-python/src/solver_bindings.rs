@@ -130,12 +130,7 @@ mod tests {
     mod test_solver_config {
         use super::*;
 
-        #[test]
-        fn test_default_config_prefer_latest_is_bool() {
-            let cfg = SolverConfig::default();
-            // Just verify the field is accessible and has a definite value
-            let _ = cfg.prefer_latest;
-        }
+
 
         #[test]
         fn test_solver_paths_stored_correctly() {

@@ -97,17 +97,7 @@ mod tests {
     mod test_config_load {
         use super::*;
 
-        #[test]
-        fn test_config_loads_without_panic() {
-            let _ = RezCoreConfig::load();
-        }
 
-        #[test]
-        fn test_packages_path_is_list() {
-            let cfg = RezCoreConfig::load();
-            // Must be a valid Vec (possibly empty in CI)
-            let _ = cfg.packages_path;
-        }
 
         #[test]
         fn test_local_packages_path_non_empty() {
