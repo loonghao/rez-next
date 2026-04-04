@@ -1,7 +1,7 @@
 # Rust
 */target/
 target/
-# Note: Cargo.lock is tracked for reproducible binary builds (cargo build --locked)
+# Note: Cargo.lock is currently not tracked in this repository; update this note if the release policy changes.
 
 # IDE
 .vscode/

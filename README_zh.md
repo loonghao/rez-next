@@ -201,20 +201,20 @@ rez-next-python       Python 绑定 via PyO3（18 个子模块）
 
 | Crate | 状态 | 测试数 |
 |-------|------|--------|
-| `rez-next-version` | 完成 | ~30 |
-| `rez-next-package` | 完成 | ~25 |
-| `rez-next-common` | 完成 | ~10 |
-| `rez-next-rex` | 完成 | ~20 |
-| `rez-next-solver` | 完成（A* 启用）| ~15 |
-| `rez-next-context` | 完成 | ~12 |
-| `rez-next-repository` | 完成 | ~8 |
-| `rez-next-build` | 完成 | ~6 |
-| `rez-next-cache` | 完成 | ~5 |
-| `rez-next-suites` | 完成 | ~10 |
-| `rez-next-bind` | 完成 | ~37 |
-| `rez-next-search` | 完成 | ~16 |
-| `rez-next-python` | 完成（18 子模块）| ~101 |
-| Compat integration | — | ~210 |
+| `rez-next-version` | 核心能力较成熟 | ~30 |
+| `rez-next-package` | 核心能力较成熟 | ~25 |
+| `rez-next-common` | 核心能力较成熟 | ~10 |
+| `rez-next-rex` | 核心能力较成熟 | ~20 |
+| `rez-next-solver` | 持续演进中（A* 已启用）| ~15 |
+| `rez-next-context` | 持续演进中 | ~12 |
+| `rez-next-repository` | 核心能力较成熟 | ~8 |
+| `rez-next-build` | 局部实现（基础流程 + placeholders） | ~6 |
+| `rez-next-cache` | 持续演进中 | ~5 |
+| `rez-next-suites` | 持续演进中 | ~10 |
+| `rez-next-bind` | 持续演进中 | ~37 |
+| `rez-next-search` | 持续演进中 | ~16 |
+| `rez-next-python` | 部分兼容（18 个子模块） | ~101 |
+| Compat integration | 覆盖面持续增长 | ~210 |
 
 ---
 

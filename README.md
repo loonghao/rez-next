@@ -4,7 +4,7 @@
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 [![CI](https://img.shields.io/github/actions/workflow/status/loonghao/rez-next/ci.yml?branch=main)](https://github.com/loonghao/rez-next/actions)
 
-A complete Rust rewrite of the [Rez](https://github.com/AcademySoftwareFoundation/rez) package manager with full Python bindings — just replace `import rez` with `import rez_next` for a seamless drop-in switch.
+An in-progress Rust rewrite of the [Rez](https://github.com/AcademySoftwareFoundation/rez) package manager with Python bindings and growing compatibility coverage. Many common workflows already work with `import rez_next`, but it is not yet a seamless drop-in switch for every API surface.
 
 [English](README.md) | [中文](README_zh.md)
 
@@ -201,20 +201,20 @@ rez-next-python       Python bindings via PyO3 (18 submodules)
 
 | Crate | Status | Tests |
 |-------|--------|-------|
-| `rez-next-version` | Complete | ~30 |
-| `rez-next-package` | Complete | ~25 |
-| `rez-next-common` | Complete | ~10 |
-| `rez-next-rex` | Complete | ~20 |
-| `rez-next-solver` | Complete (A* enabled) | ~15 |
-| `rez-next-context` | Complete | ~12 |
-| `rez-next-repository` | Complete | ~8 |
-| `rez-next-build` | Complete | ~6 |
-| `rez-next-cache` | Complete | ~5 |
-| `rez-next-suites` | Complete | ~10 |
-| `rez-next-bind` | Complete | ~37 |
-| `rez-next-search` | Complete | ~16 |
-| `rez-next-python` | Complete (18 submodules) | ~125 |
-| Compat integration tests | — | ~210 |
+| `rez-next-version` | Mature core | ~30 |
+| `rez-next-package` | Mature core | ~25 |
+| `rez-next-common` | Mature core | ~10 |
+| `rez-next-rex` | Mature core | ~20 |
+| `rez-next-solver` | Active development (A* enabled) | ~15 |
+| `rez-next-context` | Active development | ~12 |
+| `rez-next-repository` | Mature core | ~8 |
+| `rez-next-build` | Partial (basic flows + placeholders) | ~6 |
+| `rez-next-cache` | Active development | ~5 |
+| `rez-next-suites` | Active development | ~10 |
+| `rez-next-bind` | Active development | ~37 |
+| `rez-next-search` | Active development | ~16 |
+| `rez-next-python` | Partial compatibility (18 submodules) | ~125 |
+| Compat integration tests | Growing coverage | ~210 |
 
 ---
 
