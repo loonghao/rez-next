@@ -125,3 +125,137 @@ pub fn get_current_shell() -> String {
     }
     "bash".to_string()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rez_next_rex::{generate_shell_script, RexEnvironment, ShellType};
+
+    mod test_shell_type_parse {
+        use super::*;
+
+        #[test]
+        fn test_known_shell_types_parse() {
+            for name in &["bash", "zsh", "fish", "cmd", "powershell"] {
+                assert!(
+                    ShellType::parse(name).is_some(),
+                    "ShellType::parse('{}') should succeed",
+                    name
+                );
+            }
+        }
+
+        #[test]
+        fn test_unknown_shell_type_returns_none() {
+            assert!(ShellType::parse("ksh").is_none());
+            assert!(ShellType::parse("").is_none());
+            assert!(ShellType::parse("tcsh").is_none());
+        }
+    }
+
+    mod test_shell_script_generation {
+        use super::*;
+        use std::collections::HashMap;
+
+        #[test]
+        fn test_bash_script_sets_env_var() {
+            let mut env = RexEnvironment::new();
+            env.vars.insert("MY_VAR".to_string(), "hello".to_string());
+            let script = generate_shell_script(&env, &ShellType::Bash);
+            assert!(
+                script.contains("MY_VAR") && script.contains("hello"),
+                "bash script should contain MY_VAR=hello, got:\n{}",
+                script
+            );
+        }
+
+        #[test]
+        fn test_powershell_script_sets_env_var() {
+            let mut env = RexEnvironment::new();
+            env.vars
+                .insert("PS_VAR".to_string(), "ps_val".to_string());
+            let script = generate_shell_script(&env, &ShellType::PowerShell);
+            assert!(
+                script.contains("PS_VAR"),
+                "powershell script should reference PS_VAR, got:\n{}",
+                script
+            );
+        }
+
+        #[test]
+        fn test_cmd_script_sets_env_var() {
+            let mut env = RexEnvironment::new();
+            env.vars
+                .insert("CMD_VAR".to_string(), "cmd_val".to_string());
+            let script = generate_shell_script(&env, &ShellType::Cmd);
+            assert!(
+                script.contains("CMD_VAR"),
+                "cmd script should reference CMD_VAR, got:\n{}",
+                script
+            );
+        }
+
+        #[test]
+        fn test_empty_env_generates_non_panic_script() {
+            let env = RexEnvironment::new();
+            // Must not panic regardless of shell type
+            for st in &[
+                ShellType::Bash,
+                ShellType::Zsh,
+                ShellType::Fish,
+                ShellType::Cmd,
+                ShellType::PowerShell,
+            ] {
+                let _ = generate_shell_script(&env, st);
+            }
+        }
+
+        #[test]
+        fn test_multiple_vars_all_appear_in_script() {
+            let mut vars = HashMap::new();
+            vars.insert("FOO".to_string(), "1".to_string());
+            vars.insert("BAR".to_string(), "2".to_string());
+            let mut env = RexEnvironment::new();
+            env.vars = vars;
+            let script = generate_shell_script(&env, &ShellType::Bash);
+            assert!(script.contains("FOO"), "FOO missing from script");
+            assert!(script.contains("BAR"), "BAR missing from script");
+        }
+    }
+
+    mod test_get_available_shells {
+        use super::*;
+
+        #[test]
+        fn test_available_shells_contains_all_types() {
+            let shells = get_available_shells();
+            for expected in &["bash", "zsh", "fish", "cmd", "powershell"] {
+                assert!(
+                    shells.contains(expected),
+                    "get_available_shells() should contain '{}'",
+                    expected
+                );
+            }
+        }
+
+        #[test]
+        fn test_available_shells_count() {
+            assert_eq!(get_available_shells().len(), 5);
+        }
+    }
+
+    mod test_get_current_shell {
+        use super::*;
+
+        #[test]
+        fn test_current_shell_returns_known_type() {
+            let shell = get_current_shell();
+            let known = ["bash", "zsh", "fish", "cmd", "powershell"];
+            assert!(
+                known.contains(&shell.as_str()),
+                "get_current_shell() returned unknown shell: '{}'",
+                shell
+            );
+        }
+    }
+}

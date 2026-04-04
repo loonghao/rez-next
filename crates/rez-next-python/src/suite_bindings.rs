@@ -223,3 +223,185 @@ impl PySuiteManager {
             .map_err(|e| pyo3::exceptions::PyKeyError::new_err(e.to_string()))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rez_next_suites::Suite;
+
+    mod test_suite_basic {
+        use super::*;
+
+        #[test]
+        fn test_new_suite_is_empty() {
+            let s = PySuite::new(None);
+            assert_eq!(s.inner.len(), 0);
+            assert!(s.inner.context_names().is_empty());
+        }
+
+        #[test]
+        fn test_new_suite_with_description() {
+            let s = PySuite::new(Some("my suite"));
+            assert_eq!(s.inner.description.as_deref(), Some("my suite"));
+        }
+
+        #[test]
+        fn test_add_context_increases_count() {
+            let mut s = PySuite::new(None);
+            s.add_context("maya", vec!["maya-2023".to_string()])
+                .unwrap();
+            assert_eq!(s.inner.len(), 1);
+        }
+
+        #[test]
+        fn test_add_multiple_contexts() {
+            let mut s = PySuite::new(None);
+            s.add_context("maya", vec!["maya-2023".to_string()])
+                .unwrap();
+            s.add_context("nuke", vec!["nuke-14".to_string()])
+                .unwrap();
+            assert_eq!(s.inner.len(), 2);
+        }
+
+        #[test]
+        fn test_context_names_reflects_added_contexts() {
+            let mut s = PySuite::new(None);
+            s.add_context("ctx1", vec!["pkgA-1".to_string()])
+                .unwrap();
+            s.add_context("ctx2", vec!["pkgB-2".to_string()])
+                .unwrap();
+            let names = s.context_names();
+            assert!(names.contains(&"ctx1".to_string()));
+            assert!(names.contains(&"ctx2".to_string()));
+        }
+
+        #[test]
+        fn test_remove_context_decreases_count() {
+            let mut s = PySuite::new(None);
+            s.add_context("ctx1", vec!["pkg-1".to_string()])
+                .unwrap();
+            s.remove_context("ctx1").unwrap();
+            assert_eq!(s.inner.len(), 0);
+        }
+
+        #[test]
+        fn test_remove_nonexistent_context_returns_err() {
+            let mut s = PySuite::new(None);
+            let result = s.remove_context("no_such_context");
+            assert!(result.is_err(), "removing absent context should fail");
+        }
+
+        #[test]
+        fn test_len_via_inner() {
+            let mut s = PySuite::new(None);
+            assert_eq!(s.inner.len(), 0);
+            s.add_context("a", vec![]).unwrap();
+            assert_eq!(s.inner.len(), 1);
+        }
+    }
+
+    mod test_suite_description {
+        use super::*;
+
+        #[test]
+        fn test_default_description_is_none() {
+            let s = PySuite::new(None);
+            assert!(s.inner.description.is_none());
+        }
+
+        #[test]
+        fn test_set_description_updates_value() {
+            let mut s = PySuite::new(Some("first"));
+            s.set_description(Some("second".to_string()));
+            assert_eq!(s.inner.description.as_deref(), Some("second"));
+        }
+
+        #[test]
+        fn test_clear_description() {
+            let mut s = PySuite::new(Some("has desc"));
+            s.set_description(None);
+            assert!(s.inner.description.is_none());
+        }
+    }
+
+    mod test_suite_conflict_mode {
+        use super::*;
+
+        #[test]
+        fn test_set_conflict_mode_error() {
+            let mut s = PySuite::new(None);
+            let result = s.set_conflict_mode("error");
+            assert!(result.is_ok(), "set_conflict_mode('error') failed");
+        }
+
+        #[test]
+        fn test_set_conflict_mode_first() {
+            let mut s = PySuite::new(None);
+            assert!(s.set_conflict_mode("first").is_ok());
+        }
+
+        #[test]
+        fn test_set_conflict_mode_last() {
+            let mut s = PySuite::new(None);
+            assert!(s.set_conflict_mode("last").is_ok());
+        }
+
+        #[test]
+        fn test_set_conflict_mode_prefix() {
+            let mut s = PySuite::new(None);
+            assert!(s.set_conflict_mode("prefix").is_ok());
+        }
+
+        #[test]
+        fn test_set_conflict_mode_invalid_returns_err() {
+            let mut s = PySuite::new(None);
+            let result = s.set_conflict_mode("garbage_mode_xyz");
+            assert!(result.is_err(), "invalid conflict mode should fail");
+        }
+    }
+
+    mod test_suite_is_suite {
+        use super::*;
+
+        #[test]
+        fn test_is_suite_nonexistent_path_returns_false() {
+            assert!(!PySuite::is_suite("/nonexistent/path/xyz"));
+        }
+
+        #[test]
+        fn test_is_suite_empty_temp_dir_returns_false() {
+            let tmp = std::env::temp_dir().join("rez_suite_test_empty");
+            std::fs::create_dir_all(&tmp).unwrap();
+            assert!(!PySuite::is_suite(&tmp.to_string_lossy()));
+            let _ = std::fs::remove_dir_all(&tmp);
+        }
+    }
+
+    mod test_suite_manager {
+        use super::*;
+
+        #[test]
+        fn test_suite_manager_new_empty_paths() {
+            let mgr = PySuiteManager::new(Some(vec![]));
+            let names = mgr.list_suite_names();
+            assert!(
+                names.is_empty(),
+                "empty path manager should have no suites"
+            );
+        }
+
+        #[test]
+        fn test_suite_manager_find_suites_nonexistent_returns_empty() {
+            let mgr = PySuiteManager::new(Some(vec!["/no/such/path".to_string()]));
+            let suites = mgr.find_suites();
+            assert!(suites.is_empty());
+        }
+
+        #[test]
+        fn test_suite_manager_load_nonexistent_returns_err() {
+            let mgr = PySuiteManager::new(Some(vec![]));
+            let result = mgr.load_suite("nonexistent_suite");
+            assert!(result.is_err());
+        }
+    }
+}

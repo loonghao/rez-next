@@ -74,3 +74,77 @@ impl PySolver {
         )
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rez_next_solver::SolverConfig;
+
+    mod test_solver_construction {
+        use super::*;
+
+        #[test]
+        fn test_solver_with_empty_paths_repr() {
+            let solver = PySolver {
+                config: SolverConfig::default(),
+                paths: vec![],
+            };
+            let repr = solver.__repr__();
+            assert!(repr.starts_with("Solver("), "repr: {}", repr);
+            assert!(repr.contains("paths=0"), "repr should show 0 paths: {}", repr);
+        }
+
+        #[test]
+        fn test_solver_repr_contains_config_fields() {
+            let solver = PySolver {
+                config: SolverConfig::default(),
+                paths: vec![PathBuf::from("/tmp/pkgs")],
+            };
+            let repr = solver.__repr__();
+            assert!(repr.contains("max_attempts"), "repr: {}", repr);
+            assert!(repr.contains("prefer_latest"), "repr: {}", repr);
+        }
+
+        #[test]
+        fn test_solver_config_defaults() {
+            let config = SolverConfig::default();
+            // max_attempts should be positive
+            assert!(config.max_attempts > 0, "max_attempts must be > 0");
+        }
+
+        #[test]
+        fn test_solver_with_multiple_paths() {
+            let solver = PySolver {
+                config: SolverConfig::default(),
+                paths: vec![
+                    PathBuf::from("/a"),
+                    PathBuf::from("/b"),
+                    PathBuf::from("/c"),
+                ],
+            };
+            let repr = solver.__repr__();
+            assert!(repr.contains("paths=3"), "repr: {}", repr);
+        }
+    }
+
+    mod test_solver_config {
+        use super::*;
+
+        #[test]
+        fn test_default_config_prefer_latest_is_bool() {
+            let cfg = SolverConfig::default();
+            // Just verify the field is accessible and has a definite value
+            let _ = cfg.prefer_latest;
+        }
+
+        #[test]
+        fn test_solver_paths_stored_correctly() {
+            let paths = vec![PathBuf::from("/x/y"), PathBuf::from("/z")];
+            let solver = PySolver {
+                config: SolverConfig::default(),
+                paths: paths.clone(),
+            };
+            assert_eq!(solver.paths, paths);
+        }
+    }
+}
