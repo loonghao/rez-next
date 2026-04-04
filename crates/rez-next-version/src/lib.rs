@@ -40,3 +40,7 @@ impl From<RezCoreError> for VersionParseError {
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod range_tests;
+
