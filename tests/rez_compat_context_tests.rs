@@ -102,10 +102,12 @@ fn test_rex_alias_with_path() {
     );
     // Either succeeds with alias set, or silently ignores unrecognized command
     if let Ok(env) = result {
-        // alias may be in aliases or vars
+        // Contract: the alias() call must store "maya" in aliases or vars.
         let has_alias = env.aliases.contains_key("maya") || env.vars.contains_key("maya");
-        // At minimum no panic
-        let _ = has_alias;
+        assert!(
+            has_alias,
+            "env.alias('maya', ...) should populate aliases or vars with key 'maya'"
+        );
     }
     // Err case: parse errors are acceptable for edge cases
 }
@@ -143,10 +145,18 @@ fn test_rex_prepend_path_order() {
     let result = exec.execute_commands(commands, "mypkg", Some("/opt/mypkg/1.0"), Some("1.0"));
 
     let env = result.expect("prepend_path should succeed");
-    // PATH entries should be recorded — check vars has PATH or check no panic
-    let path_set = env.vars.contains_key("PATH");
-    // Either PATH is set or commands were silently processed
-    let _ = path_set; // No assertion needed — no panic = success
+    // prepend_path must record PATH in vars (even if only one entry was added).
+    assert!(
+        env.vars.contains_key("PATH"),
+        "prepend_path('PATH', ...) should set PATH in vars"
+    );
+    // Two prepend_path calls produced two entries; PATH value must contain both paths.
+    let path_val = env.vars.get("PATH").unwrap();
+    assert!(
+        path_val.contains("/opt/mypkg/1.0/bin") || path_val.contains("{root}/bin"),
+        "PATH should contain the prepended entry, got: '{}'",
+        path_val
+    );
 }
 
 /// rez rex: multiple env operations in sequence

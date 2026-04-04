@@ -216,8 +216,12 @@ def commands():
 
     let pkg = PackageSerializer::load_from_file(&path).unwrap();
     assert_eq!(pkg.name, "nuke");
-    // Should at minimum parse without error
-    let _ = pkg.commands;
+    // commands or commands_function must be populated from `def commands():` in package.py.
+    let has_commands = pkg.commands.is_some() || pkg.commands_function.is_some();
+    assert!(
+        has_commands,
+        "nuke package.py with `def commands():` should populate commands or commands_function"
+    );
 }
 
 /// rez: package.py with def pre_commands() and def post_commands()

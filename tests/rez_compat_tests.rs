@@ -741,8 +741,12 @@ description = 'A well-authored package'
 
     let pkg = PackageSerializer::load_from_file(&path).unwrap();
     assert_eq!(pkg.name, "authored_pkg");
-    // description may or may not be present — just ensure parsing works
-    let _ = pkg.description;
+    // description field must be populated from the package.py.
+    assert_eq!(
+        pkg.description.as_deref(),
+        Some("A well-authored package"),
+        "description should be parsed from package.py"
+    );
 }
 
 /// Rex: append_path should append (not prepend)

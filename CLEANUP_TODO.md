@@ -114,7 +114,15 @@
   - `rez_compat_solver_tests.rs`: empty repo single requirement
 - Each replaced assertion now verifies an observable contract (resolved count, failed_requirements presence, version prefix)
 
-### 12. `build --help` / `env --help` returns exit code 1
+### 22. Alpha token ordering not rez-compatible
+- **Status**: TODO (cycle 37)
+- rez spec: alpha tokens sort *less than* numeric tokens — `1.0.alpha < 1.0.0`
+- Current rez-next implementation does NOT enforce this; `1.0.alpha > 1.0.0` in practice
+- Discovered when strengthening `test_version_alphanumeric_ordering` assertion
+- Follow-up: fix `rez_next_version` token comparison logic to put alpha < numeric per rez spec
+- Placeholder comment left in test so a future fix forces the TODO comment to be removed
+
+
 
 - **Status**: COMPLETE ✓ (cycle 19)
 - Fixed `handle_grouped_command` in `rez-next.rs`: clap returns `Err` for `--help`/`--version` display; now uses `e.use_stderr()` to decide exit code (0 for help/version, 1 for real errors)
