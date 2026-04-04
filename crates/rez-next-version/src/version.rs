@@ -310,28 +310,57 @@ impl Version {
 
     /// Compare a single token, handling mixed alphanumeric strings.
     ///
-    /// Splits each token into alternating alpha and numeric segments, then compares
-    /// segment by segment (numeric segments compared as integers, alpha as strings).
-    /// This matches rez's token comparison behavior, e.g. "alpha10" > "alpha2".
+    /// Rez token comparison rules:
+    /// 1. Both numeric: numeric integer comparison.
+    /// 2. Both alpha: lexicographic comparison.
+    /// 3. Mixed (alpha vs numeric segment): **alpha < numeric** — alphabetic segments
+    ///    sort *before* numeric ones, matching rez semantics where `1.0.alpha < 1.0.0`.
+    /// 4. Mixed alphanumeric tokens (e.g. "alpha10"): split into alternating segments and
+    ///    apply rules 1–3 per segment pair.
     fn compare_single_token(t1: &str, t2: &str) -> Ordering {
         // Fast path: both purely numeric
         match (t1.parse::<i64>(), t2.parse::<i64>()) {
             (Ok(n1), Ok(n2)) => return n1.cmp(&n2),
             _ => {}
         }
-        // Fast path: both purely alphabetic (or equal strings)
+        // Fast path: equal strings
         if t1 == t2 {
             return Ordering::Equal;
         }
 
-        // Split into segments: sequences of digits or sequences of non-digits
+        // Fast path: purely alpha vs purely numeric → alpha is Less (rez spec)
+        let t1_all_alpha = t1.chars().all(|c| c.is_alphabetic() || c == '_');
+        let t2_all_alpha = t2.chars().all(|c| c.is_alphabetic() || c == '_');
+        let t1_all_num = t1.chars().all(|c| c.is_ascii_digit());
+        let t2_all_num = t2.chars().all(|c| c.is_ascii_digit());
+        if t1_all_alpha && t2_all_num {
+            return Ordering::Less;
+        }
+        if t1_all_num && t2_all_alpha {
+            return Ordering::Greater;
+        }
+        // Both purely alpha: lexicographic
+        if t1_all_alpha && t2_all_alpha {
+            return t1.cmp(t2);
+        }
+
+        // Mixed alphanumeric tokens: split into segments and compare segment-by-segment.
+        // Within a segment pair: alpha segment < numeric segment (rez spec).
         let seg1 = Self::split_token_segments(t1);
         let seg2 = Self::split_token_segments(t2);
 
         for (s1, s2) in seg1.iter().zip(seg2.iter()) {
-            let cmp = match (s1.parse::<u64>(), s2.parse::<u64>()) {
-                (Ok(n1), Ok(n2)) => n1.cmp(&n2),
-                _ => s1.as_str().cmp(s2.as_str()),
+            let s1_is_num = s1.parse::<u64>().is_ok();
+            let s2_is_num = s2.parse::<u64>().is_ok();
+            let cmp = match (s1_is_num, s2_is_num) {
+                (true, true) => {
+                    let n1: u64 = s1.parse().unwrap();
+                    let n2: u64 = s2.parse().unwrap();
+                    n1.cmp(&n2)
+                }
+                (false, false) => s1.as_str().cmp(s2.as_str()),
+                (false, true) => Ordering::Less,   // alpha segment < numeric segment
+                (true, false) => Ordering::Greater, // numeric segment > alpha segment
             };
             if cmp != Ordering::Equal {
                 return cmp;

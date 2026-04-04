@@ -581,14 +581,10 @@ mod version_helper_tests {
         let rel = v("1.2.0");
         // They should be different (not equal)
         assert_ne!(pre, rel, "1.2.alpha and 1.2.0 should be different versions");
-        // In rez, alphanumeric tokens may sort before numeric — verify ordering is deterministic
-        // (either direction is acceptable; we just check total order is consistent)
-        let ordering = pre.cmp(&rel);
-        // The same comparison should be stable
-        assert_eq!(
-            pre.cmp(&rel),
-            ordering,
-            "Version comparison should be deterministic"
+        // rez spec: alpha token < numeric token → 1.2.alpha < 1.2.0
+        assert!(
+            pre < rel,
+            "rez ordering: 1.2.alpha should be less than 1.2.0 (alpha < numeric)"
         );
     }
 

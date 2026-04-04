@@ -490,19 +490,12 @@ fn test_rex_bash_alias_with_special_chars() {
 #[test]
 fn test_version_alphanumeric_ordering() {
     // In rez: "1.0.alpha" < "1.0.0" (alpha token is less than numeric 0)
-    // This tests the rez-specific version ordering
-    let v_alpha = Version::parse("1.0.alpha");
-    let v_zero = Version::parse("1.0.0");
-    if let (Ok(va), Ok(vz)) = (v_alpha, v_zero) {
-        // rez spec: "1.0.alpha" < "1.0.0" (alpha token is less than numeric 0)
-        // KNOWN COMPAT GAP (see CLEANUP_TODO #22): current rez-next implementation
-        // does NOT enforce this ordering — alpha tokens compare as greater than
-        // numeric tokens.  This test documents the current (non-rez-compatible) behaviour
-        // so that a future fix will be caught as a test change rather than a silent pass.
-        let _ord = va.cmp(&vz);
-        // TODO: once rez alpha-token ordering is implemented, replace this with:
-        //   assert!(va < vz, "rez ordering: '1.0.alpha' should be less than '1.0.0'");
-    }
+    let v_alpha = Version::parse("1.0.alpha").unwrap();
+    let v_zero = Version::parse("1.0.0").unwrap();
+    assert!(
+        v_alpha < v_zero,
+        "rez ordering: '1.0.alpha' should be less than '1.0.0' (alpha < numeric)"
+    );
 }
 
 // ─── rez.config compatibility tests ─────────────────────────────────────────

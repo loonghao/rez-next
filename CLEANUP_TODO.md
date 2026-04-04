@@ -115,12 +115,14 @@
 - Each replaced assertion now verifies an observable contract (resolved count, failed_requirements presence, version prefix)
 
 ### 22. Alpha token ordering not rez-compatible
-- **Status**: TODO (cycle 37)
+- **Status**: COMPLETE ✓ (cycle 38)
 - rez spec: alpha tokens sort *less than* numeric tokens — `1.0.alpha < 1.0.0`
-- Current rez-next implementation does NOT enforce this; `1.0.alpha > 1.0.0` in practice
-- Discovered when strengthening `test_version_alphanumeric_ordering` assertion
-- Follow-up: fix `rez_next_version` token comparison logic to put alpha < numeric per rez spec
-- Placeholder comment left in test so a future fix forces the TODO comment to be removed
+- Fixed `compare_single_token` in `rez-next-version/src/version.rs`:
+  - Added fast paths for purely alpha vs purely numeric tokens (alpha → `Less`, numeric → `Greater`)
+  - Updated segment-by-segment comparison to use `(false, true) => Less` / `(true, false) => Greater` when one segment is alpha and the other numeric
+- Updated `test_version_alphanumeric_ordering` in `rez_compat_late_tests.rs`: removed TODO placeholder, added real assertion `va < vz`
+- Updated `test_version_prerelease_less_than_release` in `version_tests.rs`: added `assert!(pre < rel)`
+- All 125 version crate tests + full test suite (~715 tests) pass
 
 
 
