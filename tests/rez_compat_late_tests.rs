@@ -4,9 +4,8 @@
 //! Extracted from rez_compat_misc_tests.rs (Cycle 32).
 
 use rez_core::version::{Version, VersionRange};
-use rez_next_package::{Package, PackageRequirement, Requirement};
-use rez_next_rex::{generate_shell_script, RexEnvironment, RexExecutor, ShellType};
-use rez_next_suites::{Suite, ToolConflictMode};
+use rez_next_package::PackageRequirement;
+use rez_next_rex::{generate_shell_script, RexEnvironment, ShellType};
 
 // ─── Context activation script E2E tests (296-300) ──────────────────────────
 

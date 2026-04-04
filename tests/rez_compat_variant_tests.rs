@@ -4,8 +4,7 @@
 //! - ContextSummary package_count and package_versions
 //! - Package variant field manipulation and parsing
 
-use rez_core::version::{Version, VersionRange};
-use rez_next_package::{Package, PackageRequirement, Requirement};
+use rez_next_package::Package;
 
 // ─── Cycle 33: ResolvedContextSummary + Package variant tests ─────────────────
 

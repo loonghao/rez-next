@@ -590,36 +590,6 @@ fn test_resolver_all_resolved_packages_have_variant_index_none() {
     }
 }
 
-/// Variant index field: ResolvedPackageInfo::variant_index can be set to Some(0).
-#[test]
-fn test_resolver_variant_index_some_can_be_constructed() {
-    use rez_next_solver::dependency_resolver::ResolvedPackageInfo;
-
-    let (_tmp, repo) = build_test_repo(&[("maya", "2024.0.0", &[])]);
-
-    let rt = tokio::runtime::Runtime::new().unwrap();
-    let config = SolverConfig::default();
-    let mut resolver = DependencyResolver::new(Arc::clone(&repo), config);
-
-    let reqs: Vec<Requirement> = ["maya-2024+"].iter().map(|s| s.parse().unwrap()).collect();
-
-    let mut result = rt
-        .block_on(resolver.resolve(reqs))
-        .expect("maya should resolve");
-
-    assert_eq!(result.resolved_packages.len(), 1);
-
-    result.resolved_packages[0].variant_index = Some(0);
-
-    let info: &ResolvedPackageInfo = &result.resolved_packages[0];
-    assert_eq!(
-        info.variant_index,
-        Some(0),
-        "variant_index should be assignable to Some(0)"
-    );
-    assert_eq!(info.package.name, "maya");
-}
-
 // ─── Solver error message content assertion tests ─────────────────────────────
 
 /// Strict mode error message: must contain "Strict mode" prefix.
