@@ -29,8 +29,6 @@ keywords = ["rez", "package-manager", "dependencies", "version-management"]
 categories = ["development-tools"]
 
 [workspace.dependencies]
-# External dependencies
-pyo3 = { version = "0.25", features = ["extension-module", "abi3-py38"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 serde_yaml = "0.9"
@@ -45,12 +43,7 @@ clap = { version = "4.5", features = ["derive", "env"] }
 
 # Dev dependencies
 criterion = { version = "0.8", features = ["html_reports"] }
-proptest = "1.7"
-rstest = "0.26"
 tempfile = "3.20"
-assert_matches = "1.5"
-pretty_assertions = "1.4"
-serial_test = "3.2"
 
 [package]
 name = "rez-next"
@@ -114,12 +107,7 @@ windows-sys = { version = "0.61", features = ["Win32_System_Console"] }
 
 [dev-dependencies]
 criterion.workspace = true
-proptest.workspace = true
-rstest.workspace = true
 tempfile.workspace = true
-assert_matches.workspace = true
-pretty_assertions.workspace = true
-serial_test.workspace = true
 serde.workspace = true
 serde_yaml.workspace = true
 thiserror.workspace = true

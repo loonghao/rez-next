@@ -27,12 +27,7 @@ sha2 = "0.11"
 hex = "0.4"
 
 [dev-dependencies]
-rstest.workspace = true
-proptest.workspace = true
 tempfile.workspace = true
-pretty_assertions.workspace = true
-assert_matches.workspace = true
-serial_test.workspace = true
 
 [lints]
 workspace = true
