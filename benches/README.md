@@ -35,11 +35,12 @@ package_creation/complex         ~8.9 us
 package_serialization/yaml       ~7.0 us
 ```
 
-## rez vs rez-next Comparison (Windows, debug profile, Cycle 44)
+## rez vs rez-next Comparison (Windows, debug profile)
 
 > Baseline: rez 2.112.0, Python 3.9, Linux Azure Xeon E5-2673 v4 (`metrics/benchmarking/data/rez_baseline.json`)
 >
 > rez-next numbers measured on Windows with `CRITERION_QUICK=1` (debug profile).
+
 > Release profile figures are typically 3–10× faster than debug.
 
 | Operation | rez Python (baseline) | rez-next Rust (debug) | Speedup (debug) |

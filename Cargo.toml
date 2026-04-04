@@ -55,8 +55,9 @@ license.workspace = true
 repository.workspace = true
 keywords.workspace = true
 categories.workspace = true
-# Disable auto-discovery for benchmarks — only explicitly listed [[bench]] entries are compiled.
-# This prevents broken bench files in benches/ from causing compilation errors.
+# Disable benchmark auto-discovery — only explicitly listed [[bench]] entries are compiled.
+# This keeps helper or experimental files in `benches/` from being picked up implicitly.
+
 autobenches = false
 
 [lib]

@@ -126,9 +126,10 @@
 
 ### 23. Large mixed-responsibility files remain in CLI and build/parser modules
 - **Status**: TODO (cycle 25)
-- `src/cli/commands/bind.rs`, `crates/rez-next-build/src/systems.rs`, `crates/rez-next-package/src/python_ast_parser/mod.rs`, `src/cli/commands/search_v2.rs`, and `src/cli/commands/pkg_cache.rs` are still ~500-1300 lines and mix orchestration with parsing/formatting/IO
+- `src/cli/commands/bind.rs`, `crates/rez-next-build/src/systems/mod.rs`, `crates/rez-next-package/src/python_ast_parser/mod.rs`, `src/cli/commands/search_v2.rs`, and `src/cli/commands/pkg_cache.rs` are still ~500-1300 lines and mix orchestration with parsing/formatting/IO
 - `python_ast_parser.rs` has already been split into focused submodules; remaining follow-up is to keep the new `mod.rs` from regrowing mixed responsibilities
 - Follow-up: split by responsibility before adding more behavior to these files
+
 
 ### 24. CLI helper logic is still duplicated across commands
 - **Status**: TODO (cycle 25)
@@ -137,14 +138,27 @@
 - Follow-up: extract shared CLI helpers for path expansion and timestamp parsing
 
 ### 25. Public compatibility stubs still need explicit product decisions
-- **Status**: COMPLETE ✓ (cycle 43 for integration tests; stubs fixed in cycle 39)
+- **Status**: COMPLETE ✓ (cycle 43 for build-system tests; stubs fixed in cycle 39)
 - `get_pip_dependencies()` — **FIXED**: now raises `NotImplementedError` instead of returning empty list silently (cycle 39)
 - `pip_install()` — **FIXED**: now raises `NotImplementedError` instead of fake-installing packages (cycle 39)
 - `optimized_solver.rs` — **DELETED**: dead file not in module tree, `detect_conflicts_optimized()` was only reachable via this dead code (cycle 39)
-- `crates/rez-next-build/src/systems/` — **TESTED** (cycle 43): added mock integration tests for `PythonBuildSystem`, `NodeJsBuildSystem`, `CargoBuildSystem`, and `BuildSystem::detect`/`detect_with_package` using `tempdir`
+- `crates/rez-next-build/src/systems/` — **TESTED** (cycle 43): added mock tests for `PythonBuildSystem`, `NodeJsBuildSystem`, `CargoBuildSystem`, and `BuildSystem::detect`/`detect_with_package` using `tempdir`
   - 10 new `detect*` tests in `systems/mod.rs`; 4 tests in `python.rs`; 3 tests in `nodejs.rs`; 3 tests in `cargo_build.rs`
   - `BuildStep` received `#[derive(PartialEq)]` to support `assert_eq!`
+  - Cycle 46 removed redundant unit-struct smoke tests and cleaned follow-up clippy regressions in nearby bindings/tests
   - All 70 rez-next-build tests pass; 0 clippy warnings
+
+### 26. Build-system command execution still depends on shell-specific strings
+- **Status**: TODO (cycle 46)
+- `python.rs`, `nodejs.rs`, `cargo_build.rs`, `make.rs`, `cmake.rs`, and `custom.rs` still assemble shell-specific command strings inline (`2>&1`, `|| echo`, quoting, `DESTDIR=...`)
+- Follow-up: extract a shared command runner / argument builder so quoting, fallback behavior, and stderr handling stay consistent across shells and platforms
+
+### 27. Python context/source bindings still expose placeholder compatibility behavior
+- **Status**: TODO (cycle 46)
+- `context_bindings.rs` creates a fresh Tokio runtime per operation and returns synthetic `/packages/<name>/bin/<tool>` paths from `get_tools()`
+- `source_bindings.rs` still hardcodes `/tmp/rez_context.rxt` and placeholder `REZPKG_*` env vars for generated scripts
+- Follow-up: either implement real rez-compatible semantics or explicitly document the current partial-compatibility contract
+
 
 
 

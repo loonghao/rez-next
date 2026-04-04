@@ -394,11 +394,11 @@ impl PyResolvedContext {
     }
 }
 
-// ── Phase 78: PyResolvedContext internal logic tests ─────────────────────────
-
 #[cfg(test)]
 mod context_bindings_tests {
+
     use rez_next_context::{ContextStatus, ResolvedContext};
+
     use rez_next_package::{Package, PackageRequirement};
     use rez_next_version::Version;
 
