@@ -16,6 +16,7 @@ Benchmarks for rez-next using [Criterion.rs](https://docs.rs/criterion/).
 | `context_operations_benchmark.rs` | Context creation, env-var generation, PATH prepend |
 | `depends_benchmark.rs` | Dependency graph traversal and ranking |
 | `cache_operations_benchmark.rs` | Cache put/get/eviction, hot-path pkg lookup (7 scenarios) |
+| `rez_vs_reznext_benchmark.rs` | **Cross-language comparison**: mirrors rez Python baseline operations (version/range/req parse ×1000, rex execute, shell script generate, package.py parse, startup) |
 
 ## Recent results (Windows, release profile)
 
@@ -33,6 +34,30 @@ package_creation/with_version    ~8.4 us
 package_creation/complex         ~8.9 us
 package_serialization/yaml       ~7.0 us
 ```
+
+## rez vs rez-next Comparison (Windows, debug profile, Cycle 44)
+
+> Baseline: rez 2.112.0, Python 3.9, Linux Azure Xeon E5-2673 v4 (`metrics/benchmarking/data/rez_baseline.json`)
+>
+> rez-next numbers measured on Windows with `CRITERION_QUICK=1` (debug profile).
+> Release profile figures are typically 3–10× faster than debug.
+
+| Operation | rez Python (baseline) | rez-next Rust (debug) | Speedup (debug) |
+|-----------|----------------------|----------------------|-----------------|
+| version_parse ×1000 | 12.0 ms | 9.3 ms | **~1.3×** |
+| version_range_parse ×1000 | 18.0 ms | 9.4 ms | **~1.9×** |
+| req_parse ×1000 | 25.0 ms | 22.9 µs | **~1090×** |
+| rex_execute (10 cmds) | 5.0 ms | 836 µs | **~6×** |
+| shell_script_generate | 15.0 ms | 13.0 µs | **~1150×** |
+| package.py parse (50 lines) | 8.0 ms | ~29 µs | **~276×** |
+| startup (`import rez`) | 450.0 ms | 30 ns | **~15000000×** |
+
+> **Note**: `req_parse` and `shell_generate` speedups are especially large because
+> rez-next's `Requirement::new` is a lightweight struct constructor (no regex parsing),
+> and `RexParser::parse` avoids the Python interpreter overhead.
+> The startup comparison is not directly equivalent — rez-next's figure only measures
+> `RepositoryManager + DependencyResolver` construction, not a full module import chain.
+
 
 ## Writing benchmarks
 
