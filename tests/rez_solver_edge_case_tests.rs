@@ -83,9 +83,27 @@ fn test_solver_conflicting_transitive_requirements() {
     let result = rt.block_on(resolver.resolve(reqs));
     match result {
         Ok(r) => {
-            let _ = r.resolved_packages;
+            // Lenient mode: solver resolves to some packages; pkg_a, pkg_b, root, and
+            // one of {lib-1.5.0, lib-2.0.0} must be present — the conflict is resolved
+            // by picking the version that satisfies the first-seen constraint.
+            assert!(
+                !r.resolved_packages.is_empty(),
+                "lenient mode should resolve at least root + deps, got empty set"
+            );
+            let lib_count = r
+                .resolved_packages
+                .iter()
+                .filter(|p| p.package.name == "lib")
+                .count();
+            assert_eq!(
+                lib_count, 1,
+                "exactly one lib version should be selected, got {}",
+                lib_count
+            );
         }
-        Err(_) => {}
+        Err(_) => {
+            // Strict-mode-like error for irreconcilable range conflict — also acceptable.
+        }
     }
 }
 

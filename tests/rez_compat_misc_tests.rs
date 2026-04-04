@@ -180,8 +180,21 @@ fn test_solver_version_conflict_detected() {
         Requirement::new("python-3".to_string()),
     ];
     let result = rt.block_on(resolver.resolve(reqs));
-    // Result may be Ok (empty repo = no conflict) or Err; must not panic
-    let _ = result;
+    // Empty repo: neither python-2 nor python-3 can be satisfied.
+    // Lenient mode must return Ok with both recorded as failed_requirements.
+    let res = result.expect("lenient mode (empty repo) should return Ok, not panic");
+    assert!(
+        res.resolved_packages.is_empty(),
+        "empty repo: no packages should be resolved, got {:?}",
+        res.resolved_packages
+            .iter()
+            .map(|p| &p.package.name)
+            .collect::<Vec<_>>()
+    );
+    assert!(
+        !res.failed_requirements.is_empty(),
+        "empty repo: at least one requirement should be recorded as failed"
+    );
 }
 
 // ─── Context serialization round-trip tests ───────────────────────────────────
@@ -255,8 +268,20 @@ fn test_version_large_component_no_panic() {
     use rez_core::version::Version;
 
     let result = Version::parse("999999.999999.999999");
-    // Should not panic; result may be Ok or Err depending on limits
-    let _ = result;
+    // Large components must either parse successfully or return a structured error.
+    // The only unacceptable outcome is a panic (caught by the test harness).
+    match result {
+        Ok(v) => {
+            assert!(
+                v.as_str().starts_with("999999"),
+                "parsed large-component version should round-trip: got '{}'",
+                v.as_str()
+            );
+        }
+        Err(_) => {
+            // Implementation rejects out-of-range components — acceptable.
+        }
+    }
 }
 
 /// rez version: single-component version "5" parses correctly

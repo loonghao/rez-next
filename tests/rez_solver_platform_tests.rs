@@ -57,28 +57,80 @@ fn test_solver_platform_specific_package_resolves() {
 }
 
 /// Solver: requesting a package that requires a different platform than provided.
+///
+/// Repository has `platform-windows` only; `maya_linux` requires `platform-linux`.
+/// In lenient mode (default) the solver must return `Ok` but `maya_linux` (and/or
+/// `platform-linux`) must appear in `failed_requirements` — it must NOT appear in
+/// `resolved_packages`.  A strict-mode `Err` is the alternative contract, asserted
+/// in a separate test.
 #[test]
-fn test_solver_platform_mismatch_fails_or_empty() {
+fn test_solver_platform_mismatch_lenient_records_failure() {
     let (_tmp, repo) = build_test_repo(&[
         ("platform", "windows", &[]),
         ("maya_linux", "2024.0.0", &["platform-linux"]),
     ]);
 
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let config = SolverConfig::default();
+    let config = SolverConfig {
+        strict_mode: false,
+        ..SolverConfig::default()
+    };
     let mut resolver = DependencyResolver::new(Arc::clone(&repo), config);
 
     let reqs: Vec<Requirement> = ["maya_linux"].iter().map(|s| s.parse().unwrap()).collect();
 
     let result = rt.block_on(resolver.resolve(reqs));
-    match &result {
+    match result {
         Ok(res) => {
-            let _ = res.resolved_packages.len();
+            // Contract: the unsatisfied dep (platform-linux or maya_linux itself)
+            // must be recorded as failed — it must NOT silently appear as resolved.
+            let maya_resolved = res
+                .resolved_packages
+                .iter()
+                .any(|p| p.package.name == "maya_linux");
+            assert!(
+                !maya_resolved || !res.failed_requirements.is_empty(),
+                "platform mismatch: maya_linux should not be cleanly resolved without \
+                 recording at least one failed requirement; resolved={:?}, failed={:?}",
+                res.resolved_packages
+                    .iter()
+                    .map(|p| &p.package.name)
+                    .collect::<Vec<_>>(),
+                res.failed_requirements
+                    .iter()
+                    .map(|r| &r.name)
+                    .collect::<Vec<_>>()
+            );
         }
         Err(_) => {
-            // strict: returned an error — also acceptable
+            // Strict-mode-like error is also an acceptable outcome — the solver
+            // recognised the unsatisfiable constraint and rejected the request.
         }
     }
+}
+
+/// Solver: platform mismatch in strict mode returns Err.
+#[test]
+fn test_solver_platform_mismatch_strict_returns_err() {
+    let (_tmp, repo) = build_test_repo(&[
+        ("platform", "windows", &[]),
+        ("maya_linux", "2024.0.0", &["platform-linux"]),
+    ]);
+
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let config = SolverConfig {
+        strict_mode: true,
+        ..SolverConfig::default()
+    };
+    let mut resolver = DependencyResolver::new(Arc::clone(&repo), config);
+
+    let reqs: Vec<Requirement> = ["maya_linux"].iter().map(|s| s.parse().unwrap()).collect();
+
+    let result = rt.block_on(resolver.resolve(reqs));
+    assert!(
+        result.is_err(),
+        "strict mode: platform mismatch (platform-linux unavailable) should return Err"
+    );
 }
 
 /// Solver: package with OS-version constraint resolves correctly.
@@ -808,11 +860,22 @@ fn test_solver_conflicts_field_populated_on_version_clash() {
     let result = rt.block_on(resolver.resolve(reqs));
     match result {
         Ok(r) => {
-            // Either resolved one of them (first wins) or recorded conflict
-            let _r = r;
+            // Lenient mode: solver picks one version (first-wins), so exactly one
+            // `shared` package should be resolved.  The conflicts field records
+            // the clash even when the solver proceeds.
+            let shared_count = r
+                .resolved_packages
+                .iter()
+                .filter(|p| p.package.name == "shared")
+                .count();
+            assert_eq!(
+                shared_count, 1,
+                "lenient mode: exactly one shared version should win the conflict, got {}",
+                shared_count
+            );
         }
         Err(_) => {
-            // Conflict error is also acceptable
+            // Strict-mode-like error: version conflict detected and rejected — also acceptable.
         }
     }
 }

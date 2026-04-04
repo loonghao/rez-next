@@ -85,9 +85,22 @@ fn test_dependency_resolver_single_package() {
     let result =
         rt.block_on(resolver.resolve(vec![Requirement::new("some_nonexistent_pkg".to_string())]));
 
-    // With empty repo, resolution may fail gracefully or return empty
-    // The important thing is it doesn't panic
-    let _ = result;
+    // Empty repo: lenient mode returns Ok with the requirement in failed_requirements.
+    let res = result.expect("empty-repo lenient resolve should return Ok, not panic");
+    assert!(
+        res.resolved_packages.is_empty(),
+        "empty repo: resolved_packages should be empty, got {:?}",
+        res.resolved_packages
+            .iter()
+            .map(|p| &p.package.name)
+            .collect::<Vec<_>>()
+    );
+    assert_eq!(
+        res.failed_requirements.len(),
+        1,
+        "empty repo: exactly one failed requirement expected, got {}",
+        res.failed_requirements.len()
+    );
 }
 
 // ─── package.py `def commands():` function body parsing tests ────────────────

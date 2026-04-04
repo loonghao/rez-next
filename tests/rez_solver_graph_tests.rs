@@ -855,8 +855,16 @@ fn test_solver_conflict_error_message_names_package() {
             );
         }
         Ok(res) => {
-            // If lenient fallback — accepted; python-99+ should be in failed
-            let _ = res;
+            // strict_mode=true should not return Ok for an unsatisfiable request,
+            // but if the solver falls back to lenient, python-99+ must be in failed_requirements.
+            assert!(
+                res.failed_requirements.iter().any(|r| r.name == "python"),
+                "python-99+ should appear in failed_requirements; got: {:?}",
+                res.failed_requirements
+                    .iter()
+                    .map(|r| &r.name)
+                    .collect::<Vec<_>>()
+            );
         }
     }
 }

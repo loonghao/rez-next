@@ -89,15 +89,15 @@
 - Future `pyo3` upgrades should be handled as normal dependency work with wheel/build validation, not as existing cleanup debt
 
 ### 18. Platform mismatch solver test has weak assertion
-- **Status**: TODO (cycle 22)
-- Added in iteration commit `2534c3b`: `tests/rez_solver_platform_tests.rs::test_solver_platform_mismatch_fails_or_empty`
-- The `Ok` branch only evaluates `let _ = res.resolved_packages.len();`, so the test accepts success without asserting any observable contract
-- Follow-up: decide whether platform mismatch should return `Err` or `Ok(empty)` and then assert that behavior explicitly
+- **Status**: COMPLETE ✓ (cycle 37)
+- `test_solver_platform_mismatch_fails_or_empty` renamed and split into two tests:
+  - `test_solver_platform_mismatch_lenient_records_failure`: asserts `maya_linux` not cleanly resolved without failed_requirements
+  - `test_solver_platform_mismatch_strict_returns_err`: asserts strict mode returns Err
+- Both tests carry observable contract assertions instead of `let _ = ...`
 
 ### 19. Split solver test files still duplicate repository/runtime helpers
-- **Status**: TODO (cycle 23)
-- `build_test_repo` / `rt()` helper patterns are duplicated across `rez_solver_platform_tests.rs`, `rez_solver_graph_tests.rs`, `rez_solver_edge_case_tests.rs`, and `rez_solver_advanced_tests.rs`
-- Follow-up: extract shared test helpers into a common test support module to reduce drift after future test splits
+- **Status**: COMPLETE ✓ (cycle 36)
+- Extracted `build_test_repo` into `tests/solver_helpers.rs`; all four solver test files now use `#[path = "solver_helpers.rs"] mod solver_helpers` — no drift after future test splits
 
 ### 20. Cargo.lock policy note no longer matches repository state
 - **Status**: TODO (cycle 23)
@@ -105,9 +105,14 @@
 - Follow-up: decide whether the workspace should commit a lockfile or update the policy note to reflect current release/CI behavior
 
 ### 21. Additional vacuous compatibility assertions remain in tests
-- **Status**: TODO (cycle 23)
-- After this cycle removed one pure field-assignment test, but several always-true or near-no-op assertions still remain in `rez_compat_tests.rs`, `rez_compat_solver_tests.rs`, and `rez_compat_misc_tests.rs`
-- Follow-up: continue replacing `A || !A` / "parse and compare without panic" style checks with observable contracts
+- **Status**: COMPLETE ✓ (cycle 37)
+- Replaced `let _ = result` / `let _ = r.resolved_packages` style vacuous assertions across 5 test files:
+  - `rez_solver_platform_tests.rs`: mismatch + conflict Ok branches
+  - `rez_solver_edge_case_tests.rs`: conflicting transitive requirements Ok branch
+  - `rez_solver_graph_tests.rs`: strict mode Ok fallback branch
+  - `rez_compat_misc_tests.rs`: version conflict empty repo + large version component
+  - `rez_compat_solver_tests.rs`: empty repo single requirement
+- Each replaced assertion now verifies an observable contract (resolved count, failed_requirements presence, version prefix)
 
 ### 12. `build --help` / `env --help` returns exit code 1
 
