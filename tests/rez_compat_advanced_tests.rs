@@ -874,7 +874,20 @@ fn test_invalid_package_requirement_no_panic() {
 
     // Must not panic regardless of the result
     let result = PackageRequirement::parse("!!!invalid");
-    let _ = result; // lenient parser may accept or reject — both are valid
+    // Contract: lenient parser may accept with a best-effort name, or return Err.
+    // The only unacceptable outcome is a panic.
+    match result {
+        Ok(req) => {
+            // If accepted, the name must be non-empty (some token was parsed).
+            assert!(
+                !req.name.is_empty(),
+                "best-effort parse of '!!!invalid' produced empty name"
+            );
+        }
+        Err(_) => {
+            // Strict rejection is also acceptable.
+        }
+    }
 }
 
 /// rez.exceptions: Empty string PackageRequirement parse does not panic
@@ -883,7 +896,21 @@ fn test_empty_package_requirement_no_panic() {
     use rez_next_package::PackageRequirement;
 
     let result = PackageRequirement::parse("");
-    let _ = result;
+    // The parser accepts empty input as a lenient "any package" requirement with
+    // an empty name.  Document the actual observable behaviour rather than assuming Err.
+    match result {
+        Ok(req) => {
+            // Lenient parser: empty input → requirement with empty name (no version constraint).
+            assert!(
+                req.name.is_empty(),
+                "empty-string parse should produce a requirement with empty name, got '{}'",
+                req.name
+            );
+        }
+        Err(_) => {
+            // Strict rejection is also acceptable.
+        }
+    }
 }
 
 /// rez.exceptions: VersionRange parse error for unbalanced brackets
@@ -892,9 +919,20 @@ fn test_version_range_unbalanced_bracket_error() {
     use rez_core::version::VersionRange;
 
     let result = VersionRange::parse(">=1.0,<2.0,");
-    // Trailing comma may or may not be accepted depending on impl;
-    // the important thing is that the call does not panic.
-    let _ = result;
+    // Trailing comma is a syntax error; implementation must either reject it or
+    // tolerate trailing separators.  Both are acceptable; must not panic.
+    match result {
+        Ok(r) => {
+            // Lenient: accepted as >=1.0,<2.0 — verify the clean sub-ranges work.
+            assert!(
+                r.contains(&rez_core::version::Version::parse("1.5").unwrap()),
+                "tolerant parse of trailing-comma range should still contain 1.5"
+            );
+        }
+        Err(_) => {
+            // Strict rejection is the expected behavior.
+        }
+    }
 }
 
 /// rez.exceptions: Version parse with garbage input returns error (not panic)
@@ -903,8 +941,11 @@ fn test_version_parse_garbage_no_panic() {
     use rez_core::version::Version;
 
     let result = Version::parse("!@#$%^&*");
-    // May succeed with best-effort or fail; must not panic.
-    let _ = result;
+    // Garbage input must return Err — there are no valid numeric or alpha tokens.
+    assert!(
+        result.is_err(),
+        "garbage input '!@#$%^&*' should return Err, not silently succeed"
+    );
 }
 
 // ─── Version advanced operations ─────────────────────────────────────────────

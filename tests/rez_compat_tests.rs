@@ -811,9 +811,22 @@ fn test_suite_hide_tool() {
         .unwrap();
     // Hide a tool (even if it doesn't exist yet, should handle gracefully)
     let result = suite.hide_tool("maya", "some_internal_tool");
-    // Should not panic; result may be Ok or Err depending on whether tool exists
-    // Just ensure no panic occurs
-    let _ = result;
+    // Contract: hide_tool returns Ok or a typed Err — must not panic.
+    // If it succeeds, the tool should be absent from get_tools().
+    match result {
+        Ok(()) => {
+            // Tool hidden successfully; verify it no longer appears in the tool list.
+            let tools = suite.get_tools().unwrap_or_default();
+            assert!(
+                !tools.contains_key("some_internal_tool"),
+                "hidden tool 'some_internal_tool' should not appear in get_tools()"
+            );
+        }
+        Err(_) => {
+            // Tool did not exist — implementation may reject non-existent tool hiding.
+            // This is also acceptable behaviour.
+        }
+    }
 }
 
 /// Suite: remove_context should work
