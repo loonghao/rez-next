@@ -125,14 +125,15 @@
 - All 125 version crate tests + full test suite (~715 tests) pass
 
 ### 23. Large mixed-responsibility files remain in CLI and build/parser modules
-- **Status**: TODO (cycle 24)
-- `src/cli/commands/bind.rs`, `crates/rez-next-build/src/systems.rs`, `crates/rez-next-package/src/python_ast_parser.rs`, `src/cli/commands/search_v2.rs`, and `src/cli/commands/pkg_cache.rs` are still ~800-1300 lines and mix orchestration with parsing/formatting/IO
+- **Status**: TODO (cycle 25)
+- `src/cli/commands/bind.rs`, `crates/rez-next-build/src/systems.rs`, `crates/rez-next-package/src/python_ast_parser/mod.rs`, `src/cli/commands/search_v2.rs`, and `src/cli/commands/pkg_cache.rs` are still ~500-1300 lines and mix orchestration with parsing/formatting/IO
+- `python_ast_parser.rs` has already been split into focused submodules; remaining follow-up is to keep the new `mod.rs` from regrowing mixed responsibilities
 - Follow-up: split by responsibility before adding more behavior to these files
 
 ### 24. CLI helper logic is still duplicated across commands
-- **Status**: TODO (cycle 24)
-- Home-path expansion is duplicated across `bind.rs`, `build.rs`, `cp.rs`, `mv.rs`, `rm.rs`, `search_v2.rs`, `status.rs`, `test.rs`, `view.rs`, and others
-- Time-filter parsing is duplicated between `search_v2.rs` and `rm.rs`
+- **Status**: TODO (cycle 25)
+- Home-path expansion is now centralized for `bind.rs`, `cp.rs`, `mv.rs`, `rm.rs`, `status.rs`, `test.rs`, `view.rs`, and related commands, but `build.rs` still keeps a custom path-normalization helper because it also validates UNC / drive-specific forms
+- Time parsing is now centralized in `src/cli/utils.rs`; remove redundant command-local tests and evaluate whether `build.rs` path handling can converge on the shared helper without losing validation behavior
 - Follow-up: extract shared CLI helpers for path expansion and timestamp parsing
 
 ### 25. Public compatibility stubs still need explicit product decisions
