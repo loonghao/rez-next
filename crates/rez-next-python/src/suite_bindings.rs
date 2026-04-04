@@ -227,9 +227,9 @@ impl PySuiteManager {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rez_next_suites::Suite;
 
     mod test_suite_basic {
+
         use super::*;
 
         #[test]

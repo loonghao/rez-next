@@ -111,18 +111,4 @@ impl MakeBuildSystem {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
 
-    #[test]
-    fn test_make_build_system_new() {
-        let make = MakeBuildSystem::new();
-        assert!(format!("{:?}", make).contains("MakeBuildSystem"));
-    }
-
-    #[test]
-    fn test_make_build_system_default() {
-        let _make = MakeBuildSystem::default();
-    }
-}

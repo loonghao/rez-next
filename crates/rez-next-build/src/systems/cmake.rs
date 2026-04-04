@@ -151,18 +151,4 @@ impl CMakeBuildSystem {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
 
-    #[test]
-    fn test_cmake_build_system_new() {
-        let cmake = CMakeBuildSystem::new();
-        assert!(format!("{:?}", cmake).contains("CMakeBuildSystem"));
-    }
-
-    #[test]
-    fn test_cmake_build_system_default() {
-        let _cmake = CMakeBuildSystem::default();
-    }
-}

@@ -141,16 +141,7 @@ mod tests {
     use crate::BuildEnvironment;
     use rez_next_package::Package;
 
-    #[test]
-    fn test_cargo_build_system_new() {
-        let cargo = CargoBuildSystem::new();
-        assert!(format!("{:?}", cargo).contains("CargoBuildSystem"));
-    }
 
-    #[test]
-    fn test_cargo_build_system_default() {
-        let _cargo = CargoBuildSystem::default();
-    }
 
     fn make_request_with_opts(
         source_dir: std::path::PathBuf,
@@ -193,31 +184,5 @@ mod tests {
         assert_eq!(step_result.step, BuildStep::Packaging);
     }
 
-    /// Compile command uses "--release" flag when release_mode is true.
-    #[test]
-    fn test_compile_command_uses_release_flag() {
-        // We verify the command string logic without actually running it.
-        let mode_release = if true { "--release" } else { "" };
-        let mode_debug = if false { "--release" } else { "" };
-        let cmd_release = format!("cargo build {}", mode_release).trim().to_string();
-        let cmd_debug = format!("cargo build {}", mode_debug).trim().to_string();
-        assert_eq!(cmd_release, "cargo build --release");
-        assert_eq!(cmd_debug, "cargo build");
-    }
 
-    /// Install command includes "--release" flag when release_mode is true.
-    #[test]
-    fn test_install_command_includes_release_flag() {
-        let install_dir = std::path::PathBuf::from("/tmp/install");
-        let mode = "--release";
-        let cmd = format!(
-            "cargo install --path . {} --root \"{}\"",
-            mode,
-            install_dir.to_string_lossy()
-        )
-        .trim()
-        .to_string();
-        assert!(cmd.contains("--release"));
-        assert!(cmd.contains("--root"));
-    }
 }

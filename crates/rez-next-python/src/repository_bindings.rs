@@ -141,11 +141,11 @@ mod tests {
             .unwrap();
             let result = mgr.find_packages("anything");
             // Either Ok([]) or Err; must not panic
-            match result {
-                Ok(pkgs) => assert!(pkgs.is_empty()),
-                Err(_) => {} // acceptable — repo path doesn't exist
+            if let Ok(pkgs) = result {
+                assert!(pkgs.is_empty());
             }
         }
+
 
         #[test]
         fn test_find_packages_in_empty_temp_dir_returns_empty() {
@@ -154,10 +154,10 @@ mod tests {
             let mgr =
                 PyRepositoryManager::new(Some(vec![tmp.to_string_lossy().to_string()])).unwrap();
             let result = mgr.find_packages("somepkg");
-            match result {
-                Ok(pkgs) => assert!(pkgs.is_empty()),
-                Err(_) => {}
+            if let Ok(pkgs) = result {
+                assert!(pkgs.is_empty());
             }
+
             let _ = std::fs::remove_dir_all(&tmp);
         }
 
@@ -168,10 +168,10 @@ mod tests {
             let mgr =
                 PyRepositoryManager::new(Some(vec![tmp.to_string_lossy().to_string()])).unwrap();
             let result = mgr.get_latest_package("ghost_pkg");
-            match result {
-                Ok(pkg) => assert!(pkg.is_none()),
-                Err(_) => {}
+            if let Ok(pkg) = result {
+                assert!(pkg.is_none());
             }
+
             let _ = std::fs::remove_dir_all(&tmp);
         }
 
@@ -182,10 +182,10 @@ mod tests {
             let mgr =
                 PyRepositoryManager::new(Some(vec![tmp.to_string_lossy().to_string()])).unwrap();
             let result = mgr.get_package_family_names();
-            match result {
-                Ok(names) => assert!(names.is_empty()),
-                Err(_) => {}
+            if let Ok(names) = result {
+                assert!(names.is_empty());
             }
+
             let _ = std::fs::remove_dir_all(&tmp);
         }
     }

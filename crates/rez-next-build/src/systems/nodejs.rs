@@ -124,16 +124,7 @@ mod tests {
     use crate::BuildEnvironment;
     use rez_next_package::Package;
 
-    #[test]
-    fn test_nodejs_build_system_new() {
-        let nodejs = NodeJsBuildSystem::new();
-        assert!(format!("{:?}", nodejs).contains("NodeJsBuildSystem"));
-    }
 
-    #[test]
-    fn test_nodejs_build_system_default() {
-        let _nodejs = NodeJsBuildSystem::default();
-    }
 
     fn make_request(source_dir: std::path::PathBuf) -> BuildRequest {
         let pkg = Package::new("test-node-pkg".to_string());

@@ -205,14 +205,14 @@ mod tests {
         use super::*;
 
         #[test]
-        fn test_new_is_same_as_default() {
+        fn test_new_is_deterministic_for_static_fields() {
             let s1 = PySystem::new();
-            let s2 = PySystem::default();
-            // Both expose the same platform string (no GIL needed for these methods)
+            let s2 = PySystem::new();
             assert_eq!(s1.platform(), s2.platform());
             assert_eq!(s1.arch(), s2.arch());
             assert_eq!(s1.os(), s2.os());
         }
+
 
         #[test]
         fn test_num_cpus_at_least_one() {

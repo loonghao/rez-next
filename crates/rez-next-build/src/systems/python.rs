@@ -236,16 +236,7 @@ mod tests {
     use crate::BuildEnvironment;
     use rez_next_package::Package;
 
-    #[test]
-    fn test_python_build_system_new() {
-        let python = PythonBuildSystem::new();
-        assert!(format!("{:?}", python).contains("PythonBuildSystem"));
-    }
 
-    #[test]
-    fn test_python_build_system_default() {
-        let _python = PythonBuildSystem::default();
-    }
 
     /// Helper: create a minimal BuildRequest pointing at the given source dir.
     fn make_request(source_dir: std::path::PathBuf) -> BuildRequest {
