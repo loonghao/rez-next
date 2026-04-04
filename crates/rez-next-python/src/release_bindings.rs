@@ -107,7 +107,7 @@ impl PyReleaseManager {
         source_dir: Option<&str>,
         message: Option<&str>,
     ) -> PyResult<PyReleaseResult> {
-        use crate::expand_home;
+        use crate::package_functions::expand_home;
         use rez_next_common::config::RezCoreConfig;
         use rez_next_package::serialization::PackageSerializer;
 
@@ -262,7 +262,7 @@ impl PyReleaseManager {
         package_name: &str,
         paths: Option<Vec<String>>,
     ) -> PyResult<Vec<String>> {
-        use crate::expand_home;
+        use crate::package_functions::expand_home;
         use rez_next_common::config::RezCoreConfig;
         use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
         use std::path::PathBuf;

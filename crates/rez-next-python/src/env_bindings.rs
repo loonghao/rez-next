@@ -5,7 +5,7 @@
 //! - `env_activate()`: generate activation scripts
 //! - `env_apply()`: apply environment to current process
 
-use crate::expand_home;
+use crate::package_functions::expand_home;
 use crate::package_bindings::PyPackage;
 use pyo3::prelude::*;
 use pyo3::types::PyDict;

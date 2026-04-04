@@ -291,7 +291,7 @@ pub fn get_reverse_dependencies(
     paths: Option<Vec<String>>,
     transitive: bool,
 ) -> PyResult<PyDependsResult> {
-    use crate::expand_home;
+    use crate::package_functions::expand_home;
     use rez_next_common::config::RezCoreConfig;
     use std::path::PathBuf;
 
