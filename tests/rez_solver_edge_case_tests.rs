@@ -22,38 +22,10 @@ use rez_next_solver::{DependencyResolver, SolverConfig};
 use std::sync::Arc;
 use tempfile::TempDir;
 
-/// Build a temporary package repository with multiple packages.
-/// Returns the TempDir (must be kept alive) and the RepositoryManager.
-fn build_test_repo(packages: &[(&str, &str, &[&str])]) -> (TempDir, Arc<RepositoryManager>) {
-    let tmp = TempDir::new().unwrap();
-    let repo_dir = tmp.path().to_path_buf();
+#[path = "solver_helpers.rs"]
+mod solver_helpers;
 
-    for (name, version, requires) in packages {
-        let pkg_dir = repo_dir.join(name).join(version);
-        std::fs::create_dir_all(&pkg_dir).unwrap();
-        let requires_block = if requires.is_empty() {
-            String::new()
-        } else {
-            let items: Vec<String> = requires.iter().map(|r| format!("    '{}',", r)).collect();
-            format!("requires = [\n{}\n]\n", items.join("\n"))
-        };
-        std::fs::write(
-            pkg_dir.join("package.py"),
-            format!(
-                "name = '{}'\nversion = '{}'\n{}",
-                name, version, requires_block
-            ),
-        )
-        .unwrap();
-    }
-
-    let mut mgr = RepositoryManager::new();
-    mgr.add_repository(Box::new(SimpleRepository::new(
-        repo_dir.clone(),
-        "test_repo".to_string(),
-    )));
-    (tmp, Arc::new(mgr))
-}
+use solver_helpers::build_test_repo;
 
 // ─── Cycle 28: Version pin & conflict tests ────────────────────────────────
 
