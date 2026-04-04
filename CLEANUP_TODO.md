@@ -100,9 +100,9 @@
 - Extracted `build_test_repo` into `tests/solver_helpers.rs`; all four solver test files now use `#[path = "solver_helpers.rs"] mod solver_helpers` — no drift after future test splits
 
 ### 20. Cargo.lock policy note no longer matches repository state
-- **Status**: TODO (cycle 23)
-- `.gitignore` still says `Cargo.lock` is tracked for reproducible binary builds, but the repository root currently has no tracked `Cargo.lock`
-- Follow-up: decide whether the workspace should commit a lockfile or update the policy note to reflect current release/CI behavior
+- **Status**: COMPLETE ✓ (cycle 24)
+- `.gitignore` no longer claims that `Cargo.lock` is tracked for reproducible binary builds
+- Current repository policy is now documented accurately: the workspace does **not** currently track a root `Cargo.lock`
 
 ### 21. Additional vacuous compatibility assertions remain in tests
 - **Status**: COMPLETE ✓ (cycle 37)
@@ -123,6 +123,26 @@
 - Updated `test_version_alphanumeric_ordering` in `rez_compat_late_tests.rs`: removed TODO placeholder, added real assertion `va < vz`
 - Updated `test_version_prerelease_less_than_release` in `version_tests.rs`: added `assert!(pre < rel)`
 - All 125 version crate tests + full test suite (~715 tests) pass
+
+### 23. Large mixed-responsibility files remain in CLI and build/parser modules
+- **Status**: TODO (cycle 24)
+- `src/cli/commands/bind.rs`, `crates/rez-next-build/src/systems.rs`, `crates/rez-next-package/src/python_ast_parser.rs`, `src/cli/commands/search_v2.rs`, and `src/cli/commands/pkg_cache.rs` are still ~800-1300 lines and mix orchestration with parsing/formatting/IO
+- Follow-up: split by responsibility before adding more behavior to these files
+
+### 24. CLI helper logic is still duplicated across commands
+- **Status**: TODO (cycle 24)
+- Home-path expansion is duplicated across `bind.rs`, `build.rs`, `cp.rs`, `mv.rs`, `rm.rs`, `search_v2.rs`, `status.rs`, `test.rs`, `view.rs`, and others
+- Time-filter parsing is duplicated between `search_v2.rs` and `rm.rs`
+- Follow-up: extract shared CLI helpers for path expansion and timestamp parsing
+
+### 25. Public compatibility stubs still need explicit product decisions
+- **Status**: TODO (cycle 24)
+- `crates/rez-next-python/src/pip_bindings.rs::get_pip_dependencies()` still returns an empty list compatibility stub
+- `crates/rez-next-solver/src/optimized_solver.rs::detect_conflicts_optimized()` still returns an empty placeholder result
+- `crates/rez-next-build/src/systems.rs` still contains placeholder build-system implementations
+- Follow-up: either implement these paths, gate them, or return explicit unsupported errors rather than silently succeeding
+
+
 
 
 
