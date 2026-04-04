@@ -827,3 +827,7 @@ fn test_resolver_version_upper_bound_respected() {
 
 // Tests for Cycle 28 and Cycle 30 edge cases have been moved to:
 // tests/rez_solver_edge_case_tests.rs
+//
+// Tests for Cycle 34 ResolvedPackageInfo.variant_index have been moved to:
+// tests/rez_solver_variant_tests.rs
+
