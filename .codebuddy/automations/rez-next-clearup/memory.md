@@ -1,5 +1,24 @@
 # rez-next cleanup 执行记录
 
+## 最新执行 (2026-04-05 03:52, 第二十五轮)
+
+### 执行摘要
+- 审查最近迭代提交 `9c72a82` 与 `4632270` 后，聚焦 `rez-next-context` 新增测试的低风险治理，不触碰现有本地未提交的 `Cargo.lock`、`rez-next-auto-improve/memory.md` 与 `ws_*.txt`
+- 完成 2 个 cleanup 提交：`0f0718a`（收紧 5 处弱断言并移除 2 个仅用于压制 warning 的无效变量）、`35089be`（在 `CLEANUP_TODO.md` 记录 `crates/rez-next-context/src/tests.rs` 超大测试文件拆分后续项）
+- 当前已验证本轮改动未引入新功能；最终 summary commit 会附加 `chore(cleanup): done` 标记
+
+### 验证结果
+- **测试**: `cargo test -p rez-next-context --lib --quiet` 通过（107 passed）；`cargo test --workspace --all-targets --quiet` 通过
+- **Lint**: `cargo clippy --workspace --all-targets --quiet -- -D warnings` 通过；本轮起始时的 `unused variable: cfg` 阻塞已清除
+- **覆盖率**: 本轮未采集新的覆盖率基线
+
+### 下一轮重点
+1. 拆分 `crates/rez-next-context/src/tests.rs`，按 serialization / environment / resolved context 分组，降低后续测试继续膨胀的风险
+2. 继续审查 cycles 48-49 触达的 `rez-next-bind` / `rez-next-search` 测试与绑定模块，查找剩余 vacuous assertions 或过期 smoke test
+3. 如需进一步清理结构性问题，优先选择低风险测试模块拆分，避免影响运行时代码
+
+
+
 ## 最新执行 (2026-04-04 15:07, 第二十四轮)
 
 ### 执行摘要
