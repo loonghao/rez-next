@@ -233,6 +233,8 @@ impl PythonBuildSystem {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::BuildEnvironment;
+    use rez_next_package::Package;
 
     #[test]
     fn test_python_build_system_new() {
@@ -243,5 +245,87 @@ mod tests {
     #[test]
     fn test_python_build_system_default() {
         let _python = PythonBuildSystem::default();
+    }
+
+    /// Helper: create a minimal BuildRequest pointing at the given source dir.
+    fn make_request(source_dir: std::path::PathBuf) -> BuildRequest {
+        let pkg = Package::new("test-pkg".to_string());
+        BuildRequest {
+            package: pkg,
+            context: None,
+            source_dir,
+            variant: None,
+            options: crate::BuildOptions::default(),
+            install_path: None,
+        }
+    }
+
+    /// Helper: create a BuildEnvironment rooted in a temp dir.
+    fn make_env(base: &std::path::Path) -> BuildEnvironment {
+        let pkg = Package::new("test-pkg".to_string());
+        BuildEnvironment::new(&pkg, &base.to_path_buf(), None).unwrap()
+    }
+
+    /// `configure()` without rezbuild.py: returns success immediately (no external call needed).
+    #[tokio::test]
+    async fn test_configure_without_rezbuild_succeeds() {
+        let dir = tempfile::tempdir().unwrap();
+        let req = make_request(dir.path().to_path_buf());
+        let env = make_env(dir.path());
+
+        let python = PythonBuildSystem::new();
+        let result = python.configure(&req, &env).await.unwrap();
+        assert!(result.success);
+        assert_eq!(result.step, BuildStep::Configuring);
+        assert!(result.output.contains("configured"));
+    }
+
+    /// `compile()` with no Python build files: returns the "skipping compile step" path.
+    #[tokio::test]
+    async fn test_compile_no_build_files_skips_gracefully() {
+        let dir = tempfile::tempdir().unwrap();
+        let req = make_request(dir.path().to_path_buf());
+        let env = make_env(dir.path());
+
+        let python = PythonBuildSystem::new();
+        let child: Arc<Mutex<Option<tokio::process::Child>>> = Arc::new(Mutex::new(None));
+        let result = python.compile(&req, &env, child).await.unwrap();
+        assert!(result.success);
+        assert_eq!(result.step, BuildStep::Compiling);
+        assert!(result.output.contains("skipping"));
+    }
+
+    /// `package()` always succeeds with a static message.
+    #[tokio::test]
+    async fn test_package_always_succeeds() {
+        let dir = tempfile::tempdir().unwrap();
+        let req = make_request(dir.path().to_path_buf());
+        let env = make_env(dir.path());
+
+        let python = PythonBuildSystem::new();
+        let result = python.package(&req, &env).await.unwrap();
+        assert!(result.success);
+        assert_eq!(result.step, BuildStep::Packaging);
+        assert!(result.output.contains("install"));
+    }
+
+    /// `install()` without build files: falls back to copy_package_files.
+    /// Source dir has 2 files; install should succeed and report the copied count.
+    #[tokio::test]
+    async fn test_install_no_build_files_copies_source() {
+        let src_dir = tempfile::tempdir().unwrap();
+        std::fs::write(src_dir.path().join("a.txt"), "hello").unwrap();
+        std::fs::write(src_dir.path().join("b.txt"), "world").unwrap();
+
+        let install_base = tempfile::tempdir().unwrap();
+        let req = make_request(src_dir.path().to_path_buf());
+        let env = make_env(install_base.path());
+
+        let python = PythonBuildSystem::new();
+        let result = python.install(&req, &env).await.unwrap();
+        assert!(result.success);
+        assert_eq!(result.step, BuildStep::Installing);
+        // Must mention copied file count and destination
+        assert!(result.output.contains("Copied") || result.output.contains("files"));
     }
 }

@@ -297,4 +297,126 @@ mod tests {
         assert!(result.is_ok());
         assert!(matches!(result.unwrap(), BuildSystem::Cargo(_)));
     }
+
+    // ----- detect() integration tests using real temp directories -----
+
+    #[test]
+    fn test_detect_cmake_from_cmakelists() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("CMakeLists.txt"), "cmake_minimum_required(VERSION 3.10)")
+            .unwrap();
+        let result = BuildSystem::detect(dir.path()).unwrap();
+        assert!(matches!(result, BuildSystem::CMake(_)));
+    }
+
+    #[test]
+    fn test_detect_make_from_makefile() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("Makefile"), "all:\n\techo done").unwrap();
+        let result = BuildSystem::detect(dir.path()).unwrap();
+        assert!(matches!(result, BuildSystem::Make(_)));
+    }
+
+    #[test]
+    fn test_detect_python_from_setup_py() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("setup.py"), "from setuptools import setup; setup()").unwrap();
+        let result = BuildSystem::detect(dir.path()).unwrap();
+        assert!(matches!(result, BuildSystem::Python(_)));
+    }
+
+    #[test]
+    fn test_detect_python_from_pyproject_toml() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("pyproject.toml"), "[build-system]\nrequires = []").unwrap();
+        let result = BuildSystem::detect(dir.path()).unwrap();
+        assert!(matches!(result, BuildSystem::Python(_)));
+    }
+
+    #[test]
+    fn test_detect_nodejs_from_package_json() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("package.json"), r#"{"name":"test","version":"1.0.0"}"#)
+            .unwrap();
+        let result = BuildSystem::detect(dir.path()).unwrap();
+        assert!(matches!(result, BuildSystem::NodeJs(_)));
+    }
+
+    #[test]
+    fn test_detect_cargo_from_cargo_toml() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("Cargo.toml"), "[package]\nname = \"test\"\nversion = \"0.1.0\"")
+            .unwrap();
+        let result = BuildSystem::detect(dir.path()).unwrap();
+        assert!(matches!(result, BuildSystem::Cargo(_)));
+    }
+
+    /// build.sh takes priority over CMakeLists.txt (custom build script wins).
+    #[test]
+    fn test_detect_custom_build_script_wins_over_cmake() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("CMakeLists.txt"), "").unwrap();
+        std::fs::write(dir.path().join("build.sh"), "#!/bin/sh\necho build").unwrap();
+        let result = BuildSystem::detect(dir.path()).unwrap();
+        match result {
+            BuildSystem::Custom(c) => assert_eq!(c.script_name, "build.sh"),
+            other => panic!("Expected Custom(build.sh), got {:?}", other),
+        }
+    }
+
+    /// detect_with_package: rezbuild.py takes priority over generic auto-detect.
+    #[test]
+    fn test_detect_with_package_rezbuild_py_wins() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("rezbuild.py"), "def build(dst): pass").unwrap();
+        let pkg = rez_next_package::Package::new("rez-pkg".to_string());
+        let result = BuildSystem::detect_with_package(dir.path(), &pkg).unwrap();
+        match result {
+            BuildSystem::Custom(c) => assert_eq!(c.script_name, "rezbuild.py"),
+            other => panic!("Expected Custom(rezbuild.py), got {:?}", other),
+        }
+    }
+
+    /// detect_with_package: explicit build_system = "nodejs" overrides file-based detection.
+    #[test]
+    fn test_detect_with_package_explicit_nodejs() {
+        let dir = PathBuf::from("/nonexistent");
+        let mut pkg = rez_next_package::Package::new("test-pkg".to_string());
+        pkg.build_system = Some("nodejs".to_string());
+        let result = BuildSystem::detect_with_package(&dir, &pkg).unwrap();
+        assert!(matches!(result, BuildSystem::NodeJs(_)));
+    }
+
+    /// detect_with_package: explicit build_system = "python" overrides file-based detection.
+    #[test]
+    fn test_detect_with_package_explicit_python() {
+        let dir = PathBuf::from("/nonexistent");
+        let mut pkg = rez_next_package::Package::new("test-pkg".to_string());
+        pkg.build_system = Some("python".to_string());
+        let result = BuildSystem::detect_with_package(&dir, &pkg).unwrap();
+        assert!(matches!(result, BuildSystem::Python(_)));
+    }
+
+    /// detect_with_package: explicit build_system = "make" overrides file-based detection.
+    #[test]
+    fn test_detect_with_package_explicit_make() {
+        let dir = PathBuf::from("/nonexistent");
+        let mut pkg = rez_next_package::Package::new("test-pkg".to_string());
+        pkg.build_system = Some("make".to_string());
+        let result = BuildSystem::detect_with_package(&dir, &pkg).unwrap();
+        assert!(matches!(result, BuildSystem::Make(_)));
+    }
+
+    /// detect_with_package: non-empty build_command maps to Custom("build_command").
+    #[test]
+    fn test_detect_with_package_build_command_nonempty() {
+        let dir = PathBuf::from("/nonexistent");
+        let mut pkg = rez_next_package::Package::new("test-pkg".to_string());
+        pkg.build_command = Some("make install".to_string());
+        let result = BuildSystem::detect_with_package(&dir, &pkg).unwrap();
+        match result {
+            BuildSystem::Custom(c) => assert_eq!(c.script_name, "build_command"),
+            other => panic!("Expected Custom(build_command), got {:?}", other),
+        }
+    }
 }

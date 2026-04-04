@@ -121,6 +121,8 @@ impl NodeJsBuildSystem {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::BuildEnvironment;
+    use rez_next_package::Package;
 
     #[test]
     fn test_nodejs_build_system_new() {
@@ -131,5 +133,72 @@ mod tests {
     #[test]
     fn test_nodejs_build_system_default() {
         let _nodejs = NodeJsBuildSystem::default();
+    }
+
+    fn make_request(source_dir: std::path::PathBuf) -> BuildRequest {
+        let pkg = Package::new("test-node-pkg".to_string());
+        BuildRequest {
+            package: pkg,
+            context: None,
+            source_dir,
+            variant: None,
+            options: crate::BuildOptions::default(),
+            install_path: None,
+        }
+    }
+
+    fn make_env(base: &std::path::Path) -> BuildEnvironment {
+        let pkg = Package::new("test-node-pkg".to_string());
+        BuildEnvironment::new(&pkg, &base.to_path_buf(), None).unwrap()
+    }
+
+    /// `package()` always returns a success result with static message.
+    #[tokio::test]
+    async fn test_package_always_succeeds() {
+        let dir = tempfile::tempdir().unwrap();
+        let req = make_request(dir.path().to_path_buf());
+        let env = make_env(dir.path());
+
+        let nodejs = NodeJsBuildSystem::new();
+        let result = nodejs.package(&req, &env).await.unwrap();
+        assert!(result.success);
+        assert_eq!(result.step, BuildStep::Packaging);
+        assert!(result.output.contains("NodeJS"));
+    }
+
+    /// `install()` without a dist/ directory: copies source files directly.
+    #[tokio::test]
+    async fn test_install_without_dist_copies_source() {
+        let src_dir = tempfile::tempdir().unwrap();
+        std::fs::write(src_dir.path().join("index.js"), "module.exports = {};").unwrap();
+
+        let install_base = tempfile::tempdir().unwrap();
+        let req = make_request(src_dir.path().to_path_buf());
+        let env = make_env(install_base.path());
+
+        let nodejs = NodeJsBuildSystem::new();
+        let result = nodejs.install(&req, &env).await.unwrap();
+        assert!(result.success);
+        assert_eq!(result.step, BuildStep::Installing);
+        assert!(result.output.contains("Installed"));
+    }
+
+    /// `install()` with a dist/ directory: copies from dist/.
+    #[tokio::test]
+    async fn test_install_with_dist_dir_copies_dist() {
+        let src_dir = tempfile::tempdir().unwrap();
+        let dist_dir = src_dir.path().join("dist");
+        std::fs::create_dir_all(&dist_dir).unwrap();
+        std::fs::write(dist_dir.join("bundle.js"), "// bundle").unwrap();
+
+        let install_base = tempfile::tempdir().unwrap();
+        let req = make_request(src_dir.path().to_path_buf());
+        let env = make_env(install_base.path());
+
+        let nodejs = NodeJsBuildSystem::new();
+        let result = nodejs.install(&req, &env).await.unwrap();
+        assert!(result.success);
+        assert_eq!(result.step, BuildStep::Installing);
+        assert!(result.output.contains("Installed"));
     }
 }

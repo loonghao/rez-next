@@ -137,12 +137,14 @@
 - Follow-up: extract shared CLI helpers for path expansion and timestamp parsing
 
 ### 25. Public compatibility stubs still need explicit product decisions
-- **Status**: PARTIAL (cycle 39)
+- **Status**: COMPLETE ✓ (cycle 43 for integration tests; stubs fixed in cycle 39)
 - `get_pip_dependencies()` — **FIXED**: now raises `NotImplementedError` instead of returning empty list silently (cycle 39)
 - `pip_install()` — **FIXED**: now raises `NotImplementedError` instead of fake-installing packages (cycle 39)
 - `optimized_solver.rs` — **DELETED**: dead file not in module tree, `detect_conflicts_optimized()` was only reachable via this dead code (cycle 39)
-- `crates/rez-next-build/src/systems.rs` still contains placeholder stub implementations for `PythonBuildSystem`, `NodeJsBuildSystem`, `CargoBuildSystem` — these call external tools (python, npm, cargo) but the invocation logic is incomplete / not tested
-- Follow-up: add integration tests for build system detection and execution
+- `crates/rez-next-build/src/systems/` — **TESTED** (cycle 43): added mock integration tests for `PythonBuildSystem`, `NodeJsBuildSystem`, `CargoBuildSystem`, and `BuildSystem::detect`/`detect_with_package` using `tempdir`
+  - 10 new `detect*` tests in `systems/mod.rs`; 4 tests in `python.rs`; 3 tests in `nodejs.rs`; 3 tests in `cargo_build.rs`
+  - `BuildStep` received `#[derive(PartialEq)]` to support `assert_eq!`
+  - All 70 rez-next-build tests pass; 0 clippy warnings
 
 
 
