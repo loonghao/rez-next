@@ -223,7 +223,7 @@ fn test_solver_config_strict_mode_serialization() {
     );
 
     let back: SolverConfig = serde_json::from_str(&json).unwrap();
-    assert_eq!(back.strict_mode, true, "Roundtrip strict_mode must be true");
+    assert!(back.strict_mode, "Roundtrip strict_mode must be true");
     assert!(!back.prefer_latest, "Roundtrip prefer_latest must be false");
 }
 
@@ -234,7 +234,7 @@ fn test_solver_empty_repo_all_failed() {
 
     let mut mgr = RepositoryManager::new();
     mgr.add_repository(Box::new(SimpleRepository::new(
-        tmp.path().to_path_buf(),
+        tmp.path(),
         "empty".to_string(),
     )));
     let repo_arc = Arc::new(mgr);
@@ -269,7 +269,7 @@ fn test_solver_strict_mode_error_message_contains_package_name() {
     let mut mgr = RepositoryManager::new();
     mgr.add_repository(Box::new(
         rez_next_repository::simple_repository::SimpleRepository::new(
-            tmp.path().to_path_buf(),
+            tmp.path(),
             "empty".to_string(),
         ),
     ));

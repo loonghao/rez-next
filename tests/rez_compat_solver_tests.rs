@@ -8,8 +8,7 @@
 //! See also: rez_compat_tests.rs (version, package, rex, suite, config, e2e)
 
 use rez_core::version::{Version, VersionRange};
-use rez_next_package::{Package, PackageRequirement, Requirement};
-use rez_next_solver::DependencyGraph;
+use rez_next_package::{Package, Requirement};
 
 // ─── Conflict detection tests (solver graph) ────────────────────────────────
 

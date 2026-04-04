@@ -1,5 +1,22 @@
 # rez-next cleanup 执行记录
 
+## 最新执行 (2026-04-04 11:12, 第二十二轮)
+
+### 执行摘要
+- 审查最近迭代提交 `2534c3b`、`c8e0bff`、`801322e` 后，聚焦低风险清理；确认当前 `auto-improve` 相对 `origin/main` 为 ahead 137 / behind 0
+- 完成 3 个 cleanup 提交并已推送：`498b30c`（删除 1 个伪测试并清理 2 个测试文件的未使用导入）、`b8d28c1`（删除过期 `fix-ci-security-audit` 工件中的 6 个已跟踪文件）、`50e7696`（在 `CLEANUP_TODO.md` 记录下一轮结构性治理项，commit body 含 `chore(cleanup): done`）
+- 本轮净变更为 `10 files changed, 17 insertions(+), 282 deletions(-)`；未修改运行时代码
+
+### 验证结果
+- **测试**: `vx cargo test --workspace --quiet` 通过；定向测试 `rez_compat_late_tests`、`rez_compat_variant_tests`、`rez_solver_platform_tests` 与 `rez-next-version` 通过
+- **Lint**: 编辑文件 `read_lints` 为 0；工作区仍存在既有 compat 测试 `unused_imports` warning，未由本轮引入
+- **推送**: `auto-improve` 已推送到 `50e7696`
+
+### 下一轮重点
+1. 继续清理其余 compat 测试中的未使用导入与 vacuous assertions
+2. 评估将 split solver tests 的重复 helper 提取到公共 test support 模块
+3. 明确 `Cargo.lock` 策略说明与 `test_solver_platform_mismatch_fails_or_empty` 的预期契约
+
 ## 最新执行 (2026-04-04 06:43, 第二十一轮)
 
 ### 执行摘要

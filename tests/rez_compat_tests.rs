@@ -5,8 +5,8 @@
 //! and documentation examples.
 
 use rez_core::version::{Version, VersionRange};
-use rez_next_package::{Package, PackageRequirement, Requirement};
-use rez_next_rex::{generate_shell_script, RexEnvironment, RexExecutor, ShellType};
+use rez_next_package::{Package, PackageRequirement};
+use rez_next_rex::{generate_shell_script, RexExecutor, ShellType};
 use rez_next_suites::{Suite, ToolConflictMode};
 
 // ─── Version compatibility tests ───────────────────────────────────────────

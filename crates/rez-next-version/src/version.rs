@@ -319,10 +319,7 @@ impl Version {
     ///    apply rules 1–3 per segment pair.
     fn compare_single_token(t1: &str, t2: &str) -> Ordering {
         // Fast path: both purely numeric
-        match (t1.parse::<i64>(), t2.parse::<i64>()) {
-            (Ok(n1), Ok(n2)) => return n1.cmp(&n2),
-            _ => {}
-        }
+        if let (Ok(n1), Ok(n2)) = (t1.parse::<i64>(), t2.parse::<i64>()) { return n1.cmp(&n2) }
         // Fast path: equal strings
         if t1 == t2 {
             return Ordering::Equal;

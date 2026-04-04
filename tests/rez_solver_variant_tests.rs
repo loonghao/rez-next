@@ -42,6 +42,7 @@ fn build_plain_repo(packages: &[(&str, &str, &[&str])]) -> (TempDir, Arc<Reposit
 
 /// Build a repository that includes packages with variants.
 /// `variant_packages`: (name, version, base_requires[], variants[][])
+#[allow(clippy::type_complexity)]
 fn build_variant_repo(
     base_packages: &[(&str, &str, &[&str])],
     variant_packages: &[(&str, &str, &[&str], &[&[&str]])],

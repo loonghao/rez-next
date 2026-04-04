@@ -538,8 +538,10 @@ fn test_config_release_packages_path_is_string() {
 #[test]
 fn test_config_override_packages_path_direct() {
     use rez_next_common::config::RezCoreConfig;
-    let mut cfg = RezCoreConfig::default();
-    cfg.packages_path = vec!["/tmp/pkgs".to_string(), "/opt/pkgs".to_string()];
+    let cfg = RezCoreConfig {
+        packages_path: vec!["/tmp/pkgs".to_string(), "/opt/pkgs".to_string()],
+        ..RezCoreConfig::default()
+    };
     assert_eq!(
         cfg.packages_path.len(),
         2,

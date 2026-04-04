@@ -4,7 +4,6 @@
 //! Extracted from rez_compat_solver_tests.rs (Cycle 32).
 
 use rez_core::version::{Version, VersionRange};
-use rez_next_package::{Package, PackageRequirement, Requirement};
 
 // ─── pip-to-rez conversion compatibility tests ──────────────────────────────
 
