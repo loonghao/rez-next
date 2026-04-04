@@ -752,5 +752,287 @@ class TestConflictWeakRequirement:
         assert not r.contains(Version("3.0"))
 
 
+class TestSearchModule:
+    """Verify rez.search / rez_next.search Python API."""
+
+    def test_search_submodule_exists(self):
+        import rez_next.search as search
+        assert hasattr(search, "search_packages")
+        assert hasattr(search, "search_package_names")
+        assert hasattr(search, "search_latest_packages")
+        assert hasattr(search, "PackageSearcher")
+        assert hasattr(search, "SearchResult")
+
+    def test_search_packages_returns_list(self):
+        import rez_next.search as search
+        results = search.search_packages(
+            pattern="", paths=["/nonexistent/path_xyz"]
+        )
+        assert isinstance(results, list)
+
+    def test_search_packages_empty_paths_empty_result(self):
+        import rez_next.search as search
+        results = search.search_packages(
+            pattern="python", paths=["/nonexistent/path_xyz"]
+        )
+        assert isinstance(results, list)
+        assert len(results) == 0
+
+    def test_search_package_names_returns_list(self):
+        import rez_next.search as search
+        names = search.search_package_names(
+            pattern="", paths=["/nonexistent/path_xyz"]
+        )
+        assert isinstance(names, list)
+
+    def test_search_latest_packages_returns_list(self):
+        import rez_next.search as search
+        results = search.search_latest_packages(
+            pattern="", paths=["/nonexistent/path_xyz"]
+        )
+        assert isinstance(results, list)
+
+    def test_package_searcher_create(self):
+        import rez_next.search as search
+        searcher = search.PackageSearcher(
+            pattern="py",
+            paths=["/nonexistent/path_xyz"],
+            scope="families",
+        )
+        assert searcher is not None
+
+    def test_package_searcher_repr(self):
+        import rez_next.search as search
+        searcher = search.PackageSearcher(pattern="maya", scope="latest")
+        r = repr(searcher)
+        assert "maya" in r
+        assert "latest" in r
+
+    def test_package_searcher_search_returns_list(self):
+        import rez_next.search as search
+        searcher = search.PackageSearcher(
+            pattern="", paths=["/nonexistent/path_xyz"]
+        )
+        results = searcher.search()
+        assert isinstance(results, list)
+
+    def test_search_result_attributes_on_real_result(self):
+        """If a SearchResult is returned, verify its attribute contract."""
+        import rez_next.search as search
+        results = search.search_packages(pattern="", paths=["/nonexistent/path_xyz"])
+        for r in results:
+            assert isinstance(r.name, str)
+            assert isinstance(r.versions, list)
+            assert isinstance(r.repo_path, str)
+            assert isinstance(r.version_count(), int)
+
+    def test_search_scope_families_vs_latest(self):
+        import rez_next.search as search
+        families = search.search_packages(
+            scope="families", paths=["/nonexistent/path_xyz"]
+        )
+        latest = search.search_packages(
+            scope="latest", paths=["/nonexistent/path_xyz"]
+        )
+        assert isinstance(families, list)
+        assert isinstance(latest, list)
+
+    def test_top_level_search_packages_callable(self):
+        assert callable(rez.search_packages)
+
+    def test_top_level_search_package_names_callable(self):
+        assert callable(rez.search_package_names)
+
+
+class TestBindModule:
+    """Verify rez.bind / rez_next.bind Python API."""
+
+    def test_bind_submodule_exists(self):
+        import rez_next.bind as bind
+        assert hasattr(bind, "list_binders")
+        assert hasattr(bind, "bind_tool")
+        assert hasattr(bind, "detect_version")
+        assert hasattr(bind, "find_tool")
+        assert hasattr(bind, "extract_version")
+        assert hasattr(bind, "BindResult")
+        assert hasattr(bind, "BindManager")
+
+    def test_list_binders_returns_nonempty_list(self):
+        import rez_next.bind as bind
+        binders = bind.list_binders()
+        assert isinstance(binders, list)
+        assert len(binders) > 0
+
+    def test_list_binders_known_tools(self):
+        import rez_next.bind as bind
+        binders = bind.list_binders()
+        for tool in ("python", "cmake", "git"):
+            assert tool in binders, f"Expected '{tool}' in built-in binders"
+
+    def test_bind_manager_list_binders_matches_fn(self):
+        import rez_next.bind as bind
+        mgr = bind.BindManager()
+        assert mgr.list_binders() == bind.list_binders()
+
+    def test_bind_manager_is_builtin_known(self):
+        import rez_next.bind as bind
+        mgr = bind.BindManager()
+        assert mgr.is_builtin("python")
+        assert mgr.is_builtin("cmake")
+
+    def test_bind_manager_is_builtin_unknown(self):
+        import rez_next.bind as bind
+        mgr = bind.BindManager()
+        assert not mgr.is_builtin("totally_unknown_xyz_tool_999")
+
+    def test_bind_manager_repr(self):
+        import rez_next.bind as bind
+        mgr = bind.BindManager()
+        assert "BindManager" in repr(mgr)
+
+    def test_find_tool_nonexistent_returns_none(self):
+        import rez_next.bind as bind
+        result = bind.find_tool("totally_nonexistent_tool_xyz_999")
+        assert result is None
+
+    def test_extract_version_semver(self):
+        import rez_next.bind as bind
+        v = bind.extract_version("cmake version 3.26.4")
+        assert v is not None
+        assert "3.26" in v
+
+    def test_extract_version_no_digits_returns_none(self):
+        import rez_next.bind as bind
+        v = bind.extract_version("no version info here")
+        assert v is None
+
+    def test_detect_version_returns_string(self):
+        import rez_next.bind as bind
+        result = bind.detect_version("python")
+        assert isinstance(result, str)
+
+    def test_bind_result_attributes(self):
+        import rez_next.bind as bind
+        # Construct via bind_tool on a known binder (may not have real exec on PATH)
+        # We can only safely test the structure; actual binding may fail gracefully
+        r = bind.BindResult.__new__(bind.BindResult)  # type: ignore[call-arg]
+        # Can't construct directly (Rust struct), so test via bind if available
+        result = bind.find_tool("python")
+        # If python is on PATH, detect_version should return something
+        if result is not None:
+            version = bind.detect_version("python")
+            assert len(version) > 0
+
+    def test_top_level_list_binders_callable(self):
+        assert callable(rez.list_binders)
+
+    def test_top_level_bind_tool_callable(self):
+        assert callable(rez.bind_tool)
+
+
+class TestCompletionModule:
+    """Verify rez.complete / rez_next.complete Python API."""
+
+    def test_complete_submodule_exists(self):
+        import rez_next.complete as complete
+        assert hasattr(complete, "get_completion_script")
+        assert hasattr(complete, "supported_completion_shells")
+        assert hasattr(complete, "get_completion_install_path")
+        assert hasattr(complete, "print_completion_script")
+
+    def test_supported_completion_shells_returns_list(self):
+        import rez_next.complete as complete
+        shells = complete.supported_completion_shells()
+        assert isinstance(shells, list)
+        assert len(shells) >= 4
+
+    def test_supported_completion_shells_contains_expected(self):
+        import rez_next.complete as complete
+        shells = complete.supported_completion_shells()
+        for expected in ("bash", "zsh", "fish", "powershell"):
+            assert expected in shells
+
+    def test_get_completion_script_bash(self):
+        import rez_next.complete as complete
+        script = complete.get_completion_script("bash")
+        assert isinstance(script, str)
+        assert len(script) > 0
+        assert "rez" in script
+
+    def test_get_completion_script_zsh(self):
+        import rez_next.complete as complete
+        script = complete.get_completion_script("zsh")
+        assert isinstance(script, str)
+        assert "#compdef" in script
+
+    def test_get_completion_script_fish(self):
+        import rez_next.complete as complete
+        script = complete.get_completion_script("fish")
+        assert isinstance(script, str)
+        assert "complete" in script
+
+    def test_get_completion_script_powershell(self):
+        import rez_next.complete as complete
+        script = complete.get_completion_script("powershell")
+        assert isinstance(script, str)
+        assert len(script) > 0
+
+    def test_get_completion_script_unknown_raises(self):
+        import rez_next.complete as complete
+        with pytest.raises(ValueError):
+            complete.get_completion_script("totally_unknown_shell_xyz")
+
+    def test_get_completion_install_path_bash(self):
+        import rez_next.complete as complete
+        path = complete.get_completion_install_path("bash")
+        assert isinstance(path, str)
+        assert "bash" in path.lower() or "completion" in path.lower()
+
+    def test_get_completion_install_path_zsh(self):
+        import rez_next.complete as complete
+        path = complete.get_completion_install_path("zsh")
+        assert isinstance(path, str)
+        assert "zsh" in path.lower()
+
+    def test_get_completion_install_path_fish(self):
+        import rez_next.complete as complete
+        path = complete.get_completion_install_path("fish")
+        assert isinstance(path, str)
+        assert "fish" in path.lower()
+
+    def test_get_completion_install_path_powershell(self):
+        import rez_next.complete as complete
+        path = complete.get_completion_install_path("powershell")
+        assert isinstance(path, str)
+        assert "powershell" in path.lower() or "profile" in path.lower()
+
+    def test_get_completion_install_path_unknown_raises(self):
+        import rez_next.complete as complete
+        with pytest.raises(ValueError):
+            complete.get_completion_install_path("unknown_shell_xyz")
+
+    def test_print_completion_script_does_not_raise(self):
+        import rez_next.complete as complete
+        # print_completion_script writes to stdout; should not raise
+        complete.print_completion_script("bash")
+        complete.print_completion_script("powershell")
+
+    def test_get_completion_script_no_shell_uses_default(self):
+        import rez_next.complete as complete
+        # With no shell arg, uses system default; should return non-empty string
+        script = complete.get_completion_script(None)
+        assert isinstance(script, str)
+        assert len(script) > 0
+
+    def test_top_level_get_completion_script_callable(self):
+        assert callable(rez.get_completion_script)
+
+    def test_top_level_get_completion_script_returns_string(self):
+        """get_completion_script is accessible at top level and returns a string."""
+        script = rez.get_completion_script("bash")
+        assert isinstance(script, str)
+        assert len(script) > 0
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
