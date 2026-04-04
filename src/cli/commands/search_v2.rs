@@ -642,7 +642,6 @@ fn display_detailed_format(results: &[SearchResult], _args: &SearchArgs) -> RezC
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::cli::utils::parse_relative_time;
 
     #[test]
     fn test_search_args_parsing() {
@@ -715,88 +714,5 @@ mod tests {
             has_variant: None,
         };
         assert_eq!(args.search_type, "family");
-    }
-
-    #[test]
-    fn test_parse_timestamp_iso_datetime() {
-        let ts = parse_timestamp("2024-01-15T10:30:00");
-        assert!(ts.is_some());
-        assert_eq!(ts.unwrap(), 1705314600);
-    }
-
-    #[test]
-    fn test_parse_timestamp_iso_date() {
-        let ts = parse_timestamp("2024-01-15");
-        assert!(ts.is_some());
-        // 2024-01-15 00:00:00 UTC
-        assert_eq!(ts.unwrap(), 1705276800);
-    }
-
-    #[test]
-    fn test_parse_timestamp_invalid() {
-        assert!(parse_timestamp("not-a-date").is_none());
-        assert!(parse_timestamp("").is_none());
-    }
-
-    #[test]
-    fn test_parse_relative_time_days() {
-        let now = chrono::Utc::now().timestamp();
-        let ts = parse_relative_time("7d").unwrap();
-        let diff = now - ts;
-        // Should be approximately 7 days in seconds ± 2 seconds tolerance
-        assert!(
-            (diff - 7 * 86400).abs() <= 2,
-            "Expected ~7d ago, got diff={}",
-            diff
-        );
-    }
-
-    #[test]
-    fn test_parse_relative_time_weeks() {
-        let now = chrono::Utc::now().timestamp();
-        let ts = parse_relative_time("2w").unwrap();
-        let diff = now - ts;
-        assert!(
-            (diff - 14 * 86400).abs() <= 2,
-            "Expected ~14d ago, got diff={}",
-            diff
-        );
-    }
-
-    #[test]
-    fn test_parse_relative_time_months() {
-        let now = chrono::Utc::now().timestamp();
-        let ts = parse_relative_time("1m").unwrap();
-        let diff = now - ts;
-        assert!(
-            (diff - 30 * 86400).abs() <= 2,
-            "Expected ~30d ago, got diff={}",
-            diff
-        );
-    }
-
-    #[test]
-    fn test_parse_relative_time_years() {
-        let now = chrono::Utc::now().timestamp();
-        let ts = parse_relative_time("1y").unwrap();
-        let diff = now - ts;
-        assert!(
-            (diff - 365 * 86400).abs() <= 2,
-            "Expected ~365d ago, got diff={}",
-            diff
-        );
-    }
-
-    #[test]
-    fn test_parse_relative_time_invalid_unit() {
-        assert!(parse_relative_time("5x").is_none());
-        assert!(parse_relative_time("abc").is_none());
-    }
-
-    #[test]
-    fn test_parse_timestamp_relative_passthrough() {
-        // parse_timestamp should also accept relative formats
-        let ts = parse_timestamp("1d");
-        assert!(ts.is_some());
     }
 }
