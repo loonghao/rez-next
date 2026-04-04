@@ -1012,30 +1012,27 @@ mod env_diff_tests {
 
     #[test]
     fn test_env_diff_removed_vars() {
-        // base env has FOO, generated env does not → removed
-        let mut additional_env_vars = HashMap::new();
-        additional_env_vars.insert("BASE_VAR".to_string(), "base_value".to_string());
+        let expected_removed = std::env::vars().count();
         let cfg = ContextConfig {
-            inherit_parent_env: false,
-            additional_env_vars,
-            ..Default::default()
-        };
-        // Create manager whose base_env contains BASE_VAR (inherit = false but we set via additional)
-        // The base_env is only set from env::vars() when inherit=true.
-        // So with inherit=false, base_env is empty; the "removed" path needs base_env to have something.
-        // We test by creating a manager that inherits parent env, and passing empty env to diff.
-        let cfg2 = ContextConfig {
             inherit_parent_env: true,
             ..Default::default()
         };
-        let mgr2 = EnvironmentManager::new(cfg2);
-        // If parent env has PATH, passing empty map → PATH should appear in removed
+        let mgr = EnvironmentManager::new(cfg);
         let empty_env: HashMap<String, String> = HashMap::new();
-        let diff = mgr2.get_env_diff(&empty_env);
-        // We only assert that removed is non-empty (relies on PATH existing in parent env on CI)
-        // If parent env is not empty, removed should contain entries
-        let _ = diff.removed.len(); // just confirm no panic
+        let diff = mgr.get_env_diff(&empty_env);
+
+        assert!(diff.added.is_empty(), "Empty env should not report added vars");
+        assert!(
+            diff.modified.is_empty(),
+            "Empty env should not report modified vars"
+        );
+        assert_eq!(
+            diff.removed.len(),
+            expected_removed,
+            "All inherited base vars should be reported as removed"
+        );
     }
+
 
     #[test]
     fn test_env_diff_modified_vars() {
@@ -1559,15 +1556,15 @@ mod rez_resolved_context_tests {
 
     #[test]
     fn test_get_environ_returns_map() {
+        let expected_env: std::collections::HashMap<String, String> =
+            std::env::vars().collect();
         let mut ctx = RezResolvedContext::new(vec![]);
         ctx.resolved_packages
             .push(make_resolved_pkg("python", "3.9.0", "/pkgs/python/3.9.0"));
-        // Should not panic; returns a HashMap
-        let environ = ctx.get_environ();
-        assert!(environ.is_ok(), "get_environ should succeed");
-        // System vars like PATH should be present
-        let env_map = environ.unwrap();
-        // Minimal smoke: map is returned (may or may not have PATH depending on system)
-        let _ = env_map.len();
+
+        let env_map = ctx.get_environ().expect("get_environ should succeed");
+
+        assert_eq!(env_map, expected_env);
     }
+
 }
