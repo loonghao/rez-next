@@ -3,7 +3,6 @@
 //! These tests create actual package.py files on disk and exercise the full
 //! rez-next pipeline: repository scan → solver resolve → context → env vars.
 //! Derived from rez's own integration test suite concepts.
-
 use rez_next_package::{Package, Requirement};
 use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
 use rez_next_repository::PackageRepository;
