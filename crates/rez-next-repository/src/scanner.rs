@@ -233,12 +233,39 @@ pub struct RepositoryScanner {
     prefix_cache: Arc<DashMap<PathBuf, Vec<PathBuf>>>,
     /// Background refresh task handle
     refresh_handle: Arc<RwLock<Option<tokio::task::JoinHandle<()>>>>,
+    /// Pre-compiled exclude pattern regexes (avoids recompiling on every path check)
+    exclude_regexes: Arc<Vec<regex::Regex>>,
 }
 
 impl RepositoryScanner {
+    /// Convert a glob pattern string into a compiled `Regex`.
+    ///
+    /// Transformation rules:
+    /// - `**` → `.*`  (any path segment(s))
+    /// - `*`  → `[^/]*`  (any characters except `/`)
+    /// - `?`  → `.`  (any single character)
+    /// - all other regex metacharacters are escaped
+    fn glob_to_regex(pattern: &str) -> Option<regex::Regex> {
+        const DOUBLE_STAR_PLACEHOLDER: &str = "\x00DS\x00";
+        let re_pattern = pattern
+            .replace("**", DOUBLE_STAR_PLACEHOLDER)
+            .replace("*", "[^/]*")
+            .replace(DOUBLE_STAR_PLACEHOLDER, ".*")
+            .replace("?", ".");
+        regex::Regex::new(&format!("^{}$", re_pattern)).ok()
+    }
+
     /// Create a new high-performance repository scanner
     pub fn new(config: ScannerConfig) -> Self {
         let semaphore = Arc::new(Semaphore::new(config.max_concurrent_scans));
+
+        // Pre-compile exclude patterns once at construction time so that
+        // `should_exclude_path` never has to compile regexes on the hot path.
+        let exclude_regexes: Vec<regex::Regex> = config
+            .exclude_patterns
+            .iter()
+            .filter_map(|p| Self::glob_to_regex(p))
+            .collect();
 
         let scanner = Self {
             config: config.clone(),
@@ -255,6 +282,7 @@ impl RepositoryScanner {
             peak_memory_bytes: Arc::new(AtomicU64::new(0)),
             prefix_cache: Arc::new(DashMap::new()),
             refresh_handle: Arc::new(RwLock::new(None)),
+            exclude_regexes: Arc::new(exclude_regexes),
         };
 
         // Start background refresh if enabled
@@ -873,19 +901,18 @@ impl RepositoryScanner {
         // Normalize to forward slashes for cross-platform pattern matching
         let path_str = path.to_string_lossy().replace('\\', "/");
 
-        self.config.exclude_patterns.iter().any(|pattern| {
-            // Try full-path match first (e.g. "*.pyc" matching a filename anywhere)
-            if self.matches_pattern(&path_str, pattern) {
+        self.exclude_regexes.iter().any(|re| {
+            // Try full-path match first
+            if re.is_match(&path_str) {
                 return true;
             }
             // Also try matching any path suffix so that patterns like ".git/**"
-            // match paths such as "/repo/.git/objects" (not just ".git/objects").
-            // We do this by sliding a window over '/' boundaries.
+            // match paths such as "/repo/.git/objects".
             let mut search_start = 0usize;
             while let Some(sep_idx) = path_str[search_start..].find('/') {
                 let abs_idx = search_start + sep_idx + 1;
                 let suffix = &path_str[abs_idx..];
-                if !suffix.is_empty() && self.matches_pattern(suffix, pattern) {
+                if !suffix.is_empty() && re.is_match(suffix) {
                     return true;
                 }
                 search_start = abs_idx;

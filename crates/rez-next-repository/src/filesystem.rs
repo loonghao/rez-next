@@ -280,7 +280,9 @@ impl Repository for FileSystemRepository {
 
     async fn get_package_names(&self) -> Result<Vec<String>, RezCoreError> {
         let package_cache = self.package_cache.read().await;
-        Ok(package_cache.keys().cloned().collect())
+        let mut names: Vec<String> = package_cache.keys().cloned().collect();
+        names.sort();
+        Ok(names)
     }
 
     async fn get_stats(&self) -> Result<RepositoryStats, RezCoreError> {

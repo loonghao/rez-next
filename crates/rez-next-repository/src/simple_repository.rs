@@ -164,7 +164,9 @@ impl PackageRepository for SimpleRepository {
         self.scan().await?;
 
         let cache = self.package_cache.read().await;
-        Ok(cache.keys().cloned().collect())
+        let mut names: Vec<String> = cache.keys().cloned().collect();
+        names.sort();
+        Ok(names)
     }
 
     fn name(&self) -> &str {

@@ -693,3 +693,147 @@ async fn test_package_py_stats_package_count() {
     let stats = repo.get_stats().await.unwrap();
     assert_eq!(stats.package_count, 3, "Mixed py+yaml packages counted");
 }
+
+// ── Cycle 64: concurrent access tests ────────────────────────────────────────
+
+/// Concurrent initialize calls on the same repo must not corrupt state.
+#[tokio::test]
+async fn test_concurrent_initialize_is_safe() {
+    let tmp = TempDir::new().unwrap();
+    make_yaml_pkg(tmp.path(), "alpha", "1.0.0").await;
+    make_yaml_pkg(tmp.path(), "beta", "2.0.0").await;
+
+    use std::sync::Arc;
+    use tokio::sync::Mutex;
+
+    let repo = Arc::new(Mutex::new(FileSystemRepository::new(
+        tmp.path().to_path_buf(),
+        Some("concurrent_repo".to_string()),
+    )));
+
+    // Spawn 4 concurrent initialize tasks
+    let mut handles = Vec::new();
+    for _ in 0..4 {
+        let repo_clone = Arc::clone(&repo);
+        handles.push(tokio::spawn(async move {
+            let mut r = repo_clone.lock().await;
+            r.initialize().await
+        }));
+    }
+
+    for handle in handles {
+        handle.await.unwrap().unwrap();
+    }
+
+    // After concurrent inits, packages should still be discoverable
+    let repo_guard = repo.lock().await;
+    let criteria_alpha = PackageSearchCriteria {
+        name_pattern: Some("alpha".to_string()),
+        ..Default::default()
+    };
+    let criteria_beta = PackageSearchCriteria {
+        name_pattern: Some("beta".to_string()),
+        ..Default::default()
+    };
+    let pkgs_alpha = repo_guard.find_packages(&criteria_alpha).await.unwrap();
+    let pkgs_beta = repo_guard.find_packages(&criteria_beta).await.unwrap();
+    assert_eq!(pkgs_alpha.len(), 1, "alpha should be found after concurrent init");
+    assert_eq!(pkgs_beta.len(), 1, "beta should be found after concurrent init");
+}
+
+/// Concurrent find_packages calls return consistent results.
+#[tokio::test]
+async fn test_concurrent_find_packages_consistent() {
+    let tmp = TempDir::new().unwrap();
+    for i in 0..5 {
+        make_yaml_pkg(tmp.path(), "pkg", &format!("1.{}.0", i)).await;
+    }
+
+    use std::sync::Arc;
+
+    let repo = Arc::new(tokio::sync::RwLock::new(FileSystemRepository::new(
+        tmp.path().to_path_buf(),
+        Some("concurrent_read_repo".to_string()),
+    )));
+
+    // Initialize first
+    repo.write().await.initialize().await.unwrap();
+
+    // Spawn 8 concurrent read tasks — each acquires write lock to call find_packages
+    let mut handles = Vec::new();
+    for _ in 0..8 {
+        let repo_clone = Arc::clone(&repo);
+        handles.push(tokio::spawn(async move {
+            let r = repo_clone.write().await;
+            let criteria = PackageSearchCriteria {
+                name_pattern: Some("pkg".to_string()),
+                ..Default::default()
+            };
+            r.find_packages(&criteria).await
+        }));
+    }
+
+    for handle in handles {
+        let result = handle.await.unwrap().unwrap();
+        assert_eq!(result.len(), 5, "All 5 versions should be found in every concurrent call");
+    }
+}
+
+/// get_package_names returns names in sorted order.
+#[tokio::test]
+async fn test_get_package_names_sorted() {
+    let tmp = TempDir::new().unwrap();
+    for name in &["zzz", "aaa", "mmm", "bbb"] {
+        make_yaml_pkg(tmp.path(), name, "1.0.0").await;
+    }
+
+    let mut repo = FileSystemRepository::new(tmp.path().to_path_buf(), Some("r".to_string()));
+    repo.initialize().await.unwrap();
+
+    let names = repo.get_package_names().await.unwrap();
+    let mut expected = names.clone();
+    expected.sort();
+    assert_eq!(names, expected, "get_package_names should return sorted names");
+}
+
+/// find_packages with exact version pattern returns only matching version.
+#[tokio::test]
+async fn test_find_packages_version_filter() {
+    let tmp = TempDir::new().unwrap();
+    make_yaml_pkg(tmp.path(), "mypkg", "1.0.0").await;
+    make_yaml_pkg(tmp.path(), "mypkg", "2.0.0").await;
+    make_yaml_pkg(tmp.path(), "mypkg", "3.0.0").await;
+
+    let mut repo = FileSystemRepository::new(tmp.path().to_path_buf(), Some("r".to_string()));
+    repo.initialize().await.unwrap();
+
+    let criteria = PackageSearchCriteria {
+        name_pattern: Some("mypkg".to_string()),
+        version_requirement: Some("2.0.0".to_string()),
+        ..Default::default()
+    };
+    let pkgs = repo.find_packages(&criteria).await.unwrap();
+    assert_eq!(pkgs.len(), 1, "Version filter should return exactly one package");
+    assert_eq!(
+        pkgs[0].version.as_ref().map(|v| v.as_str()).unwrap_or(""),
+        "2.0.0"
+    );
+}
+
+/// Package not in repo returns empty find_packages result.
+#[tokio::test]
+async fn test_find_packages_unknown_name_empty() {
+    let tmp = TempDir::new().unwrap();
+    make_yaml_pkg(tmp.path(), "known_pkg", "1.0.0").await;
+
+    let mut repo = FileSystemRepository::new(tmp.path().to_path_buf(), Some("r".to_string()));
+    repo.initialize().await.unwrap();
+
+    let criteria = PackageSearchCriteria {
+        name_pattern: Some("unknown_pkg".to_string()),
+        ..Default::default()
+    };
+    let pkgs = repo.find_packages(&criteria).await.unwrap();
+    assert!(pkgs.is_empty(), "Unknown package name should return empty vec");
+}
+
