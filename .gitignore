@@ -94,3 +94,4 @@ simple_lsp_test.ps1
 # Temporary test/debug output files
 *_output.txt
 *_test.txt
+ws_*.txt
