@@ -179,7 +179,7 @@ jobs:
           echo "$(pwd)/.venv/bin" >> $GITHUB_PATH
       - name: Build and install Python binding (dev mode)
         working-directory: crates/rez-next-python
-        run: maturin develop --release
+        run: maturin develop
       - name: Run Python binding tests
         working-directory: crates/rez-next-python
         run: pytest tests/ -v --tb=short
