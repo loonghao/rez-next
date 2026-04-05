@@ -29,11 +29,37 @@ fn test_context_json_serialization_fields() {
 
     let json = serde_json::to_string(&ctx).unwrap();
     let parsed: Value = serde_json::from_str(&json).unwrap();
+    let obj = parsed
+        .as_object()
+        .expect("context JSON should serialize to an object");
 
-    // Required fields in rez .rxt JSON format
-    assert!(!json.is_empty(), "context JSON should have content");
-    assert!(parsed.is_object(), "context JSON should be a JSON object");
+    for key in [
+        "id",
+        "requirements",
+        "resolved_packages",
+        "environment_vars",
+        "metadata",
+        "created_at",
+        "status",
+        "config",
+    ] {
+        assert!(obj.contains_key(key), "context JSON should contain field '{key}'");
+    }
+    assert_eq!(
+        obj.get("requirements")
+            .and_then(Value::as_array)
+            .map(Vec::len),
+        Some(2),
+        "serialized context should preserve both requested requirements"
+    );
+    assert!(
+        obj.get("id")
+            .and_then(Value::as_str)
+            .is_some_and(|id| !id.is_empty()),
+        "context JSON should contain a non-empty id"
+    );
 }
+
 
 /// rez: context with empty request list is valid
 #[test]

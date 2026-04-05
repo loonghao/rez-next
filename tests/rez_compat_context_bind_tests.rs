@@ -187,9 +187,9 @@ fn test_package_private_build_requires_parseable() {
     }
 }
 
-/// rez: package.py with build_requires field parsed correctly
+/// rez: package.py private_build_requires are parsed separately from requires
 #[test]
-fn test_package_py_build_requires_parsed() {
+fn test_package_py_private_build_requires_parsed_separately() {
     use rez_next_package::serialization::PackageSerializer;
     use tempfile::TempDir;
 
@@ -211,11 +211,18 @@ private_build_requires = [
 
     let pkg = PackageSerializer::load_from_file(&path).unwrap();
     assert_eq!(pkg.name, "mylib");
-    // Verify requires are present
-    assert!(!pkg.requires.is_empty(), "requires should be populated");
-    // private_build_requires may be in build_requires
-    // At minimum the package must parse without error
+    assert_eq!(pkg.requires, vec!["python-3.9".to_string()]);
+    assert!(
+        pkg.build_requires.is_empty(),
+        "build_requires should stay empty when only private_build_requires is declared"
+    );
+    assert_eq!(
+        pkg.private_build_requires,
+        vec!["cmake-3+".to_string(), "ninja".to_string()],
+        "private_build_requires should preserve parsed package.py entries"
+    );
 }
+
 
 /// rez: package with variants and build requirements
 #[test]
