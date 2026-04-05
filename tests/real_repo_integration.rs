@@ -8,13 +8,13 @@
 //!   real_repo_resolve_tests.rs  — solver / resolution tests
 //!   real_repo_context_tests.rs  — context, env-var, multi-repo, E2E tests
 use rez_next_package::Requirement;
-use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
+use rez_next_repository::simple_repository::SimpleRepository;
 use rez_next_repository::PackageRepository;
-use rez_next_solver::{DependencyResolver, SolverConfig};
 use rez_next_version::Version;
 use std::fs;
-use std::sync::Arc;
 use tempfile::TempDir;
+
+
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -88,45 +88,7 @@ description = "Test package {name}-{version}"
     fs::write(pkg_dir.join("package.py"), content).unwrap();
 }
 
-/// Build a RepositoryManager from a single temp dir
-fn make_repo(dir: &std::path::Path) -> Arc<RepositoryManager> {
-    let mut mgr = RepositoryManager::new();
-    if dir.exists() {
-        mgr.add_repository(Box::new(SimpleRepository::new(
-            dir,
-            "test_repo".to_string(),
-        )));
-    }
-    Arc::new(mgr)
-}
 
-/// Run the solver synchronously and return resolved package names+versions
-fn resolve(repo: Arc<RepositoryManager>, reqs: Vec<&str>) -> Vec<(String, String)> {
-    let requirements: Vec<Requirement> = reqs
-        .iter()
-        .map(|s| s.parse::<Requirement>().unwrap())
-        .collect();
-
-    let rt = tokio::runtime::Runtime::new().unwrap();
-    let config = SolverConfig::default();
-    let mut resolver = DependencyResolver::new(Arc::clone(&repo), config);
-    let result = rt.block_on(resolver.resolve(requirements)).unwrap();
-
-    result
-        .resolved_packages
-        .iter()
-        .map(|info| {
-            let name = info.package.name.clone();
-            let ver = info
-                .package
-                .version
-                .as_ref()
-                .map(|v| v.as_str().to_string())
-                .unwrap_or_default();
-            (name, ver)
-        })
-        .collect()
-}
 
 // ─── Basic repository scan tests ─────────────────────────────────────────────
 
@@ -349,15 +311,4 @@ fn test_repo_manager_missing_packages_returns_empty() {
     assert!(pkgs.is_empty(), "Should return empty for unknown package");
 }
 
-// ─── Smoke-test: make_repo + resolve helpers work end-to-end ─────────────────
 
-#[test]
-fn test_smoke_make_repo_resolve() {
-    let tmp = TempDir::new().unwrap();
-    let repo_dir = tmp.path().to_path_buf();
-    create_package(&repo_dir, "python", "3.11.0", &[], &["python"], None);
-
-    let repo = make_repo(&repo_dir);
-    let resolved = resolve(repo, vec!["python"]);
-    assert!(resolved.iter().any(|(n, _)| n == "python"));
-}

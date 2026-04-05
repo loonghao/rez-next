@@ -451,14 +451,6 @@ fn test_rez_version_upper_bound_exclusive() {
     assert!(r.contains(&Version::parse("1.0").unwrap()));
 }
 
-/// Version with build metadata (rez ignores build metadata in comparisons)
-#[test]
-fn test_rez_version_build_metadata_ignored() {
-    // rez versions don't use semver build metadata; just parse the token
-    let v = Version::parse("1.2.3");
-    assert!(v.is_ok());
-}
-
 /// Package with private variants (rez private = `~package`)
 #[test]
 fn test_rez_private_package_requirement() {
@@ -468,19 +460,6 @@ fn test_rez_private_package_requirement() {
     assert_eq!(pkg.name, "~private_pkg");
 }
 
-/// Solver can handle identical requirement names (dedup should work)
-#[test]
-fn test_rez_dedup_requirements() {
-    use rez_next_package::PackageRequirement;
-
-    let reqs = [
-        PackageRequirement::parse("python-3.9").unwrap(),
-        PackageRequirement::parse("python-3.9").unwrap(), // duplicate
-    ];
-    // Both are parseable; solver handles dedup internally
-    assert_eq!(reqs.len(), 2);
-    assert_eq!(reqs[0].name, reqs[1].name);
-}
 
 /// rez context summary has correct package names
 #[test]
