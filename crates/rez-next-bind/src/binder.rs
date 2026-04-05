@@ -335,25 +335,6 @@ mod tests {
     }
 
     #[test]
-    fn test_bind_list_packages_fixture_structure() {
-        let tmp = TempDir::new().unwrap();
-
-        for tool in &["python", "cmake", "git"] {
-            let pkg_dir = tmp.path().join(tool).join("1.0.0");
-            std::fs::create_dir_all(&pkg_dir).unwrap();
-            std::fs::write(pkg_dir.join("package.py"), format!("name = '{}'", tool)).unwrap();
-        }
-
-        let python_pkg = tmp.path().join("python").join("1.0.0").join("package.py");
-        assert!(python_pkg.exists());
-        let cmake_pkg = tmp.path().join("cmake").join("1.0.0").join("package.py");
-        assert!(cmake_pkg.exists());
-        let git_pkg = tmp.path().join("git").join("1.0.0").join("package.py");
-        assert!(git_pkg.exists());
-    }
-
-
-    #[test]
     fn test_generate_package_py_no_exe() {
         let binder = PackageBinder::new();
         let opts = BindOptions::default();
