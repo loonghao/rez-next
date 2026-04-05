@@ -189,6 +189,14 @@
 - Current tests mostly assert range/emptiness, so they behave like smoke tests and can pass even if the predictor never becomes meaningful
 - Follow-up: either rename/document these as explicit placeholder smoke tests, or define the real predictor contract before adding more behavior-dependent assertions
 
+### 33. `cli_e2e_tests.rs` still allows implicit skips and weak exit-code assertions
+- **Status**: TODO (cycle 30)
+- `tests/cli_e2e_tests.rs` uses `skip_no_bin!()` to early-return when the binary is missing, so local runs can appear green without exercising the CLI harness
+- At least 18 assertions only check `status.code().is_some()`, which does not verify command semantics and can hide argument/behavior regressions
+- `test_full_workflow_search_and_view` still uses stale `--path` invocations for `view` / `solve`, so the workflow coverage has drifted from the actual CLI surface
+- Follow-up: make the harness fail loudly when the binary prerequisite is missing in intended E2E runs, then replace exit-code-only assertions with observable stdout/stderr or filesystem contracts
+
+
 
 
 

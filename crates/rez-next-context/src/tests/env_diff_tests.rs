@@ -165,12 +165,8 @@ mod env_diff_behavior_tests {
 
     #[test]
     fn test_path_strategy_no_modify_leaves_path_unchanged() {
-        let cfg = ContextConfig {
-            inherit_parent_env: false,
-            path_strategy: PathStrategy::NoModify,
-            ..Default::default()
-        };
         let mut additional_env_vars = HashMap::new();
+
         additional_env_vars.insert("PATH".to_string(), "/original/path".to_string());
         let cfg2 = ContextConfig {
             inherit_parent_env: false,
@@ -189,7 +185,7 @@ mod env_diff_behavior_tests {
         // PATH should not be modified by the package tools
         let path = vars.get("PATH").map(|s| s.as_str()).unwrap_or("");
         assert_eq!(path, "/original/path", "NoModify should leave PATH as-is");
-        let _ = cfg; // suppress unused warning
+
     }
 
     #[test]

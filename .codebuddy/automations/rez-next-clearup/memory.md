@@ -1,6 +1,25 @@
 # rez-next cleanup 执行记录
 
+## 最新执行 (2026-04-06 01:01, 第三十轮)
+
+### 执行摘要
+- 延续第二十九轮未完成的低风险治理，先收掉 `tests/rez_compat_rex_edge_tests.rs` 中最后一处 `clippy::single-match`，恢复当前工作区 clippy 绿灯
+- 收紧 2 个弱测试契约：将 `crates/rez-next-repository/src/high_performance_scanner_tests.rs` 中 `PrefetchPredictor::default()` vs `new()` 的 no-op 测试改为一致性断言；将 `crates/rez-next-context/src/tests/rxtb_tests.rs` 中 JSON / Binary 对比从“字节非空”改为真实 roundtrip 包集合一致性校验
+- 结合本轮只读巡检，完成 4 份文档清理：修正 `README.md` / `README_zh.md` 中过强兼容性承诺与过期 crate 数量，修正 `docs/benchmark_guide.md` 的 benchmark 数量，刷新 `docs/contributing.md` 以匹配当前 `justfile` / `.github/workflows/ci.yml`
+- 在 `CLEANUP_TODO.md` 新增 1 条结构性后续项，记录 `cli_e2e_tests.rs` 仍存在隐式 skip 与 exit-code-only 弱断言问题；本轮未触碰运行时代码或依赖配置
+
+### 验证结果
+- **测试**: `vx cargo test --workspace --all-targets --all-features --quiet` 通过
+- **Lint**: `vx cargo clippy --workspace --all-targets --quiet -- -D warnings` 通过；`read_lints` 对编辑过的 `tests/rez_compat_rex_edge_tests.rs` 结果为 0
+- **推送**: 待本轮 report commit 推送（本次会话未执行 commit / push）
+
+### 下一轮重点
+1. 处理 `tests/cli_e2e_tests.rs` 的隐式 skip 和 exit-code-only 弱断言，先明确哪些场景应为真正的 E2E 前置失败，哪些场景应改成可观察契约
+2. 继续处理 `PrefetchPredictor` placeholder smoke tests，避免测试继续为常量实现背书
+3. 继续审查 README / docs 中其余兼容性表述，尤其是与 Python bindings 占位行为相关的用户承诺
+
 ## 最新执行 (2026-04-05 20:31, 第二十九轮)
+
 
 ### 执行摘要
 - 审查最近迭代提交 `f4fc0ca`、`a3f103c`、`1ef79ab`、`a70d978` 后，聚焦 bind / repository 新拆分测试中的低风险清理点

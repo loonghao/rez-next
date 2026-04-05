@@ -4,7 +4,8 @@
 //! Split from rez_compat_tests.rs (Cycle 71) to keep file under 1000 lines.
 
 use rez_core::version::{Version, VersionRange};
-use rez_next_suites::{Suite, ToolConflictMode};
+use rez_next_suites::Suite;
+
 
 /// Suite: hide_tool should work without error
 #[test]
@@ -14,16 +15,14 @@ fn test_suite_hide_tool() {
         .add_context("maya", vec!["maya-2024".to_string()])
         .unwrap();
     let result = suite.hide_tool("maya", "some_internal_tool");
-    match result {
-        Ok(()) => {
-            let tools = suite.get_tools().unwrap_or_default();
-            assert!(
-                !tools.contains_key("some_internal_tool"),
-                "hidden tool 'some_internal_tool' should not appear in get_tools()"
-            );
-        }
-        Err(_) => {}
+    if let Ok(()) = result {
+        let tools = suite.get_tools().unwrap_or_default();
+        assert!(
+            !tools.contains_key("some_internal_tool"),
+            "hidden tool 'some_internal_tool' should not appear in get_tools()"
+        );
     }
+
 }
 
 /// Suite: remove_context should work

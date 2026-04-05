@@ -455,14 +455,14 @@ mod test_async {
         .unwrap();
 
         let scanner = make_scanner_with_preload();
-        let preloaded = scanner
+        scanner
             .preload_common_paths(&[tmp.path().to_path_buf()])
             .await
             .unwrap();
 
-        // At minimum the scan ran without error; the prefix_cache entry is set
-        let _ = preloaded; // count ≥ 0 depending on parser success
         assert!(scanner.prefix_cache.contains_key(tmp.path()));
+
+
     }
 
     // --- stop_background_refresh ---

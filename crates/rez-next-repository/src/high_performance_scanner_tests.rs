@@ -10,8 +10,8 @@ use tempfile::TempDir;
 // ── REZ_PACKAGE_FILENAMES constant tests ────────────────────────────────────
 
 mod test_rez_package_filenames {
-    use super::*;
     use crate::scanner_types::REZ_PACKAGE_FILENAMES;
+
 
     #[test]
     fn test_contains_package_py() {
@@ -285,8 +285,18 @@ mod test_prefetch_predictor {
     fn test_default_is_same_as_new() {
         let a = PrefetchPredictor::new();
         let b = PrefetchPredictor::default();
-        let _ = a.predict_directory_priority(Path::new("/tmp"));
-        let _ = b.predict_directory_priority(Path::new("/tmp"));
+        let dir = Path::new("/tmp");
+        let file = Path::new("/tmp/package.yaml");
+
+        let a_priority = a.predict_directory_priority(dir);
+        let b_priority = b.predict_directory_priority(dir);
+        assert_eq!(a_priority, b_priority);
+        assert!((0.0..=1.0).contains(&a_priority));
+
+        let a_score = a.calculate_cache_score(file);
+        let b_score = b.calculate_cache_score(file);
+        assert_eq!(a_score, b_score);
+        assert!((0.0..=1.0).contains(&a_score));
     }
 }
 
@@ -465,17 +475,7 @@ mod test_scan_optimized_async {
         assert!(result.directories_scanned >= 1);
     }
 
-    #[tokio::test]
-    async fn test_scan_total_duration_is_set() {
-        let tmp = TempDir::new().unwrap();
-        let config = HighPerformanceConfig::default();
-        let scanner = HighPerformanceScanner::new(config);
-        let result = scanner
-            .scan_repository_optimized(tmp.path())
-            .await
-            .unwrap();
-        let _ = result.total_duration_ms;
-    }
+
 
     #[tokio::test]
     async fn test_scan_performance_metrics_are_populated() {

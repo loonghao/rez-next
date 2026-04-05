@@ -527,9 +527,19 @@ fn test_search_real_temp_repo() {
 
     let searcher = PackageSearcher::new(opts);
     let results = searcher.search();
+    let repo_path = dir.path().to_string_lossy().to_string();
 
-    // Results depend on repository scan; at minimum no panic
-    let _ = results.len();
+    assert_eq!(results.repos_searched, 1);
+    assert!(
+        results.total_scanned <= 4,
+        "search should not report scanning more packages than exist in the temp repository"
+    );
+    assert!(
+        results.results.iter().all(|result| result.repo_path == repo_path),
+        "any reported result should come from the temp repository"
+    );
+
+
 }
 
 // ─── rez.complete compatibility tests ────────────────────────────────────────

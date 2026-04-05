@@ -6,10 +6,8 @@
 //!
 //! See also: rez_compat_tests.rs (version, package, rex, suite, config, e2e)
 
-use rez_core::version::{Version, VersionRange};
-
-
 // ─── rez.solver SolverConfig / timeout semantics ─────────────────────────────
+
 
 /// rez solver: default config has sensible timeout (> 0 seconds)
 #[test]

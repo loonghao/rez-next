@@ -150,15 +150,13 @@ fn test_invalid_package_requirement_no_panic() {
     use rez_next_package::PackageRequirement;
 
     let result = PackageRequirement::parse("!!!invalid");
-    match result {
-        Ok(req) => {
-            assert!(
-                !req.name.is_empty(),
-                "best-effort parse of '!!!invalid' produced empty name"
-            );
-        }
-        Err(_) => {}
+    if let Ok(req) = result {
+        assert!(
+            !req.name.is_empty(),
+            "best-effort parse of '!!!invalid' produced empty name"
+        );
     }
+
 }
 
 /// rez.exceptions: Empty string PackageRequirement parse does not panic
@@ -167,15 +165,12 @@ fn test_empty_package_requirement_no_panic() {
     use rez_next_package::PackageRequirement;
 
     let result = PackageRequirement::parse("");
-    match result {
-        Ok(req) => {
-            assert!(
-                req.name.is_empty(),
-                "empty-string parse should produce a requirement with empty name, got '{}'",
-                req.name
-            );
-        }
-        Err(_) => {}
+    if let Ok(req) = result {
+        assert!(
+            req.name.is_empty(),
+            "empty-string parse should produce a requirement with empty name, got '{}'",
+            req.name
+        );
     }
 }
 
@@ -185,15 +180,13 @@ fn test_version_range_unbalanced_bracket_error() {
     use rez_core::version::VersionRange;
 
     let result = VersionRange::parse(">=1.0,<2.0,");
-    match result {
-        Ok(r) => {
-            assert!(
-                r.contains(&rez_core::version::Version::parse("1.5").unwrap()),
-                "tolerant parse of trailing-comma range should still contain 1.5"
-            );
-        }
-        Err(_) => {}
+    if let Ok(r) = result {
+        assert!(
+            r.contains(&rez_core::version::Version::parse("1.5").unwrap()),
+            "tolerant parse of trailing-comma range should still contain 1.5"
+        );
     }
+
 }
 
 /// rez.exceptions: Version parse with garbage input returns error (not panic)
