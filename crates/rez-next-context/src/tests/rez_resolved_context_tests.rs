@@ -1,6 +1,7 @@
 // ── Cycle 49: RezResolvedContext method tests ────────────────────────────────
 #[cfg(test)]
-mod rez_resolved_context_tests {
+mod rez_resolved_context_behavior_tests {
+
     use crate::resolved_context::{ResolvedPackage, RezResolvedContext};
     use rez_next_package::Package;
     use rez_next_version::Version;

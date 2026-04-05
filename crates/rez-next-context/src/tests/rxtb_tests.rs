@@ -1,6 +1,7 @@
 // ── Phase 92: Binary format (rxtb) tests ─────────────────────────────────────
 #[cfg(test)]
-mod rxtb_tests {
+mod rxtb_roundtrip_tests {
+
     use crate::{
         serialization::{ContextFormat, ContextSerializer},
         ContextStatus, ResolvedContext,

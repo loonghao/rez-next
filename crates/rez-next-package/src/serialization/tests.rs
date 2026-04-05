@@ -1,7 +1,8 @@
 //! Tests for package serialization/deserialization.
 
 #[cfg(test)]
-mod tests {
+mod serialization_tests {
+
     use super::super::{PackageFormat, PackageSerializer, SerializationOptions};
     use crate::Package;
     use rez_next_version::Version;

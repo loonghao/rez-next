@@ -1,6 +1,7 @@
 // ── Cycle 49: EnvDiff + EnvOperation::Append/Unset + PathStrategy tests ────
 #[cfg(test)]
-mod env_diff_tests {
+mod env_diff_behavior_tests {
+
     use crate::{ContextConfig, EnvironmentManager, PathStrategy, ShellType};
     use rez_next_package::Package;
     use rez_next_version::Version;

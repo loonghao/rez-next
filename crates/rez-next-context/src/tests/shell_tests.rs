@@ -1,5 +1,6 @@
 #[cfg(test)]
-mod shell_tests {
+mod shell_behavior_tests {
+
     use crate::ShellType;
 
     #[test]

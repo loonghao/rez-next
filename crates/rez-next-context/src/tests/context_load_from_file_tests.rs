@@ -1,6 +1,7 @@
 // ── Phase 107: Context load_from_file filesystem integration tests ────────────
 #[cfg(test)]
-mod context_load_from_file_tests {
+mod context_load_behavior_tests {
+
     use crate::{
         serialization::{ContextFormat, ContextSerializer},
         ContextStatus, ResolvedContext,

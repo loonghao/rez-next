@@ -1,5 +1,6 @@
 #[cfg(test)]
-mod context_tests {
+mod resolved_context_behavior_tests {
+
     use crate::{ContextConfig, ContextStatus, EnvironmentManager, PathStrategy, ResolvedContext};
     use rez_next_package::{Package, PackageRequirement};
     use rez_next_version::Version;

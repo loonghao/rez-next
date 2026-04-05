@@ -1,6 +1,7 @@
 /// Phase 86: Context rxt file async save/load integration tests
 #[cfg(test)]
-mod rxt_file_tests {
+mod rxt_file_roundtrip_tests {
+
     use crate::serialization::{ContextFormat, ContextSerializer};
     use crate::{ContextStatus, ResolvedContext};
     use rez_next_package::Package;

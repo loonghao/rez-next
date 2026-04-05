@@ -1,6 +1,7 @@
 /// Phase 67: Environment activation scripts integration tests
 #[cfg(test)]
-mod activation_script_tests {
+mod activation_script_behavior_tests {
+
     use crate::{ContextConfig, EnvironmentManager, ShellType};
     use std::collections::HashMap;
 

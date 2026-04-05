@@ -1,6 +1,7 @@
 // ── Phase 111: ExecutionConfig + ContextExecutor + ProcessResult tests ─────
 #[cfg(test)]
-mod execution_tests {
+mod execution_behavior_tests {
+
     use crate::execution::{
         ContextExecutionBuilder, ContextExecutor, ExecutionConfig, ExecutionStats, ProcessResult,
     };
