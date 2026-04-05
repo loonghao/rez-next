@@ -30,28 +30,6 @@ async fn make_yaml_pkg(root: &std::path::Path, name: &str, version: &str) {
     fs::write(dir.join("package.yaml"), content).await.unwrap();
 }
 
-/// Create a package.yaml with explicit requires list.
-#[allow(dead_code)]
-async fn make_yaml_pkg_with_requires(
-    root: &std::path::Path,
-    name: &str,
-    version: &str,
-    requires: &[&str],
-) {
-    let dir = root.join(name).join(version);
-    fs::create_dir_all(&dir).await.unwrap();
-    let reqs = requires
-        .iter()
-        .map(|r| format!("  - \"{}\"", r))
-        .collect::<Vec<_>>()
-        .join("\n");
-    let content = format!(
-        "name: \"{}\"\nversion: \"{}\"\ndescription: \"Test\"\nrequires:\n{}\n",
-        name, version, reqs
-    );
-    fs::write(dir.join("package.yaml"), content).await.unwrap();
-}
-
 /// Create a package.yaml with a `variants` field.
 async fn make_yaml_pkg_with_variants(
     root: &std::path::Path,
