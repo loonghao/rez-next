@@ -1,10 +1,10 @@
 //! Advanced Python AST parser for package.py files using RustPython.
 //!
 //! This module is split into focused submodules:
-//! - [`types`]: Core data types (`PythonValue`, `ParsingContext`, `PackageData`)
-//! - [`eval`]: Expression evaluation (`evaluate_*`)
-//! - [`extract`]: Typed value extraction (`extract_*`)
-//! - [`commands`]: Rex DSL command parsing (`process_commands_function` etc.)
+//! - `types`: Core data types (`PythonValue`, `ParsingContext`, `PackageData`)
+//! - `eval`: Expression evaluation (`evaluate_*`)
+//! - `extract`: Typed value extraction (`extract_*`)
+//! - `commands`: Rex DSL command parsing (`process_commands_function` etc.)
 
 mod commands;
 mod eval;

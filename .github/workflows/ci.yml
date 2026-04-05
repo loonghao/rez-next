@@ -171,7 +171,12 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install maturin and pytest
-        run: pip install maturin pytest
+        run: |
+          python -m venv .venv
+          source .venv/bin/activate
+          pip install maturin pytest
+          echo "VIRTUAL_ENV=$(pwd)/.venv" >> $GITHUB_ENV
+          echo "$(pwd)/.venv/bin" >> $GITHUB_PATH
       - name: Build and install Python binding (dev mode)
         working-directory: crates/rez-next-python
         run: maturin develop --release
