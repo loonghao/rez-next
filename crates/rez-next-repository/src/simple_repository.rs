@@ -494,12 +494,10 @@ mod tests {
         }
 
         let repo = SimpleRepository::new(temp_dir.path(), "sorted_repo".to_string());
-        let mut names = repo.list_packages().await.unwrap();
-        names.sort(); // In case not guaranteed by impl
-        assert_eq!(names[0], "aaa_pkg");
-        assert_eq!(names[1], "mmm_pkg");
-        assert_eq!(names[2], "zzz_pkg");
+        let names = repo.list_packages().await.unwrap();
+        assert_eq!(names, vec!["aaa_pkg", "mmm_pkg", "zzz_pkg"]);
     }
+
 
     /// find_packages returns packages sorted by version (latest first) via manager
     #[tokio::test]
@@ -654,8 +652,7 @@ mod tests {
         );
     }
 
-    /// Scan detects packages with different extensions (.yaml not just .py)
-    /// - repository should still only scan package.py for now
+    /// Scan ignores non-`package.py` files in SimpleRepository's current format contract
     #[tokio::test]
     async fn test_scan_ignores_non_package_py() {
         let temp_dir = TempDir::new().unwrap();
@@ -671,12 +668,13 @@ mod tests {
 
         let repo = SimpleRepository::new(temp_dir.path(), "repo".to_string());
         repo.scan().await.unwrap();
-        // package.yaml is not scanned (only package.py)
         let pkgs = repo.find_packages("yamlpkg").await.unwrap();
-        // Either 0 or 1 depending on implementation
-        // Just verify it doesn't panic
-        let _ = pkgs.len();
+        assert!(
+            pkgs.is_empty(),
+            "SimpleRepository should ignore package.yaml and only scan package.py"
+        );
     }
+
 
     /// Manager finds packages across repos with priority (first repo takes precedence)
     #[tokio::test]

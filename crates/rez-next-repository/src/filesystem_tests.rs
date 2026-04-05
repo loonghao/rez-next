@@ -392,9 +392,12 @@ async fn test_find_packages_with_exact_name_pattern() {
     let mut repo = FileSystemRepository::new(tmp.path().to_path_buf(), Some("r".to_string()));
     repo.initialize().await.unwrap();
 
-    let mut criteria = PackageSearchCriteria::default();
-    criteria.name_pattern = Some("python".to_string());
+    let criteria = PackageSearchCriteria {
+        name_pattern: Some("python".to_string()),
+        ..Default::default()
+    };
     let results = repo.find_packages(&criteria).await.unwrap();
+
     assert_eq!(results.len(), 1);
     assert_eq!(results[0].name, "python");
 }
@@ -409,11 +412,14 @@ async fn test_find_packages_with_wildcard_name_pattern() {
     let mut repo = FileSystemRepository::new(tmp.path().to_path_buf(), Some("r".to_string()));
     repo.initialize().await.unwrap();
 
-    let mut criteria = PackageSearchCriteria::default();
-    criteria.name_pattern = Some("py_*".to_string());
+    let criteria = PackageSearchCriteria {
+        name_pattern: Some("py_*".to_string()),
+        ..Default::default()
+    };
     let results = repo.find_packages(&criteria).await.unwrap();
     assert_eq!(results.len(), 2, "Wildcard should match py_core and py_utils");
 }
+
 
 #[tokio::test]
 async fn test_find_packages_with_limit() {
@@ -425,11 +431,15 @@ async fn test_find_packages_with_limit() {
     let mut repo = FileSystemRepository::new(tmp.path().to_path_buf(), Some("r".to_string()));
     repo.initialize().await.unwrap();
 
-    let mut criteria = PackageSearchCriteria::default();
-    criteria.limit = Some(3);
+    let criteria = PackageSearchCriteria {
+        limit: Some(3),
+        ..Default::default()
+    };
     let results = repo.find_packages(&criteria).await.unwrap();
-    assert!(results.len() <= 3, "Result count should respect limit");
+
+    assert_eq!(results.len(), 3, "Limit should stop after exactly 3 matches");
 }
+
 
 #[tokio::test]
 async fn test_find_packages_star_pattern_matches_all() {
@@ -440,10 +450,13 @@ async fn test_find_packages_star_pattern_matches_all() {
     let mut repo = FileSystemRepository::new(tmp.path().to_path_buf(), Some("r".to_string()));
     repo.initialize().await.unwrap();
 
-    let mut criteria = PackageSearchCriteria::default();
-    criteria.name_pattern = Some("*".to_string());
+    let criteria = PackageSearchCriteria {
+        name_pattern: Some("*".to_string()),
+        ..Default::default()
+    };
     let results = repo.find_packages(&criteria).await.unwrap();
     assert_eq!(results.len(), 2, "* should match all packages");
+
 }
 
 #[tokio::test]
@@ -454,10 +467,13 @@ async fn test_find_packages_no_match_returns_empty() {
     let mut repo = FileSystemRepository::new(tmp.path().to_path_buf(), Some("r".to_string()));
     repo.initialize().await.unwrap();
 
-    let mut criteria = PackageSearchCriteria::default();
-    criteria.name_pattern = Some("nonexistent_pkg".to_string());
+    let criteria = PackageSearchCriteria {
+        name_pattern: Some("nonexistent_pkg".to_string()),
+        ..Default::default()
+    };
     let results = repo.find_packages(&criteria).await.unwrap();
     assert!(results.is_empty());
+
 }
 
 // ── get_package_variants ──────────────────────────────────────────────────────
@@ -509,9 +525,12 @@ async fn test_matches_pattern_question_mark_wildcard() {
     let mut repo = FileSystemRepository::new(tmp.path().to_path_buf(), Some("r".to_string()));
     repo.initialize().await.unwrap();
 
-    let mut criteria = PackageSearchCriteria::default();
-    criteria.name_pattern = Some("lib_?".to_string());
+    let criteria = PackageSearchCriteria {
+        name_pattern: Some("lib_?".to_string()),
+        ..Default::default()
+    };
     let results = repo.find_packages(&criteria).await.unwrap();
+
     assert_eq!(results.len(), 2, "? should match exactly one char");
 }
 
