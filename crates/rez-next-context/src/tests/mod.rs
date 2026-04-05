@@ -9,3 +9,4 @@ mod context_load_from_file_tests;
 mod execution_tests;
 mod env_diff_tests;
 mod rez_resolved_context_tests;
+mod context_save_load_edge_tests;
