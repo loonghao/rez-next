@@ -454,6 +454,27 @@ impl HighPerformanceScanner {
     }
 }
 
+/// Exact filenames recognised as rez package definition files.
+///
+/// Using a static `HashSet` gives O(1) look-up on the hot path without any
+/// regex compilation.  The set mirrors the filenames accepted by the main
+/// `RepositoryScanner::include_filenames` set so both scanners stay in sync.
+static PACKAGE_FILENAMES: std::sync::OnceLock<std::collections::HashSet<&'static str>> =
+    std::sync::OnceLock::new();
+
+fn package_filenames() -> &'static std::collections::HashSet<&'static str> {
+    PACKAGE_FILENAMES.get_or_init(|| {
+        [
+            "package.py",
+            "package.yaml",
+            "package.yml",
+            "package.json",
+        ]
+        .into_iter()
+        .collect()
+    })
+}
+
 /// SIMD pattern matcher for high-performance file filtering
 #[derive(Default)]
 pub struct SIMDPatternMatcher {
@@ -465,13 +486,17 @@ impl SIMDPatternMatcher {
         Self {}
     }
 
+    /// Returns `true` only for recognised rez package definition filenames
+    /// (`package.py`, `package.yaml`, `package.yml`, `package.json`).
+    ///
+    /// Previous implementation matched *any* `.py/.yaml/.json` file, which
+    /// caused false positives for files like `build.py`, `setup.yaml`, etc.
+    /// Now we do an O(1) exact `HashSet` look-up instead.
     pub fn matches_package_pattern(&self, path: &Path) -> bool {
-        // SIMD-optimized pattern matching
-        if let Some(filename) = path.file_name().and_then(|n| n.to_str()) {
-            filename.ends_with(".py") || filename.ends_with(".yaml") || filename.ends_with(".json")
-        } else {
-            false
-        }
+        path.file_name()
+            .and_then(|n| n.to_str())
+            .map(|name| package_filenames().contains(name))
+            .unwrap_or(false)
     }
 
     pub fn is_json_simd(&self, content: &str) -> bool {
@@ -537,28 +562,76 @@ mod tests {
     mod test_simd_pattern_matcher {
         use super::*;
 
+        // --- exact rez package filenames must match ---
+
         #[test]
-        fn test_matches_py_extension() {
+        fn test_matches_package_py() {
             let matcher = SIMDPatternMatcher::new();
             assert!(matcher.matches_package_pattern(Path::new("/some/dir/package.py")));
         }
 
         #[test]
-        fn test_matches_yaml_extension() {
+        fn test_matches_package_yaml() {
             let matcher = SIMDPatternMatcher::new();
             assert!(matcher.matches_package_pattern(Path::new("/some/dir/package.yaml")));
         }
 
         #[test]
-        fn test_matches_json_extension() {
+        fn test_matches_package_yml() {
+            let matcher = SIMDPatternMatcher::new();
+            assert!(matcher.matches_package_pattern(Path::new("/some/dir/package.yml")));
+        }
+
+        #[test]
+        fn test_matches_package_json() {
             let matcher = SIMDPatternMatcher::new();
             assert!(matcher.matches_package_pattern(Path::new("/some/dir/package.json")));
         }
 
+        // --- non-rez .py files must NOT match (regression guard) ---
+
         #[test]
-        fn test_does_not_match_txt_extension() {
+        fn test_does_not_match_build_py() {
             let matcher = SIMDPatternMatcher::new();
-            assert!(!matcher.matches_package_pattern(Path::new("/some/dir/readme.txt")));
+            assert!(
+                !matcher.matches_package_pattern(Path::new("/some/dir/build.py")),
+                "build.py should NOT be treated as a rez package file"
+            );
+        }
+
+        #[test]
+        fn test_does_not_match_setup_py() {
+            let matcher = SIMDPatternMatcher::new();
+            assert!(
+                !matcher.matches_package_pattern(Path::new("/some/dir/setup.py")),
+                "setup.py should NOT be treated as a rez package file"
+            );
+        }
+
+        #[test]
+        fn test_does_not_match_rezbuild_py() {
+            let matcher = SIMDPatternMatcher::new();
+            assert!(
+                !matcher.matches_package_pattern(Path::new("/some/dir/rezbuild.py")),
+                "rezbuild.py is a build script, not a package definition"
+            );
+        }
+
+        // --- non-rez .yaml / .json files must NOT match ---
+
+        #[test]
+        fn test_does_not_match_setup_yaml() {
+            let matcher = SIMDPatternMatcher::new();
+            assert!(
+                !matcher.matches_package_pattern(Path::new("/some/dir/setup.yaml")),
+                "setup.yaml should NOT be treated as a rez package file"
+            );
+        }
+
+        #[test]
+        fn test_does_not_match_requirements_txt() {
+            let matcher = SIMDPatternMatcher::new();
+            assert!(!matcher.matches_package_pattern(Path::new("/some/dir/requirements.txt")));
         }
 
         #[test]
@@ -570,8 +643,37 @@ mod tests {
         #[test]
         fn test_does_not_match_empty_path() {
             let matcher = SIMDPatternMatcher::new();
-            // Path with no filename returns false
             assert!(!matcher.matches_package_pattern(Path::new("")));
+        }
+
+        // --- filename-only paths (no parent dir) ---
+
+        #[test]
+        fn test_matches_bare_package_yaml() {
+            let matcher = SIMDPatternMatcher::new();
+            assert!(matcher.matches_package_pattern(Path::new("package.yaml")));
+        }
+
+        #[test]
+        fn test_does_not_match_bare_non_package_py() {
+            let matcher = SIMDPatternMatcher::new();
+            assert!(!matcher.matches_package_pattern(Path::new("build.py")));
+        }
+
+        // --- Windows-style paths ---
+
+        #[test]
+        fn test_matches_windows_path_package_py() {
+            let matcher = SIMDPatternMatcher::new();
+            assert!(matcher
+                .matches_package_pattern(Path::new(r"C:\packages\maya\2024.1\package.py")));
+        }
+
+        #[test]
+        fn test_does_not_match_windows_path_setup_py() {
+            let matcher = SIMDPatternMatcher::new();
+            assert!(!matcher
+                .matches_package_pattern(Path::new(r"C:\packages\maya\2024.1\setup.py")));
         }
 
         #[test]
@@ -621,9 +723,12 @@ mod tests {
         fn test_default_is_same_as_new() {
             let a = SIMDPatternMatcher::new();
             let b = SIMDPatternMatcher::default();
-            // Both should behave identically
-            assert!(a.matches_package_pattern(Path::new("pkg.yaml")));
-            assert!(b.matches_package_pattern(Path::new("pkg.yaml")));
+            // Both should behave identically on a known rez package filename
+            assert!(a.matches_package_pattern(Path::new("package.yaml")));
+            assert!(b.matches_package_pattern(Path::new("package.yaml")));
+            // And both should reject a non-rez filename
+            assert!(!a.matches_package_pattern(Path::new("build.py")));
+            assert!(!b.matches_package_pattern(Path::new("build.py")));
         }
     }
 
