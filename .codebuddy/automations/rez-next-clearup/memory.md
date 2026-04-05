@@ -1,6 +1,59 @@
 # rez-next cleanup 执行记录
 
+## 最新执行 (2026-04-05 16:16, 第二十八轮)
+
+### 执行摘要
+- 审查最近迭代提交 `a70d978`、`c4ba991`、`f0ee22e`、`4e61cca` 后，聚焦 repository/rex 新增测试与语义记录中的低风险清理点
+- 完成 2 个 cleanup 提交：`1822656`（关闭过期 `stop()` TODO 并记录 repository 格式支持分叉）、`1a223da`（删除 `filesystem_tests.rs` 无用 helper，并收紧 `filesystem_tests.rs` / `simple_repository.rs` 中多处 vacuous assertions）
+- 本轮净变更为 `3 files changed, 52 insertions(+), 28 deletions(-)`；未修改运行时代码，主要加强测试契约并同步长期治理记录
+
+### 验证结果
+- **测试**: 基线 `cargo test --workspace --all-targets --all-features --quiet` 通过；清理后同命令再次通过；定向 `cargo test -p rez-next-repository --lib -- --nocapture` 与 `cargo test -p rez-next-rex --lib --quiet` 通过
+- **Lint**: `cargo clippy -p rez-next-repository --tests --quiet -- -D warnings` 与 `cargo clippy --workspace --all-targets --quiet -- -D warnings` 通过
+
+### 下一轮重点
+1. 继续审查 `high_performance_scanner.rs` 剩余的弱断言与“只读取字段”的 smoke test
+2. 评估 `FileSystemRepository` / `SimpleRepository` 是否应共享格式支持矩阵与扫描 helper，避免测试契约继续分叉
+3. 若继续触碰 `RexExecutor`，优先评估累积型 `actions/context_vars` API 是否需要单独的契约说明或 TODO 记录
+
+## 最新执行 (2026-04-05 12:05, 第二十七轮)
+
+
+### 执行摘要
+- 审查最近迭代提交 `9f2db9d`、`1e7f9d9`、`ccfe887` 后，聚焦 repository/bind/rex 新增测试中的弱断言、无意义绑定和名实不符的 fixture test
+- 完成 2 个 cleanup 提交并已推送：`cfcaa6b`（收紧 repository scan/predictor 测试并移除 vacuous checks，同时顺手修复 2 处 rex 旧式 clippy 断言）、`0066104`（在 `CLEANUP_TODO.md` 记录 `stop()` 语义后续，commit body 含 `chore(cleanup): done`）
+- 本轮净变更为 `5 files changed, 43 insertions(+), 50 deletions(-)`；未引入新功能，主要提升测试契约强度并清理近期新增代码中的低价值噪音
+
+### 验证结果
+- **测试**: `cargo test --workspace --all-targets --all-features --quiet` 在清理前后均通过
+- **Lint**: `cargo clippy --workspace --all-targets --quiet -- -D warnings` 通过；顺手清除了 `rez-next-rex/src/lib.rs` 中 2 处 `unnecessary_get_then_check`
+- **推送**: `auto-improve` 已推送到 `0066104`
+
+### 下一轮重点
+1. 继续审查 Cycle 57-59 相关测试里残留的 vacuous assertions，尤其是 `high_performance_scanner.rs` 其余“只读字段不校验”的用例
+2. 评估 `binder.rs::list_bound_packages()` 的可测试性改进方式（注入 install root 或抽出目录枚举 helper），避免继续依赖结构性 fixture 测试
+3. 若继续触碰 `RexExecutor`，先明确 `stop()` 是否应短路后续 action 的 rez 兼容语义，再决定实现还是只补文档
+
+## 最新执行 (2026-04-05 08:12, 第二十六轮)
+
+
+### 执行摘要
+- 审查最近迭代提交 `21fa415` 与 `4aa3b1d` 后，聚焦新增/拆分测试带来的低风险治理：solver 测试无效导入、过期 cleanup 记录，以及 split test module 的 clippy 回归
+- 完成 2 个 cleanup 提交并已推送：`e14485d`（移除 `dependency_resolver_tests.rs` 无效导入并关闭过期 context 拆分 TODO）、`899ea9f`（修复 `rez-next-package` 与 `rez-next-context` 10 个 split test module 的 `clippy::module_inception` 命名问题，commit body 含 `chore(cleanup): done`）
+- 本轮净变更为 `12 files changed, 27 insertions(+), 16 deletions(-)`；未删除运行时代码或文件，主要恢复质量门并纠正治理记录
+
+### 验证结果
+- **测试**: `cargo test --workspace --all-targets --all-features --quiet` 通过；定向 `cargo test -p rez-next-solver --lib --quiet`（76 passed）、`cargo test -p rez-next-package --lib --quiet`（69 passed）、`cargo test -p rez-next-context --lib --quiet`（107 passed）通过
+- **Lint**: `cargo clippy -p rez-next-solver --tests --quiet -- -D warnings` 与 `cargo clippy --workspace --all-targets --quiet -- -D warnings` 通过；将基线中的 1 处 `unused_imports` warning 与 10 处 `module_inception` error 清零
+- **推送**: `auto-improve` 已推送到 `899ea9f`
+
+### 下一轮重点
+1. 审查 cycle 55 新增的 `scanner.rs` / repository 单元测试，继续查找 vacuous assertions、重复 helper 与临时测试数据
+2. 评估 `bind.rs`、`search_v2.rs`、`pkg_cache.rs` 等大文件的低风险拆分点，优先只记录可安全落地的结构性事项
+3. 扫描其它新拆分测试目录是否仍残留同名内层模块或类似 clippy 回归
+
 ## 最新执行 (2026-04-05 03:52, 第二十五轮)
+
 
 ### 执行摘要
 - 审查最近迭代提交 `9c72a82` 与 `4632270` 后，聚焦 `rez-next-context` 新增测试的低风险治理，不触碰现有本地未提交的 `Cargo.lock`、`rez-next-auto-improve/memory.md` 与 `ws_*.txt`
