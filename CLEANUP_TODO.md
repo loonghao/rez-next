@@ -177,13 +177,17 @@
 - `SimpleRepository` still intentionally scans only `package.py`; this cycle tightened tests so the current split is explicit instead of hidden behind vacuous assertions
 - Follow-up: decide whether the divergence is intentional API surface or whether both repository implementations should share a common format matrix / scanning helper before more behavior-specific tests accumulate
 
+### 31. `PackageBinder::list_bound_packages()` still lacks a real unit-test seam
+- **Status**: TODO (cycle 29)
+- Crate-level `PackageBinder::list_bound_packages()` still reads the config-derived install root directly, so tests cannot inject a temporary package tree without coupling to global config/home expansion
+- Cycle 29 removed a misleading smoke test that only built a temp directory structure and asserted `package.py` existed; it never called `list_bound_packages()` and therefore did not protect behavior
+- Follow-up: extract a helper that accepts an install root (or otherwise inject the root path), then add contract tests for sorted family/version listing
 
-
-
-
-
-
-
+### 32. `PrefetchPredictor` tests still encode placeholder semantics instead of behavior contracts
+- **Status**: TODO (cycle 29)
+- `crates/rez-next-repository/src/high_performance_scanner.rs` still returns constant `0.5` / empty predictions from `predict_directory_priority`, `predict_file_access`, and `calculate_cache_score`
+- Current tests mostly assert range/emptiness, so they behave like smoke tests and can pass even if the predictor never becomes meaningful
+- Follow-up: either rename/document these as explicit placeholder smoke tests, or define the real predictor contract before adding more behavior-dependent assertions
 
 
 

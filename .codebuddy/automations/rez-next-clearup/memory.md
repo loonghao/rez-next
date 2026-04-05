@@ -1,5 +1,22 @@
 # rez-next cleanup 执行记录
 
+## 最新执行 (2026-04-05 20:31, 第二十九轮)
+
+### 执行摘要
+- 审查最近迭代提交 `f4fc0ca`、`a3f103c`、`1ef79ab`、`a70d978` 后，聚焦 bind / repository 新拆分测试中的低风险清理点
+- 完成 2 个代码清理提交：`d47faf0`（删除 `filesystem_tests.rs` 无用 helper 与对应 `#[allow(dead_code)]` 豁免）、`1111365`（删除 `PackageBinder` 中未覆盖目标行为的 fixture smoke test）；并在 `CLEANUP_TODO.md` 新增 2 条后续项，记录 `list_bound_packages()` 可测性与 `PrefetchPredictor` 占位契约问题
+- 本轮未修改运行时代码或公开 API，主要收紧测试资产与长期治理记录
+
+### 验证结果
+- **测试**: `vx cargo test --workspace --all-targets --all-features --quiet` 通过；定向 `vx cargo test -p rez-next-repository --lib --quiet`（176 passed）、`vx cargo test -p rez-next-bind --lib --quiet`（35 passed）、`vx cargo test -p rez-next --lib --quiet`（180 passed）通过
+- **Lint**: `vx cargo clippy --workspace --all-targets --quiet -- -D warnings` 通过；定向 `rez-next-repository` / `rez-next-bind` tests clippy 通过
+- **推送**: 待本轮 report commit 推送
+
+### 下一轮重点
+1. 为 `PackageBinder::list_bound_packages()` 引入可注入 install root 的测试 seam，并补真实排序 / 聚合契约测试
+2. 处理 `PrefetchPredictor` 占位测试：要么降级为明确 smoke test，要么先定义行为契约
+3. 继续审查 bind 拆分后的共享探测 / 版本解析逻辑是否存在低风险重复
+
 ## 最新执行 (2026-04-05 16:16, 第二十八轮)
 
 ### 执行摘要
