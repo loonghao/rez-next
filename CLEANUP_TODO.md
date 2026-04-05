@@ -196,6 +196,22 @@
 - `test_full_workflow_search_and_view` still uses stale `--path` invocations for `view` / `solve`, so the workflow coverage has drifted from the actual CLI surface
 - Follow-up: make the harness fail loudly when the binary prerequisite is missing in intended E2E runs, then replace exit-code-only assertions with observable stdout/stderr or filesystem contracts
 
+### 34. `real_repo_*` split test files still duplicate local repository helpers
+- **Status**: TODO (cycle 31)
+- `tests/real_repo_integration.rs`, `tests/real_repo_resolve_tests.rs`, and `tests/real_repo_context_tests.rs` still keep near-identical `create_package` / `make_repo` fixture builders; cycle 31 only removed the now-dead `resolve()` copy from `real_repo_integration.rs`
+- Follow-up: extract a shared `real_repo_test_helpers.rs` (or equivalent) before more repository-fixture logic drifts across the three split files
+
+### 35. Split-test migration notice shells still build as empty integration targets
+- **Status**: TODO (cycle 31)
+- `tests/rez_solver_graph_tests.rs`, `tests/rez_solver_platform_tests.rs`, and `tests/rez_compat_late_tests.rs` are intentionally retained as migration notices, but they still compile as separate zero-behavior integration test crates
+- Follow-up: decide whether git history plus comments in the focused split files are sufficient, or move the migration notices elsewhere so test-target noise stops growing
+
+### 36. Compat cycle tests now overlap with dedicated solver-graph topology coverage
+- **Status**: TODO (cycle 31)
+- `tests/rez_compat_context_tests.rs` still carries direct / three-way / self-loop / linear-chain cycle scenarios that now substantially overlap `tests/rez_solver_graph_topology_tests.rs`
+- Follow-up: verify whether the compat layer truly needs its own copies; if not, remove the duplicates or merge them into a single focused topology suite
+
+
 
 
 
