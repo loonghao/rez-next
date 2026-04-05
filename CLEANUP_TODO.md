@@ -202,14 +202,15 @@
 - Follow-up: extract a shared `real_repo_test_helpers.rs` (or equivalent) before more repository-fixture logic drifts across the three split files
 
 ### 35. Split-test migration notice shells still build as empty integration targets
-- **Status**: TODO (cycle 31)
-- `tests/rez_solver_graph_tests.rs`, `tests/rez_solver_platform_tests.rs`, and `tests/rez_compat_late_tests.rs` are intentionally retained as migration notices, but they still compile as separate zero-behavior integration test crates
-- Follow-up: decide whether git history plus comments in the focused split files are sufficient, or move the migration notices elsewhere so test-target noise stops growing
+- **Status**: COMPLETE ✓ (cycle 77)
+- Deleted `tests/rez_solver_graph_tests.rs`, `tests/rez_solver_platform_tests.rs`, and `tests/rez_compat_late_tests.rs` — all were 7-11 line comment-only files with no tests; git history in the split-file commit messages is sufficient
+- All tests continued to pass (0 failed); test-target noise reduced by 3 empty crates
 
 ### 36. Compat cycle tests now overlap with dedicated solver-graph topology coverage
-- **Status**: TODO (cycle 31)
-- `tests/rez_compat_context_tests.rs` still carries direct / three-way / self-loop / linear-chain cycle scenarios that now substantially overlap `tests/rez_solver_graph_topology_tests.rs`
-- Follow-up: verify whether the compat layer truly needs its own copies; if not, remove the duplicates or merge them into a single focused topology suite
+- **Status**: COMPLETE ✓ (cycle 77)
+- Removed 4 duplicate cycle tests from `tests/rez_compat_context_tests.rs`: `test_circular_dependency_direct`, `test_circular_dependency_three_way`, `test_no_circular_dependency_linear`, `test_self_referencing_package_is_cycle`
+- Kept `test_diamond_dependency_not_cycle` which has no equivalent in the topology suite
+- File reduced from 713 → ~550 lines; all tests pass
 
 
 
