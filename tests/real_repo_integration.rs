@@ -984,7 +984,7 @@ description = "A package with \"quotes\" and path C:\\tool"
     .unwrap();
 
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let repo = SimpleRepository::new(tmp.path().to_path_buf(), "r".to_string());
+    let repo = SimpleRepository::new(tmp.path(), "r".to_string());
     // Must not panic; either parses successfully or returns an error
     let result = rt.block_on(repo.find_packages("testpkg"));
     match result {

@@ -96,3 +96,95 @@ impl PyRepositoryManager {
         Ok(names)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    mod test_repository_manager_construction {
+        use super::*;
+
+        #[test]
+        fn test_new_with_empty_paths() {
+            let mgr = PyRepositoryManager::new(Some(vec![])).unwrap();
+            assert!(mgr.paths.is_empty());
+        }
+
+        #[test]
+        fn test_new_with_explicit_paths() {
+            let mgr = PyRepositoryManager::new(Some(vec![
+                "/tmp/pkgs1".to_string(),
+                "/tmp/pkgs2".to_string(),
+            ]))
+            .unwrap();
+            assert_eq!(mgr.paths.len(), 2);
+            assert_eq!(mgr.paths[0], PathBuf::from("/tmp/pkgs1"));
+            assert_eq!(mgr.paths[1], PathBuf::from("/tmp/pkgs2"));
+        }
+
+        #[test]
+        fn test_repr_contains_paths() {
+            let mgr = PyRepositoryManager::new(Some(vec!["/a/b".to_string()])).unwrap();
+            let repr = mgr.__repr__();
+            assert!(repr.contains("RepositoryManager"), "repr: {}", repr);
+        }
+    }
+
+    mod test_repository_find_packages {
+        use super::*;
+
+        #[test]
+        fn test_find_packages_in_nonexistent_dir_returns_empty() {
+            let mgr =
+                PyRepositoryManager::new(Some(vec!["/no/such/path/xyz_nonexistent".to_string()]))
+                    .unwrap();
+            let result = mgr.find_packages("anything");
+            // Either Ok([]) or Err; must not panic
+            if let Ok(pkgs) = result {
+                assert!(pkgs.is_empty());
+            }
+        }
+
+        #[test]
+        fn test_find_packages_in_empty_temp_dir_returns_empty() {
+            let tmp = std::env::temp_dir().join("rez_repo_test_empty");
+            std::fs::create_dir_all(&tmp).unwrap();
+            let mgr =
+                PyRepositoryManager::new(Some(vec![tmp.to_string_lossy().to_string()])).unwrap();
+            let result = mgr.find_packages("somepkg");
+            if let Ok(pkgs) = result {
+                assert!(pkgs.is_empty());
+            }
+
+            let _ = std::fs::remove_dir_all(&tmp);
+        }
+
+        #[test]
+        fn test_get_latest_package_empty_repo_returns_none() {
+            let tmp = std::env::temp_dir().join("rez_repo_latest_empty");
+            std::fs::create_dir_all(&tmp).unwrap();
+            let mgr =
+                PyRepositoryManager::new(Some(vec![tmp.to_string_lossy().to_string()])).unwrap();
+            let result = mgr.get_latest_package("ghost_pkg");
+            if let Ok(pkg) = result {
+                assert!(pkg.is_none());
+            }
+
+            let _ = std::fs::remove_dir_all(&tmp);
+        }
+
+        #[test]
+        fn test_get_package_family_names_empty_repo_returns_empty() {
+            let tmp = std::env::temp_dir().join("rez_repo_family_empty");
+            std::fs::create_dir_all(&tmp).unwrap();
+            let mgr =
+                PyRepositoryManager::new(Some(vec![tmp.to_string_lossy().to_string()])).unwrap();
+            let result = mgr.get_package_family_names();
+            if let Ok(names) = result {
+                assert!(names.is_empty());
+            }
+
+            let _ = std::fs::remove_dir_all(&tmp);
+        }
+    }
+}

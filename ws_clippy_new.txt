@@ -1,0 +1,14 @@
+﻿cargo :     Checking rez-next-rex v0.3.0 (G:\PycharmProjects\github\rez-next\crates\rez-next-rex)
+At line:1 char:40
++ ... Projects\github\rez-next; cargo clippy --workspace --lib 2>&1 | Out-F ...
++                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (    Checking re...s\rez-next-rex):String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+    Checking rez-next-bind v0.3.0 (G:\PycharmProjects\github\rez-next\crates\rez-next-bind)
+    Checking rez-next-context v0.3.0 (G:\PycharmProjects\github\rez-next\crates\rez-next-context)
+    Checking rez-next-suites v0.3.0 (G:\PycharmProjects\github\rez-next\crates\rez-next-suites)
+    Checking rez-next-build v0.3.0 (G:\PycharmProjects\github\rez-next\crates\rez-next-build)
+    Checking rez-next-python v0.3.0 (G:\PycharmProjects\github\rez-next\crates\rez-next-python)
+    Checking rez-next v0.3.0 (G:\PycharmProjects\github\rez-next)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 2.08s

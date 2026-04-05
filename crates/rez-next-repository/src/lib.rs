@@ -13,6 +13,7 @@ pub mod filesystem;
 pub mod high_performance_scanner;
 pub mod repository;
 pub mod scanner;
+pub mod scanner_types;
 pub mod simple_repository;
 
 pub use cache::*;
@@ -23,4 +24,8 @@ pub use repository::{
     RepositoryType,
 };
 pub use scanner::*;
+pub use scanner_types::{
+    CacheStatistics, PackageScanResult, ScanError, ScanErrorType, ScanPerformanceMetrics,
+    ScanResult, ScannerConfig,
+};
 pub use simple_repository::*;

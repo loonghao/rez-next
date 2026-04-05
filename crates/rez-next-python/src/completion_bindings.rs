@@ -259,3 +259,149 @@ fn detect_current_shell() -> String {
     }
     "bash".to_string()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ── supported_completion_shells ───────────────────────────────────────────
+
+    #[test]
+    fn test_supported_shells_count() {
+        let shells = supported_completion_shells();
+        assert_eq!(shells.len(), 4);
+    }
+
+    #[test]
+    fn test_supported_shells_contains_all() {
+        let shells = supported_completion_shells();
+        assert!(shells.contains(&"bash".to_string()));
+        assert!(shells.contains(&"zsh".to_string()));
+        assert!(shells.contains(&"fish".to_string()));
+        assert!(shells.contains(&"powershell".to_string()));
+    }
+
+    // ── get_completion_script: valid shells ───────────────────────────────────
+
+    #[test]
+    fn test_bash_script_returned() {
+        let script = get_completion_script(Some("bash")).unwrap();
+        assert!(script.contains("_rez_next_complete"));
+        assert!(script.contains("rez-next"));
+    }
+
+    #[test]
+    fn test_zsh_script_returned() {
+        let script = get_completion_script(Some("zsh")).unwrap();
+        assert!(script.contains("_rez_next"));
+        assert!(script.contains("#compdef"));
+    }
+
+    #[test]
+    fn test_fish_script_returned() {
+        let script = get_completion_script(Some("fish")).unwrap();
+        assert!(script.contains("complete -c rez-next"));
+        assert!(script.contains("__rez_needs_command"));
+    }
+
+    #[test]
+    fn test_powershell_script_returned() {
+        let script = get_completion_script(Some("powershell")).unwrap();
+        assert!(script.contains("Register-ArgumentCompleter"));
+        assert!(script.contains("rez-next"));
+    }
+
+    #[test]
+    fn test_pwsh_alias_returns_powershell_script() {
+        let script = get_completion_script(Some("pwsh")).unwrap();
+        assert!(script.contains("Register-ArgumentCompleter"));
+    }
+
+    #[test]
+    fn test_ps1_alias_returns_powershell_script() {
+        let script = get_completion_script(Some("ps1")).unwrap();
+        assert!(script.contains("Register-ArgumentCompleter"));
+    }
+
+    #[test]
+    fn test_unknown_shell_is_not_in_supported_list() {
+        // Verify that an unknown shell name is absent from the supported list
+        // (actual error path requires PyO3 GIL so is covered by Python e2e tests)
+        let shells = supported_completion_shells();
+        assert!(!shells.contains(&"tcsh".to_string()));
+        assert!(!shells.contains(&"csh".to_string()));
+    }
+
+    // ── Script content sanity checks ─────────────────────────────────────────
+
+    #[test]
+    fn test_bash_script_lists_rez_commands() {
+        let script = get_completion_script(Some("bash")).unwrap();
+        // The 'env' and 'solve' sub-commands must be present
+        assert!(script.contains("env"));
+        assert!(script.contains("solve"));
+    }
+
+    #[test]
+    fn test_zsh_script_lists_env_command() {
+        let script = get_completion_script(Some("zsh")).unwrap();
+        assert!(script.contains("env:create a resolved environment"));
+    }
+
+    #[test]
+    fn test_scripts_are_non_empty() {
+        for shell in &["bash", "zsh", "fish", "powershell"] {
+            let script = get_completion_script(Some(shell)).unwrap();
+            assert!(
+                script.len() > 100,
+                "Script for {} should be non-trivial",
+                shell
+            );
+        }
+    }
+
+    // ── get_completion_install_path ───────────────────────────────────────────
+
+    #[test]
+    fn test_install_path_bash() {
+        let path = get_completion_install_path(Some("bash")).unwrap();
+        assert!(path.contains("bash"));
+        assert!(path.contains("rez-next"));
+    }
+
+    #[test]
+    fn test_install_path_zsh() {
+        let path = get_completion_install_path(Some("zsh")).unwrap();
+        assert!(path.contains("zsh"));
+        assert!(path.contains("_rez-next"));
+    }
+
+    #[test]
+    fn test_install_path_fish() {
+        let path = get_completion_install_path(Some("fish")).unwrap();
+        assert!(path.contains("fish"));
+        assert!(path.contains("rez-next.fish"));
+    }
+
+    #[test]
+    fn test_install_path_powershell() {
+        let path = get_completion_install_path(Some("powershell")).unwrap();
+        assert!(path.contains("powershell") || path.contains("PowerShell"));
+    }
+
+    #[test]
+    fn test_install_path_unknown_is_not_in_supported_list() {
+        let shells = supported_completion_shells();
+        assert!(!shells.contains(&"csh".to_string()));
+    }
+
+    // ── print_completion_script (smoke, no output capture needed) ────────────
+
+    #[test]
+    fn test_print_completion_script_valid_shell_no_panic() {
+        // Verify no panic occurs for a known shell; stdout not captured in unit tests.
+        // Note: this calls print! so output may appear; that's acceptable.
+        // Unknown shell path requires GIL and is covered in Python e2e tests.
+        assert!(print_completion_script(Some("bash")).is_ok());
+    }
+}

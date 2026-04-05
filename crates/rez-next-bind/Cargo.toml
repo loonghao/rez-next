@@ -17,7 +17,6 @@ regex.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true
-rstest.workspace = true
 
 [lints]
 workspace = true

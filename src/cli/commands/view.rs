@@ -2,6 +2,7 @@
 //!
 //! Implementation of the `rez view` command for viewing package information.
 
+use crate::cli::utils::expand_home_path;
 use clap::Args;
 use rez_next_common::{error::RezCoreResult, RezCoreError};
 use rez_next_package::{Package, PackageSerializer};
@@ -56,7 +57,6 @@ fn view_current_package(_args: &ViewArgs) -> RezCoreResult<()> {
     // TODO: Implement current context package viewing
     // This requires integration with rez-core-context
 
-    eprintln!("Error: not in a resolved environment context.");
     Err(RezCoreError::Repository(
         "Not in a resolved environment context".to_string(),
     ))
@@ -159,15 +159,6 @@ fn load_package_from_repos(spec: &str) -> RezCoreResult<Package> {
     });
 
     Ok((*sorted.into_iter().next().unwrap()).clone())
-}
-
-fn expand_home_path(p: &str) -> std::path::PathBuf {
-    if p.starts_with("~/") || p == "~" {
-        if let Some(home) = std::env::var_os("USERPROFILE").or_else(|| std::env::var_os("HOME")) {
-            return std::path::PathBuf::from(home).join(&p[2..]);
-        }
-    }
-    std::path::PathBuf::from(p)
 }
 
 /// Display package information in the requested format

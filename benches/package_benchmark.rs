@@ -16,14 +16,7 @@ use std::hint::black_box;
 use std::time::SystemTime;
 use thiserror::Error;
 
-// Import the benchmark framework
-// mod comprehensive_benchmark_suite;
-// use comprehensive_benchmark_suite::{
-//     ModuleBenchmark, BaselineMetrics, BenchmarkResult, EnvironmentInfo,
-//     ModuleBenchmarkConfig, BenchmarkError, environment
-// };
-
-// Temporary simplified definitions for testing
+// Minimal benchmark framework used by this standalone benchmark target.
 use std::time::Duration;
 
 pub trait ModuleBenchmark: Send + Sync {

@@ -40,16 +40,12 @@ tokio = { version = "1.45", features = ["full"] }
 regex = "1.11"
 thiserror = "2.0"
 rand = "0.10"
+tracing = "0.1"
 clap = { version = "4.5", features = ["derive", "env"] }
 
 # Dev dependencies
 criterion = { version = "0.8", features = ["html_reports"] }
-proptest = "1.7"
-rstest = "0.26"
 tempfile = "3.20"
-assert_matches = "1.5"
-pretty_assertions = "1.4"
-serial_test = "3.2"
 
 [package]
 name = "rez-next"
@@ -61,8 +57,9 @@ license.workspace = true
 repository.workspace = true
 keywords.workspace = true
 categories.workspace = true
-# Disable auto-discovery for benchmarks — only explicitly listed [[bench]] entries are compiled.
-# This prevents broken bench files in benches/ from causing compilation errors.
+# Disable benchmark auto-discovery — only explicitly listed [[bench]] entries are compiled.
+# This keeps helper or experimental files in `benches/` from being picked up implicitly.
+
 autobenches = false
 
 [lib]
@@ -113,12 +110,7 @@ windows-sys = { version = "0.61", features = ["Win32_System_Console"] }
 
 [dev-dependencies]
 criterion.workspace = true
-proptest.workspace = true
-rstest.workspace = true
 tempfile.workspace = true
-assert_matches.workspace = true
-pretty_assertions.workspace = true
-serial_test.workspace = true
 serde.workspace = true
 serde_yaml.workspace = true
 thiserror.workspace = true
@@ -170,6 +162,10 @@ harness = false
 
 [[bench]]
 name = "cache_operations_benchmark"
+harness = false
+
+[[bench]]
+name = "rez_vs_reznext_benchmark"
 harness = false
 
 

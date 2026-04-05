@@ -74,12 +74,125 @@
 - Deleted 5 mock simulation tests from `tests/integration_tests.rs::performance_tests` module — same pattern, no actual project code tested
 
 ### 16. eprintln in library code — needs tracing dependency
-- **Status**: DEFERRED (cycle 20)
-- 3 library-code `eprintln!` calls in: `scanner.rs`, `filesystem.rs`, `intelligent_manager.rs`
-- Replacing with `tracing::warn!` requires adding `tracing` crate as a new dependency — outside cleanup scope
-- Recommended: iteration agent should add `tracing` to workspace deps, then cleanup agent can migrate
+- **Status**: COMPLETE ✓ (cycle 35 / iteration agent)
+- Added `tracing = "0.1"` to workspace dependencies and as a direct dep to `rez-next-cache` and `rez-next-repository`
+- Replaced 3 library-code `eprintln!` calls with `tracing::warn!`:
+  - `intelligent_manager.rs:391` — L1 cache promotion failure
+  - `filesystem.rs:404` — package load failure during repo scan
+  - `scanner.rs:378` — path preload failure
+- `eprintln!` calls in `bin/` and `examples/` are intentional CLI/demo output and remain unchanged
 
-### 12. `build --help` / `env --help` returns exit code 1
+### 17. `pyo3` version drift between workspace and `rez-next-python`
+- **Status**: COMPLETE ✓ (cycle 22)
+- Previous cycle-21 note was stale: root `Cargo.toml` and `crates/rez-next-python/Cargo.toml` currently both pin `pyo3 = 0.25`
+- No active workspace-vs-crate drift remains to clean up; this item is closed as an outdated cleanup record rather than a dependency change
+- Future `pyo3` upgrades should be handled as normal dependency work with wheel/build validation, not as existing cleanup debt
+
+### 18. Platform mismatch solver test has weak assertion
+- **Status**: COMPLETE ✓ (cycle 37)
+- `test_solver_platform_mismatch_fails_or_empty` renamed and split into two tests:
+  - `test_solver_platform_mismatch_lenient_records_failure`: asserts `maya_linux` not cleanly resolved without failed_requirements
+  - `test_solver_platform_mismatch_strict_returns_err`: asserts strict mode returns Err
+- Both tests carry observable contract assertions instead of `let _ = ...`
+
+### 19. Split solver test files still duplicate repository/runtime helpers
+- **Status**: COMPLETE ✓ (cycle 36)
+- Extracted `build_test_repo` into `tests/solver_helpers.rs`; all four solver test files now use `#[path = "solver_helpers.rs"] mod solver_helpers` — no drift after future test splits
+
+### 20. Cargo.lock policy note no longer matches repository state
+- **Status**: COMPLETE ✓ (cycle 24)
+- `.gitignore` no longer claims that `Cargo.lock` is tracked for reproducible binary builds
+- Current repository policy is now documented accurately: the workspace does **not** currently track a root `Cargo.lock`
+
+### 21. Additional vacuous compatibility assertions remain in tests
+- **Status**: COMPLETE ✓ (cycle 37)
+- Replaced `let _ = result` / `let _ = r.resolved_packages` style vacuous assertions across 5 test files:
+  - `rez_solver_platform_tests.rs`: mismatch + conflict Ok branches
+  - `rez_solver_edge_case_tests.rs`: conflicting transitive requirements Ok branch
+  - `rez_solver_graph_tests.rs`: strict mode Ok fallback branch
+  - `rez_compat_misc_tests.rs`: version conflict empty repo + large version component
+  - `rez_compat_solver_tests.rs`: empty repo single requirement
+- Each replaced assertion now verifies an observable contract (resolved count, failed_requirements presence, version prefix)
+
+### 22. Alpha token ordering not rez-compatible
+- **Status**: COMPLETE ✓ (cycle 38)
+- rez spec: alpha tokens sort *less than* numeric tokens — `1.0.alpha < 1.0.0`
+- Fixed `compare_single_token` in `rez-next-version/src/version.rs`:
+  - Added fast paths for purely alpha vs purely numeric tokens (alpha → `Less`, numeric → `Greater`)
+  - Updated segment-by-segment comparison to use `(false, true) => Less` / `(true, false) => Greater` when one segment is alpha and the other numeric
+- Updated `test_version_alphanumeric_ordering` in `rez_compat_late_tests.rs`: removed TODO placeholder, added real assertion `va < vz`
+- Updated `test_version_prerelease_less_than_release` in `version_tests.rs`: added `assert!(pre < rel)`
+- All 125 version crate tests + full test suite (~715 tests) pass
+
+### 23. Large mixed-responsibility files remain in CLI and build/parser modules
+- **Status**: TODO (cycle 25)
+- `src/cli/commands/bind.rs`, `crates/rez-next-build/src/systems/mod.rs`, `crates/rez-next-package/src/python_ast_parser/mod.rs`, `src/cli/commands/search_v2.rs`, and `src/cli/commands/pkg_cache.rs` are still ~500-1300 lines and mix orchestration with parsing/formatting/IO
+- `python_ast_parser.rs` has already been split into focused submodules; remaining follow-up is to keep the new `mod.rs` from regrowing mixed responsibilities
+- Follow-up: split by responsibility before adding more behavior to these files
+
+
+### 24. CLI helper logic is still duplicated across commands
+- **Status**: TODO (cycle 25)
+- Home-path expansion is now centralized for `bind.rs`, `cp.rs`, `mv.rs`, `rm.rs`, `status.rs`, `test.rs`, `view.rs`, and related commands, but `build.rs` still keeps a custom path-normalization helper because it also validates UNC / drive-specific forms
+- Time parsing is now centralized in `src/cli/utils.rs`; remove redundant command-local tests and evaluate whether `build.rs` path handling can converge on the shared helper without losing validation behavior
+- Follow-up: extract shared CLI helpers for path expansion and timestamp parsing
+
+### 25. Public compatibility stubs still need explicit product decisions
+- **Status**: COMPLETE ✓ (cycle 43 for build-system tests; stubs fixed in cycle 39)
+- `get_pip_dependencies()` — **FIXED**: now raises `NotImplementedError` instead of returning empty list silently (cycle 39)
+- `pip_install()` — **FIXED**: now raises `NotImplementedError` instead of fake-installing packages (cycle 39)
+- `optimized_solver.rs` — **DELETED**: dead file not in module tree, `detect_conflicts_optimized()` was only reachable via this dead code (cycle 39)
+- `crates/rez-next-build/src/systems/` — **TESTED** (cycle 43): added mock tests for `PythonBuildSystem`, `NodeJsBuildSystem`, `CargoBuildSystem`, and `BuildSystem::detect`/`detect_with_package` using `tempdir`
+  - 10 new `detect*` tests in `systems/mod.rs`; 4 tests in `python.rs`; 3 tests in `nodejs.rs`; 3 tests in `cargo_build.rs`
+  - `BuildStep` received `#[derive(PartialEq)]` to support `assert_eq!`
+  - Cycle 46 removed redundant unit-struct smoke tests and cleaned follow-up clippy regressions in nearby bindings/tests
+  - All 70 rez-next-build tests pass; 0 clippy warnings
+
+### 26. Build-system command execution still depends on shell-specific strings
+- **Status**: TODO (cycle 46)
+- `python.rs`, `nodejs.rs`, `cargo_build.rs`, `make.rs`, `cmake.rs`, and `custom.rs` still assemble shell-specific command strings inline (`2>&1`, `|| echo`, quoting, `DESTDIR=...`)
+- Follow-up: extract a shared command runner / argument builder so quoting, fallback behavior, and stderr handling stay consistent across shells and platforms
+
+### 27. Python context/source bindings still expose placeholder compatibility behavior
+- **Status**: TODO (cycle 46)
+- `context_bindings.rs` creates a fresh Tokio runtime per operation and returns synthetic `/packages/<name>/bin/<tool>` paths from `get_tools()`
+- `source_bindings.rs` still hardcodes `/tmp/rez_context.rxt` and placeholder `REZPKG_*` env vars for generated scripts
+- Follow-up: either implement real rez-compatible semantics or explicitly document the current partial-compatibility contract
+
+### 28. `rez-next-context` test mega-file should be split by concern
+- **Status**: COMPLETE ✓ (cycle 56)
+- `crates/rez-next-context/src/tests.rs` has already been replaced by `crates/rez-next-context/src/tests/` with focused modules for context loading, shell generation, RXT/RXTB IO, execution, env diff, and resolved-context behavior
+- The previous TODO note became stale after iteration commit `4aa3b1d`, which completed the split into concern-specific test modules
+- Follow-up: keep future context tests in the focused modules instead of regrowing a single mega-file
+
+### 29. `RexExecutor` still applies actions after `stop()`
+- **Status**: COMPLETE ✓ (cycle 28)
+- This TODO became stale after iteration commit `c4ba991`, which changed `RexEnvironment::apply()` to stop processing after `RexActionType::Stop`
+- Current behavior is now locked by focused tests in `crates/rez-next-rex/src/lib.rs` and `crates/rez-next-rex/src/executor_tests.rs`
+- Follow-up: keep documenting rez-compatible `stop()` semantics in user-facing Rex docs if new command examples are added
+
+### 30. Repository format support has diverged between `FileSystemRepository` and `SimpleRepository`
+- **Status**: TODO (cycle 28)
+- Iteration commit `a70d978` expanded `FileSystemRepository` to load `package.py`, `package.yaml`, `package.yml`, and `package.json`
+- `SimpleRepository` still intentionally scans only `package.py`; this cycle tightened tests so the current split is explicit instead of hidden behind vacuous assertions
+- Follow-up: decide whether the divergence is intentional API surface or whether both repository implementations should share a common format matrix / scanning helper before more behavior-specific tests accumulate
+
+### 31. `PackageBinder::list_bound_packages()` still lacks a real unit-test seam
+- **Status**: TODO (cycle 29)
+- Crate-level `PackageBinder::list_bound_packages()` still reads the config-derived install root directly, so tests cannot inject a temporary package tree without coupling to global config/home expansion
+- Cycle 29 removed a misleading smoke test that only built a temp directory structure and asserted `package.py` existed; it never called `list_bound_packages()` and therefore did not protect behavior
+- Follow-up: extract a helper that accepts an install root (or otherwise inject the root path), then add contract tests for sorted family/version listing
+
+### 32. `PrefetchPredictor` tests still encode placeholder semantics instead of behavior contracts
+- **Status**: TODO (cycle 29)
+- `crates/rez-next-repository/src/high_performance_scanner.rs` still returns constant `0.5` / empty predictions from `predict_directory_priority`, `predict_file_access`, and `calculate_cache_score`
+- Current tests mostly assert range/emptiness, so they behave like smoke tests and can pass even if the predictor never becomes meaningful
+- Follow-up: either rename/document these as explicit placeholder smoke tests, or define the real predictor contract before adding more behavior-dependent assertions
+
+
+
+
+
 - **Status**: COMPLETE ✓ (cycle 19)
 - Fixed `handle_grouped_command` in `rez-next.rs`: clap returns `Err` for `--help`/`--version` display; now uses `e.use_stderr()` to decide exit code (0 for help/version, 1 for real errors)
 - Previously `eprintln!` + `exit(1)` swallowed the help output and returned wrong exit code

@@ -11,7 +11,7 @@
 
 pub mod package;
 pub mod python_ast_parser;
-pub mod serialization; // Always available for CLI usage // Advanced Python AST parser
+pub mod serialization; // Always available for CLI usage
 
 pub use package::*;
 pub use python_ast_parser::*;

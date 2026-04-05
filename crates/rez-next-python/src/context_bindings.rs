@@ -1,7 +1,7 @@
 //! Python bindings for ResolvedContext
 
-use crate::expand_home;
 use crate::package_bindings::PyPackage;
+use crate::package_functions::expand_home;
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use rez_next_context::{ContextStatus, ResolvedContext};
@@ -394,11 +394,11 @@ impl PyResolvedContext {
     }
 }
 
-// ── Phase 78: PyResolvedContext internal logic tests ─────────────────────────
-
 #[cfg(test)]
 mod context_bindings_tests {
+
     use rez_next_context::{ContextStatus, ResolvedContext};
+
     use rez_next_package::{Package, PackageRequirement};
     use rez_next_version::Version;
 

@@ -96,7 +96,7 @@ pub fn resolve_forward_tool(
 
     let mut repo_manager = RepositoryManager::new();
     for (i, p) in config.packages_path.iter().enumerate() {
-        let path = PathBuf::from(crate::expand_home(p));
+        let path = PathBuf::from(crate::package_functions::expand_home(p));
         if path.exists() {
             repo_manager
                 .add_repository(Box::new(SimpleRepository::new(path, format!("repo_{}", i))));

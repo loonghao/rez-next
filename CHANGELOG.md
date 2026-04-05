@@ -5,7 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-<<<<<<< HEAD
+## [Unreleased]
+
+### Tests
+
+- **build/systems**: Add `#[derive(PartialEq)]` to `BuildStep` to enable `assert_eq!` in tests
+- **build/systems/python**: Add mock tests for `PythonBuildSystem`
+  - `test_configure_without_rezbuild_succeeds` — configure path when no rezbuild.py
+  - `test_compile_no_build_files_skips_gracefully` — compile skip path
+  - `test_package_always_succeeds` — static packaging result
+  - `test_install_no_build_files_copies_source` — copy-files fallback in install
+- **build/systems/nodejs**: Add mock tests for `NodeJsBuildSystem`
+  - `test_package_always_succeeds` — static packaging result
+  - `test_install_without_dist_copies_source` — install from source when no dist/
+  - `test_install_with_dist_dir_copies_dist` — install from dist/ when present
+- **build/systems/cargo_build**: Add tests for `CargoBuildSystem`
+  - `test_package_returns_ok_regardless_of_cargo_availability` — package() never propagates Err
+  - `test_compile_command_uses_release_flag` — release flag logic
+  - `test_install_command_includes_release_flag` — install command flag
+- **build/systems/mod**: Add 10 `detect` / `detect_with_package` tests using real `tempdir`
+  - cmake, make, python (setup.py + pyproject.toml), nodejs, cargo marker-file detection
+  - Custom build script priority over CMakeLists.txt
+  - rezbuild.py priority over generic file-based detection
+  - Explicit `build_system` and `build_command` override paths (nodejs, python, make, build_command)
 ## [0.1.5](https://github.com/loonghao/rez-next/compare/v0.1.4...v0.1.5) (2026-04-03)
 
 

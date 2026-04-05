@@ -310,33 +310,42 @@ mod status_bindings_tests {
     }
 
     #[test]
-    fn test_detect_shell_returns_some_or_none() {
-        // Just verify the function doesn't panic
-        let _ = detect_shell_from_env();
+    fn test_detect_shell_from_env_maps_bash() {
+        unsafe {
+            std::env::set_var("SHELL", "/bin/bash");
+        }
+        assert_eq!(detect_shell_from_env().as_deref(), Some("bash"));
+        unsafe {
+            std::env::remove_var("SHELL");
+        }
     }
 
     #[test]
     fn test_get_rez_env_var_with_prefix() {
-        // REZ_VERSION might exist; just test the function returns Option
-        let _ = get_rez_env_var("VERSION");
+        unsafe {
+            std::env::set_var("REZ_STATUS_BINDINGS_WITH_PREFIX", "active");
+        }
+        assert_eq!(
+            get_rez_env_var("REZ_STATUS_BINDINGS_WITH_PREFIX").as_deref(),
+            Some("active")
+        );
+        unsafe {
+            std::env::remove_var("REZ_STATUS_BINDINGS_WITH_PREFIX");
+        }
     }
 
     #[test]
     fn test_get_rez_env_var_without_prefix() {
-        // When key already starts with REZ_
-        let _ = get_rez_env_var("REZ_VERSION");
-    }
-
-    #[test]
-    fn test_status_to_dict_fields_present() {
-        // Validate that PyRezStatus has expected field structure
-        let s = detect_current_status();
-        // is_active, context_file, resolved_packages, etc.
-        // Verify basic field types
-        let _ = s.is_active;
-        let _ = &s.resolved_packages;
-        let _ = &s.requested_packages;
-        let _ = &s.implicit_packages;
+        unsafe {
+            std::env::set_var("REZ_STATUS_BINDINGS_NO_PREFIX", "present");
+        }
+        assert_eq!(
+            get_rez_env_var("STATUS_BINDINGS_NO_PREFIX").as_deref(),
+            Some("present")
+        );
+        unsafe {
+            std::env::remove_var("REZ_STATUS_BINDINGS_NO_PREFIX");
+        }
     }
 
     #[test]

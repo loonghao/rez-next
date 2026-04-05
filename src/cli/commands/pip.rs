@@ -4,6 +4,7 @@
 //! Installs Python packages via pip into a rez package repository,
 //! wrapping them with rez package.py metadata.
 
+use crate::cli::utils::expand_home_str as expand_home;
 use clap::Args;
 use rez_next_common::{config::RezCoreConfig, error::RezCoreResult, RezCoreError};
 use std::path::{Path, PathBuf};
@@ -406,16 +407,6 @@ fn parse_pkg_name_from_spec(spec: &str) -> String {
         }
     }
     name.trim().to_lowercase().replace('-', "_")
-}
-
-/// Expand ~ in path strings
-fn expand_home(p: &str) -> String {
-    if p.starts_with("~/") || p == "~" {
-        if let Ok(home) = std::env::var("USERPROFILE").or_else(|_| std::env::var("HOME")) {
-            return p.replacen("~", &home, 1);
-        }
-    }
-    p.to_string()
 }
 
 #[cfg(test)]

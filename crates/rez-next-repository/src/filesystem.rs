@@ -6,6 +6,7 @@ use crate::{
 use rez_next_common::RezCoreError;
 use rez_next_package::Package;
 use rez_next_version::Version;
+use tracing::warn;
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -279,7 +280,9 @@ impl Repository for FileSystemRepository {
 
     async fn get_package_names(&self) -> Result<Vec<String>, RezCoreError> {
         let package_cache = self.package_cache.read().await;
-        Ok(package_cache.keys().cloned().collect())
+        let mut names: Vec<String> = package_cache.keys().cloned().collect();
+        names.sort();
+        Ok(names)
     }
 
     async fn get_stats(&self) -> Result<RepositoryStats, RezCoreError> {
@@ -308,25 +311,58 @@ impl FileSystemRepository {
         let mut package_cache = self.package_cache.write().await;
         let mut variant_cache = self.variant_cache.write().await;
 
-        // Walk through the repository directory
-        let mut entries = fs::read_dir(&self.metadata.path).await.map_err(|e| {
+        // Walk through the repository directory.
+        // Expected layout: root/{family}/{version}/package.yaml
+        // We iterate two levels: family dirs first, then version dirs inside each family.
+        let mut family_entries = fs::read_dir(&self.metadata.path).await.map_err(|e| {
             RezCoreError::Repository(format!("Failed to read repository directory: {}", e))
         })?;
 
-        while let Some(entry) = entries.next_entry().await.map_err(|e| {
+        while let Some(family_entry) = family_entries.next_entry().await.map_err(|e| {
             RezCoreError::Repository(format!("Failed to read directory entry: {}", e))
         })? {
-            let path = entry.path();
-            if path.is_dir() {
-                // This might be a package directory
+            let family_path = family_entry.path();
+            if !family_path.is_dir() {
+                continue;
+            }
+
+            // First check if this directory itself contains a package file (flat layout)
+            let has_direct_pkg = ["package.yaml", "package.yml", "package.json"]
+                .iter()
+                .any(|f| family_path.join(f).exists());
+
+            if has_direct_pkg {
                 if let Ok(scan_result) = self
-                    .scan_package_directory(&path, &mut package_cache, &mut variant_cache)
+                    .scan_package_directory(&family_path, &mut package_cache, &mut variant_cache)
                     .await
                 {
                     package_count += scan_result.packages_found;
                     version_count += scan_result.versions_found;
                     variant_count += scan_result.variants_found;
                     size_bytes += scan_result.size_bytes;
+                }
+                continue;
+            }
+
+            // Otherwise treat subdirectories as versioned package dirs
+            if let Ok(mut version_entries) = fs::read_dir(&family_path).await {
+                while let Ok(Some(version_entry)) = version_entries.next_entry().await {
+                    let version_path = version_entry.path();
+                    if version_path.is_dir() {
+                        if let Ok(scan_result) = self
+                            .scan_package_directory(
+                                &version_path,
+                                &mut package_cache,
+                                &mut variant_cache,
+                            )
+                            .await
+                        {
+                            package_count += scan_result.packages_found;
+                            version_count += scan_result.versions_found;
+                            variant_count += scan_result.variants_found;
+                            size_bytes += scan_result.size_bytes;
+                        }
+                    }
                 }
             }
         }
@@ -401,7 +437,7 @@ impl FileSystemRepository {
                         break; // Found a package file, no need to check others
                     }
                     Err(e) => {
-                        eprintln!(
+                        warn!(
                             "Failed to load package from {}: {}",
                             package_file.display(),
                             e
@@ -419,33 +455,12 @@ impl FileSystemRepository {
         })
     }
 
-    /// Load a package from a file
+    /// Load a package from a file (supports .py, .yaml, .yml, .json)
     async fn load_package_from_file(&self, path: &Path) -> Result<Package, RezCoreError> {
-        let content = fs::read_to_string(path).await.map_err(|e| {
-            RezCoreError::Repository(format!(
-                "Failed to read package file {}: {}",
-                path.display(),
-                e
-            ))
-        })?;
-
-        // Simple YAML parsing for now
-        if path.extension().and_then(|s| s.to_str()) == Some("yaml")
-            || path.extension().and_then(|s| s.to_str()) == Some("yml")
-        {
-            serde_yaml::from_str(&content).map_err(|e| {
-                RezCoreError::Repository(format!(
-                    "Failed to parse YAML package file {}: {}",
-                    path.display(),
-                    e
-                ))
-            })
-        } else {
-            Err(RezCoreError::Repository(format!(
-                "Unsupported package file format: {}",
-                path.display()
-            )))
-        }
+        // Delegate to PackageLoader which handles all formats including package.py
+        rez_next_package::serialization::PackageSerializer::load_from_file(path).map_err(|e| {
+            RezCoreError::Repository(format!("Failed to load {}: {}", path.display(), e))
+        })
     }
 
     /// Check if a string matches a pattern (supports basic wildcards)
@@ -474,3 +489,10 @@ struct PackageScanResult {
     variants_found: usize,
     size_bytes: u64,
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FileSystemRepository unit tests (extracted to filesystem_tests.rs, Cycle 63)
+// ─────────────────────────────────────────────────────────────────────────────
+#[cfg(test)]
+#[path = "filesystem_tests.rs"]
+mod tests;

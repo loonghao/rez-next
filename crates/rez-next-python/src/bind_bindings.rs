@@ -162,3 +162,136 @@ pub fn find_tool(tool_name: &str) -> Option<String> {
 pub fn extract_version(raw_output: &str) -> Option<String> {
     extract_version_from_output(raw_output)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ── PyBindResult ──────────────────────────────────────────────────────────
+
+    #[test]
+    fn test_bind_result_getters() {
+        let r = PyBindResult {
+            name: "python".to_string(),
+            version: "3.11.4".to_string(),
+            install_path: "/pkgs/python/3.11.4".to_string(),
+            executable_path: Some("/usr/bin/python3".to_string()),
+        };
+        assert_eq!(r.name(), "python");
+        assert_eq!(r.version(), "3.11.4");
+        assert_eq!(r.install_path(), "/pkgs/python/3.11.4");
+        assert_eq!(r.executable_path(), Some("/usr/bin/python3"));
+    }
+
+    #[test]
+    fn test_bind_result_no_executable() {
+        let r = PyBindResult {
+            name: "cmake".to_string(),
+            version: "3.26.0".to_string(),
+            install_path: "/pkgs/cmake/3.26.0".to_string(),
+            executable_path: None,
+        };
+        assert_eq!(r.executable_path(), None);
+    }
+
+    #[test]
+    fn test_bind_result_repr_format() {
+        let r = PyBindResult {
+            name: "git".to_string(),
+            version: "2.42.0".to_string(),
+            install_path: "/pkgs/git/2.42.0".to_string(),
+            executable_path: None,
+        };
+        let repr = r.__repr__();
+        assert!(repr.contains("BindResult"));
+        assert!(repr.contains("git"));
+        assert!(repr.contains("2.42.0"));
+        assert!(repr.contains("/pkgs/git/2.42.0"));
+    }
+
+    // ── PyBindManager ─────────────────────────────────────────────────────────
+
+    #[test]
+    fn test_bind_manager_repr() {
+        let m = PyBindManager::new();
+        assert_eq!(m.__repr__(), "BindManager()");
+    }
+
+    #[test]
+    fn test_bind_manager_default_same_as_new() {
+        let a = PyBindManager::new();
+        let b = PyBindManager::default();
+        assert_eq!(a.__repr__(), b.__repr__());
+    }
+
+    #[test]
+    fn test_list_binders_non_empty() {
+        let m = PyBindManager::new();
+        let binders = m.list_binders();
+        assert!(
+            !binders.is_empty(),
+            "there should be at least one built-in binder"
+        );
+    }
+
+    #[test]
+    fn test_list_binders_contains_known_tools() {
+        let m = PyBindManager::new();
+        let binders = m.list_binders();
+        assert!(binders.contains(&"python".to_string()));
+        assert!(binders.contains(&"git".to_string()));
+    }
+
+    #[test]
+    fn test_is_builtin_known_tool() {
+        let m = PyBindManager::new();
+        assert!(m.is_builtin("python"));
+        assert!(m.is_builtin("cmake"));
+        assert!(m.is_builtin("git"));
+    }
+
+    #[test]
+    fn test_is_builtin_unknown_tool() {
+        let m = PyBindManager::new();
+        assert!(!m.is_builtin("totally_nonexistent_tool_xyz"));
+    }
+
+    // ── Free functions ────────────────────────────────────────────────────────
+
+    #[test]
+    fn test_list_binders_fn_matches_manager() {
+        let via_fn = list_binders();
+        let via_mgr = PyBindManager::new().list_binders();
+        assert_eq!(via_fn, via_mgr);
+    }
+
+    #[test]
+    fn test_extract_version_semver() {
+        assert_eq!(extract_version("Python 3.11.4"), Some("3.11.4".to_string()));
+    }
+
+    #[test]
+    fn test_extract_version_git_format() {
+        assert_eq!(
+            extract_version("git version 2.42.0.windows.1"),
+            Some("2.42.0".to_string())
+        );
+    }
+
+    #[test]
+    fn test_extract_version_short() {
+        assert_eq!(extract_version("1.8"), Some("1.8".to_string()));
+    }
+
+    #[test]
+    fn test_extract_version_none_for_no_digits() {
+        assert_eq!(extract_version("no version information"), None);
+    }
+
+    #[test]
+    fn test_find_tool_nonexistent_returns_none() {
+        // A tool name that definitely won't be on the system
+        let result = find_tool("__totally_nonexistent_tool_rez_next__");
+        assert!(result.is_none());
+    }
+}

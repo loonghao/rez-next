@@ -88,3 +88,65 @@ impl PyConfig {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rez_next_common::config::RezCoreConfig;
+
+    mod test_config_load {
+        use super::*;
+
+        #[test]
+        fn test_local_packages_path_non_empty() {
+            let cfg = RezCoreConfig::load();
+            assert!(
+                !cfg.local_packages_path.is_empty(),
+                "local_packages_path should have a default"
+            );
+        }
+
+        #[test]
+        fn test_release_packages_path_non_empty() {
+            let cfg = RezCoreConfig::load();
+            assert!(
+                !cfg.release_packages_path.is_empty(),
+                "release_packages_path should have a default"
+            );
+        }
+
+        #[test]
+        fn test_default_shell_non_empty() {
+            let cfg = RezCoreConfig::load();
+            assert!(!cfg.default_shell.is_empty(), "default_shell should be set");
+        }
+
+        #[test]
+        fn test_version_non_empty() {
+            let cfg = RezCoreConfig::load();
+            assert!(!cfg.version.is_empty(), "version must be non-empty");
+            assert!(
+                cfg.version.contains('.'),
+                "version should be semver-like: {}",
+                cfg.version
+            );
+        }
+    }
+
+    mod test_config_repr {
+        use super::*;
+
+        #[test]
+        fn test_repr_is_config() {
+            let cfg = PyConfig::new();
+            assert_eq!(cfg.__repr__(), "Config()");
+        }
+
+        #[test]
+        fn test_new_and_default_produce_same_repr() {
+            let a = PyConfig::new();
+            let b = PyConfig::default();
+            assert_eq!(a.__repr__(), b.__repr__());
+        }
+    }
+}

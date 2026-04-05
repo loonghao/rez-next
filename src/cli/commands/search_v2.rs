@@ -1,5 +1,6 @@
 //! Advanced search command implementation
 
+use crate::cli::utils::parse_timestamp;
 use clap::Args;
 use rez_next_common::{config::RezCoreConfig, error::RezCoreResult};
 use rez_next_package::Package;
@@ -263,44 +264,6 @@ async fn perform_search(
     all_results.truncate(args.limit);
 
     Ok(all_results)
-}
-
-/// Parse an ISO 8601 date/datetime string or relative time expression to Unix timestamp (seconds).
-///
-/// Supported formats:
-/// - ISO 8601 datetime: `2024-01-01T12:00:00`
-/// - ISO 8601 date:     `2024-01-01`
-/// - Relative time:     `1d` (days), `2w` (weeks), `1m` (months ≈ 30 days), `1y` (years ≈ 365 days)
-fn parse_timestamp(s: &str) -> Option<i64> {
-    // Try YYYY-MM-DDTHH:MM:SS format
-    if let Ok(dt) = chrono::NaiveDateTime::parse_from_str(s, "%Y-%m-%dT%H:%M:%S") {
-        return Some(dt.and_utc().timestamp());
-    }
-    // Try YYYY-MM-DD format
-    if let Ok(d) = chrono::NaiveDate::parse_from_str(s, "%Y-%m-%d") {
-        return Some(d.and_hms_opt(0, 0, 0)?.and_utc().timestamp());
-    }
-    // Try relative time: <number><unit>  e.g. "1d", "2w", "3m", "1y"
-    parse_relative_time(s)
-}
-
-/// Parse a relative time string like "1d", "2w", "3m", "1y" into a past Unix timestamp.
-fn parse_relative_time(s: &str) -> Option<i64> {
-    let s = s.trim();
-    if s.is_empty() {
-        return None;
-    }
-    let (digits, unit) = s.split_at(s.len() - 1);
-    let n: i64 = digits.parse().ok()?;
-    let seconds_ago: i64 = match unit {
-        "d" | "D" => n * 86_400,
-        "w" | "W" => n * 7 * 86_400,
-        "m" | "M" => n * 30 * 86_400,
-        "y" | "Y" => n * 365 * 86_400,
-        _ => return None,
-    };
-    let now = chrono::Utc::now().timestamp();
-    Some(now - seconds_ago)
 }
 
 /// Get the filesystem modification timestamp for a package (best effort)
@@ -751,88 +714,5 @@ mod tests {
             has_variant: None,
         };
         assert_eq!(args.search_type, "family");
-    }
-
-    #[test]
-    fn test_parse_timestamp_iso_datetime() {
-        let ts = parse_timestamp("2024-01-15T10:30:00");
-        assert!(ts.is_some());
-        assert_eq!(ts.unwrap(), 1705314600);
-    }
-
-    #[test]
-    fn test_parse_timestamp_iso_date() {
-        let ts = parse_timestamp("2024-01-15");
-        assert!(ts.is_some());
-        // 2024-01-15 00:00:00 UTC
-        assert_eq!(ts.unwrap(), 1705276800);
-    }
-
-    #[test]
-    fn test_parse_timestamp_invalid() {
-        assert!(parse_timestamp("not-a-date").is_none());
-        assert!(parse_timestamp("").is_none());
-    }
-
-    #[test]
-    fn test_parse_relative_time_days() {
-        let now = chrono::Utc::now().timestamp();
-        let ts = parse_relative_time("7d").unwrap();
-        let diff = now - ts;
-        // Should be approximately 7 days in seconds ± 2 seconds tolerance
-        assert!(
-            (diff - 7 * 86400).abs() <= 2,
-            "Expected ~7d ago, got diff={}",
-            diff
-        );
-    }
-
-    #[test]
-    fn test_parse_relative_time_weeks() {
-        let now = chrono::Utc::now().timestamp();
-        let ts = parse_relative_time("2w").unwrap();
-        let diff = now - ts;
-        assert!(
-            (diff - 14 * 86400).abs() <= 2,
-            "Expected ~14d ago, got diff={}",
-            diff
-        );
-    }
-
-    #[test]
-    fn test_parse_relative_time_months() {
-        let now = chrono::Utc::now().timestamp();
-        let ts = parse_relative_time("1m").unwrap();
-        let diff = now - ts;
-        assert!(
-            (diff - 30 * 86400).abs() <= 2,
-            "Expected ~30d ago, got diff={}",
-            diff
-        );
-    }
-
-    #[test]
-    fn test_parse_relative_time_years() {
-        let now = chrono::Utc::now().timestamp();
-        let ts = parse_relative_time("1y").unwrap();
-        let diff = now - ts;
-        assert!(
-            (diff - 365 * 86400).abs() <= 2,
-            "Expected ~365d ago, got diff={}",
-            diff
-        );
-    }
-
-    #[test]
-    fn test_parse_relative_time_invalid_unit() {
-        assert!(parse_relative_time("5x").is_none());
-        assert!(parse_relative_time("abc").is_none());
-    }
-
-    #[test]
-    fn test_parse_timestamp_relative_passthrough() {
-        // parse_timestamp should also accept relative formats
-        let ts = parse_timestamp("1d");
-        assert!(ts.is_some());
     }
 }

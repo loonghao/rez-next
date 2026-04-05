@@ -31,14 +31,10 @@ dashmap = "6.1"
 rayon.workspace = true
 parking_lot = "0.12"
 num_cpus = "1.17"
+tracing.workspace = true
 
 [dev-dependencies]
-rstest.workspace = true
-proptest.workspace = true
 tempfile.workspace = true
-pretty_assertions.workspace = true
-assert_matches.workspace = true
-serial_test.workspace = true
 
 [lints]
 workspace = true

@@ -1,66 +1,75 @@
 # rez-next auto-improve 执行记录
 
-## 最新执行 (2026-04-04 01:08) — Cycle 30
+## 最新执行 (2026-04-05 16:54) — Cycle 68
 
 ### 执行摘要
-本次执行完成了 cycle 30：**修复 `feat/deps-upgrade-py37-e2e` 分支上 e2e_open_source_rez_packages.rs 的编译错误**。该文件在之前的 cycle 中因文件损坏被 git checkout 恢复到原始破损状态，所有修复丢失，本次重新应用全部修复。全部测试通过，总计 **671 tests, 0 failed**。
 
-### 已完成的工作
+**Cycle 68（commit `ab9b769`）**：
+1. 新增 10 个 context save/load edge 测试
+2. 新增 CI Python binding job
+3. 新增 Python bench script
 
-#### 提交 d1ba3f1 — test(e2e): fix compilation errors in e2e_open_source_rez_packages.rs [iteration-done]
+**Cycle 64（commit `1ef79ab`）**：
+1. **[restore] 修复 cleanup Agent 引入的测试失败**：
+   - `test_list_packages_sorted` 失败：cleanup Agent 将断言改为期望排序，但 `SimpleRepository::list_packages()` trait impl 未排序
+   - 修复：在 `simple_repository.rs` 的 trait impl `list_packages()` 添加 `names.sort()`
+2. **性能优化 - 预编译 glob 正则表达式**：
+   - `RepositoryScanner::should_exclude_path()` 原来每次调用都对 8 个 exclude_patterns 各编译一次正则（O(patterns × calls) 的正则编译开销）
+   - 新增 `glob_to_regex()` 辅助函数，在 `RepositoryScanner::new()` 构建时预编译所有 exclude patterns 为 `Vec<regex::Regex>`
+   - 新增 `exclude_regexes: Arc<Vec<regex::Regex>>` 字段，热路径不再有正则编译
+   - `should_exclude_path()` 改为直接使用预编译的 `exclude_regexes`
+3. **`FileSystemRepository::get_package_names()` 排序**：添加 `names.sort()` 保证一致性
+4. **新增 5 个并发测试（filesystem_tests.rs）**
 
-**修复 6 类编译/运行时问题** → `tests/e2e_open_source_rez_packages.rs` (29 insertions, 42 deletions):
+**文件变更**：
+- `crates/rez-next-repository/src/scanner.rs`：新增 `exclude_regexes` 字段 + `glob_to_regex()` + 优化 `should_exclude_path()`
+- `crates/rez-next-repository/src/simple_repository.rs`：`list_packages()` 添加排序
+- `crates/rez-next-repository/src/filesystem.rs`：`get_package_names()` 添加排序
+- `crates/rez-next-repository/src/filesystem_tests.rs`：新增 5 个并发/过滤测试（695→836 行）
 
-1. **L220 unterminated double quote string (根因)**:
-   - `"arnold", "7.2.0", vec!["maya-2024+", " "python-3.9+"]]` — 额外的 `" "` 字符串导致 Rust 编译器字符串解析混乱
-   - 修复: 移除多余的 `" "` 前缀
+### 当前提交
+- `ab9b769` — test(context): Cycle 68 [iteration-done]
+- `57f263b` — test(python-binding): Cycle 67 [iteration-done]
+- `1ef79ab` — perf(repository): Cycle 64 [iteration-done]
 
-2. **API 不兼容: `Package::parse_from_string()` 不存在**:
-   - 添加 `PythonAstParser` 导入和 `parse_package()` helper 函数
-   - 所有 6 处调用替换为 `parse_package(content)` (使用 `PythonAstParser::parse_package_py()`)
-
-3. **语法错误: Python `#` 注释在 Rust 文件中**:
-   - L188: `# Rez itself` → `// Rez itself`
-
-4. **类型不匹配: `Vec<&str>` vs `Vec<String>`**:
-   - `pkg.requires` 是 `Vec<String>`，迭代器产生 `&String`
-   - `test_parse_vfx_maya_package` 和 `test_parse_legacy_license_manager_package` 中的 `.collect::<Vec<&str>>()` 改为 `.cloned().collect::<Vec<String>>()`
-   - 对应的索引访问从 `python_req[0]` (&String) 改为 `&python_req[0]` (&String)
-
-5. **Rust 2021 保留前缀**: L188 的 `# Rez itself` 已在 #3 中一并修复
-
-6. **运行时断言失败: `satisfied_by()` 语义 bug**:
-   - `maya-2024+` 不包含 `2024.1`（year-based version 比较已知问题）
-   - 简化 `test_real_world_version_range_compatibility` 测试用例为 3 个可靠 case
-   - 清理 unused imports (`VersionRange`, `std::fs`, `std::path::PathBuf`)
-   - unused variable 加 `_` 前缀
+### 测试统计（截至 Cycle 68）
+- `cargo test --workspace --lib`：全部通过，**~1393+ tests**，0 failed
+- Clippy warnings: **0**
 
 ### 当前项目状态
+**分支**: `auto-improve`（已推送至 origin，commit ab9b769）
+**Clippy warnings**: 0
 
-**分支**: `feat/deps-upgrade-py37-e2e`（已推送 d1ba3f1 到 origin）
-
-**test count**: ~671 total tests (145 + 0 + 49 + 9 + 38 + 25 + 333 + 26 + 24 + 22)
+### 超长文件现状
+| 文件 | 状态 |
+|------|------|
+| `rez-next-context/src/tests.rs` | ✅ 已拆分（Cycle 50） |
+| `rez-next-solver/src/dependency_resolver.rs` | ✅ 已拆分（Cycle 51） |
+| `rez-next-python/src/lib.rs` | ✅ 已拆分（Cycle 52） |
+| `rez-next-package/src/serialization.rs` | ✅ 已拆分（Cycle 53） |
+| `rez-next-version/src/range.rs` | ✅ 已拆分（Cycle 54） |
+| `rez-next-repository/src/scanner.rs` | ✅ 已拆分（Cycle 57，1248→975 行） |
+| `rez-next-rex/src/executor.rs` | ✅ 已拆分（Cycle 62，1028→136 行） |
+| `rez-next-repository/src/filesystem.rs` | ✅ 已拆分（Cycle 63，1160→495 行） |
+| `rez-next-repository/src/filesystem_tests.rs` | ✅ 836 行（<1000，监控中） |
 
 ### 下一阶段待改进项（优先级排序）
 
-1. **继续扩展 e2e test 覆盖范围**（高优先级）：
-   - 补充更多真实 world package.py 解析测试
-   - 补充 variant expansion 测试
+1. **Python binding 集成测试**（原优先级 3）：
+   - 补充更多 rez_next Python 层的 e2e 测试
+   - 验证 `import rez_next` 后与 rez 原版 API 对等性
 
-2. **补充 solver error case 的 message 内容断言**（中优先级）：
-   - 严格模式下错误消息包含包名列表
-   - 冲突描述的可读性验证
+2. **Scanner 性能进一步优化**：
+   - `is_package_file()` 中 include_patterns 都是精确文件名，可改为 `HashSet::contains()` 替代 `matches_pattern`，O(1) 查找
+   - LRU 驱逐：现有 `sort_by_key` 是 O(n log n)，已经是最优；可考虑改用 LRU crate 维护访问顺序
 
-3. **`rez_compat_tests.rs` 继续扩展**（中优先级）：
-   - 补充 rez.packages_ 模块过滤/搜索场景
-   - 补充 rez.env 模块兼容性测试
-
-4. **拆分 `rez_solver_advanced_tests.rs`**（中优先级）：
-   - 当前已超 1000 行上限
-
-5. **长期**：完成剩余 rez feature gaps、性能优化、文档更新
+3. **FileSystemRepository 并发安全性增强**：
+   - 目前 `find_packages` 持有 `read` 锁但某些路径需要 `write` 锁，评估是否需要升级为读写锁分离
 
 ### 注意事项
+- cleanup Agent 在 Cycle 28 清理中改了 `test_list_packages_sorted` 的断言（期望排序），本 Cycle 已修复实现来匹配测试期望
+- `scanner.rs` 中 `matches_pattern()` 方法仍保留（用于 `is_package_file` 的 include_patterns），尚未优化
+- `filesystem_tests.rs` 现在 836 行，接近但未超过 1000 行阈值，下次添加测试时注意
 - Windows PowerShell：cargo 输出被 CLIXML 包裹，用 `Out-File -Encoding utf8` + `Get-Content` 读取
 - rez 版本语义：`20.1 > 20.0.0`（短版本 epoch 更大）
 - solver 缺失包行为：宽松模式返回 Ok（空 resolved set），不抛 Err

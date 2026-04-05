@@ -136,7 +136,10 @@ pub fn pip_version_to_rez(pip_ver: &str) -> String {
 
 /// Install pip packages and convert them to rez packages.
 /// Equivalent to `rez pip --install <packages> [--python <ver>] [--release]`
-/// Returns list of installed rez package strings (e.g. ["numpy-1.25.0", "scipy-1.11.0"])
+///
+/// **Not yet implemented.** Raises `NotImplementedError` when called.
+/// Full implementation requires running `pip download`, inspecting wheel METADATA,
+/// converting to rez package.py format, and installing to packages_path.
 #[pyfunction]
 #[pyo3(signature = (packages, python_version=None, install_path=None, release=false))]
 pub fn pip_install(
@@ -145,32 +148,13 @@ pub fn pip_install(
     install_path: Option<&str>,
     release: bool,
 ) -> PyResult<Vec<String>> {
-    let _ = python_version;
-    let _ = install_path;
-    let _ = release;
-
-    // In a full implementation this would:
-    // 1. Run `pip download <packages>` to a temp dir
-    // 2. Inspect each wheel's METADATA
-    // 3. Convert to rez package.py format
-    // 4. Install to packages_path
-    //
-    // For API compatibility, we validate input and return normalized names.
-    let mut result = Vec::new();
-    for pkg in &packages {
-        let (name, ver) = if let Some(pos) = pkg.find("==") {
-            (&pkg[..pos], Some(&pkg[pos + 2..]))
-        } else if let Some(pos) = pkg.find(">=") {
-            (&pkg[..pos], Some(&pkg[pos + 2..]))
-        } else {
-            (pkg.as_str(), None)
-        };
-
-        let rez_name = normalize_package_name(name);
-        let rez_ver = ver.unwrap_or("0.0.0");
-        result.push(format!("{}-{}", rez_name, rez_ver));
-    }
-    Ok(result)
+    let _ = (python_version, install_path, release);
+    Err(pyo3::exceptions::PyNotImplementedError::new_err(format!(
+        "pip_install is not yet implemented in rez_next. \
+         Requested packages: {}. \
+         Use the original `rez pip --install` command for pip-to-rez installation.",
+        packages.join(", ")
+    )))
 }
 
 /// Convert pip package metadata to a PipPackage (rez package representation).
@@ -214,6 +198,10 @@ pub fn convert_pip_to_rez(
 
 /// Get a list of packages that depend on a given pip package.
 /// Equivalent to `rez depends <pkg>` but for pip packages.
+///
+/// **Not yet implemented.** Raises `NotImplementedError` when called.
+/// Full implementation requires scanning local rez package repos for any
+/// package that lists `package_name` in its requires.
 #[pyfunction]
 #[pyo3(signature = (package_name, paths=None))]
 pub fn get_pip_dependencies(
@@ -221,11 +209,11 @@ pub fn get_pip_dependencies(
     paths: Option<Vec<String>>,
 ) -> PyResult<Vec<String>> {
     let _ = paths;
-    // In a full implementation, this would scan the local rez package repos for
-    // any package that lists `package_name` in its requires.
-    // API compat stub returns empty list for now.
-    let _ = package_name;
-    Ok(Vec::new())
+    Err(pyo3::exceptions::PyNotImplementedError::new_err(format!(
+        "get_pip_dependencies is not yet implemented in rez_next. \
+         Queried package: '{package_name}'. \
+         Use the original `rez depends` command to find reverse dependencies."
+    )))
 }
 
 /// Write a package.py file for a pip-converted package to disk.
@@ -258,4 +246,122 @@ pub fn write_pip_package(
         .map_err(|e| pyo3::exceptions::PyIOError::new_err(e.to_string()))?;
 
     Ok(pkg_dir.to_string_lossy().to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ─── normalize_package_name ──────────────────────────────────────────────
+
+    #[test]
+    fn test_normalize_package_name_lowercase() {
+        assert_eq!(normalize_package_name("NumPy"), "numpy");
+        assert_eq!(normalize_package_name("Pillow"), "pillow");
+        assert_eq!(normalize_package_name("REQUESTS"), "requests");
+    }
+
+    #[test]
+    fn test_normalize_package_name_underscore_to_dash() {
+        assert_eq!(normalize_package_name("scikit_learn"), "scikit-learn");
+        assert_eq!(normalize_package_name("my_package"), "my-package");
+    }
+
+    #[test]
+    fn test_normalize_package_name_already_normalized() {
+        assert_eq!(normalize_package_name("numpy"), "numpy");
+        assert_eq!(normalize_package_name("scikit-learn"), "scikit-learn");
+    }
+
+    #[test]
+    fn test_normalize_package_name_mixed() {
+        assert_eq!(normalize_package_name("PyYAML"), "pyyaml");
+        assert_eq!(
+            normalize_package_name("Django_Rest_Framework"),
+            "django-rest-framework"
+        );
+    }
+
+    // ─── pip_version_to_rez ─────────────────────────────────────────────────
+
+    #[test]
+    fn test_pip_version_to_rez_exact() {
+        assert_eq!(pip_version_to_rez("==1.2.3"), "1.2.3");
+        assert_eq!(pip_version_to_rez("==3.9.0"), "3.9.0");
+    }
+
+    #[test]
+    fn test_pip_version_to_rez_ge() {
+        assert_eq!(pip_version_to_rez(">=1.0"), "1.0+");
+        assert_eq!(pip_version_to_rez(">=3.9"), "3.9+");
+    }
+
+    #[test]
+    fn test_pip_version_to_rez_lt() {
+        assert_eq!(pip_version_to_rez("<2.0"), "<2.0");
+        assert_eq!(pip_version_to_rez("<3.11"), "<3.11");
+    }
+
+    #[test]
+    fn test_pip_version_to_rez_range() {
+        // ">=1.0,<2.0" -> "1.0+<2.0"
+        assert_eq!(pip_version_to_rez(">=1.0,<2.0"), "1.0+<2.0");
+        assert_eq!(pip_version_to_rez(">=3.8,<4.0"), "3.8+<4.0");
+    }
+
+    #[test]
+    fn test_pip_version_to_rez_ne() {
+        assert_eq!(pip_version_to_rez("!=1.5"), "!=1.5");
+    }
+
+    #[test]
+    fn test_pip_version_to_rez_plain() {
+        // Plain version without operator
+        assert_eq!(pip_version_to_rez("1.2.3"), "1.2.3");
+    }
+
+    // ─── PyPipPackage::to_package_py ─────────────────────────────────────────
+
+    #[test]
+    fn test_to_package_py_no_requires() {
+        let pkg = PyPipPackage {
+            name: "mylib".to_string(),
+            version: "2.0.0".to_string(),
+            requires: vec![],
+            description: "A test library".to_string(),
+        };
+        let py = pkg.to_package_py();
+        assert!(py.contains("name = \"mylib\""));
+        assert!(py.contains("version = \"2.0.0\""));
+        assert!(py.contains("description = \"A test library\""));
+        // No requires block when empty
+        assert!(!py.contains("requires = ["));
+    }
+
+    #[test]
+    fn test_to_package_py_with_requires() {
+        let pkg = PyPipPackage {
+            name: "mylib".to_string(),
+            version: "1.0.0".to_string(),
+            requires: vec!["numpy-1.20+".to_string(), "scipy".to_string()],
+            description: "".to_string(),
+        };
+        let py = pkg.to_package_py();
+        assert!(py.contains("requires = ["));
+        assert!(py.contains("\"numpy-1.20+\""));
+        assert!(py.contains("\"scipy\""));
+    }
+
+    #[test]
+    fn test_to_package_py_contains_pythonpath_command() {
+        let pkg = PyPipPackage {
+            name: "lib".to_string(),
+            version: "0.1.0".to_string(),
+            requires: vec![],
+            description: "".to_string(),
+        };
+        let py = pkg.to_package_py();
+        assert!(py.contains("env.PYTHONPATH.prepend"));
+        assert!(py.contains("def commands():"));
+    }
 }

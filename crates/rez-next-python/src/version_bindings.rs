@@ -321,13 +321,6 @@ mod tests {
     }
 
     #[test]
-    fn test_py_version_is_empty() {
-        // empty string version
-        let v = PyVersion(Version::parse("").unwrap_or_else(|_| Version::parse("0").unwrap()));
-        let _ = v.is_empty(); // just ensure it doesn't panic
-    }
-
-    #[test]
     fn test_py_version_range_str() {
         let r = pvr(">=1.0,<2.0");
         assert_eq!(r.__str__(), ">=1.0,<2.0");

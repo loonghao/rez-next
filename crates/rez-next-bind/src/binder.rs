@@ -335,35 +335,6 @@ mod tests {
     }
 
     #[test]
-    fn test_bind_list_packages() {
-        let tmp = TempDir::new().unwrap();
-        let _binder = PackageBinder::new();
-
-        for tool in &["python", "cmake", "git"] {
-            let opts = BindOptions {
-                version_override: Some("1.0.0".to_string()),
-                install_path: Some(tmp.path().to_path_buf()),
-                force: false,
-                search_path: false,
-                ..Default::default()
-            };
-            // Override install_path for listing test by using the binder's list function
-            // but we can't easily override config; instead create dirs manually
-            let pkg_dir = tmp.path().join(tool).join("1.0.0");
-            std::fs::create_dir_all(&pkg_dir).unwrap();
-            std::fs::write(pkg_dir.join("package.py"), format!("name = '{}'", tool)).unwrap();
-            let _ = opts;
-        }
-
-        // Use a fresh binder but point list to the temp dir
-        // Since list_bound_packages uses config, test the directory structure
-        let python_pkg = tmp.path().join("python").join("1.0.0").join("package.py");
-        assert!(python_pkg.exists());
-        let cmake_pkg = tmp.path().join("cmake").join("1.0.0").join("package.py");
-        assert!(cmake_pkg.exists());
-    }
-
-    #[test]
     fn test_generate_package_py_no_exe() {
         let binder = PackageBinder::new();
         let opts = BindOptions::default();
@@ -371,5 +342,101 @@ mod tests {
         assert!(content.contains("name = 'mytool'"));
         assert!(content.contains("version = '1.2.3'"));
         assert!(!content.contains("def commands"));
+    }
+
+    // ── generate_package_py with exe_path ────────────────────────────────────
+
+    #[test]
+    fn test_generate_package_py_with_exe_has_commands_block() {
+        let binder = PackageBinder::new();
+        let opts = BindOptions::default();
+        let exe = Some(PathBuf::from("/usr/bin/python3"));
+        let content = binder.generate_package_py("python", "3.11.0", &exe, &opts);
+        assert!(content.contains("def commands():"));
+        assert!(content.contains("prepend_path"));
+        assert!(content.contains("/usr/bin"));
+    }
+
+    #[test]
+    fn test_generate_package_py_with_exe_contains_bin_dir() {
+        let binder = PackageBinder::new();
+        let opts = BindOptions::default();
+        let exe = Some(PathBuf::from("/opt/maya/2024.1/bin/maya"));
+        let content = binder.generate_package_py("maya", "2024.1", &exe, &opts);
+        // The commands block should reference the bin directory, not the exe itself
+        assert!(content.contains("opt/maya/2024.1/bin"));
+        assert!(content.contains("def commands():"));
+    }
+
+    #[test]
+    fn test_generate_package_py_with_exe_has_correct_exe_comment() {
+        let binder = PackageBinder::new();
+        let opts = BindOptions::default();
+        let exe = Some(PathBuf::from("/usr/local/bin/cmake"));
+        let content = binder.generate_package_py("cmake", "3.28.0", &exe, &opts);
+        assert!(content.contains("# Bound executable:"));
+        assert!(content.contains("cmake"));
+    }
+
+    #[test]
+    fn test_generate_package_py_no_exe_has_not_detected_comment() {
+        let binder = PackageBinder::new();
+        let opts = BindOptions::default();
+        let content = binder.generate_package_py("unknown_tool", "0.1.0", &None, &opts);
+        assert!(content.contains("# Executable path not detected"));
+    }
+
+    #[test]
+    fn test_generate_package_py_extra_metadata_is_embedded() {
+        let binder = PackageBinder::new();
+        let opts = BindOptions {
+            extra_metadata: vec![
+                ("authors".to_string(), "Autodesk".to_string()),
+                ("license".to_string(), "Commercial".to_string()),
+            ],
+            ..BindOptions::default()
+        };
+        let content = binder.generate_package_py("maya", "2024.1", &None, &opts);
+        assert!(content.contains("authors = 'Autodesk'"));
+        assert!(content.contains("license = 'Commercial'"));
+    }
+
+    #[test]
+    fn test_generate_package_py_tools_field_contains_name() {
+        let binder = PackageBinder::new();
+        let opts = BindOptions::default();
+        let content = binder.generate_package_py("houdini", "20.0", &None, &opts);
+        assert!(content.contains("tools = ['houdini']"));
+    }
+
+    #[test]
+    fn test_generate_package_py_description_contains_name() {
+        let binder = PackageBinder::new();
+        let opts = BindOptions::default();
+        let content = binder.generate_package_py("nuke", "15.0", &None, &opts);
+        assert!(content.contains("description = 'System-installed nuke"));
+    }
+
+    #[test]
+    fn test_bind_options_default_values() {
+        let opts = BindOptions::default();
+        assert!(opts.version_override.is_none());
+        assert!(opts.install_path.is_none());
+        assert!(!opts.force);
+        assert!(opts.extra_metadata.is_empty());
+        assert!(opts.search_path);
+    }
+
+    #[test]
+    fn test_bind_result_fields() {
+        let result = BindResult {
+            name: "python".to_string(),
+            version: "3.11.0".to_string(),
+            install_path: PathBuf::from("/tmp/packages/python/3.11.0"),
+            executable_path: Some(PathBuf::from("/usr/bin/python3")),
+        };
+        assert_eq!(result.name, "python");
+        assert_eq!(result.version, "3.11.0");
+        assert!(result.executable_path.is_some());
     }
 }

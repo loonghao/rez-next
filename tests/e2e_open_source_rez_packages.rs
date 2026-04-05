@@ -121,12 +121,12 @@ requires = [
 #[test]
 fn test_parse_rez_pip_package() {
     let pkg = parse_package(REZ_PIP_PACKAGE_PY);
-    
+
     assert_eq!(pkg.name, "rez_pip");
     assert!(pkg.version.is_some());
     let v = pkg.version.as_ref().unwrap();
     assert!(v.as_str().starts_with("1.11"));
-    
+
     // Should have requires
     assert!(!pkg.requires.is_empty());
     assert!(pkg.requires.iter().any(|r| r.contains("python")));
@@ -136,7 +136,7 @@ fn test_parse_rez_pip_package() {
 #[test]
 fn test_parse_rez_manager_package() {
     let pkg = parse_package(REZ_MANAGER_PACKAGE_PY);
-    
+
     assert_eq!(pkg.name, "rez_manager");
     let v = pkg.version.as_ref().unwrap();
     assert_eq!(v.as_str(), "1.5.0");
@@ -145,36 +145,44 @@ fn test_parse_rez_manager_package() {
 #[test]
 fn test_parse_vfx_maya_package() {
     let pkg = parse_package(VFX_PACKAGE_PY);
-    
+
     assert_eq!(pkg.name, "maya");
     let v = pkg.version.as_ref().unwrap();
     assert!(v.as_str().starts_with("2024"));
-    
+
     // Check complex version range requirements
-    let python_req: Vec<String> = pkg.requires.iter()
+    let python_req: Vec<String> = pkg
+        .requires
+        .iter()
         .filter(|r| r.starts_with("python"))
         .cloned()
         .collect();
     assert!(!python_req.is_empty());
-    
+
     // python-3.9+<4 should be parseable as a requirement
     let req = PackageRequirement::parse(&python_req[0]);
-    assert!(req.is_ok(), "Should parse python version range: {}", python_req[0]);
+    assert!(
+        req.is_ok(),
+        "Should parse python version range: {}",
+        python_req[0]
+    );
 }
 
 #[test]
 fn test_parse_legacy_license_manager_package() {
     let pkg = parse_package(LICENSE_MANAGER_PACKAGE_PY);
-    
+
     assert_eq!(pkg.name, "rez_license_manager");
-    
+
     // Should handle legacy Python 2 requirement
-    let py27_req: Vec<String> = pkg.requires.iter()
+    let py27_req: Vec<String> = pkg
+        .requires
+        .iter()
         .filter(|r| r.starts_with("python-2"))
         .cloned()
         .collect();
     assert!(!py27_req.is_empty());
-    
+
     // Parse and verify version range works
     let req = PackageRequirement::parse(&py27_req[0]).expect("Should parse py2.7+<3 range");
     assert_eq!(req.name, "python");
@@ -188,12 +196,19 @@ fn test_real_world_version_range_compatibility() {
         ("python-3.9+<4", "3.9", true),
         ("rez-2.110+", "2.113.0", true),
     ];
-    
+
     for (req_str, ver_str, expected) in &test_cases {
         let req = PackageRequirement::parse(req_str).expect("req parse ok");
         let ver = Version::parse(ver_str).expect("ver parse ok");
         let contains = req.satisfied_by(&ver);
-        assert_eq!(contains, *expected, "{} should {} contain {}", req_str, if *expected { "" } else { "not" }, ver_str);
+        assert_eq!(
+            contains,
+            *expected,
+            "{} should {} contain {}",
+            req_str,
+            if *expected { "" } else { "not" },
+            ver_str
+        );
     }
 }
 
@@ -205,10 +220,14 @@ fn test_vfx_pipeline_dependency_resolution() {
         ("openssl", "1.1.1w", vec!["python-3.8+"]),
         ("maya", "2024.1", vec!["python-3.9+<4", "openssl-1.1+"]),
         ("arnold", "7.2.0", vec!["maya-2024+", "python-3.9+"]),
-        ("houdini", "20.0.590", vec!["python-3.9+<3.12", "openssl-1.1+"]),
+        (
+            "houdini",
+            "20.0.590",
+            vec!["python-3.9+<3.12", "openssl-1.1+"],
+        ),
         ("nuke", "15.0v4", vec!["python-3.10+<3.13"]),
     ];
-    
+
     // Parse all requirements
     let parsed: Vec<(String, Version, Vec<PackageRequirement>)> = packages
         .into_iter()
@@ -221,15 +240,15 @@ fn test_vfx_pipeline_dependency_resolution() {
             (name.to_string(), version, requirements)
         })
         .collect();
-    
+
     // Verify all parsed correctly
     assert_eq!(parsed.len(), 6); // All packages parsed
-    
+
     // Maya should depend on python and openssl
     let maya = &parsed[2];
     assert_eq!(maya.0, "maya");
     assert_eq!(maya.2.len(), 2);
-    
+
     // Arnold should depend on maya
     let arnold = &parsed[3];
     assert_eq!(arnold.0, "arnold");
@@ -240,7 +259,7 @@ fn test_vfx_pipeline_dependency_resolution() {
 fn test_rez_pip_variant_expansion() {
     // Test that we can parse variant definitions like rez-pip uses
     let pkg = parse_package(REZ_PIP_PACKAGE_PY);
-    
+
     // rez-pip defines variants for multiple Python versions
     // This tests our parser handles variant syntax correctly
     assert!(!pkg.variants.is_empty() || pkg.requires.contains(&"python".to_string()));
@@ -250,11 +269,13 @@ fn test_rez_pip_variant_expansion() {
 fn test_cross_platform_package_parsing() {
     // Test platform-specific package parsing (from VFX workflows)
     let pkg = parse_package(VFX_PACKAGE_PY);
-    
+
     // Should identify this as a cross-platform package
-    let _has_platform_variants = pkg.variants.iter()
+    let _has_platform_variants = pkg
+        .variants
+        .iter()
         .any(|v| v.iter().any(|f| f.contains("platform-")));
-    
+
     // Even without full variant support, basic parsing should work
     assert_eq!(pkg.name, "maya");
 }
@@ -272,15 +293,15 @@ fn test_version_ordering_real_world() {
         "7.2.0",   // Major version
         "15.0v4",  // Nuke-style with 'v' suffix
     ];
-    
+
     let parsed: Vec<Version> = versions
         .iter()
         .map(|v| Version::parse(v).expect(&format!("Bad version: {}", v)))
         .collect();
-    
+
     // All should be parseable
     assert_eq!(parsed.len(), versions.len());
-    
+
     // Basic ordering checks
     let mut sorted = parsed.clone();
     sorted.sort();
