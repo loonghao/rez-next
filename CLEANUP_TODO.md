@@ -190,11 +190,24 @@
 - Follow-up: either rename/document these as explicit placeholder smoke tests, or define the real predictor contract before adding more behavior-dependent assertions
 
 ### 33. `cli_e2e_tests.rs` still allows implicit skips and weak exit-code assertions
-- **Status**: TODO (cycle 30)
-- `tests/cli_e2e_tests.rs` uses `skip_no_bin!()` to early-return when the binary is missing, so local runs can appear green without exercising the CLI harness
-- At least 18 assertions only check `status.code().is_some()`, which does not verify command semantics and can hide argument/behavior regressions
-- `test_full_workflow_search_and_view` still uses stale `--path` invocations for `view` / `solve`, so the workflow coverage has drifted from the actual CLI surface
-- Follow-up: make the harness fail loudly when the binary prerequisite is missing in intended E2E runs, then replace exit-code-only assertions with observable stdout/stderr or filesystem contracts
+- **Status**: COMPLETE ✓ (cycle 78)
+- Added `rez_output()` helper that returns `(stdout, stderr, Option<i32>)` without asserting success, enabling per-test signal-vs-code discrimination
+- Replaced all 18 `status.code().is_some()` exit-code-only assertions with observable contracts:
+  - `solve`: now checks "No packages to resolve", "Failed requirements", or "Resolved packages" in stdout
+  - `search`: missing repo path → asserts non-zero exit + "Error" in stderr; `--latest-only` → asserts "Found" in output
+  - `view`: nonexistent package → asserts non-zero exit + "not found"; package in repo → asserts non-empty combined output
+  - `rm`: nonexistent → asserts "No packages found" in stdout
+  - `cp`: success → asserts "copied"/"Successfully" + destination directory exists; failure → asserts "Error" message
+  - `complete --shell bash`: checks function definition and subcommand list in script
+  - `depends`: checks "No packages"/"Error" in combined output
+  - `pkg-cache status`: checks "Cache" + "entries"; `--clean`: checks "cleaning"/"completed" + "0"
+  - `build` without `package.py`: asserts non-zero exit + error message
+  - `status` outside context: asserts non-empty combined output
+- `config --search-list`: replaced vacuous `let _ = out` with assertion that output mentions yaml/json/rezconfig paths
+- `plugins`: replaced vacuous `let _ = out` with NUL-byte absence check
+- `config`, `config packages_path`, `suites --help`, `pkg-cache --help`, `pip --help`: tightened to check semantic keywords
+- `test_full_workflow_search_and_view`: updated `view`/`solve` steps to use real flag names and check combined output
+- All 49 cli_e2e_tests pass; Clippy: 0 warnings
 
 ### 34. `real_repo_*` split test files still duplicate local repository helpers
 - **Status**: TODO (cycle 31)
