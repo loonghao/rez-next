@@ -1,0 +1,28 @@
+﻿cargo :     Finished `test` profile [unoptimized + debuginfo] target(s) in 0.24s
+At line:1 char:40
++ ... b\rez-next; cargo test -p rez-next-python --lib -- bind_bindings 2>&1 ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (    Finished `t...get(s) in 0.24s:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+     Running unittests src\lib.rs (target\debug\deps\rez_next_bindings-e8eb7993fabaa249.exe)
+
+running 15 tests
+test bind_bindings::tests::test_bind_manager_default_same_as_new ... ok
+test bind_bindings::tests::test_bind_result_getters ... ok
+test bind_bindings::tests::test_bind_manager_repr ... ok
+test bind_bindings::tests::test_is_builtin_unknown_tool ... ok
+test bind_bindings::tests::test_bind_result_no_executable ... ok
+test bind_bindings::tests::test_bind_result_repr_format ... ok
+test bind_bindings::tests::test_is_builtin_known_tool ... ok
+test bind_bindings::tests::test_list_binders_contains_known_tools ... ok
+test bind_bindings::tests::test_list_binders_fn_matches_manager ... ok
+test bind_bindings::tests::test_list_binders_non_empty ... ok
+test bind_bindings::tests::test_extract_version_none_for_no_digits ... ok
+test bind_bindings::tests::test_extract_version_short ... ok
+test bind_bindings::tests::test_extract_version_git_format ... ok
+test bind_bindings::tests::test_extract_version_semver ... ok
+test bind_bindings::tests::test_find_tool_nonexistent_returns_none ... ok
+
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 236 filtered out; finished in 0.07s
+

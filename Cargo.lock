@@ -2164,6 +2164,7 @@ dependencies = [
  "rez-next-common",
  "rez-next-version",
  "serde",
+ "serde_json",
  "thiserror 2.0.18",
 ]
 
@@ -2177,6 +2178,7 @@ dependencies = [
  "rez-next-repository",
  "rez-next-version",
  "serde",
+ "serde_json",
  "tempfile",
  "tokio",
 ]

@@ -1,11 +1,22 @@
 //! High-performance repository scanning utilities with optimized I/O
 
+// Re-export scanner types for backward compatibility (they now live in scanner_types).
+pub use crate::scanner_types::{
+    CacheStatistics, PackageScanResult, ScanError, ScanErrorType, ScanPerformanceMetrics,
+    ScanResult, ScannerConfig,
+};
+use crate::scanner_types::ScanCacheEntry;
+
+
+
+
+
 use dashmap::DashMap;
 use memmap2::Mmap;
 use rez_next_common::RezCoreError;
 use rez_next_package::Package;
-use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use tracing::warn;
@@ -15,199 +26,7 @@ use tokio::fs;
 use tokio::sync::{RwLock, Semaphore};
 use tokio::time::interval;
 
-/// Enhanced scanner configuration with performance optimizations
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ScannerConfig {
-    /// Maximum number of concurrent scan operations
-    pub max_concurrent_scans: usize,
-    /// Maximum depth to scan directories
-    pub max_depth: usize,
-    /// File patterns to include (glob patterns)
-    pub include_patterns: Vec<String>,
-    /// File patterns to exclude (glob patterns)
-    pub exclude_patterns: Vec<String>,
-    /// Whether to follow symbolic links
-    pub follow_symlinks: bool,
-    /// Scan timeout in seconds
-    pub timeout_seconds: u64,
-    /// Enable memory-mapped file reading for large files
-    pub use_memory_mapping: bool,
-    /// Minimum file size (bytes) to use memory mapping
-    pub memory_mapping_threshold: u64,
-    /// Batch size for concurrent directory processing
-    pub directory_batch_size: usize,
-    /// Enable intelligent file type detection
-    pub smart_file_detection: bool,
-    /// Cache scan results for faster subsequent scans
-    pub enable_scan_cache: bool,
-    /// Maximum cache size in MB
-    pub max_cache_size_mb: usize,
-    /// Enable path prefix matching for cache optimization
-    pub enable_prefix_matching: bool,
-    /// Enable intelligent cache preloading
-    pub enable_cache_preload: bool,
-    /// Common paths to preload into cache
-    pub preload_paths: Vec<PathBuf>,
-    /// Cache refresh interval in seconds (0 = disabled)
-    pub cache_refresh_interval: u64,
-    /// Enable background cache refresh
-    pub enable_background_refresh: bool,
-}
 
-impl Default for ScannerConfig {
-    fn default() -> Self {
-        Self {
-            max_concurrent_scans: 20, // Increased for better parallelism
-            max_depth: 10,
-            include_patterns: vec![
-                "package.py".to_string(),
-                "package.yaml".to_string(),
-                "package.yml".to_string(),
-                "package.json".to_string(),
-            ],
-            exclude_patterns: vec![
-                ".git/**".to_string(),
-                ".svn/**".to_string(),
-                "__pycache__/**".to_string(),
-                "*.pyc".to_string(),
-                ".DS_Store".to_string(),
-                "node_modules/**".to_string(),
-                ".vscode/**".to_string(),
-                ".idea/**".to_string(),
-            ],
-            follow_symlinks: false,
-            timeout_seconds: 300, // 5 minutes
-            use_memory_mapping: true,
-            memory_mapping_threshold: 1024 * 1024, // 1MB
-            directory_batch_size: 50,
-            smart_file_detection: true,
-            enable_scan_cache: true,
-            max_cache_size_mb: 100,
-            enable_prefix_matching: true,
-            enable_cache_preload: true,
-            preload_paths: vec![
-                PathBuf::from("/usr/local/packages"),
-                PathBuf::from("/opt/packages"),
-                PathBuf::from("C:\\packages"),
-            ],
-            cache_refresh_interval: 300, // 5 minutes
-            enable_background_refresh: true,
-        }
-    }
-}
-
-/// Scan result for a single package
-#[derive(Debug, Clone)]
-pub struct PackageScanResult {
-    /// The discovered package
-    pub package: Package,
-    /// Path to the package definition file
-    pub package_file: PathBuf,
-    /// Package directory path
-    pub package_dir: PathBuf,
-    /// File size in bytes
-    pub file_size: u64,
-    /// Scan duration in milliseconds
-    pub scan_duration_ms: u64,
-}
-
-/// Enhanced scan result with performance metrics
-#[derive(Debug, Clone)]
-pub struct ScanResult {
-    /// All discovered packages
-    pub packages: Vec<PackageScanResult>,
-    /// Total scan duration in milliseconds
-    pub total_duration_ms: u64,
-    /// Number of directories scanned
-    pub directories_scanned: usize,
-    /// Number of files examined
-    pub files_examined: usize,
-    /// Number of errors encountered
-    pub errors: Vec<ScanError>,
-    /// Performance metrics
-    pub performance_metrics: ScanPerformanceMetrics,
-}
-
-/// Performance metrics for scan operations
-#[derive(Debug, Clone)]
-pub struct ScanPerformanceMetrics {
-    /// Total I/O time in milliseconds
-    pub io_time_ms: u64,
-    /// Total parsing time in milliseconds
-    pub parsing_time_ms: u64,
-    /// Number of files read using memory mapping
-    pub memory_mapped_files: usize,
-    /// Number of cache hits
-    pub cache_hits: usize,
-    /// Number of cache misses
-    pub cache_misses: usize,
-    /// Average file size processed (bytes)
-    pub avg_file_size: u64,
-    /// Peak memory usage during scan (bytes)
-    pub peak_memory_usage: u64,
-    /// Number of concurrent operations peak
-    pub peak_concurrency: usize,
-}
-
-/// Scan error information
-#[derive(Debug, Clone)]
-pub struct ScanError {
-    /// Path where the error occurred
-    pub path: PathBuf,
-    /// Error message
-    pub message: String,
-    /// Error type
-    pub error_type: ScanErrorType,
-}
-
-/// Types of scan errors
-#[derive(Debug, Clone, PartialEq)]
-pub enum ScanErrorType {
-    /// File system access error
-    FileSystemError,
-    /// Package parsing error
-    PackageParseError,
-    /// Permission denied
-    PermissionDenied,
-    /// Timeout error
-    Timeout,
-    /// Other error
-    Other,
-}
-
-/// Cache entry for scan results
-#[derive(Debug, Clone)]
-struct ScanCacheEntry {
-    /// Cached package scan result
-    result: PackageScanResult,
-    /// File modification time when cached
-    mtime: std::time::SystemTime,
-    /// File size when cached
-    size: u64,
-    /// Access count for LRU tracking
-    access_count: u64,
-    /// Last access time
-    last_accessed: SystemTime,
-}
-
-/// Enhanced cache statistics
-#[derive(Debug, Clone)]
-pub struct CacheStatistics {
-    /// Total cache hits
-    pub hits: usize,
-    /// Total cache misses
-    pub misses: usize,
-    /// Prefix match hits
-    pub prefix_hits: usize,
-    /// Cache hit rate (0.0 to 1.0)
-    pub hit_rate: f64,
-    /// Prefix match hit rate (0.0 to 1.0)
-    pub prefix_hit_rate: f64,
-    /// Current cache size
-    pub cache_size: usize,
-    /// Total entries processed
-    pub total_entries: usize,
-}
 
 /// High-performance repository scanner with advanced optimizations
 #[derive(Debug)]
@@ -235,6 +54,9 @@ pub struct RepositoryScanner {
     refresh_handle: Arc<RwLock<Option<tokio::task::JoinHandle<()>>>>,
     /// Pre-compiled exclude pattern regexes (avoids recompiling on every path check)
     exclude_regexes: Arc<Vec<regex::Regex>>,
+    /// Exact filenames from include_patterns that contain no wildcards.
+    /// Used for O(1) lookup in `is_package_file` instead of regex matching.
+    include_filenames: Arc<HashSet<String>>,
 }
 
 impl RepositoryScanner {
@@ -267,6 +89,14 @@ impl RepositoryScanner {
             .filter_map(|p| Self::glob_to_regex(p))
             .collect();
 
+        // Build a HashSet of exact (wildcard-free) include filenames for O(1) lookup.
+        let include_filenames: HashSet<String> = config
+            .include_patterns
+            .iter()
+            .filter(|p| !p.contains('*') && !p.contains('?'))
+            .cloned()
+            .collect();
+
         let scanner = Self {
             config: config.clone(),
             semaphore,
@@ -283,6 +113,7 @@ impl RepositoryScanner {
             prefix_cache: Arc::new(DashMap::new()),
             refresh_handle: Arc::new(RwLock::new(None)),
             exclude_regexes: Arc::new(exclude_regexes),
+            include_filenames: Arc::new(include_filenames),
         };
 
         // Start background refresh if enabled
@@ -887,9 +718,16 @@ impl RepositoryScanner {
     /// Check if a file is a package definition file
     fn is_package_file(&self, path: &Path) -> bool {
         if let Some(filename) = path.file_name().and_then(|n| n.to_str()) {
+            // Fast O(1) lookup for exact filenames (e.g. "package.py").
+            // Falls back to wildcard matching for any non-exact patterns.
+            if self.include_filenames.contains(filename) {
+                return true;
+            }
+            // Wildcard patterns (if any were configured)
             self.config
                 .include_patterns
                 .iter()
+                .filter(|p| p.contains('*') || p.contains('?'))
                 .any(|pattern| self.matches_pattern(filename, pattern))
         } else {
             false
