@@ -165,6 +165,13 @@
 - The previous TODO note became stale after iteration commit `4aa3b1d`, which completed the split into concern-specific test modules
 - Follow-up: keep future context tests in the focused modules instead of regrowing a single mega-file
 
+### 29. `RexExecutor` still applies actions after `stop()`
+- **Status**: TODO (cycle 27)
+- Recent boundary test additions in `crates/rez-next-rex/src/executor.rs` now explicitly lock in the current behavior that `stop()` sets `stopped=true` but does **not** short-circuit later actions
+- This is likely a product/compatibility decision rather than routine cleanup, because changing it would alter command semantics for existing packages
+- Follow-up: clarify desired rez-compat contract first, then either preserve/document the behavior or change executor evaluation order with dedicated tests
+
+
 
 
 
