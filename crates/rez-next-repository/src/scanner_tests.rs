@@ -365,7 +365,6 @@ mod test_async {
     #[tokio::test]
     async fn test_scan_repository_finds_package_yaml() {
         let tmp = TempDir::new().unwrap();
-        // Use YAML format: scanner parses with serde_yaml
         let pkg_dir = tmp.path().join("mypkg").join("1.0.0");
         std::fs::create_dir_all(&pkg_dir).unwrap();
         std::fs::write(
@@ -377,21 +376,17 @@ mod test_async {
         let scanner = make_scanner_no_bg_no_cache();
         let result = scanner.scan_repository(tmp.path()).await.unwrap();
 
-        // The scanner should discover at least one package file;
-        // if parsing succeeds it goes to packages, otherwise to errors
-        let total = result.packages.len() + result.errors.len();
-        assert!(
-            total >= 1,
-            "expected scanner to examine at least 1 file, packages={} errors={}",
-            result.packages.len(),
-            result.errors.len()
+        assert_eq!(result.errors.len(), 0, "valid YAML fixture should parse cleanly");
+        assert_eq!(result.packages.len(), 1, "expected exactly one parsed package");
+        assert_eq!(result.packages[0].package.name, "mypkg");
+        assert_eq!(
+            result.packages[0].package.version.as_ref().map(|v| v.as_str()),
+            Some("1.0.0")
         );
-        assert!(
-            result.files_examined >= 1,
-            "files_examined should be ≥1, got {}",
-            result.files_examined
-        );
+        assert!(result.files_examined >= 1);
+
     }
+
 
     #[tokio::test]
     async fn test_scan_repository_multiple_packages() {
@@ -408,19 +403,19 @@ mod test_async {
 
         let scanner = make_scanner_no_bg_no_cache();
         let result = scanner.scan_repository(tmp.path()).await.unwrap();
-        let total = result.packages.len() + result.errors.len();
-        assert!(
-            total >= 3,
-            "expected scanner to examine at least 3 files, packages={} errors={}",
-            result.packages.len(),
-            result.errors.len()
-        );
-        assert!(
-            result.files_examined >= 3,
-            "files_examined should be ≥3, got {}",
-            result.files_examined
-        );
+        let mut names: Vec<_> = result
+            .packages
+            .iter()
+            .map(|pkg| pkg.package.name.as_str())
+            .collect();
+        names.sort_unstable();
+
+        assert_eq!(result.errors.len(), 0, "valid fixtures should not produce scan errors");
+        assert_eq!(result.packages.len(), 3, "expected all package files to parse");
+        assert_eq!(names, vec!["pkga", "pkgb", "pkgc"]);
+        assert!(result.files_examined >= 3);
     }
+
 
     // --- preload_common_paths ---
 

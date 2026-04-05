@@ -335,33 +335,23 @@ mod tests {
     }
 
     #[test]
-    fn test_bind_list_packages() {
+    fn test_bind_list_packages_fixture_structure() {
         let tmp = TempDir::new().unwrap();
-        let _binder = PackageBinder::new();
 
         for tool in &["python", "cmake", "git"] {
-            let opts = BindOptions {
-                version_override: Some("1.0.0".to_string()),
-                install_path: Some(tmp.path().to_path_buf()),
-                force: false,
-                search_path: false,
-                ..Default::default()
-            };
-            // Override install_path for listing test by using the binder's list function
-            // but we can't easily override config; instead create dirs manually
             let pkg_dir = tmp.path().join(tool).join("1.0.0");
             std::fs::create_dir_all(&pkg_dir).unwrap();
             std::fs::write(pkg_dir.join("package.py"), format!("name = '{}'", tool)).unwrap();
-            let _ = opts;
         }
 
-        // Use a fresh binder but point list to the temp dir
-        // Since list_bound_packages uses config, test the directory structure
         let python_pkg = tmp.path().join("python").join("1.0.0").join("package.py");
         assert!(python_pkg.exists());
         let cmake_pkg = tmp.path().join("cmake").join("1.0.0").join("package.py");
         assert!(cmake_pkg.exists());
+        let git_pkg = tmp.path().join("git").join("1.0.0").join("package.py");
+        assert!(git_pkg.exists());
     }
+
 
     #[test]
     fn test_generate_package_py_no_exe() {

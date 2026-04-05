@@ -258,7 +258,6 @@ impl HighPerformanceScanner {
         package_files: &[PathBuf],
     ) -> Result<Vec<PackageScanResult>, RezCoreError> {
         let semaphore = Arc::new(Semaphore::new(self.config.max_concurrency));
-        let _results = Arc::new(DashMap::<PathBuf, PackageScanResult>::new());
 
         if self.config.enable_work_stealing && package_files.len() > 1000 {
             // Use Rayon for work-stealing parallelism on large datasets
@@ -648,16 +647,17 @@ mod tests {
         }
 
         #[test]
-        fn test_predict_file_access_with_files_returns_vec() {
+        fn test_predict_file_access_with_files_returns_only_known_paths() {
             let predictor = PrefetchPredictor::new();
             let files = vec![
                 PathBuf::from("/opt/packages/maya/2024/package.yaml"),
                 PathBuf::from("/opt/packages/houdini/20/package.yaml"),
             ];
-            // Current stub returns empty; just ensure no panic
             let result = predictor.predict_file_access(&files);
-            // Result may be empty (stub) but should not panic
-            let _ = result;
+            assert!(result.len() <= files.len());
+            assert!(result.iter().all(|(path, score)| {
+                files.contains(path) && (0.0..=1.0).contains(score)
+            }));
         }
 
         #[test]
@@ -928,13 +928,12 @@ mod tests {
             let tmp = TempDir::new().unwrap();
             let config = HighPerformanceConfig::default();
             let scanner = HighPerformanceScanner::new(config);
-            scanner
+            let result = scanner
                 .scan_repository_optimized(tmp.path())
                 .await
                 .unwrap();
             let stats = scanner.get_performance_stats();
-            // total_scan_time is updated in nanoseconds; should be >= 0
-            let _ = stats.total_scan_time;
+            assert_eq!(stats.total_scan_time, result.total_duration_ms);
         }
     }
 }

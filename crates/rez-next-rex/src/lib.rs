@@ -198,7 +198,8 @@ mod tests {
             let mut env = RexEnvironment::new();
             env.apply(&[RexAction::setenv("BAR", "value")]);
             env.apply(&[RexAction::unsetenv("BAR")]);
-            assert!(env.vars.get("BAR").is_none());
+            assert!(!env.vars.contains_key("BAR"));
+
         }
 
         #[test]
@@ -352,7 +353,8 @@ mod tests {
                 },
                 source_package: None,
             }]);
-            assert!(env.vars.get("OLD").is_none());
+            assert!(!env.vars.contains_key("OLD"));
+
         }
 
         #[test]
