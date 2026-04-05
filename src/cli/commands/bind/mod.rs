@@ -4,9 +4,9 @@
 //! This performs actual system detection and writes real package.py files to disk.
 //!
 //! # Sub-modules
-//! - [`detect`]     — system tool detection (python, git, cmake, …)
-//! - [`package_gen`] — package.py generation + default metadata helpers
-//! - [`utils`]      — version parsing, `which`, close-match search
+//! - `detect`      — system tool detection (python, git, cmake, …)
+//! - `package_gen` — package.py generation + default metadata helpers
+//! - `utils`       — version parsing, `which`, close-match search
 
 mod detect;
 mod package_gen;

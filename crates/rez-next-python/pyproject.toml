@@ -38,6 +38,8 @@ features = ["pyo3/extension-module"]
 module-name = "rez_next._native"
 # Python source directory: tells maturin where to find the Python package files
 python-source = "python"
+# Disable strip to avoid conflict with pyo3 abi3 --include-debuginfo
+strip = false
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
