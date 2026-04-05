@@ -53,10 +53,17 @@ impl RexEnvironment {
         Self::default()
     }
 
-    /// Apply all Rex actions to this environment
+    /// Apply all Rex actions to this environment.
+    ///
+    /// Stops processing further actions as soon as a `Stop` action is encountered,
+    /// matching the behaviour of rez's original `RexExecutor`.
     pub fn apply(&mut self, actions: &[RexAction]) {
         for action in actions {
+            let is_stop = matches!(action.action_type, RexActionType::Stop { .. });
             self.apply_action(action);
+            if is_stop {
+                break;
+            }
         }
     }
 
@@ -406,6 +413,56 @@ mod tests {
             }]);
             assert!(env.stopped);
             assert_eq!(env.stop_message, Some("Conflict detected".to_string()));
+        }
+
+        /// stop() aborts apply() — actions after Stop in the slice are never processed
+        #[test]
+        fn test_stop_aborts_remaining_actions() {
+            let mut env = RexEnvironment::new();
+            let actions = vec![
+                RexAction::setenv("BEFORE", "yes"),
+                RexAction {
+                    action_type: RexActionType::Stop { message: None },
+                    source_package: None,
+                },
+                RexAction::setenv("AFTER", "yes"),
+            ];
+            env.apply(&actions);
+            assert!(env.stopped, "stopped flag must be set");
+            assert_eq!(
+                env.vars.get("BEFORE"),
+                Some(&"yes".to_string()),
+                "BEFORE must be applied"
+            );
+            assert!(
+                !env.vars.contains_key("AFTER"),
+                "AFTER must not be applied because stop() aborts processing"
+            );
+        }
+
+        /// error() does NOT abort processing — actions after Error continue
+        #[test]
+        fn test_error_does_not_abort_remaining_actions() {
+            let mut env = RexEnvironment::new();
+            let actions = vec![
+                RexAction {
+                    action_type: RexActionType::Error {
+                        message: "non-fatal".to_string(),
+                    },
+                    source_package: None,
+                },
+                RexAction::setenv("AFTER_ERROR", "yes"),
+            ];
+            env.apply(&actions);
+            assert!(
+                !env.stopped,
+                "error() must not set stopped flag"
+            );
+            assert_eq!(
+                env.vars.get("AFTER_ERROR"),
+                Some(&"yes".to_string()),
+                "AFTER_ERROR must still be applied after error()"
+            );
         }
     }
 
