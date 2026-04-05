@@ -166,10 +166,17 @@
 - Follow-up: keep future context tests in the focused modules instead of regrowing a single mega-file
 
 ### 29. `RexExecutor` still applies actions after `stop()`
-- **Status**: TODO (cycle 27)
-- Recent boundary test additions in `crates/rez-next-rex/src/executor.rs` now explicitly lock in the current behavior that `stop()` sets `stopped=true` but does **not** short-circuit later actions
-- This is likely a product/compatibility decision rather than routine cleanup, because changing it would alter command semantics for existing packages
-- Follow-up: clarify desired rez-compat contract first, then either preserve/document the behavior or change executor evaluation order with dedicated tests
+- **Status**: COMPLETE ✓ (cycle 28)
+- This TODO became stale after iteration commit `c4ba991`, which changed `RexEnvironment::apply()` to stop processing after `RexActionType::Stop`
+- Current behavior is now locked by focused tests in `crates/rez-next-rex/src/lib.rs` and `crates/rez-next-rex/src/executor_tests.rs`
+- Follow-up: keep documenting rez-compatible `stop()` semantics in user-facing Rex docs if new command examples are added
+
+### 30. Repository format support has diverged between `FileSystemRepository` and `SimpleRepository`
+- **Status**: TODO (cycle 28)
+- Iteration commit `a70d978` expanded `FileSystemRepository` to load `package.py`, `package.yaml`, `package.yml`, and `package.json`
+- `SimpleRepository` still intentionally scans only `package.py`; this cycle tightened tests so the current split is explicit instead of hidden behind vacuous assertions
+- Follow-up: decide whether the divergence is intentional API surface or whether both repository implementations should share a common format matrix / scanning helper before more behavior-specific tests accumulate
+
 
 
 
