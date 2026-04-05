@@ -160,9 +160,11 @@
 - Follow-up: either implement real rez-compatible semantics or explicitly document the current partial-compatibility contract
 
 ### 28. `rez-next-context` test mega-file should be split by concern
-- **Status**: TODO (cycle 50)
-- `crates/rez-next-context/src/tests.rs` is now ~1,500+ lines after recent context/env test additions and mixes serialization, file IO, env diff, PATH strategy, and resolved-context coverage in one file
-- Follow-up: split the file into focused test modules/files (for example `serialization_tests`, `environment_tests`, `resolved_context_tests`) before adding more behavior, to reduce review friction and future drift
+- **Status**: COMPLETE ✓ (cycle 56)
+- `crates/rez-next-context/src/tests.rs` has already been replaced by `crates/rez-next-context/src/tests/` with focused modules for context loading, shell generation, RXT/RXTB IO, execution, env diff, and resolved-context behavior
+- The previous TODO note became stale after iteration commit `4aa3b1d`, which completed the split into concern-specific test modules
+- Follow-up: keep future context tests in the focused modules instead of regrowing a single mega-file
+
 
 
 

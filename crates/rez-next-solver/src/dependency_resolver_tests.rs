@@ -3,16 +3,15 @@
 #[cfg(test)]
 mod tests {
     use crate::dependency_resolver::{
-        DetailedResolutionResult, DependencyResolver, ResolutionConflict, ResolutionStats,
-        ResolvedPackageInfo,
+        DetailedResolutionResult, DependencyResolver, ResolutionStats,
     };
     use crate::resolution_state::ResolutionState;
     use crate::solver::ConflictStrategy;
     use crate::SolverConfig;
     use rez_next_package::Requirement;
     use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
-    use serde_json;
     use std::sync::Arc;
+
 
     /// Write a minimal package.py to a temp directory and return path
     fn write_package(base: &std::path::Path, name: &str, version: &str, requires: &[&str]) {
