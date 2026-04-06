@@ -8,6 +8,8 @@ use rez_next_common::{error::RezCoreResult, RezCoreError};
 use rez_next_suites::{Suite, SuiteManager, ToolConflictMode};
 use std::path::PathBuf;
 
+use crate::cli::utils::split_package_paths;
+
 /// Arguments for the suites command
 #[derive(Args, Clone, Debug)]
 pub struct SuitesArgs {
@@ -180,10 +182,7 @@ pub fn execute(args: SuitesArgs) -> RezCoreResult<()> {
 
 fn get_suite_paths(args: &SuitesArgs) -> Vec<PathBuf> {
     if let Some(ref paths_str) = args.paths {
-        paths_str
-            .split(std::path::MAIN_SEPARATOR)
-            .map(PathBuf::from)
-            .collect()
+        split_package_paths(paths_str)
     } else {
         // Default: user home suites directory
         let home = std::env::var("USERPROFILE")

@@ -7,6 +7,8 @@ use rez_next_version::Version;
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::path::PathBuf;
 
+use crate::cli::utils::split_package_paths;
+
 /// Arguments for the depends command
 #[derive(Args, Clone, Debug)]
 pub struct DependsArgs {
@@ -129,7 +131,7 @@ pub async fn execute_depends(args: DependsArgs) -> Result<(), RezCoreError> {
 
     // Parse package paths - use real config when no explicit paths given
     let package_paths: Vec<PathBuf> = if let Some(paths) = &args.paths {
-        paths.split(':').map(|p| PathBuf::from(p.trim())).collect()
+        split_package_paths(paths)
     } else {
         let config = RezCoreConfig::load();
         let mut paths: Vec<PathBuf> = config.packages_path.iter().map(PathBuf::from).collect();

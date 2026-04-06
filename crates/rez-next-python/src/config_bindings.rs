@@ -60,18 +60,20 @@ impl PyConfig {
     }
 
     /// Get a config field by name
-    fn get(&self, field: &str, default: Option<PyObject>, py: Python) -> PyResult<PyObject> {
+    fn get(&self, field: &str, default: Option<Py<PyAny>>, py: Python) -> PyResult<Py<PyAny>> {
         if let Some(value) = self.inner.get_field(field) {
             match value {
-                serde_json::Value::String(s) => Ok(s.into_pyobject(py)?.into()),
-                serde_json::Value::Bool(b) => Ok(pyo3::types::PyBool::new(py, b).to_owned().into()),
+                serde_json::Value::String(s) => Ok(s.into_pyobject(py)?.into_any().unbind()),
+                serde_json::Value::Bool(b) => {
+                    Ok(pyo3::types::PyBool::new(py, b).to_owned().into_any().unbind())
+                }
                 serde_json::Value::Number(n) => {
                     if let Some(i) = n.as_i64() {
-                        Ok(i.into_pyobject(py)?.into())
+                        Ok(i.into_pyobject(py)?.into_any().unbind())
                     } else if let Some(f) = n.as_f64() {
-                        Ok(f.into_pyobject(py)?.into())
+                        Ok(f.into_pyobject(py)?.into_any().unbind())
                     } else {
-                        Ok(py.None())
+                        Ok(py.None().into_any())
                     }
                 }
                 serde_json::Value::Array(arr) => {
@@ -79,12 +81,79 @@ impl PyConfig {
                         .iter()
                         .filter_map(|v| v.as_str().map(|s| s.to_string()))
                         .collect();
-                    Ok(list.into_pyobject(py)?.into())
+                    Ok(list.into_pyobject(py)?.into_any().unbind())
                 }
-                _ => Ok(py.None()),
+                _ => Ok(py.None().into_any()),
             }
         } else {
-            Ok(default.unwrap_or_else(|| py.None()))
+            Ok(default.unwrap_or_else(|| py.None().into_any()))
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rez_next_common::config::RezCoreConfig;
+
+    mod test_config_load {
+        use super::*;
+
+
+
+        #[test]
+        fn test_local_packages_path_non_empty() {
+            let cfg = RezCoreConfig::load();
+            assert!(
+                !cfg.local_packages_path.is_empty(),
+                "local_packages_path should have a default"
+            );
+        }
+
+        #[test]
+        fn test_release_packages_path_non_empty() {
+            let cfg = RezCoreConfig::load();
+            assert!(
+                !cfg.release_packages_path.is_empty(),
+                "release_packages_path should have a default"
+            );
+        }
+
+        #[test]
+        fn test_default_shell_non_empty() {
+            let cfg = RezCoreConfig::load();
+            assert!(
+                !cfg.default_shell.is_empty(),
+                "default_shell should be set"
+            );
+        }
+
+        #[test]
+        fn test_version_non_empty() {
+            let cfg = RezCoreConfig::load();
+            assert!(!cfg.version.is_empty(), "version must be non-empty");
+            assert!(
+                cfg.version.contains('.'),
+                "version should be semver-like: {}",
+                cfg.version
+            );
+        }
+    }
+
+    mod test_config_repr {
+        use super::*;
+
+        #[test]
+        fn test_repr_is_config() {
+            let cfg = PyConfig::new();
+            assert_eq!(cfg.__repr__(), "Config()");
+        }
+
+        #[test]
+        fn test_new_and_default_produce_same_repr() {
+            let a = PyConfig::new();
+            let b = PyConfig::default();
+            assert_eq!(a.__repr__(), b.__repr__());
         }
     }
 }

@@ -179,7 +179,7 @@ print(script)
 
 ## 架构
 
-Cargo workspace 包含 14 个 crate + Python bindings：
+Cargo workspace 包含 13 个 crate，其中 `rez-next-python` 提供 Python bindings：
 
 ```
 rez-next-common       共享错误类型、配置、工具函数

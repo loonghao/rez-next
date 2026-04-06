@@ -5,7 +5,9 @@ pub mod parser;
 pub mod types;
 
 pub use parser::RequirementParser;
-pub use types::{EnvCondition, PlatformCondition, Requirement, VersionConstraint};
+pub use types::{
+    EnvCondition, PlatformCondition, Requirement, VersionConstraint,
+};
 
 #[cfg(test)]
 #[path = "tests.rs"]

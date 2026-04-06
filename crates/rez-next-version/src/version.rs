@@ -319,9 +319,7 @@ impl Version {
     ///    apply rules 1–3 per segment pair.
     fn compare_single_token(t1: &str, t2: &str) -> Ordering {
         // Fast path: both purely numeric
-        if let (Ok(n1), Ok(n2)) = (t1.parse::<i64>(), t2.parse::<i64>()) {
-            return n1.cmp(&n2);
-        }
+        if let (Ok(n1), Ok(n2)) = (t1.parse::<i64>(), t2.parse::<i64>()) { return n1.cmp(&n2) }
         // Fast path: equal strings
         if t1 == t2 {
             return Ordering::Equal;
@@ -358,7 +356,7 @@ impl Version {
                     n1.cmp(&n2)
                 }
                 (false, false) => s1.as_str().cmp(s2.as_str()),
-                (false, true) => Ordering::Less, // alpha segment < numeric segment
+                (false, true) => Ordering::Less,   // alpha segment < numeric segment
                 (true, false) => Ordering::Greater, // numeric segment > alpha segment
             };
             if cmp != Ordering::Equal {
@@ -610,10 +608,7 @@ mod tests {
         // is_prerelease detection
         assert!(dev.is_prerelease(), "dev is detected as prerelease");
         assert!(pre.is_prerelease(), "pre is detected as prerelease");
-        assert!(
-            snapshot.is_prerelease(),
-            "snapshot is detected as prerelease"
-        );
+        assert!(snapshot.is_prerelease(), "snapshot is detected as prerelease");
     }
 
     #[test]

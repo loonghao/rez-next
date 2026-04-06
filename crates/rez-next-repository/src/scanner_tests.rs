@@ -261,10 +261,7 @@ fn test_normalize_path_removes_parent_dir_components() {
 
 #[test]
 fn test_scan_error_type_equality() {
-    assert_eq!(
-        ScanErrorType::FileSystemError,
-        ScanErrorType::FileSystemError
-    );
+    assert_eq!(ScanErrorType::FileSystemError, ScanErrorType::FileSystemError);
     assert_ne!(ScanErrorType::FileSystemError, ScanErrorType::Timeout);
 }
 
@@ -379,27 +376,17 @@ mod test_async {
         let scanner = make_scanner_no_bg_no_cache();
         let result = scanner.scan_repository(tmp.path()).await.unwrap();
 
-        assert_eq!(
-            result.errors.len(),
-            0,
-            "valid YAML fixture should parse cleanly"
-        );
-        assert_eq!(
-            result.packages.len(),
-            1,
-            "expected exactly one parsed package"
-        );
+        assert_eq!(result.errors.len(), 0, "valid YAML fixture should parse cleanly");
+        assert_eq!(result.packages.len(), 1, "expected exactly one parsed package");
         assert_eq!(result.packages[0].package.name, "mypkg");
         assert_eq!(
-            result.packages[0]
-                .package
-                .version
-                .as_ref()
-                .map(|v| v.as_str()),
+            result.packages[0].package.version.as_ref().map(|v| v.as_str()),
             Some("1.0.0")
         );
         assert!(result.files_examined >= 1);
+
     }
+
 
     #[tokio::test]
     async fn test_scan_repository_multiple_packages() {
@@ -423,19 +410,12 @@ mod test_async {
             .collect();
         names.sort_unstable();
 
-        assert_eq!(
-            result.errors.len(),
-            0,
-            "valid fixtures should not produce scan errors"
-        );
-        assert_eq!(
-            result.packages.len(),
-            3,
-            "expected all package files to parse"
-        );
+        assert_eq!(result.errors.len(), 0, "valid fixtures should not produce scan errors");
+        assert_eq!(result.packages.len(), 3, "expected all package files to parse");
         assert_eq!(names, vec!["pkga", "pkgb", "pkgc"]);
         assert!(result.files_examined >= 3);
     }
+
 
     // --- preload_common_paths ---
 
@@ -475,14 +455,14 @@ mod test_async {
         .unwrap();
 
         let scanner = make_scanner_with_preload();
-        let preloaded = scanner
+        scanner
             .preload_common_paths(&[tmp.path().to_path_buf()])
             .await
             .unwrap();
 
-        // At minimum the scan ran without error; the prefix_cache entry is set
-        let _ = preloaded; // count ≥ 0 depending on parser success
         assert!(scanner.prefix_cache.contains_key(tmp.path()));
+
+
     }
 
     // --- stop_background_refresh ---

@@ -115,7 +115,8 @@ fn test_solver_no_variant_gives_none_index() {
     let result = rt().block_on(resolver.resolve(reqs)).unwrap();
     assert_eq!(result.resolved_packages.len(), 1);
     assert_eq!(
-        result.resolved_packages[0].variant_index, None,
+        result.resolved_packages[0].variant_index,
+        None,
         "package without variants should have variant_index = None"
     );
 }
@@ -170,12 +171,7 @@ fn test_solver_variant_index_is_some_when_variants_exist() {
 fn test_solver_variant_index_in_multi_package_result() {
     let (_tmp, repo) = build_variant_repo(
         &[("base_dep", "1.5.0", &[])],
-        &[(
-            "top_pkg",
-            "1.0.0",
-            &[],
-            &[&["base_dep-1.5"], &["base_dep-2.0"]],
-        )],
+        &[("top_pkg", "1.0.0", &[], &[&["base_dep-1.5"], &["base_dep-2.0"]])],
     );
     let mut resolver = DependencyResolver::new(Arc::clone(&repo), SolverConfig::default());
     let reqs: Vec<Requirement> = vec!["top_pkg".parse().unwrap()];

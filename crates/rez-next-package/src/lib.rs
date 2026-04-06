@@ -77,7 +77,6 @@ mod tests {
 
     #[test]
     fn test_package_variants_parse_from_python() {
-        // Simulate a package.py with variants
         let content = r#"
 name = 'mypkg'
 version = '1.0.0'
@@ -92,10 +91,11 @@ variants = [
 
         let pkg = serialization::PackageSerializer::load_from_file(&path).unwrap();
         assert_eq!(pkg.name, "mypkg");
-        // variants field should be parsed (may be empty if parser doesn't support yet)
-        // At minimum the package should be loaded
-        assert_eq!(pkg.name, "mypkg");
+        assert_eq!(pkg.variants.len(), 2);
+        assert_eq!(pkg.variants[0], vec!["python-3.9"]);
+        assert_eq!(pkg.variants[1], vec!["python-3.10"]);
     }
+
 
     #[test]
     fn test_package_requires_parsed() {

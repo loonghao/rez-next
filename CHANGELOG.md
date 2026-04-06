@@ -28,6 +28,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Custom build script priority over CMakeLists.txt
   - rezbuild.py priority over generic file-based detection
   - Explicit `build_system` and `build_command` override paths (nodejs, python, make, build_command)
+
+
+
+
 ## [0.1.5](https://github.com/loonghao/rez-next/compare/v0.1.4...v0.1.5) (2026-04-03)
 
 

@@ -5,6 +5,17 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::time::SystemTime;
 
+/// Canonical set of rez package definition filenames.
+///
+/// Both `RepositoryScanner` and `HighPerformanceScanner` use this list as the
+/// single source of truth so the two scanners always stay in sync.
+pub const REZ_PACKAGE_FILENAMES: &[&str] = &[
+    "package.py",
+    "package.yaml",
+    "package.yml",
+    "package.json",
+];
+
 /// Enhanced scanner configuration with performance optimizations
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ScannerConfig {
@@ -49,12 +60,10 @@ impl Default for ScannerConfig {
         Self {
             max_concurrent_scans: 20,
             max_depth: 10,
-            include_patterns: vec![
-                "package.py".to_string(),
-                "package.yaml".to_string(),
-                "package.yml".to_string(),
-                "package.json".to_string(),
-            ],
+            include_patterns: REZ_PACKAGE_FILENAMES
+                .iter()
+                .map(|s| s.to_string())
+                .collect(),
             exclude_patterns: vec![
                 ".git/**".to_string(),
                 ".svn/**".to_string(),

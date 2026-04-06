@@ -9,9 +9,7 @@
 //! - RepositoryManager.list_packages deduplication
 //! - RepositoryManager.find_packages sorting (latest first)
 
-use rez_next_repository::simple_repository::{
-    PackageRepository, RepositoryManager, SimpleRepository,
-};
+use rez_next_repository::simple_repository::{PackageRepository, RepositoryManager, SimpleRepository};
 use std::fs;
 use tempfile::TempDir;
 
@@ -91,10 +89,7 @@ fn test_simple_repo_get_package_missing_name() {
     let result = rt()
         .block_on(repo.get_package("nonexistent", Some("1.0.0")))
         .unwrap();
-    assert!(
-        result.is_none(),
-        "should return None for nonexistent package"
-    );
+    assert!(result.is_none(), "should return None for nonexistent package");
 }
 
 /// rez repo: get_package returns None when version does not exist.
@@ -124,8 +119,14 @@ fn test_simple_repo_find_packages_all_versions() {
         .iter()
         .filter_map(|p| p.version.as_ref().map(|v| v.as_str()))
         .collect();
-    assert!(versions.contains(&"1.10.0"), "1.10.0 should be in results");
-    assert!(versions.contains(&"1.11.0"), "1.11.0 should be in results");
+    assert!(
+        versions.contains(&"1.10.0"),
+        "1.10.0 should be in results"
+    );
+    assert!(
+        versions.contains(&"1.11.0"),
+        "1.11.0 should be in results"
+    );
     assert!(versions.contains(&"1.9.0"), "1.9.0 should be in results");
 }
 
@@ -167,14 +168,8 @@ fn test_repo_manager_get_package_across_repos() {
     .unwrap();
 
     let mut mgr = RepositoryManager::new();
-    mgr.add_repository(Box::new(SimpleRepository::new(
-        tmp1.path(),
-        "repo1".to_string(),
-    )));
-    mgr.add_repository(Box::new(SimpleRepository::new(
-        tmp2.path(),
-        "repo2".to_string(),
-    )));
+    mgr.add_repository(Box::new(SimpleRepository::new(tmp1.path(), "repo1".to_string())));
+    mgr.add_repository(Box::new(SimpleRepository::new(tmp2.path(), "repo2".to_string())));
 
     // Ask for 3.9.0 — lives in repo1
     let result = rt()
@@ -209,23 +204,12 @@ fn test_repo_manager_list_packages_dedup() {
     }
 
     let mut mgr = RepositoryManager::new();
-    mgr.add_repository(Box::new(SimpleRepository::new(
-        tmp1.path(),
-        "r1".to_string(),
-    )));
-    mgr.add_repository(Box::new(SimpleRepository::new(
-        tmp2.path(),
-        "r2".to_string(),
-    )));
+    mgr.add_repository(Box::new(SimpleRepository::new(tmp1.path(), "r1".to_string())));
+    mgr.add_repository(Box::new(SimpleRepository::new(tmp2.path(), "r2".to_string())));
 
     let names = rt().block_on(mgr.list_packages()).unwrap();
     // Deduplicated: python, numpy, scipy
-    assert_eq!(
-        names.len(),
-        3,
-        "should have 3 unique package names, got {:?}",
-        names
-    );
+    assert_eq!(names.len(), 3, "should have 3 unique package names, got {:?}", names);
     assert!(names.contains(&"python".to_string()));
     assert!(names.contains(&"numpy".to_string()));
     assert!(names.contains(&"scipy".to_string()));

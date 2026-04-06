@@ -1,5 +1,6 @@
 //! Python build system implementation
 
+use crate::systems::cmd_builder::run_cmd;
 use crate::systems::custom::CustomBuildSystem;
 use crate::{BuildEnvironment, BuildRequest, BuildStep, BuildStepResult};
 use rez_next_common::RezCoreError;
@@ -119,25 +120,27 @@ impl PythonBuildSystem {
         let executor = ShellExecutor::with_shell(rez_next_context::ShellType::detect())
             .with_environment(environment.get_env_vars().clone())
             .with_working_directory(request.source_dir.clone());
-        let result = executor
-            .execute("python -m pytest -q --tb=short 2>&1 || python -m unittest discover -q 2>&1")
-            .await;
-        match result {
-            Ok(r) => Ok(BuildStepResult {
-                step: BuildStep::Testing,
-                success: r.is_success(),
-                output: r.stdout,
-                errors: r.stderr,
-                duration_ms: r.execution_time_ms,
-            }),
-            Err(_) => Ok(BuildStepResult {
-                step: BuildStep::Testing,
-                success: true,
-                output: "No tests found".to_string(),
-                errors: String::new(),
-                duration_ms: 0,
-            }),
+        // Try pytest first (optional); fall back to unittest discover; fall back to "No tests found".
+        // Both commands run without "2>&1" — ShellExecutor captures stderr separately.
+        let pytest = run_cmd(
+            &executor,
+            BuildStep::Testing,
+            "python -m pytest -q --tb=short",
+            true,
+            "",
+        )
+        .await?;
+        if pytest.success && !pytest.output.is_empty() {
+            return Ok(pytest);
         }
+        run_cmd(
+            &executor,
+            BuildStep::Testing,
+            "python -m unittest discover -q",
+            true,
+            "No tests found",
+        )
+        .await
     }
 
     pub async fn package(
@@ -235,6 +238,8 @@ mod tests {
     use super::*;
     use crate::BuildEnvironment;
     use rez_next_package::Package;
+
+
 
     /// Helper: create a minimal BuildRequest pointing at the given source dir.
     fn make_request(source_dir: std::path::PathBuf) -> BuildRequest {

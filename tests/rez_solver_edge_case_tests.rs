@@ -74,7 +74,10 @@ fn test_solver_conflicting_transitive_requirements() {
     let config = SolverConfig::default();
     let mut resolver = DependencyResolver::new(Arc::clone(&repo), config);
 
-    let reqs: Vec<Requirement> = ["root"].iter().map(|s| s.parse().unwrap()).collect();
+    let reqs: Vec<Requirement> = ["root"]
+        .iter()
+        .map(|s| s.parse().unwrap())
+        .collect();
 
     // Either Ok (one lib wins via conflict resolution) or Err is acceptable
     let result = rt.block_on(resolver.resolve(reqs));
@@ -123,7 +126,10 @@ fn test_solver_deep_diamond_with_range_constraints() {
     };
     let mut resolver = DependencyResolver::new(Arc::clone(&repo), config);
 
-    let reqs: Vec<Requirement> = ["top"].iter().map(|s| s.parse().unwrap()).collect();
+    let reqs: Vec<Requirement> = ["top"]
+        .iter()
+        .map(|s| s.parse().unwrap())
+        .collect();
 
     let result = rt.block_on(resolver.resolve(reqs));
     assert!(
@@ -137,11 +143,7 @@ fn test_solver_deep_diamond_with_range_constraints() {
         .map(|p| p.package.name.as_str())
         .collect();
     for pkg in &["top", "left", "right", "shared"] {
-        assert!(
-            names.contains(*pkg),
-            "'{}' should be resolved in deep diamond",
-            pkg
-        );
+        assert!(names.contains(*pkg), "'{}' should be resolved in deep diamond", pkg);
     }
 }
 
@@ -154,7 +156,10 @@ fn test_solver_self_dependency_cycle_detected() {
     let config = SolverConfig::default();
     let mut resolver = DependencyResolver::new(Arc::clone(&repo), config);
 
-    let reqs: Vec<Requirement> = ["selfish"].iter().map(|s| s.parse().unwrap()).collect();
+    let reqs: Vec<Requirement> = ["selfish"]
+        .iter()
+        .map(|s| s.parse().unwrap())
+        .collect();
 
     let result = rt.block_on(resolver.resolve(reqs));
     assert!(
@@ -197,10 +202,7 @@ fn test_solver_duplicate_request_different_ranges_unifies() {
         .iter()
         .filter(|p| p.package.name == "lib")
         .count();
-    assert_eq!(
-        count, 1,
-        "lib should appear exactly once despite duplicate requests"
-    );
+    assert_eq!(count, 1, "lib should appear exactly once despite duplicate requests");
 }
 
 /// SolverConfig: strict_mode field is serialized correctly to JSON.
@@ -250,10 +252,7 @@ fn test_solver_empty_repo_all_failed() {
         .block_on(resolver.resolve(reqs))
         .expect("Lenient mode returns Ok even for empty repo");
 
-    assert!(
-        result.resolved_packages.is_empty(),
-        "No packages should be resolved from empty repo"
-    );
+    assert!(result.resolved_packages.is_empty(), "No packages should be resolved from empty repo");
     assert_eq!(
         result.failed_requirements.len(),
         2,
@@ -283,10 +282,8 @@ fn test_solver_strict_mode_error_message_contains_package_name() {
     };
     let mut resolver = DependencyResolver::new(Arc::clone(&repo_arc), config);
 
-    let reqs: Vec<Requirement> = ["missing_pkg_xyz"]
-        .iter()
-        .map(|s| s.parse().unwrap())
-        .collect();
+    let reqs: Vec<Requirement> =
+        ["missing_pkg_xyz"].iter().map(|s| s.parse().unwrap()).collect();
 
     let result = rt.block_on(resolver.resolve(reqs));
     assert!(

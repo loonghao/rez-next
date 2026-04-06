@@ -158,10 +158,7 @@ mod test_utils {
         let modules = get_bind_modules().unwrap();
         let matches = find_close_matches("python", &modules);
         let names: Vec<&str> = matches.iter().map(|(n, _)| n.as_str()).collect();
-        assert!(
-            names.contains(&"python"),
-            "should find 'python' by exact match"
-        );
+        assert!(names.contains(&"python"), "should find 'python' by exact match");
     }
 
     #[test]
@@ -203,10 +200,7 @@ mod test_package_gen {
         assert!(content.contains("requires = ["));
         assert!(content.contains("'os'"));
         assert!(content.contains("tools = ["));
-        assert!(
-            !content.contains("def commands()"),
-            "no commands block expected"
-        );
+        assert!(!content.contains("def commands()"), "no commands block expected");
     }
 
     #[test]
@@ -238,7 +232,10 @@ mod test_package_gen {
             vec!["platform".to_string(), "arch".to_string()]
         );
         assert_eq!(get_default_requirements("python"), vec!["os".to_string()]);
-        assert_eq!(get_default_requirements("pip"), vec!["python".to_string()]);
+        assert_eq!(
+            get_default_requirements("pip"),
+            vec!["python".to_string()]
+        );
     }
 
     #[test]
@@ -263,10 +260,7 @@ mod test_package_gen {
     #[test]
     fn package_description_unknown_name() {
         let desc = get_package_description("unknown_pkg_xyz");
-        assert!(
-            desc.contains("unknown_pkg_xyz"),
-            "should include the package name"
-        );
+        assert!(desc.contains("unknown_pkg_xyz"), "should include the package name");
     }
 
     #[test]

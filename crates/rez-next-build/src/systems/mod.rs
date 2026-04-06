@@ -1,13 +1,15 @@
 //! Build system implementations
 //!
 //! This module is split into sub-modules by build system type:
-//! - `cmake`     — CMake build system
-//! - `make`      — Make build system
-//! - `python`    — Python setuptools / rezbuild.py
-//! - `nodejs`    — Node.js npm
+//! - `cmake`       — CMake build system
+//! - `make`        — Make build system
+//! - `python`      — Python setuptools / rezbuild.py
+//! - `nodejs`      — Node.js npm
 //! - `cargo_build` — Rust Cargo
-//! - `custom`    — Custom build scripts / copy-only
+//! - `custom`      — Custom build scripts / copy-only
+//! - `cmd_builder` — Shared command-runner helpers (no shell-specific strings)
 
+pub(crate) mod cmd_builder;
 mod cargo_build;
 mod cmake;
 mod custom;
@@ -303,11 +305,8 @@ mod tests {
     #[test]
     fn test_detect_cmake_from_cmakelists() {
         let dir = tempfile::tempdir().unwrap();
-        std::fs::write(
-            dir.path().join("CMakeLists.txt"),
-            "cmake_minimum_required(VERSION 3.10)",
-        )
-        .unwrap();
+        std::fs::write(dir.path().join("CMakeLists.txt"), "cmake_minimum_required(VERSION 3.10)")
+            .unwrap();
         let result = BuildSystem::detect(dir.path()).unwrap();
         assert!(matches!(result, BuildSystem::CMake(_)));
     }
@@ -323,11 +322,7 @@ mod tests {
     #[test]
     fn test_detect_python_from_setup_py() {
         let dir = tempfile::tempdir().unwrap();
-        std::fs::write(
-            dir.path().join("setup.py"),
-            "from setuptools import setup; setup()",
-        )
-        .unwrap();
+        std::fs::write(dir.path().join("setup.py"), "from setuptools import setup; setup()").unwrap();
         let result = BuildSystem::detect(dir.path()).unwrap();
         assert!(matches!(result, BuildSystem::Python(_)));
     }
@@ -335,11 +330,7 @@ mod tests {
     #[test]
     fn test_detect_python_from_pyproject_toml() {
         let dir = tempfile::tempdir().unwrap();
-        std::fs::write(
-            dir.path().join("pyproject.toml"),
-            "[build-system]\nrequires = []",
-        )
-        .unwrap();
+        std::fs::write(dir.path().join("pyproject.toml"), "[build-system]\nrequires = []").unwrap();
         let result = BuildSystem::detect(dir.path()).unwrap();
         assert!(matches!(result, BuildSystem::Python(_)));
     }
@@ -347,11 +338,8 @@ mod tests {
     #[test]
     fn test_detect_nodejs_from_package_json() {
         let dir = tempfile::tempdir().unwrap();
-        std::fs::write(
-            dir.path().join("package.json"),
-            r#"{"name":"test","version":"1.0.0"}"#,
-        )
-        .unwrap();
+        std::fs::write(dir.path().join("package.json"), r#"{"name":"test","version":"1.0.0"}"#)
+            .unwrap();
         let result = BuildSystem::detect(dir.path()).unwrap();
         assert!(matches!(result, BuildSystem::NodeJs(_)));
     }
@@ -359,11 +347,8 @@ mod tests {
     #[test]
     fn test_detect_cargo_from_cargo_toml() {
         let dir = tempfile::tempdir().unwrap();
-        std::fs::write(
-            dir.path().join("Cargo.toml"),
-            "[package]\nname = \"test\"\nversion = \"0.1.0\"",
-        )
-        .unwrap();
+        std::fs::write(dir.path().join("Cargo.toml"), "[package]\nname = \"test\"\nversion = \"0.1.0\"")
+            .unwrap();
         let result = BuildSystem::detect(dir.path()).unwrap();
         assert!(matches!(result, BuildSystem::Cargo(_)));
     }

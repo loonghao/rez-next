@@ -3,7 +3,7 @@
 #[cfg(test)]
 mod tests {
     use crate::dependency_resolver::{
-        DependencyResolver, DetailedResolutionResult, ResolutionStats,
+        DetailedResolutionResult, DependencyResolver, ResolutionStats,
     };
     use crate::resolution_state::ResolutionState;
     use crate::solver::ConflictStrategy;
@@ -11,6 +11,7 @@ mod tests {
     use rez_next_package::Requirement;
     use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
     use std::sync::Arc;
+
 
     /// Write a minimal package.py to a temp directory and return path
     fn write_package(base: &std::path::Path, name: &str, version: &str, requires: &[&str]) {
@@ -306,18 +307,9 @@ mod tests {
             .map(|r| r.package.name.as_str())
             .collect();
         assert!(names.contains(&"a_pkg"), "a_pkg should be resolved");
-        assert!(
-            names.contains(&"b_pkg"),
-            "b_pkg dependency should be resolved"
-        );
-        assert!(
-            names.contains(&"c_pkg"),
-            "c_pkg dependency should be resolved"
-        );
-        assert!(
-            names.contains(&"d_pkg"),
-            "d_pkg should be resolved as transitive dep"
-        );
+        assert!(names.contains(&"b_pkg"), "b_pkg dependency should be resolved");
+        assert!(names.contains(&"c_pkg"), "c_pkg dependency should be resolved");
+        assert!(names.contains(&"d_pkg"), "d_pkg should be resolved as transitive dep");
     }
 
     /// Phase 70: Test multi-package resolution in one request

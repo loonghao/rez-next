@@ -10,7 +10,7 @@ use rez_next_bind::{
 use std::path::PathBuf;
 
 /// Python-accessible bound package result.
-#[pyclass(name = "BindResult")]
+#[pyclass(name = "BindResult", from_py_object)]
 #[derive(Clone)]
 pub struct PyBindResult {
     /// Package name
@@ -228,10 +228,7 @@ mod tests {
     fn test_list_binders_non_empty() {
         let m = PyBindManager::new();
         let binders = m.list_binders();
-        assert!(
-            !binders.is_empty(),
-            "there should be at least one built-in binder"
-        );
+        assert!(!binders.is_empty(), "there should be at least one built-in binder");
     }
 
     #[test]
@@ -267,7 +264,10 @@ mod tests {
 
     #[test]
     fn test_extract_version_semver() {
-        assert_eq!(extract_version("Python 3.11.4"), Some("3.11.4".to_string()));
+        assert_eq!(
+            extract_version("Python 3.11.4"),
+            Some("3.11.4".to_string())
+        );
     }
 
     #[test]

@@ -26,6 +26,6 @@ pub use repository::{
 pub use scanner::*;
 pub use scanner_types::{
     CacheStatistics, PackageScanResult, ScanError, ScanErrorType, ScanPerformanceMetrics,
-    ScanResult, ScannerConfig,
+    ScanResult, ScannerConfig, REZ_PACKAGE_FILENAMES,
 };
 pub use simple_repository::*;

@@ -1,4 +1,4 @@
-//! Rez Compat — ContextSummary, Package Variants Tests (Cycle 33)
+﻿//! Rez Compat — ContextSummary, Package Variants Tests (Cycle 33)
 //!
 //! Covers:
 //! - ContextSummary package_count and package_versions
@@ -35,22 +35,10 @@ fn test_resolved_context_summary_num_packages() {
     ctx.resolved_packages.push(p3);
 
     let summary = ctx.get_summary();
-    assert_eq!(
-        summary.package_count, 3,
-        "summary.package_count should be 3"
-    );
-    assert!(
-        summary.package_versions.contains_key("pkgA"),
-        "summary should contain pkgA"
-    );
-    assert!(
-        summary.package_versions.contains_key("pkgB"),
-        "summary should contain pkgB"
-    );
-    assert!(
-        summary.package_versions.contains_key("pkgC"),
-        "summary should contain pkgC"
-    );
+    assert_eq!(summary.package_count, 3, "summary.package_count should be 3");
+    assert!(summary.package_versions.contains_key("pkgA"), "summary should contain pkgA");
+    assert!(summary.package_versions.contains_key("pkgB"), "summary should contain pkgB");
+    assert!(summary.package_versions.contains_key("pkgC"), "summary should contain pkgC");
 }
 
 /// rez context: get_summary() for empty context returns package_count=0.
@@ -60,14 +48,8 @@ fn test_resolved_context_summary_empty() {
 
     let ctx = ResolvedContext::from_requirements(vec![]);
     let summary = ctx.get_summary();
-    assert_eq!(
-        summary.package_count, 0,
-        "empty context summary should have 0 packages"
-    );
-    assert!(
-        summary.package_versions.is_empty(),
-        "empty context should have no package versions"
-    );
+    assert_eq!(summary.package_count, 0, "empty context summary should have 0 packages");
+    assert!(summary.package_versions.is_empty(), "empty context should have no package versions");
 }
 
 /// rez context: get_summary().package_versions maps name to version string.
@@ -77,8 +59,9 @@ fn test_resolved_context_summary_version_mapping() {
     use rez_next_package::PackageRequirement;
     use rez_next_version::Version;
 
-    let mut ctx =
-        ResolvedContext::from_requirements(vec![PackageRequirement::new("numpy".to_string())]);
+    let mut ctx = ResolvedContext::from_requirements(vec![
+        PackageRequirement::new("numpy".to_string()),
+    ]);
     ctx.status = ContextStatus::Resolved;
 
     let mut pkg = Package::new("numpy".to_string());
@@ -109,23 +92,16 @@ fn test_package_variants_field_populated() {
 #[test]
 fn test_package_no_variants_by_default() {
     let pkg = Package::new("simple".to_string());
-    assert_eq!(
-        pkg.num_variants(),
-        0,
-        "new package should have 0 variants by default"
-    );
-    assert!(
-        !pkg.is_variant(),
-        "Package is_variant() should always be false"
-    );
+    assert_eq!(pkg.num_variants(), 0, "new package should have 0 variants by default");
+    assert!(!pkg.is_variant(), "Package is_variant() should always be false");
 }
 
 /// Package: variants round-trip through package.py format.
 #[test]
 fn test_package_variants_loaded_from_package_py() {
-    use rez_next_package::PackageSerializer;
     use std::fs;
     use tempfile::TempDir;
+    use rez_next_package::PackageSerializer;
 
     let tmp = TempDir::new().unwrap();
     let pkg_dir = tmp.path().join("variantpkg").join("1.0.0");
@@ -141,9 +117,6 @@ variants = [
 
     let pkg = PackageSerializer::load_from_file(&pkg_dir.join("package.py")).unwrap();
     assert_eq!(pkg.name, "variantpkg");
-    assert_eq!(
-        pkg.num_variants(),
-        2,
-        "should parse 2 variants from package.py"
-    );
+    assert_eq!(pkg.num_variants(), 2, "should parse 2 variants from package.py");
 }
+

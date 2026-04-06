@@ -8,6 +8,7 @@
 //! - Predictive prefetching
 
 use crate::{PackageScanResult, ScanPerformanceMetrics, ScanResult};
+use crate::scanner_types::REZ_PACKAGE_FILENAMES;
 use dashmap::DashMap;
 use lru::LruCache;
 use memmap2::Mmap;
@@ -465,13 +466,17 @@ impl SIMDPatternMatcher {
         Self {}
     }
 
+    /// Returns `true` only for recognised rez package definition filenames
+    /// (`package.py`, `package.yaml`, `package.yml`, `package.json`).
+    ///
+    /// Uses the shared `REZ_PACKAGE_FILENAMES` constant for an O(n) linear
+    /// scan over the small slice (4 entries), which is branch-predictor-friendly
+    /// and avoids any heap allocation.
     pub fn matches_package_pattern(&self, path: &Path) -> bool {
-        // SIMD-optimized pattern matching
-        if let Some(filename) = path.file_name().and_then(|n| n.to_str()) {
-            filename.ends_with(".py") || filename.ends_with(".yaml") || filename.ends_with(".json")
-        } else {
-            false
-        }
+        path.file_name()
+            .and_then(|n| n.to_str())
+            .map(|name| REZ_PACKAGE_FILENAMES.contains(&name))
+            .unwrap_or(false)
     }
 
     pub fn is_json_simd(&self, content: &str) -> bool {
@@ -487,10 +492,26 @@ impl SIMDPatternMatcher {
     }
 }
 
-/// Predictive prefetching system
+/// Predictive prefetching system.
+///
+/// # Implementation status — PLACEHOLDER
+///
+/// All three methods currently return constant / empty values:
+/// - [`predict_directory_priority`] → always `0.5`
+/// - [`predict_file_access`] → always `[]`
+/// - [`calculate_cache_score`] → always `0.5`
+///
+/// The ML-based prediction logic is not yet implemented. Tests for this type
+/// are explicitly marked as smoke tests and only verify that the API compiles
+/// and returns values in the expected range.  When real prediction semantics
+/// are introduced the smoke tests should be replaced with contract tests.
+///
+/// [`predict_directory_priority`]: PrefetchPredictor::predict_directory_priority
+/// [`predict_file_access`]: PrefetchPredictor::predict_file_access
+/// [`calculate_cache_score`]: PrefetchPredictor::calculate_cache_score
 #[derive(Default)]
 pub struct PrefetchPredictor {
-    // Machine learning model for prediction
+    // Placeholder: no ML model state yet.
 }
 
 impl PrefetchPredictor {
@@ -498,18 +519,24 @@ impl PrefetchPredictor {
         Self {}
     }
 
+    /// Returns a priority score for the given directory path.
+    ///
+    /// **Placeholder**: always returns `0.5` until ML logic is implemented.
     pub fn predict_directory_priority(&self, _path: &Path) -> f64 {
-        // Implement ML-based directory priority prediction
         0.5
     }
 
+    /// Returns predicted access scores for the given file paths.
+    ///
+    /// **Placeholder**: always returns an empty `Vec` until ML logic is implemented.
     pub fn predict_file_access(&self, _files: &[PathBuf]) -> Vec<(PathBuf, f64)> {
-        // Implement ML-based file access prediction
         Vec::new()
     }
 
+    /// Returns a cache retention score for the given path.
+    ///
+    /// **Placeholder**: always returns `0.5` until ML logic is implemented.
     pub fn calculate_cache_score(&self, _path: &Path) -> f64 {
-        // Calculate cache retention score
         0.5
     }
 }
@@ -527,390 +554,5 @@ pub struct PerformanceStats {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use std::path::Path;
-    use tempfile::TempDir;
-
-    // ── SIMDPatternMatcher tests ─────────────────────────────────────────────
-
-    mod test_simd_pattern_matcher {
-        use super::*;
-
-        #[test]
-        fn test_matches_py_extension() {
-            let matcher = SIMDPatternMatcher::new();
-            assert!(matcher.matches_package_pattern(Path::new("/some/dir/package.py")));
-        }
-
-        #[test]
-        fn test_matches_yaml_extension() {
-            let matcher = SIMDPatternMatcher::new();
-            assert!(matcher.matches_package_pattern(Path::new("/some/dir/package.yaml")));
-        }
-
-        #[test]
-        fn test_matches_json_extension() {
-            let matcher = SIMDPatternMatcher::new();
-            assert!(matcher.matches_package_pattern(Path::new("/some/dir/package.json")));
-        }
-
-        #[test]
-        fn test_does_not_match_txt_extension() {
-            let matcher = SIMDPatternMatcher::new();
-            assert!(!matcher.matches_package_pattern(Path::new("/some/dir/readme.txt")));
-        }
-
-        #[test]
-        fn test_does_not_match_rs_extension() {
-            let matcher = SIMDPatternMatcher::new();
-            assert!(!matcher.matches_package_pattern(Path::new("/some/dir/lib.rs")));
-        }
-
-        #[test]
-        fn test_does_not_match_empty_path() {
-            let matcher = SIMDPatternMatcher::new();
-            // Path with no filename returns false
-            assert!(!matcher.matches_package_pattern(Path::new("")));
-        }
-
-        #[test]
-        fn test_is_json_simd_detects_object() {
-            let matcher = SIMDPatternMatcher::new();
-            assert!(matcher.is_json_simd(r#"{"name": "mypkg"}"#));
-        }
-
-        #[test]
-        fn test_is_json_simd_rejects_yaml() {
-            let matcher = SIMDPatternMatcher::new();
-            assert!(!matcher.is_json_simd("name: mypkg\nversion: 1.0"));
-        }
-
-        #[test]
-        fn test_is_json_simd_rejects_empty() {
-            let matcher = SIMDPatternMatcher::new();
-            assert!(!matcher.is_json_simd(""));
-        }
-
-        #[test]
-        fn test_is_yaml_simd_detects_yaml() {
-            let matcher = SIMDPatternMatcher::new();
-            assert!(matcher.is_yaml_simd("name: mypkg\nversion: 1.0"));
-        }
-
-        #[test]
-        fn test_is_yaml_simd_rejects_json() {
-            let matcher = SIMDPatternMatcher::new();
-            // JSON starts with '{', is_yaml returns false because of the object start check
-            assert!(!matcher.is_yaml_simd(r#"{"name": "mypkg"}"#));
-        }
-
-        #[test]
-        fn test_is_python_simd_detects_python() {
-            let matcher = SIMDPatternMatcher::new();
-            assert!(matcher.is_python_simd("name = 'mypkg'\nversion = '1.0'"));
-        }
-
-        #[test]
-        fn test_is_python_simd_rejects_plain_text() {
-            let matcher = SIMDPatternMatcher::new();
-            assert!(!matcher.is_python_simd("hello world"));
-        }
-
-        #[test]
-        fn test_default_is_same_as_new() {
-            let a = SIMDPatternMatcher::new();
-            let b = SIMDPatternMatcher::default();
-            // Both should behave identically
-            assert!(a.matches_package_pattern(Path::new("pkg.yaml")));
-            assert!(b.matches_package_pattern(Path::new("pkg.yaml")));
-        }
-    }
-
-    // ── PrefetchPredictor tests ──────────────────────────────────────────────
-
-    mod test_prefetch_predictor {
-        use super::*;
-
-        #[test]
-        fn test_predict_directory_priority_returns_value_in_range() {
-            let predictor = PrefetchPredictor::new();
-            let priority = predictor.predict_directory_priority(Path::new("/opt/packages/maya"));
-            assert!((0.0..=1.0).contains(&priority));
-        }
-
-        #[test]
-        fn test_predict_file_access_empty_input_returns_empty() {
-            let predictor = PrefetchPredictor::new();
-            let result = predictor.predict_file_access(&[]);
-            assert!(result.is_empty());
-        }
-
-        #[test]
-        fn test_predict_file_access_with_files_returns_only_known_paths() {
-            let predictor = PrefetchPredictor::new();
-            let files = vec![
-                PathBuf::from("/opt/packages/maya/2024/package.yaml"),
-                PathBuf::from("/opt/packages/houdini/20/package.yaml"),
-            ];
-            let result = predictor.predict_file_access(&files);
-            assert!(result.len() <= files.len());
-            assert!(result
-                .iter()
-                .all(|(path, score)| { files.contains(path) && (0.0..=1.0).contains(score) }));
-        }
-
-        #[test]
-        fn test_calculate_cache_score_returns_value_in_range() {
-            let predictor = PrefetchPredictor::new();
-            let score =
-                predictor.calculate_cache_score(Path::new("/opt/packages/maya/package.yaml"));
-            assert!((0.0..=1.0).contains(&score));
-        }
-
-        #[test]
-        fn test_default_is_same_as_new() {
-            let a = PrefetchPredictor::new();
-            let b = PrefetchPredictor::default();
-            // Both should not panic on method calls
-            let _ = a.predict_directory_priority(Path::new("/tmp"));
-            let _ = b.predict_directory_priority(Path::new("/tmp"));
-        }
-    }
-
-    // ── HighPerformanceConfig tests ──────────────────────────────────────────
-
-    mod test_high_performance_config {
-        use super::*;
-
-        #[test]
-        fn test_default_config_max_concurrency_is_positive() {
-            let config = HighPerformanceConfig::default();
-            assert!(config.max_concurrency > 0);
-        }
-
-        #[test]
-        fn test_default_config_cache_size_is_positive() {
-            let config = HighPerformanceConfig::default();
-            assert!(config.cache_size > 0);
-        }
-
-        #[test]
-        fn test_default_config_mmap_threshold_is_64kb() {
-            let config = HighPerformanceConfig::default();
-            assert_eq!(config.mmap_threshold, 64 * 1024);
-        }
-
-        #[test]
-        fn test_default_config_batch_size_is_100() {
-            let config = HighPerformanceConfig::default();
-            assert_eq!(config.batch_size, 100);
-        }
-
-        #[test]
-        fn test_default_config_simd_enabled() {
-            let config = HighPerformanceConfig::default();
-            assert!(config.enable_simd);
-        }
-
-        #[test]
-        fn test_default_config_prefetch_enabled() {
-            let config = HighPerformanceConfig::default();
-            assert!(config.enable_prefetch);
-        }
-
-        #[test]
-        fn test_default_config_work_stealing_enabled() {
-            let config = HighPerformanceConfig::default();
-            assert!(config.enable_work_stealing);
-        }
-
-        #[test]
-        fn test_clone_config() {
-            let config = HighPerformanceConfig::default();
-            let cloned = config.clone();
-            assert_eq!(config.cache_size, cloned.cache_size);
-            assert_eq!(config.mmap_threshold, cloned.mmap_threshold);
-        }
-
-        #[test]
-        fn test_custom_config_values() {
-            let config = HighPerformanceConfig {
-                max_concurrency: 4,
-                enable_simd: false,
-                enable_prefetch: false,
-                cache_size: 500,
-                mmap_threshold: 1024,
-                batch_size: 50,
-                enable_work_stealing: false,
-            };
-            assert_eq!(config.max_concurrency, 4);
-            assert!(!config.enable_simd);
-            assert_eq!(config.cache_size, 500);
-        }
-    }
-
-    // ── HighPerformanceScanner construction tests ────────────────────────────
-
-    mod test_scanner_construction {
-        use super::*;
-
-        #[test]
-        fn test_new_scanner_has_zero_stats() {
-            let config = HighPerformanceConfig::default();
-            let scanner = HighPerformanceScanner::new(config);
-            let stats = scanner.get_performance_stats();
-            assert_eq!(stats.cache_hits, 0);
-            assert_eq!(stats.cache_misses, 0);
-            assert_eq!(stats.simd_operations, 0);
-            assert_eq!(stats.mmap_operations, 0);
-            assert_eq!(stats.prefetch_hits, 0);
-            assert_eq!(stats.total_scan_time, 0);
-            assert_eq!(stats.cache_size, 0);
-        }
-
-        #[test]
-        fn test_new_scanner_with_small_cache() {
-            let config = HighPerformanceConfig {
-                cache_size: 1,
-                ..HighPerformanceConfig::default()
-            };
-            let scanner = HighPerformanceScanner::new(config);
-            let stats = scanner.get_performance_stats();
-            assert_eq!(stats.cache_size, 0); // empty at start
-        }
-
-        #[test]
-        fn test_performance_stats_clone() {
-            let config = HighPerformanceConfig::default();
-            let scanner = HighPerformanceScanner::new(config);
-            let stats = scanner.get_performance_stats();
-            let cloned = stats.clone();
-            assert_eq!(stats.cache_hits, cloned.cache_hits);
-            assert_eq!(stats.total_scan_time, cloned.total_scan_time);
-        }
-    }
-
-    // ── scan_repository_optimized async tests ───────────────────────────────
-
-    mod test_scan_optimized_async {
-        use super::*;
-
-        #[tokio::test]
-        async fn test_scan_nonexistent_path_returns_ok_with_no_packages() {
-            // Non-existent path: discover_directories_predictive will return empty
-            // because fs::read_dir fails silently; scan completes with 0 packages
-            let config = HighPerformanceConfig::default();
-            let scanner = HighPerformanceScanner::new(config);
-            let result = scanner
-                .scan_repository_optimized(Path::new("/nonexistent/path/xyz"))
-                .await;
-            // Should succeed but return zero packages (read_dir failures are swallowed)
-            assert!(result.is_ok());
-            let scan = result.unwrap();
-            assert_eq!(scan.packages.len(), 0);
-        }
-
-        #[tokio::test]
-        async fn test_scan_empty_dir_returns_zero_packages() {
-            let tmp = TempDir::new().unwrap();
-            let config = HighPerformanceConfig::default();
-            let scanner = HighPerformanceScanner::new(config);
-            let result = scanner.scan_repository_optimized(tmp.path()).await.unwrap();
-            assert_eq!(result.packages.len(), 0);
-        }
-
-        #[tokio::test]
-        async fn test_scan_updates_dirs_scanned_counter() {
-            let tmp = TempDir::new().unwrap();
-            // Create a subdirectory to increment dirs_scanned
-            std::fs::create_dir(tmp.path().join("subdir")).unwrap();
-
-            let config = HighPerformanceConfig::default();
-            let scanner = HighPerformanceScanner::new(config);
-            let result = scanner.scan_repository_optimized(tmp.path()).await.unwrap();
-            // dirs_scanned should be at least 1 (the root itself counts via the subdir loop)
-            assert!(result.directories_scanned >= 1);
-        }
-
-        #[tokio::test]
-        async fn test_scan_total_duration_is_set() {
-            let tmp = TempDir::new().unwrap();
-            let config = HighPerformanceConfig::default();
-            let scanner = HighPerformanceScanner::new(config);
-            let result = scanner.scan_repository_optimized(tmp.path()).await.unwrap();
-            // total_duration_ms is set (may be 0 for empty fast scan, but field exists)
-            let _ = result.total_duration_ms;
-        }
-
-        #[tokio::test]
-        async fn test_scan_performance_metrics_are_populated() {
-            let tmp = TempDir::new().unwrap();
-            let config = HighPerformanceConfig::default();
-            let scanner = HighPerformanceScanner::new(config);
-            let result = scanner.scan_repository_optimized(tmp.path()).await.unwrap();
-            // peak_concurrency should match config
-            assert!(result.performance_metrics.peak_concurrency > 0);
-        }
-
-        #[tokio::test]
-        async fn test_scan_valid_yaml_package_file_is_parsed() {
-            let tmp = TempDir::new().unwrap();
-            // Create a subdirectory to act as a "directory" entry (discovered by predictor)
-            let pkg_dir = tmp.path().join("maya").join("2024.1");
-            std::fs::create_dir_all(&pkg_dir).unwrap();
-            // Write a valid YAML package file
-            let yaml = "name: maya\nversion: '2024.1'\ndescription: Maya DCC\n";
-            std::fs::write(pkg_dir.join("package.yaml"), yaml).unwrap();
-
-            let config = HighPerformanceConfig::default();
-            let scanner = HighPerformanceScanner::new(config);
-            let result = scanner.scan_repository_optimized(tmp.path()).await.unwrap();
-            assert_eq!(result.packages.len(), 1);
-            assert_eq!(result.packages[0].package.name, "maya");
-        }
-
-        #[tokio::test]
-        async fn test_scan_multiple_packages_are_all_found() {
-            let tmp = TempDir::new().unwrap();
-            let pkgs = [
-                ("maya", "2024.1"),
-                ("houdini", "20.0"),
-                ("python", "3.11.0"),
-            ];
-            for (name, ver) in &pkgs {
-                let pkg_dir = tmp.path().join(name).join(ver);
-                std::fs::create_dir_all(&pkg_dir).unwrap();
-                let yaml = format!("name: {}\nversion: '{}'\n", name, ver);
-                std::fs::write(pkg_dir.join("package.yaml"), &yaml).unwrap();
-            }
-
-            let config = HighPerformanceConfig::default();
-            let scanner = HighPerformanceScanner::new(config);
-            let result = scanner.scan_repository_optimized(tmp.path()).await.unwrap();
-            assert_eq!(result.packages.len(), 3);
-        }
-
-        #[tokio::test]
-        async fn test_scan_with_prefetch_disabled() {
-            let tmp = TempDir::new().unwrap();
-            let config = HighPerformanceConfig {
-                enable_prefetch: false,
-                ..HighPerformanceConfig::default()
-            };
-            let scanner = HighPerformanceScanner::new(config);
-            let result = scanner.scan_repository_optimized(tmp.path()).await.unwrap();
-            assert_eq!(result.packages.len(), 0);
-        }
-
-        #[tokio::test]
-        async fn test_total_scan_time_updated_after_scan() {
-            let tmp = TempDir::new().unwrap();
-            let config = HighPerformanceConfig::default();
-            let scanner = HighPerformanceScanner::new(config);
-            let result = scanner.scan_repository_optimized(tmp.path()).await.unwrap();
-            let stats = scanner.get_performance_stats();
-            assert_eq!(stats.total_scan_time, result.total_duration_ms);
-        }
-    }
-}
+#[path = "high_performance_scanner_tests.rs"]
+mod tests;

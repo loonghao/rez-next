@@ -6,7 +6,7 @@ use pyo3::prelude::*;
 use rez_next_version::{Version, VersionRange};
 
 /// Python-accessible Version class, compatible with rez.vendor.version.Version
-#[pyclass(name = "Version")]
+#[pyclass(name = "Version", from_py_object)]
 #[derive(Clone)]
 pub struct PyVersion(pub Version);
 
@@ -136,7 +136,7 @@ impl PyVersion {
 }
 
 /// Python-accessible VersionRange class, compatible with rez.vendor.version.VersionRange
-#[pyclass(name = "VersionRange")]
+#[pyclass(name = "VersionRange", from_py_object)]
 #[derive(Clone)]
 pub struct PyVersionRange(pub VersionRange);
 
@@ -319,6 +319,8 @@ mod tests {
         let trimmed = v.trim(2).unwrap();
         assert_eq!(trimmed.__str__(), "1.2");
     }
+
+
 
     #[test]
     fn test_py_version_range_str() {

@@ -84,6 +84,36 @@ pub fn parse_env_var(arg: &str) -> RezCoreResult<(String, String)> {
     }
 }
 
+/// Split a paths string into individual [`PathBuf`] entries using the
+/// OS-appropriate path-list separator.
+///
+/// On **Windows** the separator is `;` (same as the `PATH` env-var convention).
+/// On **Unix/macOS** the separator is `:`.
+///
+/// This avoids the common bug of splitting on `:` on Windows, which would break
+/// paths like `C:\packages\foo` (the drive letter `C` would become a separate
+/// entry).
+///
+/// Surrounding whitespace around each entry is trimmed.
+///
+/// # Examples
+/// ```
+/// // On Unix: "/pkg/a:/pkg/b" → [PathBuf::from("/pkg/a"), PathBuf::from("/pkg/b")]
+/// // On Windows: "C:\\pkg\\a;D:\\pkg\\b" → [PathBuf::from("C:\\pkg\\a"), PathBuf::from("D:\\pkg\\b")]
+/// ```
+pub fn split_package_paths(paths_str: &str) -> Vec<PathBuf> {
+    #[cfg(windows)]
+    const PATH_LIST_SEP: char = ';';
+    #[cfg(not(windows))]
+    const PATH_LIST_SEP: char = ':';
+
+    paths_str
+        .split(PATH_LIST_SEP)
+        .map(|p| PathBuf::from(p.trim()))
+        .filter(|p| !p.as_os_str().is_empty())
+        .collect()
+}
+
 /// Expand `~` at the start of a path string to the user's home directory.
 ///
 /// Returns a [`PathBuf`].  If the path does not start with `~` it is returned
@@ -237,6 +267,55 @@ mod tests {
 
         assert!(validate_package_name("").is_err());
         assert!(validate_package_name("invalid package").is_err());
+    }
+
+    #[test]
+    fn test_split_package_paths_single() {
+        let result = split_package_paths("/usr/local/packages");
+        assert_eq!(result, vec![std::path::PathBuf::from("/usr/local/packages")]);
+    }
+
+    #[test]
+    fn test_split_package_paths_empty() {
+        let result = split_package_paths("");
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_split_package_paths_with_whitespace() {
+        #[cfg(not(windows))]
+        {
+            let result = split_package_paths(" /pkg/a : /pkg/b ");
+            assert_eq!(result.len(), 2);
+            assert_eq!(result[0], std::path::PathBuf::from("/pkg/a"));
+            assert_eq!(result[1], std::path::PathBuf::from("/pkg/b"));
+        }
+        #[cfg(windows)]
+        {
+            let result = split_package_paths(r" C:\pkg\a ; D:\pkg\b ");
+            assert_eq!(result.len(), 2);
+            assert_eq!(result[0], std::path::PathBuf::from(r"C:\pkg\a"));
+            assert_eq!(result[1], std::path::PathBuf::from(r"D:\pkg\b"));
+        }
+    }
+
+    #[test]
+    #[cfg(windows)]
+    fn test_split_package_paths_windows_drive_letters() {
+        // Ensure Windows drive letters are NOT split by ':'
+        let result = split_package_paths(r"C:\packages\rez;D:\local\packages");
+        assert_eq!(result.len(), 2);
+        assert_eq!(result[0], std::path::PathBuf::from(r"C:\packages\rez"));
+        assert_eq!(result[1], std::path::PathBuf::from(r"D:\local\packages"));
+    }
+
+    #[test]
+    #[cfg(not(windows))]
+    fn test_split_package_paths_unix_colon_separator() {
+        let result = split_package_paths("/opt/rez/packages:/home/user/packages");
+        assert_eq!(result.len(), 2);
+        assert_eq!(result[0], std::path::PathBuf::from("/opt/rez/packages"));
+        assert_eq!(result[1], std::path::PathBuf::from("/home/user/packages"));
     }
 
     #[test]

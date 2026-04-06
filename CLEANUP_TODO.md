@@ -125,17 +125,27 @@
 - All 125 version crate tests + full test suite (~715 tests) pass
 
 ### 23. Large mixed-responsibility files remain in CLI and build/parser modules
-- **Status**: TODO (cycle 25)
-- `src/cli/commands/bind.rs`, `crates/rez-next-build/src/systems/mod.rs`, `crates/rez-next-package/src/python_ast_parser/mod.rs`, `src/cli/commands/search_v2.rs`, and `src/cli/commands/pkg_cache.rs` are still ~500-1300 lines and mix orchestration with parsing/formatting/IO
-- `python_ast_parser.rs` has already been split into focused submodules; remaining follow-up is to keep the new `mod.rs` from regrowing mixed responsibilities
-- Follow-up: split by responsibility before adding more behavior to these files
+- **Status**: COMPLETE ✓ (cycle 84)
+- `src/cli/commands/pkg_cache.rs` (793 lines) split into `pkg_cache/` directory:
+  - `types.rs` — `PkgCacheArgs`, `PkgCacheMode`, `CacheEntry`, `CacheStatus`
+  - `ops.rs` — `add_variants`, `remove_variants`, `clean_cache`, `run_daemon`, `view_logs`, `determine_cache_directory`, `initialize_cache_manager`
+  - `display.rs` — `show_cache_status`, `show_cache_entries_table`, `scan_cache_directory`, table helpers
+  - `mod.rs` — entry point `execute()`, integration tests
+- `src/cli/commands/search_v2.rs` (718 lines) split into `search_v2/` directory:
+  - `types.rs` — `SearchArgs`, `SearchResult`
+  - `matcher.rs` — `evaluate_package_match`, `get_package_timestamp`
+  - `filter.rs` — `perform_search`, `sort_results`, `filter_latest_versions`
+  - `display.rs` — `display_search_results`, table/JSON/detailed format renderers
+  - `mod.rs` — entry point `execute()`, `search_async()`, `add_default_repositories()`
+- All files now ≤240 lines; 0 clippy warnings; all tests pass
+- Follow-up: keep `bind.rs` (~500 lines) and `systems/mod.rs` (~424 lines) from regrowing mixed responsibilities
 
 
 ### 24. CLI helper logic is still duplicated across commands
-- **Status**: TODO (cycle 25)
-- Home-path expansion is now centralized for `bind.rs`, `cp.rs`, `mv.rs`, `rm.rs`, `status.rs`, `test.rs`, `view.rs`, and related commands, but `build.rs` still keeps a custom path-normalization helper because it also validates UNC / drive-specific forms
-- Time parsing is now centralized in `src/cli/utils.rs`; remove redundant command-local tests and evaluate whether `build.rs` path handling can converge on the shared helper without losing validation behavior
-- Follow-up: extract shared CLI helpers for path expansion and timestamp parsing
+- **Status**: COMPLETE ✓ (cycle 34)
+- `build.rs` and `search_v2/mod.rs` now both use `src/cli/utils.rs::expand_home_path` for `~` expansion instead of carrying command-local logic
+- Time parsing remains centralized in `src/cli/utils.rs`; future CLI commands that discover repositories or package paths should route through the same shared helper layer
+
 
 ### 25. Public compatibility stubs still need explicit product decisions
 - **Status**: COMPLETE ✓ (cycle 43 for build-system tests; stubs fixed in cycle 39)
@@ -149,15 +159,23 @@
   - All 70 rez-next-build tests pass; 0 clippy warnings
 
 ### 26. Build-system command execution still depends on shell-specific strings
-- **Status**: TODO (cycle 46)
-- `python.rs`, `nodejs.rs`, `cargo_build.rs`, `make.rs`, `cmake.rs`, and `custom.rs` still assemble shell-specific command strings inline (`2>&1`, `|| echo`, quoting, `DESTDIR=...`)
-- Follow-up: extract a shared command runner / argument builder so quoting, fallback behavior, and stderr handling stay consistent across shells and platforms
+- **Status**: COMPLETE ✓ (cycle 80)
+- Extracted `crates/rez-next-build/src/systems/cmd_builder.rs` with two shared helpers:
+  - `run_cmd(executor, step, cmd, optional, fallback_msg)` — runs a command; when `optional=true` swallows non-zero exits and `Err` variants, returning `success: true` + `fallback_msg`; no `2>&1` in command strings
+  - `make_install_cmd(destdir)` — formats `make install DESTDIR="..."` with proper quoting
+- `nodejs.rs`: `compile()` + `test()` rewritten with `run_cmd(…, optional=true, …)`, removing `"2>&1 || echo '...'"` literals
+- `cargo_build.rs`: `configure()`, `test()`, `package()` rewritten with `run_cmd`; `"2>&1"` removed from all three command strings
+- `python.rs`: `test()` rewritten to run pytest first (optional) then unittest discover (optional); no `"2>&1 || python -m unittest"` inline
+- `make.rs`: `install()` now uses `make_install_cmd()` instead of inline `format!("make install DESTDIR={}", …)`
+- `mod.rs`: registers `pub(crate) mod cmd_builder`
+- `cmd_builder.rs` has 2 unit tests for `make_install_cmd`
+- All 70 rez-next-build tests pass; Clippy: 0 warnings
 
 ### 27. Python context/source bindings still expose placeholder compatibility behavior
-- **Status**: TODO (cycle 46)
-- `context_bindings.rs` creates a fresh Tokio runtime per operation and returns synthetic `/packages/<name>/bin/<tool>` paths from `get_tools()`
-- `source_bindings.rs` still hardcodes `/tmp/rez_context.rxt` and placeholder `REZPKG_*` env vars for generated scripts
-- Follow-up: either implement real rez-compatible semantics or explicitly document the current partial-compatibility contract
+- **Status**: COMPLETE ✓ (cycles 82-83)
+- `context_bindings.rs`: introduced module-level `TOKIO_RT: OnceLock<Runtime>` (shared via `crate::runtime::get_runtime()`); `get_tools()` now uses `pkg.base` as primary path, falls back to `{name}-{version}/bin/{tool}` estimate
+- `source_bindings.rs`: `REZ_CONTEXT_FILE` now uses cross-platform `std::env::temp_dir().join("rez_context.rxt")` (Windows-safe)
+- Cycle 83b: extracted `crates/rez-next-python/src/runtime.rs` — all 14 per-call `Runtime::new()` occurrences across 8 binding files migrated to shared `get_runtime()`
 
 ### 28. `rez-next-context` test mega-file should be split by concern
 - **Status**: COMPLETE ✓ (cycle 56)
@@ -172,22 +190,68 @@
 - Follow-up: keep documenting rez-compatible `stop()` semantics in user-facing Rex docs if new command examples are added
 
 ### 30. Repository format support has diverged between `FileSystemRepository` and `SimpleRepository`
-- **Status**: TODO (cycle 28)
-- Iteration commit `a70d978` expanded `FileSystemRepository` to load `package.py`, `package.yaml`, `package.yml`, and `package.json`
-- `SimpleRepository` still intentionally scans only `package.py`; this cycle tightened tests so the current split is explicit instead of hidden behind vacuous assertions
-- Follow-up: decide whether the divergence is intentional API surface or whether both repository implementations should share a common format matrix / scanning helper before more behavior-specific tests accumulate
+- **Status**: COMPLETE ✓ (cycle 84, refreshed cycle 34)
+- Iteration commit `53abfa1` updated `SimpleRepository` to scan `package.py`, `package.yaml`, `package.yml`, and `package.json`
+- Cycle 34 removed the last local duplicate by switching `simple_repository.rs` from its private `PACKAGE_FILENAMES` array to the shared `scanner_types::REZ_PACKAGE_FILENAMES` constant
+- `simple_repository_tests.rs` locks the behavior with yaml/json/yml discovery coverage plus an explicit `package.py`-beats-`package.yaml` priority assertion
+
+
 
 ### 31. `PackageBinder::list_bound_packages()` still lacks a real unit-test seam
-- **Status**: TODO (cycle 29)
-- Crate-level `PackageBinder::list_bound_packages()` still reads the config-derived install root directly, so tests cannot inject a temporary package tree without coupling to global config/home expansion
-- Cycle 29 removed a misleading smoke test that only built a temp directory structure and asserted `package.py` existed; it never called `list_bound_packages()` and therefore did not protect behavior
-- Follow-up: extract a helper that accepts an install root (or otherwise inject the root path), then add contract tests for sorted family/version listing
+- **Status**: COMPLETE ✓ (cycle 79)
+- Extracted `list_bound_packages_in(install_root: &Path)` as a public free function in `binder.rs`
+- `PackageBinder::list_bound_packages()` now delegates to it
+- Exported via `lib.rs` as `rez_next_bind::list_bound_packages_in`
+- Added 7 contract tests: empty dir, nonexistent dir, single package, multiple families, multiple versions sorted, ignores dirs without package.py, ignores non-dir root entries, alphabetical sort
 
 ### 32. `PrefetchPredictor` tests still encode placeholder semantics instead of behavior contracts
-- **Status**: TODO (cycle 29)
-- `crates/rez-next-repository/src/high_performance_scanner.rs` still returns constant `0.5` / empty predictions from `predict_directory_priority`, `predict_file_access`, and `calculate_cache_score`
-- Current tests mostly assert range/emptiness, so they behave like smoke tests and can pass even if the predictor never becomes meaningful
-- Follow-up: either rename/document these as explicit placeholder smoke tests, or define the real predictor contract before adding more behavior-dependent assertions
+- **Status**: COMPLETE ✓ (cycle 80)
+- `PrefetchPredictor` struct now has a full doc-comment block documenting that all three methods are placeholders returning constant / empty values
+- All three `impl` methods have inline `/// **Placeholder**: ...` doc lines
+- Test module renamed from `test_prefetch_predictor` → `test_prefetch_predictor_smoke`
+- All 5 test function names updated with explicit `_smoke` suffix
+- Each test now carries a `// Placeholder:` comment explaining what the placeholder currently does
+- Follow-up: when real ML prediction is implemented, replace the smoke tests with contract tests that verify actual behavior against known inputs
+
+### 33. `cli_e2e_tests.rs` still allows implicit skips and weak exit-code assertions
+- **Status**: COMPLETE ✓ (cycle 78)
+- Added `rez_output()` helper that returns `(stdout, stderr, Option<i32>)` without asserting success, enabling per-test signal-vs-code discrimination
+- Replaced all 18 `status.code().is_some()` exit-code-only assertions with observable contracts:
+  - `solve`: now checks "No packages to resolve", "Failed requirements", or "Resolved packages" in stdout
+  - `search`: missing repo path → asserts non-zero exit + "Error" in stderr; `--latest-only` → asserts "Found" in output
+  - `view`: nonexistent package → asserts non-zero exit + "not found"; package in repo → asserts non-empty combined output
+  - `rm`: nonexistent → asserts "No packages found" in stdout
+  - `cp`: success → asserts "copied"/"Successfully" + destination directory exists; failure → asserts "Error" message
+  - `complete --shell bash`: checks function definition and subcommand list in script
+  - `depends`: checks "No packages"/"Error" in combined output
+  - `pkg-cache status`: checks "Cache" + "entries"; `--clean`: checks "cleaning"/"completed" + "0"
+  - `build` without `package.py`: asserts non-zero exit + error message
+  - `status` outside context: asserts non-empty combined output
+- `config --search-list`: replaced vacuous `let _ = out` with assertion that output mentions yaml/json/rezconfig paths
+- `plugins`: replaced vacuous `let _ = out` with NUL-byte absence check
+- `config`, `config packages_path`, `suites --help`, `pkg-cache --help`, `pip --help`: tightened to check semantic keywords
+- `test_full_workflow_search_and_view`: updated `view`/`solve` steps to use real flag names and check combined output
+- All 49 cli_e2e_tests pass; Clippy: 0 warnings
+
+### 34. `real_repo_*` split test files still duplicate local repository helpers
+- **Status**: COMPLETE ✓ (cycle 32)
+- Extracted shared helpers into `tests/real_repo_test_helpers.rs` (`create_package`) and `tests/real_repo_manager_helpers.rs` (`make_repo`)
+- `tests/real_repo_integration.rs`, `tests/real_repo_resolve_tests.rs`, and `tests/real_repo_context_tests.rs` now reuse the shared helpers instead of keeping near-identical local fixture builders
+- Follow-up: keep future real-repo fixture behavior centralized in these helper modules so the split integration suites do not drift again
+
+
+### 35. Split-test migration notice shells still build as empty integration targets
+- **Status**: COMPLETE ✓ (cycle 77)
+- Deleted `tests/rez_solver_graph_tests.rs`, `tests/rez_solver_platform_tests.rs`, and `tests/rez_compat_late_tests.rs` — all were 7-11 line comment-only files with no tests; git history in the split-file commit messages is sufficient
+- All tests continued to pass (0 failed); test-target noise reduced by 3 empty crates
+
+### 36. Compat cycle tests now overlap with dedicated solver-graph topology coverage
+- **Status**: COMPLETE ✓ (cycle 77)
+- Removed 4 duplicate cycle tests from `tests/rez_compat_context_tests.rs`: `test_circular_dependency_direct`, `test_circular_dependency_three_way`, `test_no_circular_dependency_linear`, `test_self_referencing_package_is_cycle`
+- Kept `test_diamond_dependency_not_cycle` which has no equivalent in the topology suite
+- File reduced from 713 → ~550 lines; all tests pass
+
+
 
 
 

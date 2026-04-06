@@ -9,7 +9,7 @@
 use pyo3::prelude::*;
 
 /// Plugin type classification (mirrors rez.plugin_managers.PluginType)
-#[pyclass(name = "PluginType")]
+#[pyclass(name = "PluginType", from_py_object)]
 #[derive(Clone, Debug, PartialEq)]
 pub struct PyPluginType {
     #[pyo3(get)]
@@ -36,7 +36,7 @@ impl PyPluginType {
 
 /// Represents a registered plugin.
 /// Compatible with rez's plugin_manager.Plugin interface.
-#[pyclass(name = "Plugin")]
+#[pyclass(name = "Plugin", from_py_object)]
 #[derive(Clone)]
 pub struct PyPlugin {
     #[pyo3(get)]

@@ -91,11 +91,7 @@ mod tests {
             };
             let repr = solver.__repr__();
             assert!(repr.starts_with("Solver("), "repr: {}", repr);
-            assert!(
-                repr.contains("paths=0"),
-                "repr should show 0 paths: {}",
-                repr
-            );
+            assert!(repr.contains("paths=0"), "repr should show 0 paths: {}", repr);
         }
 
         #[test]
@@ -142,6 +138,95 @@ mod tests {
                 paths: paths.clone(),
             };
             assert_eq!(solver.paths, paths);
+        }
+
+        // ── New tests (Cycle 89) ─────────────────────────────────────────────
+
+        #[test]
+        fn test_solver_config_prefer_latest_default_true() {
+            let config = SolverConfig::default();
+            assert!(config.prefer_latest, "prefer_latest should default to true");
+        }
+
+        #[test]
+        fn test_solver_config_allow_prerelease_default_false() {
+            let config = SolverConfig::default();
+            assert!(
+                !config.allow_prerelease,
+                "allow_prerelease should default to false"
+            );
+        }
+
+        #[test]
+        fn test_solver_config_strict_mode_default_false() {
+            let config = SolverConfig::default();
+            assert!(!config.strict_mode, "strict_mode should default to false");
+        }
+
+        #[test]
+        fn test_solver_config_enable_caching_default_true() {
+            let config = SolverConfig::default();
+            assert!(config.enable_caching, "enable_caching should default to true");
+        }
+
+        #[test]
+        fn test_solver_config_max_attempts_1000() {
+            let config = SolverConfig::default();
+            assert_eq!(config.max_attempts, 1000);
+        }
+
+        #[test]
+        fn test_solver_config_max_time_300s() {
+            let config = SolverConfig::default();
+            assert_eq!(config.max_time_seconds, 300);
+        }
+
+        #[test]
+        fn test_solver_repr_shows_prefer_latest_true() {
+            let solver = PySolver {
+                config: SolverConfig::default(),
+                paths: vec![],
+            };
+            let repr = solver.__repr__();
+            assert!(
+                repr.contains("prefer_latest=true"),
+                "repr: {}",
+                repr
+            );
+        }
+
+        #[test]
+        fn test_solver_repr_shows_max_attempts_1000() {
+            let solver = PySolver {
+                config: SolverConfig::default(),
+                paths: vec![],
+            };
+            let repr = solver.__repr__();
+            assert!(
+                repr.contains("max_attempts=1000"),
+                "repr: {}",
+                repr
+            );
+        }
+
+        #[test]
+        fn test_solver_zero_paths_repr_paths_0() {
+            let solver = PySolver {
+                config: SolverConfig::default(),
+                paths: vec![],
+            };
+            let repr = solver.__repr__();
+            assert!(repr.contains("paths=0"), "repr: {}", repr);
+        }
+
+        #[test]
+        fn test_solver_single_path_repr_paths_1() {
+            let solver = PySolver {
+                config: SolverConfig::default(),
+                paths: vec![PathBuf::from("/packages")],
+            };
+            let repr = solver.__repr__();
+            assert!(repr.contains("paths=1"), "repr: {}", repr);
         }
     }
 }

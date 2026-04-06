@@ -5,7 +5,7 @@ use pyo3::prelude::*;
 use rez_next_package::{Package, PackageRequirement};
 
 /// Python-accessible Package class, compatible with rez.packages.Package
-#[pyclass(name = "Package")]
+#[pyclass(name = "Package", from_py_object)]
 #[derive(Clone)]
 pub struct PyPackage(pub Package);
 
@@ -187,7 +187,7 @@ impl PyPackage {
 }
 
 /// Python-accessible PackageRequirement class, compatible with rez.packages.PackageRequirement
-#[pyclass(name = "PackageRequirement")]
+#[pyclass(name = "PackageRequirement", from_py_object)]
 #[derive(Clone)]
 pub struct PyPackageRequirement(pub PackageRequirement);
 

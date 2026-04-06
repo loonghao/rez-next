@@ -182,7 +182,10 @@ impl PythonAstParser {
     }
 
     /// Evaluate list expressions
-    fn evaluate_list(&self, list: &rustpython_ast::ExprList) -> Result<PythonValue, RezCoreError> {
+    fn evaluate_list(
+        &self,
+        list: &rustpython_ast::ExprList,
+    ) -> Result<PythonValue, RezCoreError> {
         let mut result = Vec::new();
         for elt in &list.elts {
             result.push(self.evaluate_expression(elt)?);
@@ -203,7 +206,10 @@ impl PythonAstParser {
     }
 
     /// Evaluate dictionary expressions
-    fn evaluate_dict(&self, dict: &rustpython_ast::ExprDict) -> Result<PythonValue, RezCoreError> {
+    fn evaluate_dict(
+        &self,
+        dict: &rustpython_ast::ExprDict,
+    ) -> Result<PythonValue, RezCoreError> {
         let mut result = HashMap::new();
         for (key, value) in dict.keys.iter().zip(dict.values.iter()) {
             if let Some(key) = key {

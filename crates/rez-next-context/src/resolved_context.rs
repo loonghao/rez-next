@@ -84,7 +84,7 @@ impl RezResolvedContext {
             failed: false,
             failure_description: None,
             timestamp: chrono::Utc::now(),
-            user: whoami::username().unwrap_or_default(),
+            user: whoami::username().unwrap_or_else(|_| String::from("unknown")),
             host: whoami::hostname().unwrap_or_else(|_| String::from("unknown")),
             platform: std::env::consts::OS.to_string(),
             arch: std::env::consts::ARCH.to_string(),

@@ -1,11 +1,15 @@
 //! High-performance repository scanning utilities with optimized I/O
 
 // Re-export scanner types for backward compatibility (they now live in scanner_types).
-use crate::scanner_types::ScanCacheEntry;
 pub use crate::scanner_types::{
     CacheStatistics, PackageScanResult, ScanError, ScanErrorType, ScanPerformanceMetrics,
     ScanResult, ScannerConfig,
 };
+use crate::scanner_types::ScanCacheEntry;
+
+
+
+
 
 use dashmap::DashMap;
 use memmap2::Mmap;
@@ -15,12 +19,14 @@ use smallvec::SmallVec;
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
+use tracing::warn;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 use tokio::fs;
 use tokio::sync::{RwLock, Semaphore};
 use tokio::time::interval;
-use tracing::warn;
+
+
 
 /// High-performance repository scanner with advanced optimizations
 #[derive(Debug)]

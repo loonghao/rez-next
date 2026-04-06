@@ -1,12 +1,16 @@
-//! Rez Compat — Context Serialization, Rex DSL, Forward/Release Compat, Circular Deps,
-//! rez.bind, search, depends, complete, diff Tests
+﻿//! Rez Compat — Context Serialization, Rex DSL, Forward/Release Compat, Circular Deps Tests
 //!
 //! Extracted from rez_compat_tests.rs (Cycle 32).
+//! Cycle 72: bind + build_requires + DependencyGraph conflict tests moved to
+//! rez_compat_context_bind_tests.rs to keep this file under 1000 lines.
 //!
-//! See also: rez_compat_tests.rs (version, package, rex, suite, config, e2e)
+//! See also:
+//! - rez_compat_tests.rs (version, package, rex, suite, config, e2e)
+//! - rez_compat_context_bind_tests.rs (bind, build_requires, dep-graph conflicts)
 
 use rez_core::version::{Version, VersionRange};
 use rez_next_package::{Package, PackageRequirement};
+
 
 // ─── Context serialization edge cases ──────────────────────────────────────
 
@@ -25,11 +29,37 @@ fn test_context_json_serialization_fields() {
 
     let json = serde_json::to_string(&ctx).unwrap();
     let parsed: Value = serde_json::from_str(&json).unwrap();
+    let obj = parsed
+        .as_object()
+        .expect("context JSON should serialize to an object");
 
-    // Required fields in rez .rxt JSON format
-    assert!(!json.is_empty(), "context JSON should have content");
-    assert!(parsed.is_object(), "context JSON should be a JSON object");
+    for key in [
+        "id",
+        "requirements",
+        "resolved_packages",
+        "environment_vars",
+        "metadata",
+        "created_at",
+        "status",
+        "config",
+    ] {
+        assert!(obj.contains_key(key), "context JSON should contain field '{key}'");
+    }
+    assert_eq!(
+        obj.get("requirements")
+            .and_then(Value::as_array)
+            .map(Vec::len),
+        Some(2),
+        "serialized context should preserve both requested requirements"
+    );
+    assert!(
+        obj.get("id")
+            .and_then(Value::as_str)
+            .is_some_and(|id| !id.is_empty()),
+        "context JSON should contain a non-empty id"
+    );
 }
+
 
 /// rez: context with empty request list is valid
 #[test]
@@ -447,14 +477,6 @@ fn test_rez_version_upper_bound_exclusive() {
     assert!(r.contains(&Version::parse("1.0").unwrap()));
 }
 
-/// Version with build metadata (rez ignores build metadata in comparisons)
-#[test]
-fn test_rez_version_build_metadata_ignored() {
-    // rez versions don't use semver build metadata; just parse the token
-    let v = Version::parse("1.2.3");
-    assert!(v.is_ok());
-}
-
 /// Package with private variants (rez private = `~package`)
 #[test]
 fn test_rez_private_package_requirement() {
@@ -464,19 +486,6 @@ fn test_rez_private_package_requirement() {
     assert_eq!(pkg.name, "~private_pkg");
 }
 
-/// Solver can handle identical requirement names (dedup should work)
-#[test]
-fn test_rez_dedup_requirements() {
-    use rez_next_package::PackageRequirement;
-
-    let reqs = [
-        PackageRequirement::parse("python-3.9").unwrap(),
-        PackageRequirement::parse("python-3.9").unwrap(), // duplicate
-    ];
-    // Both are parseable; solver handles dedup internally
-    assert_eq!(reqs.len(), 2);
-    assert_eq!(reqs[0].name, reqs[1].name);
-}
 
 /// rez context summary has correct package names
 #[test]
@@ -507,107 +516,10 @@ fn test_context_summary_package_names() {
 }
 
 // ─── Circular dependency detection tests ────────────────────────────────────
-
-/// rez: topological sort detects direct circular dependency (A → B → A)
-#[test]
-fn test_circular_dependency_direct() {
-    use rez_next_package::Package;
-    use rez_next_solver::DependencyGraph;
-    use rez_next_version::Version;
-
-    let mut graph = DependencyGraph::new();
-
-    let mut pkg_a = Package::new("pkgA".to_string());
-    pkg_a.version = Some(Version::parse("1.0").unwrap());
-    pkg_a.requires = vec!["pkgB-1.0".to_string()];
-
-    let mut pkg_b = Package::new("pkgB".to_string());
-    pkg_b.version = Some(Version::parse("1.0").unwrap());
-    pkg_b.requires = vec!["pkgA-1.0".to_string()]; // Circular!
-
-    graph.add_package(pkg_a).unwrap();
-    graph.add_package(pkg_b).unwrap();
-    graph.add_dependency_edge("pkgA-1.0", "pkgB-1.0").unwrap();
-    graph.add_dependency_edge("pkgB-1.0", "pkgA-1.0").unwrap(); // creates cycle
-
-    // get_resolved_packages uses topological sort which detects cycles
-    let result = graph.get_resolved_packages();
-    assert!(
-        result.is_err(),
-        "Circular dependency A->B->A should be detected as an error"
-    );
-    let err_msg = result.unwrap_err().to_string();
-    assert!(
-        err_msg.contains("ircular") || err_msg.contains("cycle") || err_msg.contains("Circular"),
-        "Error should mention circular dependency, got: {}",
-        err_msg
-    );
-}
-
-/// rez: three-package cycle (A → B → C → A)
-#[test]
-fn test_circular_dependency_three_way() {
-    use rez_next_package::Package;
-    use rez_next_solver::DependencyGraph;
-    use rez_next_version::Version;
-
-    let mut graph = DependencyGraph::new();
-
-    for (name, dep) in &[
-        ("pkgX", "pkgY-1.0"),
-        ("pkgY", "pkgZ-1.0"),
-        ("pkgZ", "pkgX-1.0"),
-    ] {
-        let mut pkg = Package::new(name.to_string());
-        pkg.version = Some(Version::parse("1.0").unwrap());
-        pkg.requires = vec![dep.to_string()];
-        graph.add_package(pkg).unwrap();
-    }
-
-    graph.add_dependency_edge("pkgX-1.0", "pkgY-1.0").unwrap();
-    graph.add_dependency_edge("pkgY-1.0", "pkgZ-1.0").unwrap();
-    graph.add_dependency_edge("pkgZ-1.0", "pkgX-1.0").unwrap(); // closes cycle
-
-    let result = graph.get_resolved_packages();
-    assert!(
-        result.is_err(),
-        "Three-way cycle X->Y->Z->X must be detected"
-    );
-}
-
-/// rez: no cycle in linear chain (A → B → C) should succeed
-#[test]
-fn test_no_circular_dependency_linear() {
-    use rez_next_package::Package;
-    use rez_next_solver::DependencyGraph;
-    use rez_next_version::Version;
-
-    let mut graph = DependencyGraph::new();
-
-    for (name, dep) in &[
-        ("libA", Some("libB-1.0")),
-        ("libB", Some("libC-1.0")),
-        ("libC", None),
-    ] {
-        let mut pkg = Package::new(name.to_string());
-        pkg.version = Some(Version::parse("1.0").unwrap());
-        if let Some(d) = dep {
-            pkg.requires = vec![d.to_string()];
-        }
-        graph.add_package(pkg).unwrap();
-    }
-
-    graph.add_dependency_edge("libA-1.0", "libB-1.0").unwrap();
-    graph.add_dependency_edge("libB-1.0", "libC-1.0").unwrap();
-
-    let result = graph.get_resolved_packages();
-    assert!(
-        result.is_ok(),
-        "Linear chain A->B->C should resolve without cycle error"
-    );
-    let packages = result.unwrap();
-    assert_eq!(packages.len(), 3, "Should resolve 3 packages");
-}
+//
+// Note: direct-cycle (A→B→A), three-way cycle, linear-chain no-cycle, and
+// self-loop tests are covered in rez_solver_graph_topology_tests.rs.
+// Only the diamond-dependency case is kept here as it is unique to compat layer.
 
 /// rez: diamond dependency (A→B, A→C, B→D, C→D) is not a cycle
 #[test]
@@ -645,339 +557,4 @@ fn test_diamond_dependency_not_cycle() {
     );
 }
 
-/// rez: self-referencing package (A → A) is a cycle
-#[test]
-fn test_self_referencing_package_is_cycle() {
-    use rez_next_package::Package;
-    use rez_next_solver::DependencyGraph;
-    use rez_next_version::Version;
 
-    let mut graph = DependencyGraph::new();
-
-    let mut pkg = Package::new("selfref".to_string());
-    pkg.version = Some(Version::parse("1.0").unwrap());
-    pkg.requires = vec!["selfref-1.0".to_string()];
-    graph.add_package(pkg).unwrap();
-    graph
-        .add_dependency_edge("selfref-1.0", "selfref-1.0")
-        .unwrap();
-
-    let result = graph.get_resolved_packages();
-    assert!(
-        result.is_err(),
-        "Self-referencing package selfref->selfref must be detected as cycle"
-    );
-}
-
-// ─── rez.bind compatibility tests ───────────────────────────────────────────
-
-/// rez bind: bind_tool with explicit version writes valid package.py
-#[test]
-fn test_bind_explicit_version_package_py() {
-    use rez_next_bind::{BindOptions, PackageBinder};
-    use tempfile::TempDir;
-
-    let tmp = TempDir::new().unwrap();
-    let binder = PackageBinder::new();
-
-    let opts = BindOptions {
-        version_override: Some("3.11.4".to_string()),
-        install_path: Some(tmp.path().to_path_buf()),
-        force: false,
-        search_path: false,
-        extra_metadata: vec![("description".to_string(), "CPython 3.11.4".to_string())],
-    };
-
-    let result = binder.bind("python", &opts).unwrap();
-
-    assert_eq!(result.name, "python");
-    assert_eq!(result.version, "3.11.4");
-
-    let content = std::fs::read_to_string(result.install_path.join("package.py")).unwrap();
-    assert!(content.contains("name = 'python'"));
-    assert!(content.contains("version = '3.11.4'"));
-    assert!(content.contains("tools = ['python']"));
-}
-
-/// rez bind: duplicate bind without force must fail
-#[test]
-fn test_bind_no_force_duplicate_fails() {
-    use rez_next_bind::{BindError, BindOptions, PackageBinder};
-    use tempfile::TempDir;
-
-    let tmp = TempDir::new().unwrap();
-    let binder = PackageBinder::new();
-
-    let opts = BindOptions {
-        version_override: Some("1.0.0".to_string()),
-        install_path: Some(tmp.path().to_path_buf()),
-        force: false,
-        search_path: false,
-        extra_metadata: Vec::new(),
-    };
-
-    binder.bind("testtool", &opts).unwrap();
-    let second = binder.bind("testtool", &opts);
-    assert!(
-        matches!(second, Err(BindError::AlreadyExists(_))),
-        "Second bind without force must return AlreadyExists"
-    );
-}
-
-/// rez bind: force overwrite succeeds
-#[test]
-fn test_bind_force_replaces_existing() {
-    use rez_next_bind::{BindOptions, PackageBinder};
-    use tempfile::TempDir;
-
-    let tmp = TempDir::new().unwrap();
-    let binder = PackageBinder::new();
-
-    let base_opts = BindOptions {
-        version_override: Some("2.0.0".to_string()),
-        install_path: Some(tmp.path().to_path_buf()),
-        force: false,
-        search_path: false,
-        extra_metadata: Vec::new(),
-    };
-
-    binder.bind("myapp", &base_opts).unwrap();
-
-    let force_opts = BindOptions {
-        force: true,
-        ..base_opts
-    };
-    let result = binder.bind("myapp", &force_opts);
-    assert!(result.is_ok(), "Force overwrite must succeed");
-}
-
-/// rez bind: version not found returns VersionNotFound error
-#[test]
-fn test_bind_no_version_no_executable_fails() {
-    use rez_next_bind::{BindOptions, PackageBinder};
-    use tempfile::TempDir;
-
-    let tmp = TempDir::new().unwrap();
-    let binder = PackageBinder::new();
-
-    let opts = BindOptions {
-        version_override: None, // No override
-        install_path: Some(tmp.path().to_path_buf()),
-        force: false,
-        search_path: false, // Don't search PATH
-        extra_metadata: Vec::new(),
-    };
-
-    // Unlikely tool name — version detection should fail
-    let result = binder.bind("rez_next_nonexistent_tool_xyz_12345", &opts);
-    assert!(
-        result.is_err(),
-        "Bind without version and without executable should fail"
-    );
-}
-
-/// rez bind: list_builtin_binders returns expected tools
-#[test]
-fn test_bind_builtin_list() {
-    use rez_next_bind::list_builtin_binders;
-
-    let binders = list_builtin_binders();
-    let expected = ["python", "cmake", "git", "node", "rust", "go"];
-    for tool in &expected {
-        assert!(
-            binders.contains(tool),
-            "Built-in binder '{}' should be in list",
-            tool
-        );
-    }
-}
-
-/// rez bind: get_builtin_binder returns correct description
-#[test]
-fn test_bind_builtin_binder_metadata() {
-    use rez_next_bind::get_builtin_binder;
-
-    let b = get_builtin_binder("cmake").unwrap();
-    assert_eq!(b.name, "cmake");
-    assert!(!b.description.is_empty());
-    assert!(!b.help_url.is_empty());
-    assert!(!b.executables.is_empty());
-}
-
-// ─── requires_private_build_only tests ──────────────────────────────────────
-
-/// rez: package with build-only requirements (private_build_requires)
-#[test]
-fn test_package_private_build_requires_field() {
-    use rez_next_package::Package;
-
-    let mut pkg = Package::new("mypkg".to_string());
-    // private_build_requires are stored in build_requires in rez-next
-    pkg.build_requires = vec!["cmake-3+".to_string(), "ninja".to_string()];
-
-    assert_eq!(pkg.build_requires.len(), 2);
-    assert!(pkg.build_requires.contains(&"cmake-3+".to_string()));
-    assert!(pkg.build_requires.contains(&"ninja".to_string()));
-}
-
-/// rez: private build requires are parseable as requirements
-#[test]
-fn test_package_private_build_requires_parseable() {
-    use rez_next_package::PackageRequirement;
-
-    let build_reqs = ["cmake-3+", "ninja", "gcc-9+<13", "python-3.9"];
-    for req_str in &build_reqs {
-        let r = PackageRequirement::parse(req_str);
-        assert!(
-            r.is_ok(),
-            "Private build requirement '{}' should be parseable",
-            req_str
-        );
-    }
-}
-
-/// rez: package.py with build_requires field parsed correctly
-#[test]
-fn test_package_py_build_requires_parsed() {
-    use rez_next_package::serialization::PackageSerializer;
-    use tempfile::TempDir;
-
-    let content = r#"name = 'mylib'
-version = '1.0.0'
-
-requires = [
-    'python-3.9',
-]
-
-private_build_requires = [
-    'cmake-3+',
-    'ninja',
-]
-"#;
-    let tmp = TempDir::new().unwrap();
-    let path = tmp.path().join("package.py");
-    std::fs::write(&path, content).unwrap();
-
-    let pkg = PackageSerializer::load_from_file(&path).unwrap();
-    assert_eq!(pkg.name, "mylib");
-    // Verify requires are present
-    assert!(!pkg.requires.is_empty(), "requires should be populated");
-    // private_build_requires may be in build_requires
-    // At minimum the package must parse without error
-}
-
-/// rez: package with variants and build requirements
-#[test]
-fn test_package_variants_and_build_reqs() {
-    use rez_next_package::Package;
-    use rez_next_version::Version;
-
-    let mut pkg = Package::new("maya_plugin".to_string());
-    pkg.version = Some(Version::parse("1.2.0").unwrap());
-    pkg.requires = vec!["maya-2024".to_string()];
-    pkg.build_requires = vec!["cmake-3".to_string()];
-    pkg.variants = vec![
-        vec!["python-3.9".to_string()],
-        vec!["python-3.10".to_string()],
-    ];
-
-    assert_eq!(pkg.variants.len(), 2);
-    assert_eq!(pkg.build_requires.len(), 1);
-    assert_eq!(pkg.requires.len(), 1);
-}
-
-// ─── DependencyGraph conflict detection extended tests ──────────────────────
-
-/// rez: conflict detection reports incompatible python version ranges
-#[test]
-fn test_dependency_graph_conflict_python_versions() {
-    use rez_next_package::{Package, PackageRequirement};
-    use rez_next_solver::DependencyGraph;
-    use rez_next_version::Version;
-
-    let mut graph = DependencyGraph::new();
-
-    // pkgA requires python-3.9, pkgB requires python-3.11 — incompatible exact specs
-    let mut pkg_a = Package::new("pkgA".to_string());
-    pkg_a.version = Some(Version::parse("1.0").unwrap());
-    pkg_a.requires = vec!["python-3.9".to_string()];
-
-    let mut pkg_b = Package::new("pkgB".to_string());
-    pkg_b.version = Some(Version::parse("1.0").unwrap());
-    pkg_b.requires = vec!["python-3.11".to_string()];
-
-    graph.add_package(pkg_a).unwrap();
-    graph.add_package(pkg_b).unwrap();
-
-    // Add conflicting requirements
-    graph
-        .add_requirement(PackageRequirement::with_version(
-            "python".to_string(),
-            "3.9".to_string(),
-        ))
-        .unwrap();
-    graph
-        .add_requirement(PackageRequirement::with_version(
-            "python".to_string(),
-            "3.11".to_string(),
-        ))
-        .unwrap();
-
-    let conflicts = graph.detect_conflicts();
-    // There should be at least one conflict for python
-    assert!(
-        !conflicts.is_empty(),
-        "Incompatible python version requirements should produce at least one conflict"
-    );
-    assert_eq!(conflicts[0].package_name, "python");
-}
-
-/// rez: no conflict when single requirement for each package
-#[test]
-fn test_dependency_graph_no_conflict_single_requirements() {
-    use rez_next_package::{Package, PackageRequirement};
-    use rez_next_solver::DependencyGraph;
-    use rez_next_version::Version;
-
-    let mut graph = DependencyGraph::new();
-
-    let mut pkg = Package::new("myapp".to_string());
-    pkg.version = Some(Version::parse("1.0").unwrap());
-    pkg.requires = vec!["python-3.9".to_string()];
-    graph.add_package(pkg).unwrap();
-
-    graph
-        .add_requirement(PackageRequirement::with_version(
-            "python".to_string(),
-            "3.9".to_string(),
-        ))
-        .unwrap();
-
-    let conflicts = graph.detect_conflicts();
-    assert!(
-        conflicts.is_empty(),
-        "Single requirement per package should produce no conflicts"
-    );
-}
-
-/// rez: graph stats reflects correct node/edge counts
-#[test]
-fn test_dependency_graph_stats_counts() {
-    use rez_next_package::Package;
-    use rez_next_solver::DependencyGraph;
-    use rez_next_version::Version;
-
-    let mut graph = DependencyGraph::new();
-
-    for name in &["a", "b", "c"] {
-        let mut pkg = Package::new(name.to_string());
-        pkg.version = Some(Version::parse("1.0").unwrap());
-        graph.add_package(pkg).unwrap();
-    }
-    graph.add_dependency_edge("a-1.0", "b-1.0").unwrap();
-    graph.add_dependency_edge("b-1.0", "c-1.0").unwrap();
-
-    let stats = graph.get_stats();
-    assert_eq!(stats.node_count, 3, "Graph should have 3 nodes");
-    assert_eq!(stats.edge_count, 2, "Graph should have 2 edges");
-}

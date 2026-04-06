@@ -6,7 +6,7 @@ This guide covers the Criterion benchmark targets registered in `rez-next`.
 
 ## Registered benchmarks
 
-There are currently **10** benchmark targets registered in the root `Cargo.toml`.
+There are currently **11** benchmark targets registered in the root `Cargo.toml`.
 The up-to-date file list is maintained in `benches/README.md`.
 
 | Category | Bench targets |
@@ -15,6 +15,7 @@ The up-to-date file list is maintained in `benches/README.md`.
 | Solver | `solver_real_repo_bench`, `solver_bench_v2` |
 | Runtime and tooling | `rex_benchmark`, `pip_conversion_benchmark` |
 | Context / dependency / cache | `context_operations_benchmark`, `depends_benchmark`, `cache_operations_benchmark` |
+| Comparative | `rez_vs_reznext_benchmark` |
 
 ## Running
 

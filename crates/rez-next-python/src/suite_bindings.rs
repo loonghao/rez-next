@@ -149,7 +149,7 @@ impl PySuite {
     }
 
     /// Get tools exposed by the suite as a dict
-    fn get_tools(&self, py: Python) -> PyResult<PyObject> {
+    fn get_tools(&self, py: Python) -> PyResult<Py<PyAny>> {
         let tools = self
             .inner
             .get_tools()
@@ -165,7 +165,7 @@ impl PySuite {
             tool_dict.set_item("is_alias", tool.is_alias)?;
             dict.set_item(name, tool_dict)?;
         }
-        Ok(dict.into())
+        Ok(dict.into_any().unbind())
     }
 
     fn __repr__(&self) -> String {
@@ -258,15 +258,18 @@ mod tests {
             let mut s = PySuite::new(None);
             s.add_context("maya", vec!["maya-2023".to_string()])
                 .unwrap();
-            s.add_context("nuke", vec!["nuke-14".to_string()]).unwrap();
+            s.add_context("nuke", vec!["nuke-14".to_string()])
+                .unwrap();
             assert_eq!(s.inner.len(), 2);
         }
 
         #[test]
         fn test_context_names_reflects_added_contexts() {
             let mut s = PySuite::new(None);
-            s.add_context("ctx1", vec!["pkgA-1".to_string()]).unwrap();
-            s.add_context("ctx2", vec!["pkgB-2".to_string()]).unwrap();
+            s.add_context("ctx1", vec!["pkgA-1".to_string()])
+                .unwrap();
+            s.add_context("ctx2", vec!["pkgB-2".to_string()])
+                .unwrap();
             let names = s.context_names();
             assert!(names.contains(&"ctx1".to_string()));
             assert!(names.contains(&"ctx2".to_string()));
@@ -275,7 +278,8 @@ mod tests {
         #[test]
         fn test_remove_context_decreases_count() {
             let mut s = PySuite::new(None);
-            s.add_context("ctx1", vec!["pkg-1".to_string()]).unwrap();
+            s.add_context("ctx1", vec!["pkg-1".to_string()])
+                .unwrap();
             s.remove_context("ctx1").unwrap();
             assert_eq!(s.inner.len(), 0);
         }
@@ -380,7 +384,10 @@ mod tests {
         fn test_suite_manager_new_empty_paths() {
             let mgr = PySuiteManager::new(Some(vec![]));
             let names = mgr.list_suite_names();
-            assert!(names.is_empty(), "empty path manager should have no suites");
+            assert!(
+                names.is_empty(),
+                "empty path manager should have no suites"
+            );
         }
 
         #[test]

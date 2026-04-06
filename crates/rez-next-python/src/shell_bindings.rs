@@ -6,7 +6,7 @@ use std::collections::HashMap;
 
 /// Python wrapper for shell script generation.
 /// Equivalent to `rez.shell` module.
-#[pyclass(name = "Shell")]
+#[pyclass(name = "Shell", from_py_object)]
 #[derive(Clone)]
 pub struct PyShell {
     shell_type: ShellType,
@@ -172,7 +172,8 @@ mod tests {
         #[test]
         fn test_powershell_script_sets_env_var() {
             let mut env = RexEnvironment::new();
-            env.vars.insert("PS_VAR".to_string(), "ps_val".to_string());
+            env.vars
+                .insert("PS_VAR".to_string(), "ps_val".to_string());
             let script = generate_shell_script(&env, &ShellType::PowerShell);
             assert!(
                 script.contains("PS_VAR"),

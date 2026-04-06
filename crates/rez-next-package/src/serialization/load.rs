@@ -25,7 +25,11 @@ impl PackageLoader {
             Self::read_compressed_file(path)?
         } else {
             fs::read_to_string(path).map_err(|e| {
-                RezCoreError::PackageParse(format!("Failed to read file {}: {}", path.display(), e))
+                RezCoreError::PackageParse(format!(
+                    "Failed to read file {}: {}",
+                    path.display(),
+                    e
+                ))
             })?
         };
 
@@ -45,8 +49,12 @@ impl PackageLoader {
     /// Load a package from a string
     pub fn load_from_string(content: &str, format: PackageFormat) -> Result<Package, RezCoreError> {
         match format {
-            PackageFormat::Yaml | PackageFormat::YamlCompressed => Self::load_from_yaml(content),
-            PackageFormat::Json | PackageFormat::JsonCompressed => Self::load_from_json(content),
+            PackageFormat::Yaml | PackageFormat::YamlCompressed => {
+                Self::load_from_yaml(content)
+            }
+            PackageFormat::Json | PackageFormat::JsonCompressed => {
+                Self::load_from_json(content)
+            }
             PackageFormat::Python => Self::load_from_python(content),
             PackageFormat::Binary => Self::load_from_binary(content),
             PackageFormat::Toml => Self::load_from_toml(content),
@@ -195,17 +203,24 @@ impl PackageLoader {
         Ok(package)
     }
 
-    /// Load a package from binary content
+    /// Load a package from base64-wrapped bincode content.
     pub fn load_from_binary(content: &str) -> Result<Package, RezCoreError> {
+
         use base64::Engine as _;
 
         let binary_data = base64::engine::general_purpose::STANDARD
             .decode(content)
             .map_err(|e| RezCoreError::PackageParse(format!("Failed to decode base64: {}", e)))?;
 
-        bincode::deserialize(&binary_data).map_err(|e| {
-            RezCoreError::PackageParse(format!("Failed to deserialize from binary: {}", e))
-        })
+        let (package, _) =
+            bincode::serde::decode_from_slice(&binary_data, bincode::config::standard())
+                .map_err(|e| {
+                    RezCoreError::PackageParse(format!(
+                        "Failed to deserialize from binary: {}",
+                        e
+                    ))
+                })?;
+        Ok(package)
     }
 
     /// Load a package from TOML content
@@ -216,12 +231,12 @@ impl PackageLoader {
 
     /// Load a package from XML content (simplified)
     pub fn load_from_xml(content: &str) -> Result<Package, RezCoreError> {
-        let name_start = content
-            .find("<name>")
-            .ok_or_else(|| RezCoreError::PackageParse("Missing <name> tag in XML".to_string()))?;
-        let name_end = content
-            .find("</name>")
-            .ok_or_else(|| RezCoreError::PackageParse("Missing </name> tag in XML".to_string()))?;
+        let name_start = content.find("<name>").ok_or_else(|| {
+            RezCoreError::PackageParse("Missing <name> tag in XML".to_string())
+        })?;
+        let name_end = content.find("</name>").ok_or_else(|| {
+            RezCoreError::PackageParse("Missing </name> tag in XML".to_string())
+        })?;
 
         let name = content[name_start + 6..name_end].to_string();
         let mut package = Package::new(name);

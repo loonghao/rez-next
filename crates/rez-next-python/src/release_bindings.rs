@@ -9,6 +9,7 @@
 
 use pyo3::prelude::*;
 use std::path::PathBuf;
+use crate::runtime::get_runtime;
 
 /// Release mode for a package
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -32,7 +33,7 @@ impl ReleaseMode {
 }
 
 /// Result of a release operation
-#[pyclass(name = "ReleaseResult")]
+#[pyclass(name = "ReleaseResult", from_py_object)]
 #[derive(Clone)]
 pub struct PyReleaseResult {
     #[pyo3(get)]
@@ -267,8 +268,7 @@ impl PyReleaseManager {
         use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
         use std::path::PathBuf;
 
-        let rt = tokio::runtime::Runtime::new()
-            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+        let rt = get_runtime();
 
         let config = RezCoreConfig::load();
         let mut repo_manager = RepositoryManager::new();
@@ -438,5 +438,130 @@ mod release_tests {
         };
         let s = result.__str__();
         assert!(s.contains("FAILED"));
+    }
+
+    // ── New tests (Cycle 89) ─────────────────────────────────────────────────
+
+    #[test]
+    fn test_release_result_repr_equals_str() {
+        let result = PyReleaseResult {
+            success: true,
+            package_name: "pkgx".to_string(),
+            version: "3.2.1".to_string(),
+            install_path: "/pkgs/pkgx/3.2.1".to_string(),
+            errors: vec![],
+            warnings: vec![],
+        };
+        assert_eq!(result.__repr__(), result.__str__());
+    }
+
+    #[test]
+    fn test_release_result_str_contains_version() {
+        let result = PyReleaseResult {
+            success: true,
+            package_name: "mypkg".to_string(),
+            version: "2.5.0".to_string(),
+            install_path: "/dest/mypkg/2.5.0".to_string(),
+            errors: vec![],
+            warnings: vec![],
+        };
+        let s = result.__str__();
+        assert!(s.contains("2.5.0"), "str should contain version: {}", s);
+    }
+
+    #[test]
+    fn test_release_result_str_contains_path() {
+        let result = PyReleaseResult {
+            success: true,
+            package_name: "mypkg".to_string(),
+            version: "1.0.0".to_string(),
+            install_path: "/custom/install/path".to_string(),
+            errors: vec![],
+            warnings: vec![],
+        };
+        let s = result.__str__();
+        assert!(s.contains("/custom/install/path"), "str: {}", s);
+    }
+
+    #[test]
+    fn test_release_mode_dry_run_alias() {
+        assert_eq!(ReleaseMode::from_str("dry-run"), ReleaseMode::DryRun);
+    }
+
+    #[test]
+    fn test_release_manager_dry_run_mode() {
+        let mgr = PyReleaseManager::new(Some("dry_run"), false, false);
+        assert_eq!(mgr.mode, ReleaseMode::DryRun);
+    }
+
+    #[test]
+    fn test_release_manager_skip_build_flag() {
+        let mgr = PyReleaseManager::new(None, true, false);
+        assert!(mgr.skip_build);
+        assert!(!mgr.skip_tests);
+    }
+
+    #[test]
+    fn test_release_manager_skip_tests_flag() {
+        let mgr = PyReleaseManager::new(None, false, true);
+        assert!(!mgr.skip_build);
+        assert!(mgr.skip_tests);
+    }
+
+    #[test]
+    fn test_dry_run_result_has_dry_run_prefix() {
+        use std::io::Write;
+
+        let dir = tempfile::tempdir().unwrap();
+        let pkg_path = dir.path().join("package.py");
+        let mut f = std::fs::File::create(&pkg_path).unwrap();
+        writeln!(f, "name = 'drytestpkg'\nversion = '0.1.0'\n").unwrap();
+
+        let mgr = PyReleaseManager::new(Some("dry_run"), false, false);
+        let result = mgr
+            .release(Some(dir.path().to_str().unwrap()), None)
+            .unwrap();
+        assert!(result.success);
+        assert!(
+            result.install_path.starts_with("[dry-run]"),
+            "path: {}",
+            result.install_path
+        );
+        assert!(result.errors.is_empty());
+    }
+
+    #[test]
+    fn test_dry_run_with_message_populates_warnings() {
+        use std::io::Write;
+
+        let dir = tempfile::tempdir().unwrap();
+        let pkg_path = dir.path().join("package.py");
+        let mut f = std::fs::File::create(&pkg_path).unwrap();
+        writeln!(f, "name = 'notepkg'\nversion = '0.2.0'\n").unwrap();
+
+        let mgr = PyReleaseManager::new(Some("dry_run"), false, false);
+        let result = mgr
+            .release(Some(dir.path().to_str().unwrap()), Some("review note"))
+            .unwrap();
+        assert!(!result.warnings.is_empty(), "warnings should contain dry-run note");
+        assert!(
+            result.warnings[0].contains("review note"),
+            "warning: {}",
+            result.warnings[0]
+        );
+    }
+
+    #[test]
+    fn test_validate_empty_dir_returns_invalid() {
+        let dir = tempfile::tempdir().unwrap();
+        let mgr = PyReleaseManager::new(None, false, false);
+        let (valid, issues) = mgr
+            .validate(Some(dir.path().to_str().unwrap()))
+            .unwrap();
+        assert!(!valid, "empty dir should be invalid");
+        assert!(
+            !issues.is_empty(),
+            "should report missing package.py/yaml"
+        );
     }
 }

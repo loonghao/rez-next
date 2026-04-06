@@ -1,5 +1,6 @@
-//! Simple file-based repository implementation
+﻿//! Simple file-based repository implementation
 
+use crate::REZ_PACKAGE_FILENAMES;
 use async_trait::async_trait;
 use rez_next_common::RezCoreError;
 use rez_next_package::{Package, PackageSerializer};
@@ -78,10 +79,15 @@ impl SimpleRepository {
                 let path = entry.path();
 
                 if path.is_dir() {
-                    // Check if this directory contains a package.py
-                    let package_py = path.join("package.py");
-                    if package_py.exists() {
-                        if let Ok(package) = self.load_package_from_path(&package_py).await {
+                    // Check if this directory contains any supported package descriptor.
+                    // Priority follows the canonical `REZ_PACKAGE_FILENAMES` order.
+                    let pkg_file = REZ_PACKAGE_FILENAMES
+                        .iter()
+                        .map(|name| path.join(name))
+                        .find(|p| p.exists());
+
+                    if let Some(pkg_path) = pkg_file {
+                        if let Ok(package) = self.load_package_from_path(&pkg_path).await {
                             let package_name = package.name.clone();
                             cache
                                 .entry(package_name)
@@ -99,13 +105,14 @@ impl SimpleRepository {
         })
     }
 
-    /// Load a package from a package.py file
+    /// Load a package from a supported package descriptor file.
     async fn load_package_from_path(
         &self,
-        package_py_path: &Path,
+        descriptor_path: &Path,
     ) -> Result<Package, RezCoreError> {
-        PackageSerializer::load_from_file(package_py_path)
+        PackageSerializer::load_from_file(descriptor_path)
     }
+
 }
 
 #[async_trait::async_trait]
@@ -260,3 +267,4 @@ impl Default for RepositoryManager {
 #[cfg(test)]
 #[path = "simple_repository_tests.rs"]
 mod tests;
+

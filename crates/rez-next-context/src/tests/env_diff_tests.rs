@@ -66,10 +66,7 @@ mod env_diff_behavior_tests {
         let empty_env: HashMap<String, String> = HashMap::new();
         let diff = mgr.get_env_diff(&empty_env);
 
-        assert!(
-            diff.added.is_empty(),
-            "Empty env should not report added vars"
-        );
+        assert!(diff.added.is_empty(), "Empty env should not report added vars");
         assert!(
             diff.modified.is_empty(),
             "Empty env should not report modified vars"
@@ -80,6 +77,7 @@ mod env_diff_behavior_tests {
             "All inherited base vars should be reported as removed"
         );
     }
+
 
     #[test]
     fn test_env_diff_modified_vars() {
@@ -167,12 +165,8 @@ mod env_diff_behavior_tests {
 
     #[test]
     fn test_path_strategy_no_modify_leaves_path_unchanged() {
-        let cfg = ContextConfig {
-            inherit_parent_env: false,
-            path_strategy: PathStrategy::NoModify,
-            ..Default::default()
-        };
         let mut additional_env_vars = HashMap::new();
+
         additional_env_vars.insert("PATH".to_string(), "/original/path".to_string());
         let cfg2 = ContextConfig {
             inherit_parent_env: false,
@@ -191,7 +185,7 @@ mod env_diff_behavior_tests {
         // PATH should not be modified by the package tools
         let path = vars.get("PATH").map(|s| s.as_str()).unwrap_or("");
         assert_eq!(path, "/original/path", "NoModify should leave PATH as-is");
-        let _ = cfg; // suppress unused warning
+
     }
 
     #[test]
@@ -252,10 +246,7 @@ mod env_diff_behavior_tests {
     fn test_bash_script_escapes_special_chars() {
         let mgr = make_mgr(PathStrategy::NoModify, ShellType::Bash);
         let mut env = HashMap::new();
-        env.insert(
-            "MY_VAR".to_string(),
-            r#"val"ue with $special `chars`"#.to_string(),
-        );
+        env.insert("MY_VAR".to_string(), r#"val"ue with $special `chars`"#.to_string());
         let script = mgr.generate_shell_script(&env).unwrap();
         // Should not contain unescaped double-quote after the = sign
         assert!(script.contains("MY_VAR"), "Script should mention MY_VAR");
@@ -270,10 +261,7 @@ mod env_diff_behavior_tests {
     fn test_powershell_script_escapes_special_chars() {
         let mgr = make_mgr(PathStrategy::NoModify, ShellType::PowerShell);
         let mut env = HashMap::new();
-        env.insert(
-            "PS_VAR".to_string(),
-            r#"val with $env:PATH and "quotes""#.to_string(),
-        );
+        env.insert("PS_VAR".to_string(), r#"val with $env:PATH and "quotes""#.to_string());
         let script = mgr.generate_shell_script(&env).unwrap();
         assert!(script.contains("PS_VAR"), "Script should mention PS_VAR");
         // PowerShell uses `$ for escaping
@@ -289,10 +277,7 @@ mod env_diff_behavior_tests {
         let mut env = HashMap::new();
         env.insert("ZSH_VAR".to_string(), "zsh_value".to_string());
         let script = mgr.generate_shell_script(&env).unwrap();
-        assert!(
-            script.contains("#!/bin/zsh"),
-            "Zsh script should have shebang"
-        );
+        assert!(script.contains("#!/bin/zsh"), "Zsh script should have shebang");
         assert!(script.contains("ZSH_VAR"));
     }
 

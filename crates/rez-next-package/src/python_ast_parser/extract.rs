@@ -34,7 +34,10 @@ impl PythonAstParser {
     }
 
     /// Extract an optional boolean value from an expression
-    pub(super) fn extract_bool_value(&self, expr: &Expr) -> Result<Option<bool>, RezCoreError> {
+    pub(super) fn extract_bool_value(
+        &self,
+        expr: &Expr,
+    ) -> Result<Option<bool>, RezCoreError> {
         match self.evaluate_expression(expr) {
             Ok(PythonValue::Boolean(b)) => Ok(Some(b)),
             Ok(PythonValue::None) => Ok(None),
@@ -121,7 +124,10 @@ impl PythonAstParser {
     }
 
     /// Extract variants — a list of lists of strings
-    pub(super) fn extract_variants(&self, expr: &Expr) -> Result<Vec<Vec<String>>, RezCoreError> {
+    pub(super) fn extract_variants(
+        &self,
+        expr: &Expr,
+    ) -> Result<Vec<Vec<String>>, RezCoreError> {
         match expr {
             Expr::List(list) => {
                 let mut result = Vec::new();

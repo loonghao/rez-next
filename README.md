@@ -179,7 +179,7 @@ print(script)
 
 ## Architecture
 
-A Cargo workspace with 14 crates + Python bindings:
+A Cargo workspace with 13 crates, including `rez-next-python` for Python bindings:
 
 ```
 rez-next-common       Shared error types, config, utilities

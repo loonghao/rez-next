@@ -10,7 +10,7 @@ pub fn rex_interpret(
     py: Python,
     commands: &str,
     vars: Option<std::collections::HashMap<String, String>>,
-) -> PyResult<PyObject> {
+) -> PyResult<Py<PyAny>> {
     use rez_next_rex::RexExecutor;
 
     let mut executor = RexExecutor::new();
@@ -27,5 +27,5 @@ pub fn rex_interpret(
     for (k, v) in &env.vars {
         dict.set_item(k, v)?;
     }
-    Ok(dict.into())
+    Ok(dict.into_any().unbind())
 }

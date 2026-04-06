@@ -458,9 +458,8 @@ impl FileSystemRepository {
     /// Load a package from a file (supports .py, .yaml, .yml, .json)
     async fn load_package_from_file(&self, path: &Path) -> Result<Package, RezCoreError> {
         // Delegate to PackageLoader which handles all formats including package.py
-        rez_next_package::serialization::PackageSerializer::load_from_file(path).map_err(|e| {
-            RezCoreError::Repository(format!("Failed to load {}: {}", path.display(), e))
-        })
+        rez_next_package::serialization::PackageSerializer::load_from_file(path)
+            .map_err(|e| RezCoreError::Repository(format!("Failed to load {}: {}", path.display(), e)))
     }
 
     /// Check if a string matches a pattern (supports basic wildcards)

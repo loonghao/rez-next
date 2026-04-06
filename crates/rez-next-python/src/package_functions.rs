@@ -8,6 +8,7 @@ use pyo3::types::PyList;
 
 use crate::context_bindings::PyResolvedContext;
 use crate::package_bindings::PyPackage;
+use crate::runtime::get_runtime;
 
 /// Expand `~` in path strings.
 pub(crate) fn expand_home(p: &str) -> String {
@@ -61,8 +62,7 @@ pub fn get_latest_package(
     range_: Option<&str>,
     paths: Option<Vec<String>>,
 ) -> PyResult<Option<PyPackage>> {
-    let rt = tokio::runtime::Runtime::new()
-        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+    let rt = get_runtime();
 
     let repo_manager = make_repo_manager(paths);
 
@@ -108,8 +108,7 @@ pub fn get_package(
     version: Option<&str>,
     paths: Option<Vec<String>>,
 ) -> PyResult<Option<PyPackage>> {
-    let rt = tokio::runtime::Runtime::new()
-        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+    let rt = get_runtime();
 
     let repo_manager = make_repo_manager(paths);
 
@@ -149,9 +148,8 @@ pub fn iter_packages(
     name: &str,
     range_: Option<&str>,
     paths: Option<Vec<String>>,
-) -> PyResult<PyObject> {
-    let rt = tokio::runtime::Runtime::new()
-        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+) -> PyResult<Py<PyAny>> {
+    let rt = get_runtime();
 
     let repo_manager = make_repo_manager(paths);
 
@@ -187,7 +185,7 @@ pub fn iter_packages(
 
     // Return as Python list
     let list = PyList::new(py, filtered)?;
-    Ok(list.into())
+    Ok(list.into_any().unbind())
 }
 
 /// Get all package family names from configured repositories.
@@ -197,8 +195,7 @@ pub fn iter_packages(
 pub fn get_package_family_names(paths: Option<Vec<String>>) -> PyResult<Vec<String>> {
     use std::collections::HashSet;
 
-    let rt = tokio::runtime::Runtime::new()
-        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+    let rt = get_runtime();
 
     let repo_manager = make_repo_manager(paths);
 
@@ -218,11 +215,10 @@ pub fn get_package_family_names(paths: Option<Vec<String>>) -> PyResult<Vec<Stri
 /// Returns a Python list of (family_name, version_list) tuples.
 #[pyfunction]
 #[pyo3(signature = (paths=None))]
-pub fn walk_packages(py: Python, paths: Option<Vec<String>>) -> PyResult<PyObject> {
+pub fn walk_packages(py: Python, paths: Option<Vec<String>>) -> PyResult<Py<PyAny>> {
     use std::collections::HashMap;
 
-    let rt = tokio::runtime::Runtime::new()
-        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+    let rt = get_runtime();
 
     let repo_manager = make_repo_manager(paths);
 
@@ -266,7 +262,7 @@ pub fn walk_packages(py: Python, paths: Option<Vec<String>>) -> PyResult<PyObjec
         result_list.append(tuple)?;
     }
 
-    Ok(result_list.into())
+    Ok(result_list.into_any().unbind())
 }
 
 /// Copy a package to another location.
@@ -284,8 +280,7 @@ pub fn copy_package(
     use std::path::PathBuf;
 
     let config = RezCoreConfig::load();
-    let rt = tokio::runtime::Runtime::new()
-        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+    let rt = get_runtime();
 
     let search_paths: Vec<PathBuf> = src_paths
         .clone()
@@ -471,3 +466,153 @@ pub(crate) fn copy_dir_recursive(
     }
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+
+    mod test_expand_home {
+        use super::*;
+
+        #[test]
+        fn test_expand_home_no_tilde() {
+            let p = "/absolute/path";
+            assert_eq!(expand_home(p), p);
+        }
+
+        #[test]
+        fn test_expand_home_relative_no_tilde() {
+            let p = "relative/path";
+            assert_eq!(expand_home(p), p);
+        }
+
+        #[test]
+        fn test_expand_home_tilde_slash_expands() {
+            // If HOME/USERPROFILE is set, ~/foo must be expanded to <home>/foo
+            if let Ok(home) = std::env::var("USERPROFILE").or_else(|_| std::env::var("HOME")) {
+                let expanded = expand_home("~/packages");
+                assert!(
+                    expanded.starts_with(&home),
+                    "expanded '{}' should start with home '{}'",
+                    expanded,
+                    home
+                );
+                assert!(
+                    expanded.ends_with("packages") || expanded.contains("packages"),
+                    "expanded path should retain the suffix"
+                );
+            }
+        }
+
+        #[test]
+        fn test_expand_home_bare_tilde_expands() {
+            if let Ok(home) = std::env::var("USERPROFILE").or_else(|_| std::env::var("HOME")) {
+                let expanded = expand_home("~");
+                assert_eq!(expanded, home);
+            }
+        }
+
+        #[test]
+        fn test_expand_home_tilde_in_middle_is_unchanged() {
+            // Only leading ~ is handled
+            let p = "/some/~/path";
+            assert_eq!(expand_home(p), p);
+        }
+    }
+
+    mod test_copy_dir_recursive {
+        use super::*;
+
+        #[test]
+        fn test_copy_flat_directory() {
+            let tmp = std::env::temp_dir();
+            let src = tmp.join("rez_test_copy_src_flat");
+            let dest = tmp.join("rez_test_copy_dest_flat");
+
+            let _ = fs::remove_dir_all(&src);
+            let _ = fs::remove_dir_all(&dest);
+
+            fs::create_dir_all(&src).unwrap();
+            fs::write(src.join("file1.txt"), b"hello").unwrap();
+            fs::write(src.join("file2.txt"), b"world").unwrap();
+
+            copy_dir_recursive(&src, &dest).unwrap();
+
+            assert!(dest.join("file1.txt").exists());
+            assert!(dest.join("file2.txt").exists());
+            assert_eq!(fs::read(dest.join("file1.txt")).unwrap(), b"hello");
+            assert_eq!(fs::read(dest.join("file2.txt")).unwrap(), b"world");
+
+            let _ = fs::remove_dir_all(&src);
+            let _ = fs::remove_dir_all(&dest);
+        }
+
+        #[test]
+        fn test_copy_nested_directory() {
+            let tmp = std::env::temp_dir();
+            let src = tmp.join("rez_test_copy_src_nested");
+            let dest = tmp.join("rez_test_copy_dest_nested");
+
+            let _ = fs::remove_dir_all(&src);
+            let _ = fs::remove_dir_all(&dest);
+
+            let sub = src.join("subdir");
+            fs::create_dir_all(&sub).unwrap();
+            fs::write(src.join("root.txt"), b"root").unwrap();
+            fs::write(sub.join("child.txt"), b"child").unwrap();
+
+            copy_dir_recursive(&src, &dest).unwrap();
+
+            assert!(dest.join("root.txt").exists());
+            assert!(dest.join("subdir").join("child.txt").exists());
+            assert_eq!(fs::read(dest.join("subdir").join("child.txt")).unwrap(), b"child");
+
+            let _ = fs::remove_dir_all(&src);
+            let _ = fs::remove_dir_all(&dest);
+        }
+
+        #[test]
+        fn test_copy_empty_directory() {
+            let tmp = std::env::temp_dir();
+            let src = tmp.join("rez_test_copy_src_empty");
+            let dest = tmp.join("rez_test_copy_dest_empty");
+
+            let _ = fs::remove_dir_all(&src);
+            let _ = fs::remove_dir_all(&dest);
+
+            fs::create_dir_all(&src).unwrap();
+            copy_dir_recursive(&src, &dest).unwrap();
+            assert!(dest.exists());
+
+            let _ = fs::remove_dir_all(&src);
+            let _ = fs::remove_dir_all(&dest);
+        }
+
+        #[test]
+        fn test_copy_preserves_file_content() {
+            let tmp = std::env::temp_dir();
+            let src = tmp.join("rez_test_copy_src_content");
+            let dest = tmp.join("rez_test_copy_dest_content");
+
+            let _ = fs::remove_dir_all(&src);
+            let _ = fs::remove_dir_all(&dest);
+
+            fs::create_dir_all(&src).unwrap();
+            let content = b"rez-next package.py content\nversion = '1.0.0'\n";
+            fs::write(src.join("package.py"), content).unwrap();
+
+            copy_dir_recursive(&src, &dest).unwrap();
+
+            let copied = fs::read(dest.join("package.py")).unwrap();
+            assert_eq!(copied, content);
+
+            let _ = fs::remove_dir_all(&src);
+            let _ = fs::remove_dir_all(&dest);
+        }
+    }
+}
+
+
+
+

@@ -1,6 +1,44 @@
 # rez-next cleanup 执行记录
 
+## 最新执行 (2026-04-06 05:01, 第三十一轮)
+
+### 执行摘要
+- 审查迭代 Agent 最近的 split-tests 提交 `dfa5d7f`、`72430ad`、`41b84a0` 后，聚焦新拆分测试中的低风险治理，不触碰运行时代码或依赖配置
+- 完成 3 个 cleanup 提交并已推送：`ac0da02` 删除 3 个过期/重复测试并顺手清掉 `real_repo_integration.rs` 死 helper，`379c16f` 收紧 `ResolvedContext` JSON 字段断言并修正 `private_build_requires` 测试契约，`a0fe045` 在 `CLEANUP_TODO.md` 记录 3 项结构性后续（commit body 含 `chore(cleanup): done`）
+- 本轮净变更为 `4 files changed, 62 insertions(+), 83 deletions(-)`；删除过期测试 **3** 个，修正弱/误导测试契约 **2** 处
+
+### 验证结果
+- **测试**: 基线与收尾 `vx cargo test --workspace --all-targets --all-features --quiet` 均通过；定向 `rez_compat_context_tests` / `rez_compat_context_bind_tests` / `real_repo_integration` 通过
+- **Lint**: 基线与收尾 `vx cargo clippy --workspace --all-targets --quiet -- -D warnings` 通过；编辑文件 `read_lints` 为 0
+- **推送**: `auto-improve` 已推送到 `a0fe045`
+- **覆盖率**: 本轮未采集新的覆盖率基线
+
+### 下一轮重点
+1. 继续处理 `tests/cli_e2e_tests.rs` 的隐式 skip 与 exit-code-only 弱断言
+2. 评估是否为 `real_repo_*` 系列抽取共享 fixture helper，避免拆分后继续漂移
+3. 决定 `rez_solver_graph_tests.rs` / `rez_solver_platform_tests.rs` / `rez_compat_late_tests.rs` 这些迁移 notice shell 是否还值得保留为独立测试目标
+
+## 最新执行 (2026-04-06 01:01, 第三十轮)
+
+
+### 执行摘要
+- 延续第二十九轮未完成的低风险治理，先收掉 `tests/rez_compat_rex_edge_tests.rs` 中最后一处 `clippy::single-match`，恢复当前工作区 clippy 绿灯
+- 收紧 2 个弱测试契约：将 `crates/rez-next-repository/src/high_performance_scanner_tests.rs` 中 `PrefetchPredictor::default()` vs `new()` 的 no-op 测试改为一致性断言；将 `crates/rez-next-context/src/tests/rxtb_tests.rs` 中 JSON / Binary 对比从“字节非空”改为真实 roundtrip 包集合一致性校验
+- 结合本轮只读巡检，完成 4 份文档清理：修正 `README.md` / `README_zh.md` 中过强兼容性承诺与过期 crate 数量，修正 `docs/benchmark_guide.md` 的 benchmark 数量，刷新 `docs/contributing.md` 以匹配当前 `justfile` / `.github/workflows/ci.yml`
+- 在 `CLEANUP_TODO.md` 新增 1 条结构性后续项，记录 `cli_e2e_tests.rs` 仍存在隐式 skip 与 exit-code-only 弱断言问题；本轮未触碰运行时代码或依赖配置
+
+### 验证结果
+- **测试**: `vx cargo test --workspace --all-targets --all-features --quiet` 通过
+- **Lint**: `vx cargo clippy --workspace --all-targets --quiet -- -D warnings` 通过；`read_lints` 对编辑过的 `tests/rez_compat_rex_edge_tests.rs` 结果为 0
+- **推送**: 待本轮 report commit 推送（本次会话未执行 commit / push）
+
+### 下一轮重点
+1. 处理 `tests/cli_e2e_tests.rs` 的隐式 skip 和 exit-code-only 弱断言，先明确哪些场景应为真正的 E2E 前置失败，哪些场景应改成可观察契约
+2. 继续处理 `PrefetchPredictor` placeholder smoke tests，避免测试继续为常量实现背书
+3. 继续审查 README / docs 中其余兼容性表述，尤其是与 Python bindings 占位行为相关的用户承诺
+
 ## 最新执行 (2026-04-05 20:31, 第二十九轮)
+
 
 ### 执行摘要
 - 审查最近迭代提交 `f4fc0ca`、`a3f103c`、`1ef79ab`、`a70d978` 后，聚焦 bind / repository 新拆分测试中的低风险清理点

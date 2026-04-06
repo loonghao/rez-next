@@ -5,6 +5,9 @@
 
 use pyo3::prelude::*;
 
+// ── Shared infrastructure ─────────────────────────────────────────────────────
+pub(crate) mod runtime;
+
 // ── Domain-specific binding modules ──────────────────────────────────────────
 mod bind_bindings;
 mod completion_bindings;
@@ -46,7 +49,7 @@ use env_bindings::{PyPackageFamily, PyRezEnv};
 use forward_bindings::PyRezForward;
 use package_bindings::{PyPackage, PyPackageRequirement};
 use pip_bindings::PyPipPackage;
-use plugins_bindings::{PyPlugin, PyRezPluginManager};
+use plugins_bindings::{PyPlugin, PyPluginType, PyRezPluginManager};
 use release_bindings::{PyReleaseManager, PyReleaseResult};
 use repository_bindings::PyRepositoryManager;
 use search_bindings::PySearchResult;
@@ -110,6 +113,7 @@ fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyShell>()?;
     m.add_class::<PyPipPackage>()?;
     m.add_class::<PyPlugin>()?;
+    m.add_class::<PyPluginType>()?;
     m.add_class::<PyRezPluginManager>()?;
     m.add_class::<PyRezEnv>()?;
     m.add_class::<PyPackageFamily>()?;
@@ -139,10 +143,7 @@ fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(env_bindings::create_env, m)?)?;
     m.add_function(wrap_pyfunction!(env_bindings::get_activation_script, m)?)?;
     m.add_function(wrap_pyfunction!(forward_bindings::resolve_forward_tool, m)?)?;
-    m.add_function(wrap_pyfunction!(
-        forward_bindings::generate_forward_script,
-        m
-    )?)?;
+    m.add_function(wrap_pyfunction!(forward_bindings::generate_forward_script, m)?)?;
     m.add_function(wrap_pyfunction!(release_bindings::release_package, m)?)?;
     m.add_function(wrap_pyfunction!(source_bindings::write_source_script, m)?)?;
     m.add_function(wrap_pyfunction!(source_bindings::get_source_script, m)?)?;
@@ -159,10 +160,7 @@ fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(diff_bindings::format_diff, m)?)?;
     m.add_function(wrap_pyfunction!(status_bindings::is_in_rez_context, m)?)?;
     m.add_function(wrap_pyfunction!(status_bindings::get_current_status, m)?)?;
-    m.add_function(wrap_pyfunction!(
-        depends_bindings::get_reverse_dependencies,
-        m
-    )?)?;
+    m.add_function(wrap_pyfunction!(depends_bindings::get_reverse_dependencies, m)?)?;
     m.add_function(wrap_pyfunction!(depends_bindings::get_dependants, m)?)?;
     m.add_function(wrap_pyfunction!(depends_bindings::print_depends, m)?)?;
     m.add_function(wrap_pyfunction!(bind_bindings::bind_tool, m)?)?;
@@ -178,10 +176,7 @@ fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
     let exceptions = PyModule::new(m.py(), "exceptions")?;
     exceptions_bindings::register_all_exceptions(&exceptions)?;
     register_submodule(m, "exceptions", &exceptions)?;
-    m.add(
-        "RezError",
-        m.py().get_type::<exceptions_bindings::RezError>(),
-    )?;
+    m.add("RezError", m.py().get_type::<exceptions_bindings::RezError>())?;
     m.add(
         "PackageNotFound",
         m.py().get_type::<exceptions_bindings::PackageNotFound>(),
@@ -297,28 +292,17 @@ fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // ── Submodule: rez.pip ────────────────────────────────────────────────────
     let pip_mod = PyModule::new(m.py(), "pip")?;
     pip_mod.add_class::<PyPipPackage>()?;
-    pip_mod.add_function(wrap_pyfunction!(
-        pip_bindings::normalize_package_name,
-        &pip_mod
-    )?)?;
-    pip_mod.add_function(wrap_pyfunction!(
-        pip_bindings::pip_version_to_rez,
-        &pip_mod
-    )?)?;
+    pip_mod.add_function(wrap_pyfunction!(pip_bindings::normalize_package_name, &pip_mod)?)?;
+    pip_mod.add_function(wrap_pyfunction!(pip_bindings::pip_version_to_rez, &pip_mod)?)?;
     pip_mod.add_function(wrap_pyfunction!(pip_bindings::pip_install, &pip_mod)?)?;
-    pip_mod.add_function(wrap_pyfunction!(
-        pip_bindings::convert_pip_to_rez,
-        &pip_mod
-    )?)?;
-    pip_mod.add_function(wrap_pyfunction!(
-        pip_bindings::get_pip_dependencies,
-        &pip_mod
-    )?)?;
+    pip_mod.add_function(wrap_pyfunction!(pip_bindings::convert_pip_to_rez, &pip_mod)?)?;
+    pip_mod.add_function(wrap_pyfunction!(pip_bindings::get_pip_dependencies, &pip_mod)?)?;
     pip_mod.add_function(wrap_pyfunction!(pip_bindings::write_pip_package, &pip_mod)?)?;
     register_submodule(m, "pip", &pip_mod)?;
 
     // ── Submodule: rez.plugins ────────────────────────────────────────────────
     let plugins_mod = PyModule::new(m.py(), "plugins")?;
+    plugins_mod.add_class::<plugins_bindings::PyPluginType>()?;
     plugins_mod.add_class::<PyPlugin>()?;
     plugins_mod.add_class::<PyRezPluginManager>()?;
     plugins_mod.add_function(wrap_pyfunction!(
@@ -345,10 +329,7 @@ fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
     env_mod.add_class::<PyRezEnv>()?;
     env_mod.add_class::<PyPackageFamily>()?;
     env_mod.add_function(wrap_pyfunction!(env_bindings::create_env, &env_mod)?)?;
-    env_mod.add_function(wrap_pyfunction!(
-        env_bindings::get_activation_script,
-        &env_mod
-    )?)?;
+    env_mod.add_function(wrap_pyfunction!(env_bindings::get_activation_script, &env_mod)?)?;
     env_mod.add_function(wrap_pyfunction!(env_bindings::apply_env, &env_mod)?)?;
     register_submodule(m, "env", &env_mod)?;
 
@@ -384,18 +365,9 @@ fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // ── Submodule: rez.source ─────────────────────────────────────────────────
     let source_mod = PyModule::new(m.py(), "source")?;
     source_mod.add_class::<PySourceManager>()?;
-    source_mod.add_function(wrap_pyfunction!(
-        source_bindings::write_source_script,
-        &source_mod
-    )?)?;
-    source_mod.add_function(wrap_pyfunction!(
-        source_bindings::get_source_script,
-        &source_mod
-    )?)?;
-    source_mod.add_function(wrap_pyfunction!(
-        source_bindings::detect_shell,
-        &source_mod
-    )?)?;
+    source_mod.add_function(wrap_pyfunction!(source_bindings::write_source_script, &source_mod)?)?;
+    source_mod.add_function(wrap_pyfunction!(source_bindings::get_source_script, &source_mod)?)?;
+    source_mod.add_function(wrap_pyfunction!(source_bindings::detect_shell, &source_mod)?)?;
     source_mod.add_function(wrap_pyfunction!(
         source_bindings::resolve_source_mode,
         &source_mod
@@ -405,18 +377,9 @@ fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // ── Submodule: rez.data ───────────────────────────────────────────────────
     let data_mod = PyModule::new(m.py(), "data")?;
     data_mod.add_class::<PyRezData>()?;
-    data_mod.add_function(wrap_pyfunction!(
-        data_bindings::get_data_resource,
-        &data_mod
-    )?)?;
-    data_mod.add_function(wrap_pyfunction!(
-        data_bindings::list_data_resources,
-        &data_mod
-    )?)?;
-    data_mod.add_function(wrap_pyfunction!(
-        data_bindings::get_completion_script,
-        &data_mod
-    )?)?;
+    data_mod.add_function(wrap_pyfunction!(data_bindings::get_data_resource, &data_mod)?)?;
+    data_mod.add_function(wrap_pyfunction!(data_bindings::list_data_resources, &data_mod)?)?;
+    data_mod.add_function(wrap_pyfunction!(data_bindings::get_completion_script, &data_mod)?)?;
     data_mod.add("data", PyRezData::new())?;
 
     // ── Submodule: rez.bind ───────────────────────────────────────────────────
@@ -435,10 +398,7 @@ fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
     let search_mod = PyModule::new(m.py(), "search")?;
     search_mod.add_class::<PySearchResult>()?;
     search_mod.add_class::<search_bindings::PyPackageSearcher>()?;
-    search_mod.add_function(wrap_pyfunction!(
-        search_bindings::search_packages,
-        &search_mod
-    )?)?;
+    search_mod.add_function(wrap_pyfunction!(search_bindings::search_packages, &search_mod)?)?;
     search_mod.add_function(wrap_pyfunction!(
         search_bindings::search_package_names,
         &search_mod
@@ -474,36 +434,21 @@ fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
     diff_mod.add_class::<diff_bindings::PyPackageDiff>()?;
     diff_mod.add_class::<diff_bindings::PyContextDiff>()?;
     diff_mod.add_function(wrap_pyfunction!(diff_bindings::diff_contexts, &diff_mod)?)?;
-    diff_mod.add_function(wrap_pyfunction!(
-        diff_bindings::diff_context_files,
-        &diff_mod
-    )?)?;
+    diff_mod.add_function(wrap_pyfunction!(diff_bindings::diff_context_files, &diff_mod)?)?;
     diff_mod.add_function(wrap_pyfunction!(diff_bindings::format_diff, &diff_mod)?)?;
     register_submodule(m, "diff", &diff_mod)?;
 
     // ── Submodule: rez.status ─────────────────────────────────────────────────
     let status_mod = PyModule::new(m.py(), "status")?;
     status_mod.add_class::<status_bindings::PyRezStatus>()?;
-    status_mod.add_function(wrap_pyfunction!(
-        status_bindings::get_current_status,
-        &status_mod
-    )?)?;
-    status_mod.add_function(wrap_pyfunction!(
-        status_bindings::is_in_rez_context,
-        &status_mod
-    )?)?;
-    status_mod.add_function(wrap_pyfunction!(
-        status_bindings::get_context_file,
-        &status_mod
-    )?)?;
+    status_mod.add_function(wrap_pyfunction!(status_bindings::get_current_status, &status_mod)?)?;
+    status_mod.add_function(wrap_pyfunction!(status_bindings::is_in_rez_context, &status_mod)?)?;
+    status_mod.add_function(wrap_pyfunction!(status_bindings::get_context_file, &status_mod)?)?;
     status_mod.add_function(wrap_pyfunction!(
         status_bindings::get_resolved_package_names,
         &status_mod
     )?)?;
-    status_mod.add_function(wrap_pyfunction!(
-        status_bindings::get_rez_env_var,
-        &status_mod
-    )?)?;
+    status_mod.add_function(wrap_pyfunction!(status_bindings::get_rez_env_var, &status_mod)?)?;
     register_submodule(m, "status", &status_mod)?;
 
     // ── Submodule: rez.depends ────────────────────────────────────────────────
@@ -514,14 +459,8 @@ fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
         depends_bindings::get_reverse_dependencies,
         &depends_mod
     )?)?;
-    depends_mod.add_function(wrap_pyfunction!(
-        depends_bindings::get_dependants,
-        &depends_mod
-    )?)?;
-    depends_mod.add_function(wrap_pyfunction!(
-        depends_bindings::print_depends,
-        &depends_mod
-    )?)?;
+    depends_mod.add_function(wrap_pyfunction!(depends_bindings::get_dependants, &depends_mod)?)?;
+    depends_mod.add_function(wrap_pyfunction!(depends_bindings::print_depends, &depends_mod)?)?;
     register_submodule(m, "depends", &depends_mod)?;
 
     Ok(())
