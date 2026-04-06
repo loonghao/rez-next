@@ -257,6 +257,7 @@ fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
     let build_mod = PyModule::new(m.py(), "build_")?;
     build_mod.add_function(wrap_pyfunction!(build_package, &build_mod)?)?;
     build_mod.add_function(wrap_pyfunction!(get_build_system, &build_mod)?)?;
+    register_submodule(m, "build_", &build_mod)?;
 
     // ── Submodule: rez.rex ────────────────────────────────────────────────────
     let rex_mod = PyModule::new(m.py(), "rex")?;
