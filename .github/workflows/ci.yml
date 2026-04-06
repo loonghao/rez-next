@@ -69,6 +69,7 @@ jobs:
 
   test-stable:
     name: Test - stable
+
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -170,8 +171,13 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Install maturin and pytest
-        run: pip install maturin pytest
+      - name: Create virtualenv and install maturin and pytest
+        run: |
+          python -m venv .venv
+          source .venv/bin/activate
+          pip install maturin pytest
+          echo "VIRTUAL_ENV=$VIRTUAL_ENV" >> $GITHUB_ENV
+          echo "$VIRTUAL_ENV/bin" >> $GITHUB_PATH
       - name: Build and install Python binding (dev mode)
         working-directory: crates/rez-next-python
         run: maturin develop --release

@@ -97,7 +97,7 @@ pub fn parse_env_var(arg: &str) -> RezCoreResult<(String, String)> {
 /// Surrounding whitespace around each entry is trimmed.
 ///
 /// # Examples
-/// ```
+/// ```text
 /// // On Unix: "/pkg/a:/pkg/b" → [PathBuf::from("/pkg/a"), PathBuf::from("/pkg/b")]
 /// // On Windows: "C:\\pkg\\a;D:\\pkg\\b" → [PathBuf::from("C:\\pkg\\a"), PathBuf::from("D:\\pkg\\b")]
 /// ```
