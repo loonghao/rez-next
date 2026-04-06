@@ -9,7 +9,7 @@ use pyo3::types::{PyDict, PyList};
 // ─── Public structs ──────────────────────────────────────────────────────────
 
 /// A single "dependant" entry — a package that depends on the queried package.
-#[pyclass(name = "DependsEntry")]
+#[pyclass(name = "DependsEntry", from_py_object)]
 #[derive(Clone, Debug)]
 pub struct PyDependsEntry {
     /// Package name of the dependant
@@ -39,13 +39,13 @@ impl PyDependsEntry {
         self.__repr__()
     }
 
-    fn to_dict(&self, py: Python) -> PyResult<PyObject> {
+    fn to_dict(&self, py: Python) -> PyResult<Py<PyAny>> {
         let d = PyDict::new(py);
         d.set_item("name", &self.name)?;
         d.set_item("version", &self.version)?;
         d.set_item("requirement", &self.requirement)?;
         d.set_item("dependency_type", &self.dependency_type)?;
-        Ok(d.into())
+        Ok(d.into_any().unbind())
     }
 }
 
@@ -120,7 +120,7 @@ impl PyDependsResult {
         lines.join("\n")
     }
 
-    fn to_dict(&self, py: Python) -> PyResult<PyObject> {
+    fn to_dict(&self, py: Python) -> PyResult<Py<PyAny>> {
         let d = PyDict::new(py);
         d.set_item("queried_package", &self.queried_package)?;
         let direct_list = PyList::empty(py);
@@ -133,7 +133,7 @@ impl PyDependsResult {
             trans_list.append(e.clone().into_pyobject(py)?)?;
         }
         d.set_item("transitive_dependants", trans_list)?;
-        Ok(d.into())
+        Ok(d.into_any().unbind())
     }
 
     fn __repr__(&self) -> String {

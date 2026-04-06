@@ -6,7 +6,7 @@ use pyo3::prelude::*;
 use rez_next_version::{Version, VersionRange};
 
 /// Python-accessible Version class, compatible with rez.vendor.version.Version
-#[pyclass(name = "Version")]
+#[pyclass(name = "Version", from_py_object)]
 #[derive(Clone)]
 pub struct PyVersion(pub Version);
 
@@ -136,7 +136,7 @@ impl PyVersion {
 }
 
 /// Python-accessible VersionRange class, compatible with rez.vendor.version.VersionRange
-#[pyclass(name = "VersionRange")]
+#[pyclass(name = "VersionRange", from_py_object)]
 #[derive(Clone)]
 pub struct PyVersionRange(pub VersionRange);
 

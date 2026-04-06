@@ -75,16 +75,16 @@ impl PyRezStatus {
     }
 
     /// Return the REZ_* environment variables visible to the current context.
-    fn get_rez_env_vars(&self, py: Python) -> PyResult<PyObject> {
+    fn get_rez_env_vars(&self, py: Python) -> PyResult<Py<PyAny>> {
         let d = PyDict::new(py);
         for (k, v) in &self.rez_env_vars {
             d.set_item(k, v)?;
         }
-        Ok(d.into())
+        Ok(d.into_any().unbind())
     }
 
     /// Serialize to a dict (for JSON/YAML export).
-    fn to_dict(&self, py: Python) -> PyResult<PyObject> {
+    fn to_dict(&self, py: Python) -> PyResult<Py<PyAny>> {
         let d = PyDict::new(py);
         d.set_item("is_active", self.is_active)?;
         d.set_item("context_file", &self.context_file)?;
@@ -103,7 +103,7 @@ impl PyRezStatus {
         d.set_item("current_shell", &self.current_shell)?;
         d.set_item("rez_version", &self.rez_version)?;
         d.set_item("context_cwd", &self.context_cwd)?;
-        Ok(d.into())
+        Ok(d.into_any().unbind())
     }
 
     /// Pretty-print a summary (like `rez status` terminal output).

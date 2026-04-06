@@ -149,7 +149,7 @@ impl PySuite {
     }
 
     /// Get tools exposed by the suite as a dict
-    fn get_tools(&self, py: Python) -> PyResult<PyObject> {
+    fn get_tools(&self, py: Python) -> PyResult<Py<PyAny>> {
         let tools = self
             .inner
             .get_tools()
@@ -165,7 +165,7 @@ impl PySuite {
             tool_dict.set_item("is_alias", tool.is_alias)?;
             dict.set_item(name, tool_dict)?;
         }
-        Ok(dict.into())
+        Ok(dict.into_any().unbind())
     }
 
     fn __repr__(&self) -> String {

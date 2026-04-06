@@ -8,7 +8,7 @@
 use pyo3::prelude::*;
 
 /// Represents a pip package converted to rez format.
-#[pyclass(name = "PipPackage")]
+#[pyclass(name = "PipPackage", from_py_object)]
 #[derive(Clone)]
 pub struct PyPipPackage {
     #[pyo3(get)]

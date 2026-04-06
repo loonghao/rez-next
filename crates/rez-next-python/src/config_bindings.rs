@@ -60,18 +60,20 @@ impl PyConfig {
     }
 
     /// Get a config field by name
-    fn get(&self, field: &str, default: Option<PyObject>, py: Python) -> PyResult<PyObject> {
+    fn get(&self, field: &str, default: Option<Py<PyAny>>, py: Python) -> PyResult<Py<PyAny>> {
         if let Some(value) = self.inner.get_field(field) {
             match value {
-                serde_json::Value::String(s) => Ok(s.into_pyobject(py)?.into()),
-                serde_json::Value::Bool(b) => Ok(pyo3::types::PyBool::new(py, b).to_owned().into()),
+                serde_json::Value::String(s) => Ok(s.into_pyobject(py)?.into_any().unbind()),
+                serde_json::Value::Bool(b) => {
+                    Ok(pyo3::types::PyBool::new(py, b).to_owned().into_any().unbind())
+                }
                 serde_json::Value::Number(n) => {
                     if let Some(i) = n.as_i64() {
-                        Ok(i.into_pyobject(py)?.into())
+                        Ok(i.into_pyobject(py)?.into_any().unbind())
                     } else if let Some(f) = n.as_f64() {
-                        Ok(f.into_pyobject(py)?.into())
+                        Ok(f.into_pyobject(py)?.into_any().unbind())
                     } else {
-                        Ok(py.None())
+                        Ok(py.None().into_any())
                     }
                 }
                 serde_json::Value::Array(arr) => {
@@ -79,12 +81,12 @@ impl PyConfig {
                         .iter()
                         .filter_map(|v| v.as_str().map(|s| s.to_string()))
                         .collect();
-                    Ok(list.into_pyobject(py)?.into())
+                    Ok(list.into_pyobject(py)?.into_any().unbind())
                 }
-                _ => Ok(py.None()),
+                _ => Ok(py.None().into_any()),
             }
         } else {
-            Ok(default.unwrap_or_else(|| py.None()))
+            Ok(default.unwrap_or_else(|| py.None().into_any()))
         }
     }
 }

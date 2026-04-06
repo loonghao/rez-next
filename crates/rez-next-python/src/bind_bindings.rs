@@ -10,7 +10,7 @@ use rez_next_bind::{
 use std::path::PathBuf;
 
 /// Python-accessible bound package result.
-#[pyclass(name = "BindResult")]
+#[pyclass(name = "BindResult", from_py_object)]
 #[derive(Clone)]
 pub struct PyBindResult {
     /// Package name

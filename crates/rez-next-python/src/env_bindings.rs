@@ -201,12 +201,12 @@ impl PyRezEnv {
 
     /// Get the environment variables dict.
     /// Compatible with `context.get_environ()`.
-    fn get_environ(&self, py: Python) -> PyResult<PyObject> {
+    fn get_environ(&self, py: Python) -> PyResult<Py<PyAny>> {
         let dict = PyDict::new(py);
         for (k, v) in &self.env_vars {
             dict.set_item(k, v)?;
         }
-        Ok(dict.into())
+        Ok(dict.into_any().unbind())
     }
 
     /// Get resolved package list.
@@ -313,7 +313,7 @@ pub fn apply_env(
 
 /// PackageFamily: groups all versions of a package.
 /// Compatible with `rez.packages.PackageFamily`.
-#[pyclass(name = "PackageFamily")]
+#[pyclass(name = "PackageFamily", from_py_object)]
 #[derive(Clone)]
 pub struct PyPackageFamily {
     #[pyo3(get)]

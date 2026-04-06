@@ -32,7 +32,7 @@ impl ReleaseMode {
 }
 
 /// Result of a release operation
-#[pyclass(name = "ReleaseResult")]
+#[pyclass(name = "ReleaseResult", from_py_object)]
 #[derive(Clone)]
 pub struct PyReleaseResult {
     #[pyo3(get)]

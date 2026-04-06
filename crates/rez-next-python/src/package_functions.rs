@@ -149,7 +149,7 @@ pub fn iter_packages(
     name: &str,
     range_: Option<&str>,
     paths: Option<Vec<String>>,
-) -> PyResult<PyObject> {
+) -> PyResult<Py<PyAny>> {
     let rt = tokio::runtime::Runtime::new()
         .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
 
@@ -187,7 +187,7 @@ pub fn iter_packages(
 
     // Return as Python list
     let list = PyList::new(py, filtered)?;
-    Ok(list.into())
+    Ok(list.into_any().unbind())
 }
 
 /// Get all package family names from configured repositories.
@@ -218,7 +218,7 @@ pub fn get_package_family_names(paths: Option<Vec<String>>) -> PyResult<Vec<Stri
 /// Returns a Python list of (family_name, version_list) tuples.
 #[pyfunction]
 #[pyo3(signature = (paths=None))]
-pub fn walk_packages(py: Python, paths: Option<Vec<String>>) -> PyResult<PyObject> {
+pub fn walk_packages(py: Python, paths: Option<Vec<String>>) -> PyResult<Py<PyAny>> {
     use std::collections::HashMap;
 
     let rt = tokio::runtime::Runtime::new()
@@ -266,7 +266,7 @@ pub fn walk_packages(py: Python, paths: Option<Vec<String>>) -> PyResult<PyObjec
         result_list.append(tuple)?;
     }
 
-    Ok(result_list.into())
+    Ok(result_list.into_any().unbind())
 }
 
 /// Copy a package to another location.

@@ -8,7 +8,7 @@ use rez_next_search::{PackageSearcher, SearchFilter, SearchOptions, SearchResult
 use std::path::PathBuf;
 
 /// Python wrapper for a single search result
-#[pyclass(name = "SearchResult")]
+#[pyclass(name = "SearchResult", from_py_object)]
 #[derive(Debug, Clone)]
 pub struct PySearchResult {
     inner: SearchResult,
@@ -79,7 +79,7 @@ impl PyPackageSearcher {
     }
 
     /// Run the search and return a list of SearchResult objects
-    fn search(&self, py: Python) -> PyResult<PyObject> {
+    fn search(&self, py: Python) -> PyResult<Py<PyAny>> {
         let scope = match self.scope.as_str() {
             "latest" => SearchScope::LatestOnly,
             "packages" => SearchScope::Packages,
@@ -112,7 +112,7 @@ impl PyPackageSearcher {
             let py_result = PySearchResult { inner: r };
             list.append(py_result.into_pyobject(py)?)?;
         }
-        Ok(list.into())
+        Ok(list.into_any().unbind())
     }
 
     fn __repr__(&self) -> String {
@@ -144,7 +144,7 @@ pub fn search_packages(
     scope: &str,
     version_range: Option<String>,
     limit: usize,
-) -> PyResult<PyObject> {
+) -> PyResult<Py<PyAny>> {
     let searcher = PyPackageSearcher::new(pattern, paths, scope, version_range, limit);
     searcher.search(py)
 }
@@ -178,7 +178,7 @@ pub fn search_latest_packages(
     pattern: &str,
     paths: Option<Vec<String>>,
     version_range: Option<String>,
-) -> PyResult<PyObject> {
+) -> PyResult<Py<PyAny>> {
     let mut filter = SearchFilter::new(pattern);
     if let Some(ref range) = version_range {
         filter = filter.with_version_range(range.clone());
@@ -197,7 +197,7 @@ pub fn search_latest_packages(
         let py_result = PySearchResult { inner: r };
         list.append(py_result.into_pyobject(py)?)?;
     }
-    Ok(list.into())
+    Ok(list.into_any().unbind())
 }
 
 #[cfg(test)]

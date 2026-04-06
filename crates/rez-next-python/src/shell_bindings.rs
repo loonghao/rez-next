@@ -6,7 +6,7 @@ use std::collections::HashMap;
 
 /// Python wrapper for shell script generation.
 /// Equivalent to `rez.shell` module.
-#[pyclass(name = "Shell")]
+#[pyclass(name = "Shell", from_py_object)]
 #[derive(Clone)]
 pub struct PyShell {
     shell_type: ShellType,

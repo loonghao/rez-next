@@ -144,7 +144,7 @@ impl PyResolvedContext {
     }
 
     /// Get environment variables for this context (as dict)
-    fn get_environ(&self, py: Python) -> PyResult<PyObject> {
+    fn get_environ(&self, py: Python) -> PyResult<Py<PyAny>> {
         let rt = tokio::runtime::Runtime::new()
             .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
 
@@ -157,7 +157,7 @@ impl PyResolvedContext {
         for (k, v) in env_vars {
             dict.set_item(k, v)?;
         }
-        Ok(dict.into())
+        Ok(dict.into_any().unbind())
     }
 
     /// Apply environment to current process
@@ -324,7 +324,7 @@ impl PyResolvedContext {
 
     /// Get the list of tools provided by packages in this context.
     /// Compatible with `context.get_tools()`.
-    fn get_tools(&self, py: Python) -> PyResult<PyObject> {
+    fn get_tools(&self, py: Python) -> PyResult<Py<PyAny>> {
         let dict = PyDict::new(py);
         for pkg in &self.inner.resolved_packages {
             for tool in &pkg.tools {
@@ -334,11 +334,11 @@ impl PyResolvedContext {
                 dict.set_item(tool, tool_path)?;
             }
         }
-        Ok(dict.into())
+        Ok(dict.into_any().unbind())
     }
 
     /// Get the context as a dict (rez compat: for serialization)
-    fn to_dict(&self, py: Python) -> PyResult<PyObject> {
+    fn to_dict(&self, py: Python) -> PyResult<Py<PyAny>> {
         let dict = PyDict::new(py);
         dict.set_item("id", &self.inner.id)?;
         dict.set_item("status", format!("{:?}", self.inner.status))?;
@@ -357,7 +357,7 @@ impl PyResolvedContext {
                 .collect::<Vec<_>>(),
         )?;
         dict.set_item("num_packages", self.inner.resolved_packages.len())?;
-        Ok(dict.into())
+        Ok(dict.into_any().unbind())
     }
 
     /// Check if this context failed to resolve.
@@ -372,7 +372,7 @@ impl PyResolvedContext {
     }
 
     /// Get the resolved packages as a list of (name, version) tuples.
-    fn get_resolved_packages_info(&self, py: Python) -> PyResult<PyObject> {
+    fn get_resolved_packages_info(&self, py: Python) -> PyResult<Py<PyAny>> {
         use pyo3::types::PyList;
         let list = PyList::empty(py);
         for pkg in &self.inner.resolved_packages {
@@ -390,7 +390,7 @@ impl PyResolvedContext {
             )?;
             list.append(tuple)?;
         }
-        Ok(list.into())
+        Ok(list.into_any().unbind())
     }
 }
 

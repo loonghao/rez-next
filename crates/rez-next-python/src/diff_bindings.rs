@@ -12,7 +12,7 @@ use rez_next_version::Version;
 /// A single package change between two resolved contexts.
 ///
 /// Equivalent to rez's diff output entry: added / removed / upgraded / downgraded.
-#[pyclass(name = "PackageDiff")]
+#[pyclass(name = "PackageDiff", from_py_object)]
 #[derive(Clone, Debug)]
 pub struct PyPackageDiff {
     /// Package name
@@ -63,13 +63,13 @@ impl PyPackageDiff {
         self.__repr__()
     }
 
-    fn to_dict(&self, py: Python) -> PyResult<PyObject> {
+    fn to_dict(&self, py: Python) -> PyResult<Py<PyAny>> {
         let d = PyDict::new(py);
         d.set_item("name", &self.name)?;
         d.set_item("old_version", &self.old_version)?;
         d.set_item("new_version", &self.new_version)?;
         d.set_item("change_type", &self.change_type)?;
-        Ok(d.into())
+        Ok(d.into_any().unbind())
     }
 }
 
@@ -122,7 +122,7 @@ impl PyContextDiff {
         )
     }
 
-    fn to_dict(&self, py: Python) -> PyResult<PyObject> {
+    fn to_dict(&self, py: Python) -> PyResult<Py<PyAny>> {
         let d = PyDict::new(py);
         d.set_item("num_added", self.num_added)?;
         d.set_item("num_removed", self.num_removed)?;
@@ -134,7 +134,7 @@ impl PyContextDiff {
             diff_list.append(diff.clone().into_pyobject(py)?)?;
         }
         d.set_item("diffs", diff_list)?;
-        Ok(d.into())
+        Ok(d.into_any().unbind())
     }
 }
 
