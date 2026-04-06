@@ -313,9 +313,10 @@ impl PackageSaver {
     fn save_to_binary(package: &Package) -> Result<String, RezCoreError> {
         use base64::Engine as _;
 
-        let binary_data = bincode::serialize(package).map_err(|e| {
-            RezCoreError::PackageParse(format!("Failed to serialize to binary: {}", e))
-        })?;
+        let binary_data =
+            bincode::serde::encode_to_vec(package, bincode::config::standard()).map_err(|e| {
+                RezCoreError::PackageParse(format!("Failed to serialize to binary: {}", e))
+            })?;
 
         Ok(base64::engine::general_purpose::STANDARD.encode(binary_data))
     }

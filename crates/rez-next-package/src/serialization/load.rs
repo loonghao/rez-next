@@ -211,9 +211,15 @@ impl PackageLoader {
             .decode(content)
             .map_err(|e| RezCoreError::PackageParse(format!("Failed to decode base64: {}", e)))?;
 
-        bincode::deserialize(&binary_data).map_err(|e| {
-            RezCoreError::PackageParse(format!("Failed to deserialize from binary: {}", e))
-        })
+        let (package, _) =
+            bincode::serde::decode_from_slice(&binary_data, bincode::config::standard())
+                .map_err(|e| {
+                    RezCoreError::PackageParse(format!(
+                        "Failed to deserialize from binary: {}",
+                        e
+                    ))
+                })?;
+        Ok(package)
     }
 
     /// Load a package from TOML content
