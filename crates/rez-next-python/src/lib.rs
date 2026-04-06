@@ -213,10 +213,12 @@ fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
     packages_.add_function(wrap_pyfunction!(copy_package, &packages_)?)?;
     packages_.add_function(wrap_pyfunction!(move_package, &packages_)?)?;
     packages_.add_function(wrap_pyfunction!(remove_package, &packages_)?)?;
+    register_submodule(m, "packages_", &packages_)?;
 
     // ── Submodule: rez.resolved_context ───────────────────────────────────────
     let resolved_context = PyModule::new(m.py(), "resolved_context")?;
     resolved_context.add_class::<PyResolvedContext>()?;
+    register_submodule(m, "resolved_context", &resolved_context)?;
 
     // ── Submodule: rez.suite ──────────────────────────────────────────────────
     let suite_mod = PyModule::new(m.py(), "suite")?;
@@ -256,6 +258,7 @@ fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // ── Submodule: rez.rex ────────────────────────────────────────────────────
     let rex_mod = PyModule::new(m.py(), "rex")?;
     rex_mod.add_function(wrap_pyfunction!(rex_interpret, &rex_mod)?)?;
+    register_submodule(m, "rex", &rex_mod)?;
 
     // ── Submodule: rez.shell ──────────────────────────────────────────────────
     let shell_mod = PyModule::new(m.py(), "shell")?;
@@ -272,6 +275,7 @@ fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
         shell_bindings::get_current_shell,
         &shell_mod
     )?)?;
+    register_submodule(m, "shell", &shell_mod)?;
 
     // ── Submodule: rez.bundles ────────────────────────────────────────────────
     let bundles_mod = PyModule::new(m.py(), "bundles")?;
@@ -284,6 +288,7 @@ fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
     let cli_mod = PyModule::new(m.py(), "cli")?;
     cli_mod.add_function(wrap_pyfunction!(cli_run, &cli_mod)?)?;
     cli_mod.add_function(wrap_pyfunction!(cli_main, &cli_mod)?)?;
+    register_submodule(m, "cli", &cli_mod)?;
 
     // ── Submodule: rez.utils.resources ───────────────────────────────────────
     let utils_mod = PyModule::new(m.py(), "utils")?;
@@ -362,6 +367,7 @@ fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
     packages_mod.add_class::<PyPackageFamily>()?;
     packages_mod.add_class::<PyPackage>()?;
     packages_mod.add_class::<PyPackageRequirement>()?;
+    register_submodule(m, "packages", &packages_mod)?;
 
     // ── Submodule: rez.forward ────────────────────────────────────────────────
     let forward_mod = PyModule::new(m.py(), "forward")?;
@@ -423,6 +429,7 @@ fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
         &data_mod
     )?)?;
     data_mod.add("data", PyRezData::new())?;
+    register_submodule(m, "data", &data_mod)?;
 
     // ── Submodule: rez.bind ───────────────────────────────────────────────────
     let bind_mod = PyModule::new(m.py(), "bind")?;
