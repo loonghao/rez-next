@@ -214,26 +214,17 @@
 - Follow-up: when real ML prediction is implemented, replace the smoke tests with contract tests that verify actual behavior against known inputs
 
 ### 33. `cli_e2e_tests.rs` still allows implicit skips and weak exit-code assertions
-- **Status**: COMPLETE ✓ (cycle 78)
-- Added `rez_output()` helper that returns `(stdout, stderr, Option<i32>)` without asserting success, enabling per-test signal-vs-code discrimination
-- Replaced all 18 `status.code().is_some()` exit-code-only assertions with observable contracts:
-  - `solve`: now checks "No packages to resolve", "Failed requirements", or "Resolved packages" in stdout
-  - `search`: missing repo path → asserts non-zero exit + "Error" in stderr; `--latest-only` → asserts "Found" in output
-  - `view`: nonexistent package → asserts non-zero exit + "not found"; package in repo → asserts non-empty combined output
-  - `rm`: nonexistent → asserts "No packages found" in stdout
-  - `cp`: success → asserts "copied"/"Successfully" + destination directory exists; failure → asserts "Error" message
-  - `complete --shell bash`: checks function definition and subcommand list in script
-  - `depends`: checks "No packages"/"Error" in combined output
-  - `pkg-cache status`: checks "Cache" + "entries"; `--clean`: checks "cleaning"/"completed" + "0"
-  - `build` without `package.py`: asserts non-zero exit + error message
-  - `status` outside context: asserts non-empty combined output
-- `config --search-list`: replaced vacuous `let _ = out` with assertion that output mentions yaml/json/rezconfig paths
-- `plugins`: replaced vacuous `let _ = out` with NUL-byte absence check
-- `config`, `config packages_path`, `suites --help`, `pkg-cache --help`, `pip --help`: tightened to check semantic keywords
-- `test_full_workflow_search_and_view`: updated `view`/`solve` steps to use real flag names and check combined output
-- All 49 cli_e2e_tests pass; Clippy: 0 warnings
+- **Status**: PARTIAL — reopened in cycle 91
+- Cycle 78 added `rez_output()` and removed most exit-code-only assertions, but later test drift left a few misleading cases behind.
+- Cycle 91 fixed 3 concrete issues:
+  - `test_view_package_in_repo`: now views a real package directory instead of creating an unused temp repo and accepting any non-empty output
+  - `test_full_workflow_search_and_view`: now views a real package directory and no longer relies on the stale `view --path ...` invocation that current `ViewArgs` does not support
+  - `test_build_extra_args_separator_accepted`: now runs inside the temp package root so the fixture is actually consumed, and it guards against the false-negative `No package.py ... found` path
+- Remaining follow-up:
+  - `skip_no_bin!()` still returns early when the built binary is missing; decide whether CI should always prebuild the binary and turn that case into an explicit precondition failure instead of an implicit skip
 
 ### 34. `real_repo_*` split test files still duplicate local repository helpers
+
 - **Status**: COMPLETE ✓ (cycle 32)
 - Extracted shared helpers into `tests/real_repo_test_helpers.rs` (`create_package`) and `tests/real_repo_manager_helpers.rs` (`make_repo`)
 - `tests/real_repo_integration.rs`, `tests/real_repo_resolve_tests.rs`, and `tests/real_repo_context_tests.rs` now reuse the shared helpers instead of keeping near-identical local fixture builders
