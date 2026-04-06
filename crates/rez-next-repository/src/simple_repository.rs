@@ -1,4 +1,4 @@
-﻿//! Simple file-based repository implementation
+//! Simple file-based repository implementation
 
 use crate::REZ_PACKAGE_FILENAMES;
 use async_trait::async_trait;
@@ -112,7 +112,6 @@ impl SimpleRepository {
     ) -> Result<Package, RezCoreError> {
         PackageSerializer::load_from_file(descriptor_path)
     }
-
 }
 
 #[async_trait::async_trait]
@@ -267,4 +266,3 @@ impl Default for RepositoryManager {
 #[cfg(test)]
 #[path = "simple_repository_tests.rs"]
 mod tests;
-

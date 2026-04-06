@@ -218,8 +218,6 @@ fn complete_package_versions(pkg_name: &str, prefix: &str) -> RezCoreResult<()> 
     Ok(())
 }
 
-
-
 #[cfg(test)]
 mod tests {
     use super::*;

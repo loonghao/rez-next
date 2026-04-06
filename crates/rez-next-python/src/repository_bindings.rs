@@ -135,17 +135,15 @@ mod tests {
 
         #[test]
         fn test_find_packages_in_nonexistent_dir_returns_empty() {
-            let mgr = PyRepositoryManager::new(Some(vec![
-                "/no/such/path/xyz_nonexistent".to_string(),
-            ]))
-            .unwrap();
+            let mgr =
+                PyRepositoryManager::new(Some(vec!["/no/such/path/xyz_nonexistent".to_string()]))
+                    .unwrap();
             let result = mgr.find_packages("anything");
             // Either Ok([]) or Err; must not panic
             if let Ok(pkgs) = result {
                 assert!(pkgs.is_empty());
             }
         }
-
 
         #[test]
         fn test_find_packages_in_empty_temp_dir_returns_empty() {

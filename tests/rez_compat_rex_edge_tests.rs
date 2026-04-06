@@ -156,7 +156,6 @@ fn test_invalid_package_requirement_no_panic() {
             "best-effort parse of '!!!invalid' produced empty name"
         );
     }
-
 }
 
 /// rez.exceptions: Empty string PackageRequirement parse does not panic
@@ -186,7 +185,6 @@ fn test_version_range_unbalanced_bracket_error() {
             "tolerant parse of trailing-comma range should still contain 1.5"
         );
     }
-
 }
 
 /// rez.exceptions: Version parse with garbage input returns error (not panic)

@@ -3,9 +3,9 @@
 use rez_next_package::Requirement;
 use std::collections::{HashMap, HashSet, VecDeque};
 
-use crate::dependency_resolver::{ResolvedPackageInfo, ResolutionConflict};
-use std::sync::Arc;
+use crate::dependency_resolver::{ResolutionConflict, ResolvedPackageInfo};
 use rez_next_package::Package;
+use std::sync::Arc;
 
 /// Internal state for the resolution process
 #[derive(Debug)]

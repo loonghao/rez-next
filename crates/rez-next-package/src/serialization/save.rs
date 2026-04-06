@@ -9,9 +9,7 @@ use std::fs;
 use std::io::Write;
 use std::path::Path;
 
-use super::types::{
-    PackageContainer, PackageFormat, PackageMetadata, SerializationOptions,
-};
+use super::types::{PackageContainer, PackageFormat, PackageMetadata, SerializationOptions};
 
 pub struct PackageSaver;
 
@@ -60,7 +58,10 @@ impl PackageSaver {
     }
 
     /// Save a package to a string
-    pub fn save_to_string(package: &Package, format: PackageFormat) -> Result<String, RezCoreError> {
+    pub fn save_to_string(
+        package: &Package,
+        format: PackageFormat,
+    ) -> Result<String, RezCoreError> {
         match format {
             PackageFormat::Yaml | PackageFormat::YamlCompressed => Self::save_to_yaml(package),
             PackageFormat::Json | PackageFormat::JsonCompressed => Self::save_to_json(package),
@@ -312,11 +313,10 @@ impl PackageSaver {
 
     /// Save a package as a base64-wrapped bincode payload.
     fn save_to_binary(package: &Package) -> Result<String, RezCoreError> {
-
         use base64::Engine as _;
 
-        let binary_data =
-            bincode::serde::encode_to_vec(package, bincode::config::standard()).map_err(|e| {
+        let binary_data = bincode::serde::encode_to_vec(package, bincode::config::standard())
+            .map_err(|e| {
                 RezCoreError::PackageParse(format!("Failed to serialize to binary: {}", e))
             })?;
 

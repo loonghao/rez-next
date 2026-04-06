@@ -124,8 +124,6 @@ mod tests {
     use crate::BuildEnvironment;
     use rez_next_package::Package;
 
-
-
     fn make_request(source_dir: std::path::PathBuf) -> BuildRequest {
         let pkg = Package::new("test-node-pkg".to_string());
         BuildRequest {

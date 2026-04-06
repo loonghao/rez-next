@@ -10,17 +10,15 @@ use std::fs;
 use std::sync::Arc;
 use tempfile::TempDir;
 
-#[path = "real_repo_test_helpers.rs"]
-mod real_repo_test_helpers;
 #[path = "real_repo_manager_helpers.rs"]
 mod real_repo_manager_helpers;
+#[path = "real_repo_test_helpers.rs"]
+mod real_repo_test_helpers;
 
 use real_repo_manager_helpers::make_repo;
 use real_repo_test_helpers::create_package;
 
-
 // ─── Environment variable generation tests ───────────────────────────────────
-
 
 #[test]
 fn test_env_context_has_rez_variables() {
@@ -39,7 +37,10 @@ fn test_env_context_has_rez_variables() {
     let config = SolverConfig::default();
     let mut resolver = DependencyResolver::new(Arc::clone(&repo), config);
     let result = rt.block_on(resolver.resolve(requirements)).unwrap();
-    assert!(!result.resolved_packages.is_empty(), "Should resolve at least one package");
+    assert!(
+        !result.resolved_packages.is_empty(),
+        "Should resolve at least one package"
+    );
 
     let env_config = ContextConfig::default();
     let env_manager = EnvironmentManager::new(env_config);
@@ -151,7 +152,6 @@ fn test_full_pipeline_e2e() {
 
     assert!(!env_vars.is_empty(), "Environment should not be empty");
 }
-
 
 // ─── Multi-repo tests ─────────────────────────────────────────────────────────
 
@@ -322,6 +322,7 @@ description = "A package with \"quotes\" and path C:\\tool"
                 assert_eq!(pkgs[0].version.as_ref().map(|v| v.as_str()), Some("1.0.0"));
             }
         }
-        Err(_) => { /* parse error on unusual string is acceptable — no panic is the requirement */ }
+        Err(_) => { /* parse error on unusual string is acceptable — no panic is the requirement */
+        }
     }
 }

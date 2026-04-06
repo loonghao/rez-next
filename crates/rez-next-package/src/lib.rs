@@ -96,7 +96,6 @@ variants = [
         assert_eq!(pkg.variants[1], vec!["python-3.10"]);
     }
 
-
     #[test]
     fn test_package_requires_parsed() {
         let content = r#"

@@ -9,17 +9,15 @@ use rez_next_version::Version;
 use std::sync::Arc;
 use tempfile::TempDir;
 
-#[path = "real_repo_test_helpers.rs"]
-mod real_repo_test_helpers;
 #[path = "real_repo_manager_helpers.rs"]
 mod real_repo_manager_helpers;
+#[path = "real_repo_test_helpers.rs"]
+mod real_repo_test_helpers;
 
 use real_repo_manager_helpers::make_repo;
 use real_repo_test_helpers::create_package;
 
-
 fn resolve(repo: Arc<RepositoryManager>, reqs: Vec<&str>) -> Vec<(String, String)> {
-
     let requirements: Vec<Requirement> = reqs
         .iter()
         .map(|s| s.parse::<Requirement>().unwrap())

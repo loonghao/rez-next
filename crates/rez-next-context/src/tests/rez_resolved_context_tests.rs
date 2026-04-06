@@ -23,11 +23,7 @@ mod rez_resolved_context_behavior_tests {
     }
 
     fn make_resolved_pkg(name: &str, version: &str, root: &str) -> ResolvedPackage {
-        ResolvedPackage::new(
-            make_arc_package(name, version),
-            PathBuf::from(root),
-            true,
-        )
+        ResolvedPackage::new(make_arc_package(name, version), PathBuf::from(root), true)
     }
 
     // ── RezResolvedContext::new ──────────────────────────────────────────────
@@ -116,7 +112,10 @@ mod rez_resolved_context_behavior_tests {
         ctx.resolved_packages
             .push(make_resolved_pkg("notool", "1.0.0", "/pkgs/notool/1.0.0"));
         let tools = ctx.get_tools();
-        assert!(tools.is_empty(), "Package with no tools should have no tools");
+        assert!(
+            tools.is_empty(),
+            "Package with no tools should have no tools"
+        );
     }
 
     #[test]
@@ -149,10 +148,16 @@ mod rez_resolved_context_behavior_tests {
         let mut ctx = RezResolvedContext::new(vec![]);
         let pkg1 = make_arc_package_with_tools("pkg_a", "1.0.0", vec!["tool_a".to_string()]);
         let pkg2 = make_arc_package_with_tools("pkg_b", "1.0.0", vec!["tool_b".to_string()]);
-        ctx.resolved_packages
-            .push(ResolvedPackage::new(pkg1, PathBuf::from("/pkgs/pkg_a"), true));
-        ctx.resolved_packages
-            .push(ResolvedPackage::new(pkg2, PathBuf::from("/pkgs/pkg_b"), true));
+        ctx.resolved_packages.push(ResolvedPackage::new(
+            pkg1,
+            PathBuf::from("/pkgs/pkg_a"),
+            true,
+        ));
+        ctx.resolved_packages.push(ResolvedPackage::new(
+            pkg2,
+            PathBuf::from("/pkgs/pkg_b"),
+            true,
+        ));
         let tools = ctx.get_tools();
         assert_eq!(tools.len(), 2);
         assert!(tools.contains_key("tool_a"));
@@ -236,15 +241,14 @@ mod rez_resolved_context_behavior_tests {
     fn test_get_variant_with_variant_index() {
         let mut pkg = Package::new("python".to_string());
         pkg.version = Some(Version::parse("3.9.0").unwrap());
-        pkg.variants = vec![vec!["platform-linux".to_string()], vec!["platform-windows".to_string()]];
+        pkg.variants = vec![
+            vec!["platform-linux".to_string()],
+            vec!["platform-windows".to_string()],
+        ];
         let arc_pkg = Arc::new(pkg);
 
-        let resolved_pkg = ResolvedPackage::new(
-            arc_pkg,
-            PathBuf::from("/pkgs/python/3.9.0"),
-            true,
-        )
-        .with_variant(0);
+        let resolved_pkg = ResolvedPackage::new(arc_pkg, PathBuf::from("/pkgs/python/3.9.0"), true)
+            .with_variant(0);
 
         let mut ctx = RezResolvedContext::new(vec![]);
         ctx.resolved_packages.push(resolved_pkg);
@@ -300,8 +304,7 @@ mod rez_resolved_context_behavior_tests {
 
     #[test]
     fn test_get_environ_returns_map() {
-        let expected_env: std::collections::HashMap<String, String> =
-            std::env::vars().collect();
+        let expected_env: std::collections::HashMap<String, String> = std::env::vars().collect();
         let mut ctx = RezResolvedContext::new(vec![]);
         ctx.resolved_packages
             .push(make_resolved_pkg("python", "3.9.0", "/pkgs/python/3.9.0"));

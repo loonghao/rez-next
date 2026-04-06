@@ -213,7 +213,6 @@ mod tests {
             assert_eq!(s1.os(), s2.os());
         }
 
-
         #[test]
         fn test_num_cpus_at_least_one() {
             let sys = PySystem::new();
@@ -233,7 +232,11 @@ mod tests {
             let ver = sys.rez_version();
             assert!(!ver.is_empty(), "rez_version must be non-empty");
             // Should look like a semver (contains at least one '.')
-            assert!(ver.contains('.'), "rez_version should be semver-like: {}", ver);
+            assert!(
+                ver.contains('.'),
+                "rez_version should be semver-like: {}",
+                ver
+            );
         }
     }
 }

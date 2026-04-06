@@ -762,6 +762,3 @@ fn bound_sets_intersect(a: &BoundSet, b: &BoundSet) -> bool {
 
     true
 }
-
-
-

@@ -425,10 +425,7 @@ fn test_solver_strict_vs_lenient_same_request() {
     let rt = tokio::runtime::Runtime::new().unwrap();
     let mut resolver = DependencyResolver::new(Arc::clone(&repo), config_lenient);
 
-    let reqs: Vec<Requirement> = ["ghost_pkg"]
-        .iter()
-        .map(|s| s.parse().unwrap())
-        .collect();
+    let reqs: Vec<Requirement> = ["ghost_pkg"].iter().map(|s| s.parse().unwrap()).collect();
 
     let result_lenient = rt.block_on(resolver.resolve(reqs.clone()));
     assert!(result_lenient.is_ok(), "lenient must return Ok");
@@ -444,5 +441,8 @@ fn test_solver_strict_vs_lenient_same_request() {
     };
     let mut resolver_strict = DependencyResolver::new(Arc::clone(&repo), config_strict);
     let result_strict = rt.block_on(resolver_strict.resolve(reqs));
-    assert!(result_strict.is_err(), "strict must return Err for missing package");
+    assert!(
+        result_strict.is_err(),
+        "strict must return Err for missing package"
+    );
 }

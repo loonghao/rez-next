@@ -152,7 +152,6 @@ mod rxtb_roundtrip_tests {
             restored.environment_vars.is_empty(),
             "empty context roundtrip should preserve empty environment vars"
         );
-
     }
 
     /// JSON and binary serializers should roundtrip the same package set.
@@ -161,8 +160,10 @@ mod rxtb_roundtrip_tests {
         let ctx = make_ctx(&[("pkg_a", "1.0"), ("pkg_b", "2.0"), ("pkg_c", "3.0")]);
         let json_bytes = ContextSerializer::serialize(&ctx, ContextFormat::Json).unwrap();
         let bin_bytes = ContextSerializer::serialize(&ctx, ContextFormat::Binary).unwrap();
-        let json_restored = ContextSerializer::deserialize(&json_bytes, ContextFormat::Json).unwrap();
-        let bin_restored = ContextSerializer::deserialize(&bin_bytes, ContextFormat::Binary).unwrap();
+        let json_restored =
+            ContextSerializer::deserialize(&json_bytes, ContextFormat::Json).unwrap();
+        let bin_restored =
+            ContextSerializer::deserialize(&bin_bytes, ContextFormat::Binary).unwrap();
 
         let json_pkgs: Vec<_> = json_restored
             .resolved_packages

@@ -7,8 +7,8 @@
 //! - Advanced caching with LRU eviction
 //! - Predictive prefetching
 
-use crate::{PackageScanResult, ScanPerformanceMetrics, ScanResult};
 use crate::scanner_types::REZ_PACKAGE_FILENAMES;
+use crate::{PackageScanResult, ScanPerformanceMetrics, ScanResult};
 use dashmap::DashMap;
 use lru::LruCache;
 use memmap2::Mmap;

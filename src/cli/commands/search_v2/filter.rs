@@ -6,8 +6,8 @@
 use super::matcher::{evaluate_package_match, get_package_timestamp};
 use super::types::{SearchArgs, SearchResult};
 use crate::cli::utils::parse_timestamp;
-use rez_next_repository::simple_repository::RepositoryManager;
 use rez_next_common::error::RezCoreResult;
+use rez_next_repository::simple_repository::RepositoryManager;
 use std::collections::HashMap;
 
 /// Perform the actual search against all repositories

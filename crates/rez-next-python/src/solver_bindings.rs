@@ -91,7 +91,11 @@ mod tests {
             };
             let repr = solver.__repr__();
             assert!(repr.starts_with("Solver("), "repr: {}", repr);
-            assert!(repr.contains("paths=0"), "repr should show 0 paths: {}", repr);
+            assert!(
+                repr.contains("paths=0"),
+                "repr should show 0 paths: {}",
+                repr
+            );
         }
 
         #[test]
@@ -166,7 +170,10 @@ mod tests {
         #[test]
         fn test_solver_config_enable_caching_default_true() {
             let config = SolverConfig::default();
-            assert!(config.enable_caching, "enable_caching should default to true");
+            assert!(
+                config.enable_caching,
+                "enable_caching should default to true"
+            );
         }
 
         #[test]
@@ -188,11 +195,7 @@ mod tests {
                 paths: vec![],
             };
             let repr = solver.__repr__();
-            assert!(
-                repr.contains("prefer_latest=true"),
-                "repr: {}",
-                repr
-            );
+            assert!(repr.contains("prefer_latest=true"), "repr: {}", repr);
         }
 
         #[test]
@@ -202,11 +205,7 @@ mod tests {
                 paths: vec![],
             };
             let repr = solver.__repr__();
-            assert!(
-                repr.contains("max_attempts=1000"),
-                "repr: {}",
-                repr
-            );
+            assert!(repr.contains("max_attempts=1000"), "repr: {}", repr);
         }
 
         #[test]

@@ -12,7 +12,6 @@ use tempfile::TempDir;
 mod test_rez_package_filenames {
     use crate::scanner_types::REZ_PACKAGE_FILENAMES;
 
-
     #[test]
     fn test_contains_package_py() {
         assert!(REZ_PACKAGE_FILENAMES.contains(&"package.py"));
@@ -182,9 +181,7 @@ mod test_simd_pattern_matcher {
     #[test]
     fn test_does_not_match_windows_path_setup_py() {
         let matcher = SIMDPatternMatcher::new();
-        assert!(
-            !matcher.matches_package_pattern(Path::new(r"C:\packages\maya\2024.1\setup.py"))
-        );
+        assert!(!matcher.matches_package_pattern(Path::new(r"C:\packages\maya\2024.1\setup.py")));
     }
 
     #[test]
@@ -268,7 +265,10 @@ mod test_prefetch_predictor_smoke {
         // Placeholder: always returns [] for empty input.
         let predictor = PrefetchPredictor::new();
         let result = predictor.predict_file_access(&[]);
-        assert!(result.is_empty(), "empty input must yield empty predictions");
+        assert!(
+            result.is_empty(),
+            "empty input must yield empty predictions"
+        );
     }
 
     #[test]
@@ -300,8 +300,7 @@ mod test_prefetch_predictor_smoke {
     fn calculate_cache_score_smoke_returns_value_in_range() {
         // Placeholder: always returns 0.5 — verify range contract holds.
         let predictor = PrefetchPredictor::new();
-        let score =
-            predictor.calculate_cache_score(Path::new("/opt/packages/maya/package.yaml"));
+        let score = predictor.calculate_cache_score(Path::new("/opt/packages/maya/package.yaml"));
         assert!(
             (0.0..=1.0).contains(&score),
             "placeholder cache score {score} must be in [0.0, 1.0]"
@@ -488,10 +487,7 @@ mod test_scan_optimized_async {
         let tmp = TempDir::new().unwrap();
         let config = HighPerformanceConfig::default();
         let scanner = HighPerformanceScanner::new(config);
-        let result = scanner
-            .scan_repository_optimized(tmp.path())
-            .await
-            .unwrap();
+        let result = scanner.scan_repository_optimized(tmp.path()).await.unwrap();
         assert_eq!(result.packages.len(), 0);
     }
 
@@ -502,24 +498,16 @@ mod test_scan_optimized_async {
 
         let config = HighPerformanceConfig::default();
         let scanner = HighPerformanceScanner::new(config);
-        let result = scanner
-            .scan_repository_optimized(tmp.path())
-            .await
-            .unwrap();
+        let result = scanner.scan_repository_optimized(tmp.path()).await.unwrap();
         assert!(result.directories_scanned >= 1);
     }
-
-
 
     #[tokio::test]
     async fn test_scan_performance_metrics_are_populated() {
         let tmp = TempDir::new().unwrap();
         let config = HighPerformanceConfig::default();
         let scanner = HighPerformanceScanner::new(config);
-        let result = scanner
-            .scan_repository_optimized(tmp.path())
-            .await
-            .unwrap();
+        let result = scanner.scan_repository_optimized(tmp.path()).await.unwrap();
         assert!(result.performance_metrics.peak_concurrency > 0);
     }
 
@@ -533,10 +521,7 @@ mod test_scan_optimized_async {
 
         let config = HighPerformanceConfig::default();
         let scanner = HighPerformanceScanner::new(config);
-        let result = scanner
-            .scan_repository_optimized(tmp.path())
-            .await
-            .unwrap();
+        let result = scanner.scan_repository_optimized(tmp.path()).await.unwrap();
         assert_eq!(result.packages.len(), 1);
         assert_eq!(result.packages[0].package.name, "maya");
     }
@@ -558,10 +543,7 @@ mod test_scan_optimized_async {
 
         let config = HighPerformanceConfig::default();
         let scanner = HighPerformanceScanner::new(config);
-        let result = scanner
-            .scan_repository_optimized(tmp.path())
-            .await
-            .unwrap();
+        let result = scanner.scan_repository_optimized(tmp.path()).await.unwrap();
         assert_eq!(result.packages.len(), 3);
     }
 
@@ -573,10 +555,7 @@ mod test_scan_optimized_async {
             ..HighPerformanceConfig::default()
         };
         let scanner = HighPerformanceScanner::new(config);
-        let result = scanner
-            .scan_repository_optimized(tmp.path())
-            .await
-            .unwrap();
+        let result = scanner.scan_repository_optimized(tmp.path()).await.unwrap();
         assert_eq!(result.packages.len(), 0);
     }
 
@@ -585,10 +564,7 @@ mod test_scan_optimized_async {
         let tmp = TempDir::new().unwrap();
         let config = HighPerformanceConfig::default();
         let scanner = HighPerformanceScanner::new(config);
-        let result = scanner
-            .scan_repository_optimized(tmp.path())
-            .await
-            .unwrap();
+        let result = scanner.scan_repository_optimized(tmp.path()).await.unwrap();
         let stats = scanner.get_performance_stats();
         assert_eq!(stats.total_scan_time, result.total_duration_ms);
     }
@@ -608,11 +584,12 @@ mod test_scan_optimized_async {
 
         let config = HighPerformanceConfig::default();
         let scanner = HighPerformanceScanner::new(config);
-        let result = scanner
-            .scan_repository_optimized(tmp.path())
-            .await
-            .unwrap();
+        let result = scanner.scan_repository_optimized(tmp.path()).await.unwrap();
         // Only package.yaml should be discovered; non-package files are filtered
-        assert_eq!(result.packages.len(), 1, "only package.yaml should be scanned");
+        assert_eq!(
+            result.packages.len(),
+            1,
+            "only package.yaml should be scanned"
+        );
     }
 }

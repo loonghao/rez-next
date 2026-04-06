@@ -105,8 +105,7 @@ fn test_new_uses_dir_name_as_default_name() {
 #[test]
 fn test_new_with_explicit_name() {
     let tmp = TempDir::new().unwrap();
-    let repo =
-        FileSystemRepository::new(tmp.path().to_path_buf(), Some("my_repo".to_string()));
+    let repo = FileSystemRepository::new(tmp.path().to_path_buf(), Some("my_repo".to_string()));
     assert_eq!(repo.name(), "my_repo");
 }
 
@@ -395,9 +394,12 @@ async fn test_find_packages_with_wildcard_name_pattern() {
         ..Default::default()
     };
     let results = repo.find_packages(&criteria).await.unwrap();
-    assert_eq!(results.len(), 2, "Wildcard should match py_core and py_utils");
+    assert_eq!(
+        results.len(),
+        2,
+        "Wildcard should match py_core and py_utils"
+    );
 }
-
 
 #[tokio::test]
 async fn test_find_packages_with_limit() {
@@ -415,9 +417,12 @@ async fn test_find_packages_with_limit() {
     };
     let results = repo.find_packages(&criteria).await.unwrap();
 
-    assert_eq!(results.len(), 3, "Limit should stop after exactly 3 matches");
+    assert_eq!(
+        results.len(),
+        3,
+        "Limit should stop after exactly 3 matches"
+    );
 }
-
 
 #[tokio::test]
 async fn test_find_packages_star_pattern_matches_all() {
@@ -434,7 +439,6 @@ async fn test_find_packages_star_pattern_matches_all() {
     };
     let results = repo.find_packages(&criteria).await.unwrap();
     assert_eq!(results.len(), 2, "* should match all packages");
-
 }
 
 #[tokio::test]
@@ -451,7 +455,6 @@ async fn test_find_packages_no_match_returns_empty() {
     };
     let results = repo.find_packages(&criteria).await.unwrap();
     assert!(results.is_empty());
-
 }
 
 // ── get_package_variants ──────────────────────────────────────────────────────
@@ -484,7 +487,10 @@ async fn test_get_stats_reflects_scanned_packages() {
 
     let stats = repo.get_stats().await.unwrap();
     assert_eq!(stats.package_count, 2, "Stats should reflect 2 packages");
-    assert!(stats.last_scan_time.is_some(), "last_scan_time should be set");
+    assert!(
+        stats.last_scan_time.is_some(),
+        "last_scan_time should be set"
+    );
     assert!(
         stats.last_scan_duration_ms.is_some(),
         "scan duration should be recorded"
@@ -613,8 +619,14 @@ async fn test_package_py_and_yaml_coexist() {
     repo.initialize().await.unwrap();
 
     let names = repo.get_package_names().await.unwrap();
-    assert!(names.contains(&"alpha".to_string()), "py pkg should be found");
-    assert!(names.contains(&"beta".to_string()), "yaml pkg should be found");
+    assert!(
+        names.contains(&"alpha".to_string()),
+        "py pkg should be found"
+    );
+    assert!(
+        names.contains(&"beta".to_string()),
+        "yaml pkg should be found"
+    );
     assert_eq!(names.len(), 2);
 }
 
@@ -715,8 +727,16 @@ async fn test_concurrent_initialize_is_safe() {
     };
     let pkgs_alpha = repo_guard.find_packages(&criteria_alpha).await.unwrap();
     let pkgs_beta = repo_guard.find_packages(&criteria_beta).await.unwrap();
-    assert_eq!(pkgs_alpha.len(), 1, "alpha should be found after concurrent init");
-    assert_eq!(pkgs_beta.len(), 1, "beta should be found after concurrent init");
+    assert_eq!(
+        pkgs_alpha.len(),
+        1,
+        "alpha should be found after concurrent init"
+    );
+    assert_eq!(
+        pkgs_beta.len(),
+        1,
+        "beta should be found after concurrent init"
+    );
 }
 
 /// Concurrent find_packages calls return consistent results.
@@ -753,7 +773,11 @@ async fn test_concurrent_find_packages_consistent() {
 
     for handle in handles {
         let result = handle.await.unwrap().unwrap();
-        assert_eq!(result.len(), 5, "All 5 versions should be found in every concurrent call");
+        assert_eq!(
+            result.len(),
+            5,
+            "All 5 versions should be found in every concurrent call"
+        );
     }
 }
 
@@ -771,7 +795,10 @@ async fn test_get_package_names_sorted() {
     let names = repo.get_package_names().await.unwrap();
     let mut expected = names.clone();
     expected.sort();
-    assert_eq!(names, expected, "get_package_names should return sorted names");
+    assert_eq!(
+        names, expected,
+        "get_package_names should return sorted names"
+    );
 }
 
 /// find_packages with exact version pattern returns only matching version.
@@ -791,7 +818,11 @@ async fn test_find_packages_version_filter() {
         ..Default::default()
     };
     let pkgs = repo.find_packages(&criteria).await.unwrap();
-    assert_eq!(pkgs.len(), 1, "Version filter should return exactly one package");
+    assert_eq!(
+        pkgs.len(),
+        1,
+        "Version filter should return exactly one package"
+    );
     assert_eq!(
         pkgs[0].version.as_ref().map(|v| v.as_str()).unwrap_or(""),
         "2.0.0"
@@ -812,6 +843,8 @@ async fn test_find_packages_unknown_name_empty() {
         ..Default::default()
     };
     let pkgs = repo.find_packages(&criteria).await.unwrap();
-    assert!(pkgs.is_empty(), "Unknown package name should return empty vec");
+    assert!(
+        pkgs.is_empty(),
+        "Unknown package name should return empty vec"
+    );
 }
-

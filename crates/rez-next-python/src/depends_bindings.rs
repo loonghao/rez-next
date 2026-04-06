@@ -3,9 +3,9 @@
 //! Equivalent to `rez depends <package>`, which finds all packages in the
 //! configured repositories that directly or transitively require a given package.
 
+use crate::runtime::get_runtime;
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList};
-use crate::runtime::get_runtime;
 
 // ─── Public structs ──────────────────────────────────────────────────────────
 
@@ -643,7 +643,10 @@ mod depends_bindings_tests {
         let output = result.format();
         let arnold_pos = output.find("arnold").unwrap();
         let zbrush_pos = output.find("zbrush").unwrap();
-        assert!(arnold_pos < zbrush_pos, "arnold should appear before zbrush");
+        assert!(
+            arnold_pos < zbrush_pos,
+            "arnold should appear before zbrush"
+        );
     }
 
     // ── depends_entry repr format ────────────────────────────────────
@@ -668,7 +671,10 @@ mod depends_bindings_tests {
         let result = compute_depends("arnold", None, &[], false);
         assert!(result.is_ok());
         let r = result.unwrap();
-        assert!(r.transitive_dependants.is_empty(), "No transitive when flag=false");
+        assert!(
+            r.transitive_dependants.is_empty(),
+            "No transitive when flag=false"
+        );
     }
 
     // ── compute_depends with transitive=true still works ────────────
@@ -677,6 +683,9 @@ mod depends_bindings_tests {
         let result = compute_depends("arnold", None, &[], true);
         assert!(result.is_ok());
         let r = result.unwrap();
-        assert!(r.transitive_dependants.is_empty(), "Empty repo → 0 transitive");
+        assert!(
+            r.transitive_dependants.is_empty(),
+            "Empty repo → 0 transitive"
+        );
     }
 }

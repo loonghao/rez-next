@@ -91,7 +91,10 @@ fn test_bind_force_replaces_existing() {
         extra_metadata: Vec::new(),
     };
     let result = binder.bind("python", &opts_force).unwrap();
-    assert_eq!(result.version, "1.1.0", "Force bind should update to new version");
+    assert_eq!(
+        result.version, "1.1.0",
+        "Force bind should update to new version"
+    );
 }
 
 /// rez bind: no version + no executable in PATH must fail
@@ -222,7 +225,6 @@ private_build_requires = [
         "private_build_requires should preserve parsed package.py entries"
     );
 }
-
 
 /// rez: package with variants and build requirements
 #[test]

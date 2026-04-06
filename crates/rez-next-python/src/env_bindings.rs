@@ -5,8 +5,8 @@
 //! - `env_activate()`: generate activation scripts
 //! - `env_apply()`: apply environment to current process
 
-use crate::package_functions::expand_home;
 use crate::package_bindings::PyPackage;
+use crate::package_functions::expand_home;
 use crate::runtime::get_runtime;
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
@@ -456,7 +456,10 @@ mod tests {
         family.add_package(make_pkg("python", "3.9.0"));
         let repr = family.__repr__();
         assert!(repr.contains("python"), "repr: {repr}");
-        assert!(repr.contains('1'.to_string().as_str()), "repr should show 1 version: {repr}");
+        assert!(
+            repr.contains('1'.to_string().as_str()),
+            "repr should show 1 version: {repr}"
+        );
     }
 
     #[test]
@@ -479,7 +482,10 @@ mod tests {
     #[test]
     fn test_rez_env_empty_packages() {
         let env = PyRezEnv::new(vec![], None, None).unwrap();
-        assert!(env.success, "empty package list should resolve successfully");
+        assert!(
+            env.success,
+            "empty package list should resolve successfully"
+        );
         assert!(env.packages.is_empty());
     }
 
@@ -502,7 +508,8 @@ mod tests {
     #[test]
     fn test_rez_env_get_shell_code_present() {
         let mut env = empty_rez_env(vec![]);
-        env.scripts.insert("bash".to_string(), "export FOO=bar\n".to_string());
+        env.scripts
+            .insert("bash".to_string(), "export FOO=bar\n".to_string());
         let code = env.get_shell_code("bash");
         assert!(code.is_some());
         assert!(code.unwrap().contains("FOO=bar"));
@@ -529,7 +536,10 @@ mod tests {
         let tmp_file = std::env::temp_dir().join("rez_test_write_script.sh");
         let env = empty_rez_env(vec![]);
         let result = env.write_script(tmp_file.to_str().unwrap(), "bash");
-        assert!(result.is_err(), "write_script with missing shell should return Err");
+        assert!(
+            result.is_err(),
+            "write_script with missing shell should return Err"
+        );
     }
 
     #[test]
@@ -538,9 +548,11 @@ mod tests {
         let _ = std::fs::remove_file(&tmp_file);
 
         let mut env = empty_rez_env(vec![]);
-        env.scripts.insert("bash".to_string(), "export REZ_TEST=1\n".to_string());
+        env.scripts
+            .insert("bash".to_string(), "export REZ_TEST=1\n".to_string());
 
-        env.write_script(tmp_file.to_str().unwrap(), "bash").unwrap();
+        env.write_script(tmp_file.to_str().unwrap(), "bash")
+            .unwrap();
         let content = std::fs::read_to_string(&tmp_file).unwrap();
         assert!(content.contains("REZ_TEST=1"));
 

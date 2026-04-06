@@ -38,12 +38,18 @@ mod tests {
     #[test]
     fn test_version_range_none_constructor() {
         let range = VersionRange::none();
-        assert!(range.is_empty(), "VersionRange::none() must report is_empty()");
+        assert!(
+            range.is_empty(),
+            "VersionRange::none() must report is_empty()"
+        );
         assert!(!range.contains(&v("1.0.0")));
         assert!(!range.contains(&v("0.0.1")));
         assert!(!range.contains(&v("99.0")));
         let specific = VersionRange::parse(">=1.0").unwrap();
-        assert!(range.intersect(&specific).is_none(), "none intersect anything must be None");
+        assert!(
+            range.intersect(&specific).is_none(),
+            "none intersect anything must be None"
+        );
     }
 
     #[test]
@@ -263,12 +269,21 @@ mod tests {
         let r1 = VersionRange::parse(">=1.0,<3.0").unwrap();
         let r2 = VersionRange::parse(">=2.0,<4.0").unwrap();
         let result = r1.intersect(&r2);
-        assert!(result.is_some(), "Overlapping ranges should have intersection");
+        assert!(
+            result.is_some(),
+            "Overlapping ranges should have intersection"
+        );
         let inter = result.unwrap();
         assert!(inter.contains(&v("2.0")), "2.0 should be in intersection");
         assert!(inter.contains(&v("2.9")), "2.9 should be in intersection");
-        assert!(!inter.contains(&v("1.5")), "1.5 should NOT be in intersection");
-        assert!(!inter.contains(&v("3.0")), "3.0 should NOT be in intersection");
+        assert!(
+            !inter.contains(&v("1.5")),
+            "1.5 should NOT be in intersection"
+        );
+        assert!(
+            !inter.contains(&v("3.0")),
+            "3.0 should NOT be in intersection"
+        );
     }
 
     #[test]
@@ -304,8 +319,14 @@ mod tests {
         let range = VersionRange::parse(">=1.0,<3.0").unwrap();
         let result = exact.intersect(&range);
         if let Some(ref inter) = result {
-            assert!(!inter.contains(&v("5.0")), "5.0 should NOT be in intersection");
-            assert!(!inter.contains(&v("1.5")), "1.5 should NOT be in intersection");
+            assert!(
+                !inter.contains(&v("5.0")),
+                "5.0 should NOT be in intersection"
+            );
+            assert!(
+                !inter.contains(&v("1.5")),
+                "1.5 should NOT be in intersection"
+            );
         }
     }
 

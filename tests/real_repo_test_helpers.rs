@@ -12,7 +12,6 @@
 use std::fs;
 use std::path::Path;
 
-
 /// Create a minimal package.py in a temp repo at `<repo>/<name>/<version>/package.py`.
 pub fn create_package(
     repo_dir: &Path,
@@ -82,5 +81,3 @@ description = "Test package {name}-{version}"
 
     fs::write(pkg_dir.join("package.py"), content).unwrap();
 }
-
-

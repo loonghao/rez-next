@@ -1,4 +1,4 @@
-﻿//! Rez Compat — Rex DSL Completeness, Package Validation, Suite Integration,
+//! Rez Compat — Rex DSL Completeness, Package Validation, Suite Integration,
 //! Solver Topology, Context Serialization Round-trip, Version Boundary,
 //! Rex DSL Boundary, SourceMode, context.to_dict, Solver weak, Package commands,
 //! Context activation, PackageSerializer, Phase 136+, rez.config, rez.diff, Cycle 30
@@ -860,4 +860,3 @@ fn test_package_commands_function_none_by_default() {
         "commands should also be None for new package"
     );
 }
-

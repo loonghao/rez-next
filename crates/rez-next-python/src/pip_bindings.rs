@@ -276,7 +276,10 @@ mod tests {
     #[test]
     fn test_normalize_package_name_mixed() {
         assert_eq!(normalize_package_name("PyYAML"), "pyyaml");
-        assert_eq!(normalize_package_name("Django_Rest_Framework"), "django-rest-framework");
+        assert_eq!(
+            normalize_package_name("Django_Rest_Framework"),
+            "django-rest-framework"
+        );
     }
 
     // ─── pip_version_to_rez ─────────────────────────────────────────────────

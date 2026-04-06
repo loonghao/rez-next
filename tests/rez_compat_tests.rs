@@ -1,4 +1,4 @@
-﻿//! Rez Compatibility Integration Tests
+//! Rez Compatibility Integration Tests
 //!
 //! These tests verify that rez-next implements the same behavior as the original
 //! rez package manager. Test cases are derived from rez's official test suite
@@ -805,5 +805,3 @@ env.setenv('REAL_VAR', 'real_value')
         "env var should be set even with comments present"
     );
 }
-
-

@@ -1,7 +1,7 @@
 //! Python bindings for ResolvedContext
 
-use crate::package_functions::expand_home;
 use crate::package_bindings::PyPackage;
+use crate::package_functions::expand_home;
 use crate::runtime::get_runtime;
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
@@ -572,9 +572,12 @@ mod context_bindings_tests {
     #[test]
     fn test_environment_vars_multiple_entries() {
         let mut ctx = make_py_ctx_inner(&[("python", "3.11.0")]);
-        ctx.environment_vars.insert("PYTHONPATH".to_string(), "/usr/lib/python3.11".to_string());
-        ctx.environment_vars.insert("PATH".to_string(), "/usr/bin:/bin".to_string());
-        ctx.environment_vars.insert("REZ_USED".to_string(), "1".to_string());
+        ctx.environment_vars
+            .insert("PYTHONPATH".to_string(), "/usr/lib/python3.11".to_string());
+        ctx.environment_vars
+            .insert("PATH".to_string(), "/usr/bin:/bin".to_string());
+        ctx.environment_vars
+            .insert("REZ_USED".to_string(), "1".to_string());
         assert_eq!(ctx.environment_vars.len(), 3);
         assert_eq!(ctx.environment_vars.get("REZ_USED"), Some(&"1".to_string()));
     }
@@ -583,13 +586,17 @@ mod context_bindings_tests {
 
     #[test]
     fn test_resolved_packages_order_preserved() {
-        let ctx = make_py_ctx_inner(&[
-            ("alpha", "1.0.0"),
-            ("zeta", "2.0.0"),
-            ("beta", "3.0.0"),
-        ]);
-        let names: Vec<&str> = ctx.resolved_packages.iter().map(|p| p.name.as_str()).collect();
-        assert_eq!(names, vec!["alpha", "zeta", "beta"], "Order should match insertion order");
+        let ctx = make_py_ctx_inner(&[("alpha", "1.0.0"), ("zeta", "2.0.0"), ("beta", "3.0.0")]);
+        let names: Vec<&str> = ctx
+            .resolved_packages
+            .iter()
+            .map(|p| p.name.as_str())
+            .collect();
+        assert_eq!(
+            names,
+            vec!["alpha", "zeta", "beta"],
+            "Order should match insertion order"
+        );
     }
 
     // ── get_summary returns correct version strings ──────────────────

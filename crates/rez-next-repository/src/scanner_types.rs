@@ -9,12 +9,8 @@ use std::time::SystemTime;
 ///
 /// Both `RepositoryScanner` and `HighPerformanceScanner` use this list as the
 /// single source of truth so the two scanners always stay in sync.
-pub const REZ_PACKAGE_FILENAMES: &[&str] = &[
-    "package.py",
-    "package.yaml",
-    "package.yml",
-    "package.json",
-];
+pub const REZ_PACKAGE_FILENAMES: &[&str] =
+    &["package.py", "package.yaml", "package.yml", "package.json"];
 
 /// Enhanced scanner configuration with performance optimizations
 #[derive(Debug, Clone, Serialize, Deserialize)]

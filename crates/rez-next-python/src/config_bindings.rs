@@ -64,9 +64,10 @@ impl PyConfig {
         if let Some(value) = self.inner.get_field(field) {
             match value {
                 serde_json::Value::String(s) => Ok(s.into_pyobject(py)?.into_any().unbind()),
-                serde_json::Value::Bool(b) => {
-                    Ok(pyo3::types::PyBool::new(py, b).to_owned().into_any().unbind())
-                }
+                serde_json::Value::Bool(b) => Ok(pyo3::types::PyBool::new(py, b)
+                    .to_owned()
+                    .into_any()
+                    .unbind()),
                 serde_json::Value::Number(n) => {
                     if let Some(i) = n.as_i64() {
                         Ok(i.into_pyobject(py)?.into_any().unbind())
@@ -99,8 +100,6 @@ mod tests {
     mod test_config_load {
         use super::*;
 
-
-
         #[test]
         fn test_local_packages_path_non_empty() {
             let cfg = RezCoreConfig::load();
@@ -122,10 +121,7 @@ mod tests {
         #[test]
         fn test_default_shell_non_empty() {
             let cfg = RezCoreConfig::load();
-            assert!(
-                !cfg.default_shell.is_empty(),
-                "default_shell should be set"
-            );
+            assert!(!cfg.default_shell.is_empty(), "default_shell should be set");
         }
 
         #[test]

@@ -7,9 +7,9 @@
 //! 4. Copy to release packages path
 //! 5. Update VCS tags
 
+use crate::runtime::get_runtime;
 use pyo3::prelude::*;
 use std::path::PathBuf;
-use crate::runtime::get_runtime;
 
 /// Release mode for a package
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -543,7 +543,10 @@ mod release_tests {
         let result = mgr
             .release(Some(dir.path().to_str().unwrap()), Some("review note"))
             .unwrap();
-        assert!(!result.warnings.is_empty(), "warnings should contain dry-run note");
+        assert!(
+            !result.warnings.is_empty(),
+            "warnings should contain dry-run note"
+        );
         assert!(
             result.warnings[0].contains("review note"),
             "warning: {}",
@@ -555,13 +558,8 @@ mod release_tests {
     fn test_validate_empty_dir_returns_invalid() {
         let dir = tempfile::tempdir().unwrap();
         let mgr = PyReleaseManager::new(None, false, false);
-        let (valid, issues) = mgr
-            .validate(Some(dir.path().to_str().unwrap()))
-            .unwrap();
+        let (valid, issues) = mgr.validate(Some(dir.path().to_str().unwrap())).unwrap();
         assert!(!valid, "empty dir should be invalid");
-        assert!(
-            !issues.is_empty(),
-            "should report missing package.py/yaml"
-        );
+        assert!(!issues.is_empty(), "should report missing package.py/yaml");
     }
 }

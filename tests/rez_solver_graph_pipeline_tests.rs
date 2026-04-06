@@ -492,10 +492,7 @@ fn test_solver_conflict_error_message_names_package() {
     };
     let mut resolver = DependencyResolver::new(Arc::clone(&repo), config);
 
-    let reqs: Vec<Requirement> = ["python-99+"]
-        .iter()
-        .map(|s| s.parse().unwrap())
-        .collect();
+    let reqs: Vec<Requirement> = ["python-99+"].iter().map(|s| s.parse().unwrap()).collect();
 
     match rt.block_on(resolver.resolve(reqs)) {
         Err(e) => {

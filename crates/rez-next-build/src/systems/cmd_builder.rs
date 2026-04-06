@@ -82,8 +82,14 @@ mod tests {
     fn make_install_cmd_formats_destdir_with_quotes() {
         let path = std::path::Path::new("/opt/packages/mylib/1.0.0");
         let cmd = make_install_cmd(path);
-        assert!(cmd.starts_with("make install DESTDIR="), "must start with make install DESTDIR=");
-        assert!(cmd.contains("/opt/packages/mylib/1.0.0"), "must contain the path");
+        assert!(
+            cmd.starts_with("make install DESTDIR="),
+            "must start with make install DESTDIR="
+        );
+        assert!(
+            cmd.contains("/opt/packages/mylib/1.0.0"),
+            "must contain the path"
+        );
         assert!(cmd.contains('"'), "path must be quoted");
     }
 

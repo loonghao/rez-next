@@ -460,13 +460,19 @@ mod tests {
     fn test_list_bound_packages_in_empty_dir() {
         let tmp = TempDir::new().unwrap();
         let result = super::list_bound_packages_in(tmp.path());
-        assert!(result.is_empty(), "empty install root should yield no packages");
+        assert!(
+            result.is_empty(),
+            "empty install root should yield no packages"
+        );
     }
 
     #[test]
     fn test_list_bound_packages_in_nonexistent_dir() {
         let result = super::list_bound_packages_in(std::path::Path::new("/does/not/exist"));
-        assert!(result.is_empty(), "nonexistent install root should yield no packages");
+        assert!(
+            result.is_empty(),
+            "nonexistent install root should yield no packages"
+        );
     }
 
     #[test]
@@ -475,7 +481,11 @@ mod tests {
         // Create: <root>/python/3.11.0/package.py
         let pkg_dir = tmp.path().join("python").join("3.11.0");
         std::fs::create_dir_all(&pkg_dir).unwrap();
-        std::fs::write(pkg_dir.join("package.py"), "name = 'python'\nversion = '3.11.0'\n").unwrap();
+        std::fs::write(
+            pkg_dir.join("package.py"),
+            "name = 'python'\nversion = '3.11.0'\n",
+        )
+        .unwrap();
 
         let result = super::list_bound_packages_in(tmp.path());
         assert_eq!(result.len(), 1);
@@ -526,7 +536,10 @@ mod tests {
         // No package.py written
 
         let result = super::list_bound_packages_in(tmp.path());
-        assert!(result.is_empty(), "dirs without package.py should be ignored");
+        assert!(
+            result.is_empty(),
+            "dirs without package.py should be ignored"
+        );
     }
 
     #[test]
@@ -536,7 +549,10 @@ mod tests {
         std::fs::write(tmp.path().join("README.md"), "readme").unwrap();
 
         let result = super::list_bound_packages_in(tmp.path());
-        assert!(result.is_empty(), "non-directory entries at root should be ignored");
+        assert!(
+            result.is_empty(),
+            "non-directory entries at root should be ignored"
+        );
     }
 
     #[test]

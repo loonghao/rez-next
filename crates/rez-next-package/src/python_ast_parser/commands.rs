@@ -124,10 +124,7 @@ impl PythonAstParser {
                                     "unsetenv" => {
                                         if let Some(arg) = call.args.first() {
                                             if let Ok(k) = self.extract_string_value(arg) {
-                                                return Ok(Some(format!(
-                                                    "env.unsetenv('{}')",
-                                                    k
-                                                )));
+                                                return Ok(Some(format!("env.unsetenv('{}')", k)));
                                             }
                                         }
                                     }
@@ -226,10 +223,7 @@ impl PythonAstParser {
                                         self.extract_string_value(&call.args[0]),
                                         self.extract_string_value(&call.args[1]),
                                     ) {
-                                        return Ok(Some(format!(
-                                            "alias('{}', '{}')",
-                                            name, cmd
-                                        )));
+                                        return Ok(Some(format!("alias('{}', '{}')", name, cmd)));
                                     }
                                 }
                             }
@@ -264,9 +258,7 @@ impl PythonAstParser {
                             "stop" => {
                                 if call.args.is_empty() {
                                     return Ok(Some("stop()".to_string()));
-                                } else if let Ok(msg) =
-                                    self.extract_string_value(&call.args[0])
-                                {
+                                } else if let Ok(msg) = self.extract_string_value(&call.args[0]) {
                                     return Ok(Some(format!("stop('{}')", msg)));
                                 }
                             }
@@ -293,10 +285,7 @@ impl PythonAstParser {
                                         self.extract_string_value(&call.args[0]),
                                         self.extract_string_value(&call.args[1]),
                                     ) {
-                                        return Ok(Some(format!(
-                                            "prependenv('{}', '{}')",
-                                            k, v
-                                        )));
+                                        return Ok(Some(format!("prependenv('{}', '{}')", k, v)));
                                     }
                                 }
                             }
@@ -306,10 +295,7 @@ impl PythonAstParser {
                                         self.extract_string_value(&call.args[0]),
                                         self.extract_string_value(&call.args[1]),
                                     ) {
-                                        return Ok(Some(format!(
-                                            "appendenv('{}', '{}')",
-                                            k, v
-                                        )));
+                                        return Ok(Some(format!("appendenv('{}', '{}')", k, v)));
                                     }
                                 }
                             }

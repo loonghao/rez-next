@@ -20,7 +20,6 @@ use real_repo_test_helpers::create_package;
 
 // ─── Basic repository scan tests ─────────────────────────────────────────────
 
-
 #[test]
 fn test_repo_scan_finds_packages() {
     let tmp = TempDir::new().unwrap();
@@ -239,5 +238,3 @@ fn test_repo_manager_missing_packages_returns_empty() {
 
     assert!(pkgs.is_empty(), "Should return empty for unknown package");
 }
-
-

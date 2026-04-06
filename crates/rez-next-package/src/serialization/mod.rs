@@ -12,9 +12,7 @@ pub mod types;
 #[cfg(test)]
 mod tests;
 
-pub use types::{
-    PackageContainer, PackageFormat, PackageMetadata, SerializationOptions,
-};
+pub use types::{PackageContainer, PackageFormat, PackageMetadata, SerializationOptions};
 
 use crate::Package;
 use rez_next_common::RezCoreError;
@@ -45,10 +43,7 @@ impl PackageSerializer {
     }
 
     /// Load a package from a string
-    pub fn load_from_string(
-        content: &str,
-        format: PackageFormat,
-    ) -> Result<Package, RezCoreError> {
+    pub fn load_from_string(content: &str, format: PackageFormat) -> Result<Package, RezCoreError> {
         PackageLoader::load_from_string(content, format)
     }
 

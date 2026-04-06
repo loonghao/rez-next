@@ -2,11 +2,11 @@
 //!
 //! Equivalent to `rez diff <rxt1> <rxt2>`, comparing two resolved contexts.
 
+use crate::runtime::get_runtime;
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList};
 use rez_next_package::Package;
 use rez_next_version::Version;
-use crate::runtime::get_runtime;
 
 // ─── Public structs ──────────────────────────────────────────────────────────
 
@@ -570,15 +570,15 @@ mod diff_bindings_tests {
     #[test]
     fn test_both_contexts_empty() {
         let diffs = compute_diff(&[], &[]);
-        assert!(diffs.is_empty(), "Both empty contexts should produce no diffs");
+        assert!(
+            diffs.is_empty(),
+            "Both empty contexts should produce no diffs"
+        );
     }
 
     #[test]
     fn test_changed_diffs_excludes_unchanged() {
-        let old = vec![
-            make_pkg("python", "3.9.0"),
-            make_pkg("maya", "2023.1"),
-        ];
+        let old = vec![make_pkg("python", "3.9.0"), make_pkg("maya", "2023.1")];
         let new = vec![
             make_pkg("python", "3.11.0"), // upgraded
             make_pkg("maya", "2023.1"),   // unchanged
@@ -624,7 +624,10 @@ mod diff_bindings_tests {
         let diffs = compute_diff(&old, &new);
         // aaaa → removed, zzzz → added; added order=0 < removed order=1
         assert_eq!(diffs[0].change_type, "added", "added should come first");
-        assert_eq!(diffs[1].change_type, "removed", "removed should come second");
+        assert_eq!(
+            diffs[1].change_type, "removed",
+            "removed should come second"
+        );
     }
 
     #[test]

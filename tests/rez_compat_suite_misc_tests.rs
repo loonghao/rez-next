@@ -6,7 +6,6 @@
 use rez_core::version::{Version, VersionRange};
 use rez_next_suites::Suite;
 
-
 /// Suite: hide_tool should work without error
 #[test]
 fn test_suite_hide_tool() {
@@ -22,7 +21,6 @@ fn test_suite_hide_tool() {
             "hidden tool 'some_internal_tool' should not appear in get_tools()"
         );
     }
-
 }
 
 /// Suite: remove_context should work

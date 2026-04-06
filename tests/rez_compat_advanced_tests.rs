@@ -1,4 +1,4 @@
-﻿//! Rez Compat — SolverConfig, Solver Boundary, Context Advanced, Exception Types,
+//! Rez Compat — SolverConfig, Solver Boundary, Context Advanced, Exception Types,
 //! Version Advanced, Rex DSL Completeness, Package Validation, Suite, Context Serialization,
 //! Source Mode, rez.config, rez.diff, Cycle 30 Status/packages_ Tests
 //!
@@ -7,7 +7,6 @@
 //! See also: rez_compat_tests.rs (version, package, rex, suite, config, e2e)
 
 // ─── rez.solver SolverConfig / timeout semantics ─────────────────────────────
-
 
 /// rez solver: default config has sensible timeout (> 0 seconds)
 #[test]
@@ -722,4 +721,3 @@ fn test_version_range_is_superset() {
         ">=1.5,<2.0 should NOT be superset of >=1.0"
     );
 }
-

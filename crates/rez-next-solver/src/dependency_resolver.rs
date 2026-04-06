@@ -1,4 +1,4 @@
-﻿//! Dependency resolution implementation - equivalent to Python's solver
+//! Dependency resolution implementation - equivalent to Python's solver
 
 use crate::resolution_state::ResolutionState;
 use crate::SolverConfig;
@@ -361,4 +361,3 @@ impl DependencyResolver {
         requires
     }
 }
-

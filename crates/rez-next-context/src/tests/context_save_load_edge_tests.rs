@@ -11,7 +11,6 @@
 #[cfg(test)]
 mod save_load_edge_cases {
 
-
     use crate::{
         serialization::{ContextFormat, ContextSerializer},
         ContextStatus, ResolvedContext,
@@ -37,8 +36,14 @@ mod save_load_edge_cases {
         ctx.status = ContextStatus::Resolved;
         ctx.resolved_packages.push(make_package("python", "3.10.0"));
         ctx.resolved_packages.push(make_package("numpy", "1.24.0"));
-        ctx.set_env_var("PYTHONPATH".to_string(), "/pkgs/numpy/1.24.0/python".to_string());
-        ctx.set_env_var("PATH".to_string(), "/pkgs/python/3.10.0/bin:/usr/bin".to_string());
+        ctx.set_env_var(
+            "PYTHONPATH".to_string(),
+            "/pkgs/numpy/1.24.0/python".to_string(),
+        );
+        ctx.set_env_var(
+            "PATH".to_string(),
+            "/pkgs/python/3.10.0/bin:/usr/bin".to_string(),
+        );
         ctx
     }
 
@@ -121,7 +126,10 @@ mod save_load_edge_cases {
         // unicode characters
         ctx.set_env_var("DESCRIPTION".to_string(), "日本語テスト αβγ".to_string());
         // value with backslash (Windows paths)
-        ctx.set_env_var("WIN_PATH".to_string(), r"C:\Program Files\pkg\bin".to_string());
+        ctx.set_env_var(
+            "WIN_PATH".to_string(),
+            r"C:\Program Files\pkg\bin".to_string(),
+        );
 
         ContextSerializer::save_to_file(&ctx, &path, ContextFormat::Json)
             .await
@@ -168,11 +176,18 @@ mod save_load_edge_cases {
         let from_json = ContextSerializer::load_from_file(&json_path).await.unwrap();
         let from_bin = ContextSerializer::load_from_file(&bin_path).await.unwrap();
 
-        assert_eq!(from_json.resolved_packages.len(), from_bin.resolved_packages.len());
+        assert_eq!(
+            from_json.resolved_packages.len(),
+            from_bin.resolved_packages.len()
+        );
         assert_eq!(from_json.status, from_bin.status);
 
         // Package names must match
-        let json_names: Vec<_> = from_json.resolved_packages.iter().map(|p| &p.name).collect();
+        let json_names: Vec<_> = from_json
+            .resolved_packages
+            .iter()
+            .map(|p| &p.name)
+            .collect();
         let bin_names: Vec<_> = from_bin.resolved_packages.iter().map(|p| &p.name).collect();
         assert_eq!(json_names, bin_names);
 
@@ -209,7 +224,10 @@ mod save_load_edge_cases {
         let loaded = ContextSerializer::load_from_file(&path).await.unwrap();
         assert_eq!(loaded.status, ContextStatus::Failed);
         assert_eq!(
-            loaded.metadata.get("failure_description").map(String::as_str),
+            loaded
+                .metadata
+                .get("failure_description")
+                .map(String::as_str),
             Some("could not resolve: python>=4.0 not found")
         );
     }
@@ -233,7 +251,10 @@ mod save_load_edge_cases {
         let loaded = ContextSerializer::load_from_file(&path).await.unwrap();
         assert_eq!(loaded.status, ContextStatus::Failed);
         assert_eq!(
-            loaded.metadata.get("failure_description").map(String::as_str),
+            loaded
+                .metadata
+                .get("failure_description")
+                .map(String::as_str),
             Some("solver conflict: A requires B>=2, C requires B<2")
         );
     }
@@ -252,10 +273,8 @@ mod save_load_edge_cases {
             ctx.status = ContextStatus::Resolved;
             // Each round adds a different number of packages
             for i in 0..round {
-                ctx.resolved_packages.push(make_package(
-                    &format!("pkg_{i}"),
-                    &format!("{round}.{i}.0"),
-                ));
+                ctx.resolved_packages
+                    .push(make_package(&format!("pkg_{i}"), &format!("{round}.{i}.0")));
             }
             ctx.set_env_var("ROUND".to_string(), round.to_string());
             ContextSerializer::save_to_file(&ctx, &path, ContextFormat::Json)

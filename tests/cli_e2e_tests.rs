@@ -517,12 +517,8 @@ fn test_bind_help() {
 fn test_depends_empty_repo() {
     skip_no_bin!();
     let tmp = tempfile::tempdir().unwrap();
-    let (stdout, stderr, code) = rez_output(&[
-        "depends",
-        "python",
-        "--paths",
-        tmp.path().to_str().unwrap(),
-    ]);
+    let (stdout, stderr, code) =
+        rez_output(&["depends", "python", "--paths", tmp.path().to_str().unwrap()]);
     // Process must not be killed by signal
     assert!(
         code.is_some(),
@@ -531,7 +527,9 @@ fn test_depends_empty_repo() {
     // Either reports "No packages depend on" (empty repo) or an error message
     let combined = format!("{stdout}{stderr}");
     assert!(
-        combined.contains("No packages") || combined.contains("python") || combined.contains("Error"),
+        combined.contains("No packages")
+            || combined.contains("python")
+            || combined.contains("Error"),
         "depends should produce meaningful output: combined={combined}"
     );
 }
@@ -589,7 +587,9 @@ fn test_rm_nonexistent_package() {
         tmp.path().to_str().unwrap(),
     ]);
     assert!(
-        out.contains("No packages found") || out.contains("not found") || out.contains("nonexistent_xyz"),
+        out.contains("No packages found")
+            || out.contains("not found")
+            || out.contains("nonexistent_xyz"),
         "rm should report that no matching package was found: {out}"
     );
 }
@@ -686,10 +686,7 @@ fn test_pkg_cache_help() {
 fn test_pip_help() {
     skip_no_bin!();
     let out = rez_ok(&["pip", "--help"]);
-    assert!(
-        !out.trim().is_empty(),
-        "pip --help should produce output"
-    );
+    assert!(!out.trim().is_empty(), "pip --help should produce output");
     assert!(
         out.contains("pip") || out.contains("install") || out.contains("package"),
         "pip --help should mention pip-related terms: {out}"
@@ -896,7 +893,9 @@ fn test_build_without_package_py() {
     );
     let combined = format!("{stdout}{stderr}");
     assert!(
-        combined.contains("package") || combined.contains("Error") || combined.contains("not found"),
+        combined.contains("package")
+            || combined.contains("Error")
+            || combined.contains("not found"),
         "build failure should mention package.py or an error: combined={combined}"
     );
 }

@@ -172,8 +172,7 @@ mod tests {
         #[test]
         fn test_powershell_script_sets_env_var() {
             let mut env = RexEnvironment::new();
-            env.vars
-                .insert("PS_VAR".to_string(), "ps_val".to_string());
+            env.vars.insert("PS_VAR".to_string(), "ps_val".to_string());
             let script = generate_shell_script(&env, &ShellType::PowerShell);
             assert!(
                 script.contains("PS_VAR"),

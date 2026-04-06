@@ -169,10 +169,7 @@ fn test_solver_strict_prerelease_only_repo_allowed() {
     };
     let mut resolver = DependencyResolver::new(Arc::clone(&repo), config);
 
-    let reqs: Vec<Requirement> = ["alpha_lib"]
-        .iter()
-        .map(|s| s.parse().unwrap())
-        .collect();
+    let reqs: Vec<Requirement> = ["alpha_lib"].iter().map(|s| s.parse().unwrap()).collect();
 
     let result = rt
         .block_on(resolver.resolve(reqs))
@@ -184,7 +181,11 @@ fn test_solver_strict_prerelease_only_repo_allowed() {
         .version
         .as_ref()
         .map(|v| v.as_str());
-    assert_eq!(ver, Some("0.2.beta"), "should pick highest prerelease 0.2.beta");
+    assert_eq!(
+        ver,
+        Some("0.2.beta"),
+        "should pick highest prerelease 0.2.beta"
+    );
 }
 
 // ─── Variant index scenario tests ─────────────────────────────────────────────
@@ -290,9 +291,21 @@ fn test_solver_strict_mode_error_message_lists_all_failed() {
 
     let err = rt.block_on(resolver.resolve(reqs)).unwrap_err();
     let msg = err.to_string();
-    assert!(msg.contains("pkgA"), "error should mention pkgA, got: '{}'", msg);
-    assert!(msg.contains("pkgB"), "error should mention pkgB, got: '{}'", msg);
-    assert!(msg.contains("pkgC"), "error should mention pkgC, got: '{}'", msg);
+    assert!(
+        msg.contains("pkgA"),
+        "error should mention pkgA, got: '{}'",
+        msg
+    );
+    assert!(
+        msg.contains("pkgB"),
+        "error should mention pkgB, got: '{}'",
+        msg
+    );
+    assert!(
+        msg.contains("pkgC"),
+        "error should mention pkgC, got: '{}'",
+        msg
+    );
 }
 
 /// Lenient mode: failed_requirements list preserves the exact requirement name.
@@ -427,10 +440,7 @@ fn test_solver_conflicts_field_populated_on_version_clash() {
 /// Solver: requested flag correctly marks explicitly requested vs transitive deps.
 #[test]
 fn test_solver_requested_flag_distinguishes_roots() {
-    let (_tmp, repo) = build_test_repo(&[
-        ("base", "1.0.0", &[]),
-        ("tool", "2.0.0", &["base-1+"]),
-    ]);
+    let (_tmp, repo) = build_test_repo(&[("base", "1.0.0", &[]), ("tool", "2.0.0", &["base-1+"])]);
 
     let rt = tokio::runtime::Runtime::new().unwrap();
     let config = SolverConfig::default();

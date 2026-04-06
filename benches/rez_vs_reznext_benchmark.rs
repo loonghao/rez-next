@@ -80,18 +80,28 @@ fn version_range_strings_1000() -> Vec<String> {
 /// 1000 requirement strings (mix of plain, versioned, conditional).
 fn requirement_strings_1000() -> Vec<String> {
     let pkgs = [
-        "python", "maya", "houdini", "nuke", "katana", "mari", "clarisse",
-        "usd", "alembic", "openexr", "openvdb", "numpy", "scipy", "requests",
-        "click", "pydantic", "fastapi", "sqlalchemy", "boto3", "ansible",
+        "python",
+        "maya",
+        "houdini",
+        "nuke",
+        "katana",
+        "mari",
+        "clarisse",
+        "usd",
+        "alembic",
+        "openexr",
+        "openvdb",
+        "numpy",
+        "scipy",
+        "requests",
+        "click",
+        "pydantic",
+        "fastapi",
+        "sqlalchemy",
+        "boto3",
+        "ansible",
     ];
-    let constraints = [
-        "",
-        "-3",
-        ">=2.0",
-        ">=1.0,<2.0",
-        "==1.2.3",
-        "~=3.9",
-    ];
+    let constraints = ["", "-3", ">=2.0", ">=1.0,<2.0", "==1.2.3", "~=3.9"];
     let mut v = Vec::with_capacity(1000);
     let mut idx = 0usize;
     while v.len() < 1000 {
@@ -261,24 +271,20 @@ fn bench_rex_execute_10cmds(c: &mut Criterion) {
         let block: String = (0..n_cmds)
             .map(|i| format!("env.setenv('VAR{i}', '{{root}}/v{i}')\n"))
             .collect();
-        group.bench_with_input(
-            BenchmarkId::new("n_cmds", n_cmds),
-            &block,
-            |b, cmds| {
-                b.iter(|| {
-                    let mut exec = RexExecutor::new();
-                    black_box(
-                        exec.execute_commands(
-                            black_box(cmds.as_str()),
-                            black_box("bench_pkg"),
-                            Some(black_box("/opt/pkg/1.0")),
-                            Some(black_box("1.0")),
-                        )
-                        .unwrap(),
+        group.bench_with_input(BenchmarkId::new("n_cmds", n_cmds), &block, |b, cmds| {
+            b.iter(|| {
+                let mut exec = RexExecutor::new();
+                black_box(
+                    exec.execute_commands(
+                        black_box(cmds.as_str()),
+                        black_box("bench_pkg"),
+                        Some(black_box("/opt/pkg/1.0")),
+                        Some(black_box("1.0")),
                     )
-                })
-            },
-        );
+                    .unwrap(),
+                )
+            })
+        });
     }
 
     group.finish();
@@ -334,34 +340,24 @@ fn bench_package_py_parse(c: &mut Criterion) {
     // Single deserialize — matches baseline key "package_py_parse"
     group.bench_function("yaml_50_lines", |b| {
         b.iter(|| {
-            black_box(
-                PackageSerializer::load_from_yaml(black_box(PACKAGE_YAML_50_LINES)).unwrap(),
-            )
+            black_box(PackageSerializer::load_from_yaml(black_box(PACKAGE_YAML_50_LINES)).unwrap())
         })
     });
 
     // Scale: measure how serialization cost grows with package complexity.
     for n_deps in [10usize, 50, 100] {
         let yaml = build_package_yaml(n_deps);
-        group.bench_with_input(
-            BenchmarkId::new("yaml_n_deps", n_deps),
-            &yaml,
-            |b, y| {
-                b.iter(|| black_box(PackageSerializer::load_from_yaml(black_box(y)).unwrap()))
-            },
-        );
+        group.bench_with_input(BenchmarkId::new("yaml_n_deps", n_deps), &yaml, |b, y| {
+            b.iter(|| black_box(PackageSerializer::load_from_yaml(black_box(y)).unwrap()))
+        });
     }
 
     group.finish();
 }
 
 fn build_package_yaml(n_deps: usize) -> String {
-    let requires: String = (0..n_deps)
-        .map(|i| format!("  - dep{i}>=1.0\n"))
-        .collect();
-    format!(
-        "name: bench_pkg\nversion: 1.0.0\ndescription: bench\nrequires:\n{requires}"
-    )
+    let requires: String = (0..n_deps).map(|i| format!("  - dep{i}>=1.0\n")).collect();
+    format!("name: bench_pkg\nversion: 1.0.0\ndescription: bench\nrequires:\n{requires}")
 }
 
 // ---------------------------------------------------------------------------

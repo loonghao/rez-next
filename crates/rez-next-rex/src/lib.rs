@@ -206,7 +206,6 @@ mod tests {
             env.apply(&[RexAction::setenv("BAR", "value")]);
             env.apply(&[RexAction::unsetenv("BAR")]);
             assert!(!env.vars.contains_key("BAR"));
-
         }
 
         #[test]
@@ -262,7 +261,11 @@ mod tests {
             env.apply(&[RexAction::append_path("PATH", "/last")]);
             let sep = if cfg!(windows) { ";" } else { ":" };
             let val = env.vars.get("PATH").unwrap();
-            assert!(val.starts_with("/first"), "Should start with /first: {}", val);
+            assert!(
+                val.starts_with("/first"),
+                "Should start with /first: {}",
+                val
+            );
             assert!(val.ends_with("/last"), "Should end with /last: {}", val);
             assert!(val.contains("/mid"), "Should contain /mid: {}", val);
             let _ = sep;
@@ -361,7 +364,6 @@ mod tests {
                 source_package: None,
             }]);
             assert!(!env.vars.contains_key("OLD"));
-
         }
 
         #[test]
@@ -373,7 +375,9 @@ mod tests {
                 },
                 source_package: None,
             }]);
-            assert!(env.info_messages.contains(&"Package python loaded".to_string()));
+            assert!(env
+                .info_messages
+                .contains(&"Package python loaded".to_string()));
         }
 
         #[test]
@@ -454,10 +458,7 @@ mod tests {
                 RexAction::setenv("AFTER_ERROR", "yes"),
             ];
             env.apply(&actions);
-            assert!(
-                !env.stopped,
-                "error() must not set stopped flag"
-            );
+            assert!(!env.stopped, "error() must not set stopped flag");
             assert_eq!(
                 env.vars.get("AFTER_ERROR"),
                 Some(&"yes".to_string()),

@@ -566,7 +566,10 @@ mod tests {
 
             assert!(dest.join("root.txt").exists());
             assert!(dest.join("subdir").join("child.txt").exists());
-            assert_eq!(fs::read(dest.join("subdir").join("child.txt")).unwrap(), b"child");
+            assert_eq!(
+                fs::read(dest.join("subdir").join("child.txt")).unwrap(),
+                b"child"
+            );
 
             let _ = fs::remove_dir_all(&src);
             let _ = fs::remove_dir_all(&dest);
@@ -612,7 +615,3 @@ mod tests {
         }
     }
 }
-
-
-
-

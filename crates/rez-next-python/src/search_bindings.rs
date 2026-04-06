@@ -362,7 +362,11 @@ mod tests {
 
     #[test]
     fn test_result_set_single_version_latest() {
-        let r = SearchResult::new("gcc".to_string(), vec!["12.0".to_string()], "/r".to_string());
+        let r = SearchResult::new(
+            "gcc".to_string(),
+            vec!["12.0".to_string()],
+            "/r".to_string(),
+        );
         assert_eq!(r.latest, Some("12.0".to_string()));
         assert_eq!(r.version_count(), 1);
     }

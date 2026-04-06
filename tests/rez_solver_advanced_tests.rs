@@ -359,7 +359,8 @@ fn test_resolver_unknown_package_graceful() {
     match result {
         Ok(resolution) => {
             assert!(
-                resolution.resolved_packages.is_empty() || !resolution.failed_requirements.is_empty(),
+                resolution.resolved_packages.is_empty()
+                    || !resolution.failed_requirements.is_empty(),
                 "unknown package should not resolve cleanly"
             );
         }
@@ -367,7 +368,6 @@ fn test_resolver_unknown_package_graceful() {
             // Error is also acceptable
         }
     }
-
 }
 
 // ─── DependencyGraph structural tests ────────────────────────────────────────
@@ -804,4 +804,3 @@ fn test_resolver_version_upper_bound_respected() {
 //
 // Tests for Cycle 34 ResolvedPackageInfo.variant_index have been moved to:
 // tests/rez_solver_variant_tests.rs
-

@@ -320,8 +320,6 @@ mod tests {
         assert_eq!(trimmed.__str__(), "1.2");
     }
 
-
-
     #[test]
     fn test_py_version_range_str() {
         let r = pvr(">=1.0,<2.0");

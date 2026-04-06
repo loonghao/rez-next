@@ -64,7 +64,6 @@ impl<'de> Deserialize<'de> for Package {
         use std::fmt;
 
         #[derive(Deserialize)]
-
         #[serde(field_identifier, rename_all = "snake_case")]
         enum Field {
             Name,
@@ -268,7 +267,6 @@ impl<'de> Deserialize<'de> for Package {
             where
                 V: MapAccess<'de>,
             {
-
                 let mut name = None;
                 let mut version = None;
                 let mut description = None;
@@ -308,143 +306,213 @@ impl<'de> Deserialize<'de> for Package {
                 while let Some(key) = map.next_key()? {
                     match key {
                         Field::Name => {
-                            if name.is_some() { return Err(de::Error::duplicate_field("name")); }
+                            if name.is_some() {
+                                return Err(de::Error::duplicate_field("name"));
+                            }
                             name = Some(map.next_value()?);
                         }
                         Field::Version => {
-                            if version.is_some() { return Err(de::Error::duplicate_field("version")); }
+                            if version.is_some() {
+                                return Err(de::Error::duplicate_field("version"));
+                            }
                             version = Some(map.next_value()?);
                         }
                         Field::Description => {
-                            if description.is_some() { return Err(de::Error::duplicate_field("description")); }
+                            if description.is_some() {
+                                return Err(de::Error::duplicate_field("description"));
+                            }
                             description = Some(map.next_value()?);
                         }
                         Field::Authors => {
-                            if authors.is_some() { return Err(de::Error::duplicate_field("authors")); }
+                            if authors.is_some() {
+                                return Err(de::Error::duplicate_field("authors"));
+                            }
                             authors = Some(map.next_value()?);
                         }
                         Field::Requires => {
-                            if requires.is_some() { return Err(de::Error::duplicate_field("requires")); }
+                            if requires.is_some() {
+                                return Err(de::Error::duplicate_field("requires"));
+                            }
                             requires = Some(map.next_value()?);
                         }
                         Field::BuildRequires => {
-                            if build_requires.is_some() { return Err(de::Error::duplicate_field("build_requires")); }
+                            if build_requires.is_some() {
+                                return Err(de::Error::duplicate_field("build_requires"));
+                            }
                             build_requires = Some(map.next_value()?);
                         }
                         Field::PrivateBuildRequires => {
-                            if private_build_requires.is_some() { return Err(de::Error::duplicate_field("private_build_requires")); }
+                            if private_build_requires.is_some() {
+                                return Err(de::Error::duplicate_field("private_build_requires"));
+                            }
                             private_build_requires = Some(map.next_value()?);
                         }
                         Field::Variants => {
-                            if variants.is_some() { return Err(de::Error::duplicate_field("variants")); }
+                            if variants.is_some() {
+                                return Err(de::Error::duplicate_field("variants"));
+                            }
                             variants = Some(map.next_value()?);
                         }
                         Field::Tools => {
-                            if tools.is_some() { return Err(de::Error::duplicate_field("tools")); }
+                            if tools.is_some() {
+                                return Err(de::Error::duplicate_field("tools"));
+                            }
                             tools = Some(map.next_value()?);
                         }
                         Field::Commands => {
-                            if commands.is_some() { return Err(de::Error::duplicate_field("commands")); }
+                            if commands.is_some() {
+                                return Err(de::Error::duplicate_field("commands"));
+                            }
                             commands = Some(map.next_value()?);
                         }
                         Field::BuildCommand => {
-                            if build_command.is_some() { return Err(de::Error::duplicate_field("build_command")); }
+                            if build_command.is_some() {
+                                return Err(de::Error::duplicate_field("build_command"));
+                            }
                             build_command = Some(map.next_value()?);
                         }
                         Field::BuildSystem => {
-                            if build_system.is_some() { return Err(de::Error::duplicate_field("build_system")); }
+                            if build_system.is_some() {
+                                return Err(de::Error::duplicate_field("build_system"));
+                            }
                             build_system = Some(map.next_value()?);
                         }
                         Field::PreCommands => {
-                            if pre_commands.is_some() { return Err(de::Error::duplicate_field("pre_commands")); }
+                            if pre_commands.is_some() {
+                                return Err(de::Error::duplicate_field("pre_commands"));
+                            }
                             pre_commands = Some(map.next_value()?);
                         }
                         Field::PostCommands => {
-                            if post_commands.is_some() { return Err(de::Error::duplicate_field("post_commands")); }
+                            if post_commands.is_some() {
+                                return Err(de::Error::duplicate_field("post_commands"));
+                            }
                             post_commands = Some(map.next_value()?);
                         }
                         Field::PreTestCommands => {
-                            if pre_test_commands.is_some() { return Err(de::Error::duplicate_field("pre_test_commands")); }
+                            if pre_test_commands.is_some() {
+                                return Err(de::Error::duplicate_field("pre_test_commands"));
+                            }
                             pre_test_commands = Some(map.next_value()?);
                         }
                         Field::PreBuildCommands => {
-                            if pre_build_commands.is_some() { return Err(de::Error::duplicate_field("pre_build_commands")); }
+                            if pre_build_commands.is_some() {
+                                return Err(de::Error::duplicate_field("pre_build_commands"));
+                            }
                             pre_build_commands = Some(map.next_value()?);
                         }
                         Field::Tests => {
-                            if tests.is_some() { return Err(de::Error::duplicate_field("tests")); }
+                            if tests.is_some() {
+                                return Err(de::Error::duplicate_field("tests"));
+                            }
                             tests = Some(map.next_value()?);
                         }
                         Field::RequiresRezVersion => {
-                            if requires_rez_version.is_some() { return Err(de::Error::duplicate_field("requires_rez_version")); }
+                            if requires_rez_version.is_some() {
+                                return Err(de::Error::duplicate_field("requires_rez_version"));
+                            }
                             requires_rez_version = Some(map.next_value()?);
                         }
                         Field::Uuid => {
-                            if uuid.is_some() { return Err(de::Error::duplicate_field("uuid")); }
+                            if uuid.is_some() {
+                                return Err(de::Error::duplicate_field("uuid"));
+                            }
                             uuid = Some(map.next_value()?);
                         }
                         Field::Help => {
-                            if help.is_some() { return Err(de::Error::duplicate_field("help")); }
+                            if help.is_some() {
+                                return Err(de::Error::duplicate_field("help"));
+                            }
                             help = Some(map.next_value()?);
                         }
                         Field::Relocatable => {
-                            if relocatable.is_some() { return Err(de::Error::duplicate_field("relocatable")); }
+                            if relocatable.is_some() {
+                                return Err(de::Error::duplicate_field("relocatable"));
+                            }
                             relocatable = Some(map.next_value()?);
                         }
                         Field::Cachable => {
-                            if cachable.is_some() { return Err(de::Error::duplicate_field("cachable")); }
+                            if cachable.is_some() {
+                                return Err(de::Error::duplicate_field("cachable"));
+                            }
                             cachable = Some(map.next_value()?);
                         }
                         Field::Timestamp => {
-                            if timestamp.is_some() { return Err(de::Error::duplicate_field("timestamp")); }
+                            if timestamp.is_some() {
+                                return Err(de::Error::duplicate_field("timestamp"));
+                            }
                             timestamp = Some(map.next_value()?);
                         }
                         Field::Revision => {
-                            if revision.is_some() { return Err(de::Error::duplicate_field("revision")); }
+                            if revision.is_some() {
+                                return Err(de::Error::duplicate_field("revision"));
+                            }
                             revision = Some(map.next_value()?);
                         }
                         Field::Changelog => {
-                            if changelog.is_some() { return Err(de::Error::duplicate_field("changelog")); }
+                            if changelog.is_some() {
+                                return Err(de::Error::duplicate_field("changelog"));
+                            }
                             changelog = Some(map.next_value()?);
                         }
                         Field::ReleaseMessage => {
-                            if release_message.is_some() { return Err(de::Error::duplicate_field("release_message")); }
+                            if release_message.is_some() {
+                                return Err(de::Error::duplicate_field("release_message"));
+                            }
                             release_message = Some(map.next_value()?);
                         }
                         Field::PreviousVersion => {
-                            if previous_version.is_some() { return Err(de::Error::duplicate_field("previous_version")); }
+                            if previous_version.is_some() {
+                                return Err(de::Error::duplicate_field("previous_version"));
+                            }
                             previous_version = Some(map.next_value()?);
                         }
                         Field::PreviousRevision => {
-                            if previous_revision.is_some() { return Err(de::Error::duplicate_field("previous_revision")); }
+                            if previous_revision.is_some() {
+                                return Err(de::Error::duplicate_field("previous_revision"));
+                            }
                             previous_revision = Some(map.next_value()?);
                         }
                         Field::Vcs => {
-                            if vcs.is_some() { return Err(de::Error::duplicate_field("vcs")); }
+                            if vcs.is_some() {
+                                return Err(de::Error::duplicate_field("vcs"));
+                            }
                             vcs = Some(map.next_value()?);
                         }
                         Field::FormatVersion => {
-                            if format_version.is_some() { return Err(de::Error::duplicate_field("format_version")); }
+                            if format_version.is_some() {
+                                return Err(de::Error::duplicate_field("format_version"));
+                            }
                             format_version = Some(map.next_value()?);
                         }
                         Field::Base => {
-                            if base.is_some() { return Err(de::Error::duplicate_field("base")); }
+                            if base.is_some() {
+                                return Err(de::Error::duplicate_field("base"));
+                            }
                             base = Some(map.next_value()?);
                         }
                         Field::HasPlugins => {
-                            if has_plugins.is_some() { return Err(de::Error::duplicate_field("has_plugins")); }
+                            if has_plugins.is_some() {
+                                return Err(de::Error::duplicate_field("has_plugins"));
+                            }
                             has_plugins = Some(map.next_value()?);
                         }
                         Field::PluginFor => {
-                            if plugin_for.is_some() { return Err(de::Error::duplicate_field("plugin_for")); }
+                            if plugin_for.is_some() {
+                                return Err(de::Error::duplicate_field("plugin_for"));
+                            }
                             plugin_for = Some(map.next_value()?);
                         }
                         Field::HashedVariants => {
-                            if hashed_variants.is_some() { return Err(de::Error::duplicate_field("hashed_variants")); }
+                            if hashed_variants.is_some() {
+                                return Err(de::Error::duplicate_field("hashed_variants"));
+                            }
                             hashed_variants = Some(map.next_value()?);
                         }
                         Field::Preprocess => {
-                            if preprocess.is_some() { return Err(de::Error::duplicate_field("preprocess")); }
+                            if preprocess.is_some() {
+                                return Err(de::Error::duplicate_field("preprocess"));
+                            }
                             preprocess = Some(map.next_value()?);
                         }
                     }
@@ -494,14 +562,41 @@ impl<'de> Deserialize<'de> for Package {
         }
 
         const FIELDS: &[&str] = &[
-            "name", "version", "description", "authors", "requires",
-            "build_requires", "private_build_requires", "variants", "tools",
-            "commands", "build_command", "build_system", "pre_commands",
-            "post_commands", "pre_test_commands", "pre_build_commands", "tests",
-            "requires_rez_version", "uuid", "help", "relocatable", "cachable",
-            "timestamp", "revision", "changelog", "release_message",
-            "previous_version", "previous_revision", "vcs", "format_version",
-            "base", "has_plugins", "plugin_for", "hashed_variants", "preprocess",
+            "name",
+            "version",
+            "description",
+            "authors",
+            "requires",
+            "build_requires",
+            "private_build_requires",
+            "variants",
+            "tools",
+            "commands",
+            "build_command",
+            "build_system",
+            "pre_commands",
+            "post_commands",
+            "pre_test_commands",
+            "pre_build_commands",
+            "tests",
+            "requires_rez_version",
+            "uuid",
+            "help",
+            "relocatable",
+            "cachable",
+            "timestamp",
+            "revision",
+            "changelog",
+            "release_message",
+            "previous_version",
+            "previous_revision",
+            "vcs",
+            "format_version",
+            "base",
+            "has_plugins",
+            "plugin_for",
+            "hashed_variants",
+            "preprocess",
         ];
         deserializer.deserialize_struct("Package", FIELDS, PackageVisitor)
     }

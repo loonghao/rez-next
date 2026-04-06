@@ -1,4 +1,4 @@
-﻿//! Rez Compat — Context Serialization, Rex DSL, Forward/Release Compat, Circular Deps Tests
+//! Rez Compat — Context Serialization, Rex DSL, Forward/Release Compat, Circular Deps Tests
 //!
 //! Extracted from rez_compat_tests.rs (Cycle 32).
 //! Cycle 72: bind + build_requires + DependencyGraph conflict tests moved to
@@ -10,7 +10,6 @@
 
 use rez_core::version::{Version, VersionRange};
 use rez_next_package::{Package, PackageRequirement};
-
 
 // ─── Context serialization edge cases ──────────────────────────────────────
 
@@ -43,7 +42,10 @@ fn test_context_json_serialization_fields() {
         "status",
         "config",
     ] {
-        assert!(obj.contains_key(key), "context JSON should contain field '{key}'");
+        assert!(
+            obj.contains_key(key),
+            "context JSON should contain field '{key}'"
+        );
     }
     assert_eq!(
         obj.get("requirements")
@@ -59,7 +61,6 @@ fn test_context_json_serialization_fields() {
         "context JSON should contain a non-empty id"
     );
 }
-
 
 /// rez: context with empty request list is valid
 #[test]
@@ -486,7 +487,6 @@ fn test_rez_private_package_requirement() {
     assert_eq!(pkg.name, "~private_pkg");
 }
 
-
 /// rez context summary has correct package names
 #[test]
 fn test_context_summary_package_names() {
@@ -556,5 +556,3 @@ fn test_diamond_dependency_not_cycle() {
         result
     );
 }
-
-

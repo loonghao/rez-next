@@ -272,7 +272,10 @@ mod tests {
     #[test]
     fn test_split_package_paths_single() {
         let result = split_package_paths("/usr/local/packages");
-        assert_eq!(result, vec![std::path::PathBuf::from("/usr/local/packages")]);
+        assert_eq!(
+            result,
+            vec![std::path::PathBuf::from("/usr/local/packages")]
+        );
     }
 
     #[test]

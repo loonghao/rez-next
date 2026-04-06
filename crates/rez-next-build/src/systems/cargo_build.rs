@@ -127,12 +127,7 @@ mod tests {
     use crate::BuildEnvironment;
     use rez_next_package::Package;
 
-
-
-    fn make_request_with_opts(
-        source_dir: std::path::PathBuf,
-        release: bool,
-    ) -> BuildRequest {
+    fn make_request_with_opts(source_dir: std::path::PathBuf, release: bool) -> BuildRequest {
         let pkg = Package::new("test-rust-pkg".to_string());
         BuildRequest {
             package: pkg,
@@ -169,6 +164,4 @@ mod tests {
         let step_result = result.unwrap();
         assert_eq!(step_result.step, BuildStep::Packaging);
     }
-
-
 }
