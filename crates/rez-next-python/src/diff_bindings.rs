@@ -6,6 +6,7 @@ use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList};
 use rez_next_package::Package;
 use rez_next_version::Version;
+use crate::runtime::get_runtime;
 
 // ─── Public structs ──────────────────────────────────────────────────────────
 
@@ -304,8 +305,7 @@ pub fn diff_contexts(
 pub fn diff_context_files(rxt_path_a: &str, rxt_path_b: &str) -> PyResult<PyContextDiff> {
     use rez_next_context::ContextSerializer;
 
-    let rt = tokio::runtime::Runtime::new()
-        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+    let rt = get_runtime();
 
     let ctx_a = rt
         .block_on(ContextSerializer::load_from_file(std::path::Path::new(

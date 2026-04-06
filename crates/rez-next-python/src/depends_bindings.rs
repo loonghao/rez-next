@@ -5,6 +5,7 @@
 
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList};
+use crate::runtime::get_runtime;
 
 // ─── Public structs ──────────────────────────────────────────────────────────
 
@@ -161,7 +162,7 @@ pub fn compute_depends(
     use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
     use rez_next_version::VersionRange;
 
-    let rt = tokio::runtime::Runtime::new().map_err(|e| e.to_string())?;
+    let rt = get_runtime();
     let mut repo_manager = RepositoryManager::new();
     for (i, path) in pkg_paths.iter().enumerate() {
         if path.exists() {

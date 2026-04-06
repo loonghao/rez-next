@@ -2,6 +2,7 @@
 
 use crate::package_functions::expand_home;
 use crate::package_bindings::PyPackage;
+use crate::runtime::get_runtime;
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use rez_next_context::{ContextStatus, ResolvedContext};
@@ -9,18 +10,7 @@ use rez_next_package::{PackageRequirement, Requirement};
 use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
 use rez_next_solver::{DependencyResolver, SolverConfig};
 use std::path::PathBuf;
-use std::sync::{Arc, OnceLock};
-
-/// Module-level shared Tokio runtime.
-/// Re-using a single runtime avoids thread-pool creation overhead on every
-/// Python method call and is safe because `block_on` takes `&self`.
-static TOKIO_RT: OnceLock<tokio::runtime::Runtime> = OnceLock::new();
-
-fn get_runtime() -> &'static tokio::runtime::Runtime {
-    TOKIO_RT.get_or_init(|| {
-        tokio::runtime::Runtime::new().expect("Failed to create Tokio runtime for rez-next-python")
-    })
-}
+use std::sync::Arc;
 
 /// Python-accessible ResolvedContext class, compatible with rez.resolved_context.ResolvedContext
 #[pyclass(name = "ResolvedContext")]

@@ -8,6 +8,7 @@ use pyo3::types::PyList;
 
 use crate::context_bindings::PyResolvedContext;
 use crate::package_bindings::PyPackage;
+use crate::runtime::get_runtime;
 
 /// Expand `~` in path strings.
 pub(crate) fn expand_home(p: &str) -> String {
@@ -61,8 +62,7 @@ pub fn get_latest_package(
     range_: Option<&str>,
     paths: Option<Vec<String>>,
 ) -> PyResult<Option<PyPackage>> {
-    let rt = tokio::runtime::Runtime::new()
-        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+    let rt = get_runtime();
 
     let repo_manager = make_repo_manager(paths);
 
@@ -108,8 +108,7 @@ pub fn get_package(
     version: Option<&str>,
     paths: Option<Vec<String>>,
 ) -> PyResult<Option<PyPackage>> {
-    let rt = tokio::runtime::Runtime::new()
-        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+    let rt = get_runtime();
 
     let repo_manager = make_repo_manager(paths);
 
@@ -150,8 +149,7 @@ pub fn iter_packages(
     range_: Option<&str>,
     paths: Option<Vec<String>>,
 ) -> PyResult<Py<PyAny>> {
-    let rt = tokio::runtime::Runtime::new()
-        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+    let rt = get_runtime();
 
     let repo_manager = make_repo_manager(paths);
 
@@ -197,8 +195,7 @@ pub fn iter_packages(
 pub fn get_package_family_names(paths: Option<Vec<String>>) -> PyResult<Vec<String>> {
     use std::collections::HashSet;
 
-    let rt = tokio::runtime::Runtime::new()
-        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+    let rt = get_runtime();
 
     let repo_manager = make_repo_manager(paths);
 
@@ -221,8 +218,7 @@ pub fn get_package_family_names(paths: Option<Vec<String>>) -> PyResult<Vec<Stri
 pub fn walk_packages(py: Python, paths: Option<Vec<String>>) -> PyResult<Py<PyAny>> {
     use std::collections::HashMap;
 
-    let rt = tokio::runtime::Runtime::new()
-        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+    let rt = get_runtime();
 
     let repo_manager = make_repo_manager(paths);
 
@@ -284,8 +280,7 @@ pub fn copy_package(
     use std::path::PathBuf;
 
     let config = RezCoreConfig::load();
-    let rt = tokio::runtime::Runtime::new()
-        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+    let rt = get_runtime();
 
     let search_paths: Vec<PathBuf> = src_paths
         .clone()

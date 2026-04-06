@@ -9,6 +9,7 @@
 
 use pyo3::prelude::*;
 use std::path::PathBuf;
+use crate::runtime::get_runtime;
 
 /// Release mode for a package
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -267,8 +268,7 @@ impl PyReleaseManager {
         use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
         use std::path::PathBuf;
 
-        let rt = tokio::runtime::Runtime::new()
-            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+        let rt = get_runtime();
 
         let config = RezCoreConfig::load();
         let mut repo_manager = RepositoryManager::new();

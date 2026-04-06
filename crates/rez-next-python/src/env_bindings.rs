@@ -7,6 +7,7 @@
 
 use crate::package_functions::expand_home;
 use crate::package_bindings::PyPackage;
+use crate::runtime::get_runtime;
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use rez_next_package::{PackageRequirement, Requirement};
@@ -103,8 +104,7 @@ impl PyRezEnv {
             })
             .collect();
 
-        let rt = tokio::runtime::Runtime::new()
-            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+        let rt = get_runtime();
 
         let repo_arc = Arc::new(repo_manager);
         let mut resolver = DependencyResolver::new(Arc::clone(&repo_arc), SolverConfig::default());

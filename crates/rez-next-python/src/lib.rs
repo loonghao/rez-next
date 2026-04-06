@@ -5,6 +5,9 @@
 
 use pyo3::prelude::*;
 
+// ── Shared infrastructure ─────────────────────────────────────────────────────
+pub(crate) mod runtime;
+
 // ── Domain-specific binding modules ──────────────────────────────────────────
 mod bind_bindings;
 mod completion_bindings;

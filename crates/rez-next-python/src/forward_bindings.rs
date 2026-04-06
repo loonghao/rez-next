@@ -5,6 +5,8 @@
 
 use pyo3::prelude::*;
 
+use crate::runtime::get_runtime;
+
 /// Represents a forwarded rez tool call.
 ///
 /// Equivalent to rez's `forward` command which routes CLI calls to the
@@ -91,8 +93,7 @@ pub fn resolve_forward_tool(
 
     let _ = paths;
     let config = RezCoreConfig::load();
-    let rt = tokio::runtime::Runtime::new()
-        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+    let rt = get_runtime();
 
     let mut repo_manager = RepositoryManager::new();
     for (i, p) in config.packages_path.iter().enumerate() {

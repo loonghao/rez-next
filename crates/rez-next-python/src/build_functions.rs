@@ -5,6 +5,7 @@
 use pyo3::prelude::*;
 
 use crate::package_functions::expand_home;
+use crate::runtime::get_runtime;
 
 /// Build a package from source.
 /// Equivalent to running `rez build` or `rez.build_.build_package()`
@@ -67,8 +68,7 @@ pub fn build_package(
         install_path: if install { dest } else { None },
     };
 
-    let rt = tokio::runtime::Runtime::new()
-        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+    let rt = get_runtime();
 
     let mut build_manager = BuildManager::new();
     let build_id = rt
