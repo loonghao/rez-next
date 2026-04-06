@@ -197,42 +197,56 @@ tools = ['{name}']
     }
 
     /// List all currently bound packages (packages with a `package.py` in install root).
+    ///
+    /// Returns `(family_name, sorted_versions)` pairs, sorted alphabetically by family.
     pub fn list_bound_packages(&self) -> Vec<(String, Vec<String>)> {
         let install_root = PathBuf::from(expand_home(&self.config.local_packages_path));
-        let mut result = Vec::new();
+        list_bound_packages_in(&install_root)
+    }
+}
 
-        if !install_root.exists() {
-            return result;
-        }
+/// Core implementation of bound-package listing, operating on an explicit install root.
+///
+/// Scans `install_root` for family directories that contain at least one versioned
+/// sub-directory with a `package.py` file.  Returns `(family_name, sorted_versions)`
+/// pairs sorted alphabetically by family.
+///
+/// This is separated from [`PackageBinder`] so that unit tests can inject a temporary
+/// directory without coupling to global config or home expansion.
+pub fn list_bound_packages_in(install_root: &std::path::Path) -> Vec<(String, Vec<String>)> {
+    let mut result = Vec::new();
 
-        if let Ok(families) = std::fs::read_dir(&install_root) {
-            for family_entry in families.filter_map(|e| e.ok()) {
-                let family_path = family_entry.path();
-                if !family_path.is_dir() {
-                    continue;
-                }
-                let family_name = family_entry.file_name().to_string_lossy().to_string();
-                let mut versions = Vec::new();
+    if !install_root.exists() {
+        return result;
+    }
 
-                if let Ok(ver_entries) = std::fs::read_dir(&family_path) {
-                    for ver_entry in ver_entries.filter_map(|e| e.ok()) {
-                        let ver_path = ver_entry.path();
-                        if ver_path.is_dir() && ver_path.join("package.py").exists() {
-                            versions.push(ver_entry.file_name().to_string_lossy().to_string());
-                        }
+    if let Ok(families) = std::fs::read_dir(install_root) {
+        for family_entry in families.filter_map(|e| e.ok()) {
+            let family_path = family_entry.path();
+            if !family_path.is_dir() {
+                continue;
+            }
+            let family_name = family_entry.file_name().to_string_lossy().to_string();
+            let mut versions = Vec::new();
+
+            if let Ok(ver_entries) = std::fs::read_dir(&family_path) {
+                for ver_entry in ver_entries.filter_map(|e| e.ok()) {
+                    let ver_path = ver_entry.path();
+                    if ver_path.is_dir() && ver_path.join("package.py").exists() {
+                        versions.push(ver_entry.file_name().to_string_lossy().to_string());
                     }
                 }
+            }
 
-                if !versions.is_empty() {
-                    versions.sort();
-                    result.push((family_name, versions));
-                }
+            if !versions.is_empty() {
+                versions.sort();
+                result.push((family_name, versions));
             }
         }
-
-        result.sort_by(|a, b| a.0.cmp(&b.0));
-        result
     }
+
+    result.sort_by(|a, b| a.0.cmp(&b.0));
+    result
 }
 
 fn expand_home(p: &str) -> String {
@@ -438,5 +452,104 @@ mod tests {
         assert_eq!(result.name, "python");
         assert_eq!(result.version, "3.11.0");
         assert!(result.executable_path.is_some());
+    }
+
+    // ── list_bound_packages_in contract tests ────────────────────────────────
+
+    #[test]
+    fn test_list_bound_packages_in_empty_dir() {
+        let tmp = TempDir::new().unwrap();
+        let result = super::list_bound_packages_in(tmp.path());
+        assert!(result.is_empty(), "empty install root should yield no packages");
+    }
+
+    #[test]
+    fn test_list_bound_packages_in_nonexistent_dir() {
+        let result = super::list_bound_packages_in(std::path::Path::new("/does/not/exist"));
+        assert!(result.is_empty(), "nonexistent install root should yield no packages");
+    }
+
+    #[test]
+    fn test_list_bound_packages_in_single_package() {
+        let tmp = TempDir::new().unwrap();
+        // Create: <root>/python/3.11.0/package.py
+        let pkg_dir = tmp.path().join("python").join("3.11.0");
+        std::fs::create_dir_all(&pkg_dir).unwrap();
+        std::fs::write(pkg_dir.join("package.py"), "name = 'python'\nversion = '3.11.0'\n").unwrap();
+
+        let result = super::list_bound_packages_in(tmp.path());
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].0, "python");
+        assert_eq!(result[0].1, vec!["3.11.0"]);
+    }
+
+    #[test]
+    fn test_list_bound_packages_in_multiple_families() {
+        let tmp = TempDir::new().unwrap();
+        // cmake/3.28.0/package.py and git/2.42.0/package.py
+        for (family, version) in [("cmake", "3.28.0"), ("git", "2.42.0")] {
+            let dir = tmp.path().join(family).join(version);
+            std::fs::create_dir_all(&dir).unwrap();
+            std::fs::write(dir.join("package.py"), format!("name = '{}'\n", family)).unwrap();
+        }
+
+        let result = super::list_bound_packages_in(tmp.path());
+        assert_eq!(result.len(), 2, "should find 2 families");
+        // Alphabetically sorted
+        assert_eq!(result[0].0, "cmake");
+        assert_eq!(result[1].0, "git");
+    }
+
+    #[test]
+    fn test_list_bound_packages_in_multiple_versions_sorted() {
+        let tmp = TempDir::new().unwrap();
+        // python with 3 versions: 3.9.0, 3.11.0, 3.10.0 — should be sorted alphabetically
+        for version in ["3.11.0", "3.9.0", "3.10.0"] {
+            let dir = tmp.path().join("python").join(version);
+            std::fs::create_dir_all(&dir).unwrap();
+            std::fs::write(dir.join("package.py"), "name = 'python'\n").unwrap();
+        }
+
+        let result = super::list_bound_packages_in(tmp.path());
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].0, "python");
+        // Sorted string order: "3.10.0" < "3.11.0" < "3.9.0"
+        assert_eq!(result[0].1, vec!["3.10.0", "3.11.0", "3.9.0"]);
+    }
+
+    #[test]
+    fn test_list_bound_packages_in_ignores_dirs_without_package_py() {
+        let tmp = TempDir::new().unwrap();
+        // Create a version dir WITHOUT package.py — should be ignored
+        let dir = tmp.path().join("cmake").join("3.28.0");
+        std::fs::create_dir_all(&dir).unwrap();
+        // No package.py written
+
+        let result = super::list_bound_packages_in(tmp.path());
+        assert!(result.is_empty(), "dirs without package.py should be ignored");
+    }
+
+    #[test]
+    fn test_list_bound_packages_in_ignores_files_at_root() {
+        let tmp = TempDir::new().unwrap();
+        // Stray file at root level should not be mistaken for a family
+        std::fs::write(tmp.path().join("README.md"), "readme").unwrap();
+
+        let result = super::list_bound_packages_in(tmp.path());
+        assert!(result.is_empty(), "non-directory entries at root should be ignored");
+    }
+
+    #[test]
+    fn test_list_bound_packages_in_families_sorted_alphabetically() {
+        let tmp = TempDir::new().unwrap();
+        for (family, version) in [("zlib", "1.3.1"), ("awk", "5.3.0"), ("cmake", "3.28.0")] {
+            let dir = tmp.path().join(family).join(version);
+            std::fs::create_dir_all(&dir).unwrap();
+            std::fs::write(dir.join("package.py"), format!("name = '{}'\n", family)).unwrap();
+        }
+
+        let result = super::list_bound_packages_in(tmp.path());
+        let names: Vec<&str> = result.iter().map(|(n, _)| n.as_str()).collect();
+        assert_eq!(names, vec!["awk", "cmake", "zlib"]);
     }
 }

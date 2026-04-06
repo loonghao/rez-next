@@ -14,6 +14,8 @@ use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::sync::Arc;
 
+use crate::cli::utils::split_package_paths;
+
 /// Arguments for the env command
 #[derive(Args, Clone)]
 pub struct EnvArgs {
@@ -205,10 +207,7 @@ fn resolve_environment(
 
     // Add configured package paths as repositories
     let package_paths: Vec<PathBuf> = if let Some(ref paths_str) = args.paths {
-        paths_str
-            .split(std::path::MAIN_SEPARATOR)
-            .map(PathBuf::from)
-            .collect()
+        split_package_paths(paths_str)
     } else {
         rez_config
             .packages_path

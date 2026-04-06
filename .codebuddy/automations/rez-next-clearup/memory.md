@@ -1,6 +1,25 @@
 # rez-next cleanup 执行记录
 
+## 最新执行 (2026-04-06 05:01, 第三十一轮)
+
+### 执行摘要
+- 审查迭代 Agent 最近的 split-tests 提交 `dfa5d7f`、`72430ad`、`41b84a0` 后，聚焦新拆分测试中的低风险治理，不触碰运行时代码或依赖配置
+- 完成 3 个 cleanup 提交并已推送：`ac0da02` 删除 3 个过期/重复测试并顺手清掉 `real_repo_integration.rs` 死 helper，`379c16f` 收紧 `ResolvedContext` JSON 字段断言并修正 `private_build_requires` 测试契约，`a0fe045` 在 `CLEANUP_TODO.md` 记录 3 项结构性后续（commit body 含 `chore(cleanup): done`）
+- 本轮净变更为 `4 files changed, 62 insertions(+), 83 deletions(-)`；删除过期测试 **3** 个，修正弱/误导测试契约 **2** 处
+
+### 验证结果
+- **测试**: 基线与收尾 `vx cargo test --workspace --all-targets --all-features --quiet` 均通过；定向 `rez_compat_context_tests` / `rez_compat_context_bind_tests` / `real_repo_integration` 通过
+- **Lint**: 基线与收尾 `vx cargo clippy --workspace --all-targets --quiet -- -D warnings` 通过；编辑文件 `read_lints` 为 0
+- **推送**: `auto-improve` 已推送到 `a0fe045`
+- **覆盖率**: 本轮未采集新的覆盖率基线
+
+### 下一轮重点
+1. 继续处理 `tests/cli_e2e_tests.rs` 的隐式 skip 与 exit-code-only 弱断言
+2. 评估是否为 `real_repo_*` 系列抽取共享 fixture helper，避免拆分后继续漂移
+3. 决定 `rez_solver_graph_tests.rs` / `rez_solver_platform_tests.rs` / `rez_compat_late_tests.rs` 这些迁移 notice shell 是否还值得保留为独立测试目标
+
 ## 最新执行 (2026-04-06 01:01, 第三十轮)
+
 
 ### 执行摘要
 - 延续第二十九轮未完成的低风险治理，先收掉 `tests/rez_compat_rex_edge_tests.rs` 中最后一处 `clippy::single-match`，恢复当前工作区 clippy 绿灯
