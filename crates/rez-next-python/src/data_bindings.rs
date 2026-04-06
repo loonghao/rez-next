@@ -361,4 +361,149 @@ mod tests {
         let content = std::fs::read_to_string(&pkg_path).unwrap();
         assert!(content.contains("my_package"));
     }
+
+    // ─── PyRezData method tests (pure Rust calls without GIL) ────────────────
+
+    #[test]
+    fn test_rez_data_new_no_panic() {
+        let _d = PyRezData::new();
+    }
+
+    #[test]
+    fn test_rez_data_default_no_panic() {
+        let _d = PyRezData::default();
+    }
+
+    #[test]
+    fn test_rez_data_repr() {
+        let d = PyRezData::new();
+        assert_eq!(d.__repr__(), "RezData()");
+    }
+
+    #[test]
+    fn test_rez_data_list_resources_contains_completions() {
+        let d = PyRezData::new();
+        let resources = d.list_resources();
+        assert!(
+            resources.iter().any(|r| r.starts_with("completions/")),
+            "list_resources must include completions/*, got: {:?}",
+            resources
+        );
+    }
+
+    #[test]
+    fn test_rez_data_list_resources_count() {
+        let d = PyRezData::new();
+        let r = d.list_resources();
+        // 5 resources: bash, zsh, fish completions + example + config
+        assert_eq!(r.len(), 5, "expected 5 resources, got {}", r.len());
+    }
+
+    #[test]
+    fn test_rez_data_get_resource_bash_ok() {
+        let d = PyRezData::new();
+        let r = d.get_resource("completions/bash");
+        assert!(r.is_ok());
+        assert!(r.unwrap().contains("_rez_next"));
+    }
+
+    #[test]
+    fn test_rez_data_get_resource_zsh_ok() {
+        let d = PyRezData::new();
+        let r = d.get_resource("completions/zsh");
+        assert!(r.is_ok());
+        assert!(r.unwrap().contains("rez-next"));
+    }
+
+    #[test]
+    fn test_rez_data_get_resource_fish_ok() {
+        let d = PyRezData::new();
+        let r = d.get_resource("completions/fish");
+        assert!(r.is_ok());
+        let content = r.unwrap();
+        assert!(content.contains("fish completion") || content.contains("rez-next"));
+    }
+
+    #[test]
+    fn test_rez_data_get_resource_example_package_ok() {
+        let d = PyRezData::new();
+        let r = d.get_resource("examples/package.py");
+        assert!(r.is_ok());
+        assert!(r.unwrap().contains("name = \"my_package\""));
+    }
+
+    #[test]
+    fn test_rez_data_get_resource_config_ok() {
+        let d = PyRezData::new();
+        let r = d.get_resource("config/rezconfig.py");
+        assert!(r.is_ok());
+        assert!(r.unwrap().contains("packages_path"));
+    }
+
+    #[test]
+    fn test_rez_data_get_resource_unknown_errors() {
+        let d = PyRezData::new();
+        let r = d.get_resource("unknown/path.txt");
+        assert!(r.is_err(), "unknown resource should return Err");
+    }
+
+    #[test]
+    fn test_rez_data_get_example_package() {
+        let d = PyRezData::new();
+        let content = d.get_example_package();
+        assert!(content.contains("name"));
+        assert!(content.contains("version"));
+    }
+
+    #[test]
+    fn test_rez_data_get_default_config() {
+        let d = PyRezData::new();
+        let content = d.get_default_config();
+        assert!(content.contains("packages_path"));
+        assert!(content.contains("local_packages_path"));
+    }
+
+    // ─── Module-level function tests ─────────────────────────────────────────
+
+    #[test]
+    fn test_list_data_resources_non_empty() {
+        let resources = list_data_resources();
+        assert!(!resources.is_empty());
+    }
+
+    #[test]
+    fn test_get_data_resource_bash() {
+        let r = get_data_resource("completions/bash");
+        assert!(r.is_ok());
+    }
+
+    #[test]
+    fn test_get_data_resource_unknown_errors() {
+        let r = get_data_resource("no/such/resource");
+        assert!(r.is_err());
+    }
+
+    // ─── write_completion_script fs test ─────────────────────────────────────
+
+    #[test]
+    fn test_write_completion_script_to_file() {
+        use tempfile::TempDir;
+        let tmp = TempDir::new().unwrap();
+        let dest = tmp.path().join("rez-complete.bash").to_str().unwrap().to_string();
+        let d = PyRezData::new();
+        let result = d.write_completion_script(&dest, Some("bash"));
+        assert!(result.is_ok(), "write_completion_script should succeed: {:?}", result);
+        let written = std::fs::read_to_string(&dest).unwrap();
+        assert!(written.contains("_rez_next"));
+    }
+
+    #[test]
+    fn test_write_completion_script_unknown_shell_errors() {
+        use tempfile::TempDir;
+        let tmp = TempDir::new().unwrap();
+        let dest = tmp.path().join("bad.sh").to_str().unwrap().to_string();
+        let d = PyRezData::new();
+        let result = d.write_completion_script(&dest, Some("ksh"));
+        assert!(result.is_err(), "unknown shell should return Err");
+    }
 }

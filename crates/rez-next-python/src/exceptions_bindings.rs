@@ -132,6 +132,29 @@ pyo3::create_exception!(
     "Raised for internal rez-next errors.\n\nEquivalent to rez.exceptions.RezSystemError."
 );
 
+// ─── Exception name constants (for documentation / mapping) ───────────────────
+
+/// Map of exception class name -> parent class name (for hierarchy validation)
+pub const EXCEPTION_HIERARCHY: &[(&str, &str)] = &[
+    ("RezError", "Exception"),
+    ("PackageNotFound", "RezError"),
+    ("PackageFamilyNotFound", "RezError"),
+    ("PackageVersionConflict", "RezError"),
+    ("PackageRequestError", "RezError"),
+    ("PackageParseError", "RezError"),
+    ("ResolveError", "RezError"),
+    ("SolveFailure", "ResolveError"),
+    ("PackageConflict", "ResolveError"),
+    ("RezBuildError", "RezError"),
+    ("RezReleaseError", "RezError"),
+    ("ConfigurationError", "RezError"),
+    ("ContextBundleError", "RezError"),
+    ("SuiteError", "RezError"),
+    ("RexError", "RezError"),
+    ("RexUndefinedVariableError", "RexError"),
+    ("RezSystemError", "RezError"),
+];
+
 // ─── Registration ─────────────────────────────────────────────────────────────
 
 /// Register all custom exception types into the given submodule.
@@ -191,3 +214,151 @@ pub fn register_all_exceptions(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ─── EXCEPTION_HIERARCHY metadata tests ──────────────────────────────────
+
+    #[test]
+    fn test_exception_hierarchy_non_empty() {
+        assert!(
+            !EXCEPTION_HIERARCHY.is_empty(),
+            "EXCEPTION_HIERARCHY must have entries"
+        );
+    }
+
+    #[test]
+    fn test_exception_hierarchy_has_rez_error_root() {
+        let root = EXCEPTION_HIERARCHY
+            .iter()
+            .find(|(name, _)| *name == "RezError");
+        assert!(root.is_some(), "RezError must be in hierarchy");
+        assert_eq!(root.unwrap().1, "Exception", "RezError must extend Exception");
+    }
+
+    #[test]
+    fn test_exception_hierarchy_package_exceptions_extend_rez_error() {
+        let pkg_exceptions = [
+            "PackageNotFound",
+            "PackageFamilyNotFound",
+            "PackageVersionConflict",
+            "PackageRequestError",
+            "PackageParseError",
+        ];
+        for name in &pkg_exceptions {
+            let entry = EXCEPTION_HIERARCHY
+                .iter()
+                .find(|(n, _)| *n == *name)
+                .unwrap_or_else(|| panic!("{} must be in EXCEPTION_HIERARCHY", name));
+            assert_eq!(
+                entry.1, "RezError",
+                "{} must extend RezError, got {}",
+                name, entry.1
+            );
+        }
+    }
+
+    #[test]
+    fn test_exception_hierarchy_resolve_subtypes_extend_resolve_error() {
+        for name in &["SolveFailure", "PackageConflict"] {
+            let entry = EXCEPTION_HIERARCHY
+                .iter()
+                .find(|(n, _)| *n == *name)
+                .unwrap_or_else(|| panic!("{} must be in EXCEPTION_HIERARCHY", name));
+            assert_eq!(
+                entry.1, "ResolveError",
+                "{} must extend ResolveError, got {}",
+                name, entry.1
+            );
+        }
+    }
+
+    #[test]
+    fn test_exception_hierarchy_rex_undefined_extends_rex_error() {
+        let entry = EXCEPTION_HIERARCHY
+            .iter()
+            .find(|(n, _)| *n == "RexUndefinedVariableError")
+            .expect("RexUndefinedVariableError must be in EXCEPTION_HIERARCHY");
+        assert_eq!(
+            entry.1, "RexError",
+            "RexUndefinedVariableError must extend RexError"
+        );
+    }
+
+    #[test]
+    fn test_exception_hierarchy_total_count() {
+        // 17 entries: 1 root + 16 subtypes
+        assert_eq!(
+            EXCEPTION_HIERARCHY.len(),
+            17,
+            "Expected 17 exception entries, got {}",
+            EXCEPTION_HIERARCHY.len()
+        );
+    }
+
+    #[test]
+    fn test_exception_hierarchy_no_duplicate_names() {
+        let mut names: Vec<&str> = EXCEPTION_HIERARCHY.iter().map(|(n, _)| *n).collect();
+        let original_len = names.len();
+        names.dedup();
+        // After sort+dedup we check uniqueness
+        let mut names2: Vec<&str> = EXCEPTION_HIERARCHY.iter().map(|(n, _)| *n).collect();
+        names2.sort_unstable();
+        names2.dedup();
+        assert_eq!(
+            names2.len(),
+            original_len,
+            "EXCEPTION_HIERARCHY contains duplicate names"
+        );
+    }
+
+    #[test]
+    fn test_exception_hierarchy_system_error_extends_rez_error() {
+        let entry = EXCEPTION_HIERARCHY
+            .iter()
+            .find(|(n, _)| *n == "RezSystemError")
+            .expect("RezSystemError must be in EXCEPTION_HIERARCHY");
+        assert_eq!(entry.1, "RezError");
+    }
+
+    #[test]
+    fn test_exception_hierarchy_build_release_extend_rez_error() {
+        for name in &["RezBuildError", "RezReleaseError"] {
+            let entry = EXCEPTION_HIERARCHY
+                .iter()
+                .find(|(n, _)| *n == *name)
+                .unwrap_or_else(|| panic!("{} must be in EXCEPTION_HIERARCHY", name));
+            assert_eq!(
+                entry.1, "RezError",
+                "{} must extend RezError",
+                name
+            );
+        }
+    }
+
+    #[test]
+    fn test_exception_hierarchy_config_context_suite_extend_rez_error() {
+        for name in &["ConfigurationError", "ContextBundleError", "SuiteError"] {
+            let entry = EXCEPTION_HIERARCHY
+                .iter()
+                .find(|(n, _)| *n == *name)
+                .unwrap_or_else(|| panic!("{} must be in EXCEPTION_HIERARCHY", name));
+            assert_eq!(
+                entry.1, "RezError",
+                "{} must extend RezError",
+                name
+            );
+        }
+    }
+
+    #[test]
+    fn test_all_hierarchy_names_non_empty() {
+        for (name, parent) in EXCEPTION_HIERARCHY {
+            assert!(!name.is_empty(), "exception name must not be empty");
+            assert!(!parent.is_empty(), "parent name must not be empty");
+        }
+    }
+}
+
