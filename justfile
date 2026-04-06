@@ -49,7 +49,6 @@ ci: fmt-check lint-ci doc-check test
 
 # Check documentation builds without warnings
 doc:
-
     vx cargo doc --workspace --all-features --no-deps
 
 # Check documentation with warnings as errors
