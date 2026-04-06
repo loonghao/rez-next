@@ -1,7 +1,8 @@
-//! Python bindings for rez-next
+//! Python bindings for rez-next.
 //!
-//! Provides a drop-in replacement for the original Rez Python API.
-//! Usage: `import rez_next as rez` — all rez APIs work identically.
+//! Exposes a Python compatibility layer for supported Rez APIs.
+//! Usage: `import rez_next as rez` for the currently implemented surface area.
+
 
 use pyo3::prelude::*;
 

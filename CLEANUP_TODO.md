@@ -251,13 +251,20 @@
 - Kept `test_diamond_dependency_not_cycle` which has no equivalent in the topology suite
 - File reduced from 713 → ~550 lines; all tests pass
 
+### 37. Python shell detection logic is duplicated across bindings
+- **Status**: OPEN (cycle 33)
+- `shell_bindings.rs`, `completion_bindings.rs`, `status_bindings.rs`, `context_bindings.rs`, and `source_bindings.rs` each implement their own environment-based shell detection
+- The fallbacks have already drifted: `source_bindings.rs` says "Windows CMD fallback" but returns `powershell`, while `completion_bindings.rs` defaults any Windows environment to `powershell` and others still distinguish `cmd`
+- Follow-up: extract a shared helper in `rez-next-python` and align all call sites/tests to one shell-detection contract
 
-
-
-
-
+### 38. Python compatibility tests still duplicate helpers and overfit placeholder APIs
+- **Status**: OPEN (cycle 33)
+- `write_package_py` is duplicated in `test_e2e_real_world.py` and `test_context_repository_api.py`; shell/bundle assertions are also duplicated across `test_compat_io_modules.py` and `test_e2e_real_world.py`
+- Several tests in `test_compat_advanced.py` only assert list-ness / empty results against nonexistent paths, and `test_compat_io_modules.py` currently locks in the `cli_functions.rs` known-command stub instead of an observable CLI contract
+- Follow-up: centralize shared Python test fixtures/helpers and replace placeholder-smoke cases with temp-repo behavior tests before broadening compatibility claims
 
 - **Status**: COMPLETE ✓ (cycle 19)
+
 - Fixed `handle_grouped_command` in `rez-next.rs`: clap returns `Err` for `--help`/`--version` display; now uses `e.use_stderr()` to decide exit code (0 for help/version, 1 for real errors)
 - Previously `eprintln!` + `exit(1)` swallowed the help output and returned wrong exit code
 
