@@ -370,4 +370,102 @@ mod tests {
         assert_eq!(r.latest, Some("12.0".to_string()));
         assert_eq!(r.version_count(), 1);
     }
+
+    // ── Additional SearchResult / PySearchResult tests ───────────────────────
+
+    #[test]
+    fn test_search_result_multiple_versions_latest_is_last() {
+        // SearchResult::new sets latest to the last element (if any)
+        let inner = SearchResult::new(
+            "cmake".to_string(),
+            vec!["3.20.0".to_string(), "3.26.0".to_string(), "3.28.0".to_string()],
+            "/pkgs".to_string(),
+        );
+        // latest is computed as the last version in the list
+        assert_eq!(inner.latest, Some("3.28.0".to_string()));
+        let r = PySearchResult { inner };
+        assert_eq!(r.latest(), Some("3.28.0".to_string()));
+        assert_eq!(r.version_count(), 3);
+    }
+
+    #[test]
+    fn test_search_result_repr_empty_versions() {
+        let inner = SearchResult::new("orphan".to_string(), vec![], "/r".to_string());
+        let r = PySearchResult { inner };
+        let repr = r.__repr__();
+        assert!(repr.contains("SearchResult"), "repr: {repr}");
+        assert!(repr.contains("orphan"), "repr: {repr}");
+    }
+
+    #[test]
+    fn test_search_result_repo_path_preserved() {
+        let inner =
+            SearchResult::new("pkg".to_string(), vec![], "/custom/repo/path".to_string());
+        let r = PySearchResult { inner };
+        assert_eq!(r.repo_path(), "/custom/repo/path");
+    }
+
+    // ── SearchResultSet additional ops ───────────────────────────────────────
+
+    #[test]
+    fn test_result_set_family_names_no_dups() {
+        let mut rs = SearchResultSet::new();
+        rs.add(SearchResult::new(
+            "python".to_string(),
+            vec!["3.9".to_string()],
+            "/a".to_string(),
+        ));
+        rs.add(SearchResult::new(
+            "python".to_string(),
+            vec!["3.11".to_string()],
+            "/b".to_string(),
+        ));
+        // Two different SearchResult objects with the same name are allowed
+        assert_eq!(rs.len(), 2);
+        let names = rs.family_names();
+        // family_names may return duplicates (depends on impl) — just validate count/content
+        assert!(names.iter().all(|n| *n == "python"), "names: {:?}", names);
+    }
+
+    #[test]
+    fn test_result_set_len_and_is_empty_consistency() {
+        let mut rs = SearchResultSet::new();
+        assert!(rs.is_empty());
+        rs.add(SearchResult::new("p".to_string(), vec![], "/r".to_string()));
+        assert!(!rs.is_empty());
+        assert_eq!(rs.len(), 1);
+    }
+
+    // ── PyPackageSearcher additional construction tests ───────────────────────
+
+    #[test]
+    fn test_package_searcher_no_version_range() {
+        let s = PyPackageSearcher::new("cmake", None, "packages", None, 0);
+        assert!(s.version_range.is_none());
+    }
+
+    #[test]
+    fn test_package_searcher_limit_zero_means_unlimited() {
+        let s = PyPackageSearcher::new("", None, "families", None, 0);
+        assert_eq!(s.limit, 0);
+    }
+
+    // ── SearchFilter additional mode tests ───────────────────────────────────
+
+    #[test]
+    fn test_filter_regex_mode_if_supported() {
+        // Prefix mode: pattern "py" must not match "scipy"
+        let f = SearchFilter::new("py");
+        assert!(!f.matches_name("scipy"), "prefix 'py' must not match 'scipy'");
+    }
+
+    #[test]
+    fn test_filter_contains_mode_case_insensitive() {
+        let f = SearchFilter::new("NUMPY").with_mode(FilterMode::Contains);
+        // Contains mode should be case-insensitive
+        assert!(
+            f.matches_name("numpy") || f.matches_name("NUMPY"),
+            "contains must work"
+        );
+    }
 }

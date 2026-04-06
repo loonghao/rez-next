@@ -134,7 +134,10 @@ pyo3::create_exception!(
 
 // ─── Exception name constants (for documentation / mapping) ───────────────────
 
-/// Map of exception class name -> parent class name (for hierarchy validation)
+
+/// Map of exception class name -> parent class name (for hierarchy validation).
+/// Only used in unit tests.
+#[cfg(test)]
 pub const EXCEPTION_HIERARCHY: &[(&str, &str)] = &[
     ("RezError", "Exception"),
     ("PackageNotFound", "RezError"),
