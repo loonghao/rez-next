@@ -10,89 +10,17 @@ use std::fs;
 use std::sync::Arc;
 use tempfile::TempDir;
 
-// ─── Local helpers ────────────────────────────────────────────────────────────
+#[path = "real_repo_test_helpers.rs"]
+mod real_repo_test_helpers;
+#[path = "real_repo_manager_helpers.rs"]
+mod real_repo_manager_helpers;
 
-fn create_package(
-    repo_dir: &std::path::Path,
-    name: &str,
-    version: &str,
-    requires: &[&str],
-    tools: &[&str],
-    commands: Option<&str>,
-) {
-    let pkg_dir = repo_dir.join(name).join(version);
-    fs::create_dir_all(&pkg_dir).unwrap();
+use real_repo_manager_helpers::make_repo;
+use real_repo_test_helpers::create_package;
 
-    let requires_str = requires
-        .iter()
-        .map(|r| format!("    \"{}\",", r))
-        .collect::<Vec<_>>()
-        .join("\n");
-
-    let tools_str = tools
-        .iter()
-        .map(|t| format!("    \"{}\",", t))
-        .collect::<Vec<_>>()
-        .join("\n");
-
-    let cmd_block = if let Some(cmd) = commands {
-        format!(
-            r#"
-def commands():
-    {}
-"#,
-            cmd
-        )
-    } else {
-        format!(
-            r#"
-def commands():
-    env.{upper}_ROOT.set("{{{{root}}}}")
-    env.PATH.prepend("{{{{root}}}}/bin")
-"#,
-            upper = name.to_uppercase()
-        )
-    };
-
-    let requires_block = if requires.is_empty() {
-        String::new()
-    } else {
-        format!("requires = [\n{}\n]\n", requires_str)
-    };
-
-    let tools_block = if tools.is_empty() {
-        String::new()
-    } else {
-        format!("tools = [\n{}\n]\n", tools_str)
-    };
-
-    let content = format!(
-        r#"name = "{name}"
-version = "{version}"
-description = "Test package {name}-{version}"
-{requires_block}{tools_block}{cmd_block}"#,
-        name = name,
-        version = version,
-        requires_block = requires_block,
-        tools_block = tools_block,
-        cmd_block = cmd_block,
-    );
-
-    fs::write(pkg_dir.join("package.py"), content).unwrap();
-}
-
-fn make_repo(dir: &std::path::Path) -> Arc<RepositoryManager> {
-    let mut mgr = RepositoryManager::new();
-    if dir.exists() {
-        mgr.add_repository(Box::new(SimpleRepository::new(
-            dir,
-            "test_repo".to_string(),
-        )));
-    }
-    Arc::new(mgr)
-}
 
 // ─── Environment variable generation tests ───────────────────────────────────
+
 
 #[test]
 fn test_env_context_has_rez_variables() {
@@ -222,16 +150,8 @@ fn test_full_pipeline_e2e() {
         .unwrap();
 
     assert!(!env_vars.is_empty(), "Environment should not be empty");
-
-    println!(
-        "E2E test: resolved {} packages, {} env vars",
-        result.resolved_packages.len(),
-        env_vars.len()
-    );
-    for (k, v) in &env_vars {
-        println!("  {}={}", k, v);
-    }
 }
+
 
 // ─── Multi-repo tests ─────────────────────────────────────────────────────────
 
