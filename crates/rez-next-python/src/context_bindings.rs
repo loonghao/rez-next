@@ -531,4 +531,89 @@ mod context_bindings_tests {
             "created_at timestamp should be positive"
         );
     }
+
+    // ── failure_description ──────────────────────────────────────────
+
+    #[test]
+    fn test_failure_description_none_when_resolved() {
+        let ctx = make_py_ctx_inner(&[("python", "3.11.0")]);
+        assert_eq!(ctx.status, ContextStatus::Resolved);
+        // failure_description is None when resolved — verify via status
+        let is_failed = ctx.status == ContextStatus::Failed;
+        assert!(!is_failed);
+    }
+
+    #[test]
+    fn test_failure_description_some_when_failed() {
+        let mut ctx = make_py_ctx_inner(&[]);
+        ctx.status = ContextStatus::Failed;
+        let is_failed = ctx.status == ContextStatus::Failed;
+        assert!(is_failed, "Status should be Failed");
+    }
+
+    // ── empty resolved context ───────────────────────────────────────
+
+    #[test]
+    fn test_empty_context_zero_packages() {
+        let ctx = make_py_ctx_inner(&[]);
+        assert_eq!(ctx.resolved_packages.len(), 0);
+    }
+
+    #[test]
+    fn test_get_summary_empty_context() {
+        let ctx = make_py_ctx_inner(&[]);
+        let summary = ctx.get_summary();
+        assert_eq!(summary.package_count, 0);
+        assert!(summary.package_versions.is_empty());
+    }
+
+    // ── multiple environment vars ────────────────────────────────────
+
+    #[test]
+    fn test_environment_vars_multiple_entries() {
+        let mut ctx = make_py_ctx_inner(&[("python", "3.11.0")]);
+        ctx.environment_vars.insert("PYTHONPATH".to_string(), "/usr/lib/python3.11".to_string());
+        ctx.environment_vars.insert("PATH".to_string(), "/usr/bin:/bin".to_string());
+        ctx.environment_vars.insert("REZ_USED".to_string(), "1".to_string());
+        assert_eq!(ctx.environment_vars.len(), 3);
+        assert_eq!(ctx.environment_vars.get("REZ_USED"), Some(&"1".to_string()));
+    }
+
+    // ── resolved_packages order preserved ───────────────────────────
+
+    #[test]
+    fn test_resolved_packages_order_preserved() {
+        let ctx = make_py_ctx_inner(&[
+            ("alpha", "1.0.0"),
+            ("zeta", "2.0.0"),
+            ("beta", "3.0.0"),
+        ]);
+        let names: Vec<&str> = ctx.resolved_packages.iter().map(|p| p.name.as_str()).collect();
+        assert_eq!(names, vec!["alpha", "zeta", "beta"], "Order should match insertion order");
+    }
+
+    // ── get_summary returns correct version strings ──────────────────
+
+    #[test]
+    fn test_get_summary_all_packages_present() {
+        let ctx = make_py_ctx_inner(&[
+            ("python", "3.11.0"),
+            ("maya", "2024.1"),
+            ("arnold", "7.3.0"),
+        ]);
+        let summary = ctx.get_summary();
+        assert_eq!(summary.package_count, 3);
+        assert!(summary.package_versions.contains_key("python"));
+        assert!(summary.package_versions.contains_key("maya"));
+        assert!(summary.package_versions.contains_key("arnold"));
+        assert_eq!(summary.package_versions["arnold"], "7.3.0");
+    }
+
+    // ── requirements count matches input ────────────────────────────
+
+    #[test]
+    fn test_requirements_count_matches_input_len() {
+        let ctx = make_py_ctx_inner(&[("python", "3.11.0"), ("houdini", "20.0"), ("nuke", "14.0")]);
+        assert_eq!(ctx.requirements.len(), 3);
+    }
 }

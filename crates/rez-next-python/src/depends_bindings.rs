@@ -540,4 +540,143 @@ mod depends_bindings_tests {
         assert!(output.contains("Transitive"));
         assert!(output.contains("nuke-14.0"));
     }
+
+    // ── __str__ delegates to __repr__ ────────────────────────────────
+    #[test]
+    fn test_depends_entry_str_equals_repr() {
+        let entry = PyDependsEntry {
+            name: "arnold".to_string(),
+            version: "7.0.0".to_string(),
+            requirement: "python-3.11".to_string(),
+            dependency_type: "direct".to_string(),
+        };
+        assert_eq!(entry.__str__(), entry.__repr__());
+    }
+
+    // ── total_count dedup: same package in both direct and transitive ──
+    #[test]
+    fn test_total_count_deduplicates_same_pkg_different_slots() {
+        // "maya-2024.1" appears in both direct and transitive — should count once
+        let entry = PyDependsEntry {
+            name: "maya".to_string(),
+            version: "2024.1".to_string(),
+            requirement: "python-3".to_string(),
+            dependency_type: "direct".to_string(),
+        };
+        let entry2 = PyDependsEntry {
+            name: "maya".to_string(),
+            version: "2024.1".to_string(),
+            requirement: "python-3".to_string(),
+            dependency_type: "transitive".to_string(),
+        };
+        let result = PyDependsResult {
+            queried_package: "python".to_string(),
+            direct_dependants: vec![entry],
+            transitive_dependants: vec![entry2],
+        };
+        assert_eq!(result.total_count(), 1, "Same name+version deduped to 1");
+    }
+
+    // ── total_count: only transitive ─────────────────────────────────
+    #[test]
+    fn test_total_count_only_transitive() {
+        let entry = PyDependsEntry {
+            name: "nuke".to_string(),
+            version: "14.0".to_string(),
+            requirement: "maya-2024".to_string(),
+            dependency_type: "transitive".to_string(),
+        };
+        let result = PyDependsResult {
+            queried_package: "python".to_string(),
+            direct_dependants: vec![],
+            transitive_dependants: vec![entry],
+        };
+        assert_eq!(result.total_count(), 1);
+    }
+
+    // ── all_dependants ordering: direct comes first ───────────────────
+    #[test]
+    fn test_all_dependants_direct_first() {
+        let direct = PyDependsEntry {
+            name: "maya".to_string(),
+            version: "2024.1".to_string(),
+            requirement: "python-3.9".to_string(),
+            dependency_type: "direct".to_string(),
+        };
+        let trans = PyDependsEntry {
+            name: "nuke".to_string(),
+            version: "14.0".to_string(),
+            requirement: "maya-2024".to_string(),
+            dependency_type: "transitive".to_string(),
+        };
+        let result = PyDependsResult {
+            queried_package: "python".to_string(),
+            direct_dependants: vec![direct],
+            transitive_dependants: vec![trans],
+        };
+        let all = result.all_dependants();
+        assert_eq!(all[0].dependency_type, "direct");
+        assert_eq!(all[1].dependency_type, "transitive");
+    }
+
+    // ── format: sorted output (alphabetical by name) ─────────────────
+    #[test]
+    fn test_format_sorted_alphabetically() {
+        let result = PyDependsResult {
+            queried_package: "python".to_string(),
+            direct_dependants: vec![
+                PyDependsEntry {
+                    name: "zbrush".to_string(),
+                    version: "2024.0".to_string(),
+                    requirement: "python-3".to_string(),
+                    dependency_type: "direct".to_string(),
+                },
+                PyDependsEntry {
+                    name: "arnold".to_string(),
+                    version: "7.0".to_string(),
+                    requirement: "python-3.11".to_string(),
+                    dependency_type: "direct".to_string(),
+                },
+            ],
+            transitive_dependants: vec![],
+        };
+        let output = result.format();
+        let arnold_pos = output.find("arnold").unwrap();
+        let zbrush_pos = output.find("zbrush").unwrap();
+        assert!(arnold_pos < zbrush_pos, "arnold should appear before zbrush");
+    }
+
+    // ── depends_entry repr format ────────────────────────────────────
+    #[test]
+    fn test_depends_entry_repr_format() {
+        let entry = PyDependsEntry {
+            name: "houdini".to_string(),
+            version: "20.0.506".to_string(),
+            requirement: "python-3.10+<3.12".to_string(),
+            dependency_type: "transitive".to_string(),
+        };
+        let repr = entry.__repr__();
+        assert!(repr.starts_with("DependsEntry("));
+        assert!(repr.contains("houdini-20.0.506"));
+        assert!(repr.contains("python-3.10+<3.12"));
+        assert!(repr.contains("transitive"));
+    }
+
+    // ── compute_depends with transitive=false still works ────────────
+    #[test]
+    fn test_compute_depends_transitive_false_empty_repo() {
+        let result = compute_depends("arnold", None, &[], false);
+        assert!(result.is_ok());
+        let r = result.unwrap();
+        assert!(r.transitive_dependants.is_empty(), "No transitive when flag=false");
+    }
+
+    // ── compute_depends with transitive=true still works ────────────
+    #[test]
+    fn test_compute_depends_transitive_true_empty_repo() {
+        let result = compute_depends("arnold", None, &[], true);
+        assert!(result.is_ok());
+        let r = result.unwrap();
+        assert!(r.transitive_dependants.is_empty(), "Empty repo → 0 transitive");
+    }
 }
