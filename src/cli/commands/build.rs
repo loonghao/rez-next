@@ -437,142 +437,31 @@ fn execute_build(
     Ok(())
 }
 
-/// Expand and normalize path with support for various path formats
-fn expand_path(path: &str) -> RezCoreResult<String> {
-    let expanded = if path.starts_with("~/") {
-        // Handle home directory expansion
-        expand_home_path(path)?
-    } else if path.starts_with("\\\\") {
-        // Handle UNC paths (\\server\share\path)
-        validate_unc_path(path)?
-    } else if path.len() >= 2 && path.chars().nth(1) == Some(':') {
-        // Handle Windows drive paths (C:\path, D:\path, etc.)
-        validate_drive_path(path)?
-    } else if path.starts_with('/') {
-        // Handle Unix absolute paths
-        path.to_string()
-    } else {
-        // Handle relative paths - convert to absolute
-        let current_dir = std::env::current_dir().map_err(|e| {
-            RezCoreError::ConfigError(format!("Cannot get current directory: {}", e))
-        })?;
-        current_dir.join(path).to_string_lossy().to_string()
-    };
-
-    // Normalize the path
-    let normalized = normalize_path(&expanded)?;
-    Ok(normalized)
-}
-
-/// Expand home directory paths
-fn expand_home_path(path: &str) -> RezCoreResult<String> {
-    if let Some(home) = std::env::var_os("USERPROFILE").or_else(|| std::env::var_os("HOME")) {
-        let home_path = Path::new(&home);
-        let expanded = home_path.join(&path[2..]);
-        Ok(expanded.to_string_lossy().to_string())
-    } else {
-        Err(RezCoreError::ConfigError(
-            "Cannot determine home directory".to_string(),
-        ))
-    }
-}
-
-/// Validate and normalize UNC paths
-fn validate_unc_path(path: &str) -> RezCoreResult<String> {
-    if !path.starts_with("\\\\") {
-        return Err(RezCoreError::ConfigError(
-            "Invalid UNC path format".to_string(),
-        ));
-    }
-
-    // Basic UNC path validation: \\server\share\path
-    let parts: Vec<&str> = path[2..].split('\\').collect();
-    if parts.len() < 2 || parts[0].is_empty() || parts[1].is_empty() {
-        return Err(RezCoreError::ConfigError(
-            "UNC path must be in format \\\\server\\share\\path".to_string(),
-        ));
-    }
-
-    Ok(path.to_string())
-}
-
-/// Validate and normalize Windows drive paths
-fn validate_drive_path(path: &str) -> RezCoreResult<String> {
-    if path.len() < 2 {
-        return Err(RezCoreError::ConfigError(
-            "Invalid drive path format".to_string(),
-        ));
-    }
-
-    let drive_char = path.chars().next().unwrap();
-    if !drive_char.is_ascii_alphabetic() || path.chars().nth(1) != Some(':') {
-        return Err(RezCoreError::ConfigError(
-            "Drive path must start with a letter followed by colon (e.g., C:)".to_string(),
-        ));
-    }
-
-    Ok(path.to_string())
-}
-
-/// Normalize path separators and resolve . and .. components
-fn normalize_path(path: &str) -> RezCoreResult<String> {
-    let path_buf = PathBuf::from(path);
-
-    // Use canonicalize if the path exists, otherwise just normalize
-    if path_buf.exists() {
-        match path_buf.canonicalize() {
-            Ok(canonical) => Ok(canonical.to_string_lossy().to_string()),
-            Err(_) => {
-                // If canonicalize fails, fall back to basic normalization
-                Ok(path_buf.to_string_lossy().to_string())
-            }
-        }
-    } else {
-        // For non-existent paths, do basic normalization
-        let mut components = Vec::new();
-        for component in path_buf.components() {
-            match component {
-                std::path::Component::CurDir => {
-                    // Skip "." components
-                    continue;
-                }
-                std::path::Component::ParentDir => {
-                    // Handle ".." components
-                    if !components.is_empty()
-                        && components.last() != Some(&std::path::Component::ParentDir)
-                    {
-                        components.pop();
-                    } else {
-                        components.push(component);
-                    }
-                }
-                _ => {
-                    components.push(component);
-                }
-            }
-        }
-
-        let normalized: PathBuf = components.iter().collect();
-        Ok(normalized.to_string_lossy().to_string())
-    }
-}
-
 /// Get installation path
 fn get_install_path(args: &BuildArgs) -> RezCoreResult<PathBuf> {
+    use crate::cli::utils::expand_home_path;
     use rez_next_common::config::RezCoreConfig;
 
-    let install_path_str = if let Some(ref prefix) = args.prefix {
-        prefix.clone()
+    let raw = if let Some(ref prefix) = args.prefix {
+        prefix.as_str().to_owned()
     } else {
         let config = RezCoreConfig::load();
         if args.release {
-            // Release builds go to release_packages_path
-            expand_path(&config.release_packages_path)?
+            config.release_packages_path.clone()
         } else {
-            // Local builds go to local_packages_path
-            expand_path(&config.local_packages_path)?
+            config.local_packages_path.clone()
         }
     };
 
-    Ok(PathBuf::from(install_path_str))
+    // Expand ~ and resolve relative paths
+    let expanded = expand_home_path(&raw);
+    let resolved = if expanded.is_absolute() {
+        expanded
+    } else {
+        std::env::current_dir()
+            .map_err(|e| RezCoreError::ConfigError(format!("Cannot get current directory: {e}")))?
+            .join(expanded)
+    };
+
+    Ok(resolved)
 }
