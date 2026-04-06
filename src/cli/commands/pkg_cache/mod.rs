@@ -33,7 +33,7 @@ pub async fn execute(args: PkgCacheArgs) -> RezCoreResult<()> {
     } else if !args.remove_variants.is_empty() {
         ops::remove_variants(&cache_manager, &args.remove_variants).await
     } else if args.clean {
-        ops::clean_cache(&cache_manager).await
+        ops::clean_cache(&cache_manager, &cache_dir).await
     } else if args.logs {
         ops::view_logs(&cache_dir).await
     } else {

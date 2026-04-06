@@ -14,9 +14,9 @@ mod types;
 
 pub use types::{SearchArgs, SearchResult};
 
+use crate::cli::utils::expand_home_path;
 use rez_next_common::{config::RezCoreConfig, error::RezCoreResult};
 use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
-use std::path::PathBuf;
 
 /// Execute the search command
 pub fn execute(args: SearchArgs) -> RezCoreResult<()> {
@@ -39,11 +39,12 @@ async fn search_async(args: SearchArgs) -> RezCoreResult<()> {
 
     // Add repositories
     if args.repository.is_empty() {
-        // Use default test repositories
+        // Use default repositories from RezCoreConfig.
         add_default_repositories(&mut repo_manager).await?;
     } else {
         for (i, repo_path) in args.repository.iter().enumerate() {
-            let repo = SimpleRepository::new(repo_path, format!("repo_{}", i));
+            let expanded = expand_home_path(&repo_path.to_string_lossy());
+            let repo = SimpleRepository::new(expanded, format!("repo_{}", i));
             repo_manager.add_repository(Box::new(repo));
         }
     }
@@ -69,17 +70,7 @@ async fn add_default_repositories(repo_manager: &mut RepositoryManager) -> RezCo
     let config = RezCoreConfig::load();
 
     for (i, path_str) in config.packages_path.iter().enumerate() {
-        let expanded = if path_str.starts_with("~/") || path_str == "~" {
-            if let Ok(home) = std::env::var("USERPROFILE").or_else(|_| std::env::var("HOME")) {
-                path_str.replacen("~", &home, 1)
-            } else {
-                path_str.clone()
-            }
-        } else {
-            path_str.clone()
-        };
-
-        let path = PathBuf::from(&expanded);
+        let path = expand_home_path(path_str);
         if path.exists() {
             let repo = SimpleRepository::new(&path, format!("repo_{}", i));
             repo_manager.add_repository(Box::new(repo));

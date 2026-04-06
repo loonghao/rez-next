@@ -1,5 +1,6 @@
 ﻿//! Simple file-based repository implementation
 
+use crate::REZ_PACKAGE_FILENAMES;
 use async_trait::async_trait;
 use rez_next_common::RezCoreError;
 use rez_next_package::{Package, PackageSerializer};
@@ -7,12 +8,6 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::fs;
-
-/// All package descriptor filenames recognised by rez-next.
-///
-/// Kept in sync with `high_performance_scanner::REZ_PACKAGE_FILENAMES` — both
-/// arrays reference the same canonical set.
-const PACKAGE_FILENAMES: &[&str] = &["package.py", "package.yaml", "package.yml", "package.json"];
 
 /// Simplified package repository trait for solver
 #[async_trait]
@@ -85,8 +80,8 @@ impl SimpleRepository {
 
                 if path.is_dir() {
                     // Check if this directory contains any supported package descriptor.
-                    // Priority: package.py > package.yaml > package.yml > package.json
-                    let pkg_file = PACKAGE_FILENAMES
+                    // Priority follows the canonical `REZ_PACKAGE_FILENAMES` order.
+                    let pkg_file = REZ_PACKAGE_FILENAMES
                         .iter()
                         .map(|name| path.join(name))
                         .find(|p| p.exists());

@@ -3,6 +3,7 @@
 //! Core cache operations: add, remove, clean, daemon, and view logs.
 
 use super::types::{CacheEntry, CacheStatus, PkgCacheArgs};
+use crate::cli::utils::expand_home_path;
 use rez_next_cache::{IntelligentCacheManager, UnifiedCache, UnifiedCacheConfig};
 use rez_next_common::{error::RezCoreResult, RezCoreError};
 use std::path::{Path, PathBuf};
@@ -10,7 +11,7 @@ use std::path::{Path, PathBuf};
 /// Determine the cache directory to use
 pub fn determine_cache_directory(args: &PkgCacheArgs) -> RezCoreResult<PathBuf> {
     if let Some(dir) = &args.dir {
-        return Ok(dir.clone());
+        return Ok(expand_home_path(&dir.to_string_lossy()));
     }
 
     // Read from rez configuration
@@ -19,7 +20,7 @@ pub fn determine_cache_directory(args: &PkgCacheArgs) -> RezCoreResult<PathBuf> 
 
     if let Some(cache_path) = config.package_cache_path.first() {
         if !cache_path.is_empty() {
-            return Ok(PathBuf::from(cache_path));
+            return Ok(expand_home_path(cache_path));
         }
     }
 
@@ -253,39 +254,15 @@ pub async fn remove_variants(
 /// Clean the cache (remove stale/empty directories)
 pub async fn clean_cache(
     cache_manager: &IntelligentCacheManager<String, CacheEntry>,
+    cache_dir: &Path,
 ) -> RezCoreResult<()> {
     println!("Cleaning package cache...");
 
     let stats_before = cache_manager.get_stats().await;
 
-    // Walk cache dirs and remove empty directories
-    use rez_next_common::config::RezCoreConfig;
-    let config = RezCoreConfig::load();
-    let cache_dir = if let Some(p) = config.package_cache_path.first() {
-        if !p.is_empty() {
-            std::path::PathBuf::from(p)
-        } else {
-            let home = std::env::var("USERPROFILE")
-                .or_else(|_| std::env::var("HOME"))
-                .unwrap_or_else(|_| ".".to_string());
-            std::path::PathBuf::from(home)
-                .join(".rez")
-                .join("cache")
-                .join("packages")
-        }
-    } else {
-        let home = std::env::var("USERPROFILE")
-            .or_else(|_| std::env::var("HOME"))
-            .unwrap_or_else(|_| ".".to_string());
-        std::path::PathBuf::from(home)
-            .join(".rez")
-            .join("cache")
-            .join("packages")
-    };
-
     let mut removed_dirs = 0usize;
     if cache_dir.exists() {
-        if let Ok(entries) = std::fs::read_dir(&cache_dir) {
+        if let Ok(entries) = std::fs::read_dir(cache_dir) {
             for entry in entries.flatten() {
                 let path = entry.path();
                 if path.is_dir() {
@@ -354,6 +331,23 @@ mod tests {
         let result = determine_cache_directory(&args);
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), tmp.path().to_path_buf());
+    }
+
+    #[tokio::test]
+    async fn test_clean_cache_uses_supplied_directory() {
+        let tmp = tempfile::tempdir().unwrap();
+        let empty_dir = tmp.path().join("orphan_pkg");
+        std::fs::create_dir_all(&empty_dir).unwrap();
+
+        let manager: IntelligentCacheManager<String, CacheEntry> =
+            IntelligentCacheManager::new(UnifiedCacheConfig::default());
+
+        clean_cache(&manager, tmp.path()).await.unwrap();
+
+        assert!(
+            !empty_dir.exists(),
+            "clean_cache should remove empty directories under the supplied cache dir"
+        );
     }
 
     #[tokio::test]
