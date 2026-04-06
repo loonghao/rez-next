@@ -61,6 +61,8 @@ htmlcov/
 
 # UV Python package manager
 .venv
+crates/rez-next-python/test_venv/
+
 
 # Local development
 .env

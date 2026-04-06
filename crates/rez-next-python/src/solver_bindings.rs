@@ -1,6 +1,7 @@
 //! Python bindings for the dependency Solver
 
 use crate::context_bindings::PyResolvedContext;
+use crate::package_functions::expand_home;
 use pyo3::prelude::*;
 use rez_next_solver::SolverConfig;
 use std::path::PathBuf;
@@ -28,20 +29,7 @@ impl PySolver {
                 config
                     .packages_path
                     .iter()
-                    .map(|p| {
-                        let expanded = if p.starts_with("~/") || p == "~" {
-                            if let Ok(home) =
-                                std::env::var("USERPROFILE").or_else(|_| std::env::var("HOME"))
-                            {
-                                p.replacen("~", &home, 1)
-                            } else {
-                                p.clone()
-                            }
-                        } else {
-                            p.clone()
-                        };
-                        PathBuf::from(expanded)
-                    })
+                    .map(|p| PathBuf::from(expand_home(p)))
                     .collect()
             });
 

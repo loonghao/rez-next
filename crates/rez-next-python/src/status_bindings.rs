@@ -515,6 +515,7 @@ mod status_bindings_tests {
     #[test]
     #[cfg(not(target_os = "windows"))]
     fn test_detect_shell_from_env_maps_zsh() {
+        let _lock = ENV_MUTEX.lock().unwrap();
         unsafe {
             std::env::set_var("SHELL", "/usr/bin/zsh");
         }
@@ -527,6 +528,7 @@ mod status_bindings_tests {
     #[test]
     #[cfg(not(target_os = "windows"))]
     fn test_detect_shell_from_env_maps_fish() {
+        let _lock = ENV_MUTEX.lock().unwrap();
         unsafe {
             std::env::set_var("SHELL", "/usr/local/bin/fish");
         }
