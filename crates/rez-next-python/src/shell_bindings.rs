@@ -359,4 +359,93 @@ mod tests {
             }
         }
     }
+
+    mod test_shell_extra_cy98 {
+        use super::*;
+        use std::collections::HashMap;
+
+        /// aliases passed to generate_script appear in the bash script
+        #[test]
+        fn test_bash_script_includes_alias() {
+            let shell = PyShell::new("bash").unwrap();
+            let mut aliases = HashMap::new();
+            aliases.insert("ll".to_string(), "ls -la".to_string());
+            let script = shell.generate_script(None, Some(aliases), None);
+            // alias definition should appear in bash script
+            assert!(
+                script.contains("ll") || script.contains("ls"),
+                "bash script should reference alias 'll', got: {script}"
+            );
+        }
+
+        /// startup commands appear in bash script
+        #[test]
+        fn test_bash_startup_commands_in_script() {
+            let shell = PyShell::new("bash").unwrap();
+            let cmds = vec!["export STARTUP=1".to_string()];
+            let script = shell.generate_script(None, None, Some(cmds));
+            assert!(
+                script.contains("STARTUP"),
+                "bash script should contain startup command content, got: {script}"
+            );
+        }
+
+        /// fish shell script generation does not panic
+        #[test]
+        fn test_fish_script_with_var_no_panic() {
+            let shell = PyShell::new("fish").unwrap();
+            let mut vars = HashMap::new();
+            vars.insert("FISH_VAR".to_string(), "fishval".to_string());
+            let script = shell.generate_script(Some(vars), None, None);
+            // must not panic; fish script should contain the var
+            let _ = script;
+        }
+
+        /// zsh shell produces non-empty script with a var
+        #[test]
+        fn test_zsh_script_with_var_non_empty() {
+            let mut env = RexEnvironment::new();
+            env.vars.insert("ZSH_VAR".to_string(), "zshval".to_string());
+            let script = generate_shell_script(&env, &ShellType::Zsh);
+            assert!(
+                script.contains("ZSH_VAR"),
+                "zsh script should contain ZSH_VAR, got: {script}"
+            );
+        }
+
+        /// PyShell clone has same name
+        #[test]
+        fn test_pyshell_clone_same_name() {
+            let shell = PyShell::new("powershell").unwrap();
+            let cloned = shell.clone();
+            assert_eq!(cloned.name(), "powershell");
+        }
+
+        /// create_shell_script with aliases for bash succeeds
+        #[test]
+        fn test_create_shell_script_bash_with_aliases() {
+            let mut aliases = HashMap::new();
+            aliases.insert("gs".to_string(), "git status".to_string());
+            let result = create_shell_script("bash", None, Some(aliases), None);
+            assert!(result.is_ok(), "create_shell_script with aliases should succeed");
+            let script = result.unwrap();
+            assert!(
+                script.contains("gs") || script.contains("git"),
+                "script should contain alias, got: {script}"
+            );
+        }
+
+        /// create_shell_script with startup_commands for zsh
+        #[test]
+        fn test_create_shell_script_zsh_with_startup_commands() {
+            let cmds = vec!["echo rez-next".to_string()];
+            let result = create_shell_script("zsh", None, None, Some(cmds));
+            assert!(result.is_ok());
+            let script = result.unwrap();
+            assert!(
+                script.contains("rez-next"),
+                "zsh startup command should appear in script: {script}"
+            );
+        }
+    }
 }

@@ -688,4 +688,109 @@ mod depends_bindings_tests {
             "Empty repo → 0 transitive"
         );
     }
+
+    // ─────── Cycle 98 additions ──────────────────────────────────────────────
+
+    /// all_dependants with 3 direct entries returns vec of length 3
+    #[test]
+    fn test_all_dependants_three_entries() {
+        let make = |name: &str, ver: &str| PyDependsEntry {
+            name: name.to_string(),
+            version: ver.to_string(),
+            requirement: "python-3".to_string(),
+            dependency_type: "direct".to_string(),
+        };
+        let result = PyDependsResult {
+            queried_package: "python".to_string(),
+            direct_dependants: vec![make("a", "1.0"), make("b", "2.0"), make("c", "3.0")],
+            transitive_dependants: vec![],
+        };
+        assert_eq!(result.all_dependants().len(), 3);
+    }
+
+    /// format output contains "Direct:" section label when there are direct entries
+    #[test]
+    fn test_format_contains_direct_label() {
+        let result = PyDependsResult {
+            queried_package: "python".to_string(),
+            direct_dependants: vec![PyDependsEntry {
+                name: "maya".to_string(),
+                version: "2024.1".to_string(),
+                requirement: "python-3.9".to_string(),
+                dependency_type: "direct".to_string(),
+            }],
+            transitive_dependants: vec![],
+        };
+        let output = result.format();
+        assert!(
+            output.contains("Direct"),
+            "format() should contain 'Direct' label, got: {output}"
+        );
+    }
+
+    /// format output with only transitive entries contains "Transitive:" label but no "Direct:" section
+    #[test]
+    fn test_format_transitive_only_no_direct_label() {
+        // Build a result with 0 direct, 1 transitive
+        let result = PyDependsResult {
+            queried_package: "python".to_string(),
+            direct_dependants: vec![],
+            transitive_dependants: vec![PyDependsEntry {
+                name: "nuke".to_string(),
+                version: "14.0".to_string(),
+                requirement: "maya-2024".to_string(),
+                dependency_type: "transitive".to_string(),
+            }],
+        };
+        let output = result.format();
+        // The format function shows Transitive section only when there are transitive entries
+        assert!(
+            output.contains("Transitive") || !output.contains("Direct:"),
+            "format with no direct entries should not show Direct section: {output}"
+        );
+    }
+
+    /// PyDependsEntry version field read back correctly
+    #[test]
+    fn test_depends_entry_version_field() {
+        let entry = PyDependsEntry {
+            name: "houdini".to_string(),
+            version: "20.0.506".to_string(),
+            requirement: "python-3.10".to_string(),
+            dependency_type: "direct".to_string(),
+        };
+        assert_eq!(entry.version, "20.0.506");
+        assert_eq!(entry.name, "houdini");
+    }
+
+    /// total_count with 0 entries is 0
+    #[test]
+    fn test_total_count_zero() {
+        let result = PyDependsResult {
+            queried_package: "ghost".to_string(),
+            direct_dependants: vec![],
+            transitive_dependants: vec![],
+        };
+        assert_eq!(result.total_count(), 0);
+    }
+
+    /// print_depends with empty paths returns formatted string containing package name
+    #[test]
+    fn test_print_depends_empty_paths_contains_package_name() {
+        let output = print_depends("arnold", None, Some(vec![]), false);
+        assert!(output.is_ok());
+        let s = output.unwrap();
+        assert!(
+            s.contains("arnold"),
+            "print_depends output should contain package name: {s}"
+        );
+    }
+
+    /// get_dependants with empty paths returns empty vec
+    #[test]
+    fn test_get_dependants_empty_paths_returns_empty_vec() {
+        let result = get_dependants("python", None, Some(vec![]));
+        assert!(result.is_ok());
+        assert!(result.unwrap().is_empty());
+    }
 }

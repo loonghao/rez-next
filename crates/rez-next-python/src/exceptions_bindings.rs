@@ -477,6 +477,99 @@ mod tests {
             .expect("PackageConflict must exist");
         assert_eq!(entry.1, "ResolveError");
     }
+
+    // ─────── Cycle 98 additions ──────────────────────────────────────────────
+
+    /// PackageParseError must be in the hierarchy and extend RezError
+    #[test]
+    fn test_package_parse_error_extends_rez_error() {
+        let entry = EXCEPTION_HIERARCHY
+            .iter()
+            .find(|(n, _)| *n == "PackageParseError")
+            .expect("PackageParseError must be in EXCEPTION_HIERARCHY");
+        assert_eq!(entry.1, "RezError");
+    }
+
+    /// ContextBundleError must be in the hierarchy and extend RezError
+    #[test]
+    fn test_context_bundle_error_in_hierarchy() {
+        let entry = EXCEPTION_HIERARCHY
+            .iter()
+            .find(|(n, _)| *n == "ContextBundleError")
+            .expect("ContextBundleError must be in EXCEPTION_HIERARCHY");
+        assert_eq!(entry.1, "RezError");
+    }
+
+    /// SuiteError is a leaf (nothing extends it)
+    #[test]
+    fn test_suite_error_is_leaf() {
+        let is_parent = EXCEPTION_HIERARCHY
+            .iter()
+            .any(|(_, p)| *p == "SuiteError");
+        assert!(
+            !is_parent,
+            "SuiteError should be a leaf with no children in hierarchy"
+        );
+    }
+
+    /// ResolveError has exactly 2 direct children: SolveFailure and PackageConflict
+    #[test]
+    fn test_resolve_error_has_two_children() {
+        let children: Vec<&str> = EXCEPTION_HIERARCHY
+            .iter()
+            .filter(|(_, p)| *p == "ResolveError")
+            .map(|(n, _)| *n)
+            .collect();
+        assert_eq!(
+            children.len(),
+            2,
+            "ResolveError should have exactly 2 children, got: {:?}",
+            children
+        );
+        assert!(children.contains(&"SolveFailure"));
+        assert!(children.contains(&"PackageConflict"));
+    }
+
+    /// RexError has exactly 1 direct child: RexUndefinedVariableError
+    #[test]
+    fn test_rex_error_has_one_child() {
+        let children: Vec<&str> = EXCEPTION_HIERARCHY
+            .iter()
+            .filter(|(_, p)| *p == "RexError")
+            .map(|(n, _)| *n)
+            .collect();
+        assert_eq!(
+            children.len(),
+            1,
+            "RexError should have exactly 1 child, got: {:?}",
+            children
+        );
+        assert_eq!(children[0], "RexUndefinedVariableError");
+    }
+
+    /// PackageFamilyNotFound is a leaf (nothing extends it)
+    #[test]
+    fn test_package_family_not_found_is_leaf() {
+        let is_parent = EXCEPTION_HIERARCHY
+            .iter()
+            .any(|(_, p)| *p == "PackageFamilyNotFound");
+        assert!(
+            !is_parent,
+            "PackageFamilyNotFound should be a leaf with no children"
+        );
+    }
+
+    /// ConfigurationError is a leaf
+    #[test]
+    fn test_configuration_error_is_leaf() {
+        let is_parent = EXCEPTION_HIERARCHY
+            .iter()
+            .any(|(_, p)| *p == "ConfigurationError");
+        assert!(
+            !is_parent,
+            "ConfigurationError should be a leaf with no children"
+        );
+    }
 }
 
 
