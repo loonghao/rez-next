@@ -347,7 +347,9 @@ async fn test_get_latest_from_many_versions() {
 }
 
 #[tokio::test]
-async fn test_scan_ignores_non_package_py() {
+async fn test_scan_yaml_packages_discovered() {
+    // SimpleRepository now supports all formats via PACKAGE_FILENAMES.
+    // A directory with only package.yaml should be discovered (not ignored).
     let temp_dir = TempDir::new().unwrap();
     let dir = temp_dir.path().join("yamlpkg").join("1.0.0");
     fs::create_dir_all(&dir).await.unwrap();
@@ -358,7 +360,9 @@ async fn test_scan_ignores_non_package_py() {
     let repo = SimpleRepository::new(temp_dir.path(), "repo".to_string());
     repo.scan().await.unwrap();
     let pkgs = repo.find_packages("yamlpkg").await.unwrap();
-    assert!(pkgs.is_empty());
+    // package.yaml is now discovered.
+    assert_eq!(pkgs.len(), 1, "package.yaml should be discovered by SimpleRepository");
+    assert_eq!(pkgs[0].name, "yamlpkg");
 }
 
 #[tokio::test]
@@ -624,4 +628,79 @@ async fn test_scan_package_with_tools() {
     let pkgs = repo.find_packages("toolpkg").await.unwrap();
     assert_eq!(pkgs.len(), 1);
     assert!(!pkgs[0].tools.is_empty());
+}
+
+// ── Multi-format scanning tests (CLEANUP_TODO #30) ───────────────────────────
+
+/// `SimpleRepository` must discover packages in all four supported formats.
+#[tokio::test]
+async fn test_multi_format_json_discovered() {
+    let temp_dir = TempDir::new().unwrap();
+    let dir = temp_dir.path().join("jsonpkg").join("1.0.0");
+    fs::create_dir_all(&dir).await.unwrap();
+    fs::write(
+        dir.join("package.json"),
+        r#"{"name": "jsonpkg", "version": "1.0.0"}"#,
+    )
+    .await
+    .unwrap();
+
+    let repo = SimpleRepository::new(temp_dir.path(), "repo".to_string());
+    let pkgs = repo.find_packages("jsonpkg").await.unwrap();
+    assert_eq!(pkgs.len(), 1, "package.json should be discovered");
+    assert_eq!(pkgs[0].name, "jsonpkg");
+}
+
+/// When multiple formats exist in the same directory, only one package should
+/// be created — `package.py` takes priority over `package.yaml`.
+#[tokio::test]
+async fn test_multi_format_priority_py_beats_yaml_no_duplicate() {
+    let temp_dir = TempDir::new().unwrap();
+    let dir = temp_dir.path().join("dualfmt").join("1.0.0");
+    fs::create_dir_all(&dir).await.unwrap();
+    fs::write(dir.join("package.py"), "name = 'dualfmt'\nversion = '1.0.0'\n")
+        .await
+        .unwrap();
+    fs::write(dir.join("package.yaml"), "name: dualfmt\nversion: 1.0.0\n")
+        .await
+        .unwrap();
+
+    let repo = SimpleRepository::new(temp_dir.path(), "repo".to_string());
+    let pkgs = repo.find_packages("dualfmt").await.unwrap();
+    assert_eq!(pkgs.len(), 1, "dual-format dir should yield exactly one package");
+}
+
+/// A mixed-format repository contains packages in different formats; all should
+/// be discoverable via `list_packages` and `find_packages`.
+#[tokio::test]
+async fn test_multi_format_mixed_repository_list_all() {
+    let temp_dir = TempDir::new().unwrap();
+
+    // package.py format
+    let py_dir = temp_dir.path().join("pypkg").join("1.0.0");
+    fs::create_dir_all(&py_dir).await.unwrap();
+    fs::write(py_dir.join("package.py"), "name = 'pypkg'\nversion = '1.0.0'\n")
+        .await
+        .unwrap();
+
+    // package.yaml format
+    let yaml_dir = temp_dir.path().join("yamlpkg2").join("2.0.0");
+    fs::create_dir_all(&yaml_dir).await.unwrap();
+    fs::write(yaml_dir.join("package.yaml"), "name: yamlpkg2\nversion: 2.0.0\n")
+        .await
+        .unwrap();
+
+    // package.yml format
+    let yml_dir = temp_dir.path().join("ymlpkg").join("3.0.0");
+    fs::create_dir_all(&yml_dir).await.unwrap();
+    fs::write(yml_dir.join("package.yml"), "name: ymlpkg\nversion: 3.0.0\n")
+        .await
+        .unwrap();
+
+    let repo = SimpleRepository::new(temp_dir.path(), "repo".to_string());
+    let names = repo.list_packages().await.unwrap();
+
+    assert!(names.contains(&"pypkg".to_string()), "package.py pkg missing");
+    assert!(names.contains(&"yamlpkg2".to_string()), "package.yaml pkg missing");
+    assert!(names.contains(&"ymlpkg".to_string()), "package.yml pkg missing");
 }

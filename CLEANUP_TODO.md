@@ -162,10 +162,10 @@
 - All 70 rez-next-build tests pass; Clippy: 0 warnings
 
 ### 27. Python context/source bindings still expose placeholder compatibility behavior
-- **Status**: TODO (cycle 46)
-- `context_bindings.rs` creates a fresh Tokio runtime per operation and returns synthetic `/packages/<name>/bin/<tool>` paths from `get_tools()`
-- `source_bindings.rs` still hardcodes `/tmp/rez_context.rxt` and placeholder `REZPKG_*` env vars for generated scripts
-- Follow-up: either implement real rez-compatible semantics or explicitly document the current partial-compatibility contract
+- **Status**: COMPLETE ✓ (cycles 82-83)
+- `context_bindings.rs`: introduced module-level `TOKIO_RT: OnceLock<Runtime>` (shared via `crate::runtime::get_runtime()`); `get_tools()` now uses `pkg.base` as primary path, falls back to `{name}-{version}/bin/{tool}` estimate
+- `source_bindings.rs`: `REZ_CONTEXT_FILE` now uses cross-platform `std::env::temp_dir().join("rez_context.rxt")` (Windows-safe)
+- Cycle 83b: extracted `crates/rez-next-python/src/runtime.rs` — all 14 per-call `Runtime::new()` occurrences across 8 binding files migrated to shared `get_runtime()`
 
 ### 28. `rez-next-context` test mega-file should be split by concern
 - **Status**: COMPLETE ✓ (cycle 56)

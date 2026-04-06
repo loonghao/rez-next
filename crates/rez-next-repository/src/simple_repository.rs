@@ -8,6 +8,12 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::fs;
 
+/// All package descriptor filenames recognised by rez-next.
+///
+/// Kept in sync with `high_performance_scanner::REZ_PACKAGE_FILENAMES` — both
+/// arrays reference the same canonical set.
+const PACKAGE_FILENAMES: &[&str] = &["package.py", "package.yaml", "package.yml", "package.json"];
+
 /// Simplified package repository trait for solver
 #[async_trait]
 pub trait PackageRepository {
@@ -78,10 +84,15 @@ impl SimpleRepository {
                 let path = entry.path();
 
                 if path.is_dir() {
-                    // Check if this directory contains a package.py
-                    let package_py = path.join("package.py");
-                    if package_py.exists() {
-                        if let Ok(package) = self.load_package_from_path(&package_py).await {
+                    // Check if this directory contains any supported package descriptor.
+                    // Priority: package.py > package.yaml > package.yml > package.json
+                    let pkg_file = PACKAGE_FILENAMES
+                        .iter()
+                        .map(|name| path.join(name))
+                        .find(|p| p.exists());
+
+                    if let Some(pkg_path) = pkg_file {
+                        if let Ok(package) = self.load_package_from_path(&pkg_path).await {
                             let package_name = package.name.clone();
                             cache
                                 .entry(package_name)
