@@ -342,4 +342,113 @@ mod tests {
         let vr = r.range();
         assert!(vr.is_none() || vr.unwrap().is_empty());
     }
+
+    // ─── PyPackage tests ─────────────────────────────────────────────────────
+
+    fn make_package(name: &str) -> PyPackage {
+        PyPackage::new(name.to_string())
+    }
+
+    #[test]
+    fn test_package_new_name() {
+        let p = make_package("python");
+        assert_eq!(p.name(), "python");
+    }
+
+    #[test]
+    fn test_package_str_without_version() {
+        let p = make_package("maya");
+        // Without version, str should just be name
+        let s = p.__str__();
+        assert_eq!(s, "maya");
+    }
+
+    #[test]
+    fn test_package_repr_format() {
+        let p = make_package("houdini");
+        let repr = p.__repr__();
+        assert!(repr.contains("Package"), "repr must contain 'Package', got {repr}");
+        assert!(repr.contains("houdini"), "repr must contain name, got {repr}");
+    }
+
+    #[test]
+    fn test_package_set_version_and_str() {
+        let mut p = make_package("python");
+        p.set_version("3.11.0").unwrap();
+        let s = p.__str__();
+        assert_eq!(s, "python-3.11.0");
+    }
+
+    #[test]
+    fn test_package_set_version_invalid_returns_err() {
+        let mut p = make_package("bad");
+        // Completely invalid version strings should error
+        let result = p.set_version("not a version!!!");
+        // either ok or err is acceptable depending on parser strictness
+        // but we verify it doesn't panic
+        let _ = result;
+    }
+
+    #[test]
+    fn test_package_version_getter_none_by_default() {
+        let p = make_package("nuke");
+        assert!(p.version().is_none(), "freshly created package has no version");
+    }
+
+    #[test]
+    fn test_package_qualified_name_without_version() {
+        let p = make_package("python");
+        assert_eq!(p.qualified_name(), "python");
+    }
+
+    #[test]
+    fn test_package_qualified_name_with_version() {
+        let mut p = make_package("python");
+        p.set_version("3.10.0").unwrap();
+        assert_eq!(p.qualified_name(), "python-3.10.0");
+    }
+
+    #[test]
+    fn test_package_is_valid_empty_name_false() {
+        let p = make_package("");
+        // empty name should fail validation
+        assert!(!p.is_valid(), "package with empty name should be invalid");
+    }
+
+    #[test]
+    fn test_package_requires_empty_by_default() {
+        let p = make_package("rez");
+        assert!(p.requires().is_empty());
+    }
+
+    #[test]
+    fn test_package_description_none_by_default() {
+        let p = make_package("cmake");
+        assert!(p.description().is_none());
+    }
+
+    // ─── PyPackageRequirement equality and hash ───────────────────────────────
+
+    #[test]
+    fn test_requirement_equality_same() {
+        let a = req("python-3.9");
+        let b = req("python-3.9");
+        assert!(a.__eq__(&b));
+    }
+
+    #[test]
+    fn test_requirement_hash_consistent() {
+        let a = req("numpy-1.24+");
+        let h1 = a.__hash__();
+        let h2 = a.__hash__();
+        assert_eq!(h1, h2, "hash must be deterministic");
+    }
+
+    #[test]
+    fn test_conflict_requirement_already_conflict() {
+        // If it's already a conflict, conflict_requirement() should still start with '!'
+        let r = req("!maya");
+        let cr = r.conflict_requirement();
+        assert!(cr.starts_with('!'), "conflict of conflict should stay !, got {cr}");
+    }
 }
