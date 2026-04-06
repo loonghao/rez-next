@@ -357,4 +357,140 @@ mod status_bindings_tests {
             }
         }
     }
+
+    // ── detect_current_status field coverage ──────────────────────────────────
+
+    #[test]
+    fn test_detect_active_via_context_file_env() {
+        // Use a unique key suffix to avoid collision with CI vars
+        unsafe {
+            std::env::set_var("REZ_CONTEXT_FILE", "/tmp/test_ctx90.rxt");
+        }
+        let s = detect_current_status();
+        assert!(s.is_active, "REZ_CONTEXT_FILE should make is_active=true");
+        assert_eq!(s.context_file.as_deref(), Some("/tmp/test_ctx90.rxt"));
+        unsafe {
+            std::env::remove_var("REZ_CONTEXT_FILE");
+        }
+    }
+
+    #[test]
+    fn test_detect_active_via_used_packages_env() {
+        unsafe {
+            std::env::remove_var("REZ_CONTEXT_FILE");
+            std::env::set_var("REZ_USED_PACKAGES_NAMES", "python-3.9 cmake-3.21");
+        }
+        let s = detect_current_status();
+        assert!(
+            s.is_active,
+            "REZ_USED_PACKAGES_NAMES alone should make is_active=true"
+        );
+        assert_eq!(s.resolved_packages.len(), 2);
+        assert_eq!(s.resolved_packages[0], "python-3.9");
+        assert_eq!(s.resolved_packages[1], "cmake-3.21");
+        unsafe {
+            std::env::remove_var("REZ_USED_PACKAGES_NAMES");
+        }
+    }
+
+    #[test]
+    fn test_detect_request_field() {
+        unsafe {
+            std::env::set_var("REZ_REQUEST", "python-3 maya-2024");
+        }
+        let s = detect_current_status();
+        // requested_packages should contain exactly what we set
+        assert!(
+            s.requested_packages.contains(&"python-3".to_string()),
+            "requested_packages should include python-3, got {:?}",
+            s.requested_packages
+        );
+        unsafe {
+            std::env::remove_var("REZ_REQUEST");
+        }
+    }
+
+    #[test]
+    fn test_detect_implicit_packages_field() {
+        unsafe {
+            std::env::set_var("REZ_IMPLICIT_PACKAGES", "platform-linux arch-x86_64");
+        }
+        let s = detect_current_status();
+        assert!(
+            s.implicit_packages.contains(&"platform-linux".to_string()),
+            "implicit_packages missing platform-linux, got {:?}",
+            s.implicit_packages
+        );
+        unsafe {
+            std::env::remove_var("REZ_IMPLICIT_PACKAGES");
+        }
+    }
+
+    #[test]
+    fn test_detect_context_cwd_and_version() {
+        unsafe {
+            std::env::set_var("REZ_ORIG_CWD", "/home/user/project");
+            std::env::set_var("REZ_VERSION", "3.2.1");
+        }
+        let s = detect_current_status();
+        assert_eq!(s.context_cwd.as_deref(), Some("/home/user/project"));
+        assert_eq!(s.rez_version.as_deref(), Some("3.2.1"));
+        unsafe {
+            std::env::remove_var("REZ_ORIG_CWD");
+            std::env::remove_var("REZ_VERSION");
+        }
+    }
+
+    #[test]
+    fn test_active_repr_includes_package_count() {
+        unsafe {
+            std::env::set_var("REZ_USED_PACKAGES_NAMES", "alpha-1 beta-2 gamma-3");
+        }
+        let s = detect_current_status();
+        if s.is_active {
+            let r = s.__repr__();
+            assert!(
+                r.contains("3"),
+                "repr should mention package count 3, got: {}",
+                r
+            );
+            assert!(r.contains("active"), "repr should contain 'active': {}", r);
+        }
+        unsafe {
+            std::env::remove_var("REZ_USED_PACKAGES_NAMES");
+        }
+    }
+
+    #[test]
+    fn test_get_rez_env_var_missing_returns_none() {
+        // Use a key that should never exist in CI
+        let val = get_rez_env_var("STATUS_BINDINGS_NONEXISTENT_KEY_90XYZ");
+        assert!(
+            val.is_none(),
+            "missing key should return None, got {:?}",
+            val
+        );
+    }
+
+    #[test]
+    fn test_detect_shell_from_env_maps_zsh() {
+        unsafe {
+            std::env::set_var("SHELL", "/usr/bin/zsh");
+        }
+        assert_eq!(detect_shell_from_env().as_deref(), Some("zsh"));
+        unsafe {
+            std::env::remove_var("SHELL");
+        }
+    }
+
+    #[test]
+    fn test_detect_shell_from_env_maps_fish() {
+        unsafe {
+            std::env::set_var("SHELL", "/usr/local/bin/fish");
+        }
+        assert_eq!(detect_shell_from_env().as_deref(), Some("fish"));
+        unsafe {
+            std::env::remove_var("SHELL");
+        }
+    }
 }
