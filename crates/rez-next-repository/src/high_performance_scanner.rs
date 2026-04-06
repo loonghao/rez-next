@@ -492,10 +492,26 @@ impl SIMDPatternMatcher {
     }
 }
 
-/// Predictive prefetching system
+/// Predictive prefetching system.
+///
+/// # Implementation status — PLACEHOLDER
+///
+/// All three methods currently return constant / empty values:
+/// - [`predict_directory_priority`] → always `0.5`
+/// - [`predict_file_access`] → always `[]`
+/// - [`calculate_cache_score`] → always `0.5`
+///
+/// The ML-based prediction logic is not yet implemented. Tests for this type
+/// are explicitly marked as smoke tests and only verify that the API compiles
+/// and returns values in the expected range.  When real prediction semantics
+/// are introduced the smoke tests should be replaced with contract tests.
+///
+/// [`predict_directory_priority`]: PrefetchPredictor::predict_directory_priority
+/// [`predict_file_access`]: PrefetchPredictor::predict_file_access
+/// [`calculate_cache_score`]: PrefetchPredictor::calculate_cache_score
 #[derive(Default)]
 pub struct PrefetchPredictor {
-    // Machine learning model for prediction
+    // Placeholder: no ML model state yet.
 }
 
 impl PrefetchPredictor {
@@ -503,18 +519,24 @@ impl PrefetchPredictor {
         Self {}
     }
 
+    /// Returns a priority score for the given directory path.
+    ///
+    /// **Placeholder**: always returns `0.5` until ML logic is implemented.
     pub fn predict_directory_priority(&self, _path: &Path) -> f64 {
-        // Implement ML-based directory priority prediction
         0.5
     }
 
+    /// Returns predicted access scores for the given file paths.
+    ///
+    /// **Placeholder**: always returns an empty `Vec` until ML logic is implemented.
     pub fn predict_file_access(&self, _files: &[PathBuf]) -> Vec<(PathBuf, f64)> {
-        // Implement ML-based file access prediction
         Vec::new()
     }
 
+    /// Returns a cache retention score for the given path.
+    ///
+    /// **Placeholder**: always returns `0.5` until ML logic is implemented.
     pub fn calculate_cache_score(&self, _path: &Path) -> f64 {
-        // Calculate cache retention score
         0.5
     }
 }

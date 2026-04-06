@@ -185,10 +185,13 @@
 - Added 7 contract tests: empty dir, nonexistent dir, single package, multiple families, multiple versions sorted, ignores dirs without package.py, ignores non-dir root entries, alphabetical sort
 
 ### 32. `PrefetchPredictor` tests still encode placeholder semantics instead of behavior contracts
-- **Status**: TODO (cycle 29)
-- `crates/rez-next-repository/src/high_performance_scanner.rs` still returns constant `0.5` / empty predictions from `predict_directory_priority`, `predict_file_access`, and `calculate_cache_score`
-- Current tests mostly assert range/emptiness, so they behave like smoke tests and can pass even if the predictor never becomes meaningful
-- Follow-up: either rename/document these as explicit placeholder smoke tests, or define the real predictor contract before adding more behavior-dependent assertions
+- **Status**: COMPLETE ✓ (cycle 80)
+- `PrefetchPredictor` struct now has a full doc-comment block documenting that all three methods are placeholders returning constant / empty values
+- All three `impl` methods have inline `/// **Placeholder**: ...` doc lines
+- Test module renamed from `test_prefetch_predictor` → `test_prefetch_predictor_smoke`
+- All 5 test function names updated with explicit `_smoke` suffix
+- Each test now carries a `// Placeholder:` comment explaining what the placeholder currently does
+- Follow-up: when real ML prediction is implemented, replace the smoke tests with contract tests that verify actual behavior against known inputs
 
 ### 33. `cli_e2e_tests.rs` still allows implicit skips and weak exit-code assertions
 - **Status**: COMPLETE ✓ (cycle 78)

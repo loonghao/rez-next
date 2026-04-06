@@ -240,49 +240,77 @@ mod test_simd_pattern_matcher {
     }
 }
 
-// ── PrefetchPredictor tests ──────────────────────────────────────────────────
+// ── PrefetchPredictor smoke tests ────────────────────────────────────────────
+//
+// NOTE: PrefetchPredictor is a placeholder implementation.
+// All methods return constant / empty values (0.5 / []).
+// These tests only verify that the API compiles, does not panic, and returns
+// values in the expected range.  When real prediction semantics are
+// introduced, replace these smoke tests with contract tests that check
+// actual prediction behavior against known inputs.
 
-mod test_prefetch_predictor {
+mod test_prefetch_predictor_smoke {
     use super::*;
 
     #[test]
-    fn test_predict_directory_priority_returns_value_in_range() {
+    fn predict_directory_priority_smoke_returns_value_in_range() {
+        // Placeholder: always returns 0.5 — just verify range contract holds.
         let predictor = PrefetchPredictor::new();
         let priority = predictor.predict_directory_priority(Path::new("/opt/packages/maya"));
-        assert!((0.0..=1.0).contains(&priority));
+        assert!(
+            (0.0..=1.0).contains(&priority),
+            "placeholder priority {priority} must be in [0.0, 1.0]"
+        );
     }
 
     #[test]
-    fn test_predict_file_access_empty_input_returns_empty() {
+    fn predict_file_access_smoke_empty_input_returns_empty() {
+        // Placeholder: always returns [] for empty input.
         let predictor = PrefetchPredictor::new();
         let result = predictor.predict_file_access(&[]);
-        assert!(result.is_empty());
+        assert!(result.is_empty(), "empty input must yield empty predictions");
     }
 
     #[test]
-    fn test_predict_file_access_with_files_returns_only_known_paths() {
+    fn predict_file_access_smoke_non_empty_input_returns_subset_in_range() {
+        // Placeholder: always returns [] — subset of input, scores in [0,1].
         let predictor = PrefetchPredictor::new();
         let files = vec![
             PathBuf::from("/opt/packages/maya/2024/package.yaml"),
             PathBuf::from("/opt/packages/houdini/20/package.yaml"),
         ];
         let result = predictor.predict_file_access(&files);
-        assert!(result.len() <= files.len());
-        assert!(result.iter().all(|(path, score)| {
-            files.contains(path) && (0.0..=1.0).contains(score)
-        }));
+        assert!(
+            result.len() <= files.len(),
+            "predictions must not exceed input count"
+        );
+        for (path, score) in &result {
+            assert!(
+                files.contains(path),
+                "predicted path {path:?} must be one of the input files"
+            );
+            assert!(
+                (0.0..=1.0).contains(score),
+                "prediction score {score} must be in [0.0, 1.0]"
+            );
+        }
     }
 
     #[test]
-    fn test_calculate_cache_score_returns_value_in_range() {
+    fn calculate_cache_score_smoke_returns_value_in_range() {
+        // Placeholder: always returns 0.5 — verify range contract holds.
         let predictor = PrefetchPredictor::new();
         let score =
             predictor.calculate_cache_score(Path::new("/opt/packages/maya/package.yaml"));
-        assert!((0.0..=1.0).contains(&score));
+        assert!(
+            (0.0..=1.0).contains(&score),
+            "placeholder cache score {score} must be in [0.0, 1.0]"
+        );
     }
 
     #[test]
-    fn test_default_is_same_as_new() {
+    fn default_and_new_are_equivalent_smoke() {
+        // Verify that Default and new() produce identical placeholder behavior.
         let a = PrefetchPredictor::new();
         let b = PrefetchPredictor::default();
         let dir = Path::new("/tmp");
@@ -290,12 +318,18 @@ mod test_prefetch_predictor {
 
         let a_priority = a.predict_directory_priority(dir);
         let b_priority = b.predict_directory_priority(dir);
-        assert_eq!(a_priority, b_priority);
+        assert_eq!(
+            a_priority, b_priority,
+            "new() and default() must agree on directory priority"
+        );
         assert!((0.0..=1.0).contains(&a_priority));
 
         let a_score = a.calculate_cache_score(file);
         let b_score = b.calculate_cache_score(file);
-        assert_eq!(a_score, b_score);
+        assert_eq!(
+            a_score, b_score,
+            "new() and default() must agree on cache score"
+        );
         assert!((0.0..=1.0).contains(&a_score));
     }
 }
