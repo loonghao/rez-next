@@ -125,10 +125,20 @@
 - All 125 version crate tests + full test suite (~715 tests) pass
 
 ### 23. Large mixed-responsibility files remain in CLI and build/parser modules
-- **Status**: TODO (cycle 25)
-- `src/cli/commands/bind.rs`, `crates/rez-next-build/src/systems/mod.rs`, `crates/rez-next-package/src/python_ast_parser/mod.rs`, `src/cli/commands/search_v2.rs`, and `src/cli/commands/pkg_cache.rs` are still ~500-1300 lines and mix orchestration with parsing/formatting/IO
-- `python_ast_parser.rs` has already been split into focused submodules; remaining follow-up is to keep the new `mod.rs` from regrowing mixed responsibilities
-- Follow-up: split by responsibility before adding more behavior to these files
+- **Status**: COMPLETE ✓ (cycle 84)
+- `src/cli/commands/pkg_cache.rs` (793 lines) split into `pkg_cache/` directory:
+  - `types.rs` — `PkgCacheArgs`, `PkgCacheMode`, `CacheEntry`, `CacheStatus`
+  - `ops.rs` — `add_variants`, `remove_variants`, `clean_cache`, `run_daemon`, `view_logs`, `determine_cache_directory`, `initialize_cache_manager`
+  - `display.rs` — `show_cache_status`, `show_cache_entries_table`, `scan_cache_directory`, table helpers
+  - `mod.rs` — entry point `execute()`, integration tests
+- `src/cli/commands/search_v2.rs` (718 lines) split into `search_v2/` directory:
+  - `types.rs` — `SearchArgs`, `SearchResult`
+  - `matcher.rs` — `evaluate_package_match`, `get_package_timestamp`
+  - `filter.rs` — `perform_search`, `sort_results`, `filter_latest_versions`
+  - `display.rs` — `display_search_results`, table/JSON/detailed format renderers
+  - `mod.rs` — entry point `execute()`, `search_async()`, `add_default_repositories()`
+- All files now ≤240 lines; 0 clippy warnings; all tests pass
+- Follow-up: keep `bind.rs` (~500 lines) and `systems/mod.rs` (~424 lines) from regrowing mixed responsibilities
 
 
 ### 24. CLI helper logic is still duplicated across commands
