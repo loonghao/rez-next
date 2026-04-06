@@ -562,4 +562,97 @@ mod release_tests {
         assert!(!valid, "empty dir should be invalid");
         assert!(!issues.is_empty(), "should report missing package.py/yaml");
     }
+
+    // ── New tests (Cycle 96) ─────────────────────────────────────────────────
+
+    #[test]
+    fn test_release_mode_equality() {
+        assert_eq!(ReleaseMode::Release, ReleaseMode::Release);
+        assert_ne!(ReleaseMode::Release, ReleaseMode::Local);
+        assert_ne!(ReleaseMode::Local, ReleaseMode::DryRun);
+    }
+
+    #[test]
+    fn test_release_mode_copy_semantics() {
+        let mode = ReleaseMode::DryRun;
+        let mode2 = mode; // Copy
+        assert_eq!(mode, mode2);
+    }
+
+    #[test]
+    fn test_release_manager_mode_local() {
+        let mgr = PyReleaseManager::new(Some("local"), false, false);
+        assert_eq!(mgr.mode, ReleaseMode::Local);
+    }
+
+    #[test]
+    fn test_release_result_success_flag_true() {
+        let r = PyReleaseResult {
+            success: true,
+            package_name: "pkg".to_string(),
+            version: "1.0.0".to_string(),
+            install_path: "/pkgs/pkg/1.0.0".to_string(),
+            errors: vec![],
+            warnings: vec![],
+        };
+        assert!(r.success);
+        assert!(r.errors.is_empty());
+    }
+
+    #[test]
+    fn test_release_result_success_flag_false() {
+        let r = PyReleaseResult {
+            success: false,
+            package_name: "pkg".to_string(),
+            version: "1.0.0".to_string(),
+            install_path: String::new(),
+            errors: vec!["err1".to_string()],
+            warnings: vec![],
+        };
+        assert!(!r.success);
+        assert_eq!(r.errors.len(), 1);
+    }
+
+    #[test]
+    fn test_release_result_warnings_preserved() {
+        let r = PyReleaseResult {
+            success: true,
+            package_name: "pkg".to_string(),
+            version: "1.0.0".to_string(),
+            install_path: "/pkgs/pkg/1.0.0".to_string(),
+            errors: vec![],
+            warnings: vec!["warn1".to_string(), "warn2".to_string()],
+        };
+        assert_eq!(r.warnings.len(), 2);
+        assert_eq!(r.warnings[0], "warn1");
+    }
+
+    #[test]
+    fn test_release_manager_str_contains_release_mode() {
+        let mgr = PyReleaseManager::new(Some("release"), false, false);
+        let s = mgr.__str__();
+        assert!(s.contains("Release"), "str: {s}");
+    }
+
+    #[test]
+    fn test_release_manager_str_both_flags_false() {
+        let mgr = PyReleaseManager::new(None, false, false);
+        let s = mgr.__str__();
+        assert!(s.contains("skip_build=false"), "str: {s}");
+        assert!(s.contains("skip_tests=false"), "str: {s}");
+    }
+
+    #[test]
+    fn test_release_result_failed_str_contains_errors_list() {
+        let r = PyReleaseResult {
+            success: false,
+            package_name: "brokenpkg".to_string(),
+            version: "0.1.0".to_string(),
+            install_path: String::new(),
+            errors: vec!["compilation failed".to_string()],
+            warnings: vec![],
+        };
+        let s = r.__str__();
+        assert!(s.contains("compilation failed"), "str: {s}");
+    }
 }

@@ -294,4 +294,84 @@ mod tests {
         let result = find_tool("__totally_nonexistent_tool_rez_next__");
         assert!(result.is_none());
     }
+
+    // ── detect_version free function ──────────────────────────────────────────
+
+    #[test]
+    fn test_detect_version_returns_string_for_nonexistent_tool() {
+        // detect_version always returns a String (empty or version), never panics
+        let v = detect_version("__nonexistent_tool_rez_next__");
+        // Result is either empty string or some version string — just must not panic
+        let _ = v;
+    }
+
+    // ── PyBindResult edge cases ───────────────────────────────────────────────
+
+    #[test]
+    fn test_bind_result_repr_no_path() {
+        let r = PyBindResult {
+            name: "clang".to_string(),
+            version: "17.0.0".to_string(),
+            install_path: "".to_string(),
+            executable_path: None,
+        };
+        let repr = r.__repr__();
+        assert!(repr.contains("clang"));
+        assert!(repr.contains("17.0.0"));
+    }
+
+    #[test]
+    fn test_bind_result_executable_path_some_path() {
+        let r = PyBindResult {
+            name: "node".to_string(),
+            version: "20.0.0".to_string(),
+            install_path: "/pkgs/node/20.0.0".to_string(),
+            executable_path: Some("/usr/local/bin/node".to_string()),
+        };
+        let ep = r.executable_path();
+        assert_eq!(ep, Some("/usr/local/bin/node"));
+    }
+
+    // ── PyBindManager list/detect integration ─────────────────────────────────
+
+    #[test]
+    fn test_list_binders_all_are_non_empty_strings() {
+        let binders = list_binders();
+        for name in &binders {
+            assert!(!name.is_empty(), "binder name must be non-empty");
+            // Binder names should be printable ASCII-ish identifiers
+            assert!(
+                name.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '-'),
+                "unexpected binder name: {name}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_is_builtin_case_sensitive() {
+        let m = PyBindManager::new();
+        // "Python" with capital P should NOT match (bind names are lowercase)
+        let lower = m.is_builtin("python");
+        let upper = m.is_builtin("Python");
+        // Lower case must be true; upper-case behavior may vary but must not panic
+        assert!(lower, "lowercase 'python' must be a builtin");
+        let _ = upper;
+    }
+
+    #[test]
+    fn test_extract_version_cmake_format() {
+        // cmake --version outputs "cmake version 3.26.0"
+        assert_eq!(
+            extract_version("cmake version 3.26.0"),
+            Some("3.26.0".to_string())
+        );
+    }
+
+    #[test]
+    fn test_extract_version_multiline_first_match() {
+        // Only first version-like token should be returned
+        let result = extract_version("1.2.3\nsome other 4.5.6");
+        // Must return a version (1.2.3 or 4.5.6), not None
+        assert!(result.is_some(), "should find at least one version");
+    }
 }

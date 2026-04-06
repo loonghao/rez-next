@@ -447,5 +447,44 @@ mod tests {
             assert!(!types.is_empty());
             assert!(types.contains(&"cmake".to_string()));
         }
+
+        // ── New tests (Cycle 96) ─────────────────────────────────────────────
+
+        #[test]
+        fn test_is_shell_supported_zsh() {
+            assert!(is_shell_supported("zsh"));
+        }
+
+        #[test]
+        fn test_is_shell_supported_fish() {
+            assert!(is_shell_supported("fish"));
+        }
+
+        #[test]
+        fn test_is_shell_supported_cmd_windows() {
+            assert!(is_shell_supported("cmd"), "cmd must be a supported shell");
+        }
+
+        #[test]
+        fn test_get_shell_types_count_at_least_five() {
+            let types = get_shell_types();
+            assert!(
+                types.len() >= 5,
+                "expected at least 5 shell types, got {}",
+                types.len()
+            );
+        }
+
+        #[test]
+        fn test_get_build_system_types_contains_make() {
+            let types = get_build_system_types();
+            assert!(types.contains(&"make".to_string()));
+        }
+
+        #[test]
+        fn test_get_build_system_types_contains_python_rezbuild() {
+            let types = get_build_system_types();
+            assert!(types.contains(&"python_rezbuild".to_string()));
+        }
     }
 }

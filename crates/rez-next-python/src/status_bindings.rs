@@ -283,6 +283,8 @@ mod status_bindings_tests {
 
     #[test]
     fn test_get_resolved_package_names_empty_outside() {
+        let _lock = ENV_MUTEX.lock().unwrap();
+        // Only assert when we know no other test has set the env var
         if std::env::var("REZ_USED_PACKAGES_NAMES").is_err() {
             let names = get_resolved_package_names();
             assert!(names.is_empty(), "Should be empty outside rez context");
