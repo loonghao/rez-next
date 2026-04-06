@@ -49,7 +49,7 @@ use env_bindings::{PyPackageFamily, PyRezEnv};
 use forward_bindings::PyRezForward;
 use package_bindings::{PyPackage, PyPackageRequirement};
 use pip_bindings::PyPipPackage;
-use plugins_bindings::{PyPlugin, PyRezPluginManager};
+use plugins_bindings::{PyPlugin, PyPluginType, PyRezPluginManager};
 use release_bindings::{PyReleaseManager, PyReleaseResult};
 use repository_bindings::PyRepositoryManager;
 use search_bindings::PySearchResult;
@@ -113,6 +113,7 @@ fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyShell>()?;
     m.add_class::<PyPipPackage>()?;
     m.add_class::<PyPlugin>()?;
+    m.add_class::<PyPluginType>()?;
     m.add_class::<PyRezPluginManager>()?;
     m.add_class::<PyRezEnv>()?;
     m.add_class::<PyPackageFamily>()?;
@@ -310,6 +311,7 @@ fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
     // ── Submodule: rez.plugins ────────────────────────────────────────────────
     let plugins_mod = PyModule::new(m.py(), "plugins")?;
+    plugins_mod.add_class::<plugins_bindings::PyPluginType>()?;
     plugins_mod.add_class::<PyPlugin>()?;
     plugins_mod.add_class::<PyRezPluginManager>()?;
     plugins_mod.add_function(wrap_pyfunction!(
