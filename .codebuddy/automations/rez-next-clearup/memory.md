@@ -1,6 +1,25 @@
 # rez-next cleanup 执行记录
 
+## 最新执行 (2026-04-06 21:57, 第三十二轮)
+
+### 执行摘要
+- 审查迭代 Agent 最近提交 `3f4089d` / `0aa7024` 后，继续沿着上一轮的 `cli_e2e_tests.rs` 治理项做低风险测试清理，不触碰运行时代码或依赖配置
+- 完成 2 个 cleanup 提交并已推送：`0d3da9e` 将 3 个伪 E2E / 死 fixture 场景改成真实契约测试；`105449d` 重新打开 `CLEANUP_TODO.md` 中过期的 cli-e2e 记录，并补记 `real_repo_resolve_tests.rs::test_solve_conflict_detection` 的结构性后续（commit body 含 `chore(cleanup): done`）
+- 本轮净变更为 `2 files changed, 37 insertions(+), 38 deletions(-)`；删除过期测试 **0** 个，修正弱/误导测试契约 **3** 处，修正过期治理记录 **1** 处
+
+### 验证结果
+- **定向测试**: `vx cargo test --test cli_e2e_tests --quiet` 通过（49 passed）
+- **定向 Lint**: `vx cargo clippy --test cli_e2e_tests --quiet -- -D warnings` 通过；编辑文件 `read_lints` 为 0
+- **全量门禁**: `vx cargo test --workspace --all-targets --all-features --quiet` 仍未全绿；`vx cargo test -p rez-next-python --lib --quiet` 单独通过（366 passed），`vx cargo clippy --workspace --all-targets --quiet -- -D warnings` 仍被既有 `tests/e2e_open_source_rez_packages.rs` 的 `expect_fun_call` / `useless_vec` 阻塞
+- **推送**: `auto-improve` 已推送到 `105449d`
+
+### 下一轮重点
+1. 决定是否保留 `cli_e2e_tests.rs` 的 `skip_no_bin!()` 隐式 skip，或改成 CI 预构建 + 显式前置失败
+2. 为 `tests/real_repo_resolve_tests.rs::test_solve_conflict_detection` 明确 lenient/default 契约后补可观察断言，移除 `println!` 分支
+3. 清理 `tests/e2e_open_source_rez_packages.rs` 的既有 clippy 阻塞，恢复全量 lint 绿灯
+
 ## 最新执行 (2026-04-06 05:01, 第三十一轮)
+
 
 ### 执行摘要
 - 审查迭代 Agent 最近的 split-tests 提交 `dfa5d7f`、`72430ad`、`41b84a0` 后，聚焦新拆分测试中的低风险治理，不触碰运行时代码或依赖配置
