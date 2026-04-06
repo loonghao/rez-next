@@ -404,4 +404,73 @@ mod tests {
         // Unknown shell path requires GIL and is covered in Python e2e tests.
         assert!(print_completion_script(Some("bash")).is_ok());
     }
+
+    // ── bash script command-list coverage ────────────────────────────────────
+
+    #[test]
+    fn test_bash_script_contains_build_and_release() {
+        let script = get_completion_script(Some("bash")).unwrap();
+        assert!(script.contains("build"), "bash script should list 'build'");
+        assert!(script.contains("release"), "bash script should list 'release'");
+    }
+
+    #[test]
+    fn test_bash_script_contains_bundle_and_config() {
+        let script = get_completion_script(Some("bash")).unwrap();
+        assert!(script.contains("bundle"), "bash script should list 'bundle'");
+        assert!(script.contains("config"), "bash script should list 'config'");
+    }
+
+    // ── zsh script subcommand descriptions ───────────────────────────────────
+
+    #[test]
+    fn test_zsh_script_contains_solve_description() {
+        let script = get_completion_script(Some("zsh")).unwrap();
+        assert!(
+            script.contains("solve:solve a set of package requirements"),
+            "zsh should describe 'solve'"
+        );
+    }
+
+    #[test]
+    fn test_zsh_script_contains_bind_description() {
+        let script = get_completion_script(Some("zsh")).unwrap();
+        assert!(
+            script.contains("bind:bind a system tool as a rez package"),
+            "zsh should describe 'bind'"
+        );
+    }
+
+    // ── fish script structural checks ────────────────────────────────────────
+
+    #[test]
+    fn test_fish_script_contains_needs_command_function() {
+        let script = get_completion_script(Some("fish")).unwrap();
+        assert!(
+            script.contains("function __rez_needs_command"),
+            "fish script should define __rez_needs_command"
+        );
+    }
+
+    // ── install path: pwsh alias ──────────────────────────────────────────────
+
+    #[test]
+    fn test_install_path_pwsh_alias_returns_powershell_path() {
+        let path = get_completion_install_path(Some("pwsh")).unwrap();
+        // pwsh is an alias for powershell; verify the returned path is non-empty
+        assert!(!path.is_empty(), "pwsh install path should not be empty");
+    }
+
+    // ── print_completion_script for all shells ────────────────────────────────
+
+    #[test]
+    fn test_print_completion_script_all_shells_no_panic() {
+        for shell in &["zsh", "fish", "powershell"] {
+            assert!(
+                print_completion_script(Some(shell)).is_ok(),
+                "print_completion_script({}) should not error",
+                shell
+            );
+        }
+    }
 }
