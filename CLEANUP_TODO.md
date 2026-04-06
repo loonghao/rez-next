@@ -180,10 +180,11 @@
 - Follow-up: keep documenting rez-compatible `stop()` semantics in user-facing Rex docs if new command examples are added
 
 ### 30. Repository format support has diverged between `FileSystemRepository` and `SimpleRepository`
-- **Status**: TODO (cycle 28)
-- Iteration commit `a70d978` expanded `FileSystemRepository` to load `package.py`, `package.yaml`, `package.yml`, and `package.json`
-- `SimpleRepository` still intentionally scans only `package.py`; this cycle tightened tests so the current split is explicit instead of hidden behind vacuous assertions
-- Follow-up: decide whether the divergence is intentional API surface or whether both repository implementations should share a common format matrix / scanning helper before more behavior-specific tests accumulate
+- **Status**: COMPLETE ✓ (cycle 84)
+- Iteration commit `53abfa1` updated `SimpleRepository` to scan `package.py`, `package.yaml`, `package.yml`, and `package.json` via `PACKAGE_FILENAMES`, removing the previous format-matrix split
+- `simple_repository_tests.rs` now locks the current behavior with yaml/json/yml discovery coverage plus an explicit `package.py`-beats-`package.yaml` priority assertion
+- Follow-up: keep the supported descriptor filename matrix centralized so future repository implementations do not drift again
+
 
 ### 31. `PackageBinder::list_bound_packages()` still lacks a real unit-test seam
 - **Status**: COMPLETE ✓ (cycle 79)
