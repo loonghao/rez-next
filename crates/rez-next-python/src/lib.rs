@@ -224,17 +224,20 @@ fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
     let suite_mod = PyModule::new(m.py(), "suite")?;
     suite_mod.add_class::<PySuite>()?;
     suite_mod.add_class::<PySuiteManager>()?;
+    register_submodule(m, "suite", &suite_mod)?;
 
     // ── Submodule: rez.config ─────────────────────────────────────────────────
     let config_mod = PyModule::new(m.py(), "config")?;
     config_mod.add_class::<PyConfig>()?;
     config_mod.add("config", PyConfig::new())?;
+    register_submodule(m, "config", &config_mod)?;
 
     // ── Submodule: rez.system ─────────────────────────────────────────────────
     let system_mod = PyModule::new(m.py(), "system")?;
     system_mod.add_class::<PySystem>()?;
     system_mod.add("system", PySystem::new())?;
     system_mod.add_function(wrap_pyfunction!(system_bindings::get_system, &system_mod)?)?;
+    register_submodule(m, "system", &system_mod)?;
 
     // ── Submodule: rez.vendor.version ─────────────────────────────────────────
     let vendor = PyModule::new(m.py(), "vendor")?;
