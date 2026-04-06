@@ -178,10 +178,11 @@
 - Follow-up: decide whether the divergence is intentional API surface or whether both repository implementations should share a common format matrix / scanning helper before more behavior-specific tests accumulate
 
 ### 31. `PackageBinder::list_bound_packages()` still lacks a real unit-test seam
-- **Status**: TODO (cycle 29)
-- Crate-level `PackageBinder::list_bound_packages()` still reads the config-derived install root directly, so tests cannot inject a temporary package tree without coupling to global config/home expansion
-- Cycle 29 removed a misleading smoke test that only built a temp directory structure and asserted `package.py` existed; it never called `list_bound_packages()` and therefore did not protect behavior
-- Follow-up: extract a helper that accepts an install root (or otherwise inject the root path), then add contract tests for sorted family/version listing
+- **Status**: COMPLETE ✓ (cycle 79)
+- Extracted `list_bound_packages_in(install_root: &Path)` as a public free function in `binder.rs`
+- `PackageBinder::list_bound_packages()` now delegates to it
+- Exported via `lib.rs` as `rez_next_bind::list_bound_packages_in`
+- Added 7 contract tests: empty dir, nonexistent dir, single package, multiple families, multiple versions sorted, ignores dirs without package.py, ignores non-dir root entries, alphabetical sort
 
 ### 32. `PrefetchPredictor` tests still encode placeholder semantics instead of behavior contracts
 - **Status**: TODO (cycle 29)
@@ -210,9 +211,11 @@
 - All 49 cli_e2e_tests pass; Clippy: 0 warnings
 
 ### 34. `real_repo_*` split test files still duplicate local repository helpers
-- **Status**: TODO (cycle 31)
-- `tests/real_repo_integration.rs`, `tests/real_repo_resolve_tests.rs`, and `tests/real_repo_context_tests.rs` still keep near-identical `create_package` / `make_repo` fixture builders; cycle 31 only removed the now-dead `resolve()` copy from `real_repo_integration.rs`
-- Follow-up: extract a shared `real_repo_test_helpers.rs` (or equivalent) before more repository-fixture logic drifts across the three split files
+- **Status**: COMPLETE ✓ (cycle 32)
+- Extracted shared helpers into `tests/real_repo_test_helpers.rs` (`create_package`) and `tests/real_repo_manager_helpers.rs` (`make_repo`)
+- `tests/real_repo_integration.rs`, `tests/real_repo_resolve_tests.rs`, and `tests/real_repo_context_tests.rs` now reuse the shared helpers instead of keeping near-identical local fixture builders
+- Follow-up: keep future real-repo fixture behavior centralized in these helper modules so the split integration suites do not drift again
+
 
 ### 35. Split-test migration notice shells still build as empty integration targets
 - **Status**: COMPLETE ✓ (cycle 77)

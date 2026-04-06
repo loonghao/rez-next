@@ -95,3 +95,6 @@ simple_lsp_test.ps1
 *_output.txt
 *_test.txt
 ws_*.txt
+check_c*.txt
+clippy_c*.txt
+test_c*.txt
