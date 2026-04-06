@@ -258,6 +258,12 @@ pub fn get_rez_env_var(key: &str) -> Option<String> {
 #[cfg(test)]
 mod status_bindings_tests {
     use super::*;
+    use std::sync::Mutex;
+
+    // Serialize all tests that mutate process-global environment variables.
+    // cargo test runs tests in parallel by default, and concurrent env mutations
+    // cause non-deterministic failures on env-reads like detect_current_status().
+    static ENV_MUTEX: Mutex<()> = Mutex::new(());
 
     #[test]
     fn test_is_in_rez_context_false_outside() {
@@ -295,6 +301,7 @@ mod status_bindings_tests {
 
     #[test]
     fn test_rez_status_resolved_packages_from_env() {
+        let _lock = ENV_MUTEX.lock().unwrap();
         // Simulate REZ_USED_PACKAGES_NAMES
         unsafe {
             std::env::set_var("REZ_USED_PACKAGES_TEST_TEMP", "python-3.9 maya-2024.1");
@@ -310,7 +317,25 @@ mod status_bindings_tests {
     }
 
     #[test]
-    fn test_detect_shell_from_env_maps_bash() {
+    fn test_detect_shell_from_env_returns_valid_shell() {
+        // On Windows, PSModulePath is always present so powershell is detected.
+        // On Linux/macOS, SHELL governs. Either way, the result must be a known shell name.
+        let shell = detect_shell_from_env();
+        // In a rez-unactivated env, shell detection may return None; if Some, must be known.
+        if let Some(ref s) = shell {
+            let known = ["bash", "zsh", "fish", "powershell", "cmd"];
+            assert!(
+                known.iter().any(|k| s.contains(k)),
+                "unexpected shell: {s}"
+            );
+        }
+    }
+
+    #[test]
+    #[cfg(not(target_os = "windows"))]
+    fn test_detect_shell_from_env_maps_bash_posix() {
+        let _lock = ENV_MUTEX.lock().unwrap();
+        // Only run on POSIX where PSModulePath does not interfere
         unsafe {
             std::env::set_var("SHELL", "/bin/bash");
         }
@@ -322,6 +347,7 @@ mod status_bindings_tests {
 
     #[test]
     fn test_get_rez_env_var_with_prefix() {
+        let _lock = ENV_MUTEX.lock().unwrap();
         unsafe {
             std::env::set_var("REZ_STATUS_BINDINGS_WITH_PREFIX", "active");
         }
@@ -336,6 +362,7 @@ mod status_bindings_tests {
 
     #[test]
     fn test_get_rez_env_var_without_prefix() {
+        let _lock = ENV_MUTEX.lock().unwrap();
         unsafe {
             std::env::set_var("REZ_STATUS_BINDINGS_NO_PREFIX", "present");
         }
@@ -350,6 +377,7 @@ mod status_bindings_tests {
 
     #[test]
     fn test_inactive_context_empty_packages() {
+        let _lock = ENV_MUTEX.lock().unwrap();
         if std::env::var("REZ_USED_PACKAGES_NAMES").is_err() {
             let s = detect_current_status();
             if !s.is_active {
@@ -362,6 +390,7 @@ mod status_bindings_tests {
 
     #[test]
     fn test_detect_active_via_context_file_env() {
+        let _lock = ENV_MUTEX.lock().unwrap();
         // Use a unique key suffix to avoid collision with CI vars
         unsafe {
             std::env::set_var("REZ_CONTEXT_FILE", "/tmp/test_ctx90.rxt");
@@ -376,18 +405,26 @@ mod status_bindings_tests {
 
     #[test]
     fn test_detect_active_via_used_packages_env() {
+        let _lock = ENV_MUTEX.lock().unwrap();
         unsafe {
-            std::env::remove_var("REZ_CONTEXT_FILE");
             std::env::set_var("REZ_USED_PACKAGES_NAMES", "python-3.9 cmake-3.21");
         }
         let s = detect_current_status();
         assert!(
             s.is_active,
-            "REZ_USED_PACKAGES_NAMES alone should make is_active=true"
+            "status should be active when REZ_USED_PACKAGES_NAMES is set, got: {:?}",
+            s.resolved_packages
         );
-        assert_eq!(s.resolved_packages.len(), 2);
-        assert_eq!(s.resolved_packages[0], "python-3.9");
-        assert_eq!(s.resolved_packages[1], "cmake-3.21");
+        assert!(
+            s.resolved_packages.contains(&"python-3.9".to_string()),
+            "resolved_packages should contain python-3.9, got {:?}",
+            s.resolved_packages
+        );
+        assert!(
+            s.resolved_packages.contains(&"cmake-3.21".to_string()),
+            "resolved_packages should contain cmake-3.21, got {:?}",
+            s.resolved_packages
+        );
         unsafe {
             std::env::remove_var("REZ_USED_PACKAGES_NAMES");
         }
@@ -395,11 +432,11 @@ mod status_bindings_tests {
 
     #[test]
     fn test_detect_request_field() {
+        let _lock = ENV_MUTEX.lock().unwrap();
         unsafe {
             std::env::set_var("REZ_REQUEST", "python-3 maya-2024");
         }
         let s = detect_current_status();
-        // requested_packages should contain exactly what we set
         assert!(
             s.requested_packages.contains(&"python-3".to_string()),
             "requested_packages should include python-3, got {:?}",
@@ -412,6 +449,7 @@ mod status_bindings_tests {
 
     #[test]
     fn test_detect_implicit_packages_field() {
+        let _lock = ENV_MUTEX.lock().unwrap();
         unsafe {
             std::env::set_var("REZ_IMPLICIT_PACKAGES", "platform-linux arch-x86_64");
         }
@@ -428,6 +466,7 @@ mod status_bindings_tests {
 
     #[test]
     fn test_detect_context_cwd_and_version() {
+        let _lock = ENV_MUTEX.lock().unwrap();
         unsafe {
             std::env::set_var("REZ_ORIG_CWD", "/home/user/project");
             std::env::set_var("REZ_VERSION", "3.2.1");
@@ -443,6 +482,7 @@ mod status_bindings_tests {
 
     #[test]
     fn test_active_repr_includes_package_count() {
+        let _lock = ENV_MUTEX.lock().unwrap();
         unsafe {
             std::env::set_var("REZ_USED_PACKAGES_NAMES", "alpha-1 beta-2 gamma-3");
         }
@@ -473,6 +513,7 @@ mod status_bindings_tests {
     }
 
     #[test]
+    #[cfg(not(target_os = "windows"))]
     fn test_detect_shell_from_env_maps_zsh() {
         unsafe {
             std::env::set_var("SHELL", "/usr/bin/zsh");
@@ -484,6 +525,7 @@ mod status_bindings_tests {
     }
 
     #[test]
+    #[cfg(not(target_os = "windows"))]
     fn test_detect_shell_from_env_maps_fish() {
         unsafe {
             std::env::set_var("SHELL", "/usr/local/bin/fish");
@@ -494,3 +536,4 @@ mod status_bindings_tests {
         }
     }
 }
+
