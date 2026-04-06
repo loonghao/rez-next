@@ -467,5 +467,152 @@ pub(crate) fn copy_dir_recursive(
     Ok(())
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+
+    mod test_expand_home {
+        use super::*;
+
+        #[test]
+        fn test_expand_home_no_tilde() {
+            let p = "/absolute/path";
+            assert_eq!(expand_home(p), p);
+        }
+
+        #[test]
+        fn test_expand_home_relative_no_tilde() {
+            let p = "relative/path";
+            assert_eq!(expand_home(p), p);
+        }
+
+        #[test]
+        fn test_expand_home_tilde_slash_expands() {
+            // If HOME/USERPROFILE is set, ~/foo must be expanded to <home>/foo
+            if let Ok(home) = std::env::var("USERPROFILE").or_else(|_| std::env::var("HOME")) {
+                let expanded = expand_home("~/packages");
+                assert!(
+                    expanded.starts_with(&home),
+                    "expanded '{}' should start with home '{}'",
+                    expanded,
+                    home
+                );
+                assert!(
+                    expanded.ends_with("packages") || expanded.contains("packages"),
+                    "expanded path should retain the suffix"
+                );
+            }
+        }
+
+        #[test]
+        fn test_expand_home_bare_tilde_expands() {
+            if let Ok(home) = std::env::var("USERPROFILE").or_else(|_| std::env::var("HOME")) {
+                let expanded = expand_home("~");
+                assert_eq!(expanded, home);
+            }
+        }
+
+        #[test]
+        fn test_expand_home_tilde_in_middle_is_unchanged() {
+            // Only leading ~ is handled
+            let p = "/some/~/path";
+            assert_eq!(expand_home(p), p);
+        }
+    }
+
+    mod test_copy_dir_recursive {
+        use super::*;
+
+        #[test]
+        fn test_copy_flat_directory() {
+            let tmp = std::env::temp_dir();
+            let src = tmp.join("rez_test_copy_src_flat");
+            let dest = tmp.join("rez_test_copy_dest_flat");
+
+            let _ = fs::remove_dir_all(&src);
+            let _ = fs::remove_dir_all(&dest);
+
+            fs::create_dir_all(&src).unwrap();
+            fs::write(src.join("file1.txt"), b"hello").unwrap();
+            fs::write(src.join("file2.txt"), b"world").unwrap();
+
+            copy_dir_recursive(&src, &dest).unwrap();
+
+            assert!(dest.join("file1.txt").exists());
+            assert!(dest.join("file2.txt").exists());
+            assert_eq!(fs::read(dest.join("file1.txt")).unwrap(), b"hello");
+            assert_eq!(fs::read(dest.join("file2.txt")).unwrap(), b"world");
+
+            let _ = fs::remove_dir_all(&src);
+            let _ = fs::remove_dir_all(&dest);
+        }
+
+        #[test]
+        fn test_copy_nested_directory() {
+            let tmp = std::env::temp_dir();
+            let src = tmp.join("rez_test_copy_src_nested");
+            let dest = tmp.join("rez_test_copy_dest_nested");
+
+            let _ = fs::remove_dir_all(&src);
+            let _ = fs::remove_dir_all(&dest);
+
+            let sub = src.join("subdir");
+            fs::create_dir_all(&sub).unwrap();
+            fs::write(src.join("root.txt"), b"root").unwrap();
+            fs::write(sub.join("child.txt"), b"child").unwrap();
+
+            copy_dir_recursive(&src, &dest).unwrap();
+
+            assert!(dest.join("root.txt").exists());
+            assert!(dest.join("subdir").join("child.txt").exists());
+            assert_eq!(fs::read(dest.join("subdir").join("child.txt")).unwrap(), b"child");
+
+            let _ = fs::remove_dir_all(&src);
+            let _ = fs::remove_dir_all(&dest);
+        }
+
+        #[test]
+        fn test_copy_empty_directory() {
+            let tmp = std::env::temp_dir();
+            let src = tmp.join("rez_test_copy_src_empty");
+            let dest = tmp.join("rez_test_copy_dest_empty");
+
+            let _ = fs::remove_dir_all(&src);
+            let _ = fs::remove_dir_all(&dest);
+
+            fs::create_dir_all(&src).unwrap();
+            copy_dir_recursive(&src, &dest).unwrap();
+            assert!(dest.exists());
+
+            let _ = fs::remove_dir_all(&src);
+            let _ = fs::remove_dir_all(&dest);
+        }
+
+        #[test]
+        fn test_copy_preserves_file_content() {
+            let tmp = std::env::temp_dir();
+            let src = tmp.join("rez_test_copy_src_content");
+            let dest = tmp.join("rez_test_copy_dest_content");
+
+            let _ = fs::remove_dir_all(&src);
+            let _ = fs::remove_dir_all(&dest);
+
+            fs::create_dir_all(&src).unwrap();
+            let content = b"rez-next package.py content\nversion = '1.0.0'\n";
+            fs::write(src.join("package.py"), content).unwrap();
+
+            copy_dir_recursive(&src, &dest).unwrap();
+
+            let copied = fs::read(dest.join("package.py")).unwrap();
+            assert_eq!(copied, content);
+
+            let _ = fs::remove_dir_all(&src);
+            let _ = fs::remove_dir_all(&dest);
+        }
+    }
+}
+
+
 
 

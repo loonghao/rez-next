@@ -387,6 +387,27 @@ mod tests {
     use super::*;
     use rez_next_package::Package;
 
+    // ── helpers ─────────────────────────────────────────────────────────────
+
+    fn make_pkg(name: &str, ver: &str) -> PyPackage {
+        let mut pkg = Package::new(name.to_string());
+        pkg.version = Some(rez_next_version::Version::parse(ver).unwrap());
+        PyPackage(pkg)
+    }
+
+    fn empty_rez_env(packages: Vec<String>) -> PyRezEnv {
+        PyRezEnv {
+            packages,
+            scripts: HashMap::new(),
+            env_vars: HashMap::new(),
+            success: false,
+            failure_reason: Some("test stub".to_string()),
+            resolved_packages: Vec::new(),
+        }
+    }
+
+    // ── PyPackageFamily ──────────────────────────────────────────────────────
+
     #[test]
     fn test_package_family_creates() {
         let family = PyPackageFamily::new("python".to_string());
@@ -397,13 +418,8 @@ mod tests {
     #[test]
     fn test_package_family_add_versions() {
         let mut family = PyPackageFamily::new("python".to_string());
-        let mut pkg1 = Package::new("python".to_string());
-        pkg1.version = Some(rez_next_version::Version::parse("3.9.0").unwrap());
-        let mut pkg2 = Package::new("python".to_string());
-        pkg2.version = Some(rez_next_version::Version::parse("3.11.0").unwrap());
-
-        family.add_package(PyPackage(pkg1));
-        family.add_package(PyPackage(pkg2));
+        family.add_package(make_pkg("python", "3.9.0"));
+        family.add_package(make_pkg("python", "3.11.0"));
 
         assert_eq!(family.num_versions(), 2);
         let versions = family.versions();
@@ -415,31 +431,120 @@ mod tests {
     fn test_package_family_latest_version() {
         let mut family = PyPackageFamily::new("python".to_string());
         for ver in ["3.8.0", "3.9.0", "3.10.0", "3.11.0"] {
-            let mut pkg = Package::new("python".to_string());
-            pkg.version = Some(rez_next_version::Version::parse(ver).unwrap());
-            family.add_package(PyPackage(pkg));
+            family.add_package(make_pkg("python", ver));
         }
-        // latest_version should return Some (not None) with 4 versions
         let latest = family.latest_version();
-        assert!(
-            latest.is_some(),
-            "latest_version should not be None with 4 versions"
-        );
-        // Version should be one of the added versions
+        assert!(latest.is_some(), "latest_version must not be None");
         let latest_ver = latest.unwrap().0.version.unwrap();
         let valid = ["3.8.0", "3.9.0", "3.10.0", "3.11.0"];
         assert!(
             valid.contains(&latest_ver.as_str()),
-            "latest version should be one of the added versions, got: {}",
+            "unexpected latest: {}",
             latest_ver.as_str()
         );
     }
+
+    #[test]
+    fn test_package_family_empty_latest_is_none() {
+        let family = PyPackageFamily::new("empty_pkg".to_string());
+        assert!(family.latest_version().is_none());
+    }
+
+    #[test]
+    fn test_package_family_repr() {
+        let mut family = PyPackageFamily::new("python".to_string());
+        family.add_package(make_pkg("python", "3.9.0"));
+        let repr = family.__repr__();
+        assert!(repr.contains("python"), "repr: {repr}");
+        assert!(repr.contains('1'.to_string().as_str()), "repr should show 1 version: {repr}");
+    }
+
+    #[test]
+    fn test_package_family_str() {
+        let family = PyPackageFamily::new("maya".to_string());
+        assert_eq!(family.__str__(), "maya");
+    }
+
+    #[test]
+    fn test_package_family_iter_packages() {
+        let mut family = PyPackageFamily::new("houdini".to_string());
+        family.add_package(make_pkg("houdini", "19.5"));
+        family.add_package(make_pkg("houdini", "20.0"));
+        let pkgs = family.iter_packages();
+        assert_eq!(pkgs.len(), 2);
+    }
+
+    // ── PyRezEnv (no repo required — use stub structs) ───────────────────────
 
     #[test]
     fn test_rez_env_empty_packages() {
         let env = PyRezEnv::new(vec![], None, None).unwrap();
         assert!(env.success, "empty package list should resolve successfully");
         assert!(env.packages.is_empty());
+    }
+
+    #[test]
+    fn test_rez_env_repr() {
+        let env = empty_rez_env(vec!["python-3.9".to_string()]);
+        let repr = env.__repr__();
+        assert!(repr.contains("RezEnv"), "repr: {repr}");
+        assert!(repr.contains("python-3.9"), "repr: {repr}");
+    }
+
+    #[test]
+    fn test_rez_env_get_shell_code_absent_shell() {
+        let env = empty_rez_env(vec![]);
+        // no scripts registered → None
+        assert!(env.get_shell_code("bash").is_none());
+        assert!(env.get_shell_code("powershell").is_none());
+    }
+
+    #[test]
+    fn test_rez_env_get_shell_code_present() {
+        let mut env = empty_rez_env(vec![]);
+        env.scripts.insert("bash".to_string(), "export FOO=bar\n".to_string());
+        let code = env.get_shell_code("bash");
+        assert!(code.is_some());
+        assert!(code.unwrap().contains("FOO=bar"));
+    }
+
+    #[test]
+    fn test_rez_env_available_shells_empty() {
+        let env = empty_rez_env(vec![]);
+        assert!(env.available_shells().is_empty());
+    }
+
+    #[test]
+    fn test_rez_env_available_shells_sorted() {
+        let mut env = empty_rez_env(vec![]);
+        env.scripts.insert("powershell".to_string(), "".to_string());
+        env.scripts.insert("bash".to_string(), "".to_string());
+        env.scripts.insert("fish".to_string(), "".to_string());
+        let shells = env.available_shells();
+        assert_eq!(shells, vec!["bash", "fish", "powershell"]);
+    }
+
+    #[test]
+    fn test_rez_env_write_script_missing_shell_returns_err() {
+        let tmp_file = std::env::temp_dir().join("rez_test_write_script.sh");
+        let env = empty_rez_env(vec![]);
+        let result = env.write_script(tmp_file.to_str().unwrap(), "bash");
+        assert!(result.is_err(), "write_script with missing shell should return Err");
+    }
+
+    #[test]
+    fn test_rez_env_write_script_writes_file() {
+        let tmp_file = std::env::temp_dir().join("rez_test_write_script_ok.sh");
+        let _ = std::fs::remove_file(&tmp_file);
+
+        let mut env = empty_rez_env(vec![]);
+        env.scripts.insert("bash".to_string(), "export REZ_TEST=1\n".to_string());
+
+        env.write_script(tmp_file.to_str().unwrap(), "bash").unwrap();
+        let content = std::fs::read_to_string(&tmp_file).unwrap();
+        assert!(content.contains("REZ_TEST=1"));
+
+        let _ = std::fs::remove_file(&tmp_file);
     }
 
     #[test]
@@ -455,7 +560,6 @@ mod tests {
                 "unexpected fallback script: {script}"
             );
         }
+        // Err is also acceptable (package not found) — both paths are valid
     }
-
-
 }
