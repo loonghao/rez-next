@@ -3,10 +3,10 @@
 //! Tab completion support for rez commands.
 //! Provides shell completion scripts and dynamic completion for packages, versions, etc.
 
+use crate::cli::utils::expand_home_path as expand_home;
 use clap::Args;
 use rez_next_common::{error::RezCoreResult, RezCoreConfig};
 use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
-use std::path::PathBuf;
 
 /// Arguments for the complete command
 #[derive(Args, Clone)]
@@ -216,17 +216,6 @@ fn complete_package_versions(pkg_name: &str, prefix: &str) -> RezCoreResult<()> 
         }
     }
     Ok(())
-}
-
-fn expand_home(path: &str) -> PathBuf {
-    if path.starts_with("~/") || path == "~" {
-        let home = std::env::var("USERPROFILE")
-            .or_else(|_| std::env::var("HOME"))
-            .unwrap_or_default();
-        PathBuf::from(path.replacen("~", &home, 1))
-    } else {
-        PathBuf::from(path)
-    }
 }
 
 #[cfg(test)]

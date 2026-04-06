@@ -6,12 +6,16 @@ Thank you for your interest in contributing.
 
 ### CI Pipeline (`ci.yml`)
 
-Runs on every push and pull request:
+Runs on pushes to `main` / `develop` and pull requests targeting `main`:
 
-- Formatting check (`cargo fmt --check`)
-- Linting (`cargo clippy --workspace --all-targets --all-features -- -D warnings`)
-- All workspace tests (`cargo test --workspace`)
-- Security auditing (`cargo audit`, `cargo deny`)
+- Formatting check via `vx just fmt-check`
+- CI lint via `vx just lint-ci` (`clippy --exclude rez-next-python -- -A warnings -D clippy::correctness`)
+- Docs check via `vx just doc-check`
+- Workspace tests via `vx cargo test --workspace --exclude rez-next-python` on Linux/macOS/Windows
+- CLI E2E via `vx just cli-e2e`
+- Security auditing via `rustsec/audit-check`
+- Coverage via `cargo llvm-cov`
+- Python binding tests via `maturin develop --release` + `pytest`
 
 ### Release
 

@@ -56,6 +56,14 @@ fn rez_ok(args: &[&str]) -> String {
     stdout
 }
 
+/// Returns (stdout, stderr, exit_code_option) without asserting success.
+fn rez_output(args: &[&str]) -> (String, String, Option<i32>) {
+    let out = rez(args);
+    let stdout = String::from_utf8_lossy(&out.stdout).to_string();
+    let stderr = String::from_utf8_lossy(&out.stderr).to_string();
+    (stdout, stderr, out.status.code())
+}
+
 // ── Package repo helpers ──────────────────────────────────────────────────────
 
 /// Write a minimal package.py under `<repo>/<name>/<version>/package.py`
@@ -184,14 +192,29 @@ fn test_no_args_shows_help() {
 fn test_config_show_all() {
     skip_no_bin!();
     let out = rez_ok(&["config"]);
-    assert!(!out.trim().is_empty());
+    assert!(
+        !out.trim().is_empty(),
+        "config should produce output: {out}"
+    );
+    assert!(
+        out.contains("packages_path") || out.contains("local_packages_path"),
+        "config output should include a packages_path field: {out}"
+    );
 }
 
 #[test]
 fn test_config_show_field() {
     skip_no_bin!();
     let out = rez_ok(&["config", "packages_path"]);
-    assert!(!out.trim().is_empty());
+    assert!(
+        !out.trim().is_empty(),
+        "config packages_path should produce output"
+    );
+    // The output should reflect the packages_path field name or its value
+    assert!(
+        out.contains("packages_path") || out.contains("packages") || out.contains("/"),
+        "config packages_path output should be path-related: {out}"
+    );
 }
 
 #[test]
@@ -207,8 +230,12 @@ fn test_config_json_output() {
 fn test_config_search_list() {
     skip_no_bin!();
     let out = rez_ok(&["config", "--search-list"]);
-    // May be empty if no config files installed, but should not fail
-    let _ = out;
+    // Should list config search paths (one per line); at minimum the output
+    // should mention yaml, json, or rezconfig — the standard config file names.
+    assert!(
+        out.contains("yaml") || out.contains("json") || out.contains("rezconfig"),
+        "config --search-list should mention config file search paths: {out}"
+    );
 }
 
 // ── parse-version (dev command) ───────────────────────────────────────────────
@@ -224,14 +251,20 @@ fn test_parse_version_valid() {
 fn test_parse_version_complex() {
     skip_no_bin!();
     let out = rez_ok(&["parse-version", "3.11.0-alpha1"]);
-    assert!(!out.trim().is_empty());
+    assert!(
+        out.contains("3.11.0") || out.contains("alpha"),
+        "parse-version should echo back the version components: {out}"
+    );
 }
 
 #[test]
 fn test_parse_version_single_component() {
     skip_no_bin!();
     let out = rez_ok(&["parse-version", "5"]);
-    assert!(!out.trim().is_empty());
+    assert!(
+        out.contains("5"),
+        "parse-version should include the parsed version digit: {out}"
+    );
 }
 
 // ── selftest ──────────────────────────────────────────────────────────────────
@@ -251,14 +284,18 @@ fn test_selftest_all_pass() {
 #[test]
 fn test_status_outside_context() {
     skip_no_bin!();
-    let out = rez(&["status"]);
-    // Status outside a rez context exits 0 or 1, but should not crash (no panic)
-    let stdout = String::from_utf8_lossy(&out.stdout).to_string();
-    let stderr = String::from_utf8_lossy(&out.stderr).to_string();
-    // Either prints "not in a rez context" or similar — no panic
+    let (stdout, stderr, code) = rez_output(&["status"]);
+    // Process must not be killed by signal
     assert!(
-        out.status.code().is_some(),
-        "process should not have been killed by signal: stdout={stdout} stderr={stderr}"
+        code.is_some(),
+        "status should not be killed by signal: stdout={stdout} stderr={stderr}"
+    );
+    // When no rez context is active the command should either print a "not in context"
+    // message or report an error — it must not produce empty output on both streams.
+    let combined = format!("{stdout}{stderr}");
+    assert!(
+        !combined.trim().is_empty(),
+        "status should print something (context info or error): combined={combined}"
     );
 }
 
@@ -267,16 +304,32 @@ fn test_status_outside_context() {
 #[test]
 fn test_search_empty_result() {
     skip_no_bin!();
-    // Search in a non-existent repo — should print nothing / empty, not panic
-    let out = rez(&[
+    // Search in a non-existent repo — the repo path does not exist, so the
+    // command should fail with a non-zero exit code and report an IO error.
+    let tmp = tempfile::tempdir().unwrap();
+    let nonexistent = tmp.path().join("nonexistent_xyz");
+    let (stdout, stderr, code) = rez_output(&[
         "search",
         "nonexistent_package_xyz_9999",
         "--repository",
-        "/tmp/nonexistent_repo_xyz",
+        nonexistent.to_str().unwrap(),
     ]);
+    // Must exit with a code (not signal-killed)
     assert!(
-        out.status.code().is_some(),
-        "search should not be killed by signal"
+        code.is_some(),
+        "search should not be killed by signal: stdout={stdout} stderr={stderr}"
+    );
+    // A missing repo path is an IO error → non-zero exit
+    assert_ne!(
+        code,
+        Some(0),
+        "search against nonexistent repo path should fail: stdout={stdout} stderr={stderr}"
+    );
+    // Error message should appear in stderr or stdout
+    let combined = format!("{stdout}{stderr}");
+    assert!(
+        combined.contains("Error") || combined.contains("error") || combined.contains("IO"),
+        "error output should describe the failure: combined={combined}"
     );
 }
 
@@ -317,14 +370,22 @@ fn test_search_with_latest_only() {
     skip_no_bin!();
     let tmp = tempfile::tempdir().unwrap();
     let repo = make_test_repo(tmp.path());
-    let out = rez(&[
+    let out = rez_ok(&[
         "search",
         "python",
         "--repository",
         repo.to_str().unwrap(),
         "--latest-only",
     ]);
-    assert!(out.status.code().is_some());
+    // With --latest-only the search should still find python and report exactly one result
+    assert!(
+        out.contains("python"),
+        "--latest-only search should report python: {out}"
+    );
+    assert!(
+        out.contains("Found") || out.contains("1 package"),
+        "--latest-only should report finding at least one package: {out}"
+    );
 }
 
 // ── solve ─────────────────────────────────────────────────────────────────────
@@ -332,23 +393,30 @@ fn test_search_with_latest_only() {
 #[test]
 fn test_solve_empty_request() {
     skip_no_bin!();
-    // Solving empty request should succeed (trivial)
-    let out = rez(&["solve"]);
-    assert!(out.status.code().is_some());
+    // Solving empty request should succeed and report no packages to resolve
+    let out = rez_ok(&["solve"]);
+    assert!(
+        out.contains("No packages to resolve") || out.contains("Resolution Summary"),
+        "empty solve should report no packages: {out}"
+    );
 }
 
 #[test]
 fn test_solve_package_not_in_repo() {
     skip_no_bin!();
-    // Solving a package that doesn't exist should fail gracefully (not panic)
+    // Solving a package that doesn't exist should report failed requirements, not panic
     let tmp = tempfile::tempdir().unwrap();
-    let out = rez(&[
+    let out = rez_ok(&[
         "solve",
         "nonexistent_xyz_9999",
         "--repository",
         tmp.path().to_str().unwrap(),
     ]);
-    assert!(out.status.code().is_some());
+    // Lenient solver: exits 0 but reports failed requirements
+    assert!(
+        out.contains("Failed requirements") || out.contains("nonexistent_xyz_9999"),
+        "solve should report the unresolvable requirement: {out}"
+    );
 }
 
 #[test]
@@ -356,9 +424,12 @@ fn test_solve_with_real_repo() {
     skip_no_bin!();
     let tmp = tempfile::tempdir().unwrap();
     let repo = make_test_repo(tmp.path());
-    let out = rez(&["solve", "python", "--repository", repo.to_str().unwrap()]);
-    // Either resolves successfully or fails with a message — no panic
-    assert!(out.status.code().is_some());
+    let out = rez_ok(&["solve", "python", "--repository", repo.to_str().unwrap()]);
+    // Should resolve python successfully and list it in resolved packages
+    assert!(
+        out.contains("Resolved packages") || out.contains("python"),
+        "solve python should report resolved packages: {out}"
+    );
 }
 
 // ── view ──────────────────────────────────────────────────────────────────────
@@ -366,22 +437,40 @@ fn test_solve_with_real_repo() {
 #[test]
 fn test_view_package_not_found() {
     skip_no_bin!();
-    let tmp = tempfile::tempdir().unwrap();
-    // view doesn't take --path; it uses global config; just check it doesn't panic
-    let out = rez(&["view", "nonexistent_xyz"]);
-    assert!(out.status.code().is_some());
-    let _ = tmp;
+    let (stdout, stderr, code) = rez_output(&["view", "nonexistent_xyz"]);
+    // view for a missing package should exit non-zero
+    assert_ne!(
+        code,
+        Some(0),
+        "view nonexistent package should fail: stdout={stdout} stderr={stderr}"
+    );
+    // Error message should mention the package was not found
+    let combined = format!("{stdout}{stderr}");
+    assert!(
+        combined.contains("not found") || combined.contains("Error"),
+        "view should report package not found: combined={combined}"
+    );
 }
 
 #[test]
 fn test_view_package_in_repo() {
     skip_no_bin!();
     let tmp = tempfile::tempdir().unwrap();
-    let repo = make_test_repo(tmp.path());
-    let _ = repo;
-    // view uses configured packages_path, not --path flag
-    let out = rez(&["view", "python"]);
-    assert!(out.status.code().is_some());
+    let _repo = make_test_repo(tmp.path());
+    // view uses the globally configured packages_path, not a --path flag.
+    // Without pointing to our temp repo it will likely fail with "not found",
+    // which is still a valid, well-formed error response (not a crash).
+    let (stdout, stderr, code) = rez_output(&["view", "python"]);
+    assert!(
+        code.is_some(),
+        "view should not be killed by signal: stdout={stdout} stderr={stderr}"
+    );
+    // Must produce some output — either package details or a "not found" error
+    let combined = format!("{stdout}{stderr}");
+    assert!(
+        !combined.trim().is_empty(),
+        "view should always print something: combined={combined}"
+    );
 }
 
 // ── bundle ────────────────────────────────────────────────────────────────────
@@ -428,8 +517,21 @@ fn test_bind_help() {
 fn test_depends_empty_repo() {
     skip_no_bin!();
     let tmp = tempfile::tempdir().unwrap();
-    let out = rez(&["depends", "python", "--paths", tmp.path().to_str().unwrap()]);
-    assert!(out.status.code().is_some());
+    let (stdout, stderr, code) =
+        rez_output(&["depends", "python", "--paths", tmp.path().to_str().unwrap()]);
+    // Process must not be killed by signal
+    assert!(
+        code.is_some(),
+        "depends should not be killed by signal: stdout={stdout} stderr={stderr}"
+    );
+    // Either reports "No packages depend on" (empty repo) or an error message
+    let combined = format!("{stdout}{stderr}");
+    assert!(
+        combined.contains("No packages")
+            || combined.contains("python")
+            || combined.contains("Error"),
+        "depends should produce meaningful output: combined={combined}"
+    );
 }
 
 // ── cp / mv / rm ──────────────────────────────────────────────────────────────
@@ -442,17 +544,34 @@ fn test_cp_package() {
     let dst_repo = tmp.path().join("dest_repo");
     fs::create_dir_all(&dst_repo).unwrap();
 
-    // cp takes "name-version" as source package spec
-    let out = rez(&[
+    let (stdout, stderr, code) = rez_output(&[
         "cp",
         "python-3.9.0",
         dst_repo.to_str().unwrap(),
         "--src-path",
         src_repo.to_str().unwrap(),
     ]);
-    assert!(out.status.code().is_some());
-    if out.status.success() {
-        assert!(dst_repo.join("python").join("3.9.0").exists());
+    assert!(
+        code.is_some(),
+        "cp should not be killed by signal: stdout={stdout} stderr={stderr}"
+    );
+    if code == Some(0) {
+        // On success: output should confirm the copy and the directory must exist
+        assert!(
+            stdout.contains("copied") || stdout.contains("Successfully"),
+            "cp success message should mention 'copied': {stdout}"
+        );
+        assert!(
+            dst_repo.join("python").join("3.9.0").exists(),
+            "cp should create the destination version directory"
+        );
+    } else {
+        // On failure: must at least print an error description
+        let combined = format!("{stdout}{stderr}");
+        assert!(
+            combined.contains("Error") || combined.contains("error"),
+            "cp failure should report an error: combined={combined}"
+        );
     }
 }
 
@@ -460,14 +579,19 @@ fn test_cp_package() {
 fn test_rm_nonexistent_package() {
     skip_no_bin!();
     let tmp = tempfile::tempdir().unwrap();
-    // Removing a nonexistent package should fail gracefully
-    let out = rez(&[
+    // Removing a nonexistent package: graceful — exits 0 with "not found" message
+    let out = rez_ok(&[
         "rm",
         "nonexistent_xyz",
         "--paths",
         tmp.path().to_str().unwrap(),
     ]);
-    assert!(out.status.code().is_some());
+    assert!(
+        out.contains("No packages found")
+            || out.contains("not found")
+            || out.contains("nonexistent_xyz"),
+        "rm should report that no matching package was found: {out}"
+    );
 }
 
 // ── complete ──────────────────────────────────────────────────────────────────
@@ -475,11 +599,21 @@ fn test_rm_nonexistent_package() {
 #[test]
 fn test_complete_bash_script() {
     skip_no_bin!();
-    let out = rez(&["complete", "--shell", "bash", "--print-script"]);
-    assert!(out.status.code().is_some());
-    if out.status.success() {
-        let stdout = String::from_utf8_lossy(&out.stdout).to_string();
-        assert!(!stdout.trim().is_empty());
+    let (stdout, stderr, code) = rez_output(&["complete", "--shell", "bash", "--print-script"]);
+    assert!(
+        code.is_some(),
+        "complete --print-script should not be killed by signal: stdout={stdout} stderr={stderr}"
+    );
+    if code == Some(0) {
+        // Bash completion script must define a function and reference rez subcommands
+        assert!(
+            stdout.contains("bash completion") || stdout.contains("_rez"),
+            "bash completion script should define a completion function: {stdout}"
+        );
+        assert!(
+            stdout.contains("search") || stdout.contains("solve") || stdout.contains("build"),
+            "bash completion script should list rez subcommands: {stdout}"
+        );
     }
 }
 
@@ -505,7 +639,13 @@ fn test_diff_help() {
 fn test_plugins_list() {
     skip_no_bin!();
     let out = rez_ok(&["plugins"]);
-    let _ = out; // Output may be empty if no plugins registered
+    // Output may be empty (no plugins registered), but the command must succeed
+    // and must not produce garbage / panic output.
+    // When plugins are registered, each line should be a plugin name (no NUL bytes).
+    assert!(
+        !out.contains('\0'),
+        "plugins output should not contain NUL bytes: {out}"
+    );
 }
 
 // ── suites ────────────────────────────────────────────────────────────────────
@@ -514,7 +654,14 @@ fn test_plugins_list() {
 fn test_suites_help() {
     skip_no_bin!();
     let out = rez_ok(&["suites", "--help"]);
-    assert!(!out.trim().is_empty());
+    assert!(
+        !out.trim().is_empty(),
+        "suites --help should produce output"
+    );
+    assert!(
+        out.contains("suite") || out.contains("Suite"),
+        "suites --help should mention 'suite': {out}"
+    );
 }
 
 // ── pkg-cache ─────────────────────────────────────────────────────────────────
@@ -523,7 +670,14 @@ fn test_suites_help() {
 fn test_pkg_cache_help() {
     skip_no_bin!();
     let out = rez_ok(&["pkg-cache", "--help"]);
-    assert!(!out.trim().is_empty());
+    assert!(
+        !out.trim().is_empty(),
+        "pkg-cache --help should produce output"
+    );
+    assert!(
+        out.contains("cache") || out.contains("Cache"),
+        "pkg-cache --help should mention 'cache': {out}"
+    );
 }
 
 // ── pip ───────────────────────────────────────────────────────────────────────
@@ -532,7 +686,11 @@ fn test_pkg_cache_help() {
 fn test_pip_help() {
     skip_no_bin!();
     let out = rez_ok(&["pip", "--help"]);
-    assert!(!out.trim().is_empty());
+    assert!(!out.trim().is_empty(), "pip --help should produce output");
+    assert!(
+        out.contains("pip") || out.contains("install") || out.contains("package"),
+        "pip --help should mention pip-related terms: {out}"
+    );
 }
 
 // ── info flag ─────────────────────────────────────────────────────────────────
@@ -576,13 +734,30 @@ fn test_full_workflow_search_and_view() {
         "search should mention python"
     );
 
-    // 2. View python package
-    let view_out = rez(&["view", "python", "--path", repo_str]);
-    assert!(view_out.status.code().is_some());
+    // 2. View python package (uses global config — may not find it, but must not crash)
+    let (view_stdout, view_stderr, view_code) = rez_output(&["view", "python", "--path", repo_str]);
+    assert!(
+        view_code.is_some(),
+        "view should exit with a code, not be killed by signal: stdout={view_stdout} stderr={view_stderr}"
+    );
+    let view_combined = format!("{view_stdout}{view_stderr}");
+    assert!(
+        !view_combined.trim().is_empty(),
+        "view should produce some output: combined={view_combined}"
+    );
 
-    // 3. Solve python requirement
-    let solve_out = rez(&["solve", "python", "--path", repo_str]);
-    assert!(solve_out.status.code().is_some());
+    // 3. Solve python requirement (uses --repository to point at our temp repo)
+    let (solve_stdout, solve_stderr, solve_code) =
+        rez_output(&["solve", "python", "--repository", repo_str]);
+    assert!(
+        solve_code.is_some(),
+        "solve should exit with a code: stdout={solve_stdout} stderr={solve_stderr}"
+    );
+    let solve_combined = format!("{solve_stdout}{solve_stderr}");
+    assert!(
+        solve_combined.contains("python") || solve_combined.contains("Resolution"),
+        "solve output should mention python or resolution: combined={solve_combined}"
+    );
 }
 
 #[test]
@@ -681,10 +856,16 @@ fn test_build_extra_args_separator_accepted() {
     // Pass extra build args via "--"; the binary should not crash on unknown
     // downstream flags — it may fail because there's nothing to build, but the
     // crash-free handling of the "--" separator is what we're testing.
-    let out = rez(&["build", "--", "--dry-run", "--verbose"]);
+    let (stdout, stderr, code) = rez_output(&["build", "--", "--dry-run", "--verbose"]);
     assert!(
-        out.status.code().is_some(),
-        "build with -- extra args should exit with a code, not be killed by signal"
+        code.is_some(),
+        "build with -- extra args should exit with a code, not be killed by signal: stdout={stdout} stderr={stderr}"
+    );
+    // The command should not produce empty output — either build progress or an error
+    let combined = format!("{stdout}{stderr}");
+    assert!(
+        !combined.trim().is_empty(),
+        "build should produce some output when given -- extra args: combined={combined}"
     );
 }
 
@@ -698,9 +879,24 @@ fn test_build_without_package_py() {
         .current_dir(tmp.path())
         .output()
         .unwrap();
+    let stdout = String::from_utf8_lossy(&out.stdout).to_string();
+    let stderr = String::from_utf8_lossy(&out.stderr).to_string();
     assert!(
         out.status.code().is_some(),
         "build in empty dir should exit with a code, not crash"
+    );
+    // Must fail (no package.py to build) and report a meaningful error
+    assert_ne!(
+        out.status.code(),
+        Some(0),
+        "build in dir without package.py should fail: stdout={stdout} stderr={stderr}"
+    );
+    let combined = format!("{stdout}{stderr}");
+    assert!(
+        combined.contains("package")
+            || combined.contains("Error")
+            || combined.contains("not found"),
+        "build failure should mention package.py or an error: combined={combined}"
     );
 }
 
@@ -710,11 +906,15 @@ fn test_build_without_package_py() {
 fn test_pkg_cache_status_empty_dir() {
     skip_no_bin!();
     let tmp = tempfile::tempdir().unwrap();
-    // Point pkg-cache at an empty directory — should not panic
-    let out = rez(&["pkg-cache", tmp.path().to_str().unwrap()]);
+    // Point pkg-cache at an empty directory — should print cache status summary
+    let out = rez_ok(&["pkg-cache", tmp.path().to_str().unwrap()]);
     assert!(
-        out.status.code().is_some(),
-        "pkg-cache with empty dir should exit with a code"
+        out.contains("Cache") || out.contains("cache"),
+        "pkg-cache status should include 'Cache' in output: {out}"
+    );
+    assert!(
+        out.contains("entries") || out.contains("No cached"),
+        "pkg-cache status should report entry count or empty cache: {out}"
     );
 }
 
@@ -722,10 +922,15 @@ fn test_pkg_cache_status_empty_dir() {
 fn test_pkg_cache_clean_empty_dir() {
     skip_no_bin!();
     let tmp = tempfile::tempdir().unwrap();
-    let out = rez(&["pkg-cache", tmp.path().to_str().unwrap(), "--clean"]);
+    let out = rez_ok(&["pkg-cache", tmp.path().to_str().unwrap(), "--clean"]);
     assert!(
-        out.status.code().is_some(),
-        "pkg-cache --clean on empty dir should not crash"
+        out.contains("cleaning") || out.contains("Cleaning") || out.contains("completed"),
+        "pkg-cache --clean should report cleaning activity: {out}"
+    );
+    // After cleaning an empty cache, entry counts should be zero
+    assert!(
+        out.contains("0"),
+        "pkg-cache --clean on empty dir should report 0 entries: {out}"
     );
 }
 

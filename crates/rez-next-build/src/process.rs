@@ -34,7 +34,7 @@ pub struct BuildProcess {
 }
 
 /// Build step enumeration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum BuildStep {
     /// Preparing build environment
     Preparing,

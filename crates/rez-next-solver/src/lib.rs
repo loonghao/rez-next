@@ -13,7 +13,11 @@ pub mod conflict;
 pub mod dependency_resolver;
 mod graph;
 pub mod resolution;
+pub(crate) mod resolution_state;
 mod solver;
+
+#[cfg(test)]
+mod dependency_resolver_tests;
 
 pub use astar::astar_search::{AStarSearch, SearchStats};
 pub use astar::heuristics::{

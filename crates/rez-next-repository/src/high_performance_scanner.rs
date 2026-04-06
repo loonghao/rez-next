@@ -7,6 +7,7 @@
 //! - Advanced caching with LRU eviction
 //! - Predictive prefetching
 
+use crate::scanner_types::REZ_PACKAGE_FILENAMES;
 use crate::{PackageScanResult, ScanPerformanceMetrics, ScanResult};
 use dashmap::DashMap;
 use lru::LruCache;
@@ -258,7 +259,6 @@ impl HighPerformanceScanner {
         package_files: &[PathBuf],
     ) -> Result<Vec<PackageScanResult>, RezCoreError> {
         let semaphore = Arc::new(Semaphore::new(self.config.max_concurrency));
-        let _results = Arc::new(DashMap::<PathBuf, PackageScanResult>::new());
 
         if self.config.enable_work_stealing && package_files.len() > 1000 {
             // Use Rayon for work-stealing parallelism on large datasets
@@ -466,13 +466,17 @@ impl SIMDPatternMatcher {
         Self {}
     }
 
+    /// Returns `true` only for recognised rez package definition filenames
+    /// (`package.py`, `package.yaml`, `package.yml`, `package.json`).
+    ///
+    /// Uses the shared `REZ_PACKAGE_FILENAMES` constant for an O(n) linear
+    /// scan over the small slice (4 entries), which is branch-predictor-friendly
+    /// and avoids any heap allocation.
     pub fn matches_package_pattern(&self, path: &Path) -> bool {
-        // SIMD-optimized pattern matching
-        if let Some(filename) = path.file_name().and_then(|n| n.to_str()) {
-            filename.ends_with(".py") || filename.ends_with(".yaml") || filename.ends_with(".json")
-        } else {
-            false
-        }
+        path.file_name()
+            .and_then(|n| n.to_str())
+            .map(|name| REZ_PACKAGE_FILENAMES.contains(&name))
+            .unwrap_or(false)
     }
 
     pub fn is_json_simd(&self, content: &str) -> bool {
@@ -488,10 +492,26 @@ impl SIMDPatternMatcher {
     }
 }
 
-/// Predictive prefetching system
+/// Predictive prefetching system.
+///
+/// # Implementation status — PLACEHOLDER
+///
+/// All three methods currently return constant / empty values:
+/// - [`predict_directory_priority`] → always `0.5`
+/// - [`predict_file_access`] → always `[]`
+/// - [`calculate_cache_score`] → always `0.5`
+///
+/// The ML-based prediction logic is not yet implemented. Tests for this type
+/// are explicitly marked as smoke tests and only verify that the API compiles
+/// and returns values in the expected range.  When real prediction semantics
+/// are introduced the smoke tests should be replaced with contract tests.
+///
+/// [`predict_directory_priority`]: PrefetchPredictor::predict_directory_priority
+/// [`predict_file_access`]: PrefetchPredictor::predict_file_access
+/// [`calculate_cache_score`]: PrefetchPredictor::calculate_cache_score
 #[derive(Default)]
 pub struct PrefetchPredictor {
-    // Machine learning model for prediction
+    // Placeholder: no ML model state yet.
 }
 
 impl PrefetchPredictor {
@@ -499,18 +519,24 @@ impl PrefetchPredictor {
         Self {}
     }
 
+    /// Returns a priority score for the given directory path.
+    ///
+    /// **Placeholder**: always returns `0.5` until ML logic is implemented.
     pub fn predict_directory_priority(&self, _path: &Path) -> f64 {
-        // Implement ML-based directory priority prediction
         0.5
     }
 
+    /// Returns predicted access scores for the given file paths.
+    ///
+    /// **Placeholder**: always returns an empty `Vec` until ML logic is implemented.
     pub fn predict_file_access(&self, _files: &[PathBuf]) -> Vec<(PathBuf, f64)> {
-        // Implement ML-based file access prediction
         Vec::new()
     }
 
+    /// Returns a cache retention score for the given path.
+    ///
+    /// **Placeholder**: always returns `0.5` until ML logic is implemented.
     pub fn calculate_cache_score(&self, _path: &Path) -> f64 {
-        // Calculate cache retention score
         0.5
     }
 }
@@ -526,3 +552,7 @@ pub struct PerformanceStats {
     pub total_scan_time: u64,
     pub cache_size: usize,
 }
+
+#[cfg(test)]
+#[path = "high_performance_scanner_tests.rs"]
+mod tests;

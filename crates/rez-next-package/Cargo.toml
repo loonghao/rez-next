@@ -16,8 +16,7 @@ exclude = ["tests/fixtures/", "examples/"]
 [dependencies]
 rez-next-common = { version = "0.3.0", path = "../rez-next-common", default-features = false }
 rez-next-version = { version = "0.3.0", path = "../rez-next-version", default-features = false }
-# Temporarily disabled Python bindings
-# pyo3 = { workspace = true, optional = true }
+
 serde.workspace = true
 serde_json.workspace = true
 serde_yaml.workspace = true
@@ -28,16 +27,9 @@ rustpython-parser = "0.4"
 rustpython-ast = "0.4"
 flate2 = "1.0"
 chrono = { version = "0.4", features = ["serde"] }
-bincode = "3.0"
+bincode = { version = "2.0", features = ["serde"] }
 base64 = "0.22"
 toml = "1.0"
-
-
-[dev-dependencies]
-rstest.workspace = true
-proptest.workspace = true
-pretty_assertions.workspace = true
-assert_matches.workspace = true
 
 [lib]
 name = "rez_next_package"

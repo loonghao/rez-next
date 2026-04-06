@@ -1,7 +1,7 @@
 # Rust
 */target/
 target/
-# Note: Cargo.lock is tracked for reproducible binary builds (cargo build --locked)
+# Note: Cargo.lock is currently not tracked in this repository; update this note if the release policy changes.
 
 # IDE
 .vscode/
@@ -94,3 +94,11 @@ simple_lsp_test.ps1
 # Temporary test/debug output files
 *_output.txt
 *_test.txt
+/build_*.txt
+/clippy*.txt
+/test_*.txt
+ws_*.txt
+check_c*.txt
+clippy_c*.txt
+test_c*.txt
+

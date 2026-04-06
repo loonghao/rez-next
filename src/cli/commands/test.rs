@@ -7,6 +7,7 @@
 //! - Real test command execution
 //! - Result reporting and filtering
 
+use crate::cli::utils::expand_home_path;
 use clap::Args;
 use rez_next_common::{config::RezCoreConfig, error::RezCoreResult, RezCoreError};
 use rez_next_package::serialization::PackageSerializer;
@@ -169,8 +170,7 @@ impl PackageTestRunner {
         // If not found in working_dir, try to find by name in configured paths
         let config = RezCoreConfig::load();
         for search_path in &config.packages_path {
-            let expanded = expand_home_path(search_path);
-            let pkg_path = PathBuf::from(&expanded).join(package_spec);
+            let pkg_path = expand_home_path(search_path).join(package_spec);
             if pkg_path.exists() {
                 // Look for latest version
                 if let Ok(entries) = std::fs::read_dir(&pkg_path) {
@@ -465,18 +465,6 @@ impl PackageTestRunner {
         } else if total > 0 {
             println!("\nAll tests passed!");
         }
-    }
-}
-
-/// Expand ~ in path strings
-fn expand_home_path(path: &str) -> String {
-    if path.starts_with("~/") || path == "~" {
-        let home = std::env::var("USERPROFILE")
-            .or_else(|_| std::env::var("HOME"))
-            .unwrap_or_else(|_| ".".to_string());
-        path.replacen("~", &home, 1)
-    } else {
-        path.to_string()
     }
 }
 

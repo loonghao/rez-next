@@ -16,6 +16,8 @@ use serde_json;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use crate::cli::utils::split_package_paths;
+
 /// Arguments for the bundle command
 #[derive(Args, Clone)]
 pub struct BundleArgs {
@@ -329,10 +331,7 @@ fn resolve_context(
 /// Get package search paths from args or config
 fn get_search_paths(args: &BundleArgs, config: &RezCoreConfig) -> Vec<PathBuf> {
     if let Some(ref paths_str) = args.paths {
-        paths_str
-            .split(std::path::MAIN_SEPARATOR)
-            .map(PathBuf::from)
-            .collect()
+        split_package_paths(paths_str)
     } else {
         config
             .packages_path

@@ -30,11 +30,7 @@ smallvec = "1.15"
 once_cell = "1.21"
 
 [dev-dependencies]
-rstest.workspace = true
-proptest.workspace = true
 tempfile.workspace = true
-pretty_assertions.workspace = true
-assert_matches.workspace = true
 
 [lints]
 workspace = true

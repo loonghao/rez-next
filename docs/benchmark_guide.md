@@ -2,31 +2,35 @@
 
 ## Overview
 
-This guide covers the benchmark suite for rez-next.
+This guide covers the Criterion benchmark targets registered in `rez-next`.
 
-## Enabled benchmarks
+## Registered benchmarks
 
-Three benchmarks are registered in `Cargo.toml`:
+There are currently **11** benchmark targets registered in the root `Cargo.toml`.
+The up-to-date file list is maintained in `benches/README.md`.
 
-| File | What it measures |
-|------|------------------|
-| `version_benchmark.rs` | Version parsing, comparison, sorting, state-machine parser |
-| `package_benchmark.rs` | Package creation, serialization, deserialization, validation, variants |
-| `simple_package_benchmark.rs` | Standalone package benchmarks |
-
-Several other benchmark files exist in `benches/` but are disabled due to API changes in dependent crates. They will be re-enabled as APIs stabilize.
+| Category | Bench targets |
+|----------|---------------|
+| Core version/package | `version_benchmark`, `package_benchmark`, `simple_package_benchmark` |
+| Solver | `solver_real_repo_bench`, `solver_bench_v2` |
+| Runtime and tooling | `rex_benchmark`, `pip_conversion_benchmark` |
+| Context / dependency / cache | `context_operations_benchmark`, `depends_benchmark`, `cache_operations_benchmark` |
+| Comparative | `rez_vs_reznext_benchmark` |
 
 ## Running
 
 ```bash
-# All enabled benchmarks
+# All registered benchmarks
+vx cargo bench
+
+# Curated fast subset used in local development
 vx just bench
 
-# Individual
+# Individual targets
 vx cargo bench --bench version_benchmark
-vx cargo bench --bench package_benchmark
+vx cargo bench --bench solver_bench_v2
 
-# Filter
+# Filter within a target
 vx cargo bench --bench version_benchmark -- state_machine
 ```
 
@@ -40,9 +44,9 @@ version_parsing         time:   [9.088 us  9.120 us  9.157 us]
                         No change in performance detected.
 ```
 
-- `time:` 95% confidence interval [lower  mean  upper]
-- `change:` relative to previous run
-- `p-value < 0.05` = statistically significant
+- `time:` 95% confidence interval `[lower  mean  upper]`
+- `change:` relative to the previous run
+- `p-value < 0.05` means the change is statistically significant
 
 ## Adding benchmarks
 
@@ -59,7 +63,7 @@ criterion_group!(benches, my_benchmark);
 criterion_main!(benches);
 ```
 
-Register in root `Cargo.toml`:
+Register the target in the root `Cargo.toml`:
 
 ```toml
 [[bench]]
@@ -70,8 +74,10 @@ harness = false
 ## Regression detection
 
 ```bash
+# Save a baseline
 vx cargo bench -- --save-baseline main
-# after changes:
+
+# Compare after changes
 vx cargo bench -- --baseline main
 ```
 

@@ -8,6 +8,7 @@ use crate::{
     UnifiedCacheConfig, UnifiedCacheStats,
 };
 use dashmap::DashMap;
+use tracing::warn;
 
 use async_trait::async_trait;
 use std::{
@@ -388,7 +389,7 @@ where
                         drop(l2_cache);
 
                         if let Err(e) = self.promote_to_l1(key.clone(), promoted_entry).await {
-                            eprintln!("Failed to promote to L1: {:?}", e);
+                            warn!("Failed to promote to L1: {:?}", e);
                         }
                     }
 

@@ -8,7 +8,7 @@ use rez_next_search::{PackageSearcher, SearchFilter, SearchOptions, SearchResult
 use std::path::PathBuf;
 
 /// Python wrapper for a single search result
-#[pyclass(name = "SearchResult")]
+#[pyclass(name = "SearchResult", from_py_object)]
 #[derive(Debug, Clone)]
 pub struct PySearchResult {
     inner: SearchResult,
@@ -79,7 +79,7 @@ impl PyPackageSearcher {
     }
 
     /// Run the search and return a list of SearchResult objects
-    fn search(&self, py: Python) -> PyResult<PyObject> {
+    fn search(&self, py: Python) -> PyResult<Py<PyAny>> {
         let scope = match self.scope.as_str() {
             "latest" => SearchScope::LatestOnly,
             "packages" => SearchScope::Packages,
@@ -112,7 +112,7 @@ impl PyPackageSearcher {
             let py_result = PySearchResult { inner: r };
             list.append(py_result.into_pyobject(py)?)?;
         }
-        Ok(list.into())
+        Ok(list.into_any().unbind())
     }
 
     fn __repr__(&self) -> String {
@@ -144,7 +144,7 @@ pub fn search_packages(
     scope: &str,
     version_range: Option<String>,
     limit: usize,
-) -> PyResult<PyObject> {
+) -> PyResult<Py<PyAny>> {
     let searcher = PyPackageSearcher::new(pattern, paths, scope, version_range, limit);
     searcher.search(py)
 }
@@ -178,7 +178,7 @@ pub fn search_latest_packages(
     pattern: &str,
     paths: Option<Vec<String>>,
     version_range: Option<String>,
-) -> PyResult<PyObject> {
+) -> PyResult<Py<PyAny>> {
     let mut filter = SearchFilter::new(pattern);
     if let Some(ref range) = version_range {
         filter = filter.with_version_range(range.clone());
@@ -197,5 +197,349 @@ pub fn search_latest_packages(
         let py_result = PySearchResult { inner: r };
         list.append(py_result.into_pyobject(py)?)?;
     }
-    Ok(list.into())
+    Ok(list.into_any().unbind())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rez_next_search::{FilterMode, SearchResult, SearchResultSet};
+
+    // ── PySearchResult pure-logic tests ──────────────────────────────────────
+
+    #[test]
+    fn test_search_result_getters() {
+        let inner = SearchResult::new(
+            "python".to_string(),
+            vec!["3.9.0".to_string(), "3.11.4".to_string()],
+            "/pkgs".to_string(),
+        );
+        let r = PySearchResult { inner };
+        assert_eq!(r.name(), "python");
+        assert_eq!(r.versions(), vec!["3.9.0", "3.11.4"]);
+        assert_eq!(r.repo_path(), "/pkgs");
+        assert_eq!(r.latest(), Some("3.11.4".to_string()));
+        assert_eq!(r.version_count(), 2);
+    }
+
+    #[test]
+    fn test_search_result_empty_versions() {
+        let inner = SearchResult::new("empty_pkg".to_string(), vec![], "/repo".to_string());
+        let r = PySearchResult { inner };
+        assert_eq!(r.latest(), None);
+        assert_eq!(r.version_count(), 0);
+    }
+
+    #[test]
+    fn test_search_result_repr_format() {
+        let inner = SearchResult::new(
+            "cmake".to_string(),
+            vec!["3.26.0".to_string()],
+            "/packages".to_string(),
+        );
+        let r = PySearchResult { inner };
+        let repr = r.__repr__();
+        assert!(repr.contains("SearchResult"));
+        assert!(repr.contains("cmake"));
+        assert!(repr.contains("3.26.0"));
+    }
+
+    // ── PyPackageSearcher repr tests ─────────────────────────────────────────
+
+    #[test]
+    fn test_package_searcher_repr_default() {
+        let s = PyPackageSearcher::new("", None, "families", None, 0);
+        let repr = s.__repr__();
+        assert!(repr.contains("PackageSearcher"));
+        assert!(repr.contains("families"));
+    }
+
+    #[test]
+    fn test_package_searcher_repr_custom() {
+        let s = PyPackageSearcher::new("py", None, "latest", None, 10);
+        let repr = s.__repr__();
+        assert!(repr.contains("py"));
+        assert!(repr.contains("latest"));
+    }
+
+    #[test]
+    fn test_package_searcher_stores_fields() {
+        let s = PyPackageSearcher::new(
+            "my_pkg",
+            Some(vec!["/a".to_string(), "/b".to_string()]),
+            "packages",
+            Some(">=2.0".to_string()),
+            5,
+        );
+        assert_eq!(s.pattern, "my_pkg");
+        assert_eq!(s.scope, "packages");
+        assert_eq!(s.limit, 5);
+        assert_eq!(s.version_range, Some(">=2.0".to_string()));
+        assert_eq!(s.paths, Some(vec!["/a".to_string(), "/b".to_string()]));
+    }
+
+    // ── SearchFilter matching logic ───────────────────────────────────────────
+
+    #[test]
+    fn test_filter_empty_pattern_matches_all() {
+        let f = SearchFilter::new("");
+        assert!(f.matches_name("python"));
+        assert!(f.matches_name("cmake"));
+        assert!(f.matches_name(""));
+    }
+
+    #[test]
+    fn test_filter_prefix_mode() {
+        let f = SearchFilter::new("py");
+        assert!(f.matches_name("python"));
+        assert!(f.matches_name("py"));
+        assert!(!f.matches_name("numpy"));
+    }
+
+    #[test]
+    fn test_filter_prefix_case_insensitive() {
+        let f = SearchFilter::new("PY");
+        assert!(f.matches_name("python"));
+        assert!(f.matches_name("PyYAML"));
+    }
+
+    #[test]
+    fn test_filter_exact_mode() {
+        let f = SearchFilter::new("python").with_mode(FilterMode::Exact);
+        assert!(f.matches_name("python"));
+        assert!(f.matches_name("PYTHON"));
+        assert!(!f.matches_name("python3"));
+    }
+
+    #[test]
+    fn test_filter_contains_mode() {
+        let f = SearchFilter::new("numpy").with_mode(FilterMode::Contains);
+        assert!(f.matches_name("numpy"));
+        assert!(!f.matches_name("scipy"));
+    }
+
+    #[test]
+    fn test_filter_with_limit() {
+        let f = SearchFilter::new("py").with_limit(5);
+        assert_eq!(f.limit, 5);
+    }
+
+    #[test]
+    fn test_filter_with_version_range() {
+        let f = SearchFilter::new("cmake").with_version_range(">=3.0");
+        assert_eq!(f.version_range, Some(">=3.0".to_string()));
+    }
+
+    // ── SearchResultSet logic ─────────────────────────────────────────────────
+
+    #[test]
+    fn test_result_set_empty() {
+        let rs = SearchResultSet::new();
+        assert!(rs.is_empty());
+        assert_eq!(rs.len(), 0);
+        assert!(rs.family_names().is_empty());
+    }
+
+    #[test]
+    fn test_result_set_add_and_names() {
+        let mut rs = SearchResultSet::new();
+        rs.add(SearchResult::new(
+            "python".to_string(),
+            vec!["3.11.0".to_string()],
+            "/repo".to_string(),
+        ));
+        rs.add(SearchResult::new(
+            "cmake".to_string(),
+            vec!["3.26.0".to_string()],
+            "/repo".to_string(),
+        ));
+        assert_eq!(rs.len(), 2);
+        assert!(!rs.is_empty());
+        let names = rs.family_names();
+        assert!(names.contains(&"python"));
+        assert!(names.contains(&"cmake"));
+    }
+
+    #[test]
+    fn test_result_set_single_version_latest() {
+        let r = SearchResult::new(
+            "gcc".to_string(),
+            vec!["12.0".to_string()],
+            "/r".to_string(),
+        );
+        assert_eq!(r.latest, Some("12.0".to_string()));
+        assert_eq!(r.version_count(), 1);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rez_next_search::{FilterMode, SearchResult, SearchResultSet};
+
+    // ── PySearchResult pure-logic tests ──────────────────────────────────────
+
+    #[test]
+    fn test_search_result_getters() {
+        let inner = SearchResult::new(
+            "python".to_string(),
+            vec!["3.9.0".to_string(), "3.11.4".to_string()],
+            "/pkgs".to_string(),
+        );
+        let r = PySearchResult { inner };
+        assert_eq!(r.name(), "python");
+        assert_eq!(r.versions(), vec!["3.9.0", "3.11.4"]);
+        assert_eq!(r.repo_path(), "/pkgs");
+        assert_eq!(r.latest(), Some("3.11.4".to_string()));
+        assert_eq!(r.version_count(), 2);
+    }
+
+    #[test]
+    fn test_search_result_empty_versions() {
+        let inner = SearchResult::new("empty_pkg".to_string(), vec![], "/repo".to_string());
+        let r = PySearchResult { inner };
+        assert_eq!(r.latest(), None);
+        assert_eq!(r.version_count(), 0);
+    }
+
+    #[test]
+    fn test_search_result_repr_format() {
+        let inner = SearchResult::new(
+            "cmake".to_string(),
+            vec!["3.26.0".to_string()],
+            "/packages".to_string(),
+        );
+        let r = PySearchResult { inner };
+        let repr = r.__repr__();
+        assert!(repr.contains("SearchResult"));
+        assert!(repr.contains("cmake"));
+        assert!(repr.contains("3.26.0"));
+    }
+
+    // ── PyPackageSearcher repr tests ─────────────────────────────────────────
+
+    #[test]
+    fn test_package_searcher_repr_default() {
+        let s = PyPackageSearcher::new("", None, "families", None, 0);
+        let repr = s.__repr__();
+        assert!(repr.contains("PackageSearcher"));
+        assert!(repr.contains("families"));
+    }
+
+    #[test]
+    fn test_package_searcher_repr_custom() {
+        let s = PyPackageSearcher::new("py", None, "latest", None, 10);
+        let repr = s.__repr__();
+        assert!(repr.contains("py"));
+        assert!(repr.contains("latest"));
+    }
+
+    #[test]
+    fn test_package_searcher_stores_fields() {
+        let s = PyPackageSearcher::new(
+            "my_pkg",
+            Some(vec!["/a".to_string(), "/b".to_string()]),
+            "packages",
+            Some(">=2.0".to_string()),
+            5,
+        );
+        assert_eq!(s.pattern, "my_pkg");
+        assert_eq!(s.scope, "packages");
+        assert_eq!(s.limit, 5);
+        assert_eq!(s.version_range, Some(">=2.0".to_string()));
+        assert_eq!(s.paths, Some(vec!["/a".to_string(), "/b".to_string()]));
+    }
+
+    // ── SearchFilter matching logic ───────────────────────────────────────────
+
+    #[test]
+    fn test_filter_empty_pattern_matches_all() {
+        let f = SearchFilter::new("");
+        assert!(f.matches_name("python"));
+        assert!(f.matches_name("cmake"));
+        assert!(f.matches_name(""));
+    }
+
+    #[test]
+    fn test_filter_prefix_mode() {
+        let f = SearchFilter::new("py");
+        assert!(f.matches_name("python"));
+        assert!(f.matches_name("py"));
+        assert!(!f.matches_name("numpy"));
+    }
+
+    #[test]
+    fn test_filter_prefix_case_insensitive() {
+        let f = SearchFilter::new("PY");
+        assert!(f.matches_name("python"));
+        assert!(f.matches_name("PyYAML"));
+    }
+
+    #[test]
+    fn test_filter_exact_mode() {
+        let f = SearchFilter::new("python").with_mode(FilterMode::Exact);
+        assert!(f.matches_name("python"));
+        assert!(f.matches_name("PYTHON"));
+        assert!(!f.matches_name("python3"));
+    }
+
+    #[test]
+    fn test_filter_contains_mode() {
+        let f = SearchFilter::new("numpy").with_mode(FilterMode::Contains);
+        assert!(f.matches_name("numpy"));
+        assert!(!f.matches_name("scipy"));
+    }
+
+    #[test]
+    fn test_filter_with_limit() {
+        let f = SearchFilter::new("py").with_limit(5);
+        assert_eq!(f.limit, 5);
+    }
+
+    #[test]
+    fn test_filter_with_version_range() {
+        let f = SearchFilter::new("cmake").with_version_range(">=3.0");
+        assert_eq!(f.version_range, Some(">=3.0".to_string()));
+    }
+
+    // ── SearchResultSet logic ─────────────────────────────────────────────────
+
+    #[test]
+    fn test_result_set_empty() {
+        let rs = SearchResultSet::new();
+        assert!(rs.is_empty());
+        assert_eq!(rs.len(), 0);
+        assert!(rs.family_names().is_empty());
+    }
+
+    #[test]
+    fn test_result_set_add_and_names() {
+        let mut rs = SearchResultSet::new();
+        rs.add(SearchResult::new(
+            "python".to_string(),
+            vec!["3.11.0".to_string()],
+            "/repo".to_string(),
+        ));
+        rs.add(SearchResult::new(
+            "cmake".to_string(),
+            vec!["3.26.0".to_string()],
+            "/repo".to_string(),
+        ));
+        assert_eq!(rs.len(), 2);
+        assert!(!rs.is_empty());
+        let names = rs.family_names();
+        assert!(names.contains(&"python"));
+        assert!(names.contains(&"cmake"));
+    }
+
+    #[test]
+    fn test_result_set_single_version_latest() {
+        let r = SearchResult::new(
+            "gcc".to_string(),
+            vec!["12.0".to_string()],
+            "/r".to_string(),
+        );
+        assert_eq!(r.latest, Some("12.0".to_string()));
+        assert_eq!(r.version_count(), 1);
+    }
 }

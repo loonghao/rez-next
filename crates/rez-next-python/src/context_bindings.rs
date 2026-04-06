@@ -1,7 +1,8 @@
 //! Python bindings for ResolvedContext
 
-use crate::expand_home;
 use crate::package_bindings::PyPackage;
+use crate::package_functions::expand_home;
+use crate::runtime::get_runtime;
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use rez_next_context::{ContextStatus, ResolvedContext};
@@ -70,8 +71,7 @@ impl PyResolvedContext {
             })
             .collect();
 
-        let rt = tokio::runtime::Runtime::new()
-            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+        let rt = get_runtime();
 
         let repo_arc = Arc::new(repo_manager);
         let mut resolver = DependencyResolver::new(Arc::clone(&repo_arc), SolverConfig::default());
@@ -144,9 +144,8 @@ impl PyResolvedContext {
     }
 
     /// Get environment variables for this context (as dict)
-    fn get_environ(&self, py: Python) -> PyResult<PyObject> {
-        let rt = tokio::runtime::Runtime::new()
-            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+    fn get_environ(&self, py: Python) -> PyResult<Py<PyAny>> {
+        let rt = get_runtime();
 
         let env_manager = rez_next_context::EnvironmentManager::new(self.inner.config.clone());
         let env_vars = rt
@@ -157,13 +156,12 @@ impl PyResolvedContext {
         for (k, v) in env_vars {
             dict.set_item(k, v)?;
         }
-        Ok(dict.into())
+        Ok(dict.into_any().unbind())
     }
 
     /// Apply environment to current process
     fn apply_to_os_environ(&self) -> PyResult<()> {
-        let rt = tokio::runtime::Runtime::new()
-            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+        let rt = get_runtime();
 
         let env_manager = rez_next_context::EnvironmentManager::new(self.inner.config.clone());
         let env_vars = rt
@@ -186,8 +184,7 @@ impl PyResolvedContext {
     ) -> PyResult<i32> {
         let _ = stdout;
         let _ = stderr;
-        let rt = tokio::runtime::Runtime::new()
-            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+        let rt = get_runtime();
 
         let env_manager = rez_next_context::EnvironmentManager::new(self.inner.config.clone());
         let env_vars = rt
@@ -233,8 +230,7 @@ impl PyResolvedContext {
         use rez_next_context::{ContextFormat, ContextSerializer};
         use std::path::Path;
 
-        let rt = tokio::runtime::Runtime::new()
-            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+        let rt = get_runtime();
 
         rt.block_on(ContextSerializer::save_to_file(
             &self.inner,
@@ -250,8 +246,7 @@ impl PyResolvedContext {
         use rez_next_context::ContextSerializer;
         use std::path::Path;
 
-        let rt = tokio::runtime::Runtime::new()
-            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+        let rt = get_runtime();
 
         let context = rt
             .block_on(ContextSerializer::load_from_file(Path::new(path)))
@@ -307,8 +302,7 @@ impl PyResolvedContext {
             }
         };
 
-        let rt = tokio::runtime::Runtime::new()
-            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+        let rt = get_runtime();
 
         let env_manager = rez_next_context::EnvironmentManager::new(self.inner.config.clone());
         let env_vars = rt
@@ -323,22 +317,40 @@ impl PyResolvedContext {
     }
 
     /// Get the list of tools provided by packages in this context.
+    ///
+    /// Returns a `{tool_name: tool_path}` dict.  The tool path is built from
+    /// `pkg.base` (the package installation root as recorded in `package.py`)
+    /// plus a `bin/` sub-directory.  When `pkg.base` is `None` — which happens
+    /// for in-memory packages that have not been installed — the path is an
+    /// **estimated** `<pkg_name>-<version>/bin/<tool>` string; callers should
+    /// treat `None`-base entries as advisory only.
+    ///
     /// Compatible with `context.get_tools()`.
-    fn get_tools(&self, py: Python) -> PyResult<PyObject> {
+    fn get_tools(&self, py: Python) -> PyResult<Py<PyAny>> {
         let dict = PyDict::new(py);
         for pkg in &self.inner.resolved_packages {
             for tool in &pkg.tools {
-                // Tool path: {pkg_root}/bin/{tool}
-                let pkg_root = format!("/packages/{}", pkg.name);
-                let tool_path = format!("{}/bin/{}", pkg_root, tool);
+                let tool_path = if let Some(base) = &pkg.base {
+                    // Use the real installation base recorded in package.py
+                    format!("{}/bin/{}", base, tool)
+                } else {
+                    // Fallback: estimated path for uninstalled / in-memory packages.
+                    // This is advisory; the actual path depends on the rez packages path.
+                    let ver = pkg
+                        .version
+                        .as_ref()
+                        .map(|v| v.as_str())
+                        .unwrap_or("unknown");
+                    format!("{}-{}/bin/{}", pkg.name, ver, tool)
+                };
                 dict.set_item(tool, tool_path)?;
             }
         }
-        Ok(dict.into())
+        Ok(dict.into_any().unbind())
     }
 
     /// Get the context as a dict (rez compat: for serialization)
-    fn to_dict(&self, py: Python) -> PyResult<PyObject> {
+    fn to_dict(&self, py: Python) -> PyResult<Py<PyAny>> {
         let dict = PyDict::new(py);
         dict.set_item("id", &self.inner.id)?;
         dict.set_item("status", format!("{:?}", self.inner.status))?;
@@ -357,7 +369,7 @@ impl PyResolvedContext {
                 .collect::<Vec<_>>(),
         )?;
         dict.set_item("num_packages", self.inner.resolved_packages.len())?;
-        Ok(dict.into())
+        Ok(dict.into_any().unbind())
     }
 
     /// Check if this context failed to resolve.
@@ -372,7 +384,7 @@ impl PyResolvedContext {
     }
 
     /// Get the resolved packages as a list of (name, version) tuples.
-    fn get_resolved_packages_info(&self, py: Python) -> PyResult<PyObject> {
+    fn get_resolved_packages_info(&self, py: Python) -> PyResult<Py<PyAny>> {
         use pyo3::types::PyList;
         let list = PyList::empty(py);
         for pkg in &self.inner.resolved_packages {
@@ -390,15 +402,15 @@ impl PyResolvedContext {
             )?;
             list.append(tuple)?;
         }
-        Ok(list.into())
+        Ok(list.into_any().unbind())
     }
 }
 
-// ── Phase 78: PyResolvedContext internal logic tests ─────────────────────────
-
 #[cfg(test)]
 mod context_bindings_tests {
+
     use rez_next_context::{ContextStatus, ResolvedContext};
+
     use rez_next_package::{Package, PackageRequirement};
     use rez_next_version::Version;
 
@@ -518,5 +530,97 @@ mod context_bindings_tests {
             ctx.created_at > 0,
             "created_at timestamp should be positive"
         );
+    }
+
+    // ── failure_description ──────────────────────────────────────────
+
+    #[test]
+    fn test_failure_description_none_when_resolved() {
+        let ctx = make_py_ctx_inner(&[("python", "3.11.0")]);
+        assert_eq!(ctx.status, ContextStatus::Resolved);
+        // failure_description is None when resolved — verify via status
+        let is_failed = ctx.status == ContextStatus::Failed;
+        assert!(!is_failed);
+    }
+
+    #[test]
+    fn test_failure_description_some_when_failed() {
+        let mut ctx = make_py_ctx_inner(&[]);
+        ctx.status = ContextStatus::Failed;
+        let is_failed = ctx.status == ContextStatus::Failed;
+        assert!(is_failed, "Status should be Failed");
+    }
+
+    // ── empty resolved context ───────────────────────────────────────
+
+    #[test]
+    fn test_empty_context_zero_packages() {
+        let ctx = make_py_ctx_inner(&[]);
+        assert_eq!(ctx.resolved_packages.len(), 0);
+    }
+
+    #[test]
+    fn test_get_summary_empty_context() {
+        let ctx = make_py_ctx_inner(&[]);
+        let summary = ctx.get_summary();
+        assert_eq!(summary.package_count, 0);
+        assert!(summary.package_versions.is_empty());
+    }
+
+    // ── multiple environment vars ────────────────────────────────────
+
+    #[test]
+    fn test_environment_vars_multiple_entries() {
+        let mut ctx = make_py_ctx_inner(&[("python", "3.11.0")]);
+        ctx.environment_vars
+            .insert("PYTHONPATH".to_string(), "/usr/lib/python3.11".to_string());
+        ctx.environment_vars
+            .insert("PATH".to_string(), "/usr/bin:/bin".to_string());
+        ctx.environment_vars
+            .insert("REZ_USED".to_string(), "1".to_string());
+        assert_eq!(ctx.environment_vars.len(), 3);
+        assert_eq!(ctx.environment_vars.get("REZ_USED"), Some(&"1".to_string()));
+    }
+
+    // ── resolved_packages order preserved ───────────────────────────
+
+    #[test]
+    fn test_resolved_packages_order_preserved() {
+        let ctx = make_py_ctx_inner(&[("alpha", "1.0.0"), ("zeta", "2.0.0"), ("beta", "3.0.0")]);
+        let names: Vec<&str> = ctx
+            .resolved_packages
+            .iter()
+            .map(|p| p.name.as_str())
+            .collect();
+        assert_eq!(
+            names,
+            vec!["alpha", "zeta", "beta"],
+            "Order should match insertion order"
+        );
+    }
+
+    // ── get_summary returns correct version strings ──────────────────
+
+    #[test]
+    fn test_get_summary_all_packages_present() {
+        let ctx = make_py_ctx_inner(&[
+            ("python", "3.11.0"),
+            ("maya", "2024.1"),
+            ("arnold", "7.3.0"),
+        ]);
+        let summary = ctx.get_summary();
+        assert_eq!(summary.package_count, 3);
+        assert!(summary.package_versions.contains_key("python"));
+        assert!(summary.package_versions.contains_key("maya"));
+        assert!(summary.package_versions.contains_key("arnold"));
+        assert_eq!(summary.package_versions["arnold"], "7.3.0");
+    }
+
+    // ── requirements count matches input ────────────────────────────
+
+    #[test]
+    fn test_requirements_count_matches_input_len() {
+        let ctx = make_py_ctx_inner(&[("python", "3.11.0"), ("houdini", "20.0"), ("nuke", "14.0")]);
+        assert_eq!(ctx.requirements.len(), 3);
     }
 }

@@ -1,42 +1,42 @@
 # rez-next Python 集成
 
-**状态：未实现。**
+## 状态
 
-本文档描述计划中的 Python 绑定。`rez-next-python` crate 存在于 workspace 中，但没有可用的绑定。
+Python 绑定**已经实现**，位于 `crates/rez-next-python`，并通过 `rez_next` Python 包对外暴露。
 
 ## 当前状态
 
-- `rez-next-python` 依赖所有其他 crate
-- 使用 PyO3 0.25，`abi3-py38`
-- 有脚手架代码，但没有任何功能暴露给 Python
-- 未发布到 PyPI
+- 原生绑定基于 PyO3 构建，并使用 `abi3-py38`
+- 扩展模块暴露为 `rez_next._native`
+- Python shim 模块保持了 Rez 风格的导入接口，例如 `rez_next.version`、`rez_next.packages_`、`rez_next.resolved_context`
+- 更完整的模块矩阵与兼容性说明以根目录 `README.md` 为准
 
-## 计划中的 API（愿景）
+## 本地开发
+
+```bash
+just py-build
+just py-test
+```
+
+如果需要直接执行底层命令，可使用：
+
+```bash
+cd crates/rez-next-python
+vx maturin develop --features pyo3/extension-module
+vx pytest tests/ -v --tb=short
+```
+
+## 示例
 
 ```python
 import rez_next as rez
+from rez_next.packages_ import get_latest_package
 
-# 版本
-version = rez.Version("2.1.0")
-print(version.major, version.minor, version.patch)
-
-# 包
-package = rez.Package.load("package.py")
-print(package.name, package.version)
-
-# 求解器
-solver = rez.Solver()
-context = solver.resolve(["python-3.9", "maya-2024"])
+pkg = get_latest_package("python")
+ctx = rez.resolve_packages(["python-3.9"])
+print(pkg.name, ctx.status)
 ```
 
-以上代码目前均不可用。
-
-## 构建（就绪后）
-
-```bash
-pip install maturin
-maturin develop
-```
 
 ## 许可证
 

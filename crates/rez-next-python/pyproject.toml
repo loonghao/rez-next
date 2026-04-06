@@ -36,10 +36,10 @@ features = ["pyo3/extension-module"]
 # Python module name: native extension is installed as rez_next._native,
 # so Python layer (python/rez_next/__init__.py) can do `from rez_next._native import *`
 module-name = "rez_next._native"
-# Strip debug symbols in release
-strip = true
 # Python source directory: tells maturin where to find the Python package files
 python-source = "python"
+# Disable strip to avoid conflict with pyo3 abi3 --include-debuginfo
+strip = false
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
