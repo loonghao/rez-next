@@ -1,5 +1,90 @@
 # rez-next auto-improve 执行记录
 
+## 最新执行 (2026-04-07 03:23) — Cycle 95
+
+### 执行摘要
+
+**Cycle 95（commit `9f0a8e4`）**：扩展 4 个低覆盖率 Python binding 测试模块
+
+- `exceptions_bindings.rs`: 11 → **20** tests (+9)
+  - 新增 `test_resolve_error_extends_rez_error`、`test_every_name_is_pascal_case`
+  - 新增 `test_parent_names_are_known_names_or_exception`、`test_only_one_root_extending_exception`
+  - 新增 `test_package_not_found_in_hierarchy`、`test_solve_failure_is_leaf_under_resolve_error`
+  - 新增 `test_rex_error_is_direct_child_of_rez_error`、`test_hierarchy_has_at_least_five_leaf_exceptions`
+  - 新增 `test_package_conflict_parent_is_resolve_error`
+- `repository_bindings.rs`: 12 → **21** tests (+9)
+  - 新增 `test_repository_manager_paths` 子模块（8 tests）：single_path/paths_order/repr_path_value/paths_len_matches/repr_full_path/find_empty_name/get_latest_none/get_family_names_nonexistent
+- `package_functions.rs`: 13 → **21** tests (+8)
+  - 新增 `test_copy_dir_recursive::test_copy_multiple_files_all_transferred`（5文件验证）
+  - 新增 `test_copy_dir_recursive::test_copy_deeply_nested_structure`（3层深度嵌套）
+  - 新增 `test_expand_home_extra` 子模块（5 tests）：空串/只有斜线/tilde不在开头/双斜线/Windows绝对路径
+- `system_bindings.rs`: 13 → **21** tests (+8)
+  - 新增 `test_system_repr_and_extras` 子模块（8 tests）：repr格式/repr含platform值/platform无空格/arch无空格/os无换行/rez_version semver格式/num_cpus上界/多实例一致性
+- 总计：479 → **511 passed**，0 failed；Clippy warnings: **0**
+
+### 当前提交
+- `9f0a8e4` — test(python): Cycle 95 [iteration-done]
+- `a7917a7` — chore: update auto-improve memory.md after Cycle 94
+- `b86c23f` — test(python): Cycle 94 [iteration-done]
+
+### 测试统计（截至 Cycle 95）
+- `cargo test -p rez-next-python --lib`：**511 passed**，0 failed
+- Clippy warnings: **0**
+
+### 当前项目状态
+**分支**: `auto-improve`（已推送至 origin，commit 9f0a8e4）
+**Clippy warnings**: 0
+
+### 超长文件现状（全部 ≤1000 行）
+| 文件 | 行数 | 状态 |
+|------|------|------|
+| `tests/rez_compat_search_tests.rs` | 768 | 正常 |
+| `tests/rez_compat_misc_tests.rs` | 745 | 正常 |
+| `tests/rez_solver_advanced_tests.rs` | 806 | 正常 |
+| `tests/rez_compat_tests.rs` | 713 | 正常 |
+| `tests/cli_e2e_tests.rs` | ~720 | 正常 |
+| `tests/rez_compat_context_tests.rs` | 473 | 正常 |
+
+### 下一阶段待改进项（优先级排序）
+
+1. **`solver_bindings.rs`（15 tests）**：可扩展至 22+
+   - `PySolver::solve` dry_run/paths 场景、`PyRequirement` 构造验证、solver 配置链式调用
+
+2. **`bind_bindings.rs`（15 tests）**：可扩展至 22+
+   - `BindManager` 的多工具绑定、find_tool 返回值类型验证、version 格式检查
+
+3. **`completion_bindings.rs`（18 tests）**：可扩展至 25+
+   - install_path 路径组合、completion script 关键字验证
+
+4. **`context_bindings.rs`（19 tests）**：可扩展至 26+
+   - `PyResolvedContext::to_dict` 输出格式、requirements→packages 一致性
+
+5. **并发安全优化（持续）**：
+   - `env_bindings.rs::apply_env` 使用 `set_var`，需检查是否有测试污染
+
+### 注意事项
+- **Cycle 94 新增**: `execute(_, dry_run=false)` 在 `cargo test --lib` 中会触发 PyO3 "interpreter not initialized" panic，必须用 dry_run=true 或 integration test 覆盖
+- **Cycle 93 新增**: `status_bindings` 引入 `static ENV_MUTEX` 彻底序列化 env-mutating 测试；Windows-only shell 测试加 `#[cfg(not(target_os="windows"))]`；`EXCEPTION_HIERARCHY` 加 `#[cfg(test)]`
+- cleanup Agent 在 Cycle 28 清理中改了测试断言，已修复
+- Windows PowerShell：cargo 输出被 CLIXML 包裹，用 `Out-File -Encoding utf8` + `Get-Content` 读取
+- rez 版本语义：`20.1 > 20.0.0`（短版本 epoch 更大）
+- solver 缺失包行为：宽松模式返回 Ok（报告 failed_requirements），不抛 Err
+- `build_test_repo` 签名：`&[(&str, &str, &[&str])]` = (name, version, [requires_str_list])
+- RezCoreConfig 使用直接字段访问，不用 getter 方法
+- rebase 到 origin/main 时因 memory.md 冲突，改用 merge + `--ours` 策略
+- **satisfied_by() known issue**: year-based versions like maya-2024+ with 2024.1 fail due to epoch comparison semantics; avoid such cases in tests
+- bench 使用 cache trait 方法需显式 `use rez_next_cache::UnifiedCache`
+- **重要**: 所有新 compat 子模块必须包含完整的 use import（每个文件独立编译单元）
+- **Cycle 70 新增**: `REZ_PACKAGE_FILENAMES` 是单一真相源
+- **Cycle 72 新增**: `BindError` 只有 ToolNotFound/VersionNotFound/AlreadyExists/Io/Other
+- **Cycle 73 新增**: `rez_compat_solver_tests.rs` 已拆分为 3 个专职文件
+- **Cycle 74 新增**: `real_repo_integration.rs`（1000行）已拆分为 scan+parse / resolve / context+e2e 三个文件
+- **Cycle 83 新增**: bincode 1.3 → 2.0 迁移；`runtime.rs` 共享 Tokio runtime
+- **Cycle 84 新增**: `pkg_cache.rs` 和 `search_v2.rs` 分别拆分为子目录模块
+- **Cycle 90 新增**: `utils.rs` 中 `set_var`/`remove_var` 全部包裹 `unsafe {}`
+
+---
+
 ## 最新执行 (2026-04-07 02:16) — Cycle 94
 
 ### 执行摘要
