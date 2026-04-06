@@ -159,11 +159,14 @@ fn build_activation_script(packages: &[String], shell_name: &str) -> String {
     // Build a representative environment based on package list
     let mut env = RexEnvironment::new();
 
-    // Set REZ_CONTEXT_FILE marker (rez standard)
-    env.vars.insert(
-        "REZ_CONTEXT_FILE".to_string(),
-        "/tmp/rez_context.rxt".to_string(),
-    );
+    // Set REZ_CONTEXT_FILE marker (rez standard).
+    // Use the platform-specific temp directory so this works on Windows too.
+    let context_file = std::env::temp_dir()
+        .join("rez_context.rxt")
+        .to_string_lossy()
+        .into_owned();
+    env.vars
+        .insert("REZ_CONTEXT_FILE".to_string(), context_file);
     // REZ_RESOLVE: space-separated resolved package list
     env.vars
         .insert("REZ_RESOLVE".to_string(), packages.join(" "));
@@ -172,7 +175,10 @@ fn build_activation_script(packages: &[String], shell_name: &str) -> String {
         env.vars.insert("REZ_PACKAGES_PATH".to_string(), p);
     }
 
-    // For each package, create a placeholder env var: REZPKG_<NAME>=<version-or-name>
+    // For each package, set REZPKG_<NAME>=<version>.
+    // Note: this is a best-effort indicator of the resolved version; it does
+    // NOT encode the installation path.  Consumers needing the actual path
+    // should use ResolvedContext.get_tools() or inspect Package.base directly.
     for pkg in packages {
         let parts: Vec<&str> = pkg.splitn(2, '-').collect();
         let pkg_name = parts[0].to_uppercase().replace(['-', '.'], "_");

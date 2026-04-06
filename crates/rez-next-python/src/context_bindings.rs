@@ -9,7 +9,18 @@ use rez_next_package::{PackageRequirement, Requirement};
 use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
 use rez_next_solver::{DependencyResolver, SolverConfig};
 use std::path::PathBuf;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
+
+/// Module-level shared Tokio runtime.
+/// Re-using a single runtime avoids thread-pool creation overhead on every
+/// Python method call and is safe because `block_on` takes `&self`.
+static TOKIO_RT: OnceLock<tokio::runtime::Runtime> = OnceLock::new();
+
+fn get_runtime() -> &'static tokio::runtime::Runtime {
+    TOKIO_RT.get_or_init(|| {
+        tokio::runtime::Runtime::new().expect("Failed to create Tokio runtime for rez-next-python")
+    })
+}
 
 /// Python-accessible ResolvedContext class, compatible with rez.resolved_context.ResolvedContext
 #[pyclass(name = "ResolvedContext")]
@@ -70,8 +81,7 @@ impl PyResolvedContext {
             })
             .collect();
 
-        let rt = tokio::runtime::Runtime::new()
-            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+        let rt = get_runtime();
 
         let repo_arc = Arc::new(repo_manager);
         let mut resolver = DependencyResolver::new(Arc::clone(&repo_arc), SolverConfig::default());
@@ -145,8 +155,7 @@ impl PyResolvedContext {
 
     /// Get environment variables for this context (as dict)
     fn get_environ(&self, py: Python) -> PyResult<Py<PyAny>> {
-        let rt = tokio::runtime::Runtime::new()
-            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+        let rt = get_runtime();
 
         let env_manager = rez_next_context::EnvironmentManager::new(self.inner.config.clone());
         let env_vars = rt
@@ -162,8 +171,7 @@ impl PyResolvedContext {
 
     /// Apply environment to current process
     fn apply_to_os_environ(&self) -> PyResult<()> {
-        let rt = tokio::runtime::Runtime::new()
-            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+        let rt = get_runtime();
 
         let env_manager = rez_next_context::EnvironmentManager::new(self.inner.config.clone());
         let env_vars = rt
@@ -186,8 +194,7 @@ impl PyResolvedContext {
     ) -> PyResult<i32> {
         let _ = stdout;
         let _ = stderr;
-        let rt = tokio::runtime::Runtime::new()
-            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+        let rt = get_runtime();
 
         let env_manager = rez_next_context::EnvironmentManager::new(self.inner.config.clone());
         let env_vars = rt
@@ -233,8 +240,7 @@ impl PyResolvedContext {
         use rez_next_context::{ContextFormat, ContextSerializer};
         use std::path::Path;
 
-        let rt = tokio::runtime::Runtime::new()
-            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+        let rt = get_runtime();
 
         rt.block_on(ContextSerializer::save_to_file(
             &self.inner,
@@ -250,8 +256,7 @@ impl PyResolvedContext {
         use rez_next_context::ContextSerializer;
         use std::path::Path;
 
-        let rt = tokio::runtime::Runtime::new()
-            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+        let rt = get_runtime();
 
         let context = rt
             .block_on(ContextSerializer::load_from_file(Path::new(path)))
@@ -307,8 +312,7 @@ impl PyResolvedContext {
             }
         };
 
-        let rt = tokio::runtime::Runtime::new()
-            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+        let rt = get_runtime();
 
         let env_manager = rez_next_context::EnvironmentManager::new(self.inner.config.clone());
         let env_vars = rt
@@ -323,14 +327,32 @@ impl PyResolvedContext {
     }
 
     /// Get the list of tools provided by packages in this context.
+    ///
+    /// Returns a `{tool_name: tool_path}` dict.  The tool path is built from
+    /// `pkg.base` (the package installation root as recorded in `package.py`)
+    /// plus a `bin/` sub-directory.  When `pkg.base` is `None` — which happens
+    /// for in-memory packages that have not been installed — the path is an
+    /// **estimated** `<pkg_name>-<version>/bin/<tool>` string; callers should
+    /// treat `None`-base entries as advisory only.
+    ///
     /// Compatible with `context.get_tools()`.
     fn get_tools(&self, py: Python) -> PyResult<Py<PyAny>> {
         let dict = PyDict::new(py);
         for pkg in &self.inner.resolved_packages {
             for tool in &pkg.tools {
-                // Tool path: {pkg_root}/bin/{tool}
-                let pkg_root = format!("/packages/{}", pkg.name);
-                let tool_path = format!("{}/bin/{}", pkg_root, tool);
+                let tool_path = if let Some(base) = &pkg.base {
+                    // Use the real installation base recorded in package.py
+                    format!("{}/bin/{}", base, tool)
+                } else {
+                    // Fallback: estimated path for uninstalled / in-memory packages.
+                    // This is advisory; the actual path depends on the rez packages path.
+                    let ver = pkg
+                        .version
+                        .as_ref()
+                        .map(|v| v.as_str())
+                        .unwrap_or("unknown");
+                    format!("{}-{}/bin/{}", pkg.name, ver, tool)
+                };
                 dict.set_item(tool, tool_path)?;
             }
         }
