@@ -1,13 +1,15 @@
 //! Build system implementations
 //!
 //! This module is split into sub-modules by build system type:
-//! - `cmake`     — CMake build system
-//! - `make`      — Make build system
-//! - `python`    — Python setuptools / rezbuild.py
-//! - `nodejs`    — Node.js npm
+//! - `cmake`       — CMake build system
+//! - `make`        — Make build system
+//! - `python`      — Python setuptools / rezbuild.py
+//! - `nodejs`      — Node.js npm
 //! - `cargo_build` — Rust Cargo
-//! - `custom`    — Custom build scripts / copy-only
+//! - `custom`      — Custom build scripts / copy-only
+//! - `cmd_builder` — Shared command-runner helpers (no shell-specific strings)
 
+pub(crate) mod cmd_builder;
 mod cargo_build;
 mod cmake;
 mod custom;

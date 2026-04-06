@@ -1,5 +1,6 @@
 //! Rust Cargo build system implementation
 
+use crate::systems::cmd_builder::run_cmd;
 use crate::{BuildEnvironment, BuildRequest, BuildStep, BuildStepResult};
 use rez_next_common::RezCoreError;
 use rez_next_context::ShellExecutor;
@@ -24,14 +25,8 @@ impl CargoBuildSystem {
         let executor = ShellExecutor::with_shell(rez_next_context::ShellType::detect())
             .with_environment(environment.get_env_vars().clone())
             .with_working_directory(request.source_dir.clone());
-        let result = executor.execute("cargo check 2>&1").await?;
-        Ok(BuildStepResult {
-            step: BuildStep::Configuring,
-            success: result.is_success(),
-            output: result.stdout,
-            errors: result.stderr,
-            duration_ms: result.execution_time_ms,
-        })
+        // Omit "2>&1" — stderr is captured by ShellExecutor, not merged into stdout.
+        run_cmd(&executor, BuildStep::Configuring, "cargo check", false, "").await
     }
 
     pub async fn compile(
@@ -68,14 +63,8 @@ impl CargoBuildSystem {
         let executor = ShellExecutor::with_shell(rez_next_context::ShellType::detect())
             .with_environment(environment.get_env_vars().clone())
             .with_working_directory(request.source_dir.clone());
-        let result = executor.execute("cargo test 2>&1").await?;
-        Ok(BuildStepResult {
-            step: BuildStep::Testing,
-            success: result.is_success(),
-            output: result.stdout,
-            errors: result.stderr,
-            duration_ms: result.execution_time_ms,
-        })
+        // Omit "2>&1" — stderr is captured by ShellExecutor.
+        run_cmd(&executor, BuildStep::Testing, "cargo test", false, "").await
     }
 
     pub async fn package(
@@ -86,18 +75,15 @@ impl CargoBuildSystem {
         let executor = ShellExecutor::with_shell(rez_next_context::ShellType::detect())
             .with_environment(environment.get_env_vars().clone())
             .with_working_directory(request.source_dir.clone());
-        let result = executor.execute("cargo package --no-verify 2>&1").await;
-        let (success, output, errors) = match result {
-            Ok(r) => (r.is_success(), r.stdout, r.stderr),
-            Err(_) => (true, "cargo package skipped".to_string(), String::new()),
-        };
-        Ok(BuildStepResult {
-            step: BuildStep::Packaging,
-            success,
-            output,
-            errors,
-            duration_ms: 0,
-        })
+        // optional=true: cargo package errors are non-fatal (e.g. no Cargo.toml)
+        run_cmd(
+            &executor,
+            BuildStep::Packaging,
+            "cargo package --no-verify",
+            true,
+            "cargo package skipped",
+        )
+        .await
     }
 
     pub async fn install(

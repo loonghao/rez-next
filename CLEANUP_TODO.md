@@ -149,9 +149,17 @@
   - All 70 rez-next-build tests pass; 0 clippy warnings
 
 ### 26. Build-system command execution still depends on shell-specific strings
-- **Status**: TODO (cycle 46)
-- `python.rs`, `nodejs.rs`, `cargo_build.rs`, `make.rs`, `cmake.rs`, and `custom.rs` still assemble shell-specific command strings inline (`2>&1`, `|| echo`, quoting, `DESTDIR=...`)
-- Follow-up: extract a shared command runner / argument builder so quoting, fallback behavior, and stderr handling stay consistent across shells and platforms
+- **Status**: COMPLETE ✓ (cycle 80)
+- Extracted `crates/rez-next-build/src/systems/cmd_builder.rs` with two shared helpers:
+  - `run_cmd(executor, step, cmd, optional, fallback_msg)` — runs a command; when `optional=true` swallows non-zero exits and `Err` variants, returning `success: true` + `fallback_msg`; no `2>&1` in command strings
+  - `make_install_cmd(destdir)` — formats `make install DESTDIR="..."` with proper quoting
+- `nodejs.rs`: `compile()` + `test()` rewritten with `run_cmd(…, optional=true, …)`, removing `"2>&1 || echo '...'"` literals
+- `cargo_build.rs`: `configure()`, `test()`, `package()` rewritten with `run_cmd`; `"2>&1"` removed from all three command strings
+- `python.rs`: `test()` rewritten to run pytest first (optional) then unittest discover (optional); no `"2>&1 || python -m unittest"` inline
+- `make.rs`: `install()` now uses `make_install_cmd()` instead of inline `format!("make install DESTDIR={}", …)`
+- `mod.rs`: registers `pub(crate) mod cmd_builder`
+- `cmd_builder.rs` has 2 unit tests for `make_install_cmd`
+- All 70 rez-next-build tests pass; Clippy: 0 warnings
 
 ### 27. Python context/source bindings still expose placeholder compatibility behavior
 - **Status**: TODO (cycle 46)

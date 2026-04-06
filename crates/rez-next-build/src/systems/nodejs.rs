@@ -1,5 +1,6 @@
 //! Node.js npm build system implementation
 
+use crate::systems::cmd_builder::run_cmd;
 use crate::systems::custom::CustomBuildSystem;
 use crate::{BuildEnvironment, BuildRequest, BuildStep, BuildStepResult};
 use rez_next_common::RezCoreError;
@@ -44,16 +45,16 @@ impl NodeJsBuildSystem {
         let executor = ShellExecutor::with_shell(rez_next_context::ShellType::detect())
             .with_environment(environment.get_env_vars().clone())
             .with_working_directory(request.source_dir.clone());
-        let result = executor
-            .execute("npm run build 2>&1 || echo 'No build script'")
-            .await?;
-        Ok(BuildStepResult {
-            step: BuildStep::Compiling,
-            success: result.is_success(),
-            output: result.stdout,
-            errors: result.stderr,
-            duration_ms: result.execution_time_ms,
-        })
+        // Use run_cmd with optional=true instead of "npm run build 2>&1 || echo '...'"
+        // — stderr is captured by ShellExecutor; no shell redirection needed.
+        run_cmd(
+            &executor,
+            BuildStep::Compiling,
+            "npm run build",
+            true,
+            "No build script",
+        )
+        .await
     }
 
     pub async fn test(
@@ -65,16 +66,15 @@ impl NodeJsBuildSystem {
         let executor = ShellExecutor::with_shell(rez_next_context::ShellType::detect())
             .with_environment(environment.get_env_vars().clone())
             .with_working_directory(request.source_dir.clone());
-        let result = executor
-            .execute("npm test 2>&1 || echo 'No test script'")
-            .await?;
-        Ok(BuildStepResult {
-            step: BuildStep::Testing,
-            success: result.is_success(),
-            output: result.stdout,
-            errors: result.stderr,
-            duration_ms: result.execution_time_ms,
-        })
+        // Use run_cmd with optional=true instead of "npm test 2>&1 || echo '...'"
+        run_cmd(
+            &executor,
+            BuildStep::Testing,
+            "npm test",
+            true,
+            "No test script",
+        )
+        .await
     }
 
     pub async fn package(

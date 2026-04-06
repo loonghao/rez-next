@@ -1,5 +1,6 @@
 //! Make build system implementation
 
+use crate::systems::cmd_builder::make_install_cmd;
 use crate::{BuildEnvironment, BuildRequest, BuildStep, BuildStepResult};
 use rez_next_common::RezCoreError;
 use rez_next_context::ShellExecutor;
@@ -98,7 +99,7 @@ impl MakeBuildSystem {
             .with_working_directory(request.source_dir.clone());
 
         let install_dir = environment.get_install_dir();
-        let command = format!("make install DESTDIR={}", install_dir.to_string_lossy());
+        let command = make_install_cmd(install_dir);
         let result = executor.execute(&command).await?;
 
         Ok(BuildStepResult {
