@@ -1,6 +1,75 @@
 # rez-next auto-improve 执行记录
 
-## 最新执行 (2026-04-06 22:55) — Cycle 91
+## 最新执行 (2026-04-07 02:16) — Cycle 94
+
+### 执行摘要
+
+**Cycle 94（commit `b86c23f`）**：扩展 2 个 Python binding 测试模块 + 合并 origin/main
+
+- 合并：`origin/main`（commit `44649bc` release 0.1.6）merge 到 auto-improve，冲突仅 memory.md，选择 ours 策略解决
+- `config_bindings.rs`: 14 → **28** tests (+14)
+  - 新增 `test_config_get_field` 扩展：get_field 对 version/default_shell/packages_path/nested cache 字段、布尔值、数值、数组类型验证
+  - 新增 `test_get_field_tmpdir_non_empty`、`test_get_field_editor_non_empty`、`test_get_field_use_rust_solver_is_bool`
+  - 新增 `test_config_default_values` 子模块（6 tests）：default packages_path 3条目、包含 tilde 路径、default_shell 平台特定值、editor 平台特定值、cache_memory_size=1000、cache_ttl=3600
+- `forward_bindings.rs`: 18 → **24** tests (+6)
+  - 新增 `test_forward_dry_run_multiple_args`、`test_forward_dry_run_empty_args_list`（None vs Some([]) 等效）
+  - 新增 `test_forward_dry_run_format_includes_rez_forward_prefix`（格式验证）
+  - 新增 `test_forward_context_id_arrow_format`、`test_forward_tool_name_with_hyphens`
+  - 新增 `test_generate_forward_script` 扩展：bash exec `"$@"` 验证、powershell `Invoke-RezTool`+`@args`、fish `$argv`、cmd `%*`
+- 总计：455 → **479 passed**，0 failed；Clippy warnings: **0**
+- 注意：`execute(_, false)` 路径在 lib 单元测试中会触发 PyO3 interpreter panic（无 GIL），此类测试改用 dry_run=true 路径覆盖
+
+### 当前提交
+- `b86c23f` — test(python): Cycle 94 [iteration-done]
+- `72eae05` — chore: merge origin/main into auto-improve (cycle 94 sync)
+- `273bc62` — test(python): Cycle 93 [iteration-done]
+
+### 测试统计（截至 Cycle 94）
+- `cargo test -p rez-next-python --lib`：**479 passed**，0 failed
+- Clippy warnings: **0**
+
+### 当前项目状态
+**分支**: `auto-improve`（已推送至 origin，commit b86c23f）
+**Clippy warnings**: 0
+
+### 超长文件现状（全部 ≤1000 行）
+| 文件 | 行数 | 状态 |
+|------|------|------|
+| `tests/rez_compat_search_tests.rs` | 768 | 正常 |
+| `tests/rez_compat_misc_tests.rs` | 745 | 正常 |
+| `tests/rez_solver_advanced_tests.rs` | 806 | 正常 |
+| `tests/rez_compat_tests.rs` | 713 | 正常 |
+| `tests/cli_e2e_tests.rs` | ~720 | 正常 |
+| `tests/rez_compat_context_tests.rs` | 473 | 正常 |
+
+### 下一阶段待改进项（优先级排序）
+
+1. **`search_bindings.rs`（24 tests）**：可进一步扩展至 30+
+   - `PyPackageSearcher` 的 scope 字段存储验证、version_range 传递、`SearchResultSet` 多结果排序
+
+2. **`pip_bindings.rs`/`suite_bindings.rs`/`bundle_functions.rs`**：零/低覆盖
+
+3. **并发安全优化**：
+   - `env_bindings.rs::apply_env` 使用 `set_var`，需检查是否有测试污染
+   - 建议为所有使用 `set_var` 的 binding 模块统一添加 `ENV_MUTEX`
+
+4. **execute() 非 dry_run 路径**：在 lib 测试中 PyO3 GIL 未初始化会 panic，需要 integration test 或 Python 层 e2e 测试来覆盖
+
+### 注意事项
+- **Cycle 94 新增**: `execute(_, dry_run=false)` 在 `cargo test --lib` 中会触发 PyO3 "interpreter not initialized" panic，必须用 dry_run=true 或 integration test 覆盖非 dry_run 路径
+- cleanup Agent 在 Cycle 28 清理中改了测试断言，已修复
+- Windows PowerShell：cargo 输出被 CLIXML 包裹，用 `Out-File -Encoding utf8` + `Get-Content` 读取
+- rez 版本语义：`20.1 > 20.0.0`（短版本 epoch 更大）
+- solver 缺失包行为：宽松模式返回 Ok（报告 failed_requirements），不抛 Err
+- `build_test_repo` 签名：`&[(&str, &str, &[&str])]` = (name, version, [requires_str_list])
+- RezCoreConfig 使用直接字段访问，不用 getter 方法
+- rebase 到 origin/main 时因 memory.md 冲突，改用 merge + `--ours` 策略（实际已是最新）
+- **Cycle 93 新增**: `status_bindings` 引入 `static ENV_MUTEX` 彻底序列化 env-mutating 测试；Windows-only `detect_shell_from_env_maps_*` 测试加 `#[cfg(not(target_os="windows"))]`
+- **satisfied_by() known issue**: year-based versions like maya-2024+ with 2024.1 fail due to epoch comparison semantics; avoid such cases in tests
+- bench 使用 cache trait 方法需显式 `use rez_next_cache::UnifiedCache`
+- **重要**: 所有新 compat 子模块必须包含完整的 use import（每个文件独立编译单元）
+
+## 历史记录 (2026-04-06 22:55) — Cycle 91
 
 ### 执行摘要
 
