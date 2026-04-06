@@ -363,5 +363,120 @@ mod tests {
             assert!(!parent.is_empty(), "parent name must not be empty");
         }
     }
+
+    // ─── Additional hierarchy completeness tests ──────────────────────────────
+
+    #[test]
+    fn test_resolve_error_extends_rez_error() {
+        let entry = EXCEPTION_HIERARCHY
+            .iter()
+            .find(|(n, _)| *n == "ResolveError")
+            .expect("ResolveError must be in EXCEPTION_HIERARCHY");
+        assert_eq!(entry.1, "RezError", "ResolveError must extend RezError");
+    }
+
+    #[test]
+    fn test_every_name_is_pascal_case() {
+        for (name, _) in EXCEPTION_HIERARCHY {
+            let first = name.chars().next().expect("name must not be empty");
+            assert!(
+                first.is_ascii_uppercase(),
+                "Exception name '{}' should start with uppercase (PascalCase)",
+                name
+            );
+        }
+    }
+
+    #[test]
+    fn test_parent_names_are_known_names_or_exception() {
+        let all_names: Vec<&str> = EXCEPTION_HIERARCHY.iter().map(|(n, _)| *n).collect();
+        for (name, parent) in EXCEPTION_HIERARCHY {
+            let valid = *parent == "Exception" || all_names.contains(parent);
+            assert!(
+                valid,
+                "Parent '{}' of '{}' must either be 'Exception' or appear as a name",
+                parent,
+                name
+            );
+        }
+    }
+
+    #[test]
+    fn test_only_one_root_extending_exception() {
+        let roots: Vec<&str> = EXCEPTION_HIERARCHY
+            .iter()
+            .filter(|(_, parent)| *parent == "Exception")
+            .map(|(name, _)| *name)
+            .collect();
+        assert_eq!(
+            roots.len(),
+            1,
+            "Only one exception should extend 'Exception', got: {:?}",
+            roots
+        );
+        assert_eq!(roots[0], "RezError");
+    }
+
+    #[test]
+    fn test_package_not_found_in_hierarchy() {
+        assert!(
+            EXCEPTION_HIERARCHY
+                .iter()
+                .any(|(n, _)| *n == "PackageNotFound"),
+            "PackageNotFound must be in hierarchy"
+        );
+    }
+
+    #[test]
+    fn test_solve_failure_is_leaf_under_resolve_error() {
+        let entry = EXCEPTION_HIERARCHY
+            .iter()
+            .find(|(n, _)| *n == "SolveFailure")
+            .expect("SolveFailure must exist");
+        assert_eq!(entry.1, "ResolveError");
+        // SolveFailure itself is not a parent of anything
+        let is_parent = EXCEPTION_HIERARCHY.iter().any(|(_, p)| *p == "SolveFailure");
+        assert!(
+            !is_parent,
+            "SolveFailure should be a leaf (no children in hierarchy)"
+        );
+    }
+
+    #[test]
+    fn test_rex_error_is_direct_child_of_rez_error() {
+        let entry = EXCEPTION_HIERARCHY
+            .iter()
+            .find(|(n, _)| *n == "RexError")
+            .expect("RexError must exist");
+        assert_eq!(entry.1, "RezError");
+    }
+
+    #[test]
+    fn test_hierarchy_has_at_least_five_leaf_exceptions() {
+        // A leaf is an exception that does not appear as a parent of any other
+        let parent_names: std::collections::HashSet<&str> =
+            EXCEPTION_HIERARCHY.iter().map(|(_, p)| *p).collect();
+        let leaves: Vec<&str> = EXCEPTION_HIERARCHY
+            .iter()
+            .filter(|(n, _)| !parent_names.contains(*n))
+            .map(|(n, _)| *n)
+            .collect();
+        assert!(
+            leaves.len() >= 5,
+            "Expected at least 5 leaf exceptions, got {} : {:?}",
+            leaves.len(),
+            leaves
+        );
+    }
+
+    #[test]
+    fn test_package_conflict_parent_is_resolve_error() {
+        let entry = EXCEPTION_HIERARCHY
+            .iter()
+            .find(|(n, _)| *n == "PackageConflict")
+            .expect("PackageConflict must exist");
+        assert_eq!(entry.1, "ResolveError");
+    }
 }
+
 

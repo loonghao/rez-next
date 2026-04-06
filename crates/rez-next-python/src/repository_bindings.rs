@@ -305,4 +305,100 @@ mod tests {
             let _ = std::fs::remove_dir_all(&tmp);
         }
     }
+
+    mod test_repository_manager_paths {
+        use super::*;
+
+        #[test]
+        fn test_single_path_stored_correctly() {
+            let mgr = PyRepositoryManager::new(Some(vec!["/single/path".to_string()])).unwrap();
+            assert_eq!(mgr.paths.len(), 1);
+            assert_eq!(mgr.paths[0], PathBuf::from("/single/path"));
+        }
+
+        #[test]
+        fn test_paths_order_preserved() {
+            let paths = vec![
+                "/first".to_string(),
+                "/second".to_string(),
+                "/third".to_string(),
+            ];
+            let mgr = PyRepositoryManager::new(Some(paths)).unwrap();
+            assert_eq!(mgr.paths[0], PathBuf::from("/first"));
+            assert_eq!(mgr.paths[1], PathBuf::from("/second"));
+            assert_eq!(mgr.paths[2], PathBuf::from("/third"));
+        }
+
+        #[test]
+        fn test_repr_contains_path_value() {
+            let mgr = PyRepositoryManager::new(Some(vec!["/my/pkg/path".to_string()])).unwrap();
+            let repr = mgr.__repr__();
+            assert!(repr.contains("my"), "repr should contain path fragment: {repr}");
+        }
+
+        #[test]
+        fn test_paths_len_matches_input() {
+            for n in 0..=4 {
+                let paths: Vec<String> = (0..n).map(|i| format!("/path/{}", i)).collect();
+                let mgr = PyRepositoryManager::new(Some(paths)).unwrap();
+                assert_eq!(mgr.paths.len(), n, "expected {} paths", n);
+            }
+        }
+
+        #[test]
+        fn test_repr_shows_full_path() {
+            let mgr =
+                PyRepositoryManager::new(Some(vec!["/packages/production".to_string()])).unwrap();
+            let repr = mgr.__repr__();
+            assert!(
+                repr.contains("packages"),
+                "repr must contain path segment: {repr}"
+            );
+            assert!(
+                repr.contains("production"),
+                "repr must contain path segment: {repr}"
+            );
+        }
+
+        #[test]
+        fn test_find_packages_empty_name_in_nonexistent_repo() {
+            let mgr = PyRepositoryManager::new(Some(vec![
+                "/no/such/repo_xyz_nonexistent_12345".to_string(),
+            ]))
+            .unwrap();
+            let result = mgr.find_packages("");
+            // Must not panic; empty or error both acceptable
+            match result {
+                Ok(pkgs) => assert!(pkgs.is_empty()),
+                Err(_) => {} // also acceptable
+            }
+        }
+
+        #[test]
+        fn test_get_latest_package_on_nonexistent_path_returns_none_or_error() {
+            let mgr = PyRepositoryManager::new(Some(vec![
+                "/does/not/exist/xyz_cy95".to_string(),
+            ]))
+            .unwrap();
+            let result = mgr.get_latest_package("any_pkg");
+            match result {
+                Ok(opt) => assert!(opt.is_none()),
+                Err(_) => {}
+            }
+        }
+
+        #[test]
+        fn test_get_package_family_names_on_nonexistent_path() {
+            let mgr = PyRepositoryManager::new(Some(vec![
+                "/no/path/cy95_xyz".to_string(),
+            ]))
+            .unwrap();
+            let result = mgr.get_package_family_names();
+            match result {
+                Ok(names) => assert!(names.is_empty()),
+                Err(_) => {}
+            }
+        }
+    }
 }
+
