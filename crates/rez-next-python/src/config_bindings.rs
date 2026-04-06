@@ -156,4 +156,72 @@ mod tests {
             assert_eq!(a.__repr__(), b.__repr__());
         }
     }
+
+    mod test_config_getters {
+        use super::*;
+
+        #[test]
+        fn test_packages_path_is_vec() {
+            // packages_path returns a Vec<String>; default may be empty or have entries
+            let _paths: Vec<String> = PyConfig::new().packages_path(); // must not panic
+        }
+
+        #[test]
+        fn test_local_packages_path_getter_matches_inner() {
+            let cfg = PyConfig::new();
+            assert_eq!(cfg.local_packages_path(), cfg.inner.local_packages_path);
+        }
+
+        #[test]
+        fn test_release_packages_path_getter_matches_inner() {
+            let cfg = PyConfig::new();
+            assert_eq!(cfg.release_packages_path(), cfg.inner.release_packages_path);
+        }
+
+        #[test]
+        fn test_default_shell_getter_matches_inner() {
+            let cfg = PyConfig::new();
+            assert_eq!(cfg.default_shell(), cfg.inner.default_shell);
+        }
+
+        #[test]
+        fn test_rez_version_getter_matches_inner() {
+            let cfg = PyConfig::new();
+            assert_eq!(cfg.rez_version(), cfg.inner.version);
+        }
+    }
+
+    mod test_config_get_field {
+        use super::*;
+
+        #[test]
+        fn test_get_known_string_field_local_packages_path() {
+            // RezCoreConfig::get_field("local_packages_path") should return String value
+            // We verify it's retrievable without checking exact value
+            let inner = RezCoreConfig::load();
+            let val = inner.get_field("local_packages_path");
+            assert!(
+                val.is_some(),
+                "local_packages_path should be a known field"
+            );
+        }
+
+        #[test]
+        fn test_get_unknown_field_returns_none_from_inner() {
+            let cfg = RezCoreConfig::load();
+            let val = cfg.get_field("__nonexistent_field_cycle90__");
+            assert!(val.is_none(), "unknown field should return None");
+        }
+
+        #[test]
+        fn test_new_and_default_same_packages_path() {
+            let a = PyConfig::new();
+            let b = PyConfig::default();
+            assert_eq!(
+                a.packages_path(),
+                b.packages_path(),
+                "new() and default() should yield identical packages_path"
+            );
+        }
+    }
 }

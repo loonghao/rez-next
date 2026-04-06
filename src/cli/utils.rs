@@ -350,27 +350,39 @@ mod tests {
     fn test_terminal_width_via_columns_env() {
         // Set COLUMNS to a known value and verify it is respected.
         // Use a thread-local scope to avoid interfering with other tests.
-        std::env::set_var("COLUMNS", "132");
+        unsafe {
+            std::env::set_var("COLUMNS", "132");
+        }
         let width = get_terminal_width();
-        std::env::remove_var("COLUMNS");
+        unsafe {
+            std::env::remove_var("COLUMNS");
+        }
         assert_eq!(width, 132);
     }
 
     #[test]
     fn test_terminal_width_columns_zero_is_ignored() {
         // COLUMNS=0 should not be used — fall through to OS query or default.
-        std::env::set_var("COLUMNS", "0");
+        unsafe {
+            std::env::set_var("COLUMNS", "0");
+        }
         let width = get_terminal_width();
-        std::env::remove_var("COLUMNS");
+        unsafe {
+            std::env::remove_var("COLUMNS");
+        }
         // Must not return 0 (always returns at least the DEFAULT_WIDTH)
         assert!(width > 0);
     }
 
     #[test]
     fn test_terminal_width_columns_invalid_is_ignored() {
-        std::env::set_var("COLUMNS", "not_a_number");
+        unsafe {
+            std::env::set_var("COLUMNS", "not_a_number");
+        }
         let width = get_terminal_width();
-        std::env::remove_var("COLUMNS");
+        unsafe {
+            std::env::remove_var("COLUMNS");
+        }
         assert!(width > 0);
     }
 
