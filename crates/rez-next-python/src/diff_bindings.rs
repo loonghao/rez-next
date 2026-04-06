@@ -566,4 +566,186 @@ mod diff_bindings_tests {
         };
         assert!(!diff_obj.is_identical());
     }
+
+    #[test]
+    fn test_both_contexts_empty() {
+        let diffs = compute_diff(&[], &[]);
+        assert!(diffs.is_empty(), "Both empty contexts should produce no diffs");
+    }
+
+    #[test]
+    fn test_changed_diffs_excludes_unchanged() {
+        let old = vec![
+            make_pkg("python", "3.9.0"),
+            make_pkg("maya", "2023.1"),
+        ];
+        let new = vec![
+            make_pkg("python", "3.11.0"), // upgraded
+            make_pkg("maya", "2023.1"),   // unchanged
+        ];
+        let diffs = compute_diff(&old, &new);
+        let diff_obj = PyContextDiff {
+            num_added: 0,
+            num_removed: 0,
+            num_upgraded: 1,
+            num_downgraded: 0,
+            num_unchanged: 1,
+            diffs,
+        };
+        let changed = diff_obj.changed_diffs();
+        assert_eq!(changed.len(), 1, "Only upgraded python should be returned");
+        assert_eq!(changed[0].change_type, "upgraded");
+    }
+
+    #[test]
+    fn test_changed_diffs_empty_when_identical() {
+        let pkgs = vec![make_pkg("python", "3.9.0"), make_pkg("maya", "2024.1")];
+        let diffs = compute_diff(&pkgs, &pkgs);
+        let num_unchanged = diffs.len();
+        let diff_obj = PyContextDiff {
+            num_added: 0,
+            num_removed: 0,
+            num_upgraded: 0,
+            num_downgraded: 0,
+            num_unchanged,
+            diffs,
+        };
+        assert!(
+            diff_obj.changed_diffs().is_empty(),
+            "Identical contexts should have no changed_diffs"
+        );
+    }
+
+    #[test]
+    fn test_sort_order_added_before_removed() {
+        // Added (0) should come before Removed (1) in sorted output
+        let old = vec![make_pkg("aaaa", "1.0.0")];
+        let new = vec![make_pkg("zzzz", "1.0.0")];
+        let diffs = compute_diff(&old, &new);
+        // aaaa → removed, zzzz → added; added order=0 < removed order=1
+        assert_eq!(diffs[0].change_type, "added", "added should come first");
+        assert_eq!(diffs[1].change_type, "removed", "removed should come second");
+    }
+
+    #[test]
+    fn test_sort_order_within_same_type_alphabetical() {
+        // Multiple added packages should be sorted alphabetically by name
+        let old: Vec<Package> = vec![];
+        let new = vec![
+            make_pkg("zlib", "1.2.0"),
+            make_pkg("alembic", "1.7.0"),
+            make_pkg("mesa", "22.0.0"),
+        ];
+        let diffs = compute_diff(&old, &new);
+        let names: Vec<&str> = diffs.iter().map(|d| d.name.as_str()).collect();
+        assert_eq!(names, vec!["alembic", "mesa", "zlib"]);
+    }
+
+    #[test]
+    fn test_package_diff_repr_added() {
+        let d = PyPackageDiff {
+            name: "maya".to_string(),
+            old_version: None,
+            new_version: Some("2024.1".to_string()),
+            change_type: "added".to_string(),
+        };
+        let r = d.__repr__();
+        assert_eq!(r, "PackageDiff(+maya 2024.1)");
+    }
+
+    #[test]
+    fn test_package_diff_repr_removed() {
+        let d = PyPackageDiff {
+            name: "houdini".to_string(),
+            old_version: Some("19.5".to_string()),
+            new_version: None,
+            change_type: "removed".to_string(),
+        };
+        let r = d.__repr__();
+        assert_eq!(r, "PackageDiff(-houdini 19.5)");
+    }
+
+    #[test]
+    fn test_package_diff_repr_upgraded() {
+        let d = PyPackageDiff {
+            name: "python".to_string(),
+            old_version: Some("3.9.0".to_string()),
+            new_version: Some("3.11.0".to_string()),
+            change_type: "upgraded".to_string(),
+        };
+        let r = d.__repr__();
+        assert_eq!(r, "PackageDiff(python: 3.9.0 -> 3.11.0)");
+    }
+
+    #[test]
+    fn test_package_diff_repr_downgraded() {
+        let d = PyPackageDiff {
+            name: "nuke".to_string(),
+            old_version: Some("14.0".to_string()),
+            new_version: Some("13.0".to_string()),
+            change_type: "downgraded".to_string(),
+        };
+        let r = d.__repr__();
+        assert_eq!(r, "PackageDiff(nuke: 14.0 -> 13.0 [downgrade])");
+    }
+
+    #[test]
+    fn test_context_diff_repr_format() {
+        let diff_obj = PyContextDiff {
+            num_added: 2,
+            num_removed: 1,
+            num_upgraded: 3,
+            num_downgraded: 0,
+            num_unchanged: 5,
+            diffs: vec![],
+        };
+        let r = diff_obj.__repr__();
+        assert_eq!(r, "ContextDiff(+2 -1 ^3 v0 =5)");
+    }
+
+    #[test]
+    fn test_format_diff_removed_uses_minus_prefix() {
+        let diffs = vec![PyPackageDiff {
+            name: "maya".to_string(),
+            old_version: Some("2023.1".to_string()),
+            new_version: None,
+            change_type: "removed".to_string(),
+        }];
+        let diff_obj = PyContextDiff {
+            num_added: 0,
+            num_removed: 1,
+            num_upgraded: 0,
+            num_downgraded: 0,
+            num_unchanged: 0,
+            diffs,
+        };
+        let output = format_diff(&diff_obj);
+        assert!(
+            output.contains("- maya 2023.1"),
+            "Removed package should use '- ' prefix: got {output}"
+        );
+    }
+
+    #[test]
+    fn test_format_diff_downgraded_uses_v_prefix() {
+        let diffs = vec![PyPackageDiff {
+            name: "nuke".to_string(),
+            old_version: Some("14.0".to_string()),
+            new_version: Some("13.0".to_string()),
+            change_type: "downgraded".to_string(),
+        }];
+        let diff_obj = PyContextDiff {
+            num_added: 0,
+            num_removed: 0,
+            num_upgraded: 0,
+            num_downgraded: 1,
+            num_unchanged: 0,
+            diffs,
+        };
+        let output = format_diff(&diff_obj);
+        assert!(
+            output.contains("v nuke"),
+            "Downgraded package should use 'v ' prefix: got {output}"
+        );
+    }
 }
