@@ -19,8 +19,9 @@ pub enum PackageFormat {
     YamlCompressed,
     /// Compressed JSON format (package.json.gz)
     JsonCompressed,
-    /// Binary format (package.bin)
+    /// Base64-wrapped bincode payload stored in `package.bin`
     Binary,
+
     /// TOML format (package.toml)
     Toml,
     /// XML format (package.xml)

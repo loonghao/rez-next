@@ -310,7 +310,9 @@ impl PackageSaver {
         Ok(content)
     }
 
+    /// Save a package as a base64-wrapped bincode payload.
     fn save_to_binary(package: &Package) -> Result<String, RezCoreError> {
+
         use base64::Engine as _;
 
         let binary_data =

@@ -110,13 +110,14 @@ impl SimpleRepository {
         })
     }
 
-    /// Load a package from a package.py file
+    /// Load a package from a supported package descriptor file.
     async fn load_package_from_path(
         &self,
-        package_py_path: &Path,
+        descriptor_path: &Path,
     ) -> Result<Package, RezCoreError> {
-        PackageSerializer::load_from_file(package_py_path)
+        PackageSerializer::load_from_file(descriptor_path)
     }
+
 }
 
 #[async_trait::async_trait]

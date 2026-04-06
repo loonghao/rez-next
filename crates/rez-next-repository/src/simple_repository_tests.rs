@@ -630,7 +630,8 @@ async fn test_scan_package_with_tools() {
     assert!(!pkgs[0].tools.is_empty());
 }
 
-// ── Multi-format scanning tests (CLEANUP_TODO #30) ───────────────────────────
+// ── Multi-format descriptor discovery tests ──────────────────────────────────
+
 
 /// `SimpleRepository` must discover packages in all four supported formats.
 #[tokio::test]

@@ -203,8 +203,9 @@ impl PackageLoader {
         Ok(package)
     }
 
-    /// Load a package from binary content
+    /// Load a package from base64-wrapped bincode content.
     pub fn load_from_binary(content: &str) -> Result<Package, RezCoreError> {
+
         use base64::Engine as _;
 
         let binary_data = base64::engine::general_purpose::STANDARD
