@@ -197,10 +197,7 @@ mod tests {
             // We verify it's retrievable without checking exact value
             let inner = RezCoreConfig::load();
             let val = inner.get_field("local_packages_path");
-            assert!(
-                val.is_some(),
-                "local_packages_path should be a known field"
-            );
+            assert!(val.is_some(), "local_packages_path should be a known field");
         }
 
         #[test]

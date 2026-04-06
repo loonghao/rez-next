@@ -138,7 +138,11 @@ mod tests {
                 "repr should contain type name: {}",
                 repr
             );
-            assert!(repr.contains("[]"), "repr for empty should show []: {}", repr);
+            assert!(
+                repr.contains("[]"),
+                "repr for empty should show []: {}",
+                repr
+            );
         }
 
         #[test]

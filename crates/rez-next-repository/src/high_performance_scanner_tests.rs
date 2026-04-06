@@ -171,13 +171,19 @@ mod test_simd_pattern_matcher {
     }
 
     // --- Windows-style paths ---
+    // Note: Windows-style paths with backslash separators only parse correctly
+    // as multi-component paths on Windows. On Linux/macOS the entire string is
+    // treated as a single path component (single filename), so these tests are
+    // restricted to Windows targets only.
 
+    #[cfg(target_os = "windows")]
     #[test]
     fn test_matches_windows_path_package_py() {
         let matcher = SIMDPatternMatcher::new();
         assert!(matcher.matches_package_pattern(Path::new(r"C:\packages\maya\2024.1\package.py")));
     }
 
+    #[cfg(target_os = "windows")]
     #[test]
     fn test_does_not_match_windows_path_setup_py() {
         let matcher = SIMDPatternMatcher::new();
