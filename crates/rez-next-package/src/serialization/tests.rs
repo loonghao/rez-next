@@ -23,23 +23,7 @@ mod serialization_tests {
         opts
     }
 
-    #[test]
-    fn test_package_format_from_extension_yaml() {
-        let p = std::path::Path::new("package.yaml");
-        assert_eq!(PackageFormat::from_extension(p), Some(PackageFormat::Yaml));
-    }
 
-    #[test]
-    fn test_package_format_from_extension_json() {
-        let p = std::path::Path::new("package.json");
-        assert_eq!(PackageFormat::from_extension(p), Some(PackageFormat::Json));
-    }
-
-    #[test]
-    fn test_package_format_from_extension_py() {
-        let p = std::path::Path::new("package.py");
-        assert_eq!(PackageFormat::from_extension(p), Some(PackageFormat::Python));
-    }
 
     #[test]
     fn test_package_format_default_filename() {
@@ -63,18 +47,23 @@ mod serialization_tests {
     }
 
     #[test]
-    fn test_serialize_to_yaml_string() {
+    fn test_serialize_to_yaml_string_contains_expected_fields() {
         let pkg = make_test_package();
         let yaml = PackageSerializer::save_to_yaml(&pkg).unwrap();
-        assert!(!yaml.is_empty());
+        assert!(yaml.contains("name: test_pkg"));
+        assert!(yaml.contains("version: 1.2.3"));
+        assert!(yaml.contains("description: A test package for serialization"));
     }
 
     #[test]
-    fn test_serialize_to_json_string() {
+    fn test_serialize_to_json_string_contains_expected_fields() {
         let pkg = make_test_package();
         let json = PackageSerializer::save_to_json(&pkg).unwrap();
-        assert!(!json.is_empty());
+        assert!(json.contains("\"name\": \"test_pkg\""));
+        assert!(json.contains("\"version\": \"1.2.3\""));
+        assert!(json.contains("\"description\": \"A test package for serialization\""));
     }
+
 
     #[test]
     fn test_write_yaml_and_read_back() {
@@ -310,7 +299,21 @@ requires = ["python>=3.7"]
         assert_eq!(PackageFormat::from_extension(Path::new("pkg.xyz")), None);
     }
 
+    #[test]
+    fn test_binary_string_roundtrip() {
+        let pkg = make_test_package();
+        let encoded = PackageSerializer::save_to_string(&pkg, PackageFormat::Binary).unwrap();
+        assert!(!encoded.is_empty());
+        let decoded = PackageSerializer::load_from_string(&encoded, PackageFormat::Binary).unwrap();
+
+        assert_eq!(decoded.name, pkg.name);
+        assert_eq!(decoded.version.as_ref().map(|v| v.as_str()), pkg.version.as_ref().map(|v| v.as_str()));
+        assert_eq!(decoded.requires, pkg.requires);
+        assert_eq!(decoded.tools, pkg.tools);
+    }
+
     // ── build_requires / private_build_requires / variants tests ─────────────
+
 
     #[test]
     fn test_build_requires_json_roundtrip() {

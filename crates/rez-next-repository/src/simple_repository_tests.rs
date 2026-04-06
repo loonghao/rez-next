@@ -658,17 +658,25 @@ async fn test_multi_format_priority_py_beats_yaml_no_duplicate() {
     let temp_dir = TempDir::new().unwrap();
     let dir = temp_dir.path().join("dualfmt").join("1.0.0");
     fs::create_dir_all(&dir).await.unwrap();
-    fs::write(dir.join("package.py"), "name = 'dualfmt'\nversion = '1.0.0'\n")
-        .await
-        .unwrap();
-    fs::write(dir.join("package.yaml"), "name: dualfmt\nversion: 1.0.0\n")
-        .await
-        .unwrap();
+    fs::write(
+        dir.join("package.py"),
+        "name = 'dualfmt'\nversion = '1.0.0'\ndescription = 'from python'\n",
+    )
+    .await
+    .unwrap();
+    fs::write(
+        dir.join("package.yaml"),
+        "name: dualfmt\nversion: 1.0.0\ndescription: from yaml\n",
+    )
+    .await
+    .unwrap();
 
     let repo = SimpleRepository::new(temp_dir.path(), "repo".to_string());
     let pkgs = repo.find_packages("dualfmt").await.unwrap();
     assert_eq!(pkgs.len(), 1, "dual-format dir should yield exactly one package");
+    assert_eq!(pkgs[0].description.as_deref(), Some("from python"));
 }
+
 
 /// A mixed-format repository contains packages in different formats; all should
 /// be discoverable via `list_packages` and `find_packages`.

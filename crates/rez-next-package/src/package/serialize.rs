@@ -60,10 +60,11 @@ impl<'de> Deserialize<'de> for Package {
     where
         D: serde::Deserializer<'de>,
     {
-        use serde::de::{self, MapAccess, Visitor};
+        use serde::de::{self, MapAccess, SeqAccess, Visitor};
         use std::fmt;
 
         #[derive(Deserialize)]
+
         #[serde(field_identifier, rename_all = "snake_case")]
         enum Field {
             Name,
@@ -112,10 +113,162 @@ impl<'de> Deserialize<'de> for Package {
                 formatter.write_str("struct Package")
             }
 
+            fn visit_seq<V>(self, mut seq: V) -> Result<Package, V::Error>
+            where
+                V: SeqAccess<'de>,
+            {
+                let name = seq
+                    .next_element()?
+                    .ok_or_else(|| de::Error::invalid_length(0, &self))?;
+                let version = seq
+                    .next_element()?
+                    .ok_or_else(|| de::Error::invalid_length(1, &self))?;
+                let description = seq
+                    .next_element()?
+                    .ok_or_else(|| de::Error::invalid_length(2, &self))?;
+                let authors = seq
+                    .next_element()?
+                    .ok_or_else(|| de::Error::invalid_length(3, &self))?;
+                let requires = seq
+                    .next_element()?
+                    .ok_or_else(|| de::Error::invalid_length(4, &self))?;
+                let build_requires = seq
+                    .next_element()?
+                    .ok_or_else(|| de::Error::invalid_length(5, &self))?;
+                let private_build_requires = seq
+                    .next_element()?
+                    .ok_or_else(|| de::Error::invalid_length(6, &self))?;
+                let variants = seq
+                    .next_element()?
+                    .ok_or_else(|| de::Error::invalid_length(7, &self))?;
+                let tools = seq
+                    .next_element()?
+                    .ok_or_else(|| de::Error::invalid_length(8, &self))?;
+                let commands = seq
+                    .next_element()?
+                    .ok_or_else(|| de::Error::invalid_length(9, &self))?;
+                let build_command = seq
+                    .next_element()?
+                    .ok_or_else(|| de::Error::invalid_length(10, &self))?;
+                let build_system = seq
+                    .next_element()?
+                    .ok_or_else(|| de::Error::invalid_length(11, &self))?;
+                let pre_commands = seq
+                    .next_element()?
+                    .ok_or_else(|| de::Error::invalid_length(12, &self))?;
+                let post_commands = seq
+                    .next_element()?
+                    .ok_or_else(|| de::Error::invalid_length(13, &self))?;
+                let pre_test_commands = seq
+                    .next_element()?
+                    .ok_or_else(|| de::Error::invalid_length(14, &self))?;
+                let pre_build_commands = seq
+                    .next_element()?
+                    .ok_or_else(|| de::Error::invalid_length(15, &self))?;
+                let tests = seq
+                    .next_element()?
+                    .ok_or_else(|| de::Error::invalid_length(16, &self))?;
+                let requires_rez_version = seq
+                    .next_element()?
+                    .ok_or_else(|| de::Error::invalid_length(17, &self))?;
+                let uuid = seq
+                    .next_element()?
+                    .ok_or_else(|| de::Error::invalid_length(18, &self))?;
+                let help = seq
+                    .next_element()?
+                    .ok_or_else(|| de::Error::invalid_length(19, &self))?;
+                let relocatable = seq
+                    .next_element()?
+                    .ok_or_else(|| de::Error::invalid_length(20, &self))?;
+                let cachable = seq
+                    .next_element()?
+                    .ok_or_else(|| de::Error::invalid_length(21, &self))?;
+                let timestamp = seq
+                    .next_element()?
+                    .ok_or_else(|| de::Error::invalid_length(22, &self))?;
+                let revision = seq
+                    .next_element()?
+                    .ok_or_else(|| de::Error::invalid_length(23, &self))?;
+                let changelog = seq
+                    .next_element()?
+                    .ok_or_else(|| de::Error::invalid_length(24, &self))?;
+                let release_message = seq
+                    .next_element()?
+                    .ok_or_else(|| de::Error::invalid_length(25, &self))?;
+                let previous_version = seq
+                    .next_element()?
+                    .ok_or_else(|| de::Error::invalid_length(26, &self))?;
+                let previous_revision = seq
+                    .next_element()?
+                    .ok_or_else(|| de::Error::invalid_length(27, &self))?;
+                let vcs = seq
+                    .next_element()?
+                    .ok_or_else(|| de::Error::invalid_length(28, &self))?;
+                let format_version = seq
+                    .next_element()?
+                    .ok_or_else(|| de::Error::invalid_length(29, &self))?;
+                let base = seq
+                    .next_element()?
+                    .ok_or_else(|| de::Error::invalid_length(30, &self))?;
+                let has_plugins = seq
+                    .next_element()?
+                    .ok_or_else(|| de::Error::invalid_length(31, &self))?;
+                let plugin_for = seq
+                    .next_element()?
+                    .ok_or_else(|| de::Error::invalid_length(32, &self))?;
+                let hashed_variants = seq
+                    .next_element()?
+                    .ok_or_else(|| de::Error::invalid_length(33, &self))?;
+                let preprocess = seq
+                    .next_element()?
+                    .ok_or_else(|| de::Error::invalid_length(34, &self))?;
+
+                Ok(Package {
+                    name,
+                    version,
+                    description,
+                    authors,
+                    requires,
+                    build_requires,
+                    private_build_requires,
+                    variants,
+                    tools,
+                    commands,
+                    commands_function: None,
+                    build_command,
+                    build_system,
+                    pre_commands,
+                    post_commands,
+                    pre_test_commands,
+                    pre_build_commands,
+                    tests,
+                    requires_rez_version,
+                    uuid,
+                    config: HashMap::new(),
+                    help,
+                    relocatable,
+                    cachable,
+                    timestamp,
+                    revision,
+                    changelog,
+                    release_message,
+                    previous_version,
+                    previous_revision,
+                    vcs,
+                    format_version,
+                    base,
+                    has_plugins,
+                    plugin_for,
+                    hashed_variants,
+                    preprocess,
+                })
+            }
+
             fn visit_map<V>(self, mut map: V) -> Result<Package, V::Error>
             where
                 V: MapAccess<'de>,
             {
+
                 let mut name = None;
                 let mut version = None;
                 let mut description = None;
