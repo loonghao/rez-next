@@ -142,10 +142,10 @@
 
 
 ### 24. CLI helper logic is still duplicated across commands
-- **Status**: TODO (cycle 25)
-- Home-path expansion is now centralized for `bind.rs`, `cp.rs`, `mv.rs`, `rm.rs`, `status.rs`, `test.rs`, `view.rs`, and related commands, but `build.rs` still keeps a custom path-normalization helper because it also validates UNC / drive-specific forms
-- Time parsing is now centralized in `src/cli/utils.rs`; remove redundant command-local tests and evaluate whether `build.rs` path handling can converge on the shared helper without losing validation behavior
-- Follow-up: extract shared CLI helpers for path expansion and timestamp parsing
+- **Status**: COMPLETE ✓ (cycle 34)
+- `build.rs` and `search_v2/mod.rs` now both use `src/cli/utils.rs::expand_home_path` for `~` expansion instead of carrying command-local logic
+- Time parsing remains centralized in `src/cli/utils.rs`; future CLI commands that discover repositories or package paths should route through the same shared helper layer
+
 
 ### 25. Public compatibility stubs still need explicit product decisions
 - **Status**: COMPLETE ✓ (cycle 43 for build-system tests; stubs fixed in cycle 39)
@@ -190,10 +190,11 @@
 - Follow-up: keep documenting rez-compatible `stop()` semantics in user-facing Rex docs if new command examples are added
 
 ### 30. Repository format support has diverged between `FileSystemRepository` and `SimpleRepository`
-- **Status**: COMPLETE ✓ (cycle 84)
-- Iteration commit `53abfa1` updated `SimpleRepository` to scan `package.py`, `package.yaml`, `package.yml`, and `package.json` via `PACKAGE_FILENAMES`, removing the previous format-matrix split
-- `simple_repository_tests.rs` now locks the current behavior with yaml/json/yml discovery coverage plus an explicit `package.py`-beats-`package.yaml` priority assertion
-- Follow-up: keep the supported descriptor filename matrix centralized so future repository implementations do not drift again
+- **Status**: COMPLETE ✓ (cycle 84, refreshed cycle 34)
+- Iteration commit `53abfa1` updated `SimpleRepository` to scan `package.py`, `package.yaml`, `package.yml`, and `package.json`
+- Cycle 34 removed the last local duplicate by switching `simple_repository.rs` from its private `PACKAGE_FILENAMES` array to the shared `scanner_types::REZ_PACKAGE_FILENAMES` constant
+- `simple_repository_tests.rs` locks the behavior with yaml/json/yml discovery coverage plus an explicit `package.py`-beats-`package.yaml` priority assertion
+
 
 
 ### 31. `PackageBinder::list_bound_packages()` still lacks a real unit-test seam
