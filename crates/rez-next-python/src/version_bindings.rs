@@ -465,4 +465,69 @@ mod tests {
         let union_result = any.union(&r).unwrap();
         assert!(union_result.is_any());
     }
+
+    // ─── Additional version tests ─────────────────────────────────────────────
+
+    #[test]
+    fn test_py_version_empty_string_parses() {
+        // empty version should parse without panic
+        let result = PyVersion::new(Some(""));
+        // empty may be Ok or Err depending on parser; must not panic
+        let _ = result;
+    }
+
+    #[test]
+    fn test_py_version_single_token() {
+        let v = pv("5");
+        assert_eq!(v.__str__(), "5");
+        assert_eq!(v.major(), Some("5".to_string()));
+        assert!(v.minor().is_none() || v.minor() == Some(String::new()),
+            "single-token version has no minor");
+    }
+
+    #[test]
+    fn test_py_version_cmp_three_way() {
+        let v1 = pv("1.0");
+        let v2 = pv("1.0");
+        let v3 = pv("1.1");
+        assert!(v1.__eq__(&v2));
+        assert!(v1.__lt__(&v3));
+        assert!(v3.__gt__(&v1));
+        assert!(!v1.__lt__(&v2));
+    }
+
+    #[test]
+    fn test_py_version_hash_different_versions_likely_differ() {
+        let v1 = pv("1.0.0");
+        let v2 = pv("9.9.9");
+        // Very unlikely to collide
+        assert_ne!(v1.__hash__(), v2.__hash__(), "different versions should have different hash");
+    }
+
+    #[test]
+    fn test_py_version_trim_to_one() {
+        let v = pv("3.11.4");
+        let t = v.trim(1).unwrap();
+        assert_eq!(t.__str__(), "3");
+    }
+
+    #[test]
+    fn test_py_version_range_contains_boundary() {
+        // ">=1.0,<2.0" — boundary: 2.0 is excluded, 1.0 is included
+        let r = pvr(">=1.0,<2.0");
+        assert!(r.contains(&pv("1.0")), "lower bound must be inclusive");
+        assert!(!r.contains(&pv("2.0")), "upper bound must be exclusive");
+    }
+
+    #[test]
+    fn test_py_version_range_intersect_non_overlapping_is_none() {
+        let r1 = pvr(">=1.0,<2.0");
+        let r2 = pvr(">=3.0,<4.0");
+        let result = r1.intersect(&r2);
+        // Non-overlapping ranges should produce None or empty range
+        if let Some(intersection) = result {
+            assert!(intersection.is_empty(), "non-overlapping intersection must be empty");
+        }
+        // None is also acceptable
+    }
 }

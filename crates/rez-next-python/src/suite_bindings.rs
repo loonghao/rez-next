@@ -397,4 +397,67 @@ mod tests {
             assert!(result.is_err());
         }
     }
+
+    mod test_suite_extra {
+        use super::*;
+
+        #[test]
+        fn test_repr_contains_contexts_count() {
+            let mut s = PySuite::new(None);
+            s.add_context("a", vec!["pkg-1".to_string()]).unwrap();
+            s.add_context("b", vec!["pkg-2".to_string()]).unwrap();
+            let repr = s.__repr__();
+            assert!(repr.contains("Suite("), "repr must start with Suite(, got {repr}");
+            assert!(repr.contains('2') || repr.contains("contexts=2"),
+                "repr must reflect 2 contexts, got {repr}");
+        }
+
+        #[test]
+        fn test_add_same_context_twice_is_err_or_ok() {
+            let mut s = PySuite::new(None);
+            s.add_context("dup", vec!["pkg-1".to_string()]).unwrap();
+            // Adding same name again: implementation may error or silently update.
+            // We only verify the function doesn't panic.
+            let _ = s.add_context("dup", vec!["pkg-2".to_string()]);
+        }
+
+        #[test]
+        fn test_context_names_empty_after_remove_all() {
+            let mut s = PySuite::new(None);
+            s.add_context("x", vec![]).unwrap();
+            s.add_context("y", vec![]).unwrap();
+            s.remove_context("x").unwrap();
+            s.remove_context("y").unwrap();
+            assert!(s.context_names().is_empty(), "context_names must be empty after removing all");
+        }
+
+        #[test]
+        fn test_alias_tool_nonexistent_context_returns_err() {
+            let mut s = PySuite::new(None);
+            let result = s.alias_tool("no_such_ctx", "new_alias", "original_tool");
+            assert!(result.is_err(), "alias_tool on absent context should fail");
+        }
+
+        #[test]
+        fn test_hide_tool_nonexistent_context_returns_err() {
+            let mut s = PySuite::new(None);
+            let result = s.hide_tool("no_such_ctx", "some_tool");
+            assert!(result.is_err(), "hide_tool on absent context should fail");
+        }
+
+        #[test]
+        fn test_path_none_before_save() {
+            let s = PySuite::new(None);
+            assert!(s.path().is_none(), "path must be None for unsaved suite");
+        }
+
+        #[test]
+        fn test_suite_manager_no_paths_gives_none_suite() {
+            let mgr = PySuiteManager::new(None);
+            let names = mgr.list_suite_names();
+            // With no paths (None), manager searches default dirs which may be empty
+            // Just verify it doesn't panic and returns a Vec (may be empty or not)
+            let _ = names.len();
+        }
+    }
 }

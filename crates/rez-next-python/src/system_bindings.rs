@@ -364,5 +364,66 @@ mod tests {
             }
         }
     }
+
+    mod test_system_additional {
+        use super::*;
+
+        #[test]
+        fn test_platform_not_contains_slash() {
+            let platform = PySystem::platform_pub();
+            assert!(!platform.contains('/'), "platform must not contain '/': '{platform}'");
+        }
+
+        #[test]
+        fn test_arch_not_contains_slash() {
+            let arch = PySystem::arch_pub();
+            assert!(!arch.contains('/'), "arch must not contain '/': '{arch}'");
+        }
+
+        #[test]
+        fn test_os_str_not_empty_string() {
+            let os = PySystem::os_pub();
+            assert!(!os.is_empty(), "os must not be empty string");
+        }
+
+        #[test]
+        fn test_rez_version_patch_numeric() {
+            let sys = PySystem::new();
+            let ver = sys.rez_version();
+            let parts: Vec<&str> = ver.split('.').collect();
+            if parts.len() >= 3 {
+                // patch may include pre-release suffix like "0-alpha.1"
+                let patch_num = parts[2].split('-').next().unwrap_or("");
+                assert!(
+                    patch_num.parse::<u64>().is_ok(),
+                    "patch version should start with numeric: '{}'", parts[2]
+                );
+            }
+        }
+
+        #[test]
+        fn test_hostname_no_null_bytes() {
+            let sys = PySystem::new();
+            let h = sys.hostname();
+            assert!(!h.contains('\0'), "hostname must not contain null bytes");
+        }
+
+        #[test]
+        fn test_num_cpus_power_of_two_or_reasonable() {
+            let sys = PySystem::new();
+            let cpus = sys.num_cpus();
+            // Just verify it's a positive integer
+            assert!(cpus > 0, "num_cpus must be positive, got {cpus}");
+        }
+
+        #[test]
+        fn test_arch_not_numeric_only() {
+            let arch = PySystem::arch_pub();
+            // Architecture strings like "x86_64" are not purely numeric
+            let all_digits = arch.chars().all(|c| c.is_ascii_digit());
+            assert!(!all_digits || arch.is_empty(),
+                "arch should not be purely numeric: '{arch}'");
+        }
+    }
 }
 

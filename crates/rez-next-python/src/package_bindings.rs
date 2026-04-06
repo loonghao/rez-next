@@ -451,4 +451,63 @@ mod tests {
         let cr = r.conflict_requirement();
         assert!(cr.starts_with('!'), "conflict of conflict should stay !, got {cr}");
     }
+
+    // ─── Additional PyPackage tests ───────────────────────────────────────────
+
+    #[test]
+    fn test_package_str_with_version() {
+        let mut p = make_package("nuke");
+        p.set_version("14.0.1").unwrap();
+        assert_eq!(p.__str__(), "nuke-14.0.1");
+    }
+
+    #[test]
+    fn test_package_repr_with_version() {
+        let mut p = make_package("houdini");
+        p.set_version("20.5.0").unwrap();
+        let repr = p.__repr__();
+        assert!(repr.contains("Package("), "repr must contain 'Package(', got {repr}");
+        assert!(repr.contains("houdini-20.5.0"), "repr must contain 'houdini-20.5.0', got {repr}");
+    }
+
+    #[test]
+    fn test_package_eq_same_name_same_version() {
+        let mut a = make_package("python");
+        let mut b = make_package("python");
+        a.set_version("3.10.0").unwrap();
+        b.set_version("3.10.0").unwrap();
+        assert!(a.__eq__(&b), "packages with same name+version must be equal");
+    }
+
+    #[test]
+    fn test_package_eq_different_version() {
+        let mut a = make_package("python");
+        let mut b = make_package("python");
+        a.set_version("3.10.0").unwrap();
+        b.set_version("3.11.0").unwrap();
+        assert!(!a.__eq__(&b), "packages with different versions must not be equal");
+    }
+
+    #[test]
+    fn test_package_hash_same_for_equal_packages() {
+        let mut a = make_package("rez");
+        let mut b = make_package("rez");
+        a.set_version("2.0.0").unwrap();
+        b.set_version("2.0.0").unwrap();
+        assert_eq!(a.__hash__(), b.__hash__(), "equal packages must have same hash");
+    }
+
+    #[test]
+    fn test_package_version_str_getter() {
+        let mut p = make_package("cmake");
+        p.set_version("3.26.4").unwrap();
+        let vs = p.version_str();
+        assert_eq!(vs.as_deref(), Some("3.26.4"), "version_str must return version string");
+    }
+
+    #[test]
+    fn test_package_build_requires_empty_by_default() {
+        let p = make_package("test_pkg");
+        assert!(p.build_requires().is_empty(), "build_requires must be empty by default");
+    }
 }
