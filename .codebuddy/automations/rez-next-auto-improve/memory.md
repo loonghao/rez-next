@@ -1,41 +1,40 @@
 # rez-next auto-improve 执行记录
 
-## 最新执行 (2026-04-06 20:39) — Cycle 90
+## 最新执行 (2026-04-07 00:05) — Cycle 92
 
 ### 执行摘要
 
-**Cycle 90（commit `dafaedf`）**：扩展 3 个低覆盖率 Python binding 测试模块 + 修复 utils.rs env-var 并发竞争
+**Cycle 92（commit `0c08747`）**：扩展 3 个零/低覆盖率 Python binding 测试模块 + 修复 status_bindings 并发竞争
 
-- `status_bindings.rs`: 9 → 18 tests
-  - 新增 `detect_active_via_context_file_env`、`detect_active_via_used_packages_env`
-  - 新增 `detect_request_field`、`detect_implicit_packages_field`
-  - 新增 `detect_context_cwd_and_version`
-  - 新增 `active_repr_includes_package_count`（活跃状态含包数量）
-  - 新增 `get_rez_env_var_missing_returns_none`
-  - 新增 `detect_shell_from_env_maps_zsh`、`detect_shell_from_env_maps_fish`
-- `config_bindings.rs`: 6 → 14 tests（新增 3 个 getter + 3 个 get_field + new/default 一致性）
-  - `test_config_getters` 模块：packages_path、local/release_packages_path、default_shell、rez_version 均验证与 inner 字段匹配
-  - `test_config_get_field` 模块：已知字段/未知字段/new()与default()路径一致
-- `repository_bindings.rs`: 7 → 15 tests
-  - 新增 repr 空路径/多路径格式断言
-  - 新增 `new(None)` 不 panic
-  - 新增 `find_packages_with_real_package_py`：写入真实 package.py 后验证发现结果
-  - 新增 `get_package_family_names_dedup_and_sorted`：验证去重+排序行为
-- `src/cli/utils.rs`：3 个 `COLUMNS` env-var 测试的 `set_var`/`remove_var` 包裹 `unsafe {}`
-  - 消除与 `status_bindings` 并行测试的环境变量竞争（原本随机 FAILED）
-- 全套测试：0 failed；Clippy warnings: 0
+- `exceptions_bindings.rs`: 0 → 11 tests
+  - 新增 `EXCEPTION_HIERARCHY` 常量（17 条层次结构条目）作为可测试的 Rust-only 元数据
+  - 测试：non_empty、has_rez_error_root、package_exceptions_extend_rez_error
+  - 测试：resolve_subtypes_extend_resolve_error、rex_undefined_extends_rex_error
+  - 测试：total_count、no_duplicate_names、system_error/build_release/config_context_suite
+- `shell_bindings.rs`: 10 → 20 tests
+  - 新增 `test_py_shell` 模块：name匹配、repr格式、unknown shell错误、generate_script with vars/commands
+  - 新增 `test_create_shell_script` 模块：bash/powershell with var、unknown shell错误、all known shells
+- `data_bindings.rs`: 11 → 29 tests
+  - 新增 PyRezData 方法测试：new/default no panic、repr、list_resources count/contains、get_resource (bash/zsh/fish/example/config/unknown)
+  - 新增 get_example_package、get_default_config、list_data_resources、get_data_resource 函数测试
+  - 新增 write_completion_script fs 测试（成功路径 + unknown shell 错误路径）
+- `status_bindings.rs`：修复 `test_detect_active_via_used_packages_env` 并发竞争
+  - 移除 `remove_var("REZ_CONTEXT_FILE")` 假设（其他并发测试可能重新设置它）
+  - 改为断言 `resolved_packages.contains()`（而非顺序/数量固定断言）
+- 全套测试：430 passed; 0 failed；Clippy warnings: 0
 
 ### 当前提交
-- `dafaedf` — test(python): Cycle 90 [iteration-done]
-- `cc00e55` — test(python): Cycle 89 [iteration-done]
-- `1961ad0` — test(python): Cycle 88 [iteration-done]
+- `0c08747` — test(python): Cycle 92 [iteration-done]
+- `6288301` — chore: update auto-improve memory.md after Cycle 91
+- `ba8091b` — test(python): Cycle 91 [iteration-done]
 
-### 测试统计（截至 Cycle 90）
+### 测试统计（截至 Cycle 92）
 - `cargo test --workspace --lib`：全部通过，0 failed
+- `cargo test -p rez-next-python --lib`：430 passed，0 failed
 - Clippy warnings: **0**
 
 ### 当前项目状态
-**分支**: `auto-improve`（已推送至 origin，commit dafaedf）
+**分支**: `auto-improve`（已推送至 origin，commit 0c08747）
 **Clippy warnings**: 0
 
 ### 超长文件现状（全部 ≤1000 行）
@@ -43,29 +42,32 @@
 |------|------|------|
 | `tests/rez_compat_search_tests.rs` | 768 | 正常 |
 | `tests/rez_compat_misc_tests.rs` | 745 | 正常 |
-| `tests/rez_solver_advanced_tests.rs` | 703 | 正常 |
+| `tests/rez_solver_advanced_tests.rs` | 806 | 正常 |
 | `tests/rez_compat_tests.rs` | 713 | 正常 |
 | `tests/cli_e2e_tests.rs` | ~720 | 正常 |
 | `tests/rez_compat_context_tests.rs` | 473 | 正常 |
 
 ### 下一阶段待改进项（优先级排序）
 
-1. **`pip_bindings.rs`（13 tests，12.7KB）**：测试相对少，可扩展至 20+
-   - `get_pip_version()`、`is_pip_available()`、`pip_install()` NotImplementedError 合约
-   - `PyPipResult` 序列化/反序列化
+1. **`repository_bindings.rs`（12 tests，7.6KB）**：测试偏少
+   - `find_packages_with_real_package_py`、package family 枚举、get_package 行为
+   - repr 格式、多路径初始化
 
-2. **`package_bindings.rs`（7 tests，9.5KB）**：重要核心绑定，测试偏少
-   - `PyPackage` 字段读取、`__repr__`、`requires` 列表、版本比较
+2. **`system_bindings.rs`（13 tests）**：可扩展至 20+
+   - `PySystem` 字段读取、platform/os/arch getter、`is_windows/is_linux/is_macos` flag
 
-3. **性能对比基准测试**：
-   - rez vs rez_next Python 层性能对比测试（benches/）
+3. **`source_bindings.rs`（16 tests）**：可扩展至 22+
+   - source_file/source_code/source_dir 各路径的成功/失败
 
-4. **Python 层 e2e 测试**：
-   - `crates/rez-next-python/tests/` 目录（如有）补充更多集成测试
+4. **低覆盖率汇总（升序）**：
+   - `repository_bindings.rs`: 12
+   - `system_bindings.rs`: 13
+   - `config_bindings.rs`: 14 / `forward_bindings.rs`: 14
+   - `env_bindings.rs`: 16 / `search_bindings.rs`: 16 / `source_bindings.rs`: 16
 
-5. **status_bindings 并发安全**：
-   - `detect_current_status()` 使用全局环境变量，高并发测试可能竞争
-   - 考虑提取 `detect_current_status_from(env_map: &HashMap<...>)` 使得测试无副作用
+5. **并发安全优化**：
+   - `detect_current_status()` 依赖全局 env var，考虑提取 `detect_from_env_map(map)` 纯函数
+   - 这将彻底消除 status_bindings 测试的竞争风险
 
 ### 注意事项
 - cleanup Agent 在 Cycle 28 清理中改了测试断言，已修复
@@ -92,3 +94,5 @@
 - **Cycle 85 新增**: `build.rs` 路径 helpers 去重；`filter.rs` 测试扩展
 - **Cycle 86-89 新增**: Python binding 测试系统扩展（env_bindings、package_functions、diff_bindings、context_bindings、depends_bindings、release_bindings、solver_bindings）
 - **Cycle 90 新增**: `utils.rs` 中 `set_var`/`remove_var` 全部包裹 `unsafe {}`；`status_bindings`(9→18)、`config_bindings`(6→14)、`repository_bindings`(7→15) 测试扩展
+- **Cycle 91 新增**: `system_bindings`(9→17)、`forward_bindings`(8→14)、`plugins_bindings`(8→19)、`package_functions`(9→18)；add remove_package fs tests；391 lib tests pass
+- **Cycle 92 新增**: `EXCEPTION_HIERARCHY` const 使 exceptions_bindings 可 Rust-only 测试；`test_detect_active_via_used_packages_env` 改用 `contains()` 断言避免竞争；data_bindings 的 `write_completion_script` 增加 fs 测试
