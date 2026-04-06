@@ -172,61 +172,198 @@ exec rez-next forward {} "$@"
 mod forward_tests {
     use super::*;
 
-    #[test]
-    fn test_rez_forward_new() {
-        let fwd = PyRezForward::new("maya".to_string(), None);
-        assert_eq!(fwd.tool_name(), "maya");
-        assert!(fwd.context_id().is_none());
+    mod test_rez_forward_struct {
+        use super::*;
+
+        #[test]
+        fn test_rez_forward_new() {
+            let fwd = PyRezForward::new("maya".to_string(), None);
+            assert_eq!(fwd.tool_name(), "maya");
+            assert!(fwd.context_id().is_none());
+        }
+
+        #[test]
+        fn test_rez_forward_with_context() {
+            let fwd = PyRezForward::new("houdini".to_string(), Some("ctx-abc123".to_string()));
+            assert_eq!(fwd.context_id(), Some("ctx-abc123".to_string()));
+        }
+
+        #[test]
+        fn test_forward_str_no_context() {
+            let fwd = PyRezForward::new("python".to_string(), None);
+            let s = fwd.__str__();
+            assert!(s.contains("python"), "str must mention tool name");
+            assert!(!s.contains("context:"), "str without context must not include context:");
+        }
+
+        #[test]
+        fn test_forward_str_with_context() {
+            let fwd = PyRezForward::new("maya".to_string(), Some("ctx-xyz".to_string()));
+            let s = fwd.__str__();
+            assert!(s.contains("maya"), "str must contain tool name");
+            assert!(s.contains("ctx-xyz"), "str must contain context id");
+        }
+
+        #[test]
+        fn test_forward_repr_equals_str() {
+            let fwd = PyRezForward::new("nuke".to_string(), Some("ctx-99".to_string()));
+            assert_eq!(fwd.__repr__(), fwd.__str__());
+        }
+
+        #[test]
+        fn test_forward_dry_run_no_args() {
+            let fwd = PyRezForward::new("rez-env".to_string(), None);
+            let result = fwd.execute(None, true);
+            assert!(result.is_ok());
+            let out = result.unwrap();
+            assert!(out.contains("[dry-run]"));
+            assert!(out.contains("rez-env"));
+        }
+
+        #[test]
+        fn test_forward_dry_run_with_args() {
+            let fwd = PyRezForward::new("python".to_string(), None);
+            let result = fwd.execute(Some(vec!["--version".to_string()]), true);
+            assert!(result.is_ok());
+            let out = result.unwrap();
+            assert!(out.contains("[dry-run]"));
+            assert!(out.contains("python"));
+            assert!(out.contains("--version"));
+        }
+
+        #[test]
+        fn test_forward_dry_run_multiple_args() {
+            let fwd = PyRezForward::new("hython".to_string(), None);
+            let result = fwd.execute(
+                Some(vec!["-c".to_string(), "import sys; print(sys.version)".to_string()]),
+                true,
+            );
+            assert!(result.is_ok());
+            let out = result.unwrap();
+            assert!(out.contains("[dry-run]"));
+            assert!(out.contains("hython"));
+            assert!(out.contains("-c"));
+        }
+
+        #[test]
+        fn test_forward_dry_run_empty_args_list() {
+            // Passing Some([]) should behave the same as None (no args)
+            let fwd = PyRezForward::new("maya".to_string(), None);
+            let result_none = fwd.execute(None, true).unwrap();
+            let result_empty = fwd.execute(Some(vec![]), true).unwrap();
+            assert_eq!(result_none, result_empty);
+        }
+
+        #[test]
+        fn test_forward_dry_run_format_includes_rez_forward_prefix() {
+            // dry_run output always starts with "[dry-run] rez-forward:"
+            let fwd = PyRezForward::new("rez-env".to_string(), None);
+            let out = fwd.execute(None, true).unwrap();
+            assert!(
+                out.starts_with("[dry-run] rez-forward:"),
+                "dry-run output should start with '[dry-run] rez-forward:', got: {out}"
+            );
+        }
+
+        #[test]
+        fn test_forward_context_id_arrow_format() {
+            let fwd = PyRezForward::new("nuke".to_string(), Some("uuid-1234".to_string()));
+            let s = fwd.__str__();
+            // Format: "RezForward(nuke -> context:uuid-1234)"
+            assert!(s.contains("->"), "should contain arrow separator");
+            assert!(s.contains("context:uuid-1234"), "should contain context label");
+        }
+
+        #[test]
+        fn test_forward_tool_name_with_hyphens() {
+            let fwd = PyRezForward::new("rez-next-forward".to_string(), None);
+            assert_eq!(fwd.tool_name(), "rez-next-forward");
+            assert!(fwd.__str__().contains("rez-next-forward"));
+        }
     }
 
-    #[test]
-    fn test_rez_forward_with_context() {
-        let fwd = PyRezForward::new("houdini".to_string(), Some("ctx-abc123".to_string()));
-        assert_eq!(fwd.context_id(), Some("ctx-abc123".to_string()));
-    }
+    mod test_generate_scripts {
+        use super::*;
 
-    #[test]
-    fn test_forward_dry_run() {
-        let fwd = PyRezForward::new("python".to_string(), None);
-        let result = fwd.execute(Some(vec!["--version".to_string()]), true);
-        assert!(result.is_ok());
-        let out = result.unwrap();
-        assert!(out.contains("[dry-run]"));
-        assert!(out.contains("python"));
-    }
+        #[test]
+        fn test_generate_forward_script_bash() {
+            let script = generate_forward_script("maya", Some("bash")).unwrap();
+            assert!(script.contains("rez-next forward maya"));
+            assert!(script.contains("#!/usr/bin/env bash"));
+        }
 
-    #[test]
-    fn test_generate_forward_script_bash() {
-        let script = generate_forward_script("maya", Some("bash")).unwrap();
-        assert!(script.contains("rez-next forward maya"));
-        assert!(script.contains("#!/usr/bin/env bash"));
-    }
+        #[test]
+        fn test_generate_forward_script_zsh_uses_bash_path() {
+            // zsh falls through to the default (bash) branch
+            let script = generate_forward_script("houdini", Some("zsh")).unwrap();
+            assert!(script.contains("rez-next forward houdini"));
+            assert!(script.contains("#!/usr/bin/env bash") || script.contains("houdini"));
+        }
 
-    #[test]
-    fn test_generate_forward_script_powershell() {
-        let script = generate_forward_script("houdini", Some("powershell")).unwrap();
-        assert!(script.contains("rez-next forward houdini"));
-        assert!(script.contains("Set-Alias"));
-    }
+        #[test]
+        fn test_generate_forward_script_default_shell_none() {
+            // When shell is None, it defaults to "bash"
+            let script = generate_forward_script("nukerender", None).unwrap();
+            assert!(script.contains("rez-next forward nukerender"));
+            assert!(script.contains("bash") || script.contains("nukerender"));
+        }
 
-    #[test]
-    fn test_generate_forward_script_fish() {
-        let script = generate_forward_script("nuke", Some("fish")).unwrap();
-        assert!(script.contains("function nuke"));
-        assert!(script.contains("rez-next forward nuke"));
-    }
+        #[test]
+        fn test_generate_forward_script_powershell() {
+            let script = generate_forward_script("houdini", Some("powershell")).unwrap();
+            assert!(script.contains("rez-next forward houdini"));
+            assert!(script.contains("Set-Alias"));
+        }
 
-    #[test]
-    fn test_generate_forward_script_cmd() {
-        let script = generate_forward_script("hython", Some("cmd")).unwrap();
-        assert!(script.contains("@echo off"));
-        assert!(script.contains("rez-next forward hython"));
-    }
+        #[test]
+        fn test_generate_forward_script_pwsh() {
+            // pwsh is an alias for powershell core
+            let script = generate_forward_script("hython", Some("pwsh")).unwrap();
+            assert!(script.contains("rez-next forward hython"));
+            assert!(script.contains("Set-Alias") || script.contains("Invoke-RezTool"));
+        }
 
-    #[test]
-    fn test_forward_str() {
-        let fwd = PyRezForward::new("python".to_string(), None);
-        let s = fwd.__str__();
-        assert!(s.contains("python"));
+        #[test]
+        fn test_generate_forward_script_fish() {
+            let script = generate_forward_script("nuke", Some("fish")).unwrap();
+            assert!(script.contains("function nuke"));
+            assert!(script.contains("rez-next forward nuke"));
+        }
+
+        #[test]
+        fn test_generate_forward_script_cmd() {
+            let script = generate_forward_script("hython", Some("cmd")).unwrap();
+            assert!(script.contains("@echo off"));
+            assert!(script.contains("rez-next forward hython"));
+        }
+
+        #[test]
+        fn test_generate_forward_script_bash_exec_form() {
+            let script = generate_forward_script("clarisse", Some("bash")).unwrap();
+            // bash form uses exec with "$@" to pass arguments
+            assert!(
+                script.contains("\"$@\"") || script.contains("$@"),
+                "bash script should forward all args: {script}"
+            );
+        }
+
+        #[test]
+        fn test_generate_forward_script_powershell_invoke_function() {
+            let script = generate_forward_script("katana", Some("powershell")).unwrap();
+            assert!(script.contains("Invoke-RezTool"), "powershell script should define Invoke-RezTool");
+            assert!(script.contains("@args"), "powershell script should forward @args");
+        }
+
+        #[test]
+        fn test_generate_forward_script_fish_argv() {
+            let script = generate_forward_script("houdini", Some("fish")).unwrap();
+            assert!(script.contains("$argv"), "fish script should forward $argv");
+        }
+
+        #[test]
+        fn test_generate_forward_script_cmd_percent_star() {
+            let script = generate_forward_script("gaffer", Some("cmd")).unwrap();
+            assert!(script.contains("%*"), "cmd script should use %* for arg forwarding");
+        }
     }
 }

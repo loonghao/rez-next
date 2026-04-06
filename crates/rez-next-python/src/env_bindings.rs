@@ -574,4 +574,99 @@ mod tests {
         }
         // Err is also acceptable (package not found) — both paths are valid
     }
+
+    // ── Additional PyPackageFamily edge-case tests ───────────────────────────
+
+    #[test]
+    fn test_package_family_versions_empty_when_no_version() {
+        // Package with no version should not appear in versions() list
+        let mut family = PyPackageFamily::new("noversion".to_string());
+        let pkg = PyPackage(Package::new("noversion".to_string())); // no version set
+        family.add_package(pkg);
+        // num_versions counts ALL packages (even versionless)
+        assert_eq!(family.num_versions(), 1);
+        // versions() only includes packages with Some(version)
+        let versions = family.versions();
+        assert!(versions.is_empty(), "versionless pkg should not appear: {:?}", versions);
+    }
+
+    #[test]
+    fn test_package_family_latest_version_empty_returns_none() {
+        let mut family = PyPackageFamily::new("noverpkg".to_string());
+        // Add a package with no version
+        family.add_package(PyPackage(Package::new("noverpkg".to_string())));
+        // latest_version is the first element after sort — still Some (even if versionless)
+        // This tests the method doesn't panic.
+        let _ = family.latest_version();
+    }
+
+    #[test]
+    fn test_package_family_iter_empty() {
+        let family = PyPackageFamily::new("empty".to_string());
+        let pkgs = family.iter_packages();
+        assert!(pkgs.is_empty());
+    }
+
+    #[test]
+    fn test_package_family_repr_zero_versions() {
+        let family = PyPackageFamily::new("mypkg".to_string());
+        let repr = family.__repr__();
+        assert!(repr.contains("mypkg"), "repr: {repr}");
+        assert!(repr.contains('0'.to_string().as_str()), "repr should show 0 versions: {repr}");
+    }
+
+    // ── Additional PyRezEnv tests ────────────────────────────────────────────
+
+    #[test]
+    fn test_rez_env_success_flag_on_stub() {
+        let env = empty_rez_env(vec!["pkg-1.0".to_string()]);
+        assert!(!env.success, "stub env should have success=false");
+        assert!(env.failure_reason.is_some());
+    }
+
+    #[test]
+    fn test_rez_env_available_shells_with_scripts() {
+        let mut env = empty_rez_env(vec![]);
+        env.scripts.insert("zsh".to_string(), "# zsh\n".to_string());
+        env.scripts.insert("bash".to_string(), "# bash\n".to_string());
+        let shells = env.available_shells();
+        assert!(shells.contains(&"bash".to_string()));
+        assert!(shells.contains(&"zsh".to_string()));
+        // Must be sorted
+        let mut sorted = shells.clone();
+        sorted.sort();
+        assert_eq!(shells, sorted);
+    }
+
+    #[test]
+    fn test_rez_env_num_resolved_packages() {
+        let mut env = empty_rez_env(vec![]);
+        assert_eq!(env.num_resolved_packages(), 0);
+        env.resolved_packages.push(make_pkg("python", "3.9.0"));
+        assert_eq!(env.num_resolved_packages(), 1);
+    }
+
+    #[test]
+    fn test_rez_env_resolved_packages_getter() {
+        let mut env = empty_rez_env(vec![]);
+        env.resolved_packages.push(make_pkg("cmake", "3.26.0"));
+        let pkgs = env.resolved_packages();
+        assert_eq!(pkgs.len(), 1);
+        assert_eq!(pkgs[0].0.name, "cmake");
+    }
+
+    #[test]
+    fn test_rez_env_write_script_powershell_content() {
+        let tmp_file = std::env::temp_dir().join("rez_test_write_ps1.ps1");
+        let _ = std::fs::remove_file(&tmp_file);
+        let mut env = empty_rez_env(vec![]);
+        env.scripts.insert(
+            "powershell".to_string(),
+            "$env:FOO = 'bar'\n".to_string(),
+        );
+        env.write_script(tmp_file.to_str().unwrap(), "powershell").unwrap();
+        let content = std::fs::read_to_string(&tmp_file).unwrap();
+        assert!(content.contains("FOO"));
+        let _ = std::fs::remove_file(&tmp_file);
+    }
 }

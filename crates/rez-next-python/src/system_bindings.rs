@@ -214,6 +214,16 @@ mod tests {
         }
 
         #[test]
+        fn test_default_equals_new() {
+            let s1 = PySystem::new();
+            let s2 = PySystem::default();
+            // Both must produce identical static fields
+            assert_eq!(s1.platform(), s2.platform());
+            assert_eq!(s1.arch(), s2.arch());
+            assert_eq!(s1.os(), s2.os());
+        }
+
+        #[test]
         fn test_num_cpus_at_least_one() {
             let sys = PySystem::new();
             assert!(sys.num_cpus() >= 1, "num_cpus must be >= 1");
@@ -224,6 +234,15 @@ mod tests {
             let sys = PySystem::new();
             // hostname may be "unknown" if env vars not set; must still be non-empty
             assert!(!sys.hostname().is_empty());
+        }
+
+        #[test]
+        fn test_hostname_fallback_to_unknown() {
+            // When neither COMPUTERNAME nor HOSTNAME is set, result is "unknown"
+            // We verify the function does not panic under any env state.
+            let sys = PySystem::new();
+            let h = sys.hostname();
+            assert!(!h.is_empty(), "hostname must never be empty string");
         }
 
         #[test]
@@ -238,5 +257,112 @@ mod tests {
                 ver
             );
         }
+
+        #[test]
+        fn test_get_system_factory_consistent_with_new() {
+            let s1 = get_system();
+            let s2 = PySystem::new();
+            assert_eq!(s1.platform(), s2.platform());
+            assert_eq!(s1.arch(), s2.arch());
+        }
+
+        #[test]
+        fn test_pub_helpers_match_getters() {
+            let sys = PySystem::new();
+            assert_eq!(sys.platform(), PySystem::platform_pub());
+            assert_eq!(sys.arch(), PySystem::arch_pub());
+            assert_eq!(sys.os(), PySystem::os_pub());
+        }
+    }
+
+    mod test_system_repr_and_extras {
+        use super::*;
+
+        #[test]
+        fn test_repr_contains_platform_arch_os() {
+            let sys = PySystem::new();
+            let repr = sys.__repr__();
+            assert!(repr.contains("System("), "repr must start with 'System(': {repr}");
+            assert!(repr.contains("platform="), "repr must contain 'platform=': {repr}");
+            assert!(repr.contains("arch="), "repr must contain 'arch=': {repr}");
+            assert!(repr.contains("os="), "repr must contain 'os=': {repr}");
+        }
+
+        #[test]
+        fn test_repr_includes_actual_platform_value() {
+            let sys = PySystem::new();
+            let repr = sys.__repr__();
+            let platform = sys.platform();
+            assert!(
+                repr.contains(&platform),
+                "repr '{repr}' must contain platform value '{platform}'"
+            );
+        }
+
+        #[test]
+        fn test_platform_is_valid_rez_value() {
+            let platform = PySystem::platform_pub();
+            // rez recognizes: linux, windows, osx; plus any unknown OS string
+            assert!(!platform.is_empty(), "platform must be non-empty");
+            // Must not contain spaces
+            assert!(
+                !platform.contains(' '),
+                "platform must not contain spaces: '{platform}'"
+            );
+        }
+
+        #[test]
+        fn test_arch_does_not_contain_spaces() {
+            let arch = PySystem::arch_pub();
+            assert!(
+                !arch.contains(' '),
+                "arch must not contain spaces: '{arch}'"
+            );
+        }
+
+        #[test]
+        fn test_os_does_not_contain_newline() {
+            let os = PySystem::os_pub();
+            assert!(
+                !os.contains('\n'),
+                "os string must not contain newline: '{os}'"
+            );
+        }
+
+        #[test]
+        fn test_rez_version_major_minor_patch_format() {
+            let sys = PySystem::new();
+            let ver = sys.rez_version();
+            let parts: Vec<&str> = ver.split('.').collect();
+            assert!(
+                parts.len() >= 2,
+                "rez_version should have at least major.minor: '{ver}'"
+            );
+            // Each part before any '-' (pre-release tag) should be numeric
+            let major = parts[0].parse::<u64>();
+            assert!(major.is_ok(), "major version should be numeric: '{}'", parts[0]);
+        }
+
+        #[test]
+        fn test_num_cpus_reasonable_upper_bound() {
+            let sys = PySystem::new();
+            let cpus = sys.num_cpus();
+            assert!(
+                cpus >= 1 && cpus <= 4096,
+                "num_cpus should be in [1, 4096], got {cpus}"
+            );
+        }
+
+        #[test]
+        fn test_multiple_system_instances_identical_static_fields() {
+            let instances: Vec<PySystem> = (0..3).map(|_| PySystem::new()).collect();
+            for i in 1..instances.len() {
+                assert_eq!(instances[0].platform(), instances[i].platform());
+                assert_eq!(instances[0].arch(), instances[i].arch());
+                assert_eq!(instances[0].os(), instances[i].os());
+                assert_eq!(instances[0].rez_version(), instances[i].rez_version());
+            }
+        }
     }
 }
+

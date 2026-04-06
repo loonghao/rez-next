@@ -623,4 +623,79 @@ mod context_bindings_tests {
         let ctx = make_py_ctx_inner(&[("python", "3.11.0"), ("houdini", "20.0"), ("nuke", "14.0")]);
         assert_eq!(ctx.requirements.len(), 3);
     }
+
+    // ── environment_vars cleared ─────────────────────────────────────────────
+
+    #[test]
+    fn test_environment_vars_cleared_after_clear() {
+        let mut ctx = make_py_ctx_inner(&[("python", "3.11.0")]);
+        ctx.environment_vars
+            .insert("FOO".to_string(), "bar".to_string());
+        assert!(!ctx.environment_vars.is_empty());
+        ctx.environment_vars.clear();
+        assert!(
+            ctx.environment_vars.is_empty(),
+            "environment_vars should be empty after clear()"
+        );
+    }
+
+    // ── get_summary: package with no version ────────────────────────────────
+
+    #[test]
+    fn test_get_summary_package_without_version() {
+        let reqs = vec![PackageRequirement::parse("noversionpkg").unwrap()];
+        let mut ctx = ResolvedContext::from_requirements(reqs);
+        let mut pkg = rez_next_package::Package::new("noversionpkg".to_string());
+        pkg.version = None;
+        ctx.resolved_packages.push(pkg);
+        ctx.status = ContextStatus::Resolved;
+        let summary = ctx.get_summary();
+        assert_eq!(summary.package_count, 1);
+    }
+
+    // ── context status transitions ───────────────────────────────────────────
+
+    #[test]
+    fn test_context_can_transition_to_failed() {
+        let mut ctx = make_py_ctx_inner(&[("python", "3.11.0")]);
+        assert_eq!(ctx.status, ContextStatus::Resolved);
+        ctx.status = ContextStatus::Failed;
+        assert_eq!(ctx.status, ContextStatus::Failed);
+    }
+
+    // ── resolved packages version string ────────────────────────────────────
+
+    #[test]
+    fn test_resolved_package_version_string_format() {
+        let ctx = make_py_ctx_inner(&[("nuke", "14.0.5")]);
+        let pkg = ctx.resolved_packages.first().unwrap();
+        let ver = pkg.version.as_ref().unwrap().as_str();
+        assert_eq!(ver, "14.0.5");
+    }
+
+    // ── requirements names match ─────────────────────────────────────────────
+
+    #[test]
+    fn test_requirement_names_match_resolved() {
+        let ctx = make_py_ctx_inner(&[("maya", "2024.1"), ("python", "3.10.0")]);
+        let req_names: Vec<&str> = ctx.requirements.iter().map(|r| r.name.as_str()).collect();
+        assert!(req_names.contains(&"maya"), "should contain 'maya'");
+        assert!(req_names.contains(&"python"), "should contain 'python'");
+    }
+
+    // ── large package set ────────────────────────────────────────────────────
+
+    #[test]
+    fn test_large_package_set_summary_count() {
+        let pkgs: Vec<(&str, &str)> = vec![
+            ("pkgA", "1.0"),
+            ("pkgB", "2.0"),
+            ("pkgC", "3.0"),
+            ("pkgD", "4.0"),
+            ("pkgE", "5.0"),
+        ];
+        let ctx = make_py_ctx_inner(&pkgs);
+        let summary = ctx.get_summary();
+        assert_eq!(summary.package_count, 5);
+    }
 }

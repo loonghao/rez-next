@@ -283,6 +283,8 @@ mod status_bindings_tests {
 
     #[test]
     fn test_get_resolved_package_names_empty_outside() {
+        let _lock = ENV_MUTEX.lock().unwrap();
+        // Only assert when we know no other test has set the env var
         if std::env::var("REZ_USED_PACKAGES_NAMES").is_err() {
             let names = get_resolved_package_names();
             assert!(names.is_empty(), "Should be empty outside rez context");
@@ -535,6 +537,108 @@ mod status_bindings_tests {
         assert_eq!(detect_shell_from_env().as_deref(), Some("fish"));
         unsafe {
             std::env::remove_var("SHELL");
+        }
+    }
+
+    // ── get_rez_env_var: empty key handling ───────────────────────────────────
+
+    #[test]
+    fn test_get_rez_env_var_empty_key_returns_none() {
+        // "" -> "REZ_" — unlikely to exist in any env, should return None
+        let val = get_rez_env_var("");
+        // The key becomes "REZ_"; if the env has no such var, it must be None
+        // (On some systems this could hypothetically be set, so only assert None
+        //  when the raw env confirms absence)
+        if std::env::var("REZ_").is_err() {
+            assert!(val.is_none(), "empty key should yield None, got {:?}", val);
+        }
+    }
+
+    // ── is_in_rez_context is_ok after env set ────────────────────────────────
+
+    #[test]
+    fn test_is_in_rez_context_true_after_env_set() {
+        let _lock = ENV_MUTEX.lock().unwrap();
+        unsafe {
+            std::env::set_var("REZ_CONTEXT_FILE", "/tmp/cycle97_test.rxt");
+        }
+        assert!(
+            is_in_rez_context(),
+            "is_in_rez_context should be true when REZ_CONTEXT_FILE is set"
+        );
+        unsafe {
+            std::env::remove_var("REZ_CONTEXT_FILE");
+        }
+    }
+
+    // ── rez_env_vars collection covers REZ_ prefix keys ──────────────────────
+
+    #[test]
+    fn test_rez_env_vars_includes_set_key() {
+        let _lock = ENV_MUTEX.lock().unwrap();
+        unsafe {
+            std::env::set_var("REZ_CYCLE97_MARKER", "cycle97");
+        }
+        let s = detect_current_status();
+        assert!(
+            s.rez_env_vars.contains_key("REZ_CYCLE97_MARKER"),
+            "rez_env_vars should capture REZ_CYCLE97_MARKER"
+        );
+        assert_eq!(s.rez_env_vars["REZ_CYCLE97_MARKER"], "cycle97");
+        unsafe {
+            std::env::remove_var("REZ_CYCLE97_MARKER");
+        }
+    }
+
+    // ── get_context_file returns value when set ────────────────────────────────
+
+    #[test]
+    fn test_get_context_file_returns_some_when_set() {
+        let _lock = ENV_MUTEX.lock().unwrap();
+        unsafe {
+            std::env::set_var("REZ_CONTEXT_FILE", "/tmp/some_ctx97.rxt");
+        }
+        assert_eq!(
+            get_context_file().as_deref(),
+            Some("/tmp/some_ctx97.rxt"),
+            "get_context_file should return the env var value"
+        );
+        unsafe {
+            std::env::remove_var("REZ_CONTEXT_FILE");
+        }
+    }
+
+    // ── get_resolved_package_names parses space-separated list ────────────────
+
+    #[test]
+    fn test_get_resolved_package_names_parses_list() {
+        let _lock = ENV_MUTEX.lock().unwrap();
+        unsafe {
+            std::env::set_var("REZ_USED_PACKAGES_NAMES", "pkgA-1.0 pkgB-2.0 pkgC-3.0");
+        }
+        let names = get_resolved_package_names();
+        assert_eq!(names.len(), 3);
+        assert!(names.contains(&"pkgA-1.0".to_string()));
+        assert!(names.contains(&"pkgC-3.0".to_string()));
+        unsafe {
+            std::env::remove_var("REZ_USED_PACKAGES_NAMES");
+        }
+    }
+
+    // ── default RezStatus is_active false ────────────────────────────────────
+
+    #[test]
+    fn test_default_rez_status_is_active_default_false_when_no_rez_env() {
+        let _lock = ENV_MUTEX.lock().unwrap();
+        // Ensure neither trigger var is present
+        if std::env::var("REZ_CONTEXT_FILE").is_err()
+            && std::env::var("REZ_USED_PACKAGES_NAMES").is_err()
+        {
+            let s = PyRezStatus::new();
+            assert!(
+                !s.is_active,
+                "default status should be inactive outside rez, got is_active=true"
+            );
         }
     }
 }

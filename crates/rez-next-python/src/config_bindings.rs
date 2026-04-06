@@ -92,6 +92,7 @@ impl PyConfig {
     }
 }
 
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -192,17 +193,18 @@ mod tests {
 
         #[test]
         fn test_get_known_string_field_local_packages_path() {
-            // RezCoreConfig::get_field("local_packages_path") should return String value
-            // We verify it's retrievable without checking exact value
             let inner = RezCoreConfig::load();
             let val = inner.get_field("local_packages_path");
             assert!(val.is_some(), "local_packages_path should be a known field");
+            if let Some(serde_json::Value::String(s)) = val {
+                assert!(!s.is_empty());
+            }
         }
 
         #[test]
         fn test_get_unknown_field_returns_none_from_inner() {
             let cfg = RezCoreConfig::load();
-            let val = cfg.get_field("__nonexistent_field_cycle90__");
+            let val = cfg.get_field("__nonexistent_field_cycle94__");
             assert!(val.is_none(), "unknown field should return None");
         }
 
@@ -215,6 +217,159 @@ mod tests {
                 b.packages_path(),
                 "new() and default() should yield identical packages_path"
             );
+        }
+
+        #[test]
+        fn test_get_field_version_is_string() {
+            let cfg = RezCoreConfig::load();
+            let val = cfg.get_field("version");
+            assert!(val.is_some());
+            if let Some(serde_json::Value::String(v)) = val {
+                assert!(v.contains('.'), "version should be semver-like: {v}");
+            }
+        }
+
+        #[test]
+        fn test_get_field_default_shell_is_string() {
+            let cfg = RezCoreConfig::load();
+            let val = cfg.get_field("default_shell");
+            assert!(val.is_some());
+            if let Some(serde_json::Value::String(s)) = val {
+                assert!(!s.is_empty());
+            }
+        }
+
+        #[test]
+        fn test_get_field_packages_path_is_array() {
+            let cfg = RezCoreConfig::load();
+            let val = cfg.get_field("packages_path");
+            assert!(val.is_some());
+            assert!(
+                matches!(val, Some(serde_json::Value::Array(_))),
+                "packages_path should be a JSON array"
+            );
+        }
+
+        #[test]
+        fn test_get_field_nested_cache_memory_cache_size() {
+            let cfg = RezCoreConfig::load();
+            let val = cfg.get_field("cache.memory_cache_size");
+            assert!(val.is_some(), "cache.memory_cache_size should exist");
+            if let Some(serde_json::Value::Number(n)) = val {
+                let size = n.as_u64().unwrap_or(0);
+                assert!(size > 0, "memory_cache_size must be > 0");
+            }
+        }
+
+        #[test]
+        fn test_get_field_nested_cache_enable_memory_cache_is_bool() {
+            let cfg = RezCoreConfig::load();
+            let val = cfg.get_field("cache.enable_memory_cache");
+            assert!(val.is_some());
+            assert!(
+                matches!(val, Some(serde_json::Value::Bool(_))),
+                "cache.enable_memory_cache should be a boolean"
+            );
+        }
+
+        #[test]
+        fn test_get_field_nested_cache_ttl_seconds_is_positive() {
+            let cfg = RezCoreConfig::load();
+            let val = cfg.get_field("cache.cache_ttl_seconds");
+            assert!(val.is_some());
+            if let Some(serde_json::Value::Number(n)) = val {
+                let ttl = n.as_u64().unwrap_or(0);
+                assert!(ttl > 0, "cache_ttl_seconds should be > 0");
+            }
+        }
+
+        #[test]
+        fn test_get_field_tmpdir_non_empty() {
+            let cfg = RezCoreConfig::load();
+            let val = cfg.get_field("tmpdir");
+            assert!(val.is_some(), "tmpdir field should exist");
+            if let Some(serde_json::Value::String(s)) = val {
+                assert!(!s.is_empty(), "tmpdir should not be empty");
+            }
+        }
+
+        #[test]
+        fn test_get_field_editor_non_empty() {
+            let cfg = RezCoreConfig::load();
+            let val = cfg.get_field("editor");
+            assert!(val.is_some(), "editor field should exist");
+            if let Some(serde_json::Value::String(s)) = val {
+                assert!(!s.is_empty(), "editor should not be empty");
+            }
+        }
+
+        #[test]
+        fn test_get_field_use_rust_solver_is_bool() {
+            let cfg = RezCoreConfig::load();
+            let val = cfg.get_field("use_rust_solver");
+            assert!(val.is_some(), "use_rust_solver should exist");
+            assert!(
+                matches!(val, Some(serde_json::Value::Bool(_))),
+                "use_rust_solver should be a boolean"
+            );
+        }
+    }
+
+    mod test_config_default_values {
+        use super::*;
+
+        #[test]
+        fn test_default_packages_path_has_three_entries() {
+            let cfg = RezCoreConfig::default();
+            assert_eq!(
+                cfg.packages_path.len(),
+                3,
+                "default packages_path should have 3 entries, got: {:?}",
+                cfg.packages_path
+            );
+        }
+
+        #[test]
+        fn test_default_packages_path_contains_tilde() {
+            let cfg = RezCoreConfig::default();
+            let has_tilde = cfg.packages_path.iter().any(|p| p.starts_with('~'));
+            assert!(has_tilde, "default packages_path should contain tilde paths");
+        }
+
+        #[test]
+        fn test_default_shell_is_platform_appropriate() {
+            let cfg = RezCoreConfig::default();
+            #[cfg(windows)]
+            assert_eq!(
+                cfg.default_shell, "cmd",
+                "Windows default shell should be cmd"
+            );
+            #[cfg(not(windows))]
+            assert_eq!(
+                cfg.default_shell, "bash",
+                "Unix default shell should be bash"
+            );
+        }
+
+        #[test]
+        fn test_default_editor_is_platform_appropriate() {
+            let cfg = RezCoreConfig::default();
+            #[cfg(windows)]
+            assert_eq!(cfg.editor, "notepad");
+            #[cfg(not(windows))]
+            assert_eq!(cfg.editor, "vi");
+        }
+
+        #[test]
+        fn test_default_cache_memory_size_is_1000() {
+            let cfg = RezCoreConfig::default();
+            assert_eq!(cfg.cache.memory_cache_size, 1000);
+        }
+
+        #[test]
+        fn test_default_cache_ttl_is_1_hour() {
+            let cfg = RezCoreConfig::default();
+            assert_eq!(cfg.cache.cache_ttl_seconds, 3600);
         }
     }
 }

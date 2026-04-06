@@ -364,4 +364,133 @@ mod tests {
         assert!(py.contains("env.PYTHONPATH.prepend"));
         assert!(py.contains("def commands():"));
     }
+
+    // ─── PyPipPackage repr / str ─────────────────────────────────────────────
+
+    #[test]
+    fn test_pip_package_repr() {
+        let pkg = PyPipPackage {
+            name: "numpy".to_string(),
+            version: "1.24.0".to_string(),
+            requires: vec![],
+            description: "".to_string(),
+        };
+        let repr = pkg.__repr__();
+        assert_eq!(repr, "PipPackage(numpy-1.24.0)");
+    }
+
+    #[test]
+    fn test_pip_package_str() {
+        let pkg = PyPipPackage {
+            name: "scipy".to_string(),
+            version: "1.11.0".to_string(),
+            requires: vec![],
+            description: "".to_string(),
+        };
+        let s = pkg.__str__();
+        assert_eq!(s, "scipy-1.11.0");
+    }
+
+    #[test]
+    fn test_pip_package_new_defaults() {
+        let pkg = PyPipPackage::new("requests", "2.31.0", None, "HTTP lib");
+        assert_eq!(pkg.name, "requests");
+        assert_eq!(pkg.version, "2.31.0");
+        assert!(pkg.requires.is_empty());
+        assert_eq!(pkg.description, "HTTP lib");
+    }
+
+    // ─── pip_version_to_rez edge cases ───────────────────────────────────────
+
+    #[test]
+    fn test_pip_version_to_rez_le() {
+        assert_eq!(pip_version_to_rez("<=3.11"), "<=3.11");
+    }
+
+    #[test]
+    fn test_pip_version_to_rez_gt() {
+        // ">1.0" maps to "1.0+" (approximation)
+        let result = pip_version_to_rez(">1.0");
+        assert!(result.contains("1.0"));
+        assert!(result.contains('+'));
+    }
+
+    #[test]
+    fn test_pip_version_to_rez_fallback_plain() {
+        assert_eq!(pip_version_to_rez("3.9.1"), "3.9.1");
+    }
+
+    // ─── convert_pip_to_rez ──────────────────────────────────────────────────
+
+    #[test]
+    fn test_convert_pip_to_rez_normalizes_name() {
+        let pkg = convert_pip_to_rez("Scikit_Learn", "1.3.0", None, None).unwrap();
+        assert_eq!(pkg.name, "scikit-learn");
+    }
+
+    #[test]
+    fn test_convert_pip_to_rez_converts_requires_version_spec() {
+        let reqs = vec!["numpy>=1.20".to_string()];
+        let pkg = convert_pip_to_rez("mylib", "0.1.0", Some(reqs), None).unwrap();
+        assert!(!pkg.requires.is_empty());
+        let r = &pkg.requires[0];
+        assert!(r.contains("numpy"), "expected numpy in req, got {r}");
+        assert!(r.contains("1.20"), "expected version in req, got {r}");
+    }
+
+    #[test]
+    fn test_convert_pip_to_rez_strips_extras() {
+        // "Pillow[jpeg]>=9.0" should strip the [jpeg] extras
+        let reqs = vec!["Pillow[jpeg]>=9.0".to_string()];
+        let pkg = convert_pip_to_rez("img", "1.0.0", Some(reqs), None).unwrap();
+        let r = &pkg.requires[0];
+        assert!(!r.contains('['), "extras must be stripped, got {r}");
+    }
+
+    // ─── write_pip_package ───────────────────────────────────────────────────
+
+    #[test]
+    fn test_write_pip_package_creates_package_py() {
+        let tmp = std::env::temp_dir().join("rez_next_pip_test_write");
+        let _ = std::fs::remove_dir_all(&tmp);
+
+        let pkg = PyPipPackage {
+            name: "testpkg".to_string(),
+            version: "0.1.0".to_string(),
+            requires: vec![],
+            description: "A test package".to_string(),
+        };
+        let result = write_pip_package(&pkg, tmp.to_str().unwrap(), false);
+        assert!(result.is_ok(), "write_pip_package should succeed: {:?}", result);
+
+        let pkg_py = tmp.join("testpkg").join("0.1.0").join("package.py");
+        assert!(pkg_py.exists(), "package.py should be created at {:?}", pkg_py);
+
+        let content = std::fs::read_to_string(&pkg_py).unwrap();
+        assert!(content.contains("name = \"testpkg\""));
+        assert!(content.contains("version = \"0.1.0\""));
+
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn test_write_pip_package_overwrite_false_errors_on_existing() {
+        let tmp = std::env::temp_dir().join("rez_next_pip_test_overwrite");
+        let _ = std::fs::remove_dir_all(&tmp);
+
+        let pkg = PyPipPackage {
+            name: "dup".to_string(),
+            version: "1.0.0".to_string(),
+            requires: vec![],
+            description: "".to_string(),
+        };
+        let _ = write_pip_package(&pkg, tmp.to_str().unwrap(), false);
+        let second = write_pip_package(&pkg, tmp.to_str().unwrap(), false);
+        assert!(
+            second.is_err(),
+            "second write without overwrite should fail"
+        );
+
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
 }

@@ -477,4 +477,96 @@ mod tests {
         let written = std::fs::read_to_string(&dest).unwrap();
         assert!(written.contains("maya-2024"));
     }
+
+    // ── Additional PySourceManager tests ────────────────────────────────────
+
+    #[test]
+    fn test_source_manager_packages_getter() {
+        let pkgs = vec!["python-3.9".to_string(), "numpy-1.24".to_string()];
+        let mgr = PySourceManager::new(pkgs.clone(), Some("bash".to_string()));
+        assert_eq!(mgr.packages(), pkgs);
+    }
+
+    #[test]
+    fn test_source_manager_shell_type_getter() {
+        let mgr = PySourceManager::new(vec![], Some("zsh".to_string()));
+        assert_eq!(mgr.shell_type(), "zsh");
+    }
+
+    #[test]
+    fn test_source_manager_repr_contains_shell_and_packages() {
+        let mgr = PySourceManager::new(
+            vec!["houdini-19.5".to_string()],
+            Some("fish".to_string()),
+        );
+        let repr = mgr.__repr__();
+        assert!(repr.contains("SourceManager"), "repr: {repr}");
+        assert!(repr.contains("fish"), "repr should show shell: {repr}");
+        assert!(repr.contains("houdini-19.5"), "repr should show pkg: {repr}");
+    }
+
+    #[test]
+    fn test_source_manager_empty_packages() {
+        let mgr = PySourceManager::new(vec![], Some("bash".to_string()));
+        let content = mgr.get_activation_script_content(None);
+        // Script must still be valid; REZ_RESOLVE should be set (empty string value)
+        assert!(content.contains("REZ_RESOLVE"), "content: {content}");
+    }
+
+    #[test]
+    fn test_source_manager_explicit_shell_override_in_get_content() {
+        let mgr = PySourceManager::new(
+            vec!["cmake-3.26".to_string()],
+            Some("bash".to_string()),
+        );
+        // Override with powershell at call-time
+        let content = mgr.get_activation_script_content(Some("powershell".to_string()));
+        assert!(content.contains("REZ_RESOLVE"), "content: {content}");
+        // PowerShell uses $env: syntax
+        assert!(
+            content.contains("$env:") || content.contains("REZ_"),
+            "powershell content should reference env vars: {content}"
+        );
+    }
+
+    // ── build_activation_script edge cases ──────────────────────────────────
+
+    #[test]
+    fn test_build_activation_script_empty_packages() {
+        let script = build_activation_script(&[], "bash");
+        // Must contain REZ_RESOLVE even with no packages
+        assert!(script.contains("REZ_RESOLVE"), "script: {script}");
+    }
+
+    #[test]
+    fn test_build_activation_script_cmd_shell() {
+        let pkgs = vec!["python-3.9".to_string()];
+        let script = build_activation_script(&pkgs, "cmd");
+        assert!(script.contains("REZ_RESOLVE"), "cmd script: {script}");
+    }
+
+    #[test]
+    fn test_build_activation_script_unknown_shell_falls_to_bash() {
+        let pkgs = vec!["python-3.9".to_string()];
+        let script = build_activation_script(&pkgs, "tcsh");
+        // Unknown shells fall through to Bash branch
+        assert!(script.contains("REZ_RESOLVE"), "script: {script}");
+        assert!(script.contains("export"), "bash branch must use export: {script}");
+    }
+
+    #[test]
+    fn test_write_activation_script_creates_file() {
+        use tempfile::TempDir;
+        let tmp = TempDir::new().unwrap();
+        let dest = tmp.path().join("subdir").join("activate.sh");
+        let mgr =
+            PySourceManager::new(vec!["python-3.9".to_string()], Some("bash".to_string()));
+        // write directly via internal helper (no GIL)
+        std::fs::create_dir_all(dest.parent().unwrap()).unwrap();
+        let content = mgr.get_activation_script_content(None);
+        std::fs::write(&dest, &content).unwrap();
+        assert!(dest.exists());
+        let read = std::fs::read_to_string(&dest).unwrap();
+        assert!(read.contains("REZ_RESOLVE"));
+    }
 }

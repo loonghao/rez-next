@@ -257,4 +257,106 @@ mod tests {
             );
         }
     }
+
+    mod test_py_shell {
+        use super::*;
+
+        #[test]
+        fn test_pyshell_name_matches_input() {
+            for name in &["bash", "zsh", "fish", "cmd", "powershell"] {
+                let shell = PyShell::new(name).unwrap();
+                assert_eq!(shell.name(), *name, "name() should return '{}'", name);
+            }
+        }
+
+        #[test]
+        fn test_pyshell_repr_format() {
+            let shell = PyShell::new("bash").unwrap();
+            let r = shell.__repr__();
+            assert!(r.contains("Shell"), "repr must contain 'Shell', got {r}");
+            assert!(r.contains("bash"), "repr must contain 'bash', got {r}");
+        }
+
+        #[test]
+        fn test_pyshell_unknown_type_errors() {
+            let result = PyShell::new("ksh");
+            assert!(
+                result.is_err(),
+                "PyShell::new('ksh') should return Err"
+            );
+        }
+
+        #[test]
+        fn test_pyshell_generate_script_empty_env() {
+            let shell = PyShell::new("bash").unwrap();
+            let script = shell.generate_script(None, None, None);
+            // Must not panic; result can be empty or not
+            let _ = script;
+        }
+
+        #[test]
+        fn test_pyshell_generate_script_with_vars() {
+            let shell = PyShell::new("bash").unwrap();
+            let mut vars = HashMap::new();
+            vars.insert("MYVAR".to_string(), "myval".to_string());
+            let script = shell.generate_script(Some(vars), None, None);
+            assert!(
+                script.contains("MYVAR"),
+                "script should contain MYVAR, got: {script}"
+            );
+        }
+
+        #[test]
+        fn test_pyshell_generate_script_with_startup_commands() {
+            let shell = PyShell::new("bash").unwrap();
+            let cmds = vec!["echo hello".to_string()];
+            let script = shell.generate_script(None, None, Some(cmds));
+            // Should not panic; content depends on implementation
+            let _ = script;
+        }
+    }
+
+    mod test_create_shell_script {
+        use super::*;
+
+        #[test]
+        fn test_create_shell_script_bash_no_vars() {
+            let result = create_shell_script("bash", None, None, None);
+            assert!(result.is_ok(), "create_shell_script bash should succeed");
+        }
+
+        #[test]
+        fn test_create_shell_script_powershell_with_var() {
+            let mut vars = HashMap::new();
+            vars.insert("PWSH_VAR".to_string(), "pwsh_val".to_string());
+            let result = create_shell_script("powershell", Some(vars), None, None);
+            assert!(result.is_ok());
+            let script = result.unwrap();
+            assert!(
+                script.contains("PWSH_VAR"),
+                "powershell script should have PWSH_VAR, got: {script}"
+            );
+        }
+
+        #[test]
+        fn test_create_shell_script_unknown_shell_errors() {
+            let result = create_shell_script("tcsh", None, None, None);
+            assert!(
+                result.is_err(),
+                "unknown shell 'tcsh' should return Err"
+            );
+        }
+
+        #[test]
+        fn test_create_shell_script_all_known_shells_ok() {
+            for name in &["bash", "zsh", "fish", "cmd", "powershell"] {
+                let result = create_shell_script(name, None, None, None);
+                assert!(
+                    result.is_ok(),
+                    "create_shell_script({}) should succeed",
+                    name
+                );
+            }
+        }
+    }
 }

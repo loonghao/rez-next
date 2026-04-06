@@ -456,20 +456,17 @@ fn test_view_package_not_found() {
 fn test_view_package_in_repo() {
     skip_no_bin!();
     let tmp = tempfile::tempdir().unwrap();
-    let _repo = make_test_repo(tmp.path());
-    // view uses the globally configured packages_path, not a --path flag.
-    // Without pointing to our temp repo it will likely fail with "not found",
-    // which is still a valid, well-formed error response (not a crash).
-    let (stdout, stderr, code) = rez_output(&["view", "python"]);
+    let repo = make_test_repo(tmp.path());
+    let package_dir = repo.join("python").join("3.11.0");
+
+    let out = rez_ok(&["view", package_dir.to_str().unwrap()]);
     assert!(
-        code.is_some(),
-        "view should not be killed by signal: stdout={stdout} stderr={stderr}"
+        out.contains("name: python"),
+        "view should render the package name from package.py: {out}"
     );
-    // Must produce some output — either package details or a "not found" error
-    let combined = format!("{stdout}{stderr}");
     assert!(
-        !combined.trim().is_empty(),
-        "view should always print something: combined={combined}"
+        out.contains("version: 3.11.0"),
+        "view should render the exact package version from the package directory: {out}"
     );
 }
 
@@ -480,8 +477,7 @@ fn test_bundle_create() {
     skip_no_bin!();
     let tmp = tempfile::tempdir().unwrap();
     let dest = tmp.path().join("my_bundle");
-    let out = rez_ok(&["bundle", "python-3.9", dest.to_str().unwrap()]);
-    let _ = out;
+    rez_ok(&["bundle", "python-3.9", dest.to_str().unwrap()]);
     // Bundle dir should exist
     assert!(dest.exists(), "bundle dir should be created: {:?}", dest);
     assert!(
@@ -489,6 +485,7 @@ fn test_bundle_create() {
         "bundle.yaml should exist"
     );
 }
+
 
 #[test]
 fn test_bundle_create_multiple_packages() {
@@ -853,21 +850,32 @@ fn test_build_extra_args_separator_accepted() {
     )
     .unwrap();
 
-    // Pass extra build args via "--"; the binary should not crash on unknown
-    // downstream flags — it may fail because there's nothing to build, but the
-    // crash-free handling of the "--" separator is what we're testing.
-    let (stdout, stderr, code) = rez_output(&["build", "--", "--dry-run", "--verbose"]);
+    // Pass extra build args via "--" from inside the temp package root. The
+    // fixture should be consumed by `rez build`; if the command fails, it should
+    // fail later in the build pipeline rather than because package discovery missed
+    // the temporary package.py.
+    let out = Command::new(rez_next_bin())
+        .args(["build", "--", "--dry-run", "--verbose"])
+        .current_dir(tmp.path())
+        .output()
+        .unwrap();
+    let stdout = String::from_utf8_lossy(&out.stdout).to_string();
+    let stderr = String::from_utf8_lossy(&out.stderr).to_string();
     assert!(
-        code.is_some(),
+        out.status.code().is_some(),
         "build with -- extra args should exit with a code, not be killed by signal: stdout={stdout} stderr={stderr}"
     );
-    // The command should not produce empty output — either build progress or an error
     let combined = format!("{stdout}{stderr}");
     assert!(
+        !combined.contains("No package.py or package.yaml found in current directory"),
+        "build should discover the temporary package.py before handling extra args: combined={combined}"
+    );
+    assert!(
         !combined.trim().is_empty(),
-        "build should produce some output when given -- extra args: combined={combined}"
+        "build should produce output when given -- extra args from a real package root: combined={combined}"
     );
 }
+
 
 #[test]
 fn test_build_without_package_py() {

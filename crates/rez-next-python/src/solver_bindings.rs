@@ -215,5 +215,85 @@ mod tests {
             let repr = solver.__repr__();
             assert!(repr.contains("paths=1"), "repr: {}", repr);
         }
+
+        // ── New tests (Cycle 96) ─────────────────────────────────────────────
+
+        #[test]
+        fn test_solver_config_timeout_positive() {
+            let config = SolverConfig::default();
+            assert!(
+                config.max_time_seconds > 0,
+                "max_time_seconds must be positive"
+            );
+        }
+
+        #[test]
+        fn test_solver_paths_empty_vec() {
+            let solver = PySolver {
+                config: SolverConfig::default(),
+                paths: vec![],
+            };
+            assert!(solver.paths.is_empty());
+        }
+
+        #[test]
+        fn test_solver_paths_preserves_order() {
+            let paths = vec![
+                PathBuf::from("/a/pkgs"),
+                PathBuf::from("/b/pkgs"),
+                PathBuf::from("/c/pkgs"),
+            ];
+            let solver = PySolver {
+                config: SolverConfig::default(),
+                paths: paths.clone(),
+            };
+            assert_eq!(solver.paths[0], PathBuf::from("/a/pkgs"));
+            assert_eq!(solver.paths[1], PathBuf::from("/b/pkgs"));
+            assert_eq!(solver.paths[2], PathBuf::from("/c/pkgs"));
+        }
+
+        #[test]
+        fn test_solver_repr_format_is_valid_string() {
+            let solver = PySolver {
+                config: SolverConfig::default(),
+                paths: vec![],
+            };
+            let repr = solver.__repr__();
+            // repr must start and end with parentheses pattern
+            assert!(repr.starts_with("Solver("), "repr: {repr}");
+            assert!(repr.ends_with(')'), "repr: {repr}");
+        }
+
+        #[test]
+        fn test_solver_config_allow_prerelease_can_be_set() {
+            // Verify SolverConfig fields are accessible
+            let mut config = SolverConfig::default();
+            config.allow_prerelease = true;
+            assert!(config.allow_prerelease);
+            config.allow_prerelease = false;
+            assert!(!config.allow_prerelease);
+        }
+
+        #[test]
+        fn test_solver_config_strict_mode_can_be_set() {
+            let mut config = SolverConfig::default();
+            config.strict_mode = true;
+            assert!(config.strict_mode);
+        }
+
+        #[test]
+        fn test_solver_repr_paths_count_four() {
+            let solver = PySolver {
+                config: SolverConfig::default(),
+                paths: vec![
+                    PathBuf::from("/a"),
+                    PathBuf::from("/b"),
+                    PathBuf::from("/c"),
+                    PathBuf::from("/d"),
+                ],
+            };
+            let repr = solver.__repr__();
+            assert!(repr.contains("paths=4"), "repr: {repr}");
+        }
     }
 }

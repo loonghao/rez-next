@@ -521,6 +521,74 @@ mod tests {
         }
     }
 
+    mod test_remove_package {
+        use super::*;
+
+        #[test]
+        fn test_remove_package_nonexistent_returns_zero() {
+            // Removing a package from an empty/nonexistent path must return 0, not error.
+            let tmp = std::env::temp_dir().join("rez_test_rm_nonexistent");
+            let _ = fs::remove_dir_all(&tmp);
+            fs::create_dir_all(&tmp).unwrap();
+
+            let result = remove_package(
+                "nonexistent_pkg_xyz",
+                None,
+                Some(vec![tmp.to_string_lossy().to_string()]),
+            );
+            assert!(result.is_ok());
+            assert_eq!(result.unwrap(), 0, "nothing to remove → count must be 0");
+
+            let _ = fs::remove_dir_all(&tmp);
+        }
+
+        #[test]
+        fn test_remove_package_specific_version() {
+            // Create a fake package directory and remove a specific version
+            let tmp = std::env::temp_dir().join("rez_test_rm_version");
+            let _ = fs::remove_dir_all(&tmp);
+
+            let pkg_dir = tmp.join("mypkg").join("1.0.0");
+            fs::create_dir_all(&pkg_dir).unwrap();
+            fs::write(pkg_dir.join("package.py"), b"name = 'mypkg'\nversion = '1.0.0'\n")
+                .unwrap();
+
+            let result = remove_package(
+                "mypkg",
+                Some("1.0.0"),
+                Some(vec![tmp.to_string_lossy().to_string()]),
+            );
+            assert!(result.is_ok(), "remove must succeed: {:?}", result);
+            assert_eq!(result.unwrap(), 1, "should have removed 1 version");
+            assert!(!pkg_dir.exists(), "version directory must be deleted");
+
+            let _ = fs::remove_dir_all(&tmp);
+        }
+
+        #[test]
+        fn test_remove_package_entire_family() {
+            // Remove the entire package family (no version specified)
+            let tmp = std::env::temp_dir().join("rez_test_rm_family");
+            let _ = fs::remove_dir_all(&tmp);
+
+            let v1 = tmp.join("myfamily").join("1.0.0");
+            let v2 = tmp.join("myfamily").join("2.0.0");
+            fs::create_dir_all(&v1).unwrap();
+            fs::create_dir_all(&v2).unwrap();
+
+            let result = remove_package(
+                "myfamily",
+                None,
+                Some(vec![tmp.to_string_lossy().to_string()]),
+            );
+            assert!(result.is_ok());
+            assert_eq!(result.unwrap(), 1, "should have removed 1 family dir");
+            assert!(!tmp.join("myfamily").exists());
+
+            let _ = fs::remove_dir_all(&tmp);
+        }
+    }
+
     mod test_copy_dir_recursive {
         use super::*;
 
@@ -613,5 +681,120 @@ mod tests {
             let _ = fs::remove_dir_all(&src);
             let _ = fs::remove_dir_all(&dest);
         }
+
+        #[test]
+        fn test_copy_over_existing_dest_overwrites() {
+            // copy_dir_recursive does NOT check for conflict; it just overwrites.
+            let tmp = std::env::temp_dir();
+            let src = tmp.join("rez_test_copy_overwrite_src");
+            let dest = tmp.join("rez_test_copy_overwrite_dest");
+
+            let _ = fs::remove_dir_all(&src);
+            let _ = fs::remove_dir_all(&dest);
+
+            fs::create_dir_all(&src).unwrap();
+            fs::write(src.join("package.py"), b"new content").unwrap();
+
+            // Pre-create dest with old content
+            fs::create_dir_all(&dest).unwrap();
+            fs::write(dest.join("package.py"), b"old content").unwrap();
+
+            copy_dir_recursive(&src, &dest).unwrap();
+
+            let result = fs::read(dest.join("package.py")).unwrap();
+            assert_eq!(result, b"new content", "copy must overwrite old file");
+
+            let _ = fs::remove_dir_all(&src);
+            let _ = fs::remove_dir_all(&dest);
+        }
+
+        #[test]
+        fn test_copy_multiple_files_all_transferred() {
+            let tmp = std::env::temp_dir();
+            let src = tmp.join("rez_test_copy_multi_src");
+            let dest = tmp.join("rez_test_copy_multi_dest");
+
+            let _ = fs::remove_dir_all(&src);
+            let _ = fs::remove_dir_all(&dest);
+
+            fs::create_dir_all(&src).unwrap();
+            for i in 0..5 {
+                fs::write(src.join(format!("file{}.txt", i)), format!("content{}", i).as_bytes())
+                    .unwrap();
+            }
+
+            copy_dir_recursive(&src, &dest).unwrap();
+
+            for i in 0..5 {
+                let p = dest.join(format!("file{}.txt", i));
+                assert!(p.exists(), "file{}.txt should exist in dest", i);
+                let content = fs::read_to_string(&p).unwrap();
+                assert_eq!(content, format!("content{}", i));
+            }
+
+            let _ = fs::remove_dir_all(&src);
+            let _ = fs::remove_dir_all(&dest);
+        }
+
+        #[test]
+        fn test_copy_deeply_nested_structure() {
+            let tmp = std::env::temp_dir();
+            let src = tmp.join("rez_test_deep_src");
+            let dest = tmp.join("rez_test_deep_dest");
+
+            let _ = fs::remove_dir_all(&src);
+            let _ = fs::remove_dir_all(&dest);
+
+            let deep = src.join("a").join("b").join("c");
+            fs::create_dir_all(&deep).unwrap();
+            fs::write(deep.join("leaf.txt"), b"deep file").unwrap();
+
+            copy_dir_recursive(&src, &dest).unwrap();
+
+            assert!(
+                dest.join("a").join("b").join("c").join("leaf.txt").exists(),
+                "deeply nested file must be copied"
+            );
+
+            let _ = fs::remove_dir_all(&src);
+            let _ = fs::remove_dir_all(&dest);
+        }
+    }
+
+    mod test_expand_home_extra {
+        use super::*;
+
+        #[test]
+        fn test_expand_home_empty_string() {
+            // Empty string should return empty (not panic)
+            let result = expand_home("");
+            assert_eq!(result, "");
+        }
+
+        #[test]
+        fn test_expand_home_only_slash() {
+            let result = expand_home("/");
+            assert_eq!(result, "/");
+        }
+
+        #[test]
+        fn test_expand_home_tilde_not_at_start() {
+            let result = expand_home("no/tilde/here");
+            assert_eq!(result, "no/tilde/here");
+        }
+
+        #[test]
+        fn test_expand_home_double_slash_path() {
+            let result = expand_home("//some//path");
+            assert_eq!(result, "//some//path");
+        }
+
+        #[test]
+        fn test_expand_home_windows_absolute_path() {
+            // Windows paths like C:\... should pass through unchanged
+            let result = expand_home(r"C:\Users\foo\packages");
+            assert_eq!(result, r"C:\Users\foo\packages");
+        }
     }
 }
+
