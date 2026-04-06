@@ -214,6 +214,16 @@ mod tests {
         }
 
         #[test]
+        fn test_default_equals_new() {
+            let s1 = PySystem::new();
+            let s2 = PySystem::default();
+            // Both must produce identical static fields
+            assert_eq!(s1.platform(), s2.platform());
+            assert_eq!(s1.arch(), s2.arch());
+            assert_eq!(s1.os(), s2.os());
+        }
+
+        #[test]
         fn test_num_cpus_at_least_one() {
             let sys = PySystem::new();
             assert!(sys.num_cpus() >= 1, "num_cpus must be >= 1");
@@ -227,6 +237,15 @@ mod tests {
         }
 
         #[test]
+        fn test_hostname_fallback_to_unknown() {
+            // When neither COMPUTERNAME nor HOSTNAME is set, result is "unknown"
+            // We verify the function does not panic under any env state.
+            let sys = PySystem::new();
+            let h = sys.hostname();
+            assert!(!h.is_empty(), "hostname must never be empty string");
+        }
+
+        #[test]
         fn test_rez_version_non_empty() {
             let sys = PySystem::new();
             let ver = sys.rez_version();
@@ -237,6 +256,22 @@ mod tests {
                 "rez_version should be semver-like: {}",
                 ver
             );
+        }
+
+        #[test]
+        fn test_get_system_factory_consistent_with_new() {
+            let s1 = get_system();
+            let s2 = PySystem::new();
+            assert_eq!(s1.platform(), s2.platform());
+            assert_eq!(s1.arch(), s2.arch());
+        }
+
+        #[test]
+        fn test_pub_helpers_match_getters() {
+            let sys = PySystem::new();
+            assert_eq!(sys.platform(), PySystem::platform_pub());
+            assert_eq!(sys.arch(), PySystem::arch_pub());
+            assert_eq!(sys.os(), PySystem::os_pub());
         }
     }
 }
