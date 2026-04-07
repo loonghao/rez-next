@@ -337,21 +337,7 @@ mod tests {
     mod test_unbundle_context_extended {
         use super::*;
 
-        #[test]
-        fn test_unbundle_with_dest_path_is_ignored_but_ok() {
-            let tmp = std::env::temp_dir().join("rez_test_unbundle_dest");
-            let _ = fs::remove_dir_all(&tmp);
-            bundle_context(
-                vec!["python-3.10".to_string()],
-                tmp.to_str().unwrap(),
-                false,
-            )
-            .unwrap();
-            // dest_packages_path is reserved but accepted
-            let result = unbundle_context(tmp.to_str().unwrap(), Some("/some/path"));
-            assert!(result.is_ok(), "unbundle with dest_packages_path must succeed: {:?}", result);
-            let _ = fs::remove_dir_all(&tmp);
-        }
+
 
         #[test]
         fn test_unbundle_three_packages_roundtrip() {
