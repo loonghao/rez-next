@@ -430,12 +430,16 @@ mod tests {
 
         #[test]
         fn test_solver_config_enable_caching_set_then_unset() {
-            let mut config = SolverConfig::default();
-            config.enable_caching = false;
-            assert!(!config.enable_caching);
-            config.enable_caching = true;
-            assert!(config.enable_caching);
+            let disabled = SolverConfig {
+                enable_caching: false,
+                ..SolverConfig::default()
+            };
+            assert!(!disabled.enable_caching);
+
+            let enabled = SolverConfig::default();
+            assert!(enabled.enable_caching);
         }
+
 
         #[test]
         fn test_solver_paths_count_zero_when_empty_vec() {

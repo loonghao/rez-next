@@ -655,14 +655,12 @@ mod tests {
             let mgr =
                 PyRepositoryManager::new(Some(vec![tmp.to_string_lossy().to_string()])).unwrap();
             let result = mgr.get_package_family_names();
-            match result {
-                Ok(names) => {
-                    // Should not have duplicates; unique_pkg appears at most once
-                    let count = names.iter().filter(|n| n.as_str() == "unique_pkg").count();
-                    assert!(count <= 1, "unique_pkg should appear at most once, got {count}");
-                }
-                Err(_) => {} // acceptable if scanning not supported
+            if let Ok(names) = result {
+                // Should not have duplicates; unique_pkg appears at most once
+                let count = names.iter().filter(|n| n.as_str() == "unique_pkg").count();
+                assert!(count <= 1, "unique_pkg should appear at most once, got {count}");
             }
+
 
             let _ = std::fs::remove_dir_all(&tmp);
         }
