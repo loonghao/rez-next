@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.7](https://github.com/loonghao/rez-next/compare/v0.1.6...v0.1.7) (2026-04-07)
+
+
+### 🐛 Bug Fixes
+
+* **ci:** resolve win-msvc test race, security audit permissions, and yanked dep ([#113](https://github.com/loonghao/rez-next/issues/113)) ([9ba145b](https://github.com/loonghao/rez-next/commit/9ba145b7134a5abdf7bee2a4aa494fd932b8b818))
+* resolve issues 108, 109, 110 - test markers and performance monitoring ([#111](https://github.com/loonghao/rez-next/issues/111)) ([7a0bf9c](https://github.com/loonghao/rez-next/commit/7a0bf9c291594c908f0151103a80e9e63b6e98d3))
+
+
+### ⚡ Performance
+
+* **rex:** cache RexParser to eliminate redundant regex compilation ([#114](https://github.com/loonghao/rez-next/issues/114)) ([1ceb5be](https://github.com/loonghao/rez-next/commit/1ceb5be9179fcbfe63ae495add026824a29b86d3))
+
 ## [0.1.6](https://github.com/loonghao/rez-next/compare/v0.1.5...v0.1.6) (2026-04-06)
 
 
