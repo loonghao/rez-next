@@ -424,3 +424,28 @@ Clippy warnings: **0** (cycle 20, `--all-targets`)
 - [x] Removed `// mod cache` and `// mod optimized_solver` from solver/lib.rs
 - [x] Removed commented-out `// pub use cache::*` and `// pub use optimized_solver::*` from solver/lib.rs
 - [x] Removed `// use rez_next_repository::...` from optimized_solver.rs
+
+### 37. `cargo audit` reports unmaintained transitive crates
+- **Status**: OPEN (cycle 98 / 2026-04-07 clearup)
+- `cargo audit -q` currently reports at least these non-ignored warnings:
+  - `bincode 2.0.1` — `RUSTSEC-2025-0141` (unmaintained), pulled in directly by `rez-next-package`
+  - `paste 1.0.15` — `RUSTSEC-2024-0436` (unmaintained), pulled in via `malachite-bigint` -> `rustpython-parser`
+  - `unic-ucd-version 0.9.0` — `RUSTSEC-2025-0098` (unmaintained), pulled in via `rustpython-parser`
+- Follow-up: decide whether `rez-next-package` should replace/upgrade `bincode`, and whether the `rustpython-parser` dependency chain can be bumped, isolated, or risk-accepted explicitly.
+
+### 38. Large source files still exceed 500 lines
+- **Status**: OPEN (cycle 98 / 2026-04-07 clearup)
+- Current highest-value candidates from a source-only line-count scan:
+  - `tests/cli_e2e_tests.rs` — 947
+  - `tests/rez_compat_late_tests.rs` — 942
+  - `tests/rez_compat_search_tests.rs` — 884
+  - `crates/rez-next-solver/src/dependency_resolver_tests.rs` — 864
+  - `crates/rez-next-repository/src/scanner.rs` — 834
+  - `tests/rez_compat_tests.rs` — 807
+  - `tests/rez_solver_advanced_tests.rs` — 806
+  - `crates/rez-next-version/src/range.rs` — 764
+  - `crates/rez-next-python/src/diff_bindings.rs` — 754
+  - `src/cli/commands/rm.rs` — 692
+  - `crates/rez-next-version/src/version.rs` — 664
+- Follow-up: prefer splitting oversized test files before runtime modules unless a runtime file is actively blocking quality work.
+
