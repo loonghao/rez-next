@@ -71,12 +71,7 @@ fn detect_target() -> RezCoreResult<String> {
         }
         "macos" => format!("{}-apple-darwin", arch_str),
         "windows" => format!("{}-pc-windows-msvc", arch_str),
-        other => {
-            return Err(RezCoreError::Python(format!(
-                "Unsupported OS: {}",
-                other
-            )))
-        }
+        other => return Err(RezCoreError::Python(format!("Unsupported OS: {}", other))),
     };
 
     Ok(target)
@@ -158,10 +153,7 @@ fn download_text(downloader: &str, url: &str) -> RezCoreResult<String> {
     .map_err(RezCoreError::Io)?;
 
     if !output.status.success() {
-        return Err(RezCoreError::Python(format!(
-            "Failed to fetch: {}",
-            url
-        )));
+        return Err(RezCoreError::Python(format!("Failed to fetch: {}", url)));
     }
     Ok(String::from_utf8_lossy(&output.stdout).to_string())
 }
@@ -173,7 +165,7 @@ fn parse_tag_name(json: &str) -> Option<String> {
         .find(|l| l.contains("\"tag_name\""))
         .and_then(|l| {
             let _start = l.find('"')? + 1; // first quote in value
-            // tag_name": "v0.2.0"  →  find the value quotes
+                                           // tag_name": "v0.2.0"  →  find the value quotes
             let after_colon = l[l.find(':')? + 1..].trim();
             let inner = after_colon.trim_matches(|c| c == '"' || c == ',' || c == ' ');
             Some(inner.trim_start_matches('v').to_string())
@@ -196,18 +188,25 @@ fn current_binary_path() -> RezCoreResult<PathBuf> {
 
 /// Extract an archive into a directory.
 fn extract_archive(archive: &Path, dest_dir: &Path) -> RezCoreResult<()> {
-    let ext = archive
-        .extension()
-        .and_then(|e| e.to_str())
-        .unwrap_or("");
+    let ext = archive.extension().and_then(|e| e.to_str()).unwrap_or("");
 
     let status = if ext == "gz" {
         Command::new("tar")
-            .args(["xzf", archive.to_str().unwrap(), "-C", dest_dir.to_str().unwrap()])
+            .args([
+                "xzf",
+                archive.to_str().unwrap(),
+                "-C",
+                dest_dir.to_str().unwrap(),
+            ])
             .status()
     } else if ext == "zip" {
         Command::new("unzip")
-            .args(["-qo", archive.to_str().unwrap(), "-d", dest_dir.to_str().unwrap()])
+            .args([
+                "-qo",
+                archive.to_str().unwrap(),
+                "-d",
+                dest_dir.to_str().unwrap(),
+            ])
             .status()
     } else {
         return Err(RezCoreError::Python(format!(
@@ -227,7 +226,10 @@ fn extract_archive(archive: &Path, dest_dir: &Path) -> RezCoreResult<()> {
 fn find_binary_in_dir(dir: &Path) -> Option<PathBuf> {
     let candidates = [BINARY_NAME, &format!("{}.exe", BINARY_NAME)];
     for entry in walkdir(dir) {
-        let name = entry.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+        let name = entry
+            .file_name()
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_default();
         if candidates.iter().any(|c| name == *c) {
             return Some(entry.to_path_buf());
         }
@@ -271,13 +273,8 @@ fn replace_binary(new_binary: &Path, target: &Path) -> RezCoreResult<()> {
     let pending = target.with_extension("new.exe");
     fs::copy(new_binary, &pending).map_err(RezCoreError::Io)?;
     println!();
-    warn(&format!(
-        "Windows: cannot replace a running executable directly."
-    ));
-    println!(
-        "  New binary written to: {}",
-        pending.display()
-    );
+    warn("Windows: cannot replace a running executable directly.");
+    println!("  New binary written to: {}", pending.display());
     println!("  To finish the update, run:");
     println!(
         "    move /Y \"{}\" \"{}\"",
@@ -294,13 +291,7 @@ pub fn execute(args: SelfUpdateArgs) -> RezCoreResult<()> {
     let current_version = env!("CARGO_PKG_VERSION");
 
     // On Windows without curl/wget we fall back to PowerShell install.ps1
-    let downloader = detect_downloader().or_else(|e| {
-        if cfg!(target_os = "windows") {
-            Err(e) // handled below via PowerShell path
-        } else {
-            Err(e)
-        }
-    })?;
+    let downloader = detect_downloader()?;
 
     // Determine target version
     let target_version = if let Some(ref v) = args.version {
@@ -424,10 +415,7 @@ pub fn execute(args: SelfUpdateArgs) -> RezCoreResult<()> {
     // Cleanup
     let _ = fs::remove_dir_all(&tmp_dir);
 
-    success(&format!(
-        "rez-next updated to v{} ✓",
-        target_version
-    ));
+    success(&format!("rez-next updated to v{} ✓", target_version));
     Ok(())
 }
 
@@ -443,7 +431,11 @@ fn compute_sha256(path: &Path) -> RezCoreResult<String> {
         }
     }
     // Try shasum -a 256 (macOS)
-    if let Ok(output) = Command::new("shasum").args(["-a", "256"]).arg(path).output() {
+    if let Ok(output) = Command::new("shasum")
+        .args(["-a", "256"])
+        .arg(path)
+        .output()
+    {
         if output.status.success() {
             let s = String::from_utf8_lossy(&output.stdout);
             if let Some(hash) = s.split_whitespace().next() {
@@ -463,8 +455,7 @@ fn compute_sha256(path: &Path) -> RezCoreResult<String> {
             let hash = s
                 .lines()
                 .map(str::trim)
-                .filter(|l| !l.is_empty() && !l.starts_with("CertUtil") && !l.contains("hash"))
-                .next()
+                .find(|l| !l.is_empty() && !l.starts_with("CertUtil") && !l.contains("hash"))
                 .unwrap_or("")
                 .replace(' ', "");
             if hash.len() == 64 {
