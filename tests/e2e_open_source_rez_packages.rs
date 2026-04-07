@@ -232,10 +232,12 @@ fn test_vfx_pipeline_dependency_resolution() {
     let parsed: Vec<(String, Version, Vec<PackageRequirement>)> = packages
         .into_iter()
         .map(|(name, ver, reqs)| {
-            let version = Version::parse(ver).expect(&format!("Bad version: {}", ver));
+            let version = Version::parse(ver).unwrap_or_else(|_| panic!("Bad version: {}", ver));
             let requirements = reqs
                 .into_iter()
-                .map(|r| PackageRequirement::parse(r).expect(&format!("Bad req: {}", r)))
+                .map(|r| {
+                    PackageRequirement::parse(r).unwrap_or_else(|_| panic!("Bad req: {}", r))
+                })
                 .collect();
             (name.to_string(), version, requirements)
         })
@@ -284,7 +286,7 @@ fn test_cross_platform_package_parsing() {
 fn test_version_ordering_real_world() {
     // Test version ordering matches real rez semantics
     // In rez: shorter version string = higher epoch priority
-    let versions = vec![
+    let versions = [
         "3.0.1",   // Higher than 3.0 (more specific)
         "3.0",     // Lower than 3.0.1 in rez (shorter = higher epoch? No - actually different)
         "2024.1",  // Year-based versioning
@@ -296,7 +298,7 @@ fn test_version_ordering_real_world() {
 
     let parsed: Vec<Version> = versions
         .iter()
-        .map(|v| Version::parse(v).expect(&format!("Bad version: {}", v)))
+        .map(|v| Version::parse(v).unwrap_or_else(|_| panic!("Bad version: {}", v)))
         .collect();
 
     // All should be parseable
