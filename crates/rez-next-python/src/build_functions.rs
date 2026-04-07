@@ -341,5 +341,56 @@ mod tests {
             );
             let _ = fs::remove_dir_all(&tmp);
         }
+
+        #[test]
+        fn test_rezbuild_py_beats_cmake_and_makefile() {
+            let tmp = make_temp_dir_with_file("rez_bs_reb_prio_all", "rezbuild.py");
+            fs::write(tmp.join("CMakeLists.txt"), b"").unwrap();
+            fs::write(tmp.join("Makefile"), b"").unwrap();
+            let result = get_build_system(Some(tmp.to_str().unwrap())).unwrap();
+            assert_eq!(result, "python_rezbuild", "rezbuild.py must have highest priority");
+            let _ = fs::remove_dir_all(&tmp);
+        }
+
+        #[test]
+        fn test_build_sh_beats_empty_dir() {
+            let tmp = make_temp_dir_with_file("rez_bs_buildsh_only", "build.sh");
+            let result = get_build_system(Some(tmp.to_str().unwrap())).unwrap();
+            assert_eq!(result, "custom_script", "build.sh must map to custom_script");
+            let _ = fs::remove_dir_all(&tmp);
+        }
+
+        #[test]
+        fn test_pyproject_toml_alone_detected() {
+            let tmp = make_temp_dir_with_file("rez_bs_pyproj_only", "pyproject.toml");
+            let result = get_build_system(Some(tmp.to_str().unwrap())).unwrap();
+            assert_eq!(result, "python", "pyproject.toml alone should map to python");
+            let _ = fs::remove_dir_all(&tmp);
+        }
+
+        #[test]
+        fn test_cargo_toml_alone_detected() {
+            let tmp = make_temp_dir_with_file("rez_bs_cargo_only", "Cargo.toml");
+            let result = get_build_system(Some(tmp.to_str().unwrap())).unwrap();
+            assert_eq!(result, "cargo", "Cargo.toml alone should map to cargo");
+            let _ = fs::remove_dir_all(&tmp);
+        }
+
+        #[test]
+        fn test_package_json_alone_detected() {
+            let tmp = make_temp_dir_with_file("rez_bs_pkgjson_only", "package.json");
+            let result = get_build_system(Some(tmp.to_str().unwrap())).unwrap();
+            assert_eq!(result, "nodejs", "package.json alone should map to nodejs");
+            let _ = fs::remove_dir_all(&tmp);
+        }
+
+        #[test]
+        fn test_get_build_system_result_is_non_empty() {
+            // Any directory (including nonexistent) must return a non-empty string
+            let tmp = make_temp_dir_with_file("rez_bs_non_empty", "");
+            let result = get_build_system(Some(tmp.to_str().unwrap())).unwrap();
+            assert!(!result.is_empty(), "get_build_system must always return non-empty string");
+            let _ = fs::remove_dir_all(&tmp);
+        }
     }
 }

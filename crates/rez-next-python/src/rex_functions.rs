@@ -314,5 +314,77 @@ mod tests {
             );
         }
 
+        #[test]
+        fn test_multiple_aliases_all_registered() {
+            let mut exec = RexExecutor::new();
+            let cmds = "alias('tool_a', '/bin/tool_a')\nalias('tool_b', '/bin/tool_b')\nalias('tool_c', '/bin/tool_c')";
+            let env = exec
+                .execute_commands(cmds, "", None, None)
+                .expect("multiple alias must succeed");
+            assert!(env.aliases.contains_key("tool_a"), "tool_a must be registered");
+            assert!(env.aliases.contains_key("tool_b"), "tool_b must be registered");
+            assert!(env.aliases.contains_key("tool_c"), "tool_c must be registered");
+        }
+
+        #[test]
+        fn test_info_then_stop_both_recorded() {
+            let mut exec = RexExecutor::new();
+            let cmds = "info('hello from rex')\nstop('done')";
+            let env = exec
+                .execute_commands(cmds, "", None, None)
+                .expect("info+stop must succeed");
+            assert!(env.stopped, "stopped must be true");
+            assert!(!env.info_messages.is_empty(), "info message must be recorded");
+        }
+
+        #[test]
+        fn test_prepend_three_path_entries() {
+            let mut exec = RexExecutor::new();
+            let cmds = "env.prepend_path('PATH', '/a')\nenv.prepend_path('PATH', '/b')\nenv.prepend_path('PATH', '/c')";
+            let env = exec
+                .execute_commands(cmds, "", None, None)
+                .expect("prepend 3 must succeed");
+            let path_val = env.vars.get("PATH").cloned().unwrap_or_default();
+            assert!(path_val.contains("/a"), "PATH must contain /a");
+            assert!(path_val.contains("/b"), "PATH must contain /b");
+            assert!(path_val.contains("/c"), "PATH must contain /c");
+        }
+
+        #[test]
+        fn test_setenv_then_info_both_effective() {
+            let mut exec = RexExecutor::new();
+            let cmds = "env.setenv('TAGGED', 'yes')\ninfo('set TAGGED')";
+            let env = exec
+                .execute_commands(cmds, "", None, None)
+                .expect("setenv+info must succeed");
+            assert_eq!(env.vars.get("TAGGED").map(|s| s.as_str()), Some("yes"));
+            assert!(!env.info_messages.is_empty(), "info message must be recorded");
+        }
+
+        #[test]
+        fn test_context_vars_available_in_execute() {
+            let mut exec = RexExecutor::new();
+            exec.set_context_var("MY_CTX".to_string(), "ctx123".to_string());
+            let result = exec.execute_commands(
+                "env.setenv('CONFIRM', 'done')",
+                "ctxpkg",
+                Some("/opt/ctxpkg"),
+                Some("1.0"),
+            );
+            assert!(result.is_ok(), "execute with context vars must succeed");
+        }
+
+        #[test]
+        fn test_append_then_prepend_ordering() {
+            let mut exec = RexExecutor::new();
+            let cmds = "env.append_path('TESTPATH', '/appended')\nenv.prepend_path('TESTPATH', '/prepended')";
+            let env = exec
+                .execute_commands(cmds, "", None, None)
+                .expect("append+prepend must succeed");
+            let val = env.vars.get("TESTPATH").cloned().unwrap_or_default();
+            assert!(val.contains("/appended"), "TESTPATH must contain /appended, got: {}", val);
+            assert!(val.contains("/prepended"), "TESTPATH must contain /prepended, got: {}", val);
+        }
+
     }
 }

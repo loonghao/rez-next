@@ -123,5 +123,92 @@ mod tests {
     fn test_cli_main_empty_args_vec_returns_zero() {
         assert_eq!(cli_main(Some(vec![])).unwrap(), 0);
     }
+
+    #[test]
+    fn test_known_commands_count_is_at_least_20() {
+        assert!(
+            KNOWN_COMMANDS.len() >= 20,
+            "expected at least 20 known commands, got {}",
+            KNOWN_COMMANDS.len()
+        );
+    }
+
+    #[test]
+    fn test_env_command_is_known() {
+        assert!(KNOWN_COMMANDS.contains(&"env"), "env must be a known command");
+    }
+
+    #[test]
+    fn test_build_command_is_known() {
+        assert!(KNOWN_COMMANDS.contains(&"build"), "build must be a known command");
+    }
+
+    #[test]
+    fn test_search_command_is_known() {
+        assert!(KNOWN_COMMANDS.contains(&"search"), "search must be a known command");
+    }
+
+    #[test]
+    fn test_pip_command_is_known() {
+        assert!(KNOWN_COMMANDS.contains(&"pip"), "pip must be a known command");
+    }
+
+    #[test]
+    fn test_selftest_command_is_known() {
+        assert!(KNOWN_COMMANDS.contains(&"selftest"), "selftest must be a known command");
+    }
+
+    #[test]
+    fn test_cli_run_with_args_returns_zero() {
+        let args = Some(vec!["--help".to_string()]);
+        assert_eq!(cli_run("env", args).unwrap(), 0);
+    }
+
+    #[test]
+    fn test_cli_run_with_multiple_args_returns_zero() {
+        let args = Some(vec!["python-3.9".to_string(), "maya-2024".to_string()]);
+        assert_eq!(cli_run("solve", args).unwrap(), 0);
+    }
+
+    #[test]
+    fn test_cli_run_unknown_with_args_returns_err() {
+        let args = Some(vec!["--flag".to_string()]);
+        assert!(cli_run("totally_unknown_cmd", args).is_err());
+    }
+
+    #[test]
+    fn test_cli_main_with_env_no_subargs_returns_zero() {
+        assert_eq!(cli_main(Some(vec!["env".to_string()])).unwrap(), 0);
+    }
+
+    #[test]
+    fn test_cli_main_solve_with_packages_returns_zero() {
+        let args = Some(vec![
+            "solve".to_string(),
+            "python-3.9".to_string(),
+            "maya-2024".to_string(),
+        ]);
+        assert_eq!(cli_main(args).unwrap(), 0);
+    }
+
+    #[test]
+    fn test_all_known_commands_are_lowercase() {
+        for &cmd in KNOWN_COMMANDS {
+            assert_eq!(
+                cmd,
+                cmd.to_lowercase(),
+                "command '{}' must be lowercase",
+                cmd
+            );
+        }
+    }
+
+    #[test]
+    fn test_known_commands_no_duplicates() {
+        let mut seen = std::collections::HashSet::new();
+        for &cmd in KNOWN_COMMANDS {
+            assert!(seen.insert(cmd), "duplicate command found: '{}'", cmd);
+        }
+    }
 }
 

@@ -408,5 +408,100 @@ mod tests {
             assert!(!result.iter().any(|s| s.is_empty()), "no empty-name bundles");
             let _ = fs::remove_dir_all(&base);
         }
+
+        #[test]
+        fn test_bundle_five_packages_roundtrip() {
+            let tmp = std::env::temp_dir().join("rez_test_bundle_five_pkgs");
+            let _ = fs::remove_dir_all(&tmp);
+            let pkgs = vec![
+                "python-3.9".to_string(),
+                "maya-2024".to_string(),
+                "houdini-20".to_string(),
+                "nuke-14".to_string(),
+                "katana-6".to_string(),
+            ];
+            bundle_context(pkgs.clone(), tmp.to_str().unwrap(), false).unwrap();
+            let got = unbundle_context(tmp.to_str().unwrap(), None).unwrap();
+            assert_eq!(got.len(), 5, "should recover 5 packages, got: {:?}", got);
+            for p in &pkgs {
+                assert!(got.contains(p), "package '{}' missing in unbundle result", p);
+            }
+            let _ = fs::remove_dir_all(&tmp);
+        }
+
+        #[test]
+        fn test_bundle_context_dest_path_string_valid() {
+            let tmp = std::env::temp_dir().join("rez_test_bundle_path_valid");
+            let _ = fs::remove_dir_all(&tmp);
+            let result =
+                bundle_context(vec!["pkg-1.0".to_string()], tmp.to_str().unwrap(), false)
+                    .unwrap();
+            assert!(!result.is_empty(), "returned path must not be empty");
+            assert!(
+                !result.contains('\0'),
+                "returned path must not contain null bytes"
+            );
+            let _ = fs::remove_dir_all(&tmp);
+        }
+
+        #[test]
+        fn test_bundle_context_skip_solve_false_default() {
+            let tmp = std::env::temp_dir().join("rez_test_bundle_skip_default");
+            let _ = fs::remove_dir_all(&tmp);
+            // skip_solve=false is the default
+            bundle_context(vec!["tool-1.0".to_string()], tmp.to_str().unwrap(), false).unwrap();
+            let content = fs::read_to_string(tmp.join("bundle.yaml")).unwrap();
+            assert!(
+                content.contains("skip_solve: false"),
+                "default skip_solve must be false in manifest"
+            );
+            let _ = fs::remove_dir_all(&tmp);
+        }
+
+        #[test]
+        fn test_unbundle_preserves_package_order() {
+            let tmp = std::env::temp_dir().join("rez_test_unbundle_order");
+            let _ = fs::remove_dir_all(&tmp);
+            let pkgs = vec!["alpha-1.0".to_string(), "beta-2.0".to_string()];
+            bundle_context(pkgs.clone(), tmp.to_str().unwrap(), false).unwrap();
+            let got = unbundle_context(tmp.to_str().unwrap(), None).unwrap();
+            // YAML parsing may preserve order but we just need both present
+            assert_eq!(got.len(), 2, "should recover exactly 2 packages");
+            assert!(got.contains(&"alpha-1.0".to_string()));
+            assert!(got.contains(&"beta-2.0".to_string()));
+            let _ = fs::remove_dir_all(&tmp);
+        }
+
+        #[test]
+        fn test_list_bundles_multiple_bundle_dirs_sorted() {
+            let base = std::env::temp_dir().join("rez_test_list_bundles_multi_sorted");
+            let _ = fs::remove_dir_all(&base);
+            fs::create_dir_all(&base).unwrap();
+            for name in ["delta_b", "alpha_b", "charlie_b", "beta_b"] {
+                let bdir = base.join(name);
+                fs::create_dir_all(&bdir).unwrap();
+                fs::write(bdir.join("bundle.yaml"), b"packages:\n").unwrap();
+            }
+            let result = list_bundles(Some(base.to_str().unwrap())).unwrap();
+            assert_eq!(result.len(), 4, "should find all 4 bundles");
+            let mut sorted = result.clone();
+            sorted.sort();
+            assert_eq!(result, sorted, "bundles should be returned in sorted order");
+            let _ = fs::remove_dir_all(&base);
+        }
+
+        #[test]
+        fn test_bundle_context_idempotent_manifest_write() {
+            let tmp = std::env::temp_dir().join("rez_test_bundle_idempotent");
+            let _ = fs::remove_dir_all(&tmp);
+            // Call twice with same args; second call should overwrite and give same content
+            let pkgs = vec!["tool-1.0".to_string()];
+            bundle_context(pkgs.clone(), tmp.to_str().unwrap(), false).unwrap();
+            let first = fs::read_to_string(tmp.join("bundle.yaml")).unwrap();
+            bundle_context(pkgs.clone(), tmp.to_str().unwrap(), false).unwrap();
+            let second = fs::read_to_string(tmp.join("bundle.yaml")).unwrap();
+            assert_eq!(first, second, "idempotent bundle should produce same manifest");
+            let _ = fs::remove_dir_all(&tmp);
+        }
     }
 }

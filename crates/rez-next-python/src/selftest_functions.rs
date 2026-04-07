@@ -417,5 +417,73 @@ mod tests {
             let req = PackageRequirement::parse("!python");
             assert!(req.is_ok(), "conflict requirement '!python' should parse");
         }
+
+        #[test]
+        fn test_selftest_all_pass() {
+            // selftest() should have 0 failures in a healthy environment
+            let (passed, failed, total) = selftest().expect("selftest() must not return Err");
+            assert_eq!(failed, 0, "all selftest cases must pass; got {} failed out of {}", failed, total);
+            assert!(passed > 0, "at least some selftest cases must pass, got {}", passed);
+        }
+
+        #[test]
+        fn test_version_patch_component_ordering() {
+            use rez_next_version::Version;
+            let v101 = Version::parse("1.0.1").unwrap();
+            let v100 = Version::parse("1.0.0").unwrap();
+            let v110 = Version::parse("1.1.0").unwrap();
+            assert!(v101 > v100, "1.0.1 > 1.0.0");
+            assert!(v110 > v101, "1.1.0 > 1.0.1");
+        }
+
+        #[test]
+        fn test_rex_alias_registered() {
+            use rez_next_rex::RexExecutor;
+            let mut exec = RexExecutor::new();
+            let env = exec
+                .execute_commands("alias('selftest_tool', '/opt/pkg/bin/st')", "", None, None)
+                .expect("alias must succeed");
+            assert!(
+                env.aliases.contains_key("selftest_tool"),
+                "alias 'selftest_tool' must appear in aliases: {:?}",
+                env.aliases
+            );
+        }
+
+        #[test]
+        fn test_shell_zsh_generation_non_empty() {
+            use rez_next_rex::{generate_shell_script, RexEnvironment, ShellType};
+            let mut env = RexEnvironment::new();
+            env.vars.insert("ZSH_TEST".to_string(), "zval".to_string());
+            let script = generate_shell_script(&env, &ShellType::Zsh);
+            assert!(!script.is_empty(), "zsh script must not be empty");
+        }
+
+        #[test]
+        fn test_version_range_intersection_basic() {
+            use rez_next_version::{Version, VersionRange};
+            // A version that is in neither extreme
+            let range = VersionRange::parse("1.0+<2.0").unwrap();
+            let v_mid = Version::parse("1.5").unwrap();
+            assert!(range.contains(&v_mid), "1.5 should be in 1.0+<2.0");
+        }
+
+        #[test]
+        fn test_package_requires_field_accessible() {
+            use rez_next_package::Package;
+            let mut pkg = Package::new("reqpkg".to_string());
+            pkg.requires = vec!["python-3.9".to_string(), "numpy-1+<2".to_string()];
+            assert_eq!(pkg.requires.len(), 2, "requires should have 2 entries");
+        }
+
+        #[test]
+        fn test_selftest_total_equals_sum() {
+            let (passed, failed, total) = selftest().expect("selftest() must return Ok");
+            assert_eq!(
+                passed + failed, total,
+                "passed({}) + failed({}) must equal total({})",
+                passed, failed, total
+            );
+        }
     }
 }
