@@ -210,5 +210,51 @@ mod tests {
             assert!(seen.insert(cmd), "duplicate command found: '{}'", cmd);
         }
     }
+
+    #[test]
+    fn test_forward_command_is_known() {
+        assert!(KNOWN_COMMANDS.contains(&"forward"), "forward must be a known command");
+    }
+
+    #[test]
+    fn test_complete_command_is_known() {
+        assert!(KNOWN_COMMANDS.contains(&"complete"), "complete must be a known command");
+    }
+
+    #[test]
+    fn test_gui_command_is_known() {
+        assert!(KNOWN_COMMANDS.contains(&"gui"), "gui must be a known command");
+    }
+
+    #[test]
+    fn test_unknown_command_error_message_contains_command_name() {
+        // cli_run with unknown command must return Err (error contains command name
+        // but we cannot call .to_string() without a Python interpreter in unit tests)
+        let result = cli_run("no_such_cmd_abc", None);
+        assert!(result.is_err(), "unknown command must return Err");
+        // Verify via the known-commands check: the command is truly absent
+        assert!(
+            !KNOWN_COMMANDS.contains(&"no_such_cmd_abc"),
+            "no_such_cmd_abc must not be in KNOWN_COMMANDS"
+        );
+    }
+
+    #[test]
+    fn test_cli_main_forward_command_returns_zero() {
+        assert_eq!(
+            cli_main(Some(vec!["forward".to_string(), "some_tool".to_string()])).unwrap(),
+            0
+        );
+    }
+
+    #[test]
+    fn test_cli_run_benchmark_returns_zero() {
+        assert_eq!(cli_run("benchmark", None).unwrap(), 0);
+    }
+
+    #[test]
+    fn test_cli_run_context_returns_zero() {
+        assert_eq!(cli_run("context", None).unwrap(), 0);
+    }
 }
 

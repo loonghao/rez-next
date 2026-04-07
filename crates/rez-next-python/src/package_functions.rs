@@ -985,5 +985,88 @@ mod tests {
             let _ = fs::remove_dir_all(&tmp2);
         }
     }
+
+    mod test_package_helpers_extra {
+        use super::*;
+
+        #[test]
+        fn test_expand_home_tilde_slash_prefix_only() {
+            // Only ~/... prefix triggers expansion; tilde embedded elsewhere does not.
+            let middle = "path/with~tilde/in/middle";
+            assert_eq!(expand_home(middle), middle, "embedded tilde must not be expanded");
+        }
+
+        #[test]
+        fn test_copy_dir_recursive_two_deep_subdir() {
+            let tmp = std::env::temp_dir();
+            let src = tmp.join("rez_test_cp_two_deep_src");
+            let dest = tmp.join("rez_test_cp_two_deep_dest");
+            let _ = fs::remove_dir_all(&src);
+            let _ = fs::remove_dir_all(&dest);
+
+            let sub = src.join("level1").join("level2");
+            fs::create_dir_all(&sub).unwrap();
+            fs::write(sub.join("deep.txt"), b"depth2").unwrap();
+
+            copy_dir_recursive(&src, &dest).unwrap();
+            assert!(
+                dest.join("level1").join("level2").join("deep.txt").exists(),
+                "two-level nested file must be copied"
+            );
+            assert_eq!(
+                fs::read(dest.join("level1").join("level2").join("deep.txt")).unwrap(),
+                b"depth2"
+            );
+
+            let _ = fs::remove_dir_all(&src);
+            let _ = fs::remove_dir_all(&dest);
+        }
+
+        #[test]
+        fn test_remove_package_empty_paths_list_returns_zero() {
+            // If paths is Some(vec![]) there are no repos to search → 0 removals.
+            let result = remove_package("any_pkg", None, Some(vec![]));
+            assert!(result.is_ok(), "empty paths list must not error");
+            assert_eq!(result.unwrap(), 0, "no repos → 0 removals");
+        }
+
+        #[test]
+        fn test_expand_home_returns_string_type() {
+            // expand_home must always return a String (not panic)
+            for p in &["/abs", "rel", "~/home", "~", "", r"C:\win"] {
+                let _ = expand_home(p); // must not panic
+            }
+        }
+
+        #[test]
+        fn test_copy_dir_recursive_source_with_mixed_content() {
+            let tmp = std::env::temp_dir();
+            let src = tmp.join("rez_test_cp_mixed_src");
+            let dest = tmp.join("rez_test_cp_mixed_dest");
+            let _ = fs::remove_dir_all(&src);
+            let _ = fs::remove_dir_all(&dest);
+
+            // files at root + a subdirectory with a file
+            fs::create_dir_all(src.join("subdir")).unwrap();
+            fs::write(src.join("root.txt"), b"root-file").unwrap();
+            fs::write(src.join("subdir").join("sub.txt"), b"sub-file").unwrap();
+
+            copy_dir_recursive(&src, &dest).unwrap();
+
+            assert!(dest.join("root.txt").exists(), "root file must be copied");
+            assert!(
+                dest.join("subdir").join("sub.txt").exists(),
+                "sub file must be copied"
+            );
+            assert_eq!(fs::read(dest.join("root.txt")).unwrap(), b"root-file");
+            assert_eq!(
+                fs::read(dest.join("subdir").join("sub.txt")).unwrap(),
+                b"sub-file"
+            );
+
+            let _ = fs::remove_dir_all(&src);
+            let _ = fs::remove_dir_all(&dest);
+        }
+    }
 }
 

@@ -485,5 +485,66 @@ mod tests {
                 passed, failed, total
             );
         }
+
+        #[test]
+        fn test_version_major_component_ordering() {
+            use rez_next_version::Version;
+            let v1 = Version::parse("1.0.0").unwrap();
+            let v2 = Version::parse("10.0.0").unwrap();
+            let v3 = Version::parse("100.0.0").unwrap();
+            assert!(v1 < v2, "1.0.0 < 10.0.0");
+            assert!(v2 < v3, "10.0.0 < 100.0.0");
+        }
+
+        #[test]
+        fn test_package_requirement_weak_prefix() {
+            use rez_next_package::PackageRequirement;
+            // Weak requirements use '~' prefix
+            let req = PackageRequirement::parse("~python");
+            assert!(req.is_ok(), "weak requirement '~python' should parse successfully");
+        }
+
+        #[test]
+        fn test_rex_overwrite_alias() {
+            use rez_next_rex::RexExecutor;
+            let mut exec = RexExecutor::new();
+            let cmds =
+                "alias('mytool', '/old/path')\nalias('mytool', '/new/path')";
+            let env = exec
+                .execute_commands(cmds, "", None, None)
+                .expect("overwrite alias must succeed");
+            // After overwrite, alias should still be registered
+            assert!(
+                env.aliases.contains_key("mytool"),
+                "alias 'mytool' must be registered after overwrite"
+            );
+        }
+
+        #[test]
+        fn test_shell_powershell_uses_env_sigil() {
+            use rez_next_rex::{generate_shell_script, RexEnvironment, ShellType};
+            let mut env = RexEnvironment::new();
+            env.vars.insert("PS_TEST_VAR".to_string(), "psvalue".to_string());
+            let script = generate_shell_script(&env, &ShellType::PowerShell);
+            // PowerShell uses $env:VAR_NAME syntax
+            assert!(
+                script.contains("$env:"),
+                "PowerShell script must use $env: sigil, got: {}",
+                script
+            );
+        }
+
+        #[test]
+        fn test_suite_multiple_contexts_count() {
+            use rez_next_suites::Suite;
+            let dir = tempfile::tempdir().unwrap();
+            let suite_path = dir.path().join("multi_ctx_suite");
+            let mut suite = Suite::new();
+            suite.add_context("ctx_a", vec!["python-3.9".to_string()]).unwrap();
+            suite.add_context("ctx_b", vec!["maya-2024".to_string()]).unwrap();
+            suite.save(&suite_path).unwrap();
+            let loaded = Suite::load(&suite_path).unwrap();
+            assert_eq!(loaded.len(), 2, "suite should have 2 contexts after adding two");
+        }
     }
 }
