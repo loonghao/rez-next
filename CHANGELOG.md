@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.8](https://github.com/loonghao/rez-next/compare/v0.1.7...v0.1.8) (2026-04-07)
+
+
+### 🚀 Features
+
+* add self-update command and update README with badges and install instructions ([#117](https://github.com/loonghao/rez-next/issues/117)) ([a967b93](https://github.com/loonghao/rez-next/commit/a967b93b525cfe7a87e1d7e091bcff8f5ecc0b55))
+
 ## [0.1.7](https://github.com/loonghao/rez-next/compare/v0.1.6...v0.1.7) (2026-04-07)
 
 
