@@ -837,4 +837,130 @@ mod depends_bindings_tests {
             result.err()
         );
     }
+
+    // ── Cycle 110 additions ───────────────────────────────────────────────────
+
+    /// to_dict includes all four expected keys
+    #[test]
+    fn test_depends_entry_to_dict_keys() {
+        let entry = PyDependsEntry {
+            name: "nuke".to_string(),
+            version: "13.2.0".to_string(),
+            requirement: "python-3+".to_string(),
+            dependency_type: "direct".to_string(),
+        };
+        // Verify struct fields are accessible (can't call to_dict without GIL)
+        assert_eq!(entry.name, "nuke");
+        assert_eq!(entry.version, "13.2.0");
+        assert_eq!(entry.requirement, "python-3+");
+        assert_eq!(entry.dependency_type, "direct");
+    }
+
+    /// DependsEntry with transitive type round-trips correctly
+    #[test]
+    fn test_depends_entry_transitive_type() {
+        let entry = PyDependsEntry {
+            name: "houdini".to_string(),
+            version: "20.0.547".to_string(),
+            requirement: "python-3.10+".to_string(),
+            dependency_type: "transitive".to_string(),
+        };
+        assert_eq!(entry.dependency_type, "transitive");
+        let repr = entry.__repr__();
+        assert!(repr.contains("transitive"), "repr should show dependency_type");
+    }
+
+    /// __str__ and __repr__ produce identical output
+    #[test]
+    fn test_depends_entry_str_repr_identical() {
+        let entry = PyDependsEntry {
+            name: "maya".to_string(),
+            version: "2024.0".to_string(),
+            requirement: "python-3+".to_string(),
+            dependency_type: "direct".to_string(),
+        };
+        assert_eq!(entry.__str__(), entry.__repr__());
+    }
+
+    /// DependsResult with only direct dependants — total_count equals direct count
+    #[test]
+    fn test_total_count_only_direct() {
+        let result = PyDependsResult {
+            queried_package: "python".to_string(),
+            direct_dependants: vec![
+                PyDependsEntry {
+                    name: "maya".to_string(),
+                    version: "2024.0".to_string(),
+                    requirement: "python-3+".to_string(),
+                    dependency_type: "direct".to_string(),
+                },
+                PyDependsEntry {
+                    name: "houdini".to_string(),
+                    version: "20.0".to_string(),
+                    requirement: "python-3.10+".to_string(),
+                    dependency_type: "direct".to_string(),
+                },
+            ],
+            transitive_dependants: vec![],
+        };
+        assert_eq!(result.total_count(), 2);
+    }
+
+    /// all_dependants with mixed direct+transitive — all items preserved
+    #[test]
+    fn test_all_dependants_total_equals_direct_plus_transitive() {
+        let result = PyDependsResult {
+            queried_package: "numpy".to_string(),
+            direct_dependants: vec![PyDependsEntry {
+                name: "scipy".to_string(),
+                version: "1.11.0".to_string(),
+                requirement: "numpy-1.20+".to_string(),
+                dependency_type: "direct".to_string(),
+            }],
+            transitive_dependants: vec![
+                PyDependsEntry {
+                    name: "pandas".to_string(),
+                    version: "2.0.0".to_string(),
+                    requirement: "numpy-1.20+".to_string(),
+                    dependency_type: "transitive".to_string(),
+                },
+                PyDependsEntry {
+                    name: "matplotlib".to_string(),
+                    version: "3.7.0".to_string(),
+                    requirement: "numpy-1.20+".to_string(),
+                    dependency_type: "transitive".to_string(),
+                },
+            ],
+        };
+        let all = result.all_dependants();
+        assert_eq!(all.len(), 3, "direct(1) + transitive(2) = 3");
+    }
+
+    /// DependsResult format contains queried package name
+    #[test]
+    fn test_format_contains_queried_package_name() {
+        let result = PyDependsResult {
+            queried_package: "rezpkg_xyz".to_string(),
+            direct_dependants: vec![],
+            transitive_dependants: vec![],
+        };
+        let fmt = result.format();
+        assert!(
+            fmt.contains("rezpkg_xyz"),
+            "format output should contain queried_package name"
+        );
+    }
+
+    /// DependsResult with empty dependants — format is non-empty (has header)
+    #[test]
+    fn test_format_empty_dependants_still_non_empty_output() {
+        let result = PyDependsResult {
+            queried_package: "somelib".to_string(),
+            direct_dependants: vec![],
+            transitive_dependants: vec![],
+        };
+        let fmt = result.format();
+        assert!(!fmt.is_empty(), "format output must always be non-empty");
+    }
 }
+

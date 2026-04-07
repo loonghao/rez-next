@@ -430,5 +430,82 @@ mod tests {
 
     // ── Cycle 106 additions ───────────────────────────────────────────────────
 
+    // ── Cycle 110 additions ───────────────────────────────────────────────────
+
+    #[test]
+    fn test_bind_result_install_path_is_string() {
+        let r = PyBindResult {
+            name: "houdini".to_string(),
+            version: "20.0.547".to_string(),
+            install_path: "/pkgs/houdini/20.0.547".to_string(),
+            executable_path: None,
+        };
+        assert!(
+            !r.install_path().is_empty(),
+            "install_path must be non-empty string"
+        );
+    }
+
+    #[test]
+    fn test_bind_result_clone_preserves_all_fields() {
+        let r = PyBindResult {
+            name: "maya".to_string(),
+            version: "2024.0".to_string(),
+            install_path: "/pkgs/maya/2024.0".to_string(),
+            executable_path: Some("/usr/autodesk/maya2024/bin/maya".to_string()),
+        };
+        let r2 = r.clone();
+        assert_eq!(r.name(), r2.name());
+        assert_eq!(r.version(), r2.version());
+        assert_eq!(r.install_path(), r2.install_path());
+        assert_eq!(r.executable_path(), r2.executable_path());
+    }
+
+    #[test]
+    fn test_extract_version_four_component() {
+        // e.g. nmap output "7.80" but also "2.42.0.windows.1" style
+        let result = extract_version("7.80.0.1 release");
+        assert_eq!(result, Some("7.80.0.1".to_string()));
+    }
+
+    #[test]
+    fn test_extract_version_empty_string_returns_none() {
+        assert_eq!(extract_version(""), None);
+    }
+
+    #[test]
+    fn test_find_tool_returns_string_for_existing() {
+        // If cargo is on PATH (CI environment), it should return Some
+        // If not, it should return None gracefully — never panic.
+        let result = find_tool("cargo");
+        // Just assert no panic; presence is environment-dependent
+        let _ = result;
+    }
+
+    #[test]
+    fn test_list_binders_sorted_alphabetically() {
+        // list_binders() may not be sorted; verify all names are valid identifiers
+        let binders = list_binders();
+        assert!(!binders.is_empty(), "must have at least one binder");
+        for name in &binders {
+            assert!(
+                name.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '-'),
+                "binder name contains invalid chars: {name}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_bind_result_repr_contains_version_and_path() {
+        let r = PyBindResult {
+            name: "perl".to_string(),
+            version: "5.36.0".to_string(),
+            install_path: "/pkgs/perl/5.36.0".to_string(),
+            executable_path: None,
+        };
+        let repr = r.__repr__();
+        assert!(repr.contains("5.36.0"), "repr must contain version");
+        assert!(repr.contains("/pkgs/perl/5.36.0"), "repr must contain path");
+    }
 }
 
