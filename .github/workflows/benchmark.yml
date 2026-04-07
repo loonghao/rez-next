@@ -125,6 +125,7 @@ jobs:
             --bench context_operations_benchmark \
             --bench depends_benchmark \
             --bench pip_conversion_benchmark \
+            --bench cache_operations_benchmark \
             2>&1 | tee benchmark-full.txt
 
       - name: Parse Criterion output → JSON
