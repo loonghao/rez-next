@@ -3,10 +3,80 @@
 [![Rust](https://img.shields.io/badge/rust-1.70+-orange.svg)](https://www.rust-lang.org)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 [![CI](https://img.shields.io/github/actions/workflow/status/loonghao/rez-next/ci.yml?branch=main)](https://github.com/loonghao/rez-next/actions)
+[![GitHub Release](https://img.shields.io/github/v/release/loonghao/rez-next)](https://github.com/loonghao/rez-next/releases)
+[![Crates.io](https://img.shields.io/crates/v/rez-next)](https://crates.io/crates/rez-next)
+[![Crates.io Downloads](https://img.shields.io/crates/d/rez-next)](https://crates.io/crates/rez-next)
+[![PyPI - Version](https://img.shields.io/pypi/v/rez-next)](https://pypi.org/project/rez-next/)
+[![PyPI - Downloads](https://img.shields.io/pypi/dm/rez-next)](https://pypi.org/project/rez-next/)
+[![PyPI - Python Version](https://img.shields.io/pypi/pyversions/rez-next)](https://pypi.org/project/rez-next/)
 
 用 Rust 重写的 [Rez](https://github.com/AcademySoftwareFoundation/rez) 包管理器，提供完整的 Python 绑定，只需将 `import rez` 替换为 `import rez_next` 即可无缝切换。
 
 [English](README.md) | [中文](README_zh.md)
+
+---
+
+## 安装
+
+### Linux / macOS
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/loonghao/rez-next/main/install.sh | sh
+```
+
+或指定版本安装：
+
+```bash
+REZ_NEXT_VERSION=0.3.0 curl -fsSL https://raw.githubusercontent.com/loonghao/rez-next/main/install.sh | sh
+```
+
+环境变量说明：
+
+| 变量 | 说明 | 默认值 |
+|---|---|---|
+| `REZ_NEXT_VERSION` | 指定安装版本（如 `0.3.0`） | 最新版本 |
+| `REZ_NEXT_INSTALL` | 安装目录 | `$HOME/.rez-next/bin` |
+| `REZ_NEXT_MUSL` | Linux 强制使用 musl 构建 | 自动检测 |
+
+### Windows（PowerShell）
+
+```powershell
+irm https://raw.githubusercontent.com/loonghao/rez-next/main/install.ps1 | iex
+```
+
+### Python（PyPI）
+
+```bash
+pip install rez-next
+```
+
+### 从源码构建
+
+```bash
+git clone https://github.com/loonghao/rez-next
+cd rez-next
+cargo build --release
+```
+
+---
+
+## 自动更新
+
+使用内置的 `self-update` 命令保持 rez-next 为最新版本：
+
+```bash
+# 更新到最新版本
+rez-next self-update
+
+# 仅检查是否有更新（不安装）
+rez-next self-update --check
+
+# 更新到指定版本
+rez-next self-update --version 0.3.0
+
+# 强制重新安装当前版本
+rez-next self-update --force
+```
 
 ---
 
