@@ -140,6 +140,10 @@ pub enum RezCommand {
 
     /// Run basic functionality tests (development command)
     SelfTest,
+
+    /// Update rez-next to the latest (or specified) release
+    #[command(name = "self-update")]
+    SelfUpdate(commands::self_update::SelfUpdateArgs),
 }
 
 impl RezCli {
@@ -275,6 +279,7 @@ impl RezCli {
             }
             RezCommand::ParseVersion { version } => self.parse_version_command(version),
             RezCommand::SelfTest => self.run_tests(),
+            RezCommand::SelfUpdate(args) => commands::self_update::execute(args.clone()),
         }
     }
 

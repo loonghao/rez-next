@@ -3,10 +3,80 @@
 [![Rust](https://img.shields.io/badge/rust-1.70+-orange.svg)](https://www.rust-lang.org)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 [![CI](https://img.shields.io/github/actions/workflow/status/loonghao/rez-next/ci.yml?branch=main)](https://github.com/loonghao/rez-next/actions)
+[![GitHub Release](https://img.shields.io/github/v/release/loonghao/rez-next)](https://github.com/loonghao/rez-next/releases)
+[![Crates.io](https://img.shields.io/crates/v/rez-next)](https://crates.io/crates/rez-next)
+[![Crates.io Downloads](https://img.shields.io/crates/d/rez-next)](https://crates.io/crates/rez-next)
+[![PyPI - Version](https://img.shields.io/pypi/v/rez-next)](https://pypi.org/project/rez-next/)
+[![PyPI - Downloads](https://img.shields.io/pypi/dm/rez-next)](https://pypi.org/project/rez-next/)
+[![PyPI - Python Version](https://img.shields.io/pypi/pyversions/rez-next)](https://pypi.org/project/rez-next/)
 
 An in-progress Rust rewrite of the [Rez](https://github.com/AcademySoftwareFoundation/rez) package manager with Python bindings and growing compatibility coverage. Many common workflows already work with `import rez_next`, but it is not yet a seamless drop-in switch for every API surface.
 
 [English](README.md) | [中文](README_zh.md)
+
+---
+
+## Installation
+
+### Linux / macOS
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/loonghao/rez-next/main/install.sh | sh
+```
+
+Or with a specific version:
+
+```bash
+REZ_NEXT_VERSION=0.3.0 curl -fsSL https://raw.githubusercontent.com/loonghao/rez-next/main/install.sh | sh
+```
+
+Environment variables:
+
+| Variable | Description | Default |
+|---|---|---|
+| `REZ_NEXT_VERSION` | Version to install (e.g. `0.3.0`) | latest |
+| `REZ_NEXT_INSTALL` | Installation directory | `$HOME/.rez-next/bin` |
+| `REZ_NEXT_MUSL` | Force musl build on Linux | auto-detect |
+
+### Windows (PowerShell)
+
+```powershell
+irm https://raw.githubusercontent.com/loonghao/rez-next/main/install.ps1 | iex
+```
+
+### Python (PyPI)
+
+```bash
+pip install rez-next
+```
+
+### Build from Source
+
+```bash
+git clone https://github.com/loonghao/rez-next
+cd rez-next
+cargo build --release
+```
+
+---
+
+## Self-Update
+
+Keep rez-next up to date with the built-in `self-update` command:
+
+```bash
+# Update to the latest release
+rez-next self-update
+
+# Check for updates without installing
+rez-next self-update --check
+
+# Update to a specific version
+rez-next self-update --version 0.3.0
+
+# Force reinstall of the current version
+rez-next self-update --force
+```
 
 ---
 

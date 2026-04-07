@@ -26,6 +26,7 @@ pub mod pkg_cache;
 pub mod plugins;
 pub mod rm;
 pub mod search_v2;
+pub mod self_update;
 pub mod solve;
 pub mod status;
 pub mod suites;
