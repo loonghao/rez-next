@@ -284,6 +284,13 @@
 - The current shape makes behavior drift likely: comment/test updates and runtime checks can diverge independently.
 - Follow-up: extract pure helper checks shared by `selftest()` and unit tests, then decide whether failure reporting should stay on stderr or move to structured return data.
 
+### 41. `bundle_functions.rs` still over-tests placeholder `dest_packages_path`
+- **Status**: OPEN (cycle 34)
+- `unbundle_context()` explicitly treats `dest_packages_path` as reserved for future use, but the current tests still spend coverage on "ignored but succeeds" placeholder behavior instead of observable extraction behavior.
+- That keeps noise around a non-contract API surface and makes it easier to accidentally lock in placeholder semantics.
+- Follow-up: once package extraction is implemented, replace the placeholder smoke test with filesystem-observable behavior tests; until then keep coverage focused on manifest parsing and error handling.
+
+
 - **Status**: COMPLETE ✓ (cycle 19)
 
 
