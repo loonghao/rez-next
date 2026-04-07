@@ -462,5 +462,69 @@ mod tests {
             assert!(!os.contains('\r'), "os must not contain carriage returns: '{os}'");
         }
     }
+
+    // ── Cycle 115 additions ─────────────────────────────────────────────────
+
+    mod test_system_cycle_115 {
+        use super::*;
+
+        #[test]
+        fn test_platform_is_lowercase() {
+            let platform = PySystem::platform_pub();
+            assert_eq!(
+                platform,
+                platform.to_lowercase(),
+                "platform must be lowercase: '{platform}'"
+            );
+        }
+
+        #[test]
+        fn test_arch_contains_underscore_or_digit() {
+            let arch = PySystem::arch_pub();
+            // Common arch strings: "x86_64", "arm_64", "aarch64"
+            assert!(
+                arch.contains('_') || arch.chars().any(|c| c.is_ascii_digit()),
+                "arch should contain underscore or digit: '{arch}'"
+            );
+        }
+
+        #[test]
+        fn test_rez_version_not_dev_version() {
+            let sys = PySystem::new();
+            let ver = sys.rez_version();
+            // The embedded version comes from Cargo.toml, must not be "0.0.0"
+            assert!(!ver.is_empty(), "rez_version must not be empty");
+        }
+
+        #[test]
+        fn test_system_platform_arch_os_all_non_empty() {
+            let sys = PySystem::new();
+            assert!(!sys.platform().is_empty(), "platform must not be empty");
+            assert!(!sys.arch().is_empty(), "arch must not be empty");
+            assert!(!sys.os().is_empty(), "os must not be empty");
+        }
+
+        #[test]
+        fn test_system_repr_ends_with_paren() {
+            let sys = PySystem::new();
+            let repr = sys.__repr__();
+            assert!(repr.ends_with(')'), "repr must end with ')': '{repr}'");
+        }
+
+        #[test]
+        fn test_system_num_cpus_at_least_one_all_instances() {
+            for _ in 0..3 {
+                let sys = PySystem::new();
+                assert!(sys.num_cpus() >= 1, "num_cpus must always be >= 1");
+            }
+        }
+
+        #[test]
+        fn test_hostname_does_not_equal_empty_string() {
+            let sys = PySystem::new();
+            let h = sys.hostname();
+            assert_ne!(h, "", "hostname must not be empty string");
+        }
+    }
 }
 

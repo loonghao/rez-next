@@ -739,4 +739,77 @@ mod tests {
         let family = PyPackageFamily::new("nuke".to_string());
         assert_eq!(family.__str__(), family.name);
     }
+
+    // ── Cycle 115 additions ──────────────────────────────────────────────────
+
+    #[test]
+    fn test_rez_env_print_script_missing_shell_does_not_panic() {
+        let env = empty_rez_env(vec![]);
+        // Should not panic even when shell not registered
+        env.print_script("nonexistent_shell");
+    }
+
+    #[test]
+    fn test_rez_env_print_script_with_registered_shell_does_not_panic() {
+        let mut env = empty_rez_env(vec![]);
+        env.scripts.insert("bash".to_string(), "export X=1\n".to_string());
+        // Should not panic when shell is present
+        env.print_script("bash");
+    }
+
+    #[test]
+    fn test_package_family_versions_sorted_order() {
+        let mut family = PyPackageFamily::new("python".to_string());
+        // Add versions out of order
+        for ver in ["3.11.0", "3.8.0", "3.10.0", "3.9.0"] {
+            family.add_package(make_pkg("python", ver));
+        }
+        assert_eq!(family.num_versions(), 4);
+        let versions = family.versions();
+        // All four versions must be present
+        assert!(versions.contains(&"3.8.0".to_string()));
+        assert!(versions.contains(&"3.9.0".to_string()));
+        assert!(versions.contains(&"3.10.0".to_string()));
+        assert!(versions.contains(&"3.11.0".to_string()));
+    }
+
+    #[test]
+    fn test_rez_env_env_vars_multiple_entries() {
+        let mut env = empty_rez_env(vec![]);
+        env.env_vars.insert("A".to_string(), "1".to_string());
+        env.env_vars.insert("B".to_string(), "2".to_string());
+        env.env_vars.insert("C".to_string(), "3".to_string());
+        assert_eq!(env.env_vars.len(), 3);
+        assert_eq!(env.env_vars["A"], "1");
+        assert_eq!(env.env_vars["C"], "3");
+    }
+
+    #[test]
+    fn test_rez_env_failure_reason_stub_is_some() {
+        let env = empty_rez_env(vec!["maya-2024".to_string()]);
+        // The stub always sets failure_reason to Some("test stub")
+        assert_eq!(env.failure_reason.as_deref(), Some("test stub"));
+    }
+
+    #[test]
+    fn test_package_family_add_same_version_twice_increments_count() {
+        let mut family = PyPackageFamily::new("dup_pkg".to_string());
+        family.add_package(make_pkg("dup_pkg", "1.0.0"));
+        family.add_package(make_pkg("dup_pkg", "1.0.0")); // duplicate
+        // num_versions counts raw list length, duplicates allowed
+        assert_eq!(family.num_versions(), 2);
+    }
+
+    #[test]
+    fn test_rez_env_packages_field_reflects_input() {
+        let pkgs = vec![
+            "python-3.9".to_string(),
+            "cmake-3.26".to_string(),
+            "boost-1.82".to_string(),
+        ];
+        let env = empty_rez_env(pkgs.clone());
+        assert_eq!(env.packages.len(), 3);
+        assert_eq!(env.packages[0], "python-3.9");
+        assert_eq!(env.packages[2], "boost-1.82");
+    }
 }

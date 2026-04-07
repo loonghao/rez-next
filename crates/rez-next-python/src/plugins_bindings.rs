@@ -568,4 +568,79 @@ mod tests {
             );
         }
     }
+
+    // ── Cycle 115 additions ─────────────────────────────────────────────────
+
+    mod test_cycle_115 {
+        use super::*;
+
+        #[test]
+        fn test_plugin_manager_has_filesystem_repo_plugin() {
+            let mgr = PyRezPluginManager::new();
+            assert!(
+                mgr.has_plugin("package_repository", "filesystem"),
+                "filesystem repo plugin must be registered"
+            );
+        }
+
+        #[test]
+        fn test_plugin_manager_release_hooks_exist() {
+            let mgr = PyRezPluginManager::new();
+            let hooks = mgr.get_plugins("release_hook");
+            assert!(!hooks.is_empty(), "at least one release_hook plugin must exist");
+            let names: Vec<_> = hooks.iter().map(|h| h.name.as_str()).collect();
+            assert!(names.contains(&"emailer") || names.contains(&"command"),
+                "known release hooks must be registered, got: {:?}", names);
+        }
+
+        #[test]
+        fn test_plugin_manager_get_plugins_unknown_type_is_empty() {
+            let mgr = PyRezPluginManager::new();
+            let result = mgr.get_plugins("nonexistent_plugin_type_xyz");
+            assert!(result.is_empty(), "unknown plugin type must return empty list");
+        }
+
+        #[test]
+        fn test_plugin_type_repr_format() {
+            let pt = PyPluginType::new("build_system");
+            let repr = pt.__repr__();
+            assert!(repr.starts_with("PluginType("), "repr: {repr}");
+            assert!(repr.ends_with(')'), "repr: {repr}");
+            assert!(repr.contains("build_system"), "repr: {repr}");
+        }
+
+        #[test]
+        fn test_plugin_version_is_semver_like() {
+            let mgr = PyRezPluginManager::new();
+            let shells = mgr.get_plugins("shell");
+            for plugin in &shells {
+                assert!(
+                    plugin.version.contains('.'),
+                    "plugin version should be semver-like, got: '{}'", plugin.version
+                );
+            }
+        }
+
+        #[test]
+        fn test_get_plugin_case_sensitive_type() {
+            let mgr = PyRezPluginManager::new();
+            // plugin type lookup is exact-case (lowercase)
+            let found = mgr.get_plugin("Shell", "bash");
+            // type "Shell" (capital S) does not exist → should return None
+            assert!(found.is_none(), "uppercase type lookup should not match");
+        }
+
+        #[test]
+        fn test_register_plugin_increases_count_by_one() {
+            let mut mgr = PyRezPluginManager::new();
+            let before = mgr.count();
+            mgr.register_plugin(PyPlugin {
+                name: "unique_test_plugin".to_string(),
+                plugin_type: "shell".to_string(),
+                description: "Test".to_string(),
+                version: "0.0.1".to_string(),
+            });
+            assert_eq!(mgr.count(), before + 1);
+        }
+    }
 }

@@ -651,4 +651,68 @@ mod tests {
         assert_ne!(SourceMode::File(path_a.clone()), SourceMode::File(path_b));
         assert_ne!(SourceMode::Inline, SourceMode::File(path_a));
     }
+
+    // ── Cycle 115 additions ──────────────────────────────────────────────────
+
+    #[test]
+    fn test_build_activation_script_pwsh_alias() {
+        // "pwsh" should fall through to PowerShell branch
+        let pkgs = vec!["python-3.11".to_string()];
+        let script = build_activation_script(&pkgs, "pwsh");
+        assert!(script.contains("REZ_RESOLVE"), "pwsh script: {script}");
+    }
+
+    #[test]
+    fn test_source_manager_repr_is_non_empty() {
+        let mgr = PySourceManager::new(vec![], Some("bash".to_string()));
+        let repr = mgr.__repr__();
+        assert!(!repr.is_empty(), "repr must not be empty");
+    }
+
+    #[test]
+    fn test_build_activation_script_sets_rez_context_file() {
+        let pkgs = vec!["python-3.9".to_string()];
+        let script = build_activation_script(&pkgs, "bash");
+        assert!(
+            script.contains("REZ_CONTEXT_FILE"),
+            "script must set REZ_CONTEXT_FILE: {script}"
+        );
+    }
+
+    #[test]
+    fn test_source_manager_shell_type_preserved() {
+        let mgr = PySourceManager::new(vec!["pkg-1.0".to_string()], Some("zsh".to_string()));
+        assert_eq!(mgr.shell_type(), "zsh");
+        assert_eq!(mgr.packages().len(), 1);
+    }
+
+    #[test]
+    fn test_build_activation_script_rezpkg_version_correct() {
+        // "python-3.11.2" → REZPKG_PYTHON should hold "3.11.2"
+        let pkgs = vec!["python-3.11.2".to_string()];
+        let script = build_activation_script(&pkgs, "bash");
+        assert!(script.contains("REZPKG_PYTHON"), "script: {script}");
+        assert!(script.contains("3.11.2"), "version in REZPKG_PYTHON: {script}");
+    }
+
+    #[test]
+    fn test_source_manager_two_instances_same_output() {
+        let pkgs = vec!["cmake-3.26".to_string()];
+        let mgr1 = PySourceManager::new(pkgs.clone(), Some("bash".to_string()));
+        let mgr2 = PySourceManager::new(pkgs, Some("bash".to_string()));
+        let c1 = mgr1.get_activation_script_content(None);
+        let c2 = mgr2.get_activation_script_content(None);
+        // Two managers with the same config must produce identical scripts
+        assert_eq!(c1, c2, "identical managers must produce identical scripts");
+    }
+
+    #[test]
+    fn test_detect_current_shell_returns_known_shell() {
+        let shell = detect_current_shell();
+        let known = ["bash", "zsh", "fish", "powershell", "pwsh", "cmd"];
+        assert!(
+            known.iter().any(|k| shell == *k),
+            "detect_current_shell must return a known shell, got: '{shell}'"
+        );
+    }
 }

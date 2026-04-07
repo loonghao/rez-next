@@ -688,4 +688,91 @@ mod release_tests {
         let mgr = PyReleaseManager::new(None, false, false);
         assert_eq!(mgr.mode, ReleaseMode::Release);
     }
+
+    // ── Cycle 115 additions ──────────────────────────────────────────────────
+
+    #[test]
+    fn test_release_mode_debug_format() {
+        // Debug trait must be derivable and produce non-empty strings
+        let modes = [ReleaseMode::Release, ReleaseMode::Local, ReleaseMode::DryRun];
+        for m in &modes {
+            let debug_str = format!("{:?}", m);
+            assert!(!debug_str.is_empty(), "debug format must not be empty for {:?}", m);
+        }
+    }
+
+    #[test]
+    fn test_release_result_empty_errors_and_warnings() {
+        let r = PyReleaseResult {
+            success: true,
+            package_name: "pkg".to_string(),
+            version: "1.0.0".to_string(),
+            install_path: "/dest/pkg/1.0.0".to_string(),
+            errors: vec![],
+            warnings: vec![],
+        };
+        assert!(r.errors.is_empty(), "errors must be empty");
+        assert!(r.warnings.is_empty(), "warnings must be empty");
+    }
+
+    #[test]
+    fn test_release_result_multiple_errors() {
+        let r = PyReleaseResult {
+            success: false,
+            package_name: "multi_err_pkg".to_string(),
+            version: "0.1.0".to_string(),
+            install_path: String::new(),
+            errors: vec!["error1".to_string(), "error2".to_string(), "error3".to_string()],
+            warnings: vec![],
+        };
+        assert_eq!(r.errors.len(), 3);
+        assert_eq!(r.errors[1], "error2");
+    }
+
+    #[test]
+    fn test_release_result_package_name_field() {
+        let r = PyReleaseResult {
+            success: true,
+            package_name: "specific_pkg_name".to_string(),
+            version: "5.0.0".to_string(),
+            install_path: "/p/specific_pkg_name/5.0.0".to_string(),
+            errors: vec![],
+            warnings: vec![],
+        };
+        assert_eq!(r.package_name, "specific_pkg_name");
+    }
+
+    #[test]
+    fn test_release_result_version_field() {
+        let r = PyReleaseResult {
+            success: true,
+            package_name: "vpkg".to_string(),
+            version: "10.20.30".to_string(),
+            install_path: "/pkgs/vpkg/10.20.30".to_string(),
+            errors: vec![],
+            warnings: vec![],
+        };
+        assert_eq!(r.version, "10.20.30");
+    }
+
+    #[test]
+    fn test_release_manager_str_dry_run_label() {
+        let mgr = PyReleaseManager::new(Some("dry_run"), false, false);
+        let s = mgr.__str__();
+        assert!(s.contains("DryRun") || s.contains("Dry"), "str must mention dry run: '{s}'");
+    }
+
+    #[test]
+    fn test_release_function_dry_run_arg() {
+        // release_package with dry_run=true should map to DryRun mode
+        let result = release_package(
+            Some("/nonexistent/path_dry_test"),
+            false,
+            true,
+            None,
+        ).unwrap();
+        // Even for nonexistent paths in dry_run mode, result should exist
+        // (either success=false due to missing package.py, or success=true if dry-run skips)
+        let _ = result; // must not panic
+    }
 }

@@ -774,5 +774,110 @@ mod status_bindings_tests {
             std::env::remove_var("REZ_USED_PACKAGES_NAMES");
         }
     }
+
+    // ── Cycle 115 additions ──────────────────────────────────────────────────
+
+    #[test]
+    fn test_rez_status_requested_packages_empty_by_default() {
+        let _lock = ENV_MUTEX.lock().unwrap();
+        if std::env::var("REZ_REQUEST").is_err() {
+            let s = PyRezStatus::new();
+            // Outside a rez context, requested_packages should be empty
+            if !s.is_active {
+                assert!(
+                    s.requested_packages.is_empty(),
+                    "requested_packages must be empty outside rez, got {:?}",
+                    s.requested_packages
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_rez_status_implicit_packages_empty_by_default() {
+        let _lock = ENV_MUTEX.lock().unwrap();
+        if std::env::var("REZ_IMPLICIT_PACKAGES").is_err() {
+            let s = PyRezStatus::new();
+            if !s.is_active {
+                assert!(
+                    s.implicit_packages.is_empty(),
+                    "implicit_packages must be empty outside rez"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_detect_current_status_returns_rez_status_type() {
+        // verify detect_current_status() can be called without panic and returns a RezStatus
+        let s = detect_current_status();
+        // is_active field must be accessible
+        let _ = s.is_active;
+        let _ = s.resolved_packages.len();
+    }
+
+    #[test]
+    fn test_get_resolved_package_names_single_package() {
+        let _lock = ENV_MUTEX.lock().unwrap();
+        unsafe {
+            std::env::set_var("REZ_USED_PACKAGES_NAMES", "only_one_pkg-1.2.3");
+        }
+        let names = get_resolved_package_names();
+        assert_eq!(names.len(), 1);
+        assert_eq!(names[0], "only_one_pkg-1.2.3");
+        unsafe {
+            std::env::remove_var("REZ_USED_PACKAGES_NAMES");
+        }
+    }
+
+    #[test]
+    fn test_get_rez_env_var_already_has_rez_prefix() {
+        let _lock = ENV_MUTEX.lock().unwrap();
+        unsafe {
+            std::env::set_var("REZ_CYCLE115_PREFIX_TEST", "hello");
+        }
+        let val = get_rez_env_var("REZ_CYCLE115_PREFIX_TEST");
+        assert_eq!(val.as_deref(), Some("hello"), "key with REZ_ prefix must be found as-is");
+        unsafe {
+            std::env::remove_var("REZ_CYCLE115_PREFIX_TEST");
+        }
+    }
+
+    #[test]
+    fn test_rez_env_vars_not_contains_non_rez_key() {
+        let _lock = ENV_MUTEX.lock().unwrap();
+        // Set a non-REZ_ env var and verify it is NOT captured in rez_env_vars
+        unsafe {
+            std::env::set_var("CYCLE115_NON_REZ_KEY", "should_not_appear");
+        }
+        let s = detect_current_status();
+        assert!(
+            !s.rez_env_vars.contains_key("CYCLE115_NON_REZ_KEY"),
+            "non-REZ_ key must not appear in rez_env_vars"
+        );
+        unsafe {
+            std::env::remove_var("CYCLE115_NON_REZ_KEY");
+        }
+    }
+
+    #[test]
+    fn test_is_in_rez_context_false_when_both_vars_absent() {
+        let _lock = ENV_MUTEX.lock().unwrap();
+        // Temporarily remove both trigger vars (if present)
+        let ctx = std::env::var("REZ_CONTEXT_FILE").ok();
+        let pkg = std::env::var("REZ_USED_PACKAGES_NAMES").ok();
+        unsafe {
+            std::env::remove_var("REZ_CONTEXT_FILE");
+            std::env::remove_var("REZ_USED_PACKAGES_NAMES");
+        }
+        assert!(!is_in_rez_context(), "must be false when neither trigger var is set");
+        // Restore
+        if let Some(v) = ctx {
+            unsafe { std::env::set_var("REZ_CONTEXT_FILE", v); }
+        }
+        if let Some(v) = pkg {
+            unsafe { std::env::set_var("REZ_USED_PACKAGES_NAMES", v); }
+        }
+    }
 }
 

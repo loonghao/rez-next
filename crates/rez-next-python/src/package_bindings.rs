@@ -534,4 +534,49 @@ mod tests {
         let result = PyPackage::load("/nonexistent/path/package.py");
         assert!(result.is_err(), "loading non-existent package.py should return Err");
     }
+
+    // ── Cycle 115 additions ──────────────────────────────────────────────────
+
+    #[test]
+    fn test_package_authors_empty_by_default() {
+        let p = make_package("somepkg");
+        assert!(p.authors().is_empty(), "authors must be empty by default");
+    }
+
+    #[test]
+    fn test_package_commands_none_by_default() {
+        let p = make_package("cmdpkg");
+        assert!(p.commands().is_none(), "commands must be None by default");
+    }
+
+    #[test]
+    fn test_package_timestamp_none_by_default() {
+        let p = make_package("timepkg");
+        assert!(p.timestamp().is_none(), "timestamp must be None by default");
+    }
+
+    #[test]
+    fn test_package_uuid_none_by_default() {
+        let p = make_package("uuidpkg");
+        assert!(p.uuid().is_none(), "uuid must be None by default");
+    }
+
+    #[test]
+    fn test_package_cachable_none_by_default() {
+        let p = make_package("cachepkg");
+        assert!(p.cachable().is_none(), "cachable must be None by default");
+    }
+
+    #[test]
+    fn test_package_relocatable_none_by_default() {
+        let p = make_package("relocpkg");
+        assert!(p.relocatable().is_none(), "relocatable must be None by default");
+    }
+
+    #[test]
+    fn test_requirement_version_range_matches_range() {
+        let r = req("python-3.9+<4");
+        // range() and version_range() must return the same value
+        assert_eq!(r.range(), r.version_range(), "range() and version_range() must agree");
+    }
 }

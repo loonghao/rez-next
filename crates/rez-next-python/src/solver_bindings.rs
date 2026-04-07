@@ -415,7 +415,75 @@ mod tests {
             assert!(!repr.contains("paths=-"), "repr must not show negative path count: {repr}");
         }
 
+        // ── Cycle 115 additions ──────────────────────────────────────────────
+
+        #[test]
+        fn test_solver_config_all_defaults_consistent() {
+            let c1 = SolverConfig::default();
+            let c2 = SolverConfig::default();
+            assert_eq!(c1.max_attempts, c2.max_attempts);
+            assert_eq!(c1.max_time_seconds, c2.max_time_seconds);
+            assert_eq!(c1.prefer_latest, c2.prefer_latest);
+            assert_eq!(c1.allow_prerelease, c2.allow_prerelease);
+            assert_eq!(c1.strict_mode, c2.strict_mode);
+        }
+
+        #[test]
+        fn test_solver_config_enable_caching_set_then_unset() {
+            let mut config = SolverConfig::default();
+            config.enable_caching = false;
+            assert!(!config.enable_caching);
+            config.enable_caching = true;
+            assert!(config.enable_caching);
+        }
+
+        #[test]
+        fn test_solver_paths_count_zero_when_empty_vec() {
+            let solver = PySolver {
+                config: SolverConfig::default(),
+                paths: Vec::new(),
+            };
+            assert_eq!(solver.paths.len(), 0, "empty paths must have len 0");
+        }
+
+        #[test]
+        fn test_solver_config_prefer_latest_toggle() {
+            let mut config = SolverConfig::default();
+            let original = config.prefer_latest;
+            config.prefer_latest = !original;
+            assert_ne!(config.prefer_latest, original);
+            config.prefer_latest = original;
+            assert_eq!(config.prefer_latest, original);
+        }
+
+        #[test]
+        fn test_solver_repr_no_leading_whitespace() {
+            let solver = PySolver {
+                config: SolverConfig::default(),
+                paths: vec![],
+            };
+            let repr = solver.__repr__();
+            assert!(!repr.starts_with(' '), "repr must not start with whitespace: '{repr}'");
+        }
+
+        #[test]
+        fn test_solver_config_strict_mode_false_by_default() {
+            let config = SolverConfig::default();
+            assert!(!config.strict_mode, "strict_mode default must be false");
+        }
+
+        #[test]
+        fn test_solver_paths_six_elements() {
+            let paths: Vec<PathBuf> = (1..=6).map(|i| PathBuf::from(format!("/p{i}"))).collect();
+            let solver = PySolver {
+                config: SolverConfig::default(),
+                paths,
+            };
+            let repr = solver.__repr__();
+            assert!(repr.contains("paths=6"), "repr: {repr}");
+        }
     }
 }
+
 
 
