@@ -602,6 +602,39 @@ mod tests {
             "RexUndefinedVariableError should be a leaf with no children"
         );
     }
+
+    // ─────── Cycle 106 additions ──────────────────────────────────────────────
+
+    /// RezBuildError is a leaf (nothing extends it)
+    #[test]
+    fn test_rez_build_error_is_leaf() {
+        let is_parent = EXCEPTION_HIERARCHY
+            .iter()
+            .any(|(_, p)| *p == "RezBuildError");
+        assert!(!is_parent, "RezBuildError should be a leaf with no children");
+    }
+
+    /// RezReleaseError is a leaf (nothing extends it)
+    #[test]
+    fn test_rez_release_error_is_leaf() {
+        let is_parent = EXCEPTION_HIERARCHY
+            .iter()
+            .any(|(_, p)| *p == "RezReleaseError");
+        assert!(
+            !is_parent,
+            "RezReleaseError should be a leaf with no children"
+        );
+    }
+
+    /// All exception names in the hierarchy are unique (sorted check)
+    #[test]
+    fn test_hierarchy_names_sorted_dedup_same_length() {
+        let mut names: Vec<&str> = EXCEPTION_HIERARCHY.iter().map(|(n, _)| *n).collect();
+        let original = names.len();
+        names.sort_unstable();
+        names.dedup();
+        assert_eq!(names.len(), original, "all names in EXCEPTION_HIERARCHY must be unique");
+    }
 }
 
 

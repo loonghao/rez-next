@@ -61,3 +61,79 @@ pub fn cli_main(args: Option<Vec<String>>) -> PyResult<i32> {
     }
     Ok(0)
 }
+
+#[cfg(test)]
+mod tests {
+
+    mod test_cli_run {
+        use super::super::cli_run;
+
+        #[test]
+        fn test_known_command_env_returns_zero() {
+            let result = cli_run("env", None);
+            assert!(result.is_ok());
+            assert_eq!(result.unwrap(), 0);
+        }
+
+        #[test]
+        fn test_known_command_solve_returns_zero() {
+            let result = cli_run("solve", None);
+            assert!(result.is_ok());
+            assert_eq!(result.unwrap(), 0);
+        }
+
+        #[test]
+        fn test_known_command_build_returns_zero() {
+            let result = cli_run("build", None);
+            assert!(result.is_ok());
+            assert_eq!(result.unwrap(), 0);
+        }
+
+        #[test]
+        fn test_unknown_command_returns_error() {
+            let result = cli_run("not_a_real_command_xyz", None);
+            assert!(result.is_err(), "unknown command must return Err");
+        }
+
+        #[test]
+        fn test_error_message_contains_command_name() {
+            // We cannot call err.to_string() in --lib tests without a PyO3 interpreter.
+            // Verify that an unknown command returns Err (not Ok).
+            let result = cli_run("unknown_cmd_abc", None);
+            assert!(result.is_err(), "unknown command must return Err");
+        }
+
+        #[test]
+        fn test_known_command_search_returns_zero() {
+            assert_eq!(cli_run("search", None).unwrap(), 0);
+        }
+
+        #[test]
+        fn test_known_command_status_returns_zero() {
+            assert_eq!(cli_run("status", None).unwrap(), 0);
+        }
+
+        #[test]
+        fn test_known_command_pip_returns_zero() {
+            assert_eq!(cli_run("pip", None).unwrap(), 0);
+        }
+    }
+
+    mod test_cli_main {
+        use super::super::cli_main;
+
+        #[test]
+        fn test_cli_main_none_returns_zero() {
+            let result = cli_main(None);
+            assert!(result.is_ok());
+            assert_eq!(result.unwrap(), 0);
+        }
+
+        #[test]
+        fn test_cli_main_with_known_command() {
+            let result = cli_main(Some(vec!["env".to_string()]));
+            assert!(result.is_ok());
+            assert_eq!(result.unwrap(), 0);
+        }
+    }
+}

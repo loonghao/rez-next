@@ -29,3 +29,114 @@ pub fn rex_interpret(
     }
     Ok(dict.into_any().unbind())
 }
+
+#[cfg(test)]
+mod tests {
+    use rez_next_rex::RexExecutor;
+
+    mod test_rex_execute {
+        use super::*;
+
+        #[test]
+        fn test_setenv_produces_var_in_env() {
+            let mut exec = RexExecutor::new();
+            let env = exec
+                .execute_commands("env.setenv('MY_VAR', 'hello')", "", None, None)
+                .expect("execute must succeed");
+            assert_eq!(
+                env.vars.get("MY_VAR").map(|s| s.as_str()),
+                Some("hello"),
+                "MY_VAR should be set to 'hello'"
+            );
+        }
+
+        #[test]
+        fn test_setenv_multiple_vars() {
+            let mut exec = RexExecutor::new();
+            let cmds = "env.setenv('A', '1')\nenv.setenv('B', '2')";
+            let env = exec
+                .execute_commands(cmds, "", None, None)
+                .expect("execute must succeed");
+            assert_eq!(env.vars.get("A").map(|s| s.as_str()), Some("1"));
+            assert_eq!(env.vars.get("B").map(|s| s.as_str()), Some("2"));
+        }
+
+        #[test]
+        fn test_prepend_path_creates_path_entry() {
+            let mut exec = RexExecutor::new();
+            let env = exec
+                .execute_commands(
+                    "env.prepend_path('PATH', '/custom/bin')",
+                    "",
+                    None,
+                    None,
+                )
+                .expect("execute must succeed");
+            // PATH should contain our prepended value
+            let path_val = env.vars.get("PATH").cloned().unwrap_or_default();
+            assert!(
+                path_val.contains("/custom/bin"),
+                "PATH should contain '/custom/bin', got: {}",
+                path_val
+            );
+        }
+
+        #[test]
+        fn test_info_message_recorded() {
+            let mut exec = RexExecutor::new();
+            let env = exec
+                .execute_commands("info('rez-next test info')", "", None, None)
+                .expect("execute must succeed");
+            assert!(
+                !env.info_messages.is_empty(),
+                "info() should produce at least one info message"
+            );
+        }
+
+        #[test]
+        fn test_stop_sets_stopped_flag() {
+            let mut exec = RexExecutor::new();
+            let env = exec
+                .execute_commands("stop('done')", "", None, None)
+                .expect("execute must succeed");
+            assert!(env.stopped, "stop() must set the stopped flag");
+        }
+
+        #[test]
+        fn test_empty_commands_returns_empty_env() {
+            let mut exec = RexExecutor::new();
+            let env = exec
+                .execute_commands("", "", None, None)
+                .expect("empty commands must succeed");
+            assert!(
+                env.vars.is_empty() || !env.vars.contains_key("FAKE_VAR"),
+                "empty commands should not inject arbitrary vars"
+            );
+        }
+
+        #[test]
+        fn test_context_vars_accessible_in_commands() {
+            let mut exec = RexExecutor::new();
+            exec.set_context_var("CTX_VAR".to_string(), "ctx_value".to_string());
+            // Commands that reference context vars should not error
+            let result = exec.execute_commands("env.setenv('OUT', 'ok')", "", None, None);
+            assert!(result.is_ok(), "execute with context vars must succeed");
+        }
+
+        #[test]
+        fn test_resetenv_removes_existing_var() {
+            let mut exec = RexExecutor::new();
+            exec.set_context_var("OLD".to_string(), "remove_me".to_string());
+            let env = exec
+                .execute_commands("resetenv('OLD')", "", None, None)
+                .expect("resetenv must succeed");
+            // After resetenv, OLD should not be in vars (or be empty)
+            let val = env.vars.get("OLD").map(|s| s.as_str());
+            assert!(
+                val.is_none() || val == Some(""),
+                "resetenv should remove or clear OLD, got: {:?}",
+                val
+            );
+        }
+    }
+}

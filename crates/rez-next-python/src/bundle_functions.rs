@@ -118,3 +118,112 @@ pub fn list_bundles(search_path: Option<&str>) -> PyResult<Vec<String>> {
     bundles.sort();
     Ok(bundles)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+
+    mod test_bundle_context {
+        use super::*;
+
+        #[test]
+        fn test_bundle_context_creates_directory() {
+            let tmp = std::env::temp_dir().join("rez_test_bundle_create");
+            let _ = fs::remove_dir_all(&tmp);
+            let result = bundle_context(
+                vec!["python-3.9".to_string()],
+                tmp.to_str().unwrap(),
+                false,
+            );
+            assert!(result.is_ok(), "bundle_context must succeed: {:?}", result);
+            assert!(tmp.exists(), "bundle directory must be created");
+            assert!(tmp.join("bundle.yaml").exists(), "bundle.yaml must exist");
+            let _ = fs::remove_dir_all(&tmp);
+        }
+
+        #[test]
+        fn test_bundle_context_manifest_contains_packages() {
+            let tmp = std::env::temp_dir().join("rez_test_bundle_manifest");
+            let _ = fs::remove_dir_all(&tmp);
+            bundle_context(
+                vec!["python-3.9".to_string(), "maya-2024".to_string()],
+                tmp.to_str().unwrap(),
+                false,
+            )
+            .unwrap();
+            let content = fs::read_to_string(tmp.join("bundle.yaml")).unwrap();
+            assert!(content.contains("python-3.9"), "manifest must contain python-3.9");
+            assert!(content.contains("maya-2024"), "manifest must contain maya-2024");
+            let _ = fs::remove_dir_all(&tmp);
+        }
+
+        #[test]
+        fn test_bundle_context_skip_solve_recorded() {
+            let tmp = std::env::temp_dir().join("rez_test_bundle_skip");
+            let _ = fs::remove_dir_all(&tmp);
+            bundle_context(vec!["pkg-1.0".to_string()], tmp.to_str().unwrap(), true).unwrap();
+            let content = fs::read_to_string(tmp.join("bundle.yaml")).unwrap();
+            assert!(content.contains("skip_solve: true"), "skip_solve must be true in manifest");
+            let _ = fs::remove_dir_all(&tmp);
+        }
+
+        #[test]
+        fn test_bundle_context_returns_dest_path() {
+            let tmp = std::env::temp_dir().join("rez_test_bundle_ret");
+            let _ = fs::remove_dir_all(&tmp);
+            let returned = bundle_context(vec![], tmp.to_str().unwrap(), false).unwrap();
+            assert!(
+                returned.contains("rez_test_bundle_ret"),
+                "returned path should contain the dest dir name: {}",
+                returned
+            );
+            let _ = fs::remove_dir_all(&tmp);
+        }
+    }
+
+    mod test_unbundle_context {
+        use super::*;
+
+        #[test]
+        fn test_unbundle_returns_packages_list() {
+            let tmp = std::env::temp_dir().join("rez_test_unbundle_roundtrip");
+            let _ = fs::remove_dir_all(&tmp);
+            let pkgs = vec!["python-3.9".to_string(), "houdini-19.5".to_string()];
+            bundle_context(pkgs.clone(), tmp.to_str().unwrap(), false).unwrap();
+            let got = unbundle_context(tmp.to_str().unwrap(), None).unwrap();
+            assert_eq!(got, pkgs, "unbundle must return same packages as bundled");
+            let _ = fs::remove_dir_all(&tmp);
+        }
+
+        #[test]
+        fn test_unbundle_missing_manifest_errors() {
+            let tmp = std::env::temp_dir().join("rez_test_unbundle_missing");
+            let _ = fs::remove_dir_all(&tmp);
+            fs::create_dir_all(&tmp).unwrap();
+            let result = unbundle_context(tmp.to_str().unwrap(), None);
+            assert!(result.is_err(), "missing bundle.yaml must return Err");
+            let _ = fs::remove_dir_all(&tmp);
+        }
+
+        #[test]
+        fn test_unbundle_nonexistent_dir_errors() {
+            let result = unbundle_context("/nonexistent/bundle/dir_xyz", None);
+            assert!(result.is_err(), "nonexistent bundle dir must return Err");
+        }
+    }
+
+    mod test_list_bundles {
+        use super::*;
+
+        #[test]
+        fn test_list_bundles_empty_directory() {
+            let tmp = std::env::temp_dir().join("rez_test_list_bundles_empty");
+            let _ = fs::remove_dir_all(&tmp);
+            fs::create_dir_all(&tmp).unwrap();
+            let result = list_bundles(Some(tmp.to_str().unwrap())).unwrap();
+            assert!(result.is_empty(), "no bundles in empty dir");
+            let _ = fs::remove_dir_all(&tmp);
+        }
+    }
+}

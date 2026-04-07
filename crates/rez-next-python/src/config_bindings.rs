@@ -372,4 +372,34 @@ mod tests {
             assert_eq!(cfg.cache.cache_ttl_seconds, 3600);
         }
     }
+
+    // ── Cycle 106 additions ──────────────────────────────────────────────────
+
+    mod test_config_field_types_extra {
+        use super::*;
+
+        #[test]
+        fn test_get_field_release_packages_path_is_string() {
+            let cfg = RezCoreConfig::load();
+            let val = cfg.get_field("release_packages_path");
+            assert!(val.is_some(), "release_packages_path should be a known field");
+            if let Some(serde_json::Value::String(s)) = val {
+                assert!(!s.is_empty(), "release_packages_path should not be empty");
+            }
+        }
+
+        #[test]
+        fn test_config_local_packages_path_is_nonempty_string() {
+            let cfg = PyConfig::new();
+            let s = cfg.local_packages_path();
+            assert!(!s.is_empty(), "local_packages_path must be non-empty");
+        }
+
+        #[test]
+        fn test_config_rez_version_contains_dot() {
+            let cfg = PyConfig::new();
+            let v = cfg.rez_version();
+            assert!(v.contains('.'), "rez_version should be semver-like: {v}");
+        }
+    }
 }

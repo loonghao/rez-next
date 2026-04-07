@@ -382,6 +382,40 @@ mod tests {
             assert_eq!(config.max_time_seconds, 60);
         }
 
+        // ── Cycle 106 additions ──────────────────────────────────────────────
+
+        #[test]
+        fn test_solver_config_max_attempts_100_is_positive() {
+            let config = SolverConfig {
+                max_attempts: 100,
+                ..SolverConfig::default()
+            };
+            assert!(config.max_attempts > 0);
+            assert_eq!(config.max_attempts, 100);
+        }
+
+        #[test]
+        fn test_solver_two_paths_repr_paths_2() {
+            let solver = PySolver {
+                config: SolverConfig::default(),
+                paths: vec![PathBuf::from("/p1"), PathBuf::from("/p2")],
+            };
+            let repr = solver.__repr__();
+            assert!(repr.contains("paths=2"), "repr: {repr}");
+        }
+
+        #[test]
+        fn test_solver_repr_does_not_contain_negative_paths() {
+            let solver = PySolver {
+                config: SolverConfig::default(),
+                paths: vec![],
+            };
+            let repr = solver.__repr__();
+            // paths=0 is valid; paths=-N is never valid
+            assert!(!repr.contains("paths=-"), "repr must not show negative path count: {repr}");
+        }
+
     }
 }
+
 

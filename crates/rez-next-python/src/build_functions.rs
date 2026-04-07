@@ -128,3 +128,90 @@ pub fn get_build_system(source_dir: Option<&str>) -> PyResult<String> {
     }
     Ok("unknown".to_string())
 }
+
+#[cfg(test)]
+mod tests {
+    use std::fs;
+
+    /// Helper: create a temp dir with a specific marker file and return the path string.
+    fn make_temp_dir_with_file(dir_name: &str, marker: &str) -> std::path::PathBuf {
+        let tmp = std::env::temp_dir().join(dir_name);
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(&tmp).unwrap();
+        if !marker.is_empty() {
+            fs::write(tmp.join(marker), b"").unwrap();
+        }
+        tmp
+    }
+
+    mod test_get_build_system {
+        use super::*;
+        use crate::build_functions::get_build_system;
+
+        #[test]
+        fn test_cmake_detected() {
+            let tmp = make_temp_dir_with_file("rez_bs_cmake", "CMakeLists.txt");
+            let result = get_build_system(Some(tmp.to_str().unwrap())).unwrap();
+            assert_eq!(result, "cmake");
+            let _ = fs::remove_dir_all(&tmp);
+        }
+
+        #[test]
+        fn test_makefile_detected() {
+            let tmp = make_temp_dir_with_file("rez_bs_make", "Makefile");
+            let result = get_build_system(Some(tmp.to_str().unwrap())).unwrap();
+            assert_eq!(result, "make");
+            let _ = fs::remove_dir_all(&tmp);
+        }
+
+        #[test]
+        fn test_setup_py_detected_as_python() {
+            let tmp = make_temp_dir_with_file("rez_bs_setup_py", "setup.py");
+            let result = get_build_system(Some(tmp.to_str().unwrap())).unwrap();
+            assert_eq!(result, "python");
+            let _ = fs::remove_dir_all(&tmp);
+        }
+
+        #[test]
+        fn test_pyproject_toml_detected_as_python() {
+            let tmp = make_temp_dir_with_file("rez_bs_pyproject", "pyproject.toml");
+            let result = get_build_system(Some(tmp.to_str().unwrap())).unwrap();
+            assert_eq!(result, "python");
+            let _ = fs::remove_dir_all(&tmp);
+        }
+
+        #[test]
+        fn test_package_json_detected_as_nodejs() {
+            let tmp = make_temp_dir_with_file("rez_bs_pkgjson", "package.json");
+            let result = get_build_system(Some(tmp.to_str().unwrap())).unwrap();
+            assert_eq!(result, "nodejs");
+            let _ = fs::remove_dir_all(&tmp);
+        }
+
+        #[test]
+        fn test_cargo_toml_detected_as_cargo() {
+            let tmp = make_temp_dir_with_file("rez_bs_cargo", "Cargo.toml");
+            let result = get_build_system(Some(tmp.to_str().unwrap())).unwrap();
+            assert_eq!(result, "cargo");
+            let _ = fs::remove_dir_all(&tmp);
+        }
+
+        #[test]
+        fn test_empty_directory_returns_unknown() {
+            let tmp = make_temp_dir_with_file("rez_bs_unknown", "");
+            let result = get_build_system(Some(tmp.to_str().unwrap())).unwrap();
+            assert_eq!(result, "unknown");
+            let _ = fs::remove_dir_all(&tmp);
+        }
+
+        #[test]
+        fn test_rezbuild_py_has_highest_priority() {
+            // When rezbuild.py exists alongside CMakeLists.txt, python_rezbuild wins
+            let tmp = make_temp_dir_with_file("rez_bs_priority", "rezbuild.py");
+            fs::write(tmp.join("CMakeLists.txt"), b"").unwrap();
+            let result = get_build_system(Some(tmp.to_str().unwrap())).unwrap();
+            assert_eq!(result, "python_rezbuild", "rezbuild.py should take priority over CMakeLists.txt");
+            let _ = fs::remove_dir_all(&tmp);
+        }
+    }
+}
