@@ -851,5 +851,112 @@ mod diff_bindings_tests {
         let r = diff_obj.__repr__();
         assert_eq!(r, "ContextDiff(+0 -0 ^0 v0 =0)");
     }
+
+    // ── Cycle 112 additions ───────────────────────────────────────────────────
+
+    #[test]
+    fn test_package_diff_str_equals_repr() {
+        let d = PyPackageDiff {
+            name: "python".to_string(),
+            old_version: Some("3.9.0".to_string()),
+            new_version: Some("3.11.0".to_string()),
+            change_type: "upgraded".to_string(),
+        };
+        assert_eq!(d.__str__(), d.__repr__(), "__str__ and __repr__ must be identical");
+    }
+
+    #[test]
+    fn test_format_diff_added_uses_plus_prefix() {
+        let diffs = vec![PyPackageDiff {
+            name: "houdini".to_string(),
+            old_version: None,
+            new_version: Some("20.0".to_string()),
+            change_type: "added".to_string(),
+        }];
+        let diff_obj = PyContextDiff {
+            num_added: 1,
+            num_removed: 0,
+            num_upgraded: 0,
+            num_downgraded: 0,
+            num_unchanged: 0,
+            diffs,
+        };
+        let output = format_diff(&diff_obj);
+        assert!(output.contains("+ houdini"), "Added package must use '+ ' prefix: {output}");
+    }
+
+    #[test]
+    fn test_compute_diff_counts_are_correct() {
+        let old = vec![
+            make_pkg("a", "1.0"),
+            make_pkg("b", "1.0"),
+            make_pkg("c", "2.0"),
+        ];
+        let new = vec![
+            make_pkg("a", "1.1"),  // upgraded
+            make_pkg("b", "1.0"),  // unchanged
+            make_pkg("d", "3.0"),  // added; c removed
+        ];
+        let diffs = compute_diff(&old, &new);
+        assert_eq!(diffs.iter().filter(|d| d.change_type == "added").count(), 1);
+        assert_eq!(diffs.iter().filter(|d| d.change_type == "removed").count(), 1);
+        assert_eq!(diffs.iter().filter(|d| d.change_type == "upgraded").count(), 1);
+        assert_eq!(diffs.iter().filter(|d| d.change_type == "unchanged").count(), 1);
+    }
+
+    #[test]
+    fn test_package_diff_repr_unknown_type_shows_unchanged_label() {
+        let d = PyPackageDiff {
+            name: "lib".to_string(),
+            old_version: Some("1.0".to_string()),
+            new_version: Some("1.0".to_string()),
+            change_type: "unknown_type".to_string(),
+        };
+        let r = d.__repr__();
+        // Falls through to `_ => format!("PackageDiff({} unchanged)", self.name)`
+        assert!(r.contains("lib"), "repr must contain package name");
+        assert!(r.contains("unchanged"), "repr must contain 'unchanged' for unknown type");
+    }
+
+    #[test]
+    fn test_changed_diffs_includes_downgraded() {
+        let d = PyPackageDiff {
+            name: "nuke".to_string(),
+            old_version: Some("15.0".to_string()),
+            new_version: Some("14.0".to_string()),
+            change_type: "downgraded".to_string(),
+        };
+        let diff_obj = PyContextDiff {
+            num_added: 0,
+            num_removed: 0,
+            num_upgraded: 0,
+            num_downgraded: 1,
+            num_unchanged: 0,
+            diffs: vec![d],
+        };
+        let changed = diff_obj.changed_diffs();
+        assert_eq!(changed.len(), 1, "downgraded must appear in changed_diffs");
+        assert_eq!(changed[0].change_type, "downgraded");
+    }
+
+    #[test]
+    fn test_format_diff_upgraded_uses_caret_prefix() {
+        let diffs = vec![PyPackageDiff {
+            name: "alembic".to_string(),
+            old_version: Some("1.7.0".to_string()),
+            new_version: Some("1.8.0".to_string()),
+            change_type: "upgraded".to_string(),
+        }];
+        let diff_obj = PyContextDiff {
+            num_added: 0,
+            num_removed: 0,
+            num_upgraded: 1,
+            num_downgraded: 0,
+            num_unchanged: 0,
+            diffs,
+        };
+        let output = format_diff(&diff_obj);
+        assert!(output.contains("^ alembic"), "Upgraded package must use '^ ' prefix: {output}");
+    }
 }
 

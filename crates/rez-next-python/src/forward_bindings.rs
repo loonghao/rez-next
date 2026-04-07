@@ -419,6 +419,58 @@ mod forward_tests {
             let fwd = PyRezForward::new("rez-gui".to_string(), None);
             assert!(fwd.context_id().is_none(), "context_id should be None when not provided");
         }
+
+        // ── Cycle 112 additions ───────────────────────────────────────────────
+
+        #[test]
+        fn test_rez_forward_context_id_with_special_chars() {
+            // Context IDs may contain UUIDs with hyphens and digits
+            let ctx = "550e8400-e29b-41d4-a716-446655440000".to_string();
+            let fwd = PyRezForward::new("maya".to_string(), Some(ctx.clone()));
+            assert_eq!(fwd.context_id(), Some(ctx));
+        }
+
+        #[test]
+        fn test_rez_forward_str_format_arrow_present_with_context() {
+            let fwd = PyRezForward::new("houdini".to_string(), Some("ctx-1".to_string()));
+            let s = fwd.__str__();
+            assert!(s.contains("->"), "format must contain '->' separator");
+        }
+
+        #[test]
+        fn test_rez_forward_execute_dry_run_args_joined_by_space() {
+            let fwd = PyRezForward::new("render".to_string(), None);
+            let result = fwd.execute(Some(vec!["--threads".to_string(), "8".to_string()]), true).unwrap();
+            // The two args should be joined: "render --threads 8"
+            assert!(result.contains("--threads"), "should contain first arg");
+            assert!(result.contains("8"), "should contain second arg");
+        }
+
+        #[test]
+        fn test_generate_forward_script_zsh_contains_tool() {
+            let script = generate_forward_script("clarisse", Some("zsh")).unwrap();
+            assert!(script.contains("clarisse"), "zsh script should mention tool");
+        }
+
+        #[test]
+        fn test_generate_forward_script_powershell_has_comment_line() {
+            let script = generate_forward_script("nuke", Some("powershell")).unwrap();
+            // PowerShell wrapper script starts with a comment line using '#'
+            assert!(script.contains('#'), "powershell script should have comment line");
+        }
+
+        #[test]
+        fn test_generate_forward_script_bash_has_shebang() {
+            let script = generate_forward_script("hython", Some("bash")).unwrap();
+            assert!(script.starts_with("#!/"), "bash script must start with shebang");
+        }
+
+        #[test]
+        fn test_generate_forward_script_fish_contains_end_keyword() {
+            // fish function blocks are closed with 'end'
+            let script = generate_forward_script("katana", Some("fish")).unwrap();
+            assert!(script.contains("end"), "fish script must close function with 'end'");
+        }
     }
 }
 

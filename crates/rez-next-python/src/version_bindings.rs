@@ -530,4 +530,61 @@ mod tests {
         }
         // None is also acceptable
     }
+
+    // ── Cycle 112 additions ───────────────────────────────────────────────────
+
+    #[test]
+    fn test_py_version_next_increments_last_numeric() {
+        let v = pv("2.0.9");
+        let n = v.next().unwrap();
+        assert_eq!(n.__str__(), "2.0.10", "next() should increment last numeric component");
+    }
+
+    #[test]
+    fn test_py_version_trim_zero_returns_empty_or_no_panic() {
+        let v = pv("1.2.3");
+        // trim(0) — should not panic; empty string version may be Ok or Err
+        let result = v.trim(0);
+        let _ = result; // just ensure no panic
+    }
+
+    #[test]
+    fn test_py_version_range_eq_same_range() {
+        let r1 = pvr(">=1.0,<2.0");
+        let r2 = pvr(">=1.0,<2.0");
+        assert!(r1.__eq__(&r2), "identical ranges must be equal");
+    }
+
+    #[test]
+    fn test_py_version_range_union_same_range_is_idempotent() {
+        let r = pvr(">=1.0,<2.0");
+        let r2 = pvr(">=1.0,<2.0");
+        let u = r.union(&r2).unwrap();
+        // Union of same range with itself should be equivalent to original
+        assert_eq!(u.as_str(), r.as_str(), "union of range with itself must be idempotent");
+    }
+
+    #[test]
+    fn test_py_version_range_as_str_star_is_any() {
+        let r = pvr("*");
+        // '*' parses as 'any'; as_str may return "" or "*"
+        let s = r.as_str();
+        assert!(
+            s.is_empty() || s == "*",
+            "as_str for 'any' range should be '' or '*', got: {s}"
+        );
+    }
+
+    #[test]
+    fn test_py_version_range_none_is_empty() {
+        let r = PyVersionRange(VersionRange::none());
+        assert!(r.is_empty(), "none range must be empty");
+        assert!(!r.is_any(), "none range must not be any");
+    }
+
+    #[test]
+    fn test_py_version_repr_format() {
+        let v = pv("3.11.0");
+        assert_eq!(v.__repr__(), "Version('3.11.0')", "repr format must match rez convention");
+    }
 }
