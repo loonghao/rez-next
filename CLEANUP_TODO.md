@@ -58,7 +58,25 @@
 
 ## Medium Priority — TODO Audit
 
+### 37. Rust dependency audit still reports 3 unmaintained crates
+- **Status**: OPEN
+- `cargo audit -q` still reports these unmaintained dependencies:
+  - direct: `bincode 2.0.1` via `rez-next-package`
+  - transitive via `rustpython-parser`: `paste 1.0.15`, `unic-ucd-version 0.9.0`
+- Follow-up: evaluate a dedicated migration path for direct `bincode`, and decide whether the two `rustpython-parser` advisories should be handled via upstream upgrade, patching, or documented acceptance.
+
+### 38. `repository_bindings.rs` tests still accept ambiguous success/error outcomes
+- **Status**: OPEN
+- Several tests currently allow both `Ok(empty)` and `Err(_)`, which hides repository scanning contract drift instead of documenting it.
+- Follow-up: extract a shared temp-repo fixture helper and tighten `find_packages` / `get_latest_package` / `get_package_family_names` assertions around the path layouts we actually support.
+
+### 39. Large Rust files remain above 800 lines after recent iteration growth
+- **Status**: OPEN
+- Current >800-line candidates (excluding `target/`): `tests/cli_e2e_tests.rs` (955), `tests/rez_compat_late_tests.rs` (942), `tests/rez_compat_search_tests.rs` (884), `crates/rez-next-solver/src/dependency_resolver_tests.rs` (864), `tests/rez_compat_misc_tests.rs` (862), `crates/rez-next-rex/src/executor_tests.rs` (856), `crates/rez-next-python/src/diff_bindings.rs` (854), `crates/rez-next-repository/src/filesystem_tests.rs` (850), `crates/rez-next-python/src/depends_bindings.rs` (840), `crates/rez-next-repository/src/scanner.rs` (834), `tests/rez_compat_tests.rs` (807), `tests/rez_solver_advanced_tests.rs` (806).
+- Follow-up: prioritize splitting the mixed integration suites first (`cli_e2e_tests.rs`, `rez_compat_*`, `rez_solver_advanced_tests.rs`) before more iteration cycles add overlap.
+
 1 TODO comment across the codebase (cycle 20 audit, unchanged from cycle 19):
+
 - **CLI stubs** (1): `view.rs` (1, context package viewing)
 - The remaining TODO is a non-blocking stub implementation for future features.
 
