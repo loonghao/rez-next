@@ -471,6 +471,58 @@ mod forward_tests {
             let script = generate_forward_script("katana", Some("fish")).unwrap();
             assert!(script.contains("end"), "fish script must close function with 'end'");
         }
+
+        // ── Cycle 117 additions ───────────────────────────────────────────────
+
+        #[test]
+        fn test_forward_tool_name_with_underscores() {
+            let fwd = PyRezForward::new("render_manager_v2".to_string(), None);
+            assert_eq!(fwd.tool_name(), "render_manager_v2", "underscored tool name must be preserved");
+        }
+
+        #[test]
+        fn test_forward_no_context_str_has_no_arrow() {
+            let fwd = PyRezForward::new("nuke".to_string(), None);
+            let s = fwd.__str__();
+            assert!(!s.contains("->"), "str without context must not contain '->'");
+        }
+
+        #[test]
+        fn test_forward_context_id_set_and_retrieved() {
+            let ctx = "my-ctx-42".to_string();
+            let fwd = PyRezForward::new("maya".to_string(), Some(ctx.clone()));
+            assert_eq!(fwd.context_id(), Some(ctx), "context_id getter must return set value");
+        }
+
+        #[test]
+        fn test_generate_forward_script_bash_contains_exec_or_command() {
+            let script = generate_forward_script("houdini", Some("bash")).unwrap();
+            // bash scripts should use exec or direct command invocation
+            assert!(
+                script.contains("exec") || script.contains("rez-next forward"),
+                "bash script must contain exec or forward invocation: {script}"
+            );
+        }
+
+        #[test]
+        fn test_generate_forward_script_cmd_contains_rez_next_forward() {
+            let script = generate_forward_script("hython", Some("cmd")).unwrap();
+            assert!(script.contains("rez-next forward"), "cmd script must invoke rez-next forward");
+        }
+
+        #[test]
+        fn test_generate_forward_script_powershell_contains_set_alias() {
+            let script = generate_forward_script("clarisse", Some("powershell")).unwrap();
+            assert!(script.contains("Set-Alias"), "powershell script must use Set-Alias");
+        }
+
+        #[test]
+        fn test_generate_forward_script_fish_end_after_function() {
+            let script = generate_forward_script("nuke", Some("fish")).unwrap();
+            let fn_pos = script.find("function").expect("fish script must have 'function'");
+            let end_pos = script.rfind("end").expect("fish script must have 'end'");
+            assert!(end_pos > fn_pos, "'end' must appear after 'function' in fish script");
+        }
     }
 }
 

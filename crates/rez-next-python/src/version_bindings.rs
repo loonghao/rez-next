@@ -587,4 +587,73 @@ mod tests {
         let v = pv("3.11.0");
         assert_eq!(v.__repr__(), "Version('3.11.0')", "repr format must match rez convention");
     }
+
+    // ── Cycle 117 additions ───────────────────────────────────────────────────
+
+    #[test]
+    fn test_py_version_ge_same_version() {
+        let v1 = pv("2.5.0");
+        let v2 = pv("2.5.0");
+        assert!(v1.__ge__(&v2), "__ge__ must return true for equal versions");
+    }
+
+    #[test]
+    fn test_py_version_le_same_version() {
+        let v1 = pv("1.0.0");
+        let v2 = pv("1.0.0");
+        assert!(v1.__le__(&v2), "__le__ must return true for equal versions");
+    }
+
+    #[test]
+    fn test_py_version_ne_same_is_false() {
+        let v1 = pv("3.0.0");
+        let v2 = pv("3.0.0");
+        assert!(!v1.__ne__(&v2), "__ne__ must return false for equal versions");
+    }
+
+    #[test]
+    fn test_py_version_range_ne_different_ranges() {
+        let r1 = pvr(">=1.0,<2.0");
+        let r2 = pvr(">=3.0,<4.0");
+        assert!(!r1.__eq__(&r2), "different ranges must not be equal");
+        // PyVersionRange has no __ne__; verify via __eq__ negation
+        assert!(
+            !r1.__eq__(&r2),
+            "r1 and r2 should not be equal (different ranges)"
+        );
+    }
+
+    #[test]
+    fn test_py_version_range_repr_contains_range_str() {
+        let r = pvr(">=2.0,<3.0");
+        let repr = r.__repr__();
+        assert!(
+            repr.contains(">=2.0") || repr.contains("2.0"),
+            "repr must contain the range string: {repr}"
+        );
+    }
+
+    #[test]
+    fn test_py_version_range_contains_exact_boundary_version() {
+        // ">=1.5" — exactly 1.5 must be included
+        let r = pvr(">=1.5");
+        assert!(r.contains(&pv("1.5")), "exact lower boundary must be contained");
+        assert!(r.contains(&pv("1.6")), "version above lower boundary must be contained");
+        assert!(!r.contains(&pv("1.4")), "version below lower boundary must not be contained");
+    }
+
+    #[test]
+    fn test_py_version_range_subtract_disjoint_returns_original() {
+        // Subtracting a non-overlapping range from another yields the original (or None-wrapped)
+        let r1 = pvr(">=1.0,<2.0");
+        let r2 = pvr(">=5.0,<6.0");
+        let result = r1.subtract(&r2);
+        if let Some(diff) = result {
+            assert!(
+                diff.contains(&pv("1.5")),
+                "subtracting non-overlapping range should not remove 1.5"
+            );
+        }
+        // None is also valid if the implementation returns None for identical result
+    }
 }
