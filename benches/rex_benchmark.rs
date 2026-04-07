@@ -164,6 +164,12 @@ fn bench_parser_new(c: &mut Criterion) {
     });
 }
 
+fn bench_parser_cached_access(c: &mut Criterion) {
+    c.bench_function("rex_parser_cached_access", |b| {
+        b.iter(|| black_box(rez_next_rex::parser::get_cached_parser()))
+    });
+}
+
 // ── Groups ────────────────────────────────────────────────────────────────────
 
 criterion_group!(
@@ -172,7 +178,7 @@ criterion_group!(
         .sample_size(200)
         .measurement_time(Duration::from_secs(5))
         .warm_up_time(Duration::from_secs(2));
-    targets = bench_parser_simple, bench_parser_commands_blocks, bench_parser_new
+    targets = bench_parser_simple, bench_parser_commands_blocks, bench_parser_new, bench_parser_cached_access
 );
 
 criterion_group!(
