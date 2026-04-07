@@ -47,8 +47,8 @@ impl RexExecutor {
         self.context_vars
             .insert("name".to_string(), package_name.to_string());
 
-        // Parse and execute commands
-        let parser = crate::parser::RexParser::new();
+        // Parse and execute commands (using cached parser for efficiency)
+        let parser = crate::parser::get_cached_parser();
         let raw_actions = parser.parse(commands)?;
 
         // Expand variables in actions
