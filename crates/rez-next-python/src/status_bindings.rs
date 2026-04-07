@@ -253,11 +253,16 @@ pub fn get_rez_env_var(key: &str) -> Option<String> {
     std::env::var(&full_key).ok()
 }
 
+
 // ─── Rust unit tests ─────────────────────────────────────────────────────────
 
 #[cfg(test)]
 mod status_bindings_tests {
     use super::*;
+    use std::sync::Mutex;
+
+    /// Serialise all tests that mutate environment variables.
+    static ENV_MUTEX: Mutex<()> = Mutex::new(());
 
     #[test]
     fn test_is_in_rez_context_false_outside() {
@@ -295,6 +300,7 @@ mod status_bindings_tests {
 
     #[test]
     fn test_rez_status_resolved_packages_from_env() {
+        let _lock = ENV_MUTEX.lock().unwrap();
         // Simulate REZ_USED_PACKAGES_NAMES
         unsafe {
             std::env::set_var("REZ_USED_PACKAGES_TEST_TEMP", "python-3.9 maya-2024.1");
@@ -311,6 +317,7 @@ mod status_bindings_tests {
 
     #[test]
     fn test_detect_shell_from_env_maps_bash() {
+        let _lock = ENV_MUTEX.lock().unwrap();
         unsafe {
             std::env::set_var("SHELL", "/bin/bash");
         }
@@ -322,6 +329,7 @@ mod status_bindings_tests {
 
     #[test]
     fn test_get_rez_env_var_with_prefix() {
+        let _lock = ENV_MUTEX.lock().unwrap();
         unsafe {
             std::env::set_var("REZ_STATUS_BINDINGS_WITH_PREFIX", "active");
         }
@@ -336,6 +344,7 @@ mod status_bindings_tests {
 
     #[test]
     fn test_get_rez_env_var_without_prefix() {
+        let _lock = ENV_MUTEX.lock().unwrap();
         unsafe {
             std::env::set_var("REZ_STATUS_BINDINGS_NO_PREFIX", "present");
         }
@@ -362,6 +371,7 @@ mod status_bindings_tests {
 
     #[test]
     fn test_detect_active_via_context_file_env() {
+        let _lock = ENV_MUTEX.lock().unwrap();
         // Use a unique key suffix to avoid collision with CI vars
         unsafe {
             std::env::set_var("REZ_CONTEXT_FILE", "/tmp/test_ctx90.rxt");
@@ -376,6 +386,7 @@ mod status_bindings_tests {
 
     #[test]
     fn test_detect_active_via_used_packages_env() {
+        let _lock = ENV_MUTEX.lock().unwrap();
         unsafe {
             std::env::remove_var("REZ_CONTEXT_FILE");
             std::env::set_var("REZ_USED_PACKAGES_NAMES", "python-3.9 cmake-3.21");
@@ -395,6 +406,7 @@ mod status_bindings_tests {
 
     #[test]
     fn test_detect_request_field() {
+        let _lock = ENV_MUTEX.lock().unwrap();
         unsafe {
             std::env::set_var("REZ_REQUEST", "python-3 maya-2024");
         }
@@ -412,6 +424,7 @@ mod status_bindings_tests {
 
     #[test]
     fn test_detect_implicit_packages_field() {
+        let _lock = ENV_MUTEX.lock().unwrap();
         unsafe {
             std::env::set_var("REZ_IMPLICIT_PACKAGES", "platform-linux arch-x86_64");
         }
@@ -428,6 +441,7 @@ mod status_bindings_tests {
 
     #[test]
     fn test_detect_context_cwd_and_version() {
+        let _lock = ENV_MUTEX.lock().unwrap();
         unsafe {
             std::env::set_var("REZ_ORIG_CWD", "/home/user/project");
             std::env::set_var("REZ_VERSION", "3.2.1");
@@ -443,6 +457,7 @@ mod status_bindings_tests {
 
     #[test]
     fn test_active_repr_includes_package_count() {
+        let _lock = ENV_MUTEX.lock().unwrap();
         unsafe {
             std::env::set_var("REZ_USED_PACKAGES_NAMES", "alpha-1 beta-2 gamma-3");
         }
@@ -474,6 +489,7 @@ mod status_bindings_tests {
 
     #[test]
     fn test_detect_shell_from_env_maps_zsh() {
+        let _lock = ENV_MUTEX.lock().unwrap();
         unsafe {
             std::env::set_var("SHELL", "/usr/bin/zsh");
         }
@@ -485,6 +501,7 @@ mod status_bindings_tests {
 
     #[test]
     fn test_detect_shell_from_env_maps_fish() {
+        let _lock = ENV_MUTEX.lock().unwrap();
         unsafe {
             std::env::set_var("SHELL", "/usr/local/bin/fish");
         }

@@ -404,4 +404,55 @@ mod tests {
         // Unknown shell path requires GIL and is covered in Python e2e tests.
         assert!(print_completion_script(Some("bash")).is_ok());
     }
+
+    // ── Additional content and keyword checks ─────────────────────────────────
+
+    #[test]
+    fn test_bash_script_has_compgen_keyword() {
+        let script = get_completion_script(Some("bash")).unwrap();
+        assert!(script.contains("compgen"), "bash script should use compgen for completion");
+    }
+
+    #[test]
+    fn test_zsh_script_has_arguments_keyword() {
+        let script = get_completion_script(Some("zsh")).unwrap();
+        assert!(script.contains("_arguments"), "zsh script should use _arguments");
+    }
+
+    #[test]
+    fn test_fish_script_has_complete_keyword() {
+        let script = get_completion_script(Some("fish")).unwrap();
+        assert!(script.contains("complete -c rez"), "fish script should register completions for rez");
+    }
+
+    #[test]
+    fn test_powershell_script_has_scriptblock() {
+        let script = get_completion_script(Some("powershell")).unwrap();
+        assert!(script.contains("ScriptBlock"), "powershell script should have -ScriptBlock");
+    }
+
+    #[test]
+    fn test_bash_script_handles_paths_flag() {
+        let script = get_completion_script(Some("bash")).unwrap();
+        assert!(script.contains("--paths") || script.contains("-p"), "bash script should handle --paths");
+    }
+
+    #[test]
+    fn test_supported_shells_are_all_lowercase() {
+        let shells = supported_completion_shells();
+        for shell in &shells {
+            assert_eq!(
+                shell.as_str(),
+                shell.to_lowercase().as_str(),
+                "shell name '{}' should be lowercase",
+                shell
+            );
+        }
+    }
+
+    #[test]
+    fn test_install_path_pwsh_alias() {
+        let path = get_completion_install_path(Some("pwsh")).unwrap();
+        assert!(path.contains("powershell") || path.contains("PowerShell"));
+    }
 }

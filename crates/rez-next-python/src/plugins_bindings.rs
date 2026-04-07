@@ -336,4 +336,74 @@ mod tests {
         assert!(is_shell_supported("PowerShell")); // case-insensitive
         assert!(!is_shell_supported("nonexistent_xyz"));
     }
+
+    // ── Additional coverage ───────────────────────────────────────────────────
+
+    #[test]
+    fn test_plugin_repr_contains_name() {
+        let plugin = PyPlugin {
+            name: "cmake".to_string(),
+            plugin_type: "build_system".to_string(),
+            description: "CMake".to_string(),
+            version: "1.0.0".to_string(),
+        };
+        let repr = plugin.__repr__();
+        assert!(repr.contains("cmake"), "repr should contain name: {repr}");
+        assert!(repr.contains("build_system"), "repr should contain type: {repr}");
+    }
+
+    #[test]
+    fn test_plugin_str_contains_name_and_type() {
+        let plugin = PyPlugin {
+            name: "bash".to_string(),
+            plugin_type: "shell".to_string(),
+            description: "Bash".to_string(),
+            version: "1.0.0".to_string(),
+        };
+        let s = plugin.__str__();
+        assert!(s.contains("bash"));
+        assert!(s.contains("shell"));
+    }
+
+    #[test]
+    fn test_get_plugin_returns_none_for_missing() {
+        let mgr = PyRezPluginManager::new();
+        let result = mgr.get_plugin("shell", "nonexistent_xyz_999");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_get_plugin_returns_some_for_existing() {
+        let mgr = PyRezPluginManager::new();
+        let result = mgr.get_plugin("shell", "bash");
+        assert!(result.is_some());
+        let p = result.unwrap();
+        assert_eq!(p.name, "bash");
+        assert_eq!(p.plugin_type, "shell");
+    }
+
+    #[test]
+    fn test_get_build_system_types_contains_cmake() {
+        let mgr = PyRezPluginManager::new();
+        let types = mgr.get_build_system_types();
+        assert!(types.contains(&"cmake".to_string()));
+        assert!(types.contains(&"make".to_string()));
+    }
+
+    #[test]
+    fn test_plugin_manager_repr_contains_count() {
+        let mgr = PyRezPluginManager::new();
+        let repr = mgr.__repr__();
+        assert!(repr.contains("RezPluginManager"), "repr: {repr}");
+        assert!(repr.contains("plugins"), "repr should mention 'plugins': {repr}");
+    }
+
+    #[test]
+    fn test_plugin_types_sorted() {
+        let mgr = PyRezPluginManager::new();
+        let types = mgr.plugin_types();
+        let mut sorted = types.clone();
+        sorted.sort();
+        assert_eq!(types, sorted, "plugin_types() should return sorted list");
+    }
 }

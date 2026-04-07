@@ -623,4 +623,63 @@ mod context_bindings_tests {
         let ctx = make_py_ctx_inner(&[("python", "3.11.0"), ("houdini", "20.0"), ("nuke", "14.0")]);
         assert_eq!(ctx.requirements.len(), 3);
     }
+
+    // ── Additional tests ──────────────────────────────────────────────
+
+    #[test]
+    fn test_single_package_name_accessible() {
+        let ctx = make_py_ctx_inner(&[("rez", "2.112.0")]);
+        let pkg = ctx.resolved_packages.first().unwrap();
+        assert_eq!(pkg.name, "rez");
+    }
+
+    #[test]
+    fn test_single_package_version_accessible() {
+        let ctx = make_py_ctx_inner(&[("rez", "2.112.0")]);
+        let pkg = ctx.resolved_packages.first().unwrap();
+        let ver = pkg.version.as_ref().unwrap();
+        assert_eq!(ver.as_str(), "2.112.0");
+    }
+
+    #[test]
+    fn test_context_status_starts_resolved() {
+        let ctx = make_py_ctx_inner(&[("python", "3.10.0")]);
+        assert_eq!(ctx.status, ContextStatus::Resolved);
+    }
+
+    #[test]
+    fn test_environment_vars_overwrite() {
+        let mut ctx = make_py_ctx_inner(&[]);
+        ctx.environment_vars.insert("FOO".to_string(), "bar".to_string());
+        ctx.environment_vars.insert("FOO".to_string(), "baz".to_string());
+        assert_eq!(ctx.environment_vars.get("FOO"), Some(&"baz".to_string()));
+        assert_eq!(ctx.environment_vars.len(), 1, "duplicate key should overwrite, not append");
+    }
+
+    #[test]
+    fn test_id_is_non_empty() {
+        let ctx = make_py_ctx_inner(&[("python", "3.9.0")]);
+        assert!(!ctx.id.is_empty(), "context id must not be empty");
+    }
+
+    #[test]
+    fn test_get_summary_single_package() {
+        let ctx = make_py_ctx_inner(&[("nuke", "15.0.5")]);
+        let summary = ctx.get_summary();
+        assert_eq!(summary.package_count, 1);
+        assert_eq!(summary.package_versions.get("nuke"), Some(&"15.0.5".to_string()));
+    }
+
+    #[test]
+    fn test_resolved_packages_not_in_summary_if_not_pushed() {
+        // A context built from scratch with no resolved_packages should have
+        // an empty summary even if requirements are non-empty.
+        let reqs: Vec<rez_next_package::PackageRequirement> = vec![
+            rez_next_package::PackageRequirement::parse("python-3.9").unwrap(),
+        ];
+        let ctx = ResolvedContext::from_requirements(reqs);
+        let summary = ctx.get_summary();
+        // resolved_packages is empty since we did not push any — summary count = 0
+        assert_eq!(summary.package_count, 0);
+    }
 }
