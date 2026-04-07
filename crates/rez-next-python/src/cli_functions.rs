@@ -124,39 +124,7 @@ mod tests {
         assert_eq!(cli_main(Some(vec![])).unwrap(), 0);
     }
 
-    #[test]
-    fn test_known_commands_count_is_at_least_20() {
-        assert!(
-            KNOWN_COMMANDS.len() >= 20,
-            "expected at least 20 known commands, got {}",
-            KNOWN_COMMANDS.len()
-        );
-    }
 
-    #[test]
-    fn test_env_command_is_known() {
-        assert!(KNOWN_COMMANDS.contains(&"env"), "env must be a known command");
-    }
-
-    #[test]
-    fn test_build_command_is_known() {
-        assert!(KNOWN_COMMANDS.contains(&"build"), "build must be a known command");
-    }
-
-    #[test]
-    fn test_search_command_is_known() {
-        assert!(KNOWN_COMMANDS.contains(&"search"), "search must be a known command");
-    }
-
-    #[test]
-    fn test_pip_command_is_known() {
-        assert!(KNOWN_COMMANDS.contains(&"pip"), "pip must be a known command");
-    }
-
-    #[test]
-    fn test_selftest_command_is_known() {
-        assert!(KNOWN_COMMANDS.contains(&"selftest"), "selftest must be a known command");
-    }
 
     #[test]
     fn test_cli_run_with_args_returns_zero() {

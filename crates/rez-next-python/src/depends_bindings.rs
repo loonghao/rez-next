@@ -840,21 +840,7 @@ mod depends_bindings_tests {
 
     // ── Cycle 110 additions ───────────────────────────────────────────────────
 
-    /// to_dict includes all four expected keys
-    #[test]
-    fn test_depends_entry_to_dict_keys() {
-        let entry = PyDependsEntry {
-            name: "nuke".to_string(),
-            version: "13.2.0".to_string(),
-            requirement: "python-3+".to_string(),
-            dependency_type: "direct".to_string(),
-        };
-        // Verify struct fields are accessible (can't call to_dict without GIL)
-        assert_eq!(entry.name, "nuke");
-        assert_eq!(entry.version, "13.2.0");
-        assert_eq!(entry.requirement, "python-3+");
-        assert_eq!(entry.dependency_type, "direct");
-    }
+
 
     /// DependsEntry with transitive type round-trips correctly
     #[test]

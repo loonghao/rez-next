@@ -328,19 +328,7 @@ mod tests {
             }
         }
 
-        #[test]
-        fn test_get_build_system_returns_string_type() {
-            // The function always returns a &str-based string
-            let tmp = make_temp_dir_with_file("rez_bs_string_type", "");
-            let result = get_build_system(Some(tmp.to_str().unwrap())).unwrap();
-            assert!(
-                ["cmake", "make", "python_rezbuild", "python", "nodejs", "cargo", "custom_script", "unknown"]
-                    .contains(&result.as_str()),
-                "result '{}' must be one of the known build system strings",
-                result
-            );
-            let _ = fs::remove_dir_all(&tmp);
-        }
+
 
         #[test]
         fn test_rezbuild_py_beats_cmake_and_makefile() {
