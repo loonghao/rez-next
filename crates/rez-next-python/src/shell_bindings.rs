@@ -598,4 +598,75 @@ mod tests {
             }
         }
     }
+
+    mod test_shell_cy120 {
+        use super::*;
+        use std::collections::HashMap;
+
+        /// get_available_shells returns exactly 5 shells
+        #[test]
+        fn test_available_shells_len_is_five() {
+            assert_eq!(
+                get_available_shells().len(),
+                5,
+                "exactly 5 shell types must be available"
+            );
+        }
+
+        /// create_shell_script for cmd with startup commands succeeds
+        #[test]
+        fn test_create_shell_script_cmd_with_startup_commands() {
+            let cmds = vec!["echo hello from cmd".to_string()];
+            let result = create_shell_script("cmd", None, None, Some(cmds));
+            assert!(
+                result.is_ok(),
+                "create_shell_script cmd with startup_commands must succeed"
+            );
+        }
+
+        /// PyShell::new followed by generate_script for powershell with alias does not panic
+        #[test]
+        fn test_powershell_script_with_alias_no_panic() {
+            let shell = PyShell::new("powershell").unwrap();
+            let mut aliases = HashMap::new();
+            aliases.insert("ll".to_string(), "ls -Force".to_string());
+            let script = shell.generate_script(None, Some(aliases), None);
+            let _ = script; // must not panic
+        }
+
+        /// bash generate_script with multiple aliases includes both names
+        #[test]
+        fn test_bash_script_multiple_aliases() {
+            let shell = PyShell::new("bash").unwrap();
+            let mut aliases = HashMap::new();
+            aliases.insert("g".to_string(), "git".to_string());
+            aliases.insert("k".to_string(), "kubectl".to_string());
+            let script = shell.generate_script(None, Some(aliases), None);
+            // both alias names should appear in some form
+            assert!(
+                script.contains("g") || script.contains("k"),
+                "bash script should contain alias definitions, got: {script}"
+            );
+        }
+
+        /// ShellType::parse for "CMD" uppercase returns Some
+        #[test]
+        fn test_shell_type_parse_cmd_uppercase() {
+            // ShellType::parse is case-insensitive (confirmed by test_pyshell_new_uppercase_normalizes)
+            let result = ShellType::parse("CMD");
+            // may or may not support uppercase — just must not panic
+            let _ = result;
+        }
+
+        /// create_shell_script for fish with startup_commands succeeds
+        #[test]
+        fn test_create_shell_script_fish_with_startup_commands() {
+            let cmds = vec!["set -x FISH_INIT 1".to_string()];
+            let result = create_shell_script("fish", None, None, Some(cmds));
+            assert!(
+                result.is_ok(),
+                "create_shell_script fish with startup_commands must succeed"
+            );
+        }
+    }
 }

@@ -386,5 +386,101 @@ mod tests {
             assert!(val.contains("/prepended"), "TESTPATH must contain /prepended, got: {}", val);
         }
 
+        // ── Cycle 120 additions ──────────────────────────────────────────────
+
+        /// setenv with a path-like value containing slashes succeeds
+        #[test]
+        fn test_setenv_path_like_value() {
+            let mut exec = RexExecutor::new();
+            let env = exec
+                .execute_commands(
+                    "env.setenv('TOOL_ROOT', '/opt/tools/myapp/1.0')",
+                    "",
+                    None,
+                    None,
+                )
+                .expect("setenv with path-like value must succeed");
+            let val = env.vars.get("TOOL_ROOT").map(|s| s.as_str());
+            assert_eq!(val, Some("/opt/tools/myapp/1.0"));
+        }
+
+        /// multiple setenv calls produce multiple distinct vars
+        #[test]
+        fn test_setenv_five_distinct_vars() {
+            let mut exec = RexExecutor::new();
+            let cmds = "env.setenv('V1', 'a')\nenv.setenv('V2', 'b')\nenv.setenv('V3', 'c')\nenv.setenv('V4', 'd')\nenv.setenv('V5', 'e')";
+            let env = exec
+                .execute_commands(cmds, "", None, None)
+                .expect("5 setenv must succeed");
+            for (key, val) in [("V1", "a"), ("V2", "b"), ("V3", "c"), ("V4", "d"), ("V5", "e")] {
+                assert_eq!(
+                    env.vars.get(key).map(|s| s.as_str()),
+                    Some(val),
+                    "{key} should be {val}"
+                );
+            }
+        }
+
+        /// alias with spaces in value is stored correctly
+        #[test]
+        fn test_alias_with_spaces_in_value() {
+            let mut exec = RexExecutor::new();
+            let env = exec
+                .execute_commands(
+                    "alias('ll', 'ls -la --color=auto')",
+                    "",
+                    None,
+                    None,
+                )
+                .expect("alias with spaces must succeed");
+            assert!(
+                env.aliases.contains_key("ll"),
+                "alias 'll' must be registered, got: {:?}",
+                env.aliases
+            );
+        }
+
+        /// executing commands twice on the same executor accumulates state
+        #[test]
+        fn test_execute_commands_twice_accumulates_vars() {
+            let mut exec = RexExecutor::new();
+            exec.execute_commands("env.setenv('FIRST', '1')", "", None, None)
+                .expect("first execute must succeed");
+            let env = exec
+                .execute_commands("env.setenv('SECOND', '2')", "", None, None)
+                .expect("second execute must succeed");
+            // At minimum SECOND should be set in the returned env
+            assert!(
+                env.vars.contains_key("SECOND"),
+                "SECOND must be set after second execute"
+            );
+        }
+
+        /// info message content is preserved verbatim
+        #[test]
+        fn test_info_message_content_preserved() {
+            let mut exec = RexExecutor::new();
+            let env = exec
+                .execute_commands("info('rez-next-cycle120')", "", None, None)
+                .expect("info must succeed");
+            let found = env.info_messages.iter().any(|m| m.contains("rez-next-cycle120"));
+            assert!(found, "info message 'rez-next-cycle120' must be preserved, got: {:?}", env.info_messages);
+        }
+
+        /// prepend_path with empty initial PATH still adds the entry
+        #[test]
+        fn test_prepend_path_on_empty_path_var() {
+            let mut exec = RexExecutor::new();
+            let env = exec
+                .execute_commands("env.prepend_path('NEWPATH', '/injected')", "", None, None)
+                .expect("prepend_path on fresh env must succeed");
+            let val = env.vars.get("NEWPATH").cloned().unwrap_or_default();
+            assert!(
+                val.contains("/injected"),
+                "NEWPATH must contain '/injected', got: {}",
+                val
+            );
+        }
     }
 }
+

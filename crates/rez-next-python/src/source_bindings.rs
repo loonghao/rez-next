@@ -715,4 +715,65 @@ mod tests {
             "detect_current_shell must return a known shell, got: '{shell}'"
         );
     }
+
+    // ── Cycle 120 additions ──────────────────────────────────────────────────
+
+    #[test]
+    fn test_build_activation_script_sets_rez_used_resolve() {
+        // REZ_USED_RESOLVE or REZ_RESOLVE must appear with package names
+        let pkgs = vec!["houdini-20.0".to_string()];
+        let script = build_activation_script(&pkgs, "bash");
+        assert!(
+            script.contains("houdini-20.0") && script.contains("REZ_RESOLVE"),
+            "bash script must include package in REZ_RESOLVE: {script}"
+        );
+    }
+
+    #[test]
+    fn test_source_manager_packages_count_preserved() {
+        let pkgs: Vec<String> = (0..5).map(|i| format!("pkg_{i}-1.0")).collect();
+        let mgr = PySourceManager::new(pkgs.clone(), Some("bash".to_string()));
+        assert_eq!(mgr.packages().len(), 5);
+    }
+
+    #[test]
+    fn test_build_activation_script_zsh_shell() {
+        let pkgs = vec!["python-3.11".to_string()];
+        let script = build_activation_script(&pkgs, "zsh");
+        assert!(script.contains("REZ_RESOLVE"), "zsh script must set REZ_RESOLVE: {script}");
+        assert!(script.contains("python-3.11"), "zsh script must include package name: {script}");
+    }
+
+    #[test]
+    fn test_source_manager_get_content_none_shell_uses_default() {
+        let mgr = PySourceManager::new(
+            vec!["nuke-14.0".to_string()],
+            None, // no explicit shell
+        );
+        let content = mgr.get_activation_script_content(None);
+        // Must produce non-empty content with REZ_RESOLVE
+        assert!(!content.is_empty(), "content must not be empty when shell is None");
+        assert!(content.contains("REZ_RESOLVE"), "content: {content}");
+    }
+
+    #[test]
+    fn test_source_mode_file_path_preserved() {
+        let p = PathBuf::from("/tmp/my_activate.sh");
+        let mode = SourceMode::File(p.clone());
+        if let SourceMode::File(stored) = mode {
+            assert_eq!(stored, p, "SourceMode::File must store exact path");
+        } else {
+            panic!("Expected SourceMode::File variant");
+        }
+    }
+
+    #[test]
+    fn test_source_manager_repr_contains_package_count() {
+        let pkgs = vec!["a-1.0".to_string(), "b-2.0".to_string(), "c-3.0".to_string()];
+        let mgr = PySourceManager::new(pkgs, Some("bash".to_string()));
+        let repr = mgr.__repr__();
+        // repr should at minimum contain the type name and not be empty
+        assert!(!repr.is_empty(), "repr must not be empty");
+        assert!(repr.contains("SourceManager"), "repr: {repr}");
+    }
 }

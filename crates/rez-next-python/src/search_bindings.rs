@@ -600,4 +600,58 @@ mod tests {
         assert_eq!(s.paths, paths);
         assert_eq!(s.paths.as_ref().unwrap().len(), 3);
     }
+
+    // ─────── Cycle 120 additions ─────────────────────────────────────────────
+
+    #[test]
+    fn test_search_result_name_empty_string() {
+        // Empty package name is unusual but must not panic
+        let inner = SearchResult::new("".to_string(), vec![], "/r".to_string());
+        let r = PySearchResult { inner };
+        assert_eq!(r.name(), "");
+        assert_eq!(r.version_count(), 0);
+        assert_eq!(r.latest(), None);
+    }
+
+    #[test]
+    fn test_filter_limit_one_stored() {
+        let f = SearchFilter::new("pkg").with_limit(1);
+        assert_eq!(f.limit, 1);
+    }
+
+    #[test]
+    fn test_package_searcher_scope_latest_stored() {
+        let s = PyPackageSearcher::new("pkg", None, "latest", None, 0);
+        assert_eq!(s.scope, "latest");
+    }
+
+    #[test]
+    fn test_search_result_latest_is_last_version() {
+        let inner = SearchResult::new(
+            "maya".to_string(),
+            vec!["2022.0".to_string(), "2023.0".to_string(), "2024.0".to_string()],
+            "/pkgs".to_string(),
+        );
+        let r = PySearchResult { inner };
+        assert_eq!(r.latest(), Some("2024.0".to_string()));
+    }
+
+    #[test]
+    fn test_result_set_add_three_and_len_is_three() {
+        let mut rs = SearchResultSet::new();
+        for name in &["pkg_a", "pkg_b", "pkg_c"] {
+            rs.add(SearchResult::new(name.to_string(), vec![], "/r".to_string()));
+        }
+        assert_eq!(rs.len(), 3);
+        assert!(!rs.is_empty());
+    }
+
+    #[test]
+    fn test_filter_version_range_overrides_previous() {
+        let f = SearchFilter::new("cmake")
+            .with_version_range(">=3.0")
+            .with_version_range(">=4.0");
+        // Latest call wins
+        assert_eq!(f.version_range, Some(">=4.0".to_string()));
+    }
 }

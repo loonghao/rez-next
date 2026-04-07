@@ -665,5 +665,74 @@ mod tests {
             let _ = std::fs::remove_dir_all(&tmp);
         }
     }
+
+    mod test_repository_cy120 {
+        use super::*;
+
+        /// new() with two identical paths preserves both (no dedup)
+        #[test]
+        fn test_new_two_identical_paths_len_two() {
+            let mgr = PyRepositoryManager::new(Some(vec![
+                "/same/path".to_string(),
+                "/same/path".to_string(),
+            ]))
+            .unwrap();
+            assert_eq!(mgr.paths.len(), 2, "duplicate paths must be preserved as-is");
+        }
+
+        /// repr for manager with 7 paths contains "RepositoryManager"
+        #[test]
+        fn test_repr_seven_paths_contains_type_name() {
+            let paths: Vec<String> = (0..7).map(|i| format!("/pkgs/{i}")).collect();
+            let mgr = PyRepositoryManager::new(Some(paths)).unwrap();
+            assert!(
+                mgr.__repr__().contains("RepositoryManager"),
+                "repr for 7-path manager must contain type name"
+            );
+        }
+
+        /// find_packages with empty name on nonexistent path returns empty (not panic)
+        #[test]
+        fn test_find_packages_empty_name_nonexistent_no_panic() {
+            let mgr = PyRepositoryManager::new(Some(vec![
+                "/totally/nonexistent_cy120".to_string(),
+            ]))
+            .unwrap();
+            let result = mgr.find_packages("");
+            if let Ok(pkgs) = result {
+                assert!(pkgs.is_empty());
+            }
+        }
+
+        /// paths stored from new(None) come from default config (must not panic)
+        #[test]
+        fn test_new_none_uses_default_config_no_panic() {
+            let result = PyRepositoryManager::new(None);
+            assert!(result.is_ok(), "new(None) must not fail");
+            let mgr = result.unwrap();
+            // We cannot assert exact count (depends on user config), just no panic
+            let _ = mgr.paths.len();
+        }
+
+        /// get_package_family_names on empty path list returns empty vec
+        #[test]
+        fn test_get_family_names_empty_path_list_returns_empty() {
+            let mgr = PyRepositoryManager::new(Some(vec![])).unwrap();
+            let result = mgr.get_package_family_names();
+            if let Ok(names) = result {
+                assert!(names.is_empty(), "empty path list must produce no families");
+            }
+        }
+
+        /// repr for manager with exactly 0 paths shows paths=[] or similar
+        #[test]
+        fn test_repr_zero_paths_valid_string() {
+            let mgr = PyRepositoryManager::new(Some(vec![])).unwrap();
+            let repr = mgr.__repr__();
+            assert!(!repr.is_empty(), "repr must not be empty for 0-path manager");
+            assert!(repr.contains("RepositoryManager"));
+        }
+    }
 }
+
 

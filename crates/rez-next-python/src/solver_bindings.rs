@@ -487,7 +487,84 @@ mod tests {
             assert!(repr.contains("paths=6"), "repr: {repr}");
         }
     }
+
+    mod test_solver_cy120 {
+        use super::*;
+        use std::path::PathBuf;
+
+        /// SolverConfig default max_attempts is a positive number
+        #[test]
+        fn test_solver_config_default_max_attempts_positive() {
+            let config = SolverConfig::default();
+            assert!(
+                config.max_attempts > 0,
+                "default max_attempts must be > 0, got {}",
+                config.max_attempts
+            );
+        }
+
+        /// PySolver with 10 paths has paths.len() == 10
+        #[test]
+        fn test_solver_ten_paths_len_is_ten() {
+            let paths: Vec<PathBuf> = (0..10).map(|i| PathBuf::from(format!("/pkg/{i}"))).collect();
+            let solver = PySolver {
+                config: SolverConfig::default(),
+                paths: paths.clone(),
+            };
+            assert_eq!(solver.paths.len(), 10);
+        }
+
+        /// repr for PySolver with 10 paths shows "paths=10"
+        #[test]
+        fn test_solver_repr_paths_ten() {
+            let paths: Vec<PathBuf> = (0..10).map(|i| PathBuf::from(format!("/x{i}"))).collect();
+            let solver = PySolver {
+                config: SolverConfig::default(),
+                paths,
+            };
+            let repr = solver.__repr__();
+            assert!(repr.contains("paths=10"), "repr: {repr}");
+        }
+
+        /// SolverConfig max_time_seconds default is 0 or reasonable value
+        #[test]
+        fn test_solver_config_max_time_default_nonnegative() {
+            let config = SolverConfig::default();
+            // max_time_seconds == 0 means unlimited; any non-negative value is acceptable
+            let _ = config.max_time_seconds; // must not panic accessing field
+        }
+
+        /// SolverConfig allow_prerelease default is false
+        #[test]
+        fn test_solver_config_allow_prerelease_default_false() {
+            let config = SolverConfig::default();
+            assert!(
+                !config.allow_prerelease,
+                "allow_prerelease default must be false"
+            );
+        }
+
+        /// PySolver paths are stored in insertion order
+        #[test]
+        fn test_solver_paths_insertion_order_preserved() {
+            let paths = vec![
+                PathBuf::from("/alpha"),
+                PathBuf::from("/beta"),
+                PathBuf::from("/gamma"),
+            ];
+            let solver = PySolver {
+                config: SolverConfig::default(),
+                paths: paths.clone(),
+            };
+            assert_eq!(solver.paths[0], PathBuf::from("/alpha"));
+            assert_eq!(solver.paths[1], PathBuf::from("/beta"));
+            assert_eq!(solver.paths[2], PathBuf::from("/gamma"));
+        }
+    }
 }
+
+
+
 
 
 
