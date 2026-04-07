@@ -3,6 +3,7 @@
 use crate::actions::{RexAction, RexActionType};
 use regex::Regex;
 use rez_next_common::RezCoreError;
+use std::sync::OnceLock;
 
 /// Parser for Rex command strings
 pub struct RexParser {
@@ -252,6 +253,17 @@ impl Default for RexParser {
     fn default() -> Self {
         Self::new()
     }
+}
+
+/// Static cached parser for efficient reuse across multiple parse() calls.
+/// Eliminates redundant regex compilation overhead.
+static CACHED_PARSER: OnceLock<RexParser> = OnceLock::new();
+
+/// Get a reference to the cached RexParser.
+/// On first call, initializes and caches the parser.
+/// Subsequent calls return the cached instance.
+pub fn get_cached_parser() -> &'static RexParser {
+    CACHED_PARSER.get_or_init(RexParser::new)
 }
 
 #[cfg(test)]
