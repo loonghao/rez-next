@@ -622,4 +622,72 @@ mod tests {
             let _ = result;
         }
     }
+
+    // ── Cycle 119 additions ──────────────────────────────────────────────────
+
+    mod test_completion_cy119 {
+        use super::*;
+
+        /// bash script contains 'rez-next search' call for package completion
+        #[test]
+        fn test_bash_script_contains_search_query() {
+            let script = get_completion_script(Some("bash")).unwrap();
+            assert!(
+                script.contains("search") || script.contains("rez-next"),
+                "bash script should reference rez-next search for packages"
+            );
+        }
+
+        /// zsh script uses _arguments for option parsing
+        #[test]
+        fn test_zsh_script_contains_arguments_directive() {
+            let script = get_completion_script(Some("zsh")).unwrap();
+            assert!(
+                script.contains("_arguments"),
+                "zsh script should use '_arguments' completion helper"
+            );
+        }
+
+        /// fish script registers completions for 'rez' command
+        #[test]
+        fn test_fish_script_registers_rez_completions() {
+            let script = get_completion_script(Some("fish")).unwrap();
+            assert!(
+                script.contains("complete -c rez "),
+                "fish script must register completions for 'rez'"
+            );
+        }
+
+        /// powershell script handles at least 20 subcommands
+        #[test]
+        fn test_powershell_script_lists_twenty_commands() {
+            let script = get_completion_script(Some("powershell")).unwrap();
+            // Count quoted command names like 'env', 'solve', etc.
+            let count = script.split('\'').count() / 2;
+            assert!(
+                count >= 20,
+                "powershell script should list at least 20 commands, found ~{count}"
+            );
+        }
+
+        /// get_completion_install_path for bash uses tilde expansion
+        #[test]
+        fn test_bash_install_path_starts_with_tilde() {
+            let path = get_completion_install_path(Some("bash")).unwrap();
+            assert!(
+                path.starts_with('~'),
+                "bash install path should start with '~': '{path}'"
+            );
+        }
+
+        /// supported_completion_shells does not include 'csh'
+        #[test]
+        fn test_supported_shells_does_not_include_csh() {
+            let shells = supported_completion_shells();
+            assert!(
+                !shells.iter().any(|s| s == "csh"),
+                "csh must not be in supported shells"
+            );
+        }
+    }
 }

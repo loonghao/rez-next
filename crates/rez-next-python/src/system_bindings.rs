@@ -526,5 +526,61 @@ mod tests {
             assert_ne!(h, "", "hostname must not be empty string");
         }
     }
+
+    // ── Cycle 119 additions ──────────────────────────────────────────────────
+
+    mod test_system_cy119 {
+        use super::*;
+
+        /// platform_str() and the getter method agree
+        #[test]
+        fn test_platform_getter_matches_platform_pub() {
+            let sys = PySystem::new();
+            assert_eq!(sys.platform(), PySystem::platform_pub());
+        }
+
+        /// arch_str() and the getter method agree
+        #[test]
+        fn test_arch_getter_matches_arch_pub() {
+            let sys = PySystem::new();
+            assert_eq!(sys.arch(), PySystem::arch_pub());
+        }
+
+        /// os_str() and the getter method agree
+        #[test]
+        fn test_os_getter_matches_os_pub() {
+            let sys = PySystem::new();
+            assert_eq!(sys.os(), PySystem::os_pub());
+        }
+
+        /// get_system() factory returns consistent values with PySystem::new()
+        #[test]
+        fn test_get_system_matches_new_rez_version() {
+            let a = get_system();
+            let b = PySystem::new();
+            assert_eq!(a.rez_version(), b.rez_version());
+        }
+
+        /// repr includes arch value
+        #[test]
+        fn test_repr_includes_actual_arch_value() {
+            let sys = PySystem::new();
+            let repr = sys.__repr__();
+            let arch = sys.arch();
+            assert!(
+                repr.contains(&arch),
+                "repr '{repr}' must contain arch value '{arch}'"
+            );
+        }
+
+        /// num_cpus is the same across repeated calls (deterministic)
+        #[test]
+        fn test_num_cpus_is_deterministic() {
+            let sys = PySystem::new();
+            let c1 = sys.num_cpus();
+            let c2 = sys.num_cpus();
+            assert_eq!(c1, c2, "num_cpus must be deterministic");
+        }
+    }
 }
 

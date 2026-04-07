@@ -843,4 +843,78 @@ mod context_bindings_tests {
             assert_eq!(ctx.requirements[0].name, "arnold");
         }
     }
+
+    // ── Cycle 119 additions ──────────────────────────────────────────────────
+
+    mod test_context_cy119 {
+        use super::*;
+
+        /// resolved_packages returns names in same order as input
+        #[test]
+        fn test_resolved_packages_names_in_insertion_order() {
+            let ctx = make_py_ctx_inner(&[("alpha", "1.0"), ("beta", "2.0"), ("gamma", "3.0")]);
+            let names: Vec<&str> = ctx
+                .resolved_packages
+                .iter()
+                .map(|p| p.name.as_str())
+                .collect();
+            assert_eq!(names, vec!["alpha", "beta", "gamma"]);
+        }
+
+        /// context built with 4 packages has summary.package_count == 4
+        #[test]
+        fn test_summary_count_four_packages() {
+            let ctx = make_py_ctx_inner(&[("a", "1"), ("b", "2"), ("c", "3"), ("d", "4")]);
+            assert_eq!(ctx.get_summary().package_count, 4);
+        }
+
+        /// overwriting environment_vars entry updates the value
+        #[test]
+        fn test_environment_vars_overwrite_value() {
+            let mut ctx = make_py_ctx_inner(&[("python", "3.11.0")]);
+            ctx.environment_vars
+                .insert("FOO".to_string(), "first".to_string());
+            ctx.environment_vars
+                .insert("FOO".to_string(), "second".to_string());
+            assert_eq!(
+                ctx.environment_vars.get("FOO").map(String::as_str),
+                Some("second"),
+                "overwriting key should update to latest value"
+            );
+        }
+
+        /// status Resolving is distinct from Resolved and Failed
+        #[test]
+        fn test_resolving_status_is_distinct_from_others() {
+            let mut ctx = make_py_ctx_inner(&[]);
+            ctx.status = ContextStatus::Resolving;
+            assert_ne!(ctx.status, ContextStatus::Resolved);
+            assert_ne!(ctx.status, ContextStatus::Failed);
+        }
+
+        /// requirements list for two packages has length two
+        #[test]
+        fn test_two_package_requirements_list_has_length_two() {
+            let ctx = make_py_ctx_inner(&[("nuke", "14.0"), ("python", "3.10")]);
+            assert_eq!(ctx.requirements.len(), 2);
+        }
+
+        /// get_summary version map keys match resolved package names
+        #[test]
+        fn test_summary_version_keys_match_package_names() {
+            let ctx = make_py_ctx_inner(&[("houdini", "20.5"), ("katana", "6.0")]);
+            let summary = ctx.get_summary();
+            let names: Vec<&str> = ctx
+                .resolved_packages
+                .iter()
+                .map(|p| p.name.as_str())
+                .collect();
+            for name in &names {
+                assert!(
+                    summary.package_versions.contains_key(*name),
+                    "summary must contain key '{name}'"
+                );
+            }
+        }
+    }
 }

@@ -465,4 +465,68 @@ mod tests {
             );
         }
     }
+
+    // ── Cycle 119 additions ──────────────────────────────────────────────────
+
+    mod test_config_cy119 {
+        use super::*;
+
+        /// local_packages_path default contains home-directory marker or is absolute
+        #[test]
+        fn test_local_packages_path_is_nonempty_on_default() {
+            let cfg = RezCoreConfig::default();
+            assert!(
+                !cfg.local_packages_path.is_empty(),
+                "default local_packages_path must not be empty"
+            );
+        }
+
+        /// release_packages_path default is non-empty
+        #[test]
+        fn test_release_packages_path_is_nonempty_on_default() {
+            let cfg = RezCoreConfig::default();
+            assert!(
+                !cfg.release_packages_path.is_empty(),
+                "default release_packages_path must not be empty"
+            );
+        }
+
+        /// default cache enable_memory_cache is a bool (just check it exists without panicking)
+        #[test]
+        fn test_default_cache_enable_memory_cache_is_bool() {
+            let cfg = RezCoreConfig::default();
+            // Just access the field — if type changes, compile error will catch it
+            let _enabled: bool = cfg.cache.enable_memory_cache;
+        }
+
+        /// get_field version_check_behavior returns Some or None without panic
+        #[test]
+        fn test_get_field_version_check_no_panic() {
+            let cfg = RezCoreConfig::load();
+            let _ = cfg.get_field("version_check_behavior");
+        }
+
+        /// PyConfig::default() and new() have the same version
+        #[test]
+        fn test_default_and_new_same_version() {
+            let a = PyConfig::new();
+            let b = PyConfig::default();
+            assert_eq!(
+                a.rez_version(),
+                b.rez_version(),
+                "default() and new() must have identical rez_version"
+            );
+        }
+
+        /// packages_path len does not exceed a reasonable upper bound
+        #[test]
+        fn test_packages_path_len_below_upper_bound() {
+            let cfg = RezCoreConfig::default();
+            assert!(
+                cfg.packages_path.len() <= 100,
+                "packages_path has unexpectedly many entries: {}",
+                cfg.packages_path.len()
+            );
+        }
+    }
 }

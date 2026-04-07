@@ -812,4 +812,67 @@ mod tests {
         assert_eq!(env.packages[0], "python-3.9");
         assert_eq!(env.packages[2], "boost-1.82");
     }
+
+    // ── Cycle 119 additions ──────────────────────────────────────────────────
+
+    mod test_env_cy119 {
+        use super::*;
+
+        /// empty PyRezEnv::new() sets success=true
+        #[test]
+        fn test_empty_env_is_successful() {
+            let env = PyRezEnv::new(vec![], None, None).unwrap();
+            assert!(env.success, "empty package resolve should succeed");
+        }
+
+        /// available_shells returns sorted result even with 1 entry
+        #[test]
+        fn test_available_shells_single_entry_is_sorted() {
+            let mut env = empty_rez_env(vec![]);
+            env.scripts.insert("zsh".to_string(), "# zsh\n".to_string());
+            let shells = env.available_shells();
+            assert_eq!(shells, vec!["zsh".to_string()]);
+        }
+
+        /// write_script overwrites an existing file
+        #[test]
+        fn test_write_script_overwrites_existing_file() {
+            let tmp = std::env::temp_dir().join("rez_cy119_overwrite.sh");
+            std::fs::write(&tmp, b"old content").unwrap();
+            let mut env = empty_rez_env(vec![]);
+            env.scripts
+                .insert("bash".to_string(), "export OVERWRITTEN=1\n".to_string());
+            env.write_script(tmp.to_str().unwrap(), "bash").unwrap();
+            let content = std::fs::read_to_string(&tmp).unwrap();
+            assert!(content.contains("OVERWRITTEN"), "file should be overwritten");
+            let _ = std::fs::remove_file(&tmp);
+        }
+
+        /// get_shell_code returns None for shell not in scripts
+        #[test]
+        fn test_get_shell_code_missing_shell_is_none() {
+            let env = empty_rez_env(vec![]);
+            assert!(env.get_shell_code("fish").is_none());
+        }
+
+        /// num_resolved_packages reflects add count
+        #[test]
+        fn test_num_resolved_packages_increments() {
+            let mut env = empty_rez_env(vec![]);
+            assert_eq!(env.num_resolved_packages(), 0);
+            env.resolved_packages.push(make_pkg("maya", "2024.1"));
+            env.resolved_packages.push(make_pkg("python", "3.11.0"));
+            assert_eq!(env.num_resolved_packages(), 2);
+        }
+
+        /// env_vars key removal works
+        #[test]
+        fn test_env_vars_key_removal() {
+            let mut env = empty_rez_env(vec![]);
+            env.env_vars.insert("TEMP_KEY".to_string(), "val".to_string());
+            assert!(env.env_vars.contains_key("TEMP_KEY"));
+            env.env_vars.remove("TEMP_KEY");
+            assert!(!env.env_vars.contains_key("TEMP_KEY"), "key should be removed");
+        }
+    }
 }
