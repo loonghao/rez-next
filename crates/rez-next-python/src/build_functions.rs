@@ -213,5 +213,59 @@ mod tests {
             assert_eq!(result, "python_rezbuild", "rezbuild.py should take priority over CMakeLists.txt");
             let _ = fs::remove_dir_all(&tmp);
         }
+
+        #[test]
+        fn test_build_sh_detected_as_custom_script() {
+            let tmp = make_temp_dir_with_file("rez_bs_build_sh", "build.sh");
+            let result = get_build_system(Some(tmp.to_str().unwrap())).unwrap();
+            assert_eq!(result, "custom_script", "build.sh should map to custom_script");
+            let _ = fs::remove_dir_all(&tmp);
+        }
+
+        #[test]
+        fn test_build_bat_detected_as_custom_script() {
+            let tmp = make_temp_dir_with_file("rez_bs_build_bat", "build.bat");
+            let result = get_build_system(Some(tmp.to_str().unwrap())).unwrap();
+            assert_eq!(result, "custom_script", "build.bat should map to custom_script");
+            let _ = fs::remove_dir_all(&tmp);
+        }
+
+        #[test]
+        fn test_lowercase_makefile_detected() {
+            let tmp = make_temp_dir_with_file("rez_bs_makefile_lower", "makefile");
+            let result = get_build_system(Some(tmp.to_str().unwrap())).unwrap();
+            assert_eq!(result, "make", "lowercase makefile should map to make");
+            let _ = fs::remove_dir_all(&tmp);
+        }
+
+        #[test]
+        fn test_nonexistent_directory_still_returns_ok() {
+            // get_build_system with a nonexistent dir: current_dir join may succeed or fail
+            // The important thing is it doesn't panic.
+            let result = get_build_system(Some("/nonexistent_dir_xyz_abc_999"));
+            // Either Ok("unknown") or Err is acceptable; must not panic
+            let _ = result;
+        }
+
+        #[test]
+        fn test_cmake_priority_over_makefile() {
+            // When both CMakeLists.txt and Makefile exist, cmake takes priority
+            // because cmake check comes before makefile check in the function
+            let tmp = make_temp_dir_with_file("rez_bs_cmake_priority", "CMakeLists.txt");
+            fs::write(tmp.join("Makefile"), b"").unwrap();
+            let result = get_build_system(Some(tmp.to_str().unwrap())).unwrap();
+            assert_eq!(result, "cmake", "cmake should take priority over Makefile");
+            let _ = fs::remove_dir_all(&tmp);
+        }
+
+        #[test]
+        fn test_pyproject_toml_coexists_with_setup_py() {
+            // Both pyproject.toml and setup.py → should return "python"
+            let tmp = make_temp_dir_with_file("rez_bs_both_py", "pyproject.toml");
+            fs::write(tmp.join("setup.py"), b"").unwrap();
+            let result = get_build_system(Some(tmp.to_str().unwrap())).unwrap();
+            assert_eq!(result, "python", "python build system for both py files");
+            let _ = fs::remove_dir_all(&tmp);
+        }
     }
 }

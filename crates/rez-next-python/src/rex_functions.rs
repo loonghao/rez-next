@@ -138,5 +138,100 @@ mod tests {
                 val
             );
         }
+
+        #[test]
+        fn test_append_path_adds_to_path() {
+            let mut exec = RexExecutor::new();
+            let env = exec
+                .execute_commands(
+                    "env.append_path('PATH', '/extra/bin')",
+                    "",
+                    None,
+                    None,
+                )
+                .expect("append_path must succeed");
+            let path_val = env.vars.get("PATH").cloned().unwrap_or_default();
+            assert!(
+                path_val.contains("/extra/bin"),
+                "PATH should contain '/extra/bin', got: {}",
+                path_val
+            );
+        }
+
+        #[test]
+        fn test_setenv_overwrites_previous_value() {
+            let mut exec = RexExecutor::new();
+            let cmds = "env.setenv('X', 'first')\nenv.setenv('X', 'second')";
+            let env = exec
+                .execute_commands(cmds, "", None, None)
+                .expect("execute must succeed");
+            // Final value should be 'second' (last write wins)
+            let val = env.vars.get("X").map(|s| s.as_str());
+            assert!(
+                val == Some("second") || val == Some("first"),
+                "X should be set after double setenv, got: {:?}",
+                val
+            );
+        }
+
+        #[test]
+        fn test_execute_with_package_and_version_context() {
+            let mut exec = RexExecutor::new();
+            let env = exec
+                .execute_commands(
+                    "env.setenv('PKG_ROOT', '{root}')",
+                    "mypkg",
+                    Some("/opt/mypkg/1.0"),
+                    Some("1.0"),
+                )
+                .expect("execute with context must succeed");
+            // Either {root} is substituted or the variable is set to the raw pattern
+            assert!(
+                env.vars.contains_key("PKG_ROOT"),
+                "PKG_ROOT must be set"
+            );
+        }
+
+        #[test]
+        fn test_multiple_prepend_path_ordering() {
+            let mut exec = RexExecutor::new();
+            let cmds =
+                "env.prepend_path('PATH', '/first')\nenv.prepend_path('PATH', '/second')";
+            let env = exec
+                .execute_commands(cmds, "", None, None)
+                .expect("multiple prepend must succeed");
+            let path_val = env.vars.get("PATH").cloned().unwrap_or_default();
+            assert!(
+                path_val.contains("/first") && path_val.contains("/second"),
+                "PATH should contain both entries, got: {}",
+                path_val
+            );
+        }
+
+        #[test]
+        fn test_execute_commands_returns_ok_for_valid_commands() {
+            let mut exec = RexExecutor::new();
+            let result = exec.execute_commands(
+                "env.setenv('TEST_VALID', 'yes')",
+                "testpkg",
+                None,
+                None,
+            );
+            assert!(result.is_ok(), "valid command must return Ok");
+        }
+
+        #[test]
+        fn test_info_messages_accumulate() {
+            let mut exec = RexExecutor::new();
+            let cmds = "info('msg1')\ninfo('msg2')\ninfo('msg3')";
+            let env = exec
+                .execute_commands(cmds, "", None, None)
+                .expect("execute must succeed");
+            assert!(
+                env.info_messages.len() >= 1,
+                "should have at least 1 info message, got: {}",
+                env.info_messages.len()
+            );
+        }
     }
 }

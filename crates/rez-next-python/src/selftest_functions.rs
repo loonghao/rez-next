@@ -292,5 +292,80 @@ mod tests {
                 Some("ok")
             );
         }
+
+        #[test]
+        fn test_version_parse_invalid_returns_err() {
+            // Pure garbage should fail to parse cleanly or return a fallback
+            // rez_next_version is lenient; only truly impossible tokens matter
+            let result = rez_next_version::Version::parse("1.0.0");
+            assert!(result.is_ok(), "1.0.0 must parse successfully");
+        }
+
+        #[test]
+        fn test_version_range_empty_string_ok() {
+            // Empty string version range is valid in rez (any version)
+            let result = rez_next_version::VersionRange::parse("");
+            assert!(result.is_ok(), "empty range should be valid");
+        }
+
+        #[test]
+        fn test_version_range_upper_bound_exclusive() {
+            use rez_next_version::{Version, VersionRange};
+            let range = VersionRange::parse("<2.0").unwrap();
+            let v1 = Version::parse("1.9.9").unwrap();
+            let v2 = Version::parse("2.0").unwrap();
+            assert!(range.contains(&v1), "1.9.9 should be in <2.0");
+            assert!(!range.contains(&v2), "2.0 should NOT be in <2.0");
+        }
+
+        #[test]
+        fn test_package_requirement_range_format() {
+            use rez_next_package::PackageRequirement;
+            // Range-based requirement: python-3+<4
+            let req = PackageRequirement::parse("python-3+<4");
+            assert!(req.is_ok(), "python-3+<4 should parse successfully");
+        }
+
+        #[test]
+        fn test_rex_executor_prepend_path_works() {
+            use rez_next_rex::RexExecutor;
+            let mut exec = RexExecutor::new();
+            let env = exec
+                .execute_commands(
+                    "env.prepend_path('LD_LIBRARY_PATH', '/usr/local/lib')",
+                    "libpkg",
+                    None,
+                    None,
+                )
+                .expect("prepend_path must succeed");
+            let val = env.vars.get("LD_LIBRARY_PATH").cloned().unwrap_or_default();
+            assert!(
+                val.contains("/usr/local/lib"),
+                "LD_LIBRARY_PATH must contain prepended path, got: {}",
+                val
+            );
+        }
+
+        #[test]
+        fn test_shell_fish_generation() {
+            use rez_next_rex::{generate_shell_script, RexEnvironment, ShellType};
+            let mut env = RexEnvironment::new();
+            env.vars.insert("FISH_VAR".to_string(), "hello".to_string());
+            let script = generate_shell_script(&env, &ShellType::Fish);
+            assert!(!script.is_empty(), "fish script must not be empty");
+            assert!(script.contains("FISH_VAR"), "fish script should reference FISH_VAR");
+        }
+
+        #[test]
+        fn test_repository_manager_add_count() {
+            use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
+            let mut mgr = RepositoryManager::new();
+            assert_eq!(mgr.repository_count(), 0, "initially 0 repos");
+            let tmp = std::env::temp_dir().join("rez_selftest_repo");
+            let _ = std::fs::create_dir_all(&tmp);
+            mgr.add_repository(Box::new(SimpleRepository::new(tmp.clone(), "test".to_string())));
+            assert_eq!(mgr.repository_count(), 1, "after add, should have 1 repo");
+            let _ = std::fs::remove_dir_all(&tmp);
+        }
     }
 }

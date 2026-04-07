@@ -135,5 +135,50 @@ mod tests {
             assert!(result.is_ok());
             assert_eq!(result.unwrap(), 0);
         }
+
+        #[test]
+        fn test_cli_main_with_unknown_command_returns_err() {
+            let result = cli_main(Some(vec!["not_a_cmd_xyz".to_string()]));
+            assert!(result.is_err(), "unknown command via cli_main must return Err");
+        }
+
+        #[test]
+        fn test_cli_main_with_args_passes_sub_args() {
+            // Known command with additional args should still succeed
+            let result = cli_main(Some(vec!["env".to_string(), "python-3.9".to_string()]));
+            assert!(result.is_ok(), "known command with extra args must return Ok");
+            assert_eq!(result.unwrap(), 0);
+        }
+    }
+
+    mod test_cli_run_all_commands {
+        use super::super::cli_run;
+
+        #[test]
+        fn test_all_known_commands_return_zero() {
+            let commands = [
+                "env", "solve", "build", "release", "status", "search", "view",
+                "diff", "cp", "mv", "rm", "bundle", "config", "selftest", "gui",
+                "context", "suite", "interpret", "depends", "pip", "forward",
+                "benchmark", "complete", "source", "bind",
+            ];
+            for cmd in &commands {
+                let result = cli_run(cmd, None);
+                assert!(result.is_ok(), "known command '{}' must return Ok", cmd);
+                assert_eq!(result.unwrap(), 0, "known command '{}' must return 0", cmd);
+            }
+        }
+
+        #[test]
+        fn test_empty_string_command_returns_err() {
+            let result = cli_run("", None);
+            assert!(result.is_err(), "empty command string must return Err");
+        }
+
+        #[test]
+        fn test_command_with_whitespace_returns_err() {
+            let result = cli_run("  env  ", None);
+            assert!(result.is_err(), "command with whitespace must return Err");
+        }
     }
 }
