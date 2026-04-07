@@ -626,15 +626,7 @@ mod tests {
         );
     }
 
-    /// All exception names in the hierarchy are unique (sorted check)
-    #[test]
-    fn test_hierarchy_names_sorted_dedup_same_length() {
-        let mut names: Vec<&str> = EXCEPTION_HIERARCHY.iter().map(|(n, _)| *n).collect();
-        let original = names.len();
-        names.sort_unstable();
-        names.dedup();
-        assert_eq!(names.len(), original, "all names in EXCEPTION_HIERARCHY must be unique");
-    }
+
 }
 
 

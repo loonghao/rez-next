@@ -202,16 +202,13 @@ mod tests {
         use super::super::selftest;
 
         #[test]
-        fn test_selftest_returns_tuple() {
-            // selftest() cannot call PyO3 in #[cfg(test)] without interpreter,
-            // so we validate the pure-Rust logic indirectly via the helper macros.
-            // Here we call the function; it should compile and return Ok.
-            // We skip the PyO3 call path by calling pure-Rust sub-functions directly.
-            // The function only uses rez_next_* crates, which don't require an interpreter.
-            // Note: calling selftest() directly panics without PyO3 GIL; test the logic units.
-            let _ = std::panic::catch_unwind(selftest);
-            // If we reach here, the function at least compiled
+        fn test_selftest_returns_ok_tuple() {
+            let result = std::panic::catch_unwind(selftest);
+            assert!(result.is_ok(), "selftest() should not panic in Rust unit tests");
+            let (passed, failed, total) = result.unwrap().expect("selftest() should return Ok");
+            assert_eq!(passed + failed, total, "selftest() counts should balance");
         }
+
 
         #[test]
         fn test_version_parse_basic_all_succeed() {

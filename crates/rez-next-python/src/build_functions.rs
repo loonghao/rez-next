@@ -239,13 +239,14 @@ mod tests {
         }
 
         #[test]
-        fn test_nonexistent_directory_still_returns_ok() {
-            // get_build_system with a nonexistent dir: current_dir join may succeed or fail
-            // The important thing is it doesn't panic.
-            let result = get_build_system(Some("/nonexistent_dir_xyz_abc_999"));
-            // Either Ok("unknown") or Err is acceptable; must not panic
-            let _ = result;
+        fn test_nonexistent_directory_returns_unknown() {
+            let missing = std::env::temp_dir()
+                .join("rez_bs_missing_parent")
+                .join("rez_bs_missing_dir_xyz_abc_999");
+            let result = get_build_system(Some(missing.to_str().unwrap())).unwrap();
+            assert_eq!(result, "unknown");
         }
+
 
         #[test]
         fn test_cmake_priority_over_makefile() {

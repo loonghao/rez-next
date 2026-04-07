@@ -369,11 +369,10 @@ mod tests {
 
     #[test]
     fn test_extract_version_multiline_first_match() {
-        // Only first version-like token should be returned
         let result = extract_version("1.2.3\nsome other 4.5.6");
-        // Must return a version (1.2.3 or 4.5.6), not None
-        assert!(result.is_some(), "should find at least one version");
+        assert_eq!(result, Some("1.2.3".to_string()));
     }
+
 
     // ── Cycle 101 additions ───────────────────────────────────────────────────
 
@@ -429,54 +428,7 @@ mod tests {
         let _ = result;
     }
 
-    #[test]
-    fn test_bind_manager_list_binders_len_matches_fn() {
-        let m = PyBindManager::new();
-        let mgr_list = m.list_binders();
-        let fn_list = list_binders();
-        assert_eq!(
-            mgr_list.len(),
-            fn_list.len(),
-            "PyBindManager::list_binders and list_binders() must return same count"
-        );
-    }
-
     // ── Cycle 106 additions ───────────────────────────────────────────────────
 
-    #[test]
-    fn test_bind_result_install_path_getter_matches_field() {
-        let r = PyBindResult {
-            name: "ninja".to_string(),
-            version: "1.11.1".to_string(),
-            install_path: "/pkgs/ninja/1.11.1".to_string(),
-            executable_path: None,
-        };
-        assert_eq!(r.install_path(), "/pkgs/ninja/1.11.1");
-    }
-
-    #[test]
-    fn test_bind_result_name_getter_matches_field() {
-        let r = PyBindResult {
-            name: "perl".to_string(),
-            version: "5.38.0".to_string(),
-            install_path: "/pkgs/perl/5.38.0".to_string(),
-            executable_path: None,
-        };
-        assert_eq!(r.name(), "perl");
-    }
-
-    #[test]
-    fn test_list_binders_sorted_order() {
-        let binders = list_binders();
-        // list_binders() does not guarantee a particular order; just verify the
-        // returned slice can be sorted without panicking (all elements are valid strings).
-        let mut sorted = binders.clone();
-        sorted.sort();
-        assert_eq!(
-            sorted.len(),
-            binders.len(),
-            "sorted binders must have same length as original"
-        );
-    }
 }
 

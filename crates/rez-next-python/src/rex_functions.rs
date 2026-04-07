@@ -227,11 +227,8 @@ mod tests {
             let env = exec
                 .execute_commands(cmds, "", None, None)
                 .expect("execute must succeed");
-            assert!(
-                env.info_messages.len() >= 1,
-                "should have at least 1 info message, got: {}",
-                env.info_messages.len()
-            );
+            assert_eq!(env.info_messages.len(), 3, "all info() calls should be preserved");
+
         }
 
         #[test]
@@ -253,13 +250,10 @@ mod tests {
             let env = exec
                 .execute_commands("alias('rez', '/usr/local/bin/rez')", "", None, None)
                 .expect("alias must succeed");
-            let val = env.aliases.get("rez").cloned().unwrap_or_default();
-            assert!(
-                val.contains("/usr/local/bin/rez") || !val.is_empty(),
-                "alias value should not be empty, got: {}",
-                val
-            );
+            let val = env.aliases.get("rez").map(|s| s.as_str());
+            assert_eq!(val, Some("/usr/local/bin/rez"));
         }
+
 
         #[test]
         fn test_setenv_empty_value_is_allowed() {
@@ -309,12 +303,16 @@ mod tests {
         #[test]
         fn test_stop_prevents_later_setenv() {
             let mut exec = RexExecutor::new();
-            // stop() is called before the second setenv; the executor must mark stopped
             let cmds = "stop('halting')\nenv.setenv('AFTER_STOP', 'should_not_appear')";
             let env = exec
                 .execute_commands(cmds, "", None, None)
                 .expect("stop with trailing command must succeed");
             assert!(env.stopped, "stopped flag must be set");
+            assert!(
+                !env.vars.contains_key("AFTER_STOP"),
+                "commands after stop() should not mutate the environment"
+            );
         }
+
     }
 }
