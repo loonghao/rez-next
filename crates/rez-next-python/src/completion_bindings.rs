@@ -555,4 +555,71 @@ mod tests {
             "bash completion should handle -p/--paths directory completion"
         );
     }
+
+    // ── Cycle 114 additions ──────────────────────────────────────────────────
+
+    mod test_completion_cy114 {
+        use super::*;
+
+        /// get_completion_script for bash is non-empty
+        #[test]
+        fn test_bash_completion_script_is_nonempty() {
+            let script = get_completion_script(Some("bash")).unwrap();
+            assert!(!script.is_empty(), "bash completion script must not be empty");
+        }
+
+        /// get_completion_script for zsh is non-empty
+        #[test]
+        fn test_zsh_completion_script_is_nonempty() {
+            let script = get_completion_script(Some("zsh")).unwrap();
+            assert!(!script.is_empty(), "zsh completion script must not be empty");
+        }
+
+        /// get_completion_script for fish is non-empty
+        #[test]
+        fn test_fish_completion_script_is_nonempty() {
+            let script = get_completion_script(Some("fish")).unwrap();
+            assert!(!script.is_empty(), "fish completion script must not be empty");
+        }
+
+        /// get_completion_script for powershell is non-empty
+        #[test]
+        fn test_powershell_completion_script_is_nonempty() {
+            let script = get_completion_script(Some("powershell")).unwrap();
+            assert!(!script.is_empty(), "powershell completion script must not be empty");
+        }
+
+        /// supported_completion_shells includes at least bash and zsh
+        #[test]
+        fn test_supported_shells_includes_bash_and_zsh() {
+            let shells = supported_completion_shells();
+            assert!(
+                shells.iter().any(|s| s == "bash"),
+                "supported shells should include 'bash'"
+            );
+            assert!(
+                shells.iter().any(|s| s == "zsh"),
+                "supported shells should include 'zsh'"
+            );
+        }
+
+        /// supported_completion_shells has at least 4 entries
+        #[test]
+        fn test_supported_shells_has_at_least_four() {
+            let shells = supported_completion_shells();
+            assert!(
+                shells.len() >= 4,
+                "supported_completion_shells should return at least 4, got {}",
+                shells.len()
+            );
+        }
+
+        /// get_completion_script None returns default shell script without panic
+        #[test]
+        fn test_completion_script_none_shell_no_panic() {
+            let result = get_completion_script(None);
+            // May succeed or fail; must not panic
+            let _ = result;
+        }
+    }
 }

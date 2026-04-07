@@ -774,4 +774,73 @@ mod context_bindings_tests {
         assert_eq!(summary.package_count, 4);
         assert_eq!(summary.package_versions.len(), 4);
     }
+
+    // ── Cycle 114 additions ──────────────────────────────────────────────────
+
+    mod test_context_cy114 {
+        use super::*;
+
+        /// resolved_packages len matches the input package count
+        #[test]
+        fn test_resolved_packages_len_matches_input() {
+            let ctx = make_py_ctx_inner(&[("pkgX", "1.0.0"), ("pkgY", "2.0.0")]);
+            assert_eq!(ctx.resolved_packages.len(), 2);
+        }
+
+        /// context status is Resolved when built via make_py_ctx_inner
+        #[test]
+        fn test_context_status_is_resolved() {
+            let ctx = make_py_ctx_inner(&[("maya", "2024.1")]);
+            assert_eq!(ctx.status, ContextStatus::Resolved);
+        }
+
+        /// context with no packages has zero count in summary
+        #[test]
+        fn test_empty_context_summary_has_zero_count() {
+            let ctx = make_py_ctx_inner(&[]);
+            let summary = ctx.get_summary();
+            assert_eq!(summary.package_count, 0);
+        }
+
+        /// environment_vars can be set and retrieved
+        #[test]
+        fn test_environment_vars_set_and_retrieve() {
+            let mut ctx = make_py_ctx_inner(&[("python", "3.9.0")]);
+            ctx.environment_vars
+                .insert("MY_ENV".to_string(), "my_value".to_string());
+            assert_eq!(
+                ctx.environment_vars.get("MY_ENV").map(String::as_str),
+                Some("my_value")
+            );
+        }
+
+        /// summary package_versions map contains the package version string
+        #[test]
+        fn test_summary_version_value_matches_resolved() {
+            let ctx = make_py_ctx_inner(&[("houdini", "20.0.1")]);
+            let summary = ctx.get_summary();
+            assert_eq!(
+                summary.package_versions.get("houdini").map(String::as_str),
+                Some("20.0.1")
+            );
+        }
+
+        /// id field is a stable, non-whitespace string
+        #[test]
+        fn test_context_id_has_no_whitespace() {
+            let ctx = make_py_ctx_inner(&[("nuke", "14.0")]);
+            let id = &ctx.id;
+            assert!(
+                !id.chars().any(|c| c.is_whitespace()),
+                "context id must not contain whitespace: '{id}'"
+            );
+        }
+
+        /// requirements for single package has name matching the package
+        #[test]
+        fn test_single_package_requirement_name_matches() {
+            let ctx = make_py_ctx_inner(&[("arnold", "7.1.0")]);
+            assert_eq!(ctx.requirements[0].name, "arnold");
+        }
+    }
 }

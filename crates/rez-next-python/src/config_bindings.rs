@@ -402,4 +402,67 @@ mod tests {
             assert!(v.contains('.'), "rez_version should be semver-like: {v}");
         }
     }
+
+    mod test_config_cy114 {
+        use super::*;
+
+        /// default packages_path entries are non-empty strings
+        #[test]
+        fn test_default_packages_path_entries_nonempty() {
+            let cfg = RezCoreConfig::default();
+            for path in &cfg.packages_path {
+                assert!(!path.is_empty(), "packages_path entry must be non-empty");
+            }
+        }
+
+        /// default use_rust_solver is true
+        #[test]
+        fn test_default_use_rust_solver_is_true() {
+            let cfg = RezCoreConfig::default();
+            assert!(cfg.use_rust_solver, "default use_rust_solver should be true");
+        }
+
+        /// get_field for an unknown key returns None
+        #[test]
+        fn test_get_field_unknown_key_returns_none() {
+            let cfg = RezCoreConfig::load();
+            let val = cfg.get_field("__completely_unknown_key_xyz__");
+            assert!(val.is_none(), "get_field for unknown key should return None");
+        }
+
+        /// RezCoreConfig::default() produces same packages_path len as expected
+        #[test]
+        fn test_default_packages_path_len_is_positive() {
+            let cfg = RezCoreConfig::default();
+            assert!(
+                !cfg.packages_path.is_empty(),
+                "default packages_path must not be empty"
+            );
+        }
+
+        /// PyConfig::new() does not panic
+        #[test]
+        fn test_pyconfig_new_no_panic() {
+            let _ = PyConfig::new();
+        }
+
+        /// default cache memory_cache_size is greater than 0
+        #[test]
+        fn test_default_cache_memory_size_gt_zero() {
+            let cfg = RezCoreConfig::default();
+            assert!(cfg.cache.memory_cache_size > 0, "cache memory size must be > 0");
+        }
+
+        /// default_shell is one of the known shell names
+        #[test]
+        fn test_default_shell_is_known_shell_name() {
+            let cfg = RezCoreConfig::default();
+            let known = ["bash", "zsh", "fish", "cmd", "powershell"];
+            assert!(
+                known.contains(&cfg.default_shell.as_str()),
+                "default_shell '{}' should be a known shell",
+                cfg.default_shell
+            );
+        }
+    }
 }
