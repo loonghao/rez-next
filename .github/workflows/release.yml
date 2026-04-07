@@ -5,6 +5,10 @@
 # This avoids duplicate runs: release-please creates a GitHub Release AND dispatches
 # this workflow. If we also listened to `release: published` or `push: tags`, we'd
 # get 2-3 parallel runs for the same tag.
+#
+# PyPI publishing uses Trusted Publisher (OIDC) — no API token needed.
+# Setup required: https://docs.pypi.org/trusted-publishers/adding-a-publisher/
+#   Publisher: GitHub Actions, Owner: loonghao, Repo: rez-next, Workflow: release.yml
 
 name: Release
 
@@ -179,15 +183,33 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Build wheels
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Build wheels (abi3 — compatible with Python 3.8+)
         working-directory: crates/rez-next-python
         run: vx maturin build --release --features pyo3/extension-module --out dist
+
+      - name: Build sdist
+        if: matrix.name == 'linux'
+        working-directory: crates/rez-next-python
+        run: vx maturin sdist --out dist
 
       - name: Upload wheels
         uses: actions/upload-artifact@v7
         with:
           name: wheels-${{ matrix.name }}
           path: crates/rez-next-python/dist/*.whl
+          retention-days: 1
+
+      - name: Upload sdist
+        if: matrix.name == 'linux'
+        uses: actions/upload-artifact@v7
+        with:
+          name: sdist
+          path: crates/rez-next-python/dist/*.tar.gz
           retention-days: 1
 
   test-wheel:
@@ -204,7 +226,7 @@ jobs:
             os: windows-2022
           - name: macos
             os: macos-14
-        python-version: ["3.7", "3.9", "3.10", "3.11", "3.12"]
+        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
 
     steps:
       - uses: actions/checkout@v6
@@ -262,6 +284,7 @@ jobs:
     needs:
       - upload
       - test-wheel
+    # publish-crates and publish-pypi run concurrently after test-wheel passes.
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
@@ -346,12 +369,16 @@ jobs:
     name: Publish Python wheels to PyPI
     needs:
       - test-wheel
-      - publish-crates
-    # Always publish — this workflow is only triggered by workflow_dispatch
-    # (from release-please or manual), so every run is intentional.
+    # publish-pypi is intentionally decoupled from publish-crates:
+    # Python wheel publishing should not be blocked by Rust crate publishing.
+    # Both jobs run after test-wheel passes.
+    # Triggered only by workflow_dispatch, so every run is intentional.
     runs-on: ubuntu-24.04
+    environment:
+      name: pypi
+      url: https://pypi.org/p/rez-next
     permissions:
-      id-token: write
+      id-token: write  # required for PyPI Trusted Publisher (OIDC)
     steps:
       - name: Download Linux wheels
         uses: actions/download-artifact@v8
@@ -371,9 +398,19 @@ jobs:
           name: wheels-macos
           path: dist/
 
+      - name: Download sdist
+        uses: actions/download-artifact@v8
+        with:
+          name: sdist
+          path: dist/
+
       - name: List Python distributions
         run: ls -la dist/
 
-      - name: Publish wheel distributions to PyPI
+      - name: Publish to PyPI via Trusted Publisher (OIDC)
         uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          # Trusted Publisher configured at https://pypi.org/manage/account/publishing/
+          # No PYPI_API_TOKEN needed — uses OIDC identity from GitHub Actions.
+          verbose: true
 
