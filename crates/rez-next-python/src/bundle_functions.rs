@@ -489,5 +489,72 @@ mod tests {
             assert_eq!(first, second, "idempotent bundle should produce same manifest");
             let _ = fs::remove_dir_all(&tmp);
         }
+
+        // ─────── Cycle 118 additions ──────────────────────────────────────────
+
+        #[test]
+        fn test_bundle_manifest_packages_key_present() {
+            let tmp = std::env::temp_dir().join("rez_test_bundle_yaml_key");
+            let _ = fs::remove_dir_all(&tmp);
+            let pkgs = vec!["foo-1.0".to_string()];
+            bundle_context(pkgs, tmp.to_str().unwrap(), false).unwrap();
+            let content = fs::read_to_string(tmp.join("bundle.yaml")).unwrap();
+            assert!(content.contains("packages:"), "manifest must contain 'packages:' key");
+            let _ = fs::remove_dir_all(&tmp);
+        }
+
+        #[test]
+        fn test_bundle_skip_solve_true_in_manifest() {
+            let tmp = std::env::temp_dir().join("rez_test_bundle_skip_true2");
+            let _ = fs::remove_dir_all(&tmp);
+            bundle_context(vec!["pkg-1.0".to_string()], tmp.to_str().unwrap(), true).unwrap();
+            let content = fs::read_to_string(tmp.join("bundle.yaml")).unwrap();
+            assert!(content.contains("skip_solve: true"), "skip_solve must be true in manifest");
+            let _ = fs::remove_dir_all(&tmp);
+        }
+
+        #[test]
+        fn test_bundle_context_two_packages_both_in_manifest() {
+            let tmp = std::env::temp_dir().join("rez_test_bundle_two_pkgs_check");
+            let _ = fs::remove_dir_all(&tmp);
+            let pkgs = vec!["alpha-1.0".to_string(), "beta-2.0".to_string()];
+            bundle_context(pkgs, tmp.to_str().unwrap(), false).unwrap();
+            let content = fs::read_to_string(tmp.join("bundle.yaml")).unwrap();
+            assert!(content.contains("alpha-1.0"), "manifest must list alpha-1.0");
+            assert!(content.contains("beta-2.0"), "manifest must list beta-2.0");
+            let _ = fs::remove_dir_all(&tmp);
+        }
+
+        #[test]
+        fn test_unbundle_returns_nonempty_for_valid_bundle() {
+            let tmp = std::env::temp_dir().join("rez_test_unbundle_nonempty");
+            let _ = fs::remove_dir_all(&tmp);
+            bundle_context(vec!["mypkg-3.0".to_string()], tmp.to_str().unwrap(), false)
+                .unwrap();
+            let packages = unbundle_context(tmp.to_str().unwrap(), None).unwrap();
+            assert!(!packages.is_empty(), "unbundle should return at least one package");
+            let _ = fs::remove_dir_all(&tmp);
+        }
+
+        #[test]
+        fn test_bundle_dest_path_returned_is_dest_dir() {
+            let tmp = std::env::temp_dir().join("rez_test_bundle_ret_path");
+            let _ = fs::remove_dir_all(&tmp);
+            let pkgs = vec!["realpkg-0.5".to_string()];
+            let returned = bundle_context(pkgs, tmp.to_str().unwrap(), false).unwrap();
+            // Normalize separators for comparison
+            assert!(
+                returned.replace('\\', "/").contains("rez_test_bundle_ret_path"),
+                "returned path should contain dest dir name, got: {returned}"
+            );
+            let _ = fs::remove_dir_all(&tmp);
+        }
+
+        #[test]
+        fn test_list_bundles_default_path_returns_result() {
+            // Calling with None should not panic; returns an empty or non-empty list
+            let result = list_bundles(None);
+            assert!(result.is_ok(), "list_bundles(None) must not error: {:?}", result);
+        }
     }
 }

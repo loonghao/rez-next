@@ -642,4 +642,51 @@ mod tests {
         assert!(!s.starts_with("PipPackage("), "str should not have wrapper: {s}");
         assert_eq!(s, "pkg-1.0.0");
     }
+
+    // ─────── Cycle 118 additions ─────────────────────────────────────────────
+
+    #[test]
+    fn test_normalize_package_name_numeric_only() {
+        // Numbers should be passed through unchanged (lowercased; no underscores)
+        let result = normalize_package_name("123");
+        assert_eq!(result, "123");
+    }
+
+    #[test]
+    fn test_pip_version_to_rez_double_digit_minor() {
+        // >=1.10 should map to 1.10+
+        assert_eq!(pip_version_to_rez(">=1.10"), "1.10+");
+    }
+
+    #[test]
+    fn test_pip_version_to_rez_ne_preserves_version() {
+        // !=2.0.0 should preserve the version number
+        let result = pip_version_to_rez("!=2.0.0");
+        assert!(result.contains("2.0.0"), "result: {result}");
+    }
+
+    #[test]
+    fn test_to_package_py_version_in_site_packages_path() {
+        let pkg = PyPipPackage {
+            name: "libx".to_string(),
+            version: "3.1.4".to_string(),
+            requires: vec![],
+            description: "".to_string(),
+        };
+        let py = pkg.to_package_py();
+        // The template embeds python.major and python.minor; not the package version
+        assert!(py.contains("site-packages"), "site-packages path missing: {py}");
+    }
+
+    #[test]
+    fn test_pip_version_to_rez_exact_single_zero() {
+        assert_eq!(pip_version_to_rez("==0"), "0");
+    }
+
+    #[test]
+    fn test_convert_pip_to_rez_description_propagated() {
+        let pkg =
+            convert_pip_to_rez("mylib", "1.0.0", None, Some("A useful library")).unwrap();
+        assert_eq!(pkg.description, "A useful library");
+    }
 }

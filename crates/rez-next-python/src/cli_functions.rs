@@ -224,5 +224,44 @@ mod tests {
     fn test_cli_run_context_returns_zero() {
         assert_eq!(cli_run("context", None).unwrap(), 0);
     }
+
+    // ─────── Cycle 118 additions ─────────────────────────────────────────────
+
+    #[test]
+    fn test_known_commands_count_at_least_twenty() {
+        assert!(
+            KNOWN_COMMANDS.len() >= 20,
+            "Expected at least 20 known commands, got {}",
+            KNOWN_COMMANDS.len()
+        );
+    }
+
+    #[test]
+    fn test_cli_run_pip_returns_zero() {
+        assert_eq!(cli_run("pip", None).unwrap(), 0);
+    }
+
+    #[test]
+    fn test_cli_run_suite_returns_zero() {
+        assert_eq!(cli_run("suite", None).unwrap(), 0);
+    }
+
+    #[test]
+    fn test_cli_run_interpret_returns_zero() {
+        assert_eq!(cli_run("interpret", None).unwrap(), 0);
+    }
+
+    #[test]
+    fn test_cli_run_depends_returns_zero() {
+        assert_eq!(cli_run("depends", None).unwrap(), 0);
+    }
+
+    #[test]
+    fn test_cli_main_build_command_returns_zero() {
+        assert_eq!(
+            cli_main(Some(vec!["build".to_string()])).unwrap(),
+            0
+        );
+    }
 }
 

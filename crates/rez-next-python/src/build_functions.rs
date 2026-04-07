@@ -380,5 +380,55 @@ mod tests {
             assert!(!result.is_empty(), "get_build_system must always return non-empty string");
             let _ = fs::remove_dir_all(&tmp);
         }
+
+        // ─────── Cycle 118 additions ──────────────────────────────────────────
+
+        #[test]
+        fn test_cmake_detected_by_exact_filename() {
+            let tmp = make_temp_dir_with_file("rez_bs_cmake_exact", "CMakeLists.txt");
+            let result = get_build_system(Some(tmp.to_str().unwrap())).unwrap();
+            assert_eq!(result, "cmake", "CMakeLists.txt should detect cmake");
+            let _ = fs::remove_dir_all(&tmp);
+        }
+
+        #[test]
+        fn test_makefile_uppercase_detected() {
+            let tmp = make_temp_dir_with_file("rez_bs_Makefile_upper", "Makefile");
+            let result = get_build_system(Some(tmp.to_str().unwrap())).unwrap();
+            assert_eq!(result, "make", "Makefile should detect make");
+            let _ = fs::remove_dir_all(&tmp);
+        }
+
+        #[test]
+        fn test_setup_py_yields_python_build_system() {
+            let tmp = make_temp_dir_with_file("rez_bs_setup_py2", "setup.py");
+            let result = get_build_system(Some(tmp.to_str().unwrap())).unwrap();
+            assert_eq!(result, "python", "setup.py should detect python build system");
+            let _ = fs::remove_dir_all(&tmp);
+        }
+
+        #[test]
+        fn test_cargo_toml_yields_cargo_build_system() {
+            let tmp = make_temp_dir_with_file("rez_bs_cargo2", "Cargo.toml");
+            let result = get_build_system(Some(tmp.to_str().unwrap())).unwrap();
+            assert_eq!(result, "cargo", "Cargo.toml should detect cargo build system");
+            let _ = fs::remove_dir_all(&tmp);
+        }
+
+        #[test]
+        fn test_package_json_yields_nodejs_build_system() {
+            let tmp = make_temp_dir_with_file("rez_bs_pkgjson2", "package.json");
+            let result = get_build_system(Some(tmp.to_str().unwrap())).unwrap();
+            assert_eq!(result, "nodejs", "package.json should detect nodejs build system");
+            let _ = fs::remove_dir_all(&tmp);
+        }
+
+        #[test]
+        fn test_unknown_dir_returns_unknown_string() {
+            let tmp = make_temp_dir_with_file("rez_bs_unk_str", "");
+            let result = get_build_system(Some(tmp.to_str().unwrap())).unwrap();
+            assert_eq!(result, "unknown", "empty dir should return 'unknown'");
+            let _ = fs::remove_dir_all(&tmp);
+        }
     }
 }

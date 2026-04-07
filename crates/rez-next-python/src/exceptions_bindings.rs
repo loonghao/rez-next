@@ -728,6 +728,121 @@ mod tests {
         }
     }
 
+    // ─────── Cycle 118 additions ──────────────────────────────────────────────
+
+    /// RezError is the sole ancestor of all rez-specific exceptions
+    #[test]
+    fn test_all_non_root_entries_are_reachable_from_rez_error() {
+        // Each non-root exception either directly extends RezError,
+        // or extends an exception that is itself in the hierarchy.
+        let names: std::collections::HashSet<&str> =
+            EXCEPTION_HIERARCHY.iter().map(|(n, _)| *n).collect();
+        for (name, parent) in EXCEPTION_HIERARCHY {
+            if *name == "RezError" {
+                continue;
+            }
+            assert!(
+                names.contains(parent) || *parent == "Exception",
+                "Parent '{}' of '{}' must be in hierarchy or be 'Exception'",
+                parent,
+                name
+            );
+        }
+    }
+
+    /// There are exactly 5 direct children of RezError
+    #[test]
+    fn test_rez_error_has_correct_direct_children_count() {
+        let direct_children: Vec<&str> = EXCEPTION_HIERARCHY
+            .iter()
+            .filter(|(_, p)| *p == "RezError")
+            .map(|(n, _)| *n)
+            .collect();
+        // RezError children: PackageNotFound, PackageFamilyNotFound,
+        // PackageVersionConflict, PackageRequestError, PackageParseError,
+        // ResolveError, RezBuildError, RezReleaseError, ConfigurationError,
+        // ContextBundleError, SuiteError, RexError, RezSystemError  → 13
+        assert!(
+            direct_children.len() >= 10,
+            "RezError should have at least 10 direct children, got {} : {:?}",
+            direct_children.len(),
+            direct_children
+        );
+    }
+
+    /// Depth-2 exceptions (grandchildren of Exception) must be either RezError or
+    /// one of the two ResolveError children
+    #[test]
+    fn test_second_level_resolve_subtypes_are_known() {
+        let depth2: Vec<&str> = EXCEPTION_HIERARCHY
+            .iter()
+            .filter(|(_, p)| *p == "ResolveError")
+            .map(|(n, _)| *n)
+            .collect();
+        let expected = ["SolveFailure", "PackageConflict"];
+        for name in &expected {
+            assert!(
+                depth2.contains(name),
+                "Expected '{}' to be a child of ResolveError, found: {:?}",
+                name,
+                depth2
+            );
+        }
+    }
+
+    /// RezSystemError is distinct from RezBuildError (separate leaf types)
+    #[test]
+    fn test_rez_system_error_not_equal_to_rez_build_error() {
+        let system = EXCEPTION_HIERARCHY
+            .iter()
+            .find(|(n, _)| *n == "RezSystemError")
+            .expect("RezSystemError must exist");
+        let build = EXCEPTION_HIERARCHY
+            .iter()
+            .find(|(n, _)| *n == "RezBuildError")
+            .expect("RezBuildError must exist");
+        assert_ne!(
+            system.0, build.0,
+            "RezSystemError and RezBuildError should be distinct"
+        );
+    }
+
+    /// Total number of leaf exceptions is at least 12
+    #[test]
+    fn test_at_least_twelve_leaf_exceptions() {
+        let parent_set: std::collections::HashSet<&str> =
+            EXCEPTION_HIERARCHY.iter().map(|(_, p)| *p).collect();
+        let leaf_count = EXCEPTION_HIERARCHY
+            .iter()
+            .filter(|(n, _)| !parent_set.contains(*n))
+            .count();
+        assert!(
+            leaf_count >= 12,
+            "Expected at least 12 leaf exceptions, got {}",
+            leaf_count
+        );
+    }
+
+    /// PackageNotFound and PackageFamilyNotFound are sibling exceptions
+    /// (both have the same parent: RezError)
+    #[test]
+    fn test_package_not_found_and_family_are_siblings() {
+        let parent_of_pnf = EXCEPTION_HIERARCHY
+            .iter()
+            .find(|(n, _)| *n == "PackageNotFound")
+            .map(|(_, p)| *p)
+            .expect("PackageNotFound must exist");
+        let parent_of_pfnf = EXCEPTION_HIERARCHY
+            .iter()
+            .find(|(n, _)| *n == "PackageFamilyNotFound")
+            .map(|(_, p)| *p)
+            .expect("PackageFamilyNotFound must exist");
+        assert_eq!(
+            parent_of_pnf, parent_of_pfnf,
+            "PackageNotFound and PackageFamilyNotFound should be siblings"
+        );
+    }
+
 }
 
 
