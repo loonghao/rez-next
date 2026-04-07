@@ -272,7 +272,20 @@
 - Several tests in `test_compat_advanced.py` only assert list-ness / empty results against nonexistent paths, and `test_compat_io_modules.py` currently locks in the `cli_functions.rs` known-command stub instead of an observable CLI contract
 - Follow-up: centralize shared Python test fixtures/helpers and replace placeholder-smoke cases with temp-repo behavior tests before broadening compatibility claims
 
+### 39. `move_package()` may delete the wrong source version when `version=None`
+- **Status**: OPEN (cycle 34)
+- `copy_package()` selects the latest available package version when `version` is omitted, but `move_package()` later removes `pkg_name/unknown` because it falls back to `version.unwrap_or("unknown")` instead of the version that was actually copied.
+- This looks like a correctness bug rather than low-risk cleanup, so it should be fixed in a dedicated change after locking the intended contract with tests.
+- Follow-up: return or share the selected version from `copy_package()` so `move_package()` can delete the exact source directory it copied.
+
+### 40. `selftest_functions.rs` still duplicates checks and writes failures to stderr
+- **Status**: OPEN (cycle 34)
+- `selftest()` currently reports failures with `eprintln!` even though it lives in a library module, and the unit-test module repeats many of the same version / rex / suite checks already embedded in the runtime self-test body.
+- The current shape makes behavior drift likely: comment/test updates and runtime checks can diverge independently.
+- Follow-up: extract pure helper checks shared by `selftest()` and unit tests, then decide whether failure reporting should stay on stderr or move to structured return data.
+
 - **Status**: COMPLETE ✓ (cycle 19)
+
 
 - Fixed `handle_grouped_command` in `rez-next.rs`: clap returns `Err` for `--help`/`--version` display; now uses `e.use_stderr()` to decide exit code (0 for help/version, 1 for real errors)
 - Previously `eprintln!` + `exit(1)` swallowed the help output and returned wrong exit code
