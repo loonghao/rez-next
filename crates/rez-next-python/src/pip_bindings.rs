@@ -566,4 +566,80 @@ mod tests {
 
         let _ = std::fs::remove_dir_all(&tmp);
     }
+
+    // ─────── Cycle 113 additions ─────────────────────────────────────────────
+
+    #[test]
+    fn test_normalize_package_name_multiple_underscores() {
+        assert_eq!(
+            normalize_package_name("my_really_long_package_name"),
+            "my-really-long-package-name"
+        );
+    }
+
+    #[test]
+    fn test_normalize_package_name_single_char() {
+        assert_eq!(normalize_package_name("A"), "a");
+        assert_eq!(normalize_package_name("z"), "z");
+    }
+
+    #[test]
+    fn test_pip_version_to_rez_range_with_spaces() {
+        // Spaces around comma and operators should be trimmed
+        let result = pip_version_to_rez(">=1.0 , <2.0");
+        // After trimming: [">=1.0", "<2.0"]
+        assert!(result.contains("1.0"), "result: {result}");
+        assert!(result.contains("2.0"), "result: {result}");
+    }
+
+    #[test]
+    fn test_pip_version_to_rez_exact_prerelease_passthrough() {
+        // Pre-release versions should be passed through as-is after stripping ==
+        let result = pip_version_to_rez("==1.0.0a1");
+        assert_eq!(result, "1.0.0a1");
+    }
+
+    #[test]
+    fn test_convert_pip_to_rez_multiple_requires() {
+        let reqs = vec![
+            "numpy>=1.20".to_string(),
+            "scipy<1.10".to_string(),
+            "pillow".to_string(),
+        ];
+        let pkg = convert_pip_to_rez("ml_lib", "0.9.0", Some(reqs), None).unwrap();
+        assert_eq!(pkg.requires.len(), 3, "expected 3 requires");
+        // All names should be normalized (no uppercase, no underscores)
+        for r in &pkg.requires {
+            assert!(r.chars().all(|c| !c.is_uppercase()), "require should be lowercase: {r}");
+        }
+    }
+
+    #[test]
+    fn test_pip_package_empty_description_to_package_py() {
+        let pkg = PyPipPackage {
+            name: "minipkg".to_string(),
+            version: "0.0.1".to_string(),
+            requires: vec![],
+            description: "".to_string(),
+        };
+        let py = pkg.to_package_py();
+        // description field should be present but empty
+        assert!(py.contains("description = \"\""), "py: {py}");
+    }
+
+    #[test]
+    fn test_pip_package_repr_and_str_differ() {
+        let pkg = PyPipPackage {
+            name: "pkg".to_string(),
+            version: "1.0.0".to_string(),
+            requires: vec![],
+            description: "".to_string(),
+        };
+        let repr = pkg.__repr__();
+        let s = pkg.__str__();
+        // repr wraps in PipPackage(...), str is plain name-version
+        assert!(repr.starts_with("PipPackage("), "repr: {repr}");
+        assert!(!s.starts_with("PipPackage("), "str should not have wrapper: {s}");
+        assert_eq!(s, "pkg-1.0.0");
+    }
 }

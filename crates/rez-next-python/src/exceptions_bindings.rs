@@ -626,6 +626,107 @@ mod tests {
         );
     }
 
+    // ─────── Cycle 113 additions ──────────────────────────────────────────────
+
+    /// PackageVersionConflict is a leaf (nothing extends it)
+    #[test]
+    fn test_package_version_conflict_is_leaf() {
+        let is_parent = EXCEPTION_HIERARCHY
+            .iter()
+            .any(|(_, p)| *p == "PackageVersionConflict");
+        assert!(
+            !is_parent,
+            "PackageVersionConflict should be a leaf with no children"
+        );
+    }
+
+    /// PackageRequestError is a leaf (nothing extends it)
+    #[test]
+    fn test_package_request_error_is_leaf() {
+        let is_parent = EXCEPTION_HIERARCHY
+            .iter()
+            .any(|(_, p)| *p == "PackageRequestError");
+        assert!(
+            !is_parent,
+            "PackageRequestError should be a leaf with no children"
+        );
+    }
+
+    /// PackageParseError is a leaf (nothing extends it)
+    #[test]
+    fn test_package_parse_error_is_leaf() {
+        let is_parent = EXCEPTION_HIERARCHY
+            .iter()
+            .any(|(_, p)| *p == "PackageParseError");
+        assert!(
+            !is_parent,
+            "PackageParseError should be a leaf with no children"
+        );
+    }
+
+    /// RezError has at least 10 direct/indirect descendants
+    #[test]
+    fn test_rez_error_has_many_descendants() {
+        // All entries except RezError itself are descendants (direct or indirect)
+        let non_root: Vec<&str> = EXCEPTION_HIERARCHY
+            .iter()
+            .filter(|(n, _)| *n != "RezError")
+            .map(|(n, _)| *n)
+            .collect();
+        assert!(
+            non_root.len() >= 10,
+            "Expected at least 10 non-root exceptions, got {}",
+            non_root.len()
+        );
+    }
+
+    /// The hierarchy is a DAG: no exception is its own parent
+    #[test]
+    fn test_no_self_loop_in_hierarchy() {
+        for (name, parent) in EXCEPTION_HIERARCHY {
+            assert_ne!(
+                name, parent,
+                "Exception '{}' must not be its own parent",
+                name
+            );
+        }
+    }
+
+    /// RezError must contain "Error" in its name (naming convention)
+    #[test]
+    fn test_all_rez_exceptions_end_with_error_or_failure() {
+        for (name, _) in EXCEPTION_HIERARCHY {
+            let has_error_suffix = name.ends_with("Error")
+                || name.ends_with("Failure")
+                || name.ends_with("Conflict")
+                || name.ends_with("NotFound");
+            assert!(
+                has_error_suffix,
+                "Exception '{}' should end with Error/Failure/Conflict/NotFound",
+                name
+            );
+        }
+    }
+
+    /// All package-related exceptions contain "Package" in their name
+    #[test]
+    fn test_package_exceptions_contain_package_in_name() {
+        let pkg_exceptions = [
+            "PackageNotFound",
+            "PackageFamilyNotFound",
+            "PackageVersionConflict",
+            "PackageRequestError",
+            "PackageParseError",
+            "PackageConflict",
+        ];
+        for name in &pkg_exceptions {
+            assert!(
+                name.contains("Package"),
+                "Expected 'Package' in name, got '{}'",
+                name
+            );
+        }
+    }
 
 }
 

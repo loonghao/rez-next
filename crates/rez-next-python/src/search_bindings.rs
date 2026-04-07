@@ -520,4 +520,84 @@ mod tests {
         assert_eq!(s.limit, 0);
         assert!(s.paths.is_none());
     }
+
+    // ─────── Cycle 113 additions ─────────────────────────────────────────────
+
+    #[test]
+    fn test_search_result_version_count_matches_list_length() {
+        let versions = vec!["1.0".to_string(), "1.1".to_string(), "2.0".to_string()];
+        let inner = SearchResult::new("pkg".to_string(), versions.clone(), "/r".to_string());
+        let r = PySearchResult { inner };
+        assert_eq!(r.version_count(), versions.len());
+    }
+
+    #[test]
+    fn test_search_result_name_with_special_chars() {
+        // Package names may contain dashes and underscores
+        let inner = SearchResult::new("my-pkg_extra".to_string(), vec![], "/r".to_string());
+        let r = PySearchResult { inner };
+        assert_eq!(r.name(), "my-pkg_extra");
+    }
+
+    #[test]
+    fn test_result_set_multiple_packages_version_counts() {
+        let mut rs = SearchResultSet::new();
+        rs.add(SearchResult::new(
+            "a".to_string(),
+            vec!["1.0".to_string(), "2.0".to_string()],
+            "/r".to_string(),
+        ));
+        rs.add(SearchResult::new(
+            "b".to_string(),
+            vec!["3.0".to_string()],
+            "/r".to_string(),
+        ));
+        rs.add(SearchResult::new(
+            "c".to_string(),
+            vec![],
+            "/r".to_string(),
+        ));
+        assert_eq!(rs.len(), 3);
+        let names = rs.family_names();
+        assert!(names.contains(&"a"));
+        assert!(names.contains(&"b"));
+        assert!(names.contains(&"c"));
+    }
+
+    #[test]
+    fn test_filter_limit_zero_means_unlimited() {
+        let f = SearchFilter::new("py").with_limit(0);
+        assert_eq!(f.limit, 0);
+    }
+
+    #[test]
+    fn test_filter_with_large_limit() {
+        let f = SearchFilter::new("").with_limit(10_000);
+        assert_eq!(f.limit, 10_000);
+    }
+
+    #[test]
+    fn test_search_result_repr_contains_versions_list() {
+        let inner = SearchResult::new(
+            "houdini".to_string(),
+            vec!["19.5".to_string(), "20.0".to_string()],
+            "/vfx".to_string(),
+        );
+        let r = PySearchResult { inner };
+        let repr = r.__repr__();
+        assert!(repr.contains("19.5"), "repr should contain version 19.5: {repr}");
+        assert!(repr.contains("20.0"), "repr should contain version 20.0: {repr}");
+    }
+
+    #[test]
+    fn test_package_searcher_with_multiple_paths() {
+        let paths = Some(vec![
+            "/packages/local".to_string(),
+            "/packages/shared".to_string(),
+            "/packages/release".to_string(),
+        ]);
+        let s = PyPackageSearcher::new("", paths.clone(), "families", None, 0);
+        assert_eq!(s.paths, paths);
+        assert_eq!(s.paths.as_ref().unwrap().len(), 3);
+    }
 }
