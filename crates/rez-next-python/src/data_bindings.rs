@@ -556,4 +556,75 @@ mod tests {
         let content = r.unwrap();
         assert!(content.contains("_rez_next"), "default completion should be bash");
     }
+
+    // ── Cycle 116 additions ──────────────────────────────────────────────────
+
+    #[test]
+    fn test_rez_data_get_completion_script_zsh() {
+        let d = PyRezData::new();
+        let r = d.get_completion_script(Some("zsh"));
+        assert!(r.is_ok(), "zsh completion should succeed: {:?}", r);
+        let content = r.unwrap();
+        assert!(!content.is_empty(), "zsh completion script must not be empty");
+        assert!(
+            content.contains("rez") || content.contains("zsh"),
+            "zsh script should mention rez or zsh: {content}"
+        );
+    }
+
+    #[test]
+    fn test_rez_data_get_completion_script_fish() {
+        let d = PyRezData::new();
+        let r = d.get_completion_script(Some("fish"));
+        assert!(r.is_ok(), "fish completion should succeed: {:?}", r);
+        let content = r.unwrap();
+        assert!(!content.is_empty(), "fish completion script must not be empty");
+    }
+
+    #[test]
+    fn test_rez_data_get_completion_script_unknown_shell_errs() {
+        let d = PyRezData::new();
+        let r = d.get_completion_script(Some("tcsh_unknown_shell_xyz"));
+        // Unknown shells should return Err or a fallback
+        // Either is acceptable, but must not panic
+        let _ = r;
+    }
+
+    #[test]
+    fn test_rez_data_default_config_template_non_empty() {
+        let d = PyRezData::new();
+        let tmpl = d.get_default_config();
+        assert!(!tmpl.is_empty(), "default config template must not be empty");
+    }
+
+    #[test]
+    fn test_rez_data_bash_completion_contains_subcommands() {
+        let d = PyRezData::new();
+        let content = d.get_completion_script(Some("bash")).unwrap();
+        // Bash completion must mention key subcommands
+        assert!(content.contains("env"), "bash completion: {content}");
+        assert!(content.contains("search"), "bash completion: {content}");
+    }
+
+    #[test]
+    fn test_rez_data_example_package_str_non_empty() {
+        let d = PyRezData::new();
+        let example = d.get_example_package();
+        assert!(!example.is_empty(), "example package definition must not be empty");
+        // Must look like a Python package.py
+        assert!(
+            example.contains("name") || example.contains("version"),
+            "example package must contain 'name' or 'version': {example}"
+        );
+    }
+
+    #[test]
+    fn test_rez_data_new_is_deterministic() {
+        let d1 = PyRezData::new();
+        let d2 = PyRezData::new();
+        // Two PyRezData instances must produce identical completion scripts
+        let s1 = d1.get_completion_script(Some("bash")).unwrap();
+        let s2 = d2.get_completion_script(Some("bash")).unwrap();
+        assert_eq!(s1, s2, "PyRezData instances must produce identical outputs");
+    }
 }

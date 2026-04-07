@@ -948,5 +948,105 @@ mod depends_bindings_tests {
         let fmt = result.format();
         assert!(!fmt.is_empty(), "format output must always be non-empty");
     }
+
+    // ── Cycle 116 additions ──────────────────────────────────────────────────
+
+    #[test]
+    fn test_depends_entry_direct_type() {
+        let e = PyDependsEntry {
+            name: "myapp".to_string(),
+            version: "1.0.0".to_string(),
+            requirement: "python-3.9+".to_string(),
+            dependency_type: "direct".to_string(),
+        };
+        assert_eq!(e.dependency_type, "direct");
+    }
+
+    #[test]
+    fn test_depends_entry_dependency_type_is_transitive() {
+        let e = PyDependsEntry {
+            name: "myapp".to_string(),
+            version: "1.0.0".to_string(),
+            requirement: "python-3.9+".to_string(),
+            dependency_type: "transitive".to_string(),
+        };
+        assert_eq!(e.dependency_type, "transitive");
+    }
+
+    #[test]
+    fn test_depends_result_queried_package_name_preserved() {
+        let result = PyDependsResult {
+            queried_package: "numpy".to_string(),
+            direct_dependants: vec![],
+            transitive_dependants: vec![],
+        };
+        assert_eq!(result.queried_package, "numpy");
+    }
+
+    #[test]
+    fn test_depends_result_total_count_with_overlap() {
+        // If the same package appears in both direct and transitive, it should be deduped
+        let entry = PyDependsEntry {
+            name: "myapp".to_string(),
+            version: "2.0.0".to_string(),
+            requirement: "numpy-1.24+".to_string(),
+            dependency_type: "direct".to_string(),
+        };
+        let entry2 = PyDependsEntry {
+            name: "myapp".to_string(),
+            version: "2.0.0".to_string(),
+            requirement: "numpy-1.24+".to_string(),
+            dependency_type: "transitive".to_string(),
+        };
+        let result = PyDependsResult {
+            queried_package: "numpy".to_string(),
+            direct_dependants: vec![entry],
+            transitive_dependants: vec![entry2],
+        };
+        // Both refer to "myapp-2.0.0" — deduplication should yield count=1
+        assert_eq!(result.total_count(), 1, "duplicate entry should be deduplicated");
+    }
+
+    #[test]
+    fn test_depends_entry_repr_contains_name_and_version() {
+        let e = PyDependsEntry {
+            name: "scipy".to_string(),
+            version: "1.10.0".to_string(),
+            requirement: "numpy-1.24+".to_string(),
+            dependency_type: "direct".to_string(),
+        };
+        let repr = e.__repr__();
+        assert!(repr.contains("scipy"), "repr must contain name: {repr}");
+        assert!(repr.contains("1.10.0"), "repr must contain version: {repr}");
+        assert!(repr.contains("direct"), "repr must contain type: {repr}");
+    }
+
+    #[test]
+    fn test_depends_result_direct_dependants_count() {
+        let entries: Vec<PyDependsEntry> = (0..5).map(|i| PyDependsEntry {
+            name: format!("pkg{i}"),
+            version: "1.0.0".to_string(),
+            requirement: "mylib-1+".to_string(),
+            dependency_type: "direct".to_string(),
+        }).collect();
+        let result = PyDependsResult {
+            queried_package: "mylib".to_string(),
+            direct_dependants: entries,
+            transitive_dependants: vec![],
+        };
+        assert_eq!(result.direct_dependants.len(), 5);
+        assert_eq!(result.total_count(), 5);
+    }
+
+    #[test]
+    fn test_depends_entry_str_matches_repr_transitive() {
+        let e = PyDependsEntry {
+            name: "toolpkg".to_string(),
+            version: "3.2.1".to_string(),
+            requirement: "libpkg-2+".to_string(),
+            dependency_type: "transitive".to_string(),
+        };
+        assert_eq!(e.__str__(), e.__repr__(), "__str__ must equal __repr__");
+    }
 }
 

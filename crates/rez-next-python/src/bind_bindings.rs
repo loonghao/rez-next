@@ -507,5 +507,77 @@ mod tests {
         assert!(repr.contains("5.36.0"), "repr must contain version");
         assert!(repr.contains("/pkgs/perl/5.36.0"), "repr must contain path");
     }
+
+    // ── Cycle 116 additions ──────────────────────────────────────────────────
+
+    #[test]
+    fn test_bind_result_with_executable_path() {
+        let r = PyBindResult {
+            name: "python".to_string(),
+            version: "3.11.0".to_string(),
+            install_path: "/pkgs/python/3.11.0".to_string(),
+            executable_path: Some("/usr/bin/python3".to_string()),
+        };
+        assert_eq!(r.executable_path.as_deref(), Some("/usr/bin/python3"));
+        assert_eq!(r.version, "3.11.0");
+    }
+
+    #[test]
+    fn test_bind_result_executable_path_none_by_default() {
+        let r = PyBindResult {
+            name: "cmake".to_string(),
+            version: "3.26.0".to_string(),
+            install_path: "/pkgs/cmake/3.26.0".to_string(),
+            executable_path: None,
+        };
+        assert!(r.executable_path.is_none());
+    }
+
+    #[test]
+    fn test_extract_version_from_multiline_output() {
+        // Simulates "cmake version 3.26.4" with extra lines
+        let output = "cmake version 3.26.4\nBuild system: Ninja";
+        let ver = extract_version_from_output(output);
+        assert!(ver.is_some(), "should extract version from multiline output");
+        let v = ver.unwrap();
+        assert!(v.contains("3.26"), "version: {v}");
+    }
+
+    #[test]
+    fn test_bind_result_name_field() {
+        let r = PyBindResult {
+            name: "my_tool".to_string(),
+            version: "1.0.0".to_string(),
+            install_path: "/pkgs/my_tool/1.0.0".to_string(),
+            executable_path: None,
+        };
+        assert_eq!(r.name, "my_tool");
+    }
+
+    #[test]
+    fn test_bind_result_install_path_field() {
+        let r = PyBindResult {
+            name: "nuke".to_string(),
+            version: "15.0.0".to_string(),
+            install_path: "/studio/pkgs/nuke/15.0.0".to_string(),
+            executable_path: None,
+        };
+        assert_eq!(r.install_path, "/studio/pkgs/nuke/15.0.0");
+    }
+
+    #[test]
+    fn test_list_builtin_binders_all_lowercase() {
+        let binders = list_builtin_binders();
+        for b in &binders {
+            assert_eq!(b, &b.to_lowercase(), "binder name must be lowercase: '{b}'");
+        }
+    }
+
+    #[test]
+    fn test_get_builtin_binder_nonexistent_returns_none() {
+        let result = get_builtin_binder("nonexistent_xyz_tool_that_does_not_exist");
+        // Should return None for unknown tools
+        assert!(result.is_none(), "nonexistent binder must return None");
+    }
 }
 
