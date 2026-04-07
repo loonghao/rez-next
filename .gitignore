@@ -93,14 +93,19 @@ debug-extension.ps1
 fix-extension.ps1
 simple_lsp_test.ps1
 
-# Temporary test/debug output files
+# Temporary test/debug output files (root-level scratch files)
 *_output.txt
 *_test.txt
 /build_*.txt
 /clippy*.txt
 /test_*.txt
-ws_*.txt
-check_c*.txt
-clippy_c*.txt
-test_c*.txt
+/ws_*.txt
+/check_*.txt
+/clippy_*.txt
+/test_*.txt
+/push*.txt
+/merge_*.txt
+/fmt_*.txt
+/bench_*.txt
+/t_*.txt
 

@@ -1,7 +1,0 @@
-﻿git : Everything up-to-date
-At line:1 char:40
-+ ... rmProjects\github\rez-next; git push origin auto-improve 2>&1 | Out-F ...
-+                                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    + CategoryInfo          : NotSpecified: (Everything up-to-date:String) [], RemoteException
-    + FullyQualifiedErrorId : NativeCommandError
- 
