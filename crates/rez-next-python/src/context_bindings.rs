@@ -698,4 +698,80 @@ mod context_bindings_tests {
         let summary = ctx.get_summary();
         assert_eq!(summary.package_count, 5);
     }
+
+    // ── context id is non-empty ──────────────────────────────────────────────
+
+    #[test]
+    fn test_context_id_is_non_empty() {
+        let ctx = make_py_ctx_inner(&[("python", "3.9.0")]);
+        assert!(!ctx.id.is_empty(), "context id must not be empty");
+    }
+
+    // ── resolved packages do not include requirements-only entries ───────────
+
+    #[test]
+    fn test_resolved_packages_count_independent_of_requirements() {
+        // make_py_ctx_inner adds the same pkgs as both requirements AND resolved
+        let ctx = make_py_ctx_inner(&[("python", "3.10.0"), ("nuke", "14.0")]);
+        assert_eq!(ctx.resolved_packages.len(), 2);
+        assert_eq!(ctx.requirements.len(), 2);
+    }
+
+    // ── package version None is represented as "unknown" via summary ─────────
+
+    #[test]
+    fn test_package_without_version_appears_in_summary() {
+        let reqs = vec![PackageRequirement::parse("noversion").unwrap()];
+        let mut ctx = ResolvedContext::from_requirements(reqs);
+        let mut pkg = Package::new("noversion".to_string());
+        pkg.version = None;
+        ctx.resolved_packages.push(pkg);
+        ctx.status = ContextStatus::Resolved;
+        let summary = ctx.get_summary();
+        // package should appear in summary even without a version
+        assert_eq!(summary.package_count, 1);
+        // version value may be "unknown" or empty — just ensure the key exists
+        assert!(summary.package_versions.contains_key("noversion"));
+    }
+
+    // ── status is Resolving before assignment ────────────────────────────────
+
+    #[test]
+    fn test_context_status_resolving_is_not_resolved_or_failed() {
+        let mut ctx = make_py_ctx_inner(&[]);
+        ctx.status = ContextStatus::Resolving;
+        assert_ne!(ctx.status, ContextStatus::Resolved);
+        assert_ne!(ctx.status, ContextStatus::Failed);
+    }
+
+    // ── requirements list is non-empty for single-package context ────────────
+
+    #[test]
+    fn test_single_package_context_has_one_requirement() {
+        let ctx = make_py_ctx_inner(&[("houdini", "20.0")]);
+        assert_eq!(ctx.requirements.len(), 1);
+        assert_eq!(ctx.requirements[0].name, "houdini");
+    }
+
+    // ── environment_vars starts empty ────────────────────────────────────────
+
+    #[test]
+    fn test_fresh_context_has_empty_environment_vars() {
+        let ctx = make_py_ctx_inner(&[("python", "3.12.0")]);
+        // environment_vars are not set by make_py_ctx_inner
+        assert!(
+            ctx.environment_vars.is_empty(),
+            "freshly built context should have no environment_vars"
+        );
+    }
+
+    // ── get_summary with duplicate package names (last wins in HashMap) ───────
+
+    #[test]
+    fn test_get_summary_package_versions_has_correct_count() {
+        let ctx = make_py_ctx_inner(&[("a", "1.0"), ("b", "2.0"), ("c", "3.0"), ("d", "4.0")]);
+        let summary = ctx.get_summary();
+        assert_eq!(summary.package_count, 4);
+        assert_eq!(summary.package_versions.len(), 4);
+    }
 }

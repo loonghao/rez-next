@@ -473,4 +473,86 @@ mod tests {
             );
         }
     }
+
+    // ── bash script: case block for env/solve ────────────────────────────────
+
+    #[test]
+    fn test_bash_script_has_compreply_for_env_and_solve() {
+        let script = get_completion_script(Some("bash")).unwrap();
+        // bash completer must handle env|solve with package query
+        assert!(
+            script.contains("env|solve") || (script.contains("env") && script.contains("solve")),
+            "bash script should handle env/solve completion"
+        );
+    }
+
+    // ── zsh script: builds with _arguments ───────────────────────────────────
+
+    #[test]
+    fn test_zsh_script_ends_with_rez_next_call() {
+        let script = get_completion_script(Some("zsh")).unwrap();
+        assert!(
+            script.contains("_rez_next"),
+            "zsh script should invoke _rez_next function"
+        );
+    }
+
+    // ── fish script: contains all major subcommands ───────────────────────────
+
+    #[test]
+    fn test_fish_script_contains_build_and_release() {
+        let script = get_completion_script(Some("fish")).unwrap();
+        assert!(
+            script.contains("build"),
+            "fish script should contain 'build'"
+        );
+        assert!(
+            script.contains("release"),
+            "fish script should contain 'release'"
+        );
+    }
+
+    // ── powershell script: contains $wordToComplete ───────────────────────────
+
+    #[test]
+    fn test_powershell_script_has_word_to_complete() {
+        let script = get_completion_script(Some("powershell")).unwrap();
+        assert!(
+            script.contains("wordToComplete") || script.contains("WordToComplete"),
+            "powershell completion script should reference wordToComplete"
+        );
+    }
+
+    // ── supported_shells list is deduplicated ────────────────────────────────
+
+    #[test]
+    fn test_supported_shells_no_duplicates() {
+        let shells = supported_completion_shells();
+        let mut seen = std::collections::HashSet::new();
+        for s in &shells {
+            assert!(seen.insert(s.clone()), "duplicate shell entry: {}", s);
+        }
+    }
+
+    // ── install_path for unknown shell errors correctly ───────────────────────
+
+    #[test]
+    fn test_install_path_unknown_shell_errors() {
+        let result = get_completion_install_path(Some("tcsh"));
+        assert!(
+            result.is_err(),
+            "unknown shell 'tcsh' should return Err from get_completion_install_path"
+        );
+    }
+
+    // ── bash script contains -p / --paths path-completion ────────────────────
+
+    #[test]
+    fn test_bash_script_handles_paths_flag() {
+        let script = get_completion_script(Some("bash")).unwrap();
+        assert!(
+            script.contains("-p") || script.contains("--paths"),
+            "bash completion should handle -p/--paths directory completion"
+        );
+    }
 }

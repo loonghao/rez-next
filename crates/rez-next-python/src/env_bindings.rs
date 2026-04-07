@@ -669,4 +669,74 @@ mod tests {
         assert!(content.contains("FOO"));
         let _ = std::fs::remove_file(&tmp_file);
     }
+
+    // ── PyRezEnv env_vars field ──────────────────────────────────────────────
+
+    #[test]
+    fn test_rez_env_env_vars_initially_empty_in_stub() {
+        let env = empty_rez_env(vec![]);
+        assert!(
+            env.env_vars.is_empty(),
+            "stub env should start with empty env_vars"
+        );
+    }
+
+    #[test]
+    fn test_rez_env_env_vars_can_be_set() {
+        let mut env = empty_rez_env(vec![]);
+        env.env_vars.insert("MYVAR".to_string(), "42".to_string());
+        assert_eq!(env.env_vars.get("MYVAR"), Some(&"42".to_string()));
+    }
+
+    // ── PyPackageFamily: name is preserved after add_package ────────────────
+
+    #[test]
+    fn test_package_family_name_preserved_after_add() {
+        let mut family = PyPackageFamily::new("testpkg".to_string());
+        family.add_package(make_pkg("testpkg", "1.0.0"));
+        assert_eq!(family.name, "testpkg");
+    }
+
+    // ── PyPackageFamily: multiple families are independent ───────────────────
+
+    #[test]
+    fn test_two_families_are_independent() {
+        let mut fa = PyPackageFamily::new("alpha".to_string());
+        let mut fb = PyPackageFamily::new("beta".to_string());
+        fa.add_package(make_pkg("alpha", "1.0"));
+        assert_eq!(fa.num_versions(), 1);
+        assert_eq!(fb.num_versions(), 0);
+        fb.add_package(make_pkg("beta", "2.0"));
+        assert_eq!(fa.num_versions(), 1);
+        assert_eq!(fb.num_versions(), 1);
+    }
+
+    // ── PyRezEnv: packages field preserves input order ───────────────────────
+
+    #[test]
+    fn test_rez_env_packages_order_preserved() {
+        let input = vec!["zzz-1.0".to_string(), "aaa-2.0".to_string()];
+        let env = empty_rez_env(input.clone());
+        assert_eq!(env.packages, input, "package list should preserve order");
+    }
+
+    // ── PyRezEnv: failure_reason is None when success=true ───────────────────
+
+    #[test]
+    fn test_rez_env_empty_resolves_with_no_failure_reason() {
+        let env = PyRezEnv::new(vec![], None, None).unwrap();
+        assert!(env.success);
+        assert!(
+            env.failure_reason.is_none(),
+            "successful env should have no failure_reason"
+        );
+    }
+
+    // ── PyPackageFamily: str representation equals family name ───────────────
+
+    #[test]
+    fn test_package_family_str_matches_name_field() {
+        let family = PyPackageFamily::new("nuke".to_string());
+        assert_eq!(family.__str__(), family.name);
+    }
 }
