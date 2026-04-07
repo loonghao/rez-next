@@ -570,6 +570,62 @@ mod tests {
             "ConfigurationError should be a leaf with no children"
         );
     }
+
+    // ─────── Cycle 104 additions ──────────────────────────────────────────────
+
+    /// All exception names in the hierarchy are non-empty strings
+    #[test]
+    fn test_all_exception_names_non_empty() {
+        for (name, _parent) in EXCEPTION_HIERARCHY {
+            assert!(
+                !name.is_empty(),
+                "Found empty exception name in EXCEPTION_HIERARCHY"
+            );
+        }
+    }
+
+    /// All parent names in the hierarchy are non-empty strings
+    #[test]
+    fn test_all_parent_names_non_empty() {
+        for (_name, parent) in EXCEPTION_HIERARCHY {
+            assert!(
+                !parent.is_empty(),
+                "Found empty parent name in EXCEPTION_HIERARCHY"
+            );
+        }
+    }
+
+    /// PackageVersionConflict must be in hierarchy under RezError
+    #[test]
+    fn test_package_version_conflict_extends_rez_error() {
+        let entry = EXCEPTION_HIERARCHY
+            .iter()
+            .find(|(n, _)| *n == "PackageVersionConflict")
+            .expect("PackageVersionConflict must be in EXCEPTION_HIERARCHY");
+        assert_eq!(entry.1, "RezError");
+    }
+
+    /// PackageRequestError must be in hierarchy under RezError
+    #[test]
+    fn test_package_request_error_extends_rez_error() {
+        let entry = EXCEPTION_HIERARCHY
+            .iter()
+            .find(|(n, _)| *n == "PackageRequestError")
+            .expect("PackageRequestError must be in EXCEPTION_HIERARCHY");
+        assert_eq!(entry.1, "RezError");
+    }
+
+    /// RexUndefinedVariableError is a leaf (nothing extends it)
+    #[test]
+    fn test_rex_undefined_variable_error_is_leaf() {
+        let is_parent = EXCEPTION_HIERARCHY
+            .iter()
+            .any(|(_, p)| *p == "RexUndefinedVariableError");
+        assert!(
+            !is_parent,
+            "RexUndefinedVariableError should be a leaf with no children"
+        );
+    }
 }
 
 

@@ -392,7 +392,54 @@ mod tests {
     mod test_repository_manager_extra {
         use super::*;
 
-        /// repr for a path with spaces must still be valid string
+        /// new() with a path containing unicode characters does not panic
+        #[test]
+        fn test_new_with_unicode_path_no_panic() {
+            let result = PyRepositoryManager::new(Some(vec!["/pkgs/日本語テスト".to_string()]));
+            assert!(result.is_ok(), "unicode path must not fail construction");
+        }
+
+        /// repr for path with unicode must contain RepositoryManager
+        #[test]
+        fn test_repr_unicode_path_contains_type_name() {
+            let mgr =
+                PyRepositoryManager::new(Some(vec!["/pkgs/日本語テスト".to_string()])).unwrap();
+            let repr = mgr.__repr__();
+            assert!(
+                repr.contains("RepositoryManager"),
+                "repr must contain type name for unicode path: {repr}"
+            );
+        }
+
+        /// PathBuf from empty string is stored as-is
+        #[test]
+        fn test_empty_string_path_stored() {
+            let mgr = PyRepositoryManager::new(Some(vec!["".to_string()])).unwrap();
+            assert_eq!(mgr.paths.len(), 1);
+            assert_eq!(mgr.paths[0], PathBuf::from(""));
+        }
+
+        /// new() with 100 paths stores all 100
+        #[test]
+        fn test_hundred_paths_stored() {
+            let paths: Vec<String> = (0..100).map(|i| format!("/bulk/{}", i)).collect();
+            let mgr = PyRepositoryManager::new(Some(paths)).unwrap();
+            assert_eq!(mgr.paths.len(), 100);
+        }
+
+        /// find_packages with special chars in name does not panic
+        #[test]
+        fn test_find_packages_special_chars_no_panic() {
+            let mgr =
+                PyRepositoryManager::new(Some(vec!["/no/such/special_cy104".to_string()])).unwrap();
+            let result = mgr.find_packages("pkg-with-dashes_and.dots");
+            match result {
+                Ok(pkgs) => assert!(pkgs.is_empty()),
+                Err(_) => {}
+            }
+        }
+
+        /// repr for path with spaces must still be valid string
         #[test]
         fn test_repr_path_with_spaces() {
             let mgr = PyRepositoryManager::new(Some(vec![

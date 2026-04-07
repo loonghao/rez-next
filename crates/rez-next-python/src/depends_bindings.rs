@@ -793,4 +793,76 @@ mod depends_bindings_tests {
         assert!(result.is_ok());
         assert!(result.unwrap().is_empty());
     }
+
+    // ─────── Cycle 104 additions ──────────────────────────────────────────────
+
+    /// total_count with equal direct+transitive returns correct deduplicated count
+    #[test]
+    fn test_total_count_deduplication() {
+        // Same package appears in both direct and transitive → deduped to 1
+        let entry = PyDependsEntry {
+            name: "maya".to_string(),
+            version: "2024.1".to_string(),
+            requirement: "python-3.9".to_string(),
+            dependency_type: "direct".to_string(),
+        };
+        let entry2 = PyDependsEntry {
+            name: "maya".to_string(),
+            version: "2024.1".to_string(),
+            requirement: "python-3.9".to_string(),
+            dependency_type: "transitive".to_string(),
+        };
+        let result = PyDependsResult {
+            queried_package: "python".to_string(),
+            direct_dependants: vec![entry],
+            transitive_dependants: vec![entry2],
+        };
+        // Both are "maya-2024.1" so deduplicated count should be 1
+        assert_eq!(result.total_count(), 1);
+    }
+
+    /// all_dependants with empty direct and empty transitive returns empty
+    #[test]
+    fn test_all_dependants_both_empty() {
+        let result = PyDependsResult {
+            queried_package: "ghost".to_string(),
+            direct_dependants: vec![],
+            transitive_dependants: vec![],
+        };
+        assert!(result.all_dependants().is_empty());
+    }
+
+    /// PyDependsEntry __str__ equals __repr__ for transitive entry
+    #[test]
+    fn test_depends_entry_str_equals_repr_transitive() {
+        let entry = PyDependsEntry {
+            name: "nuke".to_string(),
+            version: "14.0".to_string(),
+            requirement: "python-3.9".to_string(),
+            dependency_type: "transitive".to_string(),
+        };
+        assert_eq!(entry.__repr__(), entry.__str__());
+    }
+
+    /// PyDependsResult queried_package field matches construction value
+    #[test]
+    fn test_depends_result_queried_package_field() {
+        let result = PyDependsResult {
+            queried_package: "houdini".to_string(),
+            direct_dependants: vec![],
+            transitive_dependants: vec![],
+        };
+        assert_eq!(result.queried_package, "houdini");
+    }
+
+    /// compute_depends with None version and empty paths returns Ok
+    #[test]
+    fn test_compute_depends_none_version_empty_paths() {
+        let result = compute_depends("maya", None, &[], false);
+        assert!(
+            result.is_ok(),
+            "compute_depends with None version should return Ok, got: {:?}",
+            result.err()
+        );
+    }
 }

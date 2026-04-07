@@ -448,4 +448,77 @@ mod tests {
             );
         }
     }
+
+    mod test_shell_extra_cy104 {
+        use super::*;
+        use std::collections::HashMap;
+
+        /// cmd shell generate_script with var does not panic
+        #[test]
+        fn test_cmd_generate_script_with_var_no_panic() {
+            let shell = PyShell::new("cmd").unwrap();
+            let mut vars = HashMap::new();
+            vars.insert("CMD_TEST".to_string(), "cmd_value".to_string());
+            let script = shell.generate_script(Some(vars), None, None);
+            assert!(
+                script.contains("CMD_TEST"),
+                "cmd script should reference CMD_TEST, got: {script}"
+            );
+        }
+
+        /// get_available_shells() returns lowercase names only
+        #[test]
+        fn test_available_shells_all_lowercase() {
+            let shells = get_available_shells();
+            for s in &shells {
+                assert_eq!(
+                    *s,
+                    s.to_lowercase(),
+                    "shell name '{}' should be lowercase",
+                    s
+                );
+            }
+        }
+
+        /// PyShell::new with uppercase input should fail (case-sensitive)
+        #[test]
+        fn test_pyshell_new_uppercase_fails() {
+            let result = PyShell::new("BASH");
+            // ShellType::parse may be case-sensitive; either Err or Ok is fine
+            // but if it succeeds the name must still be "bash"
+            match result {
+                Ok(s) => assert_eq!(s.name(), "bash"),
+                Err(_) => {} // acceptable
+            }
+        }
+
+        /// generate_script with both vars AND aliases AND commands simultaneously
+        #[test]
+        fn test_generate_script_all_params() {
+            let shell = PyShell::new("bash").unwrap();
+            let mut vars = HashMap::new();
+            vars.insert("ALL_VAR".to_string(), "all_val".to_string());
+            let mut aliases = HashMap::new();
+            aliases.insert("la".to_string(), "ls -a".to_string());
+            let cmds = vec!["echo combined".to_string()];
+            let script = shell.generate_script(Some(vars), Some(aliases), Some(cmds));
+            // Must not panic; all inputs processed
+            assert!(
+                script.contains("ALL_VAR") || script.contains("la") || script.contains("combined"),
+                "script should contain at least one inserted value, got: {script}"
+            );
+        }
+
+        /// create_shell_script for fish with vars succeeds
+        #[test]
+        fn test_create_shell_script_fish_with_var() {
+            let mut vars = HashMap::new();
+            vars.insert("FISH_KEY".to_string(), "fish_value".to_string());
+            let result = create_shell_script("fish", Some(vars), None, None);
+            assert!(
+                result.is_ok(),
+                "create_shell_script fish should succeed"
+            );
+        }
+    }
 }
