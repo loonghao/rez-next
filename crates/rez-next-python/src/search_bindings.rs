@@ -468,4 +468,56 @@ mod tests {
             "contains must work"
         );
     }
+
+    // ── Additional SearchResult boundary tests ───────────────────────────────
+
+    #[test]
+    fn test_search_result_single_version_name_preserved() {
+        let inner = SearchResult::new("houdini".to_string(), vec!["20.0".to_string()], "/vfx".to_string());
+        let r = PySearchResult { inner };
+        assert_eq!(r.name(), "houdini");
+        assert_eq!(r.version_count(), 1);
+    }
+
+    #[test]
+    fn test_search_result_versions_order_preserved() {
+        // versions() returns in insertion order
+        let versions = vec!["1.0".to_string(), "2.0".to_string(), "3.0".to_string()];
+        let inner = SearchResult::new("pkg".to_string(), versions.clone(), "/r".to_string());
+        let r = PySearchResult { inner };
+        assert_eq!(r.versions(), versions);
+    }
+
+    #[test]
+    fn test_package_searcher_scope_packages_stored() {
+        let s = PyPackageSearcher::new("houdini", None, "packages", None, 0);
+        assert_eq!(s.scope, "packages");
+    }
+
+    #[test]
+    fn test_filter_with_version_range_none_by_default() {
+        let f = SearchFilter::new("py");
+        assert!(f.version_range.is_none(), "version_range should be None by default");
+    }
+
+    #[test]
+    fn test_result_set_len_zero_initially() {
+        let rs = SearchResultSet::new();
+        assert_eq!(rs.len(), 0);
+    }
+
+    #[test]
+    fn test_search_result_repo_path_is_slash_path() {
+        let inner = SearchResult::new("lib".to_string(), vec![], "/a/b/c".to_string());
+        let r = PySearchResult { inner };
+        assert!(r.repo_path().starts_with('/'), "repo_path should be absolute Unix path: {}", r.repo_path());
+    }
+
+    #[test]
+    fn test_package_searcher_default_scope_is_families() {
+        let s = PyPackageSearcher::new("", None, "families", None, 0);
+        assert_eq!(s.scope, "families");
+        assert_eq!(s.limit, 0);
+        assert!(s.paths.is_none());
+    }
 }

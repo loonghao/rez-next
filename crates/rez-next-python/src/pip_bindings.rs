@@ -493,4 +493,77 @@ mod tests {
 
         let _ = std::fs::remove_dir_all(&tmp);
     }
+
+    // ─── Additional pip_bindings boundary/edge tests ─────────────────────────
+
+    #[test]
+    fn test_normalize_package_name_empty_string() {
+        // empty string should return empty string
+        assert_eq!(normalize_package_name(""), "");
+    }
+
+    #[test]
+    fn test_pip_version_to_rez_empty_string_returns_empty() {
+        // empty specifier is a no-op (plain passthrough)
+        let result = pip_version_to_rez("");
+        assert_eq!(result, "", "empty specifier should produce empty string");
+    }
+
+    #[test]
+    fn test_pip_package_new_with_requires_list() {
+        let reqs = Some(vec!["numpy-1.20+".to_string()]);
+        let pkg = PyPipPackage::new("mylib", "0.1.0", reqs, "desc");
+        assert_eq!(pkg.requires.len(), 1);
+        assert_eq!(pkg.requires[0], "numpy-1.20+");
+    }
+
+    #[test]
+    fn test_to_package_py_authors_is_pip() {
+        let pkg = PyPipPackage {
+            name: "anylib".to_string(),
+            version: "1.0.0".to_string(),
+            requires: vec![],
+            description: "".to_string(),
+        };
+        let py = pkg.to_package_py();
+        assert!(py.contains("authors = [\"pip\"]"), "authors should be [\"pip\"], got:\n{py}");
+    }
+
+    #[test]
+    fn test_convert_pip_to_rez_no_requires_empty_list() {
+        let pkg = convert_pip_to_rez("simplelib", "0.5.0", None, Some("simple")).unwrap();
+        assert!(pkg.requires.is_empty(), "requires should be empty");
+        assert_eq!(pkg.description, "simple");
+    }
+
+    #[test]
+    fn test_pip_version_to_rez_exact_zero_version() {
+        assert_eq!(pip_version_to_rez("==0.0.0"), "0.0.0");
+    }
+
+    #[test]
+    fn test_write_pip_package_overwrite_true_replaces() {
+        let tmp = std::env::temp_dir().join("rez_next_pip_test_overwrite_true");
+        let _ = std::fs::remove_dir_all(&tmp);
+
+        let pkg = PyPipPackage {
+            name: "replaced".to_string(),
+            version: "1.0.0".to_string(),
+            requires: vec![],
+            description: "original".to_string(),
+        };
+        let _ = write_pip_package(&pkg, tmp.to_str().unwrap(), false);
+
+        // overwrite=true should succeed
+        let pkg2 = PyPipPackage {
+            name: "replaced".to_string(),
+            version: "1.0.0".to_string(),
+            requires: vec![],
+            description: "updated".to_string(),
+        };
+        let result = write_pip_package(&pkg2, tmp.to_str().unwrap(), true);
+        assert!(result.is_ok(), "overwrite=true should succeed: {:?}", result);
+
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
 }

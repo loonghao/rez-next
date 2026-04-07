@@ -506,4 +506,53 @@ mod tests {
         let result = d.write_completion_script(&dest, Some("ksh"));
         assert!(result.is_err(), "unknown shell should return Err");
     }
+
+    // ─── Additional data_bindings boundary/edge tests ─────────────────────────
+
+    #[test]
+    fn test_bash_complete_contains_compgen() {
+        // bash completion must use compgen for option expansion
+        assert!(BASH_COMPLETE.contains("compgen"), "bash completion must use compgen");
+    }
+
+    #[test]
+    fn test_zsh_complete_contains_compdef() {
+        // zsh completion must use #compdef directive
+        assert!(ZSH_COMPLETE.contains("#compdef"), "zsh must have #compdef: {ZSH_COMPLETE}");
+    }
+
+    #[test]
+    fn test_fish_complete_contains_complete_c() {
+        // fish completion uses `complete -c rez-next`
+        assert!(FISH_COMPLETE.contains("complete -c rez-next"), "fish completion must have `complete -c rez-next`");
+    }
+
+    #[test]
+    fn test_example_package_py_has_commands_fn() {
+        assert!(EXAMPLE_PACKAGE_PY.contains("def commands():"), "package.py must define commands()");
+    }
+
+    #[test]
+    fn test_default_rezconfig_has_local_packages_path() {
+        assert!(DEFAULT_REZCONFIG.contains("local_packages_path"), "rezconfig must define local_packages_path");
+        assert!(DEFAULT_REZCONFIG.contains("default_shell"), "rezconfig must define default_shell");
+    }
+
+    #[test]
+    fn test_rez_data_get_completion_script_bash_no_panic() {
+        let d = PyRezData::new();
+        let r = d.get_completion_script(Some("bash"));
+        assert!(r.is_ok());
+        let script = r.unwrap();
+        assert!(!script.is_empty(), "bash completion must not be empty");
+    }
+
+    #[test]
+    fn test_rez_data_get_completion_script_none_defaults_to_bash() {
+        let d = PyRezData::new();
+        let r = d.get_completion_script(None);
+        assert!(r.is_ok(), "None shell should default to bash: {:?}", r);
+        let content = r.unwrap();
+        assert!(content.contains("_rez_next"), "default completion should be bash");
+    }
 }
