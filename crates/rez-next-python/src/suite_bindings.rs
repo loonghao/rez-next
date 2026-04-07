@@ -491,4 +491,78 @@ mod tests {
             assert_eq!(s.__len__(), s.context_names().len());
         }
     }
+
+    mod test_suite_cy114 {
+        use super::*;
+
+        /// repr for empty suite shows 0 contexts
+        #[test]
+        fn test_repr_empty_suite_shows_zero() {
+            let s = PySuite::new(None);
+            let repr = s.__repr__();
+            assert!(repr.contains('0'), "repr of empty suite must show 0: {repr}");
+        }
+
+        /// conflict_mode round-trip: set then get returns same value
+        #[test]
+        fn test_conflict_mode_roundtrip_error() {
+            let mut s = PySuite::new(None);
+            s.set_conflict_mode("error").unwrap();
+            let mode = s.conflict_mode();
+            assert_eq!(mode, "error", "conflict_mode should return 'error' after setting");
+        }
+
+        /// conflict_mode round-trip for 'first'
+        #[test]
+        fn test_conflict_mode_roundtrip_first() {
+            let mut s = PySuite::new(None);
+            s.set_conflict_mode("first").unwrap();
+            let mode = s.conflict_mode();
+            assert_eq!(mode, "first", "conflict_mode should return 'first' after setting");
+        }
+
+        /// conflict_mode round-trip for 'last'
+        #[test]
+        fn test_conflict_mode_roundtrip_last() {
+            let mut s = PySuite::new(None);
+            s.set_conflict_mode("last").unwrap();
+            let mode = s.conflict_mode();
+            assert_eq!(mode, "last", "conflict_mode should return 'last' after setting");
+        }
+
+        /// context_names returns exactly the contexts added (no extras)
+        #[test]
+        fn test_context_names_exact_match() {
+            let mut s = PySuite::new(None);
+            s.add_context("alpha", vec!["pkg-1".to_string()]).unwrap();
+            s.add_context("beta", vec!["pkg-2".to_string()]).unwrap();
+            let names = s.context_names();
+            assert_eq!(names.len(), 2, "should have exactly 2 context names");
+            assert!(names.contains(&"alpha".to_string()));
+            assert!(names.contains(&"beta".to_string()));
+        }
+
+        /// SuiteManager::add_path does not panic
+        #[test]
+        fn test_suite_manager_add_path_no_panic() {
+            let mut mgr = PySuiteManager::new(Some(vec![]));
+            mgr.add_path("/some/new/path");
+            // Just verifying add_path does not panic
+        }
+
+        /// PySuite::is_suite with root-level empty string returns false
+        #[test]
+        fn test_is_suite_empty_string_path_returns_false() {
+            // Empty string path does not point to a valid suite directory
+            assert!(!PySuite::is_suite(""), "is_suite('') should return false");
+        }
+
+        /// SuiteManager with None uses default paths and does not panic
+        #[test]
+        fn test_suite_manager_none_paths_no_panic() {
+            let mgr = PySuiteManager::new(None);
+            // list_suite_names() must not panic regardless of default path contents
+            let _ = mgr.list_suite_names();
+        }
+    }
 }

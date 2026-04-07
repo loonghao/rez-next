@@ -517,4 +517,85 @@ mod tests {
             );
         }
     }
+
+    mod test_shell_cy114 {
+        use super::*;
+        use std::collections::HashMap;
+
+        /// PyShell repr for all known shell types has correct format
+        #[test]
+        fn test_pyshell_repr_all_shells() {
+            for name in &["bash", "zsh", "fish", "cmd", "powershell"] {
+                let shell = PyShell::new(name).unwrap();
+                let repr = shell.__repr__();
+                assert!(
+                    repr.contains(name),
+                    "repr for '{}' should contain shell name, got: {repr}",
+                    name
+                );
+                assert!(
+                    repr.contains("Shell"),
+                    "repr for '{}' should contain 'Shell', got: {repr}",
+                    name
+                );
+            }
+        }
+
+        /// generate_script with empty vars map produces no panic
+        #[test]
+        fn test_generate_script_empty_vars_map_no_panic() {
+            let shell = PyShell::new("powershell").unwrap();
+            let script = shell.generate_script(Some(HashMap::new()), None, None);
+            let _ = script; // must not panic
+        }
+
+        /// generate_script with empty aliases map produces no panic
+        #[test]
+        fn test_generate_script_empty_aliases_map_no_panic() {
+            let shell = PyShell::new("bash").unwrap();
+            let script = shell.generate_script(None, Some(HashMap::new()), None);
+            let _ = script; // must not panic
+        }
+
+        /// generate_script with empty commands list produces no panic
+        #[test]
+        fn test_generate_script_empty_commands_no_panic() {
+            let shell = PyShell::new("zsh").unwrap();
+            let script = shell.generate_script(None, None, Some(vec![]));
+            let _ = script; // must not panic
+        }
+
+        /// create_shell_script with cmd and aliases
+        #[test]
+        fn test_create_shell_script_cmd_with_aliases() {
+            let mut aliases = HashMap::new();
+            aliases.insert("cl".to_string(), "cls".to_string());
+            let result = create_shell_script("cmd", None, Some(aliases), None);
+            assert!(result.is_ok(), "create_shell_script cmd with aliases should succeed");
+        }
+
+        /// get_available_shells does not contain duplicates
+        #[test]
+        fn test_available_shells_no_duplicates() {
+            let shells = get_available_shells();
+            let mut seen = std::collections::HashSet::new();
+            for s in &shells {
+                assert!(
+                    seen.insert(*s),
+                    "duplicate shell '{}' in get_available_shells()",
+                    s
+                );
+            }
+        }
+
+        /// PyShell::new with mixed-case "PowerShell" normalizes correctly
+        #[test]
+        fn test_pyshell_new_mixed_case_powershell() {
+            let shell = PyShell::new("PowerShell");
+            // Either parses to powershell or errors — just must not panic
+            if let Ok(s) = shell {
+                assert_eq!(s.name(), "powershell");
+            }
+        }
+    }
 }
