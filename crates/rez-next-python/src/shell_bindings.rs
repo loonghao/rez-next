@@ -480,17 +480,13 @@ mod tests {
             }
         }
 
-        /// PyShell::new with uppercase input should fail (case-sensitive)
+        /// PyShell::new normalizes uppercase input via case-insensitive parsing
         #[test]
-        fn test_pyshell_new_uppercase_fails() {
-            let result = PyShell::new("BASH");
-            // ShellType::parse may be case-sensitive; either Err or Ok is fine
-            // but if it succeeds the name must still be "bash"
-            match result {
-                Ok(s) => assert_eq!(s.name(), "bash"),
-                Err(_) => {} // acceptable
-            }
+        fn test_pyshell_new_uppercase_normalizes() {
+            let shell = PyShell::new("BASH").expect("uppercase shell names should parse");
+            assert_eq!(shell.name(), "bash");
         }
+
 
         /// generate_script with both vars AND aliases AND commands simultaneously
         #[test]

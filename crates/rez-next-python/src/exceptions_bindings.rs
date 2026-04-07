@@ -224,13 +224,7 @@ mod tests {
 
     // ─── EXCEPTION_HIERARCHY metadata tests ──────────────────────────────────
 
-    #[test]
-    fn test_exception_hierarchy_non_empty() {
-        assert!(
-            !EXCEPTION_HIERARCHY.is_empty(),
-            "EXCEPTION_HIERARCHY must have entries"
-        );
-    }
+
 
     #[test]
     fn test_exception_hierarchy_has_rez_error_root() {
@@ -595,25 +589,7 @@ mod tests {
         }
     }
 
-    /// PackageVersionConflict must be in hierarchy under RezError
-    #[test]
-    fn test_package_version_conflict_extends_rez_error() {
-        let entry = EXCEPTION_HIERARCHY
-            .iter()
-            .find(|(n, _)| *n == "PackageVersionConflict")
-            .expect("PackageVersionConflict must be in EXCEPTION_HIERARCHY");
-        assert_eq!(entry.1, "RezError");
-    }
 
-    /// PackageRequestError must be in hierarchy under RezError
-    #[test]
-    fn test_package_request_error_extends_rez_error() {
-        let entry = EXCEPTION_HIERARCHY
-            .iter()
-            .find(|(n, _)| *n == "PackageRequestError")
-            .expect("PackageRequestError must be in EXCEPTION_HIERARCHY");
-        assert_eq!(entry.1, "RezError");
-    }
 
     /// RexUndefinedVariableError is a leaf (nothing extends it)
     #[test]

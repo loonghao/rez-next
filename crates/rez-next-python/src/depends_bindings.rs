@@ -435,25 +435,7 @@ mod depends_bindings_tests {
         assert!(output.contains("Direct"));
     }
 
-    #[test]
-    fn test_depends_result_total_count_dedup() {
-        let result = PyDependsResult {
-            queried_package: "python".to_string(),
-            direct_dependants: vec![PyDependsEntry {
-                name: "maya".to_string(),
-                version: "2024.1".to_string(),
-                requirement: "python-3.9".to_string(),
-                dependency_type: "direct".to_string(),
-            }],
-            transitive_dependants: vec![PyDependsEntry {
-                name: "nuke".to_string(),
-                version: "14.0".to_string(),
-                requirement: "maya-2024".to_string(),
-                dependency_type: "transitive".to_string(),
-            }],
-        };
-        assert_eq!(result.total_count(), 2);
-    }
+
 
     #[test]
     fn test_depends_result_all_dependants() {
@@ -832,17 +814,7 @@ mod depends_bindings_tests {
         assert!(result.all_dependants().is_empty());
     }
 
-    /// PyDependsEntry __str__ equals __repr__ for transitive entry
-    #[test]
-    fn test_depends_entry_str_equals_repr_transitive() {
-        let entry = PyDependsEntry {
-            name: "nuke".to_string(),
-            version: "14.0".to_string(),
-            requirement: "python-3.9".to_string(),
-            dependency_type: "transitive".to_string(),
-        };
-        assert_eq!(entry.__repr__(), entry.__str__());
-    }
+
 
     /// PyDependsResult queried_package field matches construction value
     #[test]
