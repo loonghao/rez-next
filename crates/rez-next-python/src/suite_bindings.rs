@@ -459,5 +459,36 @@ mod tests {
             // Just verify it doesn't panic and returns a Vec (may be empty or not)
             let _ = names.len();
         }
+
+        #[test]
+        fn test_suite_conflict_mode_default_is_lowercase() {
+            let s = PySuite::new(None);
+            let mode = s.conflict_mode();
+            assert_eq!(mode, mode.to_lowercase(), "conflict_mode must be lowercase: '{mode}'");
+        }
+
+        #[test]
+        fn test_suite_set_description_updates_value() {
+            let mut s = PySuite::new(None);
+            s.set_description(Some("updated desc".to_string()));
+            assert_eq!(s.description(), Some("updated desc"));
+        }
+
+        #[test]
+        fn test_suite_set_description_to_none_clears_value() {
+            let mut s = PySuite::new(Some("initial"));
+            s.set_description(None);
+            assert!(s.description().is_none(), "description must be None after set to None");
+        }
+
+        #[test]
+        fn test_suite_len_matches_context_count() {
+            let mut s = PySuite::new(None);
+            s.add_context("a", vec![]).unwrap();
+            s.add_context("b", vec![]).unwrap();
+            s.add_context("c", vec![]).unwrap();
+            assert_eq!(s.__len__(), 3);
+            assert_eq!(s.__len__(), s.context_names().len());
+        }
     }
 }

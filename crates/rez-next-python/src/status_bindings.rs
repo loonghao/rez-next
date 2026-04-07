@@ -267,6 +267,7 @@ mod status_bindings_tests {
 
     #[test]
     fn test_is_in_rez_context_false_outside() {
+        let _lock = ENV_MUTEX.lock().unwrap();
         // Outside any rez env the function should return false (CI has no rez)
         let in_ctx = std::env::var("REZ_CONTEXT_FILE").is_ok()
             || std::env::var("REZ_USED_PACKAGES_NAMES").is_ok();

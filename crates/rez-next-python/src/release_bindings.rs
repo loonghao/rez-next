@@ -655,4 +655,37 @@ mod release_tests {
         let s = r.__str__();
         assert!(s.contains("compilation failed"), "str: {s}");
     }
+
+    #[test]
+    fn test_release_result_repr_same_as_str() {
+        let r = PyReleaseResult {
+            success: true,
+            package_name: "mypkg".to_string(),
+            version: "2.0.0".to_string(),
+            install_path: "/pkgs/mypkg/2.0.0".to_string(),
+            errors: vec![],
+            warnings: vec![],
+        };
+        assert_eq!(r.__repr__(), r.__str__(), "__repr__ must equal __str__");
+    }
+
+    #[test]
+    fn test_release_manager_local_mode_str_contains_local() {
+        let mgr = PyReleaseManager::new(Some("local"), false, false);
+        let s = mgr.__str__();
+        assert!(s.contains("Local"), "str must contain Local for local mode: '{s}'");
+    }
+
+    #[test]
+    fn test_release_manager_both_skip_flags_true() {
+        let mgr = PyReleaseManager::new(None, true, true);
+        assert!(mgr.skip_build);
+        assert!(mgr.skip_tests);
+    }
+
+    #[test]
+    fn test_release_manager_default_mode_is_release() {
+        let mgr = PyReleaseManager::new(None, false, false);
+        assert_eq!(mgr.mode, ReleaseMode::Release);
+    }
 }

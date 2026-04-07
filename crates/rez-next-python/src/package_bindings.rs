@@ -510,4 +510,28 @@ mod tests {
         let p = make_package("test_pkg");
         assert!(p.build_requires().is_empty(), "build_requires must be empty by default");
     }
+
+    #[test]
+    fn test_package_private_build_requires_empty_by_default() {
+        let p = make_package("test_pkg");
+        assert!(p.private_build_requires().is_empty(), "private_build_requires must be empty by default");
+    }
+
+    #[test]
+    fn test_package_variants_empty_by_default() {
+        let p = make_package("test_pkg");
+        assert!(p.variants().is_empty(), "variants must be empty by default");
+    }
+
+    #[test]
+    fn test_package_tools_empty_by_default() {
+        let p = make_package("test_pkg");
+        assert!(p.tools().is_empty(), "tools must be empty by default");
+    }
+
+    #[test]
+    fn test_package_load_nonexistent_returns_err() {
+        let result = PyPackage::load("/nonexistent/path/package.py");
+        assert!(result.is_err(), "loading non-existent package.py should return Err");
+    }
 }

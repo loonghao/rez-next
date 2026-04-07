@@ -426,6 +426,41 @@ mod tests {
             assert!(!all_digits || arch.is_empty(),
                 "arch should not be purely numeric: '{arch}'");
         }
+
+        #[test]
+        fn test_repr_contains_platform_arch_os() {
+            let sys = PySystem::new();
+            let repr = sys.__repr__();
+            assert!(repr.contains("System("), "repr must start with System(: '{repr}'");
+            assert!(repr.contains("platform="), "repr must contain platform=: '{repr}'");
+            assert!(repr.contains("arch="), "repr must contain arch=: '{repr}'");
+            assert!(repr.contains("os="), "repr must contain os=: '{repr}'");
+        }
+
+        #[test]
+        fn test_platform_is_one_of_known_values() {
+            let platform = PySystem::platform_pub();
+            let known = ["linux", "windows", "osx"];
+            assert!(
+                known.contains(&platform.as_str()),
+                "platform must be one of {:?}, got '{platform}'",
+                known
+            );
+        }
+
+        #[test]
+        fn test_hostname_is_non_empty() {
+            let sys = PySystem::new();
+            let h = sys.hostname();
+            assert!(!h.is_empty(), "hostname must not be empty");
+        }
+
+        #[test]
+        fn test_os_contains_no_newlines() {
+            let os = PySystem::os_pub();
+            assert!(!os.contains('\n'), "os must not contain newlines: '{os}'");
+            assert!(!os.contains('\r'), "os must not contain carriage returns: '{os}'");
+        }
     }
 }
 
