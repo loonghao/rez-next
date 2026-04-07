@@ -751,4 +751,104 @@ mod diff_bindings_tests {
             "Downgraded package should use 'v ' prefix: got {output}"
         );
     }
+
+    // ── Cycle 101 additions ───────────────────────────────────────────────────
+
+    #[test]
+    fn test_compute_diff_single_unchanged() {
+        let pkg = make_pkg("python", "3.10.0");
+        let diffs = compute_diff(&[pkg.clone()], &[pkg]);
+        let unchanged = diffs.iter().filter(|d| d.change_type == "unchanged").count();
+        assert_eq!(unchanged, 1, "Single identical package should be unchanged");
+    }
+
+    #[test]
+    fn test_package_diff_repr_unchanged_contains_name() {
+        let d = PyPackageDiff {
+            name: "boost".to_string(),
+            old_version: Some("1.83.0".to_string()),
+            new_version: Some("1.83.0".to_string()),
+            change_type: "unchanged".to_string(),
+        };
+        let r = d.__repr__();
+        assert!(r.contains("boost"), "repr must contain package name: {r}");
+        assert!(r.contains("unchanged"), "repr must say unchanged: {r}");
+    }
+
+    #[test]
+    fn test_context_diff_is_identical_with_only_unchanged() {
+        let diff_obj = PyContextDiff {
+            num_added: 0,
+            num_removed: 0,
+            num_upgraded: 0,
+            num_downgraded: 0,
+            num_unchanged: 3,
+            diffs: vec![],
+        };
+        assert!(diff_obj.is_identical(), "all-unchanged diff must be identical");
+    }
+
+    #[test]
+    fn test_context_diff_is_not_identical_with_downgrade() {
+        let diff_obj = PyContextDiff {
+            num_added: 0,
+            num_removed: 0,
+            num_upgraded: 0,
+            num_downgraded: 1,
+            num_unchanged: 0,
+            diffs: vec![],
+        };
+        assert!(!diff_obj.is_identical(), "downgrade means not identical");
+    }
+
+    #[test]
+    fn test_format_diff_upgraded_shows_versions() {
+        let diffs = vec![PyPackageDiff {
+            name: "python".to_string(),
+            old_version: Some("3.9.0".to_string()),
+            new_version: Some("3.11.0".to_string()),
+            change_type: "upgraded".to_string(),
+        }];
+        let diff_obj = PyContextDiff {
+            num_added: 0,
+            num_removed: 0,
+            num_upgraded: 1,
+            num_downgraded: 0,
+            num_unchanged: 0,
+            diffs,
+        };
+        let output = format_diff(&diff_obj);
+        assert!(output.contains("3.9.0"), "should show old version: {output}");
+        assert!(output.contains("3.11.0"), "should show new version: {output}");
+    }
+
+    #[test]
+    fn test_compute_diff_multiple_upgrades() {
+        let old = vec![
+            make_pkg("python", "3.9.0"),
+            make_pkg("numpy", "1.24.0"),
+        ];
+        let new = vec![
+            make_pkg("python", "3.11.0"),
+            make_pkg("numpy", "1.26.0"),
+        ];
+        let diffs = compute_diff(&old, &new);
+        let upgraded = diffs.iter().filter(|d| d.change_type == "upgraded").count();
+        assert_eq!(upgraded, 2, "both packages should be upgraded");
+    }
+
+    #[test]
+    fn test_context_diff_repr_zero_all() {
+        let diff_obj = PyContextDiff {
+            num_added: 0,
+            num_removed: 0,
+            num_upgraded: 0,
+            num_downgraded: 0,
+            num_unchanged: 0,
+            diffs: vec![],
+        };
+        let r = diff_obj.__repr__();
+        assert_eq!(r, "ContextDiff(+0 -0 ^0 v0 =0)");
+    }
 }
+

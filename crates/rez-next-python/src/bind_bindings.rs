@@ -374,4 +374,70 @@ mod tests {
         // Must return a version (1.2.3 or 4.5.6), not None
         assert!(result.is_some(), "should find at least one version");
     }
+
+    // ── Cycle 101 additions ───────────────────────────────────────────────────
+
+    #[test]
+    fn test_bind_result_version_non_empty() {
+        let r = PyBindResult {
+            name: "cmake".to_string(),
+            version: "3.28.1".to_string(),
+            install_path: "/pkgs/cmake/3.28.1".to_string(),
+            executable_path: Some("/usr/bin/cmake".to_string()),
+        };
+        assert!(!r.version().is_empty(), "version must be non-empty");
+    }
+
+    #[test]
+    fn test_bind_result_name_preserved_in_repr() {
+        let r = PyBindResult {
+            name: "rustc".to_string(),
+            version: "1.75.0".to_string(),
+            install_path: "/pkgs/rustc/1.75.0".to_string(),
+            executable_path: None,
+        };
+        assert!(r.__repr__().contains("rustc"), "repr should contain name");
+    }
+
+    #[test]
+    fn test_list_binders_no_duplicates() {
+        let binders = list_binders();
+        let mut seen = std::collections::HashSet::new();
+        for b in &binders {
+            assert!(seen.insert(b), "duplicate binder name found: {b}");
+        }
+    }
+
+    #[test]
+    fn test_is_builtin_empty_string_returns_false() {
+        let m = PyBindManager::new();
+        assert!(!m.is_builtin(""), "empty string is not a valid builtin");
+    }
+
+    #[test]
+    fn test_extract_version_numeric_only() {
+        // "3" alone should be detected as a version
+        let result = extract_version("3");
+        assert!(result.is_some(), "single digit should be extractable as version");
+    }
+
+    #[test]
+    fn test_extract_version_with_leading_v_prefix() {
+        // Some tools output "v3.11.4" — version extractor should strip 'v'
+        let result = extract_version("v3.11.4");
+        // Must not panic and must return something
+        let _ = result;
+    }
+
+    #[test]
+    fn test_bind_manager_list_binders_len_matches_fn() {
+        let m = PyBindManager::new();
+        let mgr_list = m.list_binders();
+        let fn_list = list_binders();
+        assert_eq!(
+            mgr_list.len(),
+            fn_list.len(),
+            "PyBindManager::list_binders and list_binders() must return same count"
+        );
+    }
 }

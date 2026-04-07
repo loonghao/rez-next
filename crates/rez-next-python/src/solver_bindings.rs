@@ -295,5 +295,75 @@ mod tests {
             let repr = solver.__repr__();
             assert!(repr.contains("paths=4"), "repr: {repr}");
         }
+
+        // ── Cycle 101 additions ───────────────────────────────────────────────
+
+        #[test]
+        fn test_solver_config_enable_caching_can_be_toggled() {
+            let mut config = SolverConfig::default();
+            config.enable_caching = false;
+            assert!(!config.enable_caching);
+            config.enable_caching = true;
+            assert!(config.enable_caching);
+        }
+
+        #[test]
+        fn test_solver_config_max_attempts_can_be_changed() {
+            let mut config = SolverConfig::default();
+            config.max_attempts = 500;
+            assert_eq!(config.max_attempts, 500);
+        }
+
+        #[test]
+        fn test_solver_config_prefer_latest_can_be_set_false() {
+            let mut config = SolverConfig::default();
+            config.prefer_latest = false;
+            assert!(!config.prefer_latest);
+        }
+
+        #[test]
+        fn test_solver_repr_contains_parentheses_balanced() {
+            let solver = PySolver {
+                config: SolverConfig::default(),
+                paths: vec![],
+            };
+            let repr = solver.__repr__();
+            let open = repr.chars().filter(|&c| c == '(').count();
+            let close = repr.chars().filter(|&c| c == ')').count();
+            assert_eq!(open, close, "repr parentheses must be balanced: {repr}");
+        }
+
+        #[test]
+        fn test_solver_paths_five_elements_repr() {
+            let paths: Vec<PathBuf> = (1..=5).map(|i| PathBuf::from(format!("/pkg{i}"))).collect();
+            let solver = PySolver {
+                config: SolverConfig::default(),
+                paths,
+            };
+            let repr = solver.__repr__();
+            assert!(repr.contains("paths=5"), "repr: {repr}");
+        }
+
+        #[test]
+        fn test_solver_paths_last_element_preserved() {
+            let paths = vec![
+                PathBuf::from("/first"),
+                PathBuf::from("/middle"),
+                PathBuf::from("/last"),
+            ];
+            let solver = PySolver {
+                config: SolverConfig::default(),
+                paths: paths.clone(),
+            };
+            assert_eq!(solver.paths.last().unwrap(), &PathBuf::from("/last"));
+        }
+
+        #[test]
+        fn test_solver_config_max_time_can_be_changed() {
+            let mut config = SolverConfig::default();
+            config.max_time_seconds = 60;
+            assert_eq!(config.max_time_seconds, 60);
+        }
     }
 }
+

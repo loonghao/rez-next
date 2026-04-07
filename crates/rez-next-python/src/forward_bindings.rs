@@ -365,5 +365,60 @@ mod forward_tests {
             let script = generate_forward_script("gaffer", Some("cmd")).unwrap();
             assert!(script.contains("%*"), "cmd script should use %* for arg forwarding");
         }
+
+        // ── Cycle 101 additions ───────────────────────────────────────────────
+
+        #[test]
+        fn test_generate_forward_script_bash_non_empty() {
+            let script = generate_forward_script("maya", Some("bash")).unwrap();
+            assert!(!script.is_empty(), "bash script should not be empty");
+        }
+
+        #[test]
+        fn test_generate_forward_script_unknown_shell_fallback_to_bash() {
+            // Unknown shell names should fall back to bash style
+            let script = generate_forward_script("nuke", Some("tcsh")).unwrap();
+            assert!(
+                script.contains("rez-next forward nuke"),
+                "unknown shell should still forward the tool"
+            );
+        }
+
+        #[test]
+        fn test_generate_forward_script_contains_tool_name() {
+            for shell in &["bash", "zsh", "fish", "cmd", "powershell"] {
+                let script = generate_forward_script("katana", Some(shell)).unwrap();
+                assert!(
+                    script.contains("katana"),
+                    "script for shell={shell} should contain tool name 'katana'"
+                );
+            }
+        }
+
+        #[test]
+        fn test_generate_forward_script_fish_has_function_keyword() {
+            let script = generate_forward_script("houdini", Some("fish")).unwrap();
+            assert!(script.contains("function"), "fish script must have 'function' keyword");
+        }
+
+        #[test]
+        fn test_generate_forward_script_cmd_has_echo_off() {
+            let script = generate_forward_script("hython", Some("cmd")).unwrap();
+            assert!(script.contains("@echo off") || script.contains("echo off"),
+                "cmd script should disable echo: {script}");
+        }
+
+        #[test]
+        fn test_rez_forward_tool_name_preserved() {
+            let fwd = PyRezForward::new("render_manager".to_string(), None);
+            assert_eq!(fwd.tool_name(), "render_manager");
+        }
+
+        #[test]
+        fn test_rez_forward_context_id_none_when_not_provided() {
+            let fwd = PyRezForward::new("rez-gui".to_string(), None);
+            assert!(fwd.context_id().is_none(), "context_id should be None when not provided");
+        }
     }
 }
+
