@@ -367,5 +367,58 @@ mod tests {
             assert_eq!(mgr.repository_count(), 1, "after add, should have 1 repo");
             let _ = std::fs::remove_dir_all(&tmp);
         }
+
+        #[test]
+        fn test_suite_add_context_increments_len() {
+            use rez_next_suites::Suite;
+            let dir = tempfile::tempdir().unwrap();
+            let suite_path = dir.path().join("selftest_suite_len");
+            let mut suite = Suite::new();
+            suite.add_context("ctx1", vec!["python-3.9".to_string()]).unwrap();
+            suite.save(&suite_path).unwrap();
+            let loaded = Suite::load(&suite_path).unwrap();
+            assert_eq!(loaded.len(), 1, "suite should have 1 context after add");
+        }
+
+        #[test]
+        fn test_package_tools_field_accessible() {
+            use rez_next_package::Package;
+            use rez_next_version::Version;
+            let mut pkg = Package::new("toolpkg".to_string());
+            pkg.version = Some(Version::parse("1.0").unwrap());
+            pkg.tools = vec!["my_tool".to_string(), "other_tool".to_string()];
+            assert_eq!(pkg.tools.len(), 2, "tools should have 2 entries");
+            assert!(pkg.tools.contains(&"my_tool".to_string()));
+        }
+
+        #[test]
+        fn test_rex_stop_sets_stopped_flag() {
+            use rez_next_rex::RexExecutor;
+            let mut exec = RexExecutor::new();
+            let env = exec
+                .execute_commands("stop('done')", "", None, None)
+                .expect("stop must succeed");
+            assert!(env.stopped, "stopped flag must be true after stop()");
+        }
+
+        #[test]
+        fn test_version_range_lower_bound_inclusive() {
+            use rez_next_version::{Version, VersionRange};
+            let range = VersionRange::parse("1.0+<2.0").unwrap();
+            let v1 = Version::parse("1.0").unwrap();
+            let v199 = Version::parse("1.9.9").unwrap();
+            let v2 = Version::parse("2.0").unwrap();
+            assert!(range.contains(&v1), "1.0 should be in 1.0+<2.0");
+            assert!(range.contains(&v199), "1.9.9 should be in 1.0+<2.0");
+            assert!(!range.contains(&v2), "2.0 should NOT be in 1.0+<2.0");
+        }
+
+        #[test]
+        fn test_package_requirement_conflict_prefix() {
+            use rez_next_package::PackageRequirement;
+            // Conflict requirements use '!' prefix
+            let req = PackageRequirement::parse("!python");
+            assert!(req.is_ok(), "conflict requirement '!python' should parse");
+        }
     }
 }

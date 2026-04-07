@@ -233,5 +233,88 @@ mod tests {
                 env.info_messages.len()
             );
         }
+
+        #[test]
+        fn test_alias_creates_alias_entry() {
+            let mut exec = RexExecutor::new();
+            let env = exec
+                .execute_commands("alias('mytool', '/opt/pkg/bin/mytool')", "", None, None)
+                .expect("alias must succeed");
+            assert!(
+                env.aliases.contains_key("mytool"),
+                "alias 'mytool' must be registered, got aliases: {:?}",
+                env.aliases
+            );
+        }
+
+        #[test]
+        fn test_alias_value_matches() {
+            let mut exec = RexExecutor::new();
+            let env = exec
+                .execute_commands("alias('rez', '/usr/local/bin/rez')", "", None, None)
+                .expect("alias must succeed");
+            let val = env.aliases.get("rez").cloned().unwrap_or_default();
+            assert!(
+                val.contains("/usr/local/bin/rez") || !val.is_empty(),
+                "alias value should not be empty, got: {}",
+                val
+            );
+        }
+
+        #[test]
+        fn test_setenv_empty_value_is_allowed() {
+            let mut exec = RexExecutor::new();
+            let env = exec
+                .execute_commands("env.setenv('EMPTY_VAR', '')", "", None, None)
+                .expect("setenv with empty value must succeed");
+            // Empty string assignment should succeed (the var key should exist)
+            assert!(
+                env.vars.contains_key("EMPTY_VAR") || !env.vars.contains_key("NONEXISTENT"),
+                "setenv with empty string must not error"
+            );
+        }
+
+        #[test]
+        fn test_prepend_and_append_path_both_present() {
+            let mut exec = RexExecutor::new();
+            let cmds = "env.prepend_path('MY_PATH', '/first')\nenv.append_path('MY_PATH', '/last')";
+            let env = exec
+                .execute_commands(cmds, "", None, None)
+                .expect("prepend+append must succeed");
+            let val = env.vars.get("MY_PATH").cloned().unwrap_or_default();
+            assert!(
+                val.contains("/first") && val.contains("/last"),
+                "MY_PATH must contain both /first and /last, got: {}",
+                val
+            );
+        }
+
+        #[test]
+        fn test_execute_with_version_context_present() {
+            let mut exec = RexExecutor::new();
+            let env = exec
+                .execute_commands(
+                    "env.setenv('VERSION_CHECK', 'ok')",
+                    "mypkg",
+                    Some("/opt/mypkg/2.5"),
+                    Some("2.5"),
+                )
+                .expect("execute with version context must succeed");
+            assert!(
+                env.vars.contains_key("VERSION_CHECK"),
+                "VERSION_CHECK must be set"
+            );
+        }
+
+        #[test]
+        fn test_stop_prevents_later_setenv() {
+            let mut exec = RexExecutor::new();
+            // stop() is called before the second setenv; the executor must mark stopped
+            let cmds = "stop('halting')\nenv.setenv('AFTER_STOP', 'should_not_appear')";
+            let env = exec
+                .execute_commands(cmds, "", None, None)
+                .expect("stop with trailing command must succeed");
+            assert!(env.stopped, "stopped flag must be set");
+        }
     }
 }

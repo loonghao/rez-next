@@ -312,5 +312,101 @@ mod tests {
             assert!(content.contains("# rez bundle manifest"), "manifest should have header comment");
             let _ = fs::remove_dir_all(&tmp);
         }
+
+        #[test]
+        fn test_bundle_skip_solve_false_recorded() {
+            let tmp = std::env::temp_dir().join("rez_test_bundle_skip_false");
+            let _ = fs::remove_dir_all(&tmp);
+            bundle_context(vec!["pkg-1.0".to_string()], tmp.to_str().unwrap(), false).unwrap();
+            let content = fs::read_to_string(tmp.join("bundle.yaml")).unwrap();
+            assert!(content.contains("skip_solve: false"), "skip_solve false must appear in manifest");
+            let _ = fs::remove_dir_all(&tmp);
+        }
+
+        #[test]
+        fn test_bundle_single_package_manifest() {
+            let tmp = std::env::temp_dir().join("rez_test_bundle_single_pkg");
+            let _ = fs::remove_dir_all(&tmp);
+            bundle_context(vec!["houdini-20.0".to_string()], tmp.to_str().unwrap(), false).unwrap();
+            let content = fs::read_to_string(tmp.join("bundle.yaml")).unwrap();
+            assert!(content.contains("houdini-20.0"), "single package must appear in manifest");
+            let _ = fs::remove_dir_all(&tmp);
+        }
+    }
+
+    mod test_unbundle_context_extended {
+        use super::*;
+
+        #[test]
+        fn test_unbundle_with_dest_path_is_ignored_but_ok() {
+            let tmp = std::env::temp_dir().join("rez_test_unbundle_dest");
+            let _ = fs::remove_dir_all(&tmp);
+            bundle_context(
+                vec!["python-3.10".to_string()],
+                tmp.to_str().unwrap(),
+                false,
+            )
+            .unwrap();
+            // dest_packages_path is reserved but accepted
+            let result = unbundle_context(tmp.to_str().unwrap(), Some("/some/path"));
+            assert!(result.is_ok(), "unbundle with dest_packages_path must succeed: {:?}", result);
+            let _ = fs::remove_dir_all(&tmp);
+        }
+
+        #[test]
+        fn test_unbundle_three_packages_roundtrip() {
+            let tmp = std::env::temp_dir().join("rez_test_unbundle_three");
+            let _ = fs::remove_dir_all(&tmp);
+            let pkgs = vec![
+                "python-3.9".to_string(),
+                "maya-2024".to_string(),
+                "houdini-20".to_string(),
+            ];
+            bundle_context(pkgs.clone(), tmp.to_str().unwrap(), false).unwrap();
+            let got = unbundle_context(tmp.to_str().unwrap(), None).unwrap();
+            assert_eq!(got.len(), 3, "should recover 3 packages");
+            for p in &pkgs {
+                assert!(got.contains(p), "package '{}' should be in unbundle result", p);
+            }
+            let _ = fs::remove_dir_all(&tmp);
+        }
+
+        #[test]
+        fn test_bundle_overwrite_replaces_manifest() {
+            let tmp = std::env::temp_dir().join("rez_test_bundle_overwrite");
+            let _ = fs::remove_dir_all(&tmp);
+            // First bundle
+            bundle_context(vec!["old-pkg-1.0".to_string()], tmp.to_str().unwrap(), false).unwrap();
+            // Second bundle with different contents
+            bundle_context(vec!["new-pkg-2.0".to_string()], tmp.to_str().unwrap(), false).unwrap();
+            let content = fs::read_to_string(tmp.join("bundle.yaml")).unwrap();
+            assert!(content.contains("new-pkg-2.0"), "overwritten manifest must have new package");
+            let _ = fs::remove_dir_all(&tmp);
+        }
+    }
+
+    mod test_list_bundles_extended {
+        use super::*;
+
+        #[test]
+        fn test_list_bundles_ignores_files_not_dirs() {
+            let base = std::env::temp_dir().join("rez_test_list_bundles_files");
+            let _ = fs::remove_dir_all(&base);
+            fs::create_dir_all(&base).unwrap();
+
+            // A regular file should not be listed as a bundle
+            fs::write(base.join("bundle.yaml"), b"packages:\n").unwrap();
+
+            // A directory with bundle.yaml should be listed
+            let bdir = base.join("real_bundle");
+            fs::create_dir_all(&bdir).unwrap();
+            fs::write(bdir.join("bundle.yaml"), b"packages:\n  - python-3.9\n").unwrap();
+
+            let result = list_bundles(Some(base.to_str().unwrap())).unwrap();
+            assert!(result.contains(&"real_bundle".to_string()), "real_bundle must appear");
+            // The file named bundle.yaml at the base level should not be listed
+            assert!(!result.iter().any(|s| s.is_empty()), "no empty-name bundles");
+            let _ = fs::remove_dir_all(&base);
+        }
     }
 }

@@ -181,4 +181,50 @@ mod tests {
             assert!(result.is_err(), "command with whitespace must return Err");
         }
     }
+
+    mod test_cli_run_extended {
+        use super::super::cli_run;
+
+        #[test]
+        fn test_known_command_release_returns_zero() {
+            assert_eq!(cli_run("release", None).unwrap(), 0);
+        }
+
+        #[test]
+        fn test_known_command_view_returns_zero() {
+            assert_eq!(cli_run("view", None).unwrap(), 0);
+        }
+
+        #[test]
+        fn test_known_command_rm_returns_zero() {
+            assert_eq!(cli_run("rm", None).unwrap(), 0);
+        }
+
+        #[test]
+        fn test_known_command_bundle_returns_zero() {
+            assert_eq!(cli_run("bundle", None).unwrap(), 0);
+        }
+
+        #[test]
+        fn test_known_command_context_returns_zero() {
+            assert_eq!(cli_run("context", None).unwrap(), 0);
+        }
+
+        #[test]
+        fn test_known_command_complete_returns_zero() {
+            assert_eq!(cli_run("complete", None).unwrap(), 0);
+        }
+    }
+
+    mod test_cli_main_extended {
+        use super::super::cli_main;
+
+        #[test]
+        fn test_cli_main_empty_args_vec_returns_zero() {
+            // Empty args Vec (not None) → should return 0
+            let result = cli_main(Some(vec![]));
+            assert!(result.is_ok(), "cli_main with empty args vec must return Ok");
+            assert_eq!(result.unwrap(), 0);
+        }
+    }
 }
