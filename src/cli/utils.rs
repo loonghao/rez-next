@@ -205,11 +205,17 @@ pub fn parse_time_spec(spec: &str) -> RezCoreResult<u64> {
 
 /// Get terminal width for formatting
 pub fn get_terminal_width() -> usize {
+    get_terminal_width_inner(std::env::var("COLUMNS").ok().as_deref())
+}
+
+/// Inner implementation that accepts an optional COLUMNS override, enabling
+/// deterministic unit tests without mutating global process environment.
+fn get_terminal_width_inner(columns_env: Option<&str>) -> usize {
     // Default width if we can't determine terminal size
     const DEFAULT_WIDTH: usize = 80;
 
     // Explicit user override via environment variable
-    if let Ok(width_str) = std::env::var("COLUMNS") {
+    if let Some(width_str) = columns_env {
         if let Ok(width) = width_str.parse::<usize>() {
             if width > 0 {
                 return width;
@@ -348,60 +354,39 @@ mod tests {
     }
 
     // ── get_terminal_width tests ─────────────────────────────────────────────
+    // All tests call get_terminal_width_inner() directly to avoid mutating the
+    // process-wide environment, which causes data races in parallel test runs.
 
     #[test]
     fn test_terminal_width_via_columns_env() {
-        // Set COLUMNS to a known value and verify it is respected.
-        // Use a thread-local scope to avoid interfering with other tests.
-        unsafe {
-            std::env::set_var("COLUMNS", "132");
-        }
-        let width = get_terminal_width();
-        unsafe {
-            std::env::remove_var("COLUMNS");
-        }
-        assert_eq!(width, 132);
+        // Explicit COLUMNS value must be honoured.
+        assert_eq!(get_terminal_width_inner(Some("132")), 132);
     }
 
     #[test]
     fn test_terminal_width_columns_zero_is_ignored() {
-        // COLUMNS=0 should not be used — fall through to OS query or default.
-        unsafe {
-            std::env::set_var("COLUMNS", "0");
-        }
-        let width = get_terminal_width();
-        unsafe {
-            std::env::remove_var("COLUMNS");
-        }
-        // Must not return 0 (always returns at least the DEFAULT_WIDTH)
+        // COLUMNS=0 must fall through to the OS query / default.
+        let width = get_terminal_width_inner(Some("0"));
         assert!(width > 0);
     }
 
     #[test]
     fn test_terminal_width_columns_invalid_is_ignored() {
-        unsafe {
-            std::env::set_var("COLUMNS", "not_a_number");
-        }
-        let width = get_terminal_width();
-        unsafe {
-            std::env::remove_var("COLUMNS");
-        }
+        let width = get_terminal_width_inner(Some("not_a_number"));
         assert!(width > 0);
     }
 
     #[test]
     fn test_terminal_width_fallback_is_positive() {
-        // Without COLUMNS set, the function must return a positive value.
-        std::env::remove_var("COLUMNS");
-        let width = get_terminal_width();
+        // Without COLUMNS the function must return a positive value.
+        let width = get_terminal_width_inner(None);
         assert!(width > 0, "terminal width must be positive, got {}", width);
     }
 
     #[test]
     fn test_terminal_width_reasonable_range() {
         // Width should be in a sane range (20–65535).
-        std::env::remove_var("COLUMNS");
-        let width = get_terminal_width();
+        let width = get_terminal_width_inner(None);
         assert!(
             (20..=65535).contains(&width),
             "unexpected terminal width: {}",
