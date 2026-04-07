@@ -1,0 +1,24 @@
+# cargo-audit configuration
+# https://github.com/rustsec/rustsec/tree/main/cargo-audit
+
+[advisories]
+# Ignore "unmaintained" informational advisories for transitive dependencies
+# where no maintained alternative is available or the dependency is stable.
+# These are tracked in GitHub Issues for future resolution.
+ignore = [
+    # bincode 2.x is unmaintained (RUSTSEC-2025-0141). Tracked in issue for migration.
+    "RUSTSEC-2025-0141",
+    # paste is unmaintained (RUSTSEC-2024-0436). Stable macro crate, no urgent replacement.
+    "RUSTSEC-2024-0436",
+    # unic-* crates are unmaintained (transitive deps via concolor/similar)
+    "RUSTSEC-2025-0075",
+    "RUSTSEC-2025-0080",
+    "RUSTSEC-2025-0081",
+    "RUSTSEC-2025-0090",
+    "RUSTSEC-2025-0098",
+    "RUSTSEC-2025-0100",
+]
+
+[output]
+# Deny actual vulnerabilities and yanked crates; allow unmaintained warnings above
+deny = ["unmaintained", "unsound", "yanked"]
