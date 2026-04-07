@@ -757,7 +757,8 @@ mod diff_bindings_tests {
     #[test]
     fn test_compute_diff_single_unchanged() {
         let pkg = make_pkg("python", "3.10.0");
-        let diffs = compute_diff(&[pkg.clone()], &[pkg]);
+        let diffs = compute_diff(std::slice::from_ref(&pkg), std::slice::from_ref(&pkg));
+
         let unchanged = diffs.iter().filter(|d| d.change_type == "unchanged").count();
         assert_eq!(unchanged, 1, "Single identical package should be unchanged");
     }

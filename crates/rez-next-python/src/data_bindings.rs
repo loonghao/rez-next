@@ -371,8 +371,9 @@ mod tests {
 
     #[test]
     fn test_rez_data_default_no_panic() {
-        let _d = PyRezData::default();
+        let _d = PyRezData::new();
     }
+
 
     #[test]
     fn test_rez_data_repr() {

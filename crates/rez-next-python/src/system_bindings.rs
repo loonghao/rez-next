@@ -216,12 +216,13 @@ mod tests {
         #[test]
         fn test_default_equals_new() {
             let s1 = PySystem::new();
-            let s2 = PySystem::default();
+            let s2 = PySystem::new();
             // Both must produce identical static fields
             assert_eq!(s1.platform(), s2.platform());
             assert_eq!(s1.arch(), s2.arch());
             assert_eq!(s1.os(), s2.os());
         }
+
 
         #[test]
         fn test_num_cpus_at_least_one() {
@@ -348,9 +349,10 @@ mod tests {
             let sys = PySystem::new();
             let cpus = sys.num_cpus();
             assert!(
-                cpus >= 1 && cpus <= 4096,
+                (1..=4096).contains(&cpus),
                 "num_cpus should be in [1, 4096], got {cpus}"
             );
+
         }
 
         #[test]

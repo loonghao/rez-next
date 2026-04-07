@@ -356,10 +356,10 @@ mod tests {
             .unwrap();
             let result = mgr.find_packages("");
             // Must not panic; empty or error both acceptable
-            match result {
-                Ok(pkgs) => assert!(pkgs.is_empty()),
-                Err(_) => {} // also acceptable
+            if let Ok(pkgs) = result {
+                assert!(pkgs.is_empty());
             }
+
         }
 
         #[test]
@@ -369,10 +369,10 @@ mod tests {
             ]))
             .unwrap();
             let result = mgr.get_latest_package("any_pkg");
-            match result {
-                Ok(opt) => assert!(opt.is_none()),
-                Err(_) => {}
+            if let Ok(opt) = result {
+                assert!(opt.is_none());
             }
+
         }
 
         #[test]
@@ -382,10 +382,10 @@ mod tests {
             ]))
             .unwrap();
             let result = mgr.get_package_family_names();
-            match result {
-                Ok(names) => assert!(names.is_empty()),
-                Err(_) => {}
+            if let Ok(names) = result {
+                assert!(names.is_empty());
             }
+
         }
     }
 
@@ -433,10 +433,10 @@ mod tests {
             let mgr =
                 PyRepositoryManager::new(Some(vec!["/no/such/special_cy104".to_string()])).unwrap();
             let result = mgr.find_packages("pkg-with-dashes_and.dots");
-            match result {
-                Ok(pkgs) => assert!(pkgs.is_empty()),
-                Err(_) => {}
+            if let Ok(pkgs) = result {
+                assert!(pkgs.is_empty());
             }
+
         }
 
         /// repr for path with spaces must still be valid string
@@ -480,10 +480,10 @@ mod tests {
             let mgr =
                 PyRepositoryManager::new(Some(vec!["/nonexistent_cy98".to_string()])).unwrap();
             let result = mgr.find_packages(&long_name);
-            match result {
-                Ok(pkgs) => assert!(pkgs.is_empty()),
-                Err(_) => {}
+            if let Ok(pkgs) = result {
+                assert!(pkgs.is_empty());
             }
+
         }
 
         /// get_latest_package on a repo with one package returns Some
@@ -533,14 +533,12 @@ mod tests {
             let mgr =
                 PyRepositoryManager::new(Some(vec![tmp.to_string_lossy().to_string()])).unwrap();
             let result = mgr.get_package_family_names();
-            match result {
-                Ok(names) => {
-                    let mut sorted = names.clone();
-                    sorted.sort();
-                    assert_eq!(names, sorted, "family names must be sorted");
-                }
-                Err(_) => {}
+            if let Ok(names) = result {
+                let mut sorted = names.clone();
+                sorted.sort();
+                assert_eq!(names, sorted, "family names must be sorted");
             }
+
             let _ = std::fs::remove_dir_all(&tmp);
         }
     }

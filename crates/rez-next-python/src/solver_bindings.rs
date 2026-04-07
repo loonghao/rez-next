@@ -267,19 +267,25 @@ mod tests {
         #[test]
         fn test_solver_config_allow_prerelease_can_be_set() {
             // Verify SolverConfig fields are accessible
-            let mut config = SolverConfig::default();
-            config.allow_prerelease = true;
+            let mut config = SolverConfig {
+                allow_prerelease: true,
+                ..SolverConfig::default()
+            };
             assert!(config.allow_prerelease);
             config.allow_prerelease = false;
             assert!(!config.allow_prerelease);
         }
 
+
         #[test]
         fn test_solver_config_strict_mode_can_be_set() {
-            let mut config = SolverConfig::default();
-            config.strict_mode = true;
+            let config = SolverConfig {
+                strict_mode: true,
+                ..SolverConfig::default()
+            };
             assert!(config.strict_mode);
         }
+
 
         #[test]
         fn test_solver_repr_paths_count_four() {
@@ -300,26 +306,35 @@ mod tests {
 
         #[test]
         fn test_solver_config_enable_caching_can_be_toggled() {
-            let mut config = SolverConfig::default();
-            config.enable_caching = false;
+            let mut config = SolverConfig {
+                enable_caching: false,
+                ..SolverConfig::default()
+            };
             assert!(!config.enable_caching);
             config.enable_caching = true;
             assert!(config.enable_caching);
         }
 
+
         #[test]
         fn test_solver_config_max_attempts_can_be_changed() {
-            let mut config = SolverConfig::default();
-            config.max_attempts = 500;
+            let config = SolverConfig {
+                max_attempts: 500,
+                ..SolverConfig::default()
+            };
             assert_eq!(config.max_attempts, 500);
         }
 
+
         #[test]
         fn test_solver_config_prefer_latest_can_be_set_false() {
-            let mut config = SolverConfig::default();
-            config.prefer_latest = false;
+            let config = SolverConfig {
+                prefer_latest: false,
+                ..SolverConfig::default()
+            };
             assert!(!config.prefer_latest);
         }
+
 
         #[test]
         fn test_solver_repr_contains_parentheses_balanced() {
@@ -360,10 +375,13 @@ mod tests {
 
         #[test]
         fn test_solver_config_max_time_can_be_changed() {
-            let mut config = SolverConfig::default();
-            config.max_time_seconds = 60;
+            let config = SolverConfig {
+                max_time_seconds: 60,
+                ..SolverConfig::default()
+            };
             assert_eq!(config.max_time_seconds, 60);
         }
+
     }
 }
 
