@@ -486,5 +486,86 @@ mod tests {
             let types = get_build_system_types();
             assert!(types.contains(&"python_rezbuild".to_string()));
         }
+
+        // ── Cycle 103 additions ──────────────────────────────────────────────
+
+        #[test]
+        fn test_get_shell_types_are_lowercase() {
+            let shells = get_shell_types();
+            for s in &shells {
+                assert_eq!(s, &s.to_lowercase(), "shell type must be lowercase: {s}");
+            }
+        }
+
+        #[test]
+        fn test_get_build_system_types_are_lowercase() {
+            let types = get_build_system_types();
+            for t in &types {
+                assert_eq!(t, &t.to_lowercase(), "build system type must be lowercase: {t}");
+            }
+        }
+
+        #[test]
+        fn test_plugin_description_field_accessible() {
+            let p = PyPlugin {
+                name: "bash".to_string(),
+                plugin_type: "shell".to_string(),
+                description: "Bash shell integration".to_string(),
+                version: "2.0.0".to_string(),
+            };
+            assert!(!p.description.is_empty(), "description must not be empty");
+            assert!(p.description.contains("Bash"));
+        }
+
+        #[test]
+        fn test_plugin_version_field_accessible() {
+            let p = PyPlugin {
+                name: "cmake".to_string(),
+                plugin_type: "build_system".to_string(),
+                description: "CMake build".to_string(),
+                version: "3.0.0".to_string(),
+            };
+            assert_eq!(p.version, "3.0.0");
+        }
+
+        #[test]
+        fn test_plugin_manager_get_shell_types_non_empty() {
+            let mgr = PyRezPluginManager::new();
+            let shell_types = mgr.get_shell_types();
+            assert!(
+                !shell_types.is_empty(),
+                "get_shell_types must return at least one shell type"
+            );
+            // Every shell type must be a non-empty lowercase string
+            for s in &shell_types {
+                assert!(!s.is_empty(), "shell type must not be empty");
+                assert_eq!(s, &s.to_lowercase(), "shell type must be lowercase: {s}");
+            }
+        }
+
+        #[test]
+        fn test_plugin_manager_get_build_system_types_non_empty() {
+            let mgr = PyRezPluginManager::new();
+            let build_types = mgr.get_build_system_types();
+            assert!(
+                !build_types.is_empty(),
+                "get_build_system_types must return at least one type"
+            );
+            for t in &build_types {
+                assert!(!t.is_empty(), "build system type must not be empty");
+                assert_eq!(t, &t.to_lowercase(), "build system type must be lowercase: {t}");
+            }
+        }
+
+        #[test]
+        fn test_get_shell_types_no_duplicates() {
+            let shells = get_shell_types();
+            let mut deduped = shells.clone();
+            deduped.dedup();
+            assert_eq!(
+                shells, deduped,
+                "get_shell_types must not return duplicates"
+            );
+        }
     }
 }

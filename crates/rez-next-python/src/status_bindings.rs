@@ -641,5 +641,137 @@ mod status_bindings_tests {
             );
         }
     }
+
+    // ── Cycle 103 additions ──────────────────────────────────────────────────
+
+    #[test]
+    fn test_rez_status_str_matches_repr() {
+        // __str__ must delegate to __repr__
+        let s = PyRezStatus::new();
+        assert_eq!(s.__str__(), s.__repr__());
+    }
+
+    #[test]
+    fn test_inactive_status_repr_contains_inactive() {
+        let _lock = ENV_MUTEX.lock().unwrap();
+        if std::env::var("REZ_CONTEXT_FILE").is_err()
+            && std::env::var("REZ_USED_PACKAGES_NAMES").is_err()
+        {
+            let s = PyRezStatus::new();
+            if !s.is_active {
+                assert!(
+                    s.__repr__().contains("inactive"),
+                    "inactive repr must say 'inactive', got: {}",
+                    s.__repr__()
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_active_status_repr_contains_active() {
+        let _lock = ENV_MUTEX.lock().unwrap();
+        unsafe {
+            std::env::set_var("REZ_USED_PACKAGES_NAMES", "pkg1-1.0 pkg2-2.0");
+        }
+        let s = detect_current_status();
+        if s.is_active {
+            assert!(
+                s.__repr__().contains("active"),
+                "active repr must say 'active', got: {}",
+                s.__repr__()
+            );
+            assert!(
+                s.__repr__().contains("2"),
+                "active repr must show package count 2, got: {}",
+                s.__repr__()
+            );
+        }
+        unsafe {
+            std::env::remove_var("REZ_USED_PACKAGES_NAMES");
+        }
+    }
+
+    #[test]
+    fn test_detect_rez_platform_env_captured_in_rez_env_vars() {
+        let _lock = ENV_MUTEX.lock().unwrap();
+        unsafe {
+            std::env::set_var("REZ_PLATFORM", "linux");
+        }
+        let s = detect_current_status();
+        assert!(
+            s.rez_env_vars.contains_key("REZ_PLATFORM"),
+            "rez_env_vars must capture REZ_PLATFORM"
+        );
+        assert_eq!(s.rez_env_vars["REZ_PLATFORM"], "linux");
+        unsafe {
+            std::env::remove_var("REZ_PLATFORM");
+        }
+    }
+
+    #[test]
+    fn test_detect_rez_arch_env_captured_in_rez_env_vars() {
+        let _lock = ENV_MUTEX.lock().unwrap();
+        unsafe {
+            std::env::set_var("REZ_ARCH", "x86_64");
+        }
+        let s = detect_current_status();
+        assert!(
+            s.rez_env_vars.contains_key("REZ_ARCH"),
+            "rez_env_vars must capture REZ_ARCH"
+        );
+        assert_eq!(s.rez_env_vars["REZ_ARCH"], "x86_64");
+        unsafe {
+            std::env::remove_var("REZ_ARCH");
+        }
+    }
+
+    #[test]
+    fn test_multiple_requests_all_parsed() {
+        let _lock = ENV_MUTEX.lock().unwrap();
+        unsafe {
+            std::env::set_var("REZ_REQUEST", "python-3 cmake-3.21 boost-1.82");
+        }
+        let s = detect_current_status();
+        assert!(
+            s.requested_packages.contains(&"python-3".to_string()),
+            "must contain python-3, got {:?}",
+            s.requested_packages
+        );
+        assert!(
+            s.requested_packages.contains(&"cmake-3.21".to_string()),
+            "must contain cmake-3.21, got {:?}",
+            s.requested_packages
+        );
+        assert!(
+            s.requested_packages.contains(&"boost-1.82".to_string()),
+            "must contain boost-1.82, got {:?}",
+            s.requested_packages
+        );
+        unsafe {
+            std::env::remove_var("REZ_REQUEST");
+        }
+    }
+
+    #[test]
+    fn test_context_file_and_used_packages_both_active() {
+        let _lock = ENV_MUTEX.lock().unwrap();
+        unsafe {
+            std::env::set_var("REZ_CONTEXT_FILE", "/tmp/cy103_both.rxt");
+            std::env::set_var("REZ_USED_PACKAGES_NAMES", "toolA-1.0");
+        }
+        let s = detect_current_status();
+        assert!(s.is_active, "should be active when both env vars set");
+        assert_eq!(s.context_file.as_deref(), Some("/tmp/cy103_both.rxt"));
+        assert!(
+            s.resolved_packages.contains(&"toolA-1.0".to_string()),
+            "resolved packages must contain toolA-1.0, got {:?}",
+            s.resolved_packages
+        );
+        unsafe {
+            std::env::remove_var("REZ_CONTEXT_FILE");
+            std::env::remove_var("REZ_USED_PACKAGES_NAMES");
+        }
+    }
 }
 

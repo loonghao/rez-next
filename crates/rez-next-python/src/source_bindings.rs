@@ -569,4 +569,86 @@ mod tests {
         let read = std::fs::read_to_string(&dest).unwrap();
         assert!(read.contains("REZ_RESOLVE"));
     }
+
+    // ── Cycle 103 additions ──────────────────────────────────────────────────
+
+    #[test]
+    fn test_build_activation_script_sets_rezpkg_for_each_package() {
+        let pkgs = vec!["python-3.9".to_string(), "cmake-3.26".to_string()];
+        let script = build_activation_script(&pkgs, "bash");
+        assert!(
+            script.contains("REZPKG_PYTHON"),
+            "should set REZPKG_PYTHON: {script}"
+        );
+        assert!(
+            script.contains("REZPKG_CMAKE"),
+            "should set REZPKG_CMAKE: {script}"
+        );
+    }
+
+    #[test]
+    fn test_source_manager_multiple_packages_all_in_content() {
+        let pkgs = vec!["alpha-1.0".to_string(), "beta-2.0".to_string(), "gamma-3.0".to_string()];
+        let mgr = PySourceManager::new(pkgs, Some("bash".to_string()));
+        let content = mgr.get_activation_script_content(None);
+        assert!(content.contains("alpha-1.0"), "content: {content}");
+        assert!(content.contains("beta-2.0"), "content: {content}");
+        assert!(content.contains("gamma-3.0"), "content: {content}");
+    }
+
+    #[test]
+    fn test_source_manager_fish_shell_explicit() {
+        let mgr = PySourceManager::new(
+            vec!["nuke-14.0".to_string()],
+            Some("fish".to_string()),
+        );
+        let content = mgr.get_activation_script_content(None);
+        assert!(content.contains("REZ_RESOLVE"), "fish content: {content}");
+    }
+
+    #[test]
+    fn test_build_activation_script_powershell_contains_env_prefix() {
+        let pkgs = vec!["maya-2024".to_string()];
+        let script = build_activation_script(&pkgs, "powershell");
+        // PowerShell activation must reference $env: or REZ_ vars
+        assert!(
+            script.contains("$env:") || script.contains("REZ_"),
+            "ps1 script: {script}"
+        );
+        assert!(script.contains("maya-2024"), "ps1 script: {script}");
+    }
+
+    #[test]
+    fn test_source_manager_repr_format() {
+        let mgr = PySourceManager::new(
+            vec!["python-3.9".to_string()],
+            Some("bash".to_string()),
+        );
+        let repr = mgr.__repr__();
+        assert!(!repr.is_empty(), "repr must not be empty");
+        // Must contain at least the type name
+        assert!(
+            repr.contains("SourceManager"),
+            "repr must contain 'SourceManager', got: {repr}"
+        );
+    }
+
+    #[test]
+    fn test_activation_script_contains_rez_resolve_with_correct_value() {
+        let pkgs = vec!["python-3.9".to_string(), "numpy-1.24".to_string()];
+        let script = build_activation_script(&pkgs, "bash");
+        // REZ_RESOLVE should list the package names
+        assert!(script.contains("python-3.9"), "script: {script}");
+        assert!(script.contains("numpy-1.24"), "script: {script}");
+    }
+
+    #[test]
+    fn test_source_mode_tempfile_distinct_from_inline() {
+        // SourceMode variants must compare unequal to each other
+        assert_ne!(SourceMode::Inline, SourceMode::TempFile);
+        let path_a = PathBuf::from("/tmp/a.sh");
+        let path_b = PathBuf::from("/tmp/b.sh");
+        assert_ne!(SourceMode::File(path_a.clone()), SourceMode::File(path_b));
+        assert_ne!(SourceMode::Inline, SourceMode::File(path_a));
+    }
 }
