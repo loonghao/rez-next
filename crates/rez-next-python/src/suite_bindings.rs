@@ -652,4 +652,36 @@ mod tests {
             assert!(result.is_err(), "adding a duplicate context name must return Err");
         }
     }
+
+    mod test_suite_cy129 {
+        use super::*;
+
+        /// Suite __repr__ includes "Suite(" prefix
+        #[test]
+        fn test_repr_includes_suite_prefix() {
+            let s = PySuite::new(Some("cy129 suite"));
+            let r = s.__repr__();
+            assert!(r.starts_with("Suite("), "__repr__ must start with 'Suite(', got: {r}");
+        }
+
+        /// Suite description set then clear results in None
+        #[test]
+        fn test_description_set_then_clear() {
+            let mut s = PySuite::new(None);
+            s.set_description(Some("temp".to_string()));
+            assert_eq!(s.description(), Some("temp"));
+            s.set_description(None);
+            assert!(s.description().is_none(), "description must be None after clearing");
+        }
+
+        /// Suite with 5 contexts has __len__ == 5
+        #[test]
+        fn test_suite_len_five_contexts() {
+            let mut s = PySuite::new(None);
+            for i in 0..5usize {
+                s.add_context(&format!("ctx_{i}"), vec![]).unwrap();
+            }
+            assert_eq!(s.__len__(), 5, "__len__ must be 5 after adding 5 contexts");
+        }
+    }
 }

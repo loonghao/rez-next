@@ -512,4 +512,49 @@ mod tests {
             assert!(Version::parse("1.0.0-alpha1").is_ok());
         }
     }
+
+    mod test_selftest_cy129 {
+        /// Cycle 129 — solver and repository edge-case coverage
+
+        #[test]
+        fn test_solver_resolves_empty_request() {
+            use rez_next_solver::{DependencySolver, SolverRequest};
+            let solver = DependencySolver::new();
+            let request = SolverRequest::new(vec![]);
+            let result = solver.resolve(request);
+            // empty request should resolve to Ok
+            assert!(result.is_ok(), "empty solve request must not error: {:?}", result.err());
+        }
+
+        #[test]
+        fn test_repository_manager_starts_with_zero() {
+            use rez_next_repository::simple_repository::RepositoryManager;
+            let mgr = RepositoryManager::new();
+            assert_eq!(mgr.repository_count(), 0, "new RepositoryManager must have 0 repositories");
+        }
+
+        #[test]
+        fn test_version_range_exact_match() {
+            use rez_next_version::{Version, VersionRange};
+            let range = VersionRange::parse("2.0").unwrap();
+            assert!(range.contains(&Version::parse("2.0").unwrap()));
+            assert!(!range.contains(&Version::parse("2.1").unwrap()));
+        }
+
+        #[test]
+        fn test_package_requirement_version_range() {
+            use rez_next_package::PackageRequirement;
+            let req = PackageRequirement::parse("python-3+<4").unwrap();
+            assert_eq!(req.name(), "python", "package name must be 'python'");
+        }
+
+        #[test]
+        fn test_rex_parser_parses_multiple_commands() {
+            use rez_next_rex::RexParser;
+            let parser = RexParser::new();
+            let script = "env.setenv('A', '1')\nenv.setenv('B', '2')";
+            let actions = parser.parse(script).unwrap();
+            assert_eq!(actions.len(), 2, "two setenv calls must produce two actions");
+        }
+    }
 }

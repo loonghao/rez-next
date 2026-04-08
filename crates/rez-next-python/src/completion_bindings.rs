@@ -626,5 +626,102 @@ mod tests {
         }
     }
 
+    mod test_completion_cy129 {
+        use super::*;
+
+        /// bash script contains 'status' subcommand
+        #[test]
+        fn test_bash_script_contains_status() {
+            let script = get_completion_script(Some("bash")).unwrap();
+            assert!(script.contains("status"), "bash script must list 'status' subcommand");
+        }
+
+        /// zsh script contains 'search' description
+        #[test]
+        fn test_zsh_script_contains_search_description() {
+            let script = get_completion_script(Some("zsh")).unwrap();
+            assert!(
+                script.contains("search"),
+                "zsh script must describe 'search' subcommand"
+            );
+        }
+
+        /// fish script contains 'context' subcommand
+        #[test]
+        fn test_fish_script_contains_context() {
+            let script = get_completion_script(Some("fish")).unwrap();
+            assert!(script.contains("context"), "fish script must mention 'context' subcommand");
+        }
+
+        /// powershell script contains 'env' command entry
+        #[test]
+        fn test_powershell_script_contains_env() {
+            let script = get_completion_script(Some("powershell")).unwrap();
+            assert!(script.contains("env"), "powershell script must contain 'env' command");
+        }
+
+        /// get_completion_install_path for fish ends with .fish
+        #[test]
+        fn test_fish_install_path_ends_with_dot_fish() {
+            let path = get_completion_install_path(Some("fish")).unwrap();
+            assert!(path.ends_with(".fish"), "fish install path must end with '.fish': {path}");
+        }
+
+        /// bash script contains 'interpret' subcommand
+        #[test]
+        fn test_bash_script_contains_interpret() {
+            let script = get_completion_script(Some("bash")).unwrap();
+            assert!(script.contains("interpret"), "bash script must list 'interpret' subcommand");
+        }
+
+        /// zsh install path contains '_rez-next' (underscore prefix)
+        #[test]
+        fn test_zsh_install_path_has_underscore_prefix() {
+            let path = get_completion_install_path(Some("zsh")).unwrap();
+            assert!(
+                path.contains("_rez-next"),
+                "zsh install path must contain '_rez-next': {path}"
+            );
+        }
+
+        /// powershell script contains 'solve' command
+        #[test]
+        fn test_powershell_script_contains_solve() {
+            let script = get_completion_script(Some("powershell")).unwrap();
+            assert!(script.contains("solve"), "powershell script must contain 'solve' command");
+        }
+
+        /// None shell falls back without error
+        #[test]
+        fn test_get_completion_script_none_shell_no_error() {
+            // None means auto-detect; result depends on platform but must not panic
+            let result = get_completion_script(None);
+            assert!(result.is_ok(), "get_completion_script(None) must not error");
+        }
+
+        /// supported_completion_shells count is exactly 4
+        #[test]
+        fn test_supported_shells_count_is_four() {
+            assert_eq!(
+                supported_completion_shells().len(),
+                4,
+                "exactly 4 shells must be supported"
+            );
+        }
+
+        /// bash script contains 'forward' subcommand
+        #[test]
+        fn test_bash_script_contains_forward() {
+            let script = get_completion_script(Some("bash")).unwrap();
+            assert!(script.contains("forward"), "bash script must list 'forward' subcommand");
+        }
+
+        /// fish script mentions 'suite' command
+        #[test]
+        fn test_fish_script_contains_suite() {
+            let script = get_completion_script(Some("fish")).unwrap();
+            assert!(script.contains("suite"), "fish script must mention 'suite' subcommand");
+        }
+    }
 
 }
