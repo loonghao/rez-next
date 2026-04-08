@@ -278,22 +278,30 @@
 - This looks like a correctness bug rather than low-risk cleanup, so it should be fixed in a dedicated change after locking the intended contract with tests.
 - Follow-up: return or share the selected version from `copy_package()` so `move_package()` can delete the exact source directory it copied.
 
-### 40. `selftest_functions.rs` still writes failures to stderr
-- **Status**: PARTIAL ✓ (cycle 36)
-- Cycle 36 removed **30** duplicate unit tests from `selftest_functions.rs`; the remaining test module now only locks the public `selftest()` contract (balanced counts, zero failures in a healthy runtime).
-- The duplicate-check half of this item is resolved, which lowers the risk of runtime self-test logic and unit tests drifting independently.
-- Remaining follow-up: `selftest()` still reports failures with `eprintln!` even though it lives in a library module; if revisited, decide whether that should move to structured return data or a logging dependency.
-
+### 40. `selftest_functions.rs` still mixes library-side reporting with panic-prone checks
+- **Status**: PARTIAL ✓ (refreshed after cycle 123)
+- A later iteration cycle regrew `selftest_functions.rs` with cycle-tagged duplicate / vacuous unit tests; this cleanup pass removed those reintroduced checks and returned the file to a contract-level test surface (no panic, balanced counts, zero failures in a healthy runtime).
+- The duplicate-check half of this item is resolved again, which reduces the chance that runtime self-test logic and unit tests drift independently.
+- Remaining follow-up:
+  - `selftest()` still reports failures with `eprintln!` even though it lives in a library module.
+  - Several runtime checks still use `unwrap()`, so malformed internal fixtures can panic before the `(passed, failed, total)` contract is returned.
+  - If revisited, decide whether failures should move to structured return data / logging and whether the individual checks should stop panicking.
 
 ### 41. `bundle_functions.rs` still over-tests placeholder `dest_packages_path`
+
 - **Status**: COMPLETE ✓ (cycle 35)
 - Removed the placeholder-only `test_unbundle_with_dest_path_is_ignored_but_ok` smoke test from `bundle_functions.rs`.
 - Coverage now stays focused on observable manifest parsing / roundtrip behavior instead of locking in the reserved `dest_packages_path` argument's current no-op semantics.
 - Follow-up: once package extraction is implemented, add filesystem-observable tests for the real extraction contract rather than reintroducing placeholder acceptance checks.
 
-
+### 42. `cli_functions.rs` still documents a real CLI surface over a stubbed command table
+- **Status**: OPEN
+- `cli_run()` still discards `args` and returns `Ok(0)` for any entry in `KNOWN_COMMANDS`, while the docstring says it is equivalent to `rez <command> <args...>`.
+- Recent iteration cycles added many per-command tests that only lock in that stub behavior, so test count is growing faster than observable contract coverage.
+- Follow-up: decide whether `cli_functions.rs` should stay an explicit compatibility stub (with docs/tests renamed accordingly) or begin dispatching to real command behavior; until then, keep cleanup focused on deduping placeholder-smoke tests instead of strengthening the misleading contract.
 
 - **Status**: COMPLETE ✓ (cycle 19)
+
 
 
 - Fixed `handle_grouped_command` in `rez-next.rs`: clap returns `Err` for `--help`/`--version` display; now uses `e.use_stderr()` to decide exit code (0 for help/version, 1 for real errors)
