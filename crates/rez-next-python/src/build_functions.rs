@@ -546,6 +546,43 @@ mod tests {
             assert_eq!(result, "python", "pyproject.toml must yield python build system");
             let _ = fs::remove_dir_all(&tmp);
         }
+
+        // ─────── Cycle 132 additions ──────────────────────────────────────────
+
+        #[test]
+        fn test_get_build_system_result_is_known_value() {
+            // Every supported build marker must yield one of the known build system strings.
+            let known = [
+                "cmake", "make", "python_rezbuild", "python", "nodejs", "cargo", "custom_script", "unknown",
+            ];
+            let tmp = make_temp_dir_with_file("rez_bs_cy132_known", "");
+            let result = get_build_system(Some(tmp.to_str().unwrap())).unwrap();
+            assert!(
+                known.contains(&result.as_str()),
+                "result '{}' must be one of the known build system identifiers",
+                result
+            );
+            let _ = fs::remove_dir_all(&tmp);
+        }
+
+        #[test]
+        fn test_get_build_system_cmake_over_build_sh() {
+            // cmake check precedes custom_script; CMakeLists.txt + build.sh → cmake
+            let tmp = make_temp_dir_with_file("rez_bs_cy132_cmake_sh", "CMakeLists.txt");
+            fs::write(tmp.join("build.sh"), b"").unwrap();
+            let result = get_build_system(Some(tmp.to_str().unwrap())).unwrap();
+            assert_eq!(result, "cmake", "cmake must take priority over build.sh");
+            let _ = fs::remove_dir_all(&tmp);
+        }
+
+        #[test]
+        fn test_get_build_system_cargo_toml_alone_is_cargo() {
+            // Cargo.toml alone with no competing markers → always "cargo"
+            let tmp = make_temp_dir_with_file("rez_bs_cy132_cargo_alone", "Cargo.toml");
+            let result = get_build_system(Some(tmp.to_str().unwrap())).unwrap();
+            assert_eq!(result, "cargo", "Cargo.toml alone must be detected as cargo");
+            let _ = fs::remove_dir_all(&tmp);
+        }
     }
 }
 

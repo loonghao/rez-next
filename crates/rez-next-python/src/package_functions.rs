@@ -1206,7 +1206,61 @@ mod tests {
             let result = expand_home("/absolute/no/tilde");
             assert_eq!(result, "/absolute/no/tilde", "absolute path must be returned unchanged");
         }
+
+        // ─────── Cycle 132 additions ──────────────────────────────────────────
+
+        #[test]
+        fn test_copy_dir_recursive_binary_file_content_preserved() {
+            // Binary content must be preserved byte-for-byte across copy
+            let tmp = std::env::temp_dir();
+            let src = tmp.join("rez_cy132_cp_binary_src");
+            let dest = tmp.join("rez_cy132_cp_binary_dest");
+            let _ = fs::remove_dir_all(&src);
+            let _ = fs::remove_dir_all(&dest);
+
+            fs::create_dir_all(&src).unwrap();
+            let binary_data: Vec<u8> = (0u8..=255).collect();
+            fs::write(src.join("data.bin"), &binary_data).unwrap();
+
+            copy_dir_recursive(&src, &dest).unwrap();
+
+            let copied = fs::read(dest.join("data.bin")).unwrap();
+            assert_eq!(copied, binary_data, "binary file content must be preserved byte-for-byte");
+
+            let _ = fs::remove_dir_all(&src);
+            let _ = fs::remove_dir_all(&dest);
+        }
+
+        #[test]
+        fn test_remove_package_family_dir_does_not_affect_other_families() {
+            let tmp = std::env::temp_dir().join("rez_cy132_rm_family_isolate");
+            let _ = fs::remove_dir_all(&tmp);
+
+            // Two package families: "pkgA" and "pkgB"
+            fs::create_dir_all(tmp.join("pkgA").join("1.0.0")).unwrap();
+            fs::create_dir_all(tmp.join("pkgB").join("2.0.0")).unwrap();
+
+            let result = remove_package("pkgA", None, Some(vec![tmp.to_string_lossy().to_string()]));
+            assert!(result.is_ok());
+            assert!(!tmp.join("pkgA").exists(), "pkgA family must be removed");
+            assert!(tmp.join("pkgB").exists(), "pkgB family must NOT be affected");
+
+            let _ = fs::remove_dir_all(&tmp);
+        }
+
+        #[test]
+        fn test_expand_home_tilde_prefix_expands_to_nonempty() {
+            // ~/packages should expand to something non-empty (home dir + suffix)
+            let result = expand_home("~/packages");
+            assert!(!result.is_empty(), "expanded tilde path must be non-empty");
+            assert!(
+                !result.starts_with('~'),
+                "expanded result must not start with tilde: {}",
+                result
+            );
+        }
     }
 }
+
 
 

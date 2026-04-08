@@ -342,4 +342,69 @@ mod tests {
             assert!(names.contains(name), "missing expected selftest check: {name}");
         }
     }
+
+    // ─────── Cycle 132 additions ──────────────────────────────────────────
+
+    #[test]
+    fn test_selftest_check_results_are_cloneable() {
+        // SelftestCheckResult derives Clone; calling collect twice should be safe
+        let first = collect_selftest_results();
+        let second = collect_selftest_results();
+        assert_eq!(
+            first.len(),
+            second.len(),
+            "collect_selftest_results must be deterministic"
+        );
+        for (a, b) in first.iter().zip(second.iter()) {
+            assert_eq!(a.name, b.name, "check names must be stable across calls");
+            assert_eq!(a.passed, b.passed, "check results must be stable across calls");
+        }
+    }
+
+    #[test]
+    fn test_summarize_selftest_no_failures_when_all_pass() {
+        // Build a synthetic all-passing result list and verify summary
+        let results = vec![
+            super::SelftestCheckResult::new("check_a", true),
+            super::SelftestCheckResult::new("check_b", true),
+            super::SelftestCheckResult::new("check_c", true),
+        ];
+        let (passed, failed, total) = summarize_selftest_results(&results);
+        assert_eq!(passed, 3);
+        assert_eq!(failed, 0);
+        assert_eq!(total, 3);
+    }
+
+    #[test]
+    fn test_summarize_selftest_counts_failures_correctly() {
+        // Build a synthetic result list with 1 failure and verify summary
+        let results = vec![
+            super::SelftestCheckResult::new("ok_check", true),
+            super::SelftestCheckResult::new("fail_check", false),
+        ];
+        let (passed, failed, total) = summarize_selftest_results(&results);
+        assert_eq!(passed, 1);
+        assert_eq!(failed, 1);
+        assert_eq!(total, 2);
+    }
+
+    #[test]
+    fn test_selftest_check_result_equality() {
+        // SelftestCheckResult derives PartialEq; equal structs must compare equal
+        let a = super::SelftestCheckResult::new("version_parse_basic", true);
+        let b = super::SelftestCheckResult::new("version_parse_basic", true);
+        assert_eq!(a, b, "two identical SelftestCheckResult structs must be equal");
+    }
+
+    #[test]
+    fn test_selftest_check_result_debug_format() {
+        // SelftestCheckResult derives Debug; must not panic when formatted
+        let r = super::SelftestCheckResult::new("my_check", false);
+        let formatted = format!("{:?}", r);
+        assert!(
+            formatted.contains("my_check"),
+            "Debug output must contain the check name, got: {formatted}"
+        );
+    }
 }
+

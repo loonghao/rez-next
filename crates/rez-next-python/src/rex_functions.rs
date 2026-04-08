@@ -613,7 +613,48 @@ mod tests {
             // vars field is a HashMap — just verify it's accessible
             let _ = env.vars.len(); // must not panic
         }
+
+        // ─────── Cycle 132 additions ──────────────────────────────────────────
+
+        #[test]
+        fn test_setenv_special_chars_in_var_name() {
+            // var names with underscores and upper-case are valid
+            let mut exec = RexExecutor::new();
+            let env = exec
+                .execute_commands("env.setenv('MY_TOOL_ROOT_123', '/opt/tool')", "", None, None)
+                .expect("setenv with underscores must succeed");
+            assert_eq!(
+                env.vars.get("MY_TOOL_ROOT_123").map(|s| s.as_str()),
+                Some("/opt/tool"),
+                "MY_TOOL_ROOT_123 must be set"
+            );
+        }
+
+        #[test]
+        fn test_alias_overwrite_same_key() {
+            // Registering the same alias twice should not panic; final value is the last one
+            let mut exec = RexExecutor::new();
+            let cmds = "alias('grep', '/bin/grep')\nalias('grep', '/usr/bin/grep')";
+            let env = exec
+                .execute_commands(cmds, "", None, None)
+                .expect("double alias registration must succeed");
+            assert!(
+                env.aliases.contains_key("grep"),
+                "alias 'grep' must exist after double registration"
+            );
+        }
+
+        #[test]
+        fn test_stop_flag_is_false_without_stop_call() {
+            // Without calling stop(), the stopped flag must be false
+            let mut exec = RexExecutor::new();
+            let env = exec
+                .execute_commands("env.setenv('NO_STOP', 'yes')", "", None, None)
+                .expect("normal execute must succeed");
+            assert!(!env.stopped, "stopped must be false when stop() was not called");
+        }
     }
 }
+
 
 

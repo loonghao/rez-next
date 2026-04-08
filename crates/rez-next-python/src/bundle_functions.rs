@@ -706,6 +706,47 @@ mod tests {
             }
             let _ = fs::remove_dir_all(&tmp);
         }
+
+        // ─────── Cycle 132 additions ──────────────────────────────────────────
+
+        #[test]
+        fn test_bundle_context_result_has_no_null_bytes() {
+            let tmp = std::env::temp_dir().join("rez_cy132_bundle_null");
+            let _ = fs::remove_dir_all(&tmp);
+            let returned = bundle_context(vec!["pkg-1.0".to_string()], tmp.to_str().unwrap(), false).unwrap();
+            assert!(!returned.contains('\0'), "bundle_context result must not contain null bytes");
+            let _ = fs::remove_dir_all(&tmp);
+        }
+
+        #[test]
+        fn test_unbundle_context_with_only_skip_solve_line() {
+            // A bundle.yaml that contains only skip_solve (no packages section) should return empty list
+            let tmp = std::env::temp_dir().join("rez_cy132_unbundle_only_skip");
+            let _ = fs::remove_dir_all(&tmp);
+            fs::create_dir_all(&tmp).unwrap();
+            fs::write(tmp.join("bundle.yaml"), b"# rez bundle manifest\nskip_solve: false\n").unwrap();
+            let result = unbundle_context(tmp.to_str().unwrap(), None).unwrap();
+            assert!(result.is_empty(), "manifest with no packages section must return empty list");
+            let _ = fs::remove_dir_all(&tmp);
+        }
+
+        #[test]
+        fn test_list_bundles_returns_sorted_alphabetically() {
+            let base = std::env::temp_dir().join("rez_cy132_list_sorted_alpha");
+            let _ = fs::remove_dir_all(&base);
+            fs::create_dir_all(&base).unwrap();
+            for name in ["z_bundle", "a_bundle", "m_bundle"] {
+                let bdir = base.join(name);
+                fs::create_dir_all(&bdir).unwrap();
+                fs::write(bdir.join("bundle.yaml"), b"packages:\n").unwrap();
+            }
+            let result = list_bundles(Some(base.to_str().unwrap())).unwrap();
+            assert_eq!(result.len(), 3, "should find all 3 bundles");
+            assert_eq!(result[0], "a_bundle", "first must be a_bundle (alphabetical)");
+            assert_eq!(result[2], "z_bundle", "last must be z_bundle (alphabetical)");
+            let _ = fs::remove_dir_all(&base);
+        }
     }
 }
+
 
