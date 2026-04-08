@@ -278,11 +278,12 @@
 - This looks like a correctness bug rather than low-risk cleanup, so it should be fixed in a dedicated change after locking the intended contract with tests.
 - Follow-up: return or share the selected version from `copy_package()` so `move_package()` can delete the exact source directory it copied.
 
-### 40. `selftest_functions.rs` still duplicates checks and writes failures to stderr
-- **Status**: OPEN (cycle 34)
-- `selftest()` currently reports failures with `eprintln!` even though it lives in a library module, and the unit-test module repeats many of the same version / rex / suite checks already embedded in the runtime self-test body.
-- The current shape makes behavior drift likely: comment/test updates and runtime checks can diverge independently.
-- Follow-up: extract pure helper checks shared by `selftest()` and unit tests, then decide whether failure reporting should stay on stderr or move to structured return data.
+### 40. `selftest_functions.rs` still writes failures to stderr
+- **Status**: PARTIAL ✓ (cycle 36)
+- Cycle 36 removed **30** duplicate unit tests from `selftest_functions.rs`; the remaining test module now only locks the public `selftest()` contract (balanced counts, zero failures in a healthy runtime).
+- The duplicate-check half of this item is resolved, which lowers the risk of runtime self-test logic and unit tests drifting independently.
+- Remaining follow-up: `selftest()` still reports failures with `eprintln!` even though it lives in a library module; if revisited, decide whether that should move to structured return data or a logging dependency.
+
 
 ### 41. `bundle_functions.rs` still over-tests placeholder `dest_packages_path`
 - **Status**: COMPLETE ✓ (cycle 35)
