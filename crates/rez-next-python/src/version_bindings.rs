@@ -656,4 +656,47 @@ mod tests {
         }
         // None is also valid if the implementation returns None for identical result
     }
+
+    // ── Cycle 124 additions ───────────────────────────────────────────────────
+
+    #[test]
+    fn test_py_version_major_token_single_digit() {
+        let v = pv("3.11.0");
+        assert_eq!(v.major(), Some("3".to_string()), "major of '3.11.0' must be '3'");
+    }
+
+    #[test]
+    fn test_py_version_minor_token_two_digits() {
+        let v = pv("3.11.0");
+        assert_eq!(v.minor(), Some("11".to_string()), "minor of '3.11.0' must be '11'");
+    }
+
+    #[test]
+    fn test_py_version_patch_token_present() {
+        let v = pv("1.2.3");
+        assert_eq!(v.patch(), Some("3".to_string()), "patch of '1.2.3' must be '3'");
+    }
+
+    #[test]
+    fn test_py_version_is_empty_true_for_empty_string() {
+        let v = pv("");
+        assert!(v.is_empty(), "empty version string must report is_empty()=true");
+    }
+
+    #[test]
+    fn test_py_version_is_empty_false_for_non_empty() {
+        let v = pv("1.0");
+        assert!(!v.is_empty(), "non-empty version must report is_empty()=false");
+    }
+
+    #[test]
+    fn test_py_version_trim_to_two_tokens() {
+        let v = pv("1.2.3.4");
+        let trimmed = v.trim(2).unwrap();
+        assert_eq!(
+            trimmed.__str__(),
+            "1.2",
+            "trim(2) of '1.2.3.4' must yield '1.2'"
+        );
+    }
 }

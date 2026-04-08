@@ -689,4 +689,50 @@ mod tests {
             convert_pip_to_rez("mylib", "1.0.0", None, Some("A useful library")).unwrap();
         assert_eq!(pkg.description, "A useful library");
     }
+
+    // ── Cycle 124 additions ───────────────────────────────────────────────────
+
+    #[test]
+    fn test_normalize_package_name_mixed_case_lowercased() {
+        let result = normalize_package_name("MyPackage");
+        assert_eq!(result, "mypackage", "mixed-case name must be lowercased");
+    }
+
+    #[test]
+    fn test_normalize_package_name_underscores_become_hyphens() {
+        // normalize_package_name converts underscores to hyphens (pip convention)
+        let result = normalize_package_name("my_package");
+        assert_eq!(result, "my-package", "underscores must be converted to hyphens");
+    }
+
+    #[test]
+    fn test_pip_version_to_rez_exact_with_patch() {
+        // ==1.2.3 → exact 1.2.3
+        let result = pip_version_to_rez("==1.2.3");
+        assert!(result.contains("1.2.3"), "exact version '1.2.3' must appear in result: {result}");
+    }
+
+    #[test]
+    fn test_pip_version_to_rez_tilde_eq_maps_to_compatible() {
+        // ~=2.1 means >=2.1,==2.*  (compatible release)
+        let result = pip_version_to_rez("~=2.1");
+        assert!(result.contains("2.1"), "compatible release '~=2.1' must include '2.1': {result}");
+    }
+
+    #[test]
+    fn test_convert_pip_to_rez_empty_requires_produces_empty_vec() {
+        let pkg = convert_pip_to_rez("libfoo", "0.1.0", None, None).unwrap();
+        assert!(pkg.requires.is_empty(), "package with no deps must have empty requires vec");
+    }
+
+    #[test]
+    fn test_pip_package_str_format_is_name_dash_version() {
+        let pkg = PyPipPackage {
+            name: "requests".to_string(),
+            version: "2.28.0".to_string(),
+            requires: vec![],
+            description: "".to_string(),
+        };
+        assert_eq!(pkg.__str__(), "requests-2.28.0", "__str__ must be name-version: {}", pkg.__str__());
+    }
 }

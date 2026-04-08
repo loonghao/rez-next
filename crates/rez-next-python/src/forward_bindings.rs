@@ -523,6 +523,53 @@ mod forward_tests {
             let end_pos = script.rfind("end").expect("fish script must have 'end'");
             assert!(end_pos > fn_pos, "'end' must appear after 'function' in fish script");
         }
+
+        // ── Cycle 124 additions ───────────────────────────────────────────────
+
+        #[test]
+        fn test_forward_tool_name_empty_string_is_preserved() {
+            // An empty tool name must be stored as-is (no panic, no mangling)
+            let fwd = PyRezForward::new(String::new(), None);
+            assert_eq!(fwd.tool_name(), "", "empty tool name must round-trip unchanged");
+        }
+
+        #[test]
+        fn test_forward_repr_equals_str_when_no_context() {
+            let fwd = PyRezForward::new("katana".to_string(), None);
+            assert_eq!(fwd.__repr__(), fwd.__str__(), "__repr__ and __str__ must be identical when context is None");
+        }
+
+        #[test]
+        fn test_forward_repr_equals_str_when_context_set() {
+            let fwd = PyRezForward::new("maya".to_string(), Some("ctx-01".to_string()));
+            assert_eq!(fwd.__repr__(), fwd.__str__(), "__repr__ and __str__ must be identical when context is set");
+        }
+
+        #[test]
+        fn test_forward_execute_dry_run_returns_dry_run_prefix() {
+            let fwd = PyRezForward::new("houdini".to_string(), None);
+            let result = fwd.execute(None, true).unwrap();
+            assert!(result.starts_with("[dry-run]"), "dry-run result must start with '[dry-run]': {result}");
+        }
+
+        #[test]
+        fn test_forward_execute_dry_run_with_args_contains_tool_name() {
+            let fwd = PyRezForward::new("nuke".to_string(), None);
+            let args = vec!["--version".to_string()];
+            let result = fwd.execute(Some(args), true).unwrap();
+            assert!(result.contains("nuke"), "dry-run result must contain tool name: {result}");
+        }
+
+        #[test]
+        fn test_generate_forward_script_tool_name_appears_in_every_shell() {
+            for shell in &["bash", "fish", "cmd", "powershell"] {
+                let script = generate_forward_script("clarisse", Some(shell)).unwrap();
+                assert!(
+                    script.contains("clarisse"),
+                    "script for shell '{shell}' must contain tool name 'clarisse': {script}"
+                );
+            }
+        }
     }
 }
 

@@ -843,6 +843,65 @@ mod tests {
         );
     }
 
+    // ── Cycle 124 additions ───────────────────────────────────────────────────
+
+    /// Every exception name in the hierarchy is non-empty
+    #[test]
+    fn test_all_exception_names_are_non_empty() {
+        for (name, _parent) in EXCEPTION_HIERARCHY.iter() {
+            assert!(!name.is_empty(), "exception name must not be empty");
+        }
+    }
+
+    /// Every parent name in the hierarchy is non-empty
+    #[test]
+    fn test_all_parent_names_are_non_empty() {
+        for (_name, parent) in EXCEPTION_HIERARCHY.iter() {
+            assert!(!parent.is_empty(), "parent name must not be empty");
+        }
+    }
+
+    /// RezError appears as a parent at least once
+    #[test]
+    fn test_rez_error_appears_as_parent() {
+        let has_rez_error_parent = EXCEPTION_HIERARCHY
+            .iter()
+            .any(|(_, p)| *p == "RezError");
+        assert!(has_rez_error_parent, "RezError must appear as a parent in the hierarchy");
+    }
+
+    /// No exception is its own parent (no self-loops) — Cycle 124 variant
+    #[test]
+    fn test_no_self_loop_in_hierarchy_cy124() {
+        for (name, parent) in EXCEPTION_HIERARCHY.iter() {
+            assert_ne!(
+                name, parent,
+                "exception '{name}' must not be its own parent"
+            );
+        }
+    }
+
+    /// All exception names start with a capital letter (PascalCase convention)
+    #[test]
+    fn test_all_exception_names_pascal_case() {
+        for (name, _) in EXCEPTION_HIERARCHY.iter() {
+            let first_char = name.chars().next().expect("name must be non-empty");
+            assert!(
+                first_char.is_ascii_uppercase(),
+                "exception name '{name}' must start with uppercase"
+            );
+        }
+    }
+
+    /// RezBuildError is present as a child of some parent
+    #[test]
+    fn test_rez_build_error_present_in_hierarchy() {
+        let found = EXCEPTION_HIERARCHY
+            .iter()
+            .any(|(n, _)| *n == "RezBuildError");
+        assert!(found, "RezBuildError must be present in the hierarchy");
+    }
+
 }
 
 
