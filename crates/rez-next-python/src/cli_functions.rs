@@ -451,4 +451,34 @@ mod tests {
         let result_empty = cli_run("build", Some(vec![])).unwrap();
         assert_eq!(result_none, result_empty, "None and empty args must yield same result");
     }
+
+    // ── Cycle 136 additions ───────────────────────────────────────────────────
+
+    #[test]
+    fn test_cli_run_gui_command_returns_zero() {
+        assert_eq!(cli_run("gui", None).unwrap(), 0, "gui must return 0");
+    }
+
+    #[test]
+    fn test_cli_run_suite_command_returns_zero() {
+        assert_eq!(cli_run("suite", None).unwrap(), 0, "suite must return 0");
+    }
+
+    #[test]
+    fn test_cli_run_benchmark_command_returns_zero() {
+        assert_eq!(cli_run("benchmark", None).unwrap(), 0, "benchmark must return 0");
+    }
+
+    #[test]
+    fn test_cli_run_complete_command_returns_zero() {
+        assert_eq!(cli_run("complete", None).unwrap(), 0, "complete must return 0");
+    }
+
+    #[test]
+    fn test_known_commands_contains_forward() {
+        assert!(
+            KNOWN_COMMANDS.contains(&"forward"),
+            "KNOWN_COMMANDS must contain 'forward'"
+        );
+    }
 }

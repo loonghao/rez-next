@@ -742,5 +742,47 @@ mod tests {
             cfg.version
         );
     }
+
+    // ── Cycle 136 additions ───────────────────────────────────────────────────
+
+    #[test]
+    fn test_collect_selftest_results_count_is_positive() {
+        // There must be at least one check registered in the selftest suite
+        let results = collect_selftest_results();
+        assert!(
+            !results.is_empty(),
+            "collect_selftest_results must return at least one entry"
+        );
+    }
+
+    #[test]
+    fn test_selftest_check_result_passed_field() {
+        let r = super::SelftestCheckResult::new("my_check", true);
+        assert!(r.passed, "passed field must be true when constructed with true");
+    }
+
+    #[test]
+    fn test_selftest_check_result_failed_field() {
+        let r = super::SelftestCheckResult::new("bad_check", false);
+        assert!(!r.passed, "passed field must be false when constructed with false");
+    }
+
+    #[test]
+    fn test_summarize_empty_results_all_zero() {
+        let (passed, failed, total) = summarize_selftest_results(&[]);
+        assert_eq!(passed, 0, "no results → passed must be 0");
+        assert_eq!(failed, 0, "no results → failed must be 0");
+        assert_eq!(total, 0, "no results → total must be 0");
+    }
+
+    #[test]
+    fn test_selftest_passed_plus_failed_equals_total() {
+        let (passed, failed, total) = selftest().expect("selftest must succeed");
+        assert_eq!(
+            passed + failed,
+            total,
+            "passed ({passed}) + failed ({failed}) must equal total ({total})"
+        );
+    }
 }
 
