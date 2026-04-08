@@ -849,4 +849,40 @@ mod release_tests {
         ).unwrap();
         assert!(!result.success, "nonexistent path should yield failure");
     }
+
+    // ─────── Cycle 126 additions ─────────────────────────────────────────────
+
+    #[test]
+    fn test_release_manager_new_default_fields() {
+        let mgr = PyReleaseManager::new(None, false, false);
+        // Just verify construction does not panic and default mode is valid
+        let _ = mgr;
+    }
+
+    #[test]
+    fn test_release_manager_skip_build_stored() {
+        let mgr = PyReleaseManager::new(None, true, false);
+        assert!(mgr.skip_build, "skip_build=true must be stored");
+    }
+
+    #[test]
+    fn test_release_manager_skip_tests_stored() {
+        let mgr = PyReleaseManager::new(None, false, true);
+        assert!(mgr.skip_tests, "skip_tests=true must be stored");
+    }
+
+    #[test]
+    fn test_release_result_success_field_is_bool() {
+        let result = release_package(Some("/nonexistent/cy126"), false, true, None).unwrap();
+        // Just verify it is a bool (compile-time type check) and the call doesn't panic
+        let _: bool = result.success;
+    }
+
+    #[test]
+    fn test_release_result_errors_is_vec() {
+        let result = release_package(Some("/nonexistent/cy126b"), false, true, None).unwrap();
+        // errors field must be a Vec — access len to verify it's Sized
+        let _ = result.errors.len();
+    }
 }
+

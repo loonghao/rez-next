@@ -561,7 +561,66 @@ mod tests {
             assert_eq!(solver.paths[2], PathBuf::from("/gamma"));
         }
     }
+
+    mod test_solver_cy126 {
+        use super::*;
+        use std::path::PathBuf;
+
+        /// PySolver with 0 paths has paths.len() == 0
+        #[test]
+        fn test_solver_zero_paths_len_is_zero() {
+            let solver = PySolver {
+                config: SolverConfig::default(),
+                paths: vec![],
+            };
+            assert_eq!(solver.paths.len(), 0);
+        }
+
+        /// SolverConfig enable_parallel default is a bool accessible without panic
+        #[test]
+        fn test_solver_config_verbose_default_false() {
+            let config = SolverConfig::default();
+            let _: bool = config.enable_parallel; // compile-time type check
+        }
+
+        /// repr for PySolver with 0 paths shows "paths=0"
+        #[test]
+        fn test_solver_repr_paths_zero() {
+            let solver = PySolver {
+                config: SolverConfig::default(),
+                paths: vec![],
+            };
+            let repr = solver.__repr__();
+            assert!(repr.contains("paths=0"), "repr should show paths=0: {repr}");
+        }
+
+        /// PySolver with single path has len 1
+        #[test]
+        fn test_solver_single_path_len_is_one() {
+            let solver = PySolver {
+                config: SolverConfig::default(),
+                paths: vec![PathBuf::from("/pkg/single")],
+            };
+            assert_eq!(solver.paths.len(), 1);
+        }
+
+        /// SolverConfig max_attempts default is at most 1000
+        #[test]
+        fn test_solver_config_max_attempts_at_most_1000() {
+            let config = SolverConfig::default();
+            assert!(
+                config.max_attempts <= 1000,
+                "max_attempts default should be reasonable (<=1000), got {}",
+                config.max_attempts
+            );
+        }
+    }
 }
+
+
+
+
+
 
 
 

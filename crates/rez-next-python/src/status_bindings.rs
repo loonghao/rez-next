@@ -944,5 +944,56 @@ mod status_bindings_tests {
         let s = PyRezStatus::new();
         assert!(!s.__repr__().is_empty(), "__repr__ must not be empty");
     }
+
+    // ─────── Cycle 126 additions ─────────────────────────────────────────────
+
+    #[test]
+    fn test_rez_status_new_does_not_panic() {
+        let _ = PyRezStatus::new();
+    }
+
+    #[test]
+    fn test_get_rez_env_var_missing_key_is_none() {
+        let _lock = ENV_MUTEX.lock().unwrap();
+        let result = get_rez_env_var("__REZ_NONEXISTENT_CY126__");
+        assert!(result.is_none(), "unknown env var must return None");
+    }
+
+    #[test]
+    fn test_get_resolved_package_names_outside_context_is_empty() {
+        let _lock = ENV_MUTEX.lock().unwrap();
+        if std::env::var("REZ_USED_PACKAGES_NAMES").is_err() {
+            let names = get_resolved_package_names();
+            assert!(
+                names.is_empty(),
+                "outside rez context, resolved package names must be empty"
+            );
+        }
+    }
+
+    #[test]
+    fn test_is_in_rez_context_consistent_with_env() {
+        let _lock = ENV_MUTEX.lock().unwrap();
+        let has_ctx_file = std::env::var("REZ_CONTEXT_FILE").is_ok();
+        let has_pkg_names = std::env::var("REZ_USED_PACKAGES_NAMES").is_ok();
+        let expected = has_ctx_file || has_pkg_names;
+        assert_eq!(
+            is_in_rez_context(),
+            expected,
+            "is_in_rez_context() must match env variable presence"
+        );
+    }
+
+    #[test]
+    fn test_rez_status_repr_contains_status_token() {
+        let s = PyRezStatus::new();
+        let repr = s.__repr__();
+        assert!(
+            repr.contains("Status") || repr.contains("rez"),
+            "repr must mention status or rez: {repr}"
+        );
+    }
 }
+
+
 

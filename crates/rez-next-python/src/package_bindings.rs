@@ -625,4 +625,47 @@ mod tests {
         let p = make_package("python");
         assert!(p.is_valid(), "package with valid name 'python' should be valid");
     }
+
+    // ─────── Cycle 126 additions ─────────────────────────────────────────────
+
+    #[test]
+    fn test_package_name_roundtrip() {
+        let p = make_package("cmake");
+        assert_eq!(p.name(), "cmake");
+    }
+
+    #[test]
+    fn test_package_requirement_parse_valid() {
+        let req = PyPackageRequirement::new("python-3.9+");
+        assert!(req.is_ok(), "valid requirement string must parse without error");
+    }
+
+    #[test]
+    fn test_package_requirement_name() {
+        let req = PyPackageRequirement::new("maya-2024").unwrap();
+        assert_eq!(req.name(), "maya");
+    }
+
+    #[test]
+    fn test_package_requirement_parse_invalid_graceful() {
+        // A string that cannot be parsed as a requirement should return Err, not panic
+        // (Empty string is known to be invalid for requirements)
+        // If implementation is lenient, it may return Ok — either way, no panic.
+        let _ = PyPackageRequirement::new("");
+    }
+
+    #[test]
+    fn test_package_default_version_is_empty_or_zero() {
+        let p = make_package("houdini");
+        // Default version for a package created without version should be None or "0"
+        let ver = p.version_str();
+        match ver {
+            None => {} // None is acceptable
+            Some(s) => assert!(
+                s.is_empty() || s.starts_with('0'),
+                "default version_str should be None, empty, or '0', got: '{s}'"
+            ),
+        }
+    }
 }
+

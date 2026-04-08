@@ -776,4 +776,40 @@ mod tests {
         assert!(!repr.is_empty(), "repr must not be empty");
         assert!(repr.contains("SourceManager"), "repr: {repr}");
     }
+
+    // ─────── Cycle 126 additions ─────────────────────────────────────────────
+
+    #[test]
+    fn test_source_manager_packages_roundtrip() {
+        let pkgs = vec!["python-3.11".to_string(), "cmake-3.26".to_string()];
+        let mgr = PySourceManager::new(pkgs.clone(), None);
+        assert_eq!(mgr.packages(), pkgs);
+    }
+
+    #[test]
+    fn test_source_manager_shell_type_when_given_bash() {
+        let mgr = PySourceManager::new(vec![], Some("bash".to_string()));
+        assert_eq!(mgr.shell_type(), "bash");
+    }
+
+    #[test]
+    fn test_source_manager_empty_packages_is_empty() {
+        let mgr = PySourceManager::new(vec![], None);
+        assert!(mgr.packages().is_empty(), "empty packages list must round-trip as empty");
+    }
+
+    #[test]
+    fn test_get_source_script_returns_string() {
+        // get_source_script is pure and must not panic for arbitrary input
+        let script = get_source_script(vec!["python-3.9".to_string()], Some("bash".to_string()));
+        // Result is a String — just verify it can be used
+        let _ = script.len();
+    }
+
+    #[test]
+    fn test_detect_shell_is_nonempty() {
+        let shell = detect_shell();
+        assert!(!shell.is_empty(), "detect_shell must return a non-empty string");
+    }
 }
+

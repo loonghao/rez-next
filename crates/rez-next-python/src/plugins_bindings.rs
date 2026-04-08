@@ -698,4 +698,55 @@ mod tests {
             assert!(pt.__repr__().contains("custom_type"));
         }
     }
+
+    mod test_plugins_cy126 {
+        use super::*;
+
+        /// plugin_manager contains at least one shell plugin
+        #[test]
+        fn test_plugin_manager_has_shell_plugins() {
+            let mgr = PyRezPluginManager::new();
+            let shells = mgr.get_plugins("shell");
+            assert!(!shells.is_empty(), "must have at least one shell plugin");
+        }
+
+        /// get_plugins for unknown type returns empty vec (not panic)
+        #[test]
+        fn test_get_plugins_unknown_type_is_empty() {
+            let mgr = PyRezPluginManager::new();
+            let result = mgr.get_plugins("nonexistent_type_cy126");
+            assert!(
+                result.is_empty(),
+                "unknown plugin type must return empty list"
+            );
+        }
+
+        /// PyPlugin repr contains plugin name
+        #[test]
+        fn test_plugin_repr_contains_name() {
+            let p = PyPlugin::new("test_shell", "shell", "Test shell", "1.0.0");
+            let repr = p.__repr__();
+            assert!(
+                repr.contains("test_shell"),
+                "repr must contain plugin name: {repr}"
+            );
+        }
+
+        /// is_shell_supported returns false for clearly unsupported shell
+        #[test]
+        fn test_is_shell_supported_fake_shell_false() {
+            assert!(
+                !is_shell_supported("notashell_cy126"),
+                "fake shell must not be reported as supported"
+            );
+        }
+
+        /// PyPlugin type field is stored correctly
+        #[test]
+        fn test_plugin_type_field_stored() {
+            let p = PyPlugin::new("cmake", "build_system", "CMake build system", "3.26.0");
+            assert_eq!(p.plugin_type, "build_system");
+        }
+    }
 }
+

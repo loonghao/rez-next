@@ -733,6 +733,58 @@ mod tests {
             assert!(repr.contains("RepositoryManager"));
         }
     }
+
+    mod test_repository_cy126 {
+        use super::*;
+
+        /// new() with one path stores exactly one path
+        #[test]
+        fn test_new_one_path_len_is_one() {
+            let mgr = PyRepositoryManager::new(Some(vec!["/single/path".to_string()])).unwrap();
+            assert_eq!(mgr.paths.len(), 1);
+        }
+
+        /// new() with empty paths list has len 0
+        #[test]
+        fn test_new_empty_paths_len_is_zero() {
+            let mgr = PyRepositoryManager::new(Some(vec![])).unwrap();
+            assert_eq!(mgr.paths.len(), 0);
+        }
+
+        /// repr contains each path entry
+        #[test]
+        fn test_repr_contains_path_count() {
+            let paths = vec!["/a".to_string(), "/b".to_string(), "/c".to_string()];
+            let mgr = PyRepositoryManager::new(Some(paths)).unwrap();
+            let repr = mgr.__repr__();
+            // repr format: RepositoryManager(paths=["/a", "/b", "/c"])
+            assert!(
+                repr.contains("/a") && repr.contains("/b") && repr.contains("/c"),
+                "repr should contain all path entries: {repr}"
+            );
+        }
+
+        /// find_packages on non-existent path does not panic
+        #[test]
+        fn test_find_packages_nonexistent_path_no_panic() {
+            let mgr =
+                PyRepositoryManager::new(Some(vec!["/nonexistent_cy126/pkgs".to_string()]))
+                    .unwrap();
+            let _ = mgr.find_packages("python");
+        }
+
+        /// get_package_family_names on single non-existent path returns Ok
+        #[test]
+        fn test_get_family_names_single_nonexistent_path_ok() {
+            let mgr =
+                PyRepositoryManager::new(Some(vec!["/nonexistent_cy126/pkgs2".to_string()]))
+                    .unwrap();
+            // Should either return Ok(empty) or Err — but must not panic
+            let _ = mgr.get_package_family_names();
+        }
+    }
 }
+
+
 
 
