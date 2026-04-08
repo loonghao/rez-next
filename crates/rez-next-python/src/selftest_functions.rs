@@ -217,6 +217,219 @@ mod tests {
             assert_eq!(passed, total, "all recorded checks should pass in a healthy runtime");
         }
     }
+
+    mod test_selftest_cy127_version {
+        /// Direct unit tests for version subsystem behaviour (does not call selftest())
+
+        #[test]
+        fn test_version_parse_semver_three_components() {
+            use rez_next_version::Version;
+            assert!(Version::parse("1.2.3").is_ok());
+            assert!(Version::parse("0.0.0").is_ok());
+            assert!(Version::parse("100.200.300").is_ok());
+        }
+
+        #[test]
+        fn test_version_parse_two_components() {
+            use rez_next_version::Version;
+            assert!(Version::parse("3.9").is_ok());
+            assert!(Version::parse("20.1").is_ok());
+        }
+
+        #[test]
+        fn test_version_parse_single_component() {
+            use rez_next_version::Version;
+            assert!(Version::parse("3").is_ok());
+        }
+
+        #[test]
+        fn test_version_ordering_less_than() {
+            use rez_next_version::Version;
+            let v1 = Version::parse("1.0.0").unwrap();
+            let v2 = Version::parse("2.0.0").unwrap();
+            assert!(v1 < v2);
+        }
+
+        #[test]
+        fn test_version_ordering_equal() {
+            use rez_next_version::Version;
+            let v1 = Version::parse("1.0.0").unwrap();
+            let v2 = Version::parse("1.0.0").unwrap();
+            assert_eq!(v1, v2);
+        }
+
+        #[test]
+        fn test_version_range_empty_matches_any() {
+            use rez_next_version::{Version, VersionRange};
+            let range = VersionRange::parse("").unwrap();
+            let v = Version::parse("99.0").unwrap();
+            assert!(range.contains(&v), "empty range must match any version");
+        }
+
+        #[test]
+        fn test_version_range_gte_lower_bound() {
+            use rez_next_version::{Version, VersionRange};
+            let range = VersionRange::parse(">=3.9").unwrap();
+            assert!(!range.contains(&Version::parse("3.8").unwrap()));
+            assert!(range.contains(&Version::parse("3.9").unwrap()));
+            assert!(range.contains(&Version::parse("4.0").unwrap()));
+        }
+
+        #[test]
+        fn test_version_range_exclusive_upper_bound() {
+            use rez_next_version::{Version, VersionRange};
+            let range = VersionRange::parse("1.0+<2.0").unwrap();
+            assert!(range.contains(&Version::parse("1.0").unwrap()));
+            assert!(range.contains(&Version::parse("1.9").unwrap()));
+            assert!(!range.contains(&Version::parse("2.0").unwrap()));
+        }
+    }
+
+    mod test_selftest_cy127_config {
+        #[test]
+        fn test_config_loads_and_has_version() {
+            let cfg = rez_next_common::config::RezCoreConfig::load();
+            assert!(!cfg.version.is_empty(), "config version must not be empty");
+        }
+
+        #[test]
+        fn test_config_packages_path_is_vec() {
+            let cfg = rez_next_common::config::RezCoreConfig::load();
+            // packages_path must be a Vec (even if empty)
+            let _: &Vec<String> = &cfg.packages_path;
+        }
+    }
+
+    mod test_selftest_cy127_package {
+        #[test]
+        fn test_package_requirement_parse_simple() {
+            use rez_next_package::PackageRequirement;
+            assert!(PackageRequirement::parse("python").is_ok());
+            assert!(PackageRequirement::parse("maya-2024").is_ok());
+        }
+
+        #[test]
+        fn test_package_requirement_parse_range() {
+            use rez_next_package::PackageRequirement;
+            assert!(PackageRequirement::parse("python-3+<4").is_ok());
+            assert!(PackageRequirement::parse("houdini>=19.5").is_ok());
+        }
+
+        #[test]
+        fn test_package_requirement_name_extracted() {
+            use rez_next_package::PackageRequirement;
+            let req = PackageRequirement::parse("maya-2024").unwrap();
+            assert_eq!(req.name(), "maya");
+        }
+
+        #[test]
+        fn test_package_build_fields_version_and_commands() {
+            use rez_next_package::Package;
+            use rez_next_version::Version;
+            let mut pkg = Package::new("tool".to_string());
+            pkg.version = Some(Version::parse("1.0.0").unwrap());
+            pkg.commands = Some("env.setenv('TOOL_ROOT', '{root}')".to_string());
+            assert!(pkg.version.is_some());
+            assert!(pkg.commands.is_some());
+        }
+
+        #[test]
+        fn test_package_tools_empty_by_default() {
+            use rez_next_package::Package;
+            let pkg = Package::new("notools".to_string());
+            assert!(pkg.tools.is_empty(), "new Package must have no tools by default");
+        }
+
+        #[test]
+        fn test_package_requires_empty_by_default() {
+            use rez_next_package::Package;
+            let pkg = Package::new("noreqs".to_string());
+            assert!(pkg.requires.is_empty(), "new Package must have no requires by default");
+        }
+    }
+
+    mod test_selftest_cy127_rex {
+        #[test]
+        fn test_rex_parse_setenv_returns_one_action() {
+            use rez_next_rex::RexParser;
+            let parser = RexParser::new();
+            let actions = parser.parse("env.setenv('MY_VAR', 'value')").unwrap();
+            assert_eq!(actions.len(), 1);
+        }
+
+        #[test]
+        fn test_rex_parse_prepend_path_returns_one_action() {
+            use rez_next_rex::RexParser;
+            let parser = RexParser::new();
+            let actions = parser.parse("env.prepend_path('PATH', '{root}/bin')").unwrap();
+            assert_eq!(actions.len(), 1);
+        }
+
+        #[test]
+        fn test_rex_execute_sets_env_var() {
+            use rez_next_rex::RexExecutor;
+            let mut exec = RexExecutor::new();
+            let env = exec
+                .execute_commands(
+                    "env.setenv('REZ_TOOL_ROOT', '/opt/tool')",
+                    "tool",
+                    Some("/opt/tool"),
+                    Some("1.0"),
+                )
+                .unwrap();
+            assert!(
+                env.vars.contains_key("REZ_TOOL_ROOT"),
+                "setenv must create env var"
+            );
+        }
+
+        #[test]
+        fn test_rex_stop_sets_stopped_flag() {
+            use rez_next_rex::RexExecutor;
+            let mut exec = RexExecutor::new();
+            let env = exec
+                .execute_commands("stop('done')", "pkg", None, None)
+                .unwrap();
+            assert!(env.stopped, "stop() must set env.stopped = true");
+        }
+
+        #[test]
+        fn test_rex_info_appends_message() {
+            use rez_next_rex::RexExecutor;
+            let mut exec = RexExecutor::new();
+            let env = exec
+                .execute_commands("info('hello from rex')", "pkg", None, None)
+                .unwrap();
+            assert!(!env.info_messages.is_empty(), "info() must append to info_messages");
+        }
+
+        #[test]
+        fn test_shell_script_bash_contains_export() {
+            use rez_next_rex::{generate_shell_script, RexEnvironment, ShellType};
+            let mut env = RexEnvironment::new();
+            env.vars.insert("MY_VAR".to_string(), "value".to_string());
+            let script = generate_shell_script(&env, &ShellType::Bash);
+            assert!(script.contains("export MY_VAR="), "bash script must use export: {script}");
+        }
+
+        #[test]
+        fn test_shell_script_powershell_contains_env_prefix() {
+            use rez_next_rex::{generate_shell_script, RexEnvironment, ShellType};
+            let mut env = RexEnvironment::new();
+            env.vars.insert("MY_VAR".to_string(), "value".to_string());
+            let script = generate_shell_script(&env, &ShellType::PowerShell);
+            assert!(script.contains("$env:MY_VAR"), "powershell script must use $env: prefix: {script}");
+        }
+    }
+
+    mod test_selftest_cy127_repository {
+        #[test]
+        fn test_repository_manager_starts_empty() {
+            use rez_next_repository::simple_repository::RepositoryManager;
+            let mgr = RepositoryManager::new();
+            assert_eq!(mgr.repository_count(), 0);
+        }
+    }
 }
 
 

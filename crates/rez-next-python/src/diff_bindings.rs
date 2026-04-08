@@ -1109,5 +1109,69 @@ mod diff_bindings_tests {
         let line_count = output.lines().count();
         assert_eq!(line_count, 2, "format_diff should output 2 lines for 2 changes: got {line_count}");
     }
+
+    // ── Cycle 127 additions ───────────────────────────────────────────────────
+
+    #[test]
+    fn test_compute_diff_empty_old_all_added() {
+        let new = vec![make_pkg("maya", "2024.1"), make_pkg("python", "3.11")];
+        let diffs = compute_diff(&[], &new);
+        let added = diffs.iter().filter(|d| d.change_type == "added").count();
+        assert_eq!(added, 2, "all packages are 'added' when old is empty");
+    }
+
+    #[test]
+    fn test_compute_diff_empty_new_all_removed() {
+        let old = vec![make_pkg("maya", "2024.1"), make_pkg("python", "3.11")];
+        let diffs = compute_diff(&old, &[]);
+        let removed = diffs.iter().filter(|d| d.change_type == "removed").count();
+        assert_eq!(removed, 2, "all packages are 'removed' when new is empty");
+    }
+
+    #[test]
+    fn test_context_diff_repr_contains_counts() {
+        let diff_obj = PyContextDiff {
+            num_added: 3,
+            num_removed: 1,
+            num_upgraded: 2,
+            num_downgraded: 0,
+            num_unchanged: 5,
+            diffs: vec![],
+        };
+        let r = diff_obj.__repr__();
+        assert!(r.contains("+3"), "repr must contain +3: {r}");
+        assert!(r.contains("-1"), "repr must contain -1: {r}");
+        assert!(r.contains("^2"), "repr must contain ^2: {r}");
+    }
+
+    #[test]
+    fn test_package_diff_repr_removed_shows_old_version() {
+        let d = PyPackageDiff {
+            name: "houdini".to_string(),
+            old_version: Some("19.5".to_string()),
+            new_version: None,
+            change_type: "removed".to_string(),
+        };
+        let r = d.__repr__();
+        assert!(r.contains("19.5"), "removed repr must show old version: {r}");
+        assert!(r.contains("houdini"), "removed repr must contain name: {r}");
+    }
+
+    #[test]
+    fn test_compute_diff_same_version_unchanged() {
+        let pkgs = vec![make_pkg("python", "3.9.0"), make_pkg("maya", "2023.0")];
+        let diffs = compute_diff(&pkgs, &pkgs);
+        let unchanged = diffs.iter().filter(|d| d.change_type == "unchanged").count();
+        assert_eq!(unchanged, 2, "identical package lists must produce 2 unchanged diffs");
+    }
+
+    #[test]
+    fn test_compute_diff_downgrade_detected() {
+        let old = vec![make_pkg("nuke", "15.0")];
+        let new = vec![make_pkg("nuke", "14.0")];
+        let diffs = compute_diff(&old, &new);
+        let downgraded = diffs.iter().filter(|d| d.change_type == "downgraded").count();
+        assert_eq!(downgraded, 1, "lower version must be detected as 'downgraded'");
+    }
 }
 

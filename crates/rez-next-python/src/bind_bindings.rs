@@ -646,5 +646,28 @@ mod tests {
             "install_path() accessor must match install_path field"
         );
     }
+
+    // ── Cycle 127 additions ──────────────────────────────────────────────────
+
+    #[test]
+    fn test_bind_result_repr_format_no_executable() {
+        let r = PyBindResult {
+            name: "zlib".to_string(),
+            version: "1.3.0".to_string(),
+            install_path: "/pkgs/zlib/1.3.0".to_string(),
+            executable_path: None,
+        };
+        let repr = r.__repr__();
+        // BindResult(name='zlib', version='1.3.0', path='/pkgs/zlib/1.3.0')
+        assert!(repr.starts_with("BindResult("), "repr must start with BindResult(: {repr}");
+        assert!(repr.contains("zlib"), "repr must contain name: {repr}");
+        assert!(repr.contains("1.3.0"), "repr must contain version: {repr}");
+    }
+
+    #[test]
+    fn test_extract_version_no_digits_returns_none() {
+        let result = extract_version("no version here");
+        assert!(result.is_none(), "extract_version must return None when no version found");
+    }
 }
 

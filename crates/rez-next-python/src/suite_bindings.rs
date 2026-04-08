@@ -630,4 +630,43 @@ mod tests {
             );
         }
     }
+
+    mod test_suite_cy127 {
+        use super::*;
+
+        /// Removing a context reduces __len__ by 1
+        #[test]
+        fn test_remove_context_reduces_len() {
+            let mut s = PySuite::new(None);
+            s.add_context("x", vec![]).unwrap();
+            s.add_context("y", vec![]).unwrap();
+            assert_eq!(s.__len__(), 2);
+            s.remove_context("x").unwrap();
+            assert_eq!(s.__len__(), 1, "len must decrease after remove_context");
+        }
+
+        /// Removing a non-existent context returns an Err
+        #[test]
+        fn test_remove_nonexistent_context_returns_err() {
+            let mut s = PySuite::new(None);
+            let result = s.remove_context("ghost");
+            assert!(result.is_err(), "removing non-existent context must return Err");
+        }
+
+        /// Suite with Some description initialises description correctly
+        #[test]
+        fn test_new_with_description_stores_value() {
+            let s = PySuite::new(Some("my suite"));
+            assert_eq!(s.description(), Some("my suite"));
+        }
+
+        /// Suite with duplicate context name returns Err
+        #[test]
+        fn test_add_duplicate_context_returns_err() {
+            let mut s = PySuite::new(None);
+            s.add_context("dup", vec![]).unwrap();
+            let result = s.add_context("dup", vec![]);
+            assert!(result.is_err(), "adding a duplicate context name must return Err");
+        }
+    }
 }
