@@ -73,7 +73,9 @@
 ### 39. Large Rust files remain above 800 lines after recent iteration growth
 - **Status**: OPEN
 - Current >800-line candidates (excluding `target/`): `tests/cli_e2e_tests.rs` (955), `tests/rez_compat_late_tests.rs` (942), `tests/rez_compat_search_tests.rs` (884), `crates/rez-next-solver/src/dependency_resolver_tests.rs` (864), `tests/rez_compat_misc_tests.rs` (862), `crates/rez-next-rex/src/executor_tests.rs` (856), `crates/rez-next-python/src/diff_bindings.rs` (854), `crates/rez-next-repository/src/filesystem_tests.rs` (850), `crates/rez-next-python/src/depends_bindings.rs` (840), `crates/rez-next-repository/src/scanner.rs` (834), `tests/rez_compat_tests.rs` (807), `tests/rez_solver_advanced_tests.rs` (806).
+- Progress update (cycle 139 / `auto-improve`): `crates/rez-next-python/src/env_bindings.rs` has already been split from ~930 lines down to 390 lines by extracting `env_bindings_tests.rs` (543 lines), so the next Python binding split candidates are `exceptions_bindings.rs`, `release_bindings.rs`, and `source_bindings.rs`.
 - Follow-up: prioritize splitting the mixed integration suites first (`cli_e2e_tests.rs`, `rez_compat_*`, `rez_solver_advanced_tests.rs`) before more iteration cycles add overlap.
+
 
 1 TODO comment across the codebase (cycle 20 audit, unchanged from cycle 19):
 
