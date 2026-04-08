@@ -198,4 +198,156 @@ mod tests {
             );
         }
     }
+
+    // ─────── Cycle 134 additions ──────────────────────────────────────────
+
+    #[test]
+    fn test_cli_run_every_known_command_returns_zero_with_empty_args() {
+        // Exhaustive check: every entry in KNOWN_COMMANDS must succeed with empty args vec
+        for &cmd in KNOWN_COMMANDS {
+            let result = cli_run(cmd, Some(vec![]));
+            assert_eq!(
+                result.unwrap(),
+                0,
+                "cli_run('{cmd}', Some([])) must return 0"
+            );
+        }
+    }
+
+    #[test]
+    fn test_cli_run_case_sensitive_upper_returns_err() {
+        // Commands are case-sensitive; uppercase variants must fail
+        assert!(cli_run("ENV", None).is_err(), "uppercase 'ENV' must return Err");
+        assert!(cli_run("Build", None).is_err(), "mixed-case 'Build' must return Err");
+        assert!(cli_run("SOLVE", None).is_err(), "uppercase 'SOLVE' must return Err");
+    }
+
+    #[test]
+    fn test_cli_run_command_with_leading_trailing_space_returns_err() {
+        assert!(
+            cli_run(" env", None).is_err(),
+            "leading-space ' env' must not match known command"
+        );
+        assert!(
+            cli_run("env ", None).is_err(),
+            "trailing-space 'env ' must not match known command"
+        );
+    }
+
+    #[test]
+    fn test_cli_main_with_multiple_args_dispatches_first() {
+        // Only the first arg is used as the command; remaining are forwarded as args
+        let result = cli_main(Some(vec![
+            "build".to_string(),
+            "--install".to_string(),
+            "--clean".to_string(),
+        ]));
+        assert_eq!(result.unwrap(), 0, "build command with extra flags must return 0");
+    }
+
+    #[test]
+    fn test_cli_main_unknown_command_in_first_position_returns_err() {
+        // When the first arg is unknown, cli_main must propagate the error from cli_run
+        assert!(
+            cli_main(Some(vec!["unknown_cmd_xyz".to_string(), "extra".to_string()])).is_err(),
+            "cli_main with unknown first-arg must return Err"
+        );
+    }
+
+    #[test]
+    fn test_known_commands_contains_env_and_solve() {
+        // Core workflow commands must always be present
+        assert!(
+            KNOWN_COMMANDS.contains(&"env"),
+            "'env' must be in KNOWN_COMMANDS"
+        );
+        assert!(
+            KNOWN_COMMANDS.contains(&"solve"),
+            "'solve' must be in KNOWN_COMMANDS"
+        );
+    }
+
+    #[test]
+    fn test_known_commands_contains_build_and_release() {
+        assert!(
+            KNOWN_COMMANDS.contains(&"build"),
+            "'build' must be in KNOWN_COMMANDS"
+        );
+        assert!(
+            KNOWN_COMMANDS.contains(&"release"),
+            "'release' must be in KNOWN_COMMANDS"
+        );
+    }
+
+    #[test]
+    fn test_known_commands_contains_pip_and_forward() {
+        // pip and forward are part of the rez compatibility surface
+        assert!(
+            KNOWN_COMMANDS.contains(&"pip"),
+            "'pip' must be in KNOWN_COMMANDS"
+        );
+        assert!(
+            KNOWN_COMMANDS.contains(&"forward"),
+            "'forward' must be in KNOWN_COMMANDS"
+        );
+    }
+
+    #[test]
+    fn test_cli_run_build_with_version_arg_returns_zero() {
+        let result = cli_run("build", Some(vec!["1.2.3".to_string()]));
+        assert_eq!(result.unwrap(), 0, "build command with version arg must return 0");
+    }
+
+    #[test]
+    fn test_cli_run_search_with_package_name_arg_returns_zero() {
+        let result = cli_run("search", Some(vec!["python".to_string()]));
+        assert_eq!(result.unwrap(), 0, "search command with package name must return 0");
+    }
+
+    #[test]
+    fn test_cli_run_release_with_multiple_flags_returns_zero() {
+        let result = cli_run(
+            "release",
+            Some(vec!["--skip-repo-errors".to_string(), "--no-message".to_string()]),
+        );
+        assert_eq!(result.unwrap(), 0, "release command with flags must return 0");
+    }
+
+    #[test]
+    fn test_known_commands_does_not_contain_numeric_entries() {
+        // All command names should be purely textual
+        for &cmd in KNOWN_COMMANDS {
+            assert!(
+                cmd.chars().any(|c| c.is_alphabetic()),
+                "command '{cmd}' must contain at least one alphabetic character"
+            );
+        }
+    }
+
+    #[test]
+    fn test_cli_run_all_commands_iterable_via_slice() {
+        // Verify the slice is usable as an iterator (not just index access)
+        let count = KNOWN_COMMANDS.iter().filter(|&&c| c.len() > 0).count();
+        assert_eq!(count, KNOWN_COMMANDS.len(), "all entries must be non-empty when iterated");
+    }
+
+    #[test]
+    fn test_cli_main_returns_zero_for_each_known_command_individually() {
+        // Equivalent to calling cli_run but via cli_main entry point
+        for &cmd in KNOWN_COMMANDS {
+            let result = cli_main(Some(vec![cmd.to_string()]));
+            assert_eq!(
+                result.unwrap(),
+                0,
+                "cli_main with first arg '{cmd}' must return 0"
+            );
+        }
+    }
+
+    #[test]
+    fn test_cli_run_numeric_string_command_returns_err() {
+        // Purely numeric strings are not valid commands
+        assert!(cli_run("123", None).is_err(), "'123' is not a known command");
+        assert!(cli_run("0", None).is_err(), "'0' is not a known command");
+    }
 }

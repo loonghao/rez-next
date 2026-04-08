@@ -453,5 +453,127 @@ mod tests {
             results.len()
         );
     }
+
+    // ─────── Cycle 134 additions ──────────────────────────────────────────
+
+    #[test]
+    fn test_check_version_parse_basic_returns_true() {
+        assert!(
+            super::check_version_parse_basic(),
+            "check_version_parse_basic must return true in healthy runtime"
+        );
+    }
+
+    #[test]
+    fn test_check_version_range_parse_returns_true() {
+        assert!(
+            super::check_version_range_parse(),
+            "check_version_range_parse must return true in healthy runtime"
+        );
+    }
+
+    #[test]
+    fn test_check_version_comparison_returns_true() {
+        assert!(
+            super::check_version_comparison(),
+            "check_version_comparison must return true in healthy runtime"
+        );
+    }
+
+    #[test]
+    fn test_check_version_range_contains_returns_true() {
+        assert!(
+            super::check_version_range_contains(),
+            "check_version_range_contains must return true in healthy runtime"
+        );
+    }
+
+    #[test]
+    fn test_check_config_loads_returns_true() {
+        assert!(
+            super::check_config_loads(),
+            "check_config_loads must return true in healthy runtime"
+        );
+    }
+
+    #[test]
+    fn test_check_package_requirement_parse_returns_true() {
+        assert!(
+            super::check_package_requirement_parse(),
+            "check_package_requirement_parse must return true in healthy runtime"
+        );
+    }
+
+    #[test]
+    fn test_check_package_requirement_satisfied_by_returns_true() {
+        assert!(
+            super::check_package_requirement_satisfied_by(),
+            "check_package_requirement_satisfied_by must return true in healthy runtime"
+        );
+    }
+
+    #[test]
+    fn test_check_package_build_fields_returns_true() {
+        assert!(
+            super::check_package_build_fields(),
+            "check_package_build_fields must return true in healthy runtime"
+        );
+    }
+
+    #[test]
+    fn test_check_rex_parse_setenv_returns_true() {
+        assert!(
+            super::check_rex_parse_setenv(),
+            "check_rex_parse_setenv must return true in healthy runtime"
+        );
+    }
+
+    #[test]
+    fn test_check_rex_parse_prepend_path_returns_true() {
+        assert!(
+            super::check_rex_parse_prepend_path(),
+            "check_rex_parse_prepend_path must return true in healthy runtime"
+        );
+    }
+
+    #[test]
+    fn test_check_rex_execute_maya_commands_returns_true() {
+        assert!(
+            super::check_rex_execute_maya_commands(),
+            "check_rex_execute_maya_commands must return true in healthy runtime"
+        );
+    }
+
+    #[test]
+    fn test_check_rex_resetenv_info_stop_returns_true() {
+        assert!(
+            super::check_rex_resetenv_info_stop(),
+            "check_rex_resetenv_info_stop must return true in healthy runtime"
+        );
+    }
+
+    #[test]
+    fn test_check_shell_bash_generation_returns_true() {
+        assert!(
+            super::check_shell_bash_generation(),
+            "check_shell_bash_generation must return true in healthy runtime"
+        );
+    }
+
+    #[test]
+    fn test_check_suite_create_and_save_returns_true() {
+        assert!(
+            super::check_suite_create_and_save(),
+            "check_suite_create_and_save must return true in healthy runtime"
+        );
+    }
+
+    #[test]
+    fn test_check_repository_manager_create_returns_true() {
+        assert!(
+            super::check_repository_manager_create(),
+            "check_repository_manager_create must return true in healthy runtime"
+        );
+    }
 }
 
