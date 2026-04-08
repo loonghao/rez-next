@@ -685,8 +685,11 @@ mod tests {
     // ── Cycle 128 additions ──────────────────────────────────────────────────
 
     #[test]
-    fn test_bash_complete_constant_not_empty() {
-        assert!(!BASH_COMPLETE.is_empty(), "BASH_COMPLETE constant must not be empty");
+    fn test_bash_complete_mentions_rez_command() {
+        assert!(
+            BASH_COMPLETE.contains("rez"),
+            "BASH_COMPLETE must mention the rez command surface"
+        );
     }
 
     #[test]
