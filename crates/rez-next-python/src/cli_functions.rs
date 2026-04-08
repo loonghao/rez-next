@@ -330,5 +330,40 @@ mod tests {
         assert!(KNOWN_COMMANDS.contains(&"mv"), "mv must be a known command");
         assert!(KNOWN_COMMANDS.contains(&"rm"), "rm must be a known command");
     }
+
+    // ─────── Cycle 131 additions ─────────────────────────────────────────────
+
+    #[test]
+    fn test_cli_run_bind_returns_zero() {
+        assert_eq!(cli_run("bind", None).unwrap(), 0);
+    }
+
+    #[test]
+    fn test_cli_run_gui_returns_zero() {
+        assert_eq!(cli_run("gui", None).unwrap(), 0);
+    }
+
+    #[test]
+    fn test_cli_main_release_command_returns_zero() {
+        assert_eq!(
+            cli_main(Some(vec!["release".to_string()])).unwrap(),
+            0
+        );
+    }
+
+    #[test]
+    fn test_cli_main_status_command_returns_zero() {
+        assert_eq!(
+            cli_main(Some(vec!["status".to_string()])).unwrap(),
+            0
+        );
+    }
+
+    #[test]
+    fn test_known_commands_has_no_empty_string() {
+        for &cmd in KNOWN_COMMANDS {
+            assert!(!cmd.is_empty(), "KNOWN_COMMANDS must not contain an empty string entry");
+        }
+    }
 }
 

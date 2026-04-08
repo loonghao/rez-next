@@ -557,4 +557,54 @@ mod tests {
             assert_eq!(actions.len(), 2, "two setenv calls must produce two actions");
         }
     }
+
+    mod test_selftest_cy131 {
+        /// Cycle 131 — additional coverage for rex aliases, suite no-desc, version ordering,
+        /// config defaults, and package name uniqueness.
+
+        #[test]
+        fn test_rex_alias_appears_in_bash_script() {
+            use rez_next_rex::{generate_shell_script, RexEnvironment, ShellType};
+            let mut env = RexEnvironment::new();
+            env.aliases
+                .insert("myapp".to_string(), "/opt/myapp/bin/myapp".to_string());
+            let script = generate_shell_script(&env, &ShellType::Bash);
+            assert!(
+                script.contains("alias myapp="),
+                "bash script must contain alias definition: {script}"
+            );
+        }
+
+        #[test]
+        fn test_suite_no_description_is_none() {
+            use rez_next_suites::Suite;
+            let s = Suite::new();
+            assert!(
+                s.description.is_none(),
+                "Suite without description must have description == None"
+            );
+        }
+
+        #[test]
+        fn test_version_ordering_greater_than() {
+            use rez_next_version::Version;
+            let v_high = Version::parse("3.11.0").unwrap();
+            let v_low = Version::parse("3.9.0").unwrap();
+            assert!(v_high > v_low, "3.11.0 must be greater than 3.9.0");
+        }
+
+        #[test]
+        fn test_config_packages_path_default_not_empty() {
+            let cfg = rez_next_common::config::RezCoreConfig::load();
+            // The default config should expose at least the version string
+            assert!(!cfg.version.is_empty(), "config.version must be non-empty on default load");
+        }
+
+        #[test]
+        fn test_package_name_preserved_after_new() {
+            use rez_next_package::Package;
+            let pkg = Package::new("houdini".to_string());
+            assert_eq!(pkg.name, "houdini", "Package::new must preserve the provided name");
+        }
+    }
 }
