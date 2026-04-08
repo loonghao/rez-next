@@ -1,5 +1,82 @@
 # rez-next cleanup 执行记录
 
+## 最新执行 (2026-04-08 12:08, 第三十七轮)
+
+### 执行摘要
+- 审查最近 iteration 提交 `e69a88b` 与前序 selftest 治理记录后，继续聚焦 `rez-next-python` 新近回涨的 `selftest_functions.rs` 测试噪音，只做低风险测试去重与长期记录更新，不触碰运行时代码或依赖配置。
+- 完成 2 个 cleanup 提交：`13d745a` 删除 `selftest_functions.rs` 中重新引入的 cycle-tagged 重复 / vacuous 单元测试，只保留 `selftest()` 的公开契约校验；`b9a2901` 更新 `CLEANUP_TODO.md`，补记 `cli_functions.rs` stub 文档漂移与 `selftest()` 的 `unwrap()` / `eprintln!` 结构性后续。
+- 本轮净变更聚焦于 `1` 个测试文件与 `1` 份治理记录；删除文件 **0** 个，删除过期/重复测试 **37** 个，新增/刷新长期治理记录 **2** 条。
+
+### 验证结果
+- **定向测试**: `vx cargo test -p rez-next-python --lib --quiet` 通过（1230 passed）。
+- **全量测试**: `vx cargo test --workspace --all-targets --quiet` 通过。
+- **Lint**: `vx cargo clippy --workspace --all-targets --quiet -- -D warnings` 通过；编辑文件 `read_lints` 为 0。
+- **依赖审计**: `vx cargo audit -q` 结果未变，仍为已记录的 3 个 unmaintained crates：`bincode 2.0.1`、`paste 1.0.15`、`unic-ucd-version 0.9.0`。
+
+### 下一轮重点
+1. 继续处理 `cli_functions.rs` 中“文档像真实 CLI、实现却只是已知命令表 stub”的契约漂移，优先决定这是显式兼容层还是要接入真实派发。
+2. 如继续清理 `selftest_functions.rs`，优先评估库内 `eprintln!` 与 `unwrap()` 是否应迁移到结构化返回 / 非 panic 检查，而不是再次堆叠数量型 smoke test。
+3. 继续审查 `rex_functions.rs` 与 `repository_bindings.rs` 中近期新增的弱断言 / placeholder 测试，但保持与功能修复解耦。
+
+## 最新执行 (2026-04-08 08:00, 第三十六轮)
+
+
+### 执行摘要
+- 审查最近 iteration 提交 `6e5d8c4` 与前序 selftest 治理记录后，聚焦 `rez-next-python` 的 `selftest_functions.rs`，只做低风险测试去重与治理记录收敛，不触碰运行时代码或依赖配置。
+- 完成 1 个 cleanup 提交并已推送：`3c24479` 删除 `selftest_functions.rs` 中 **30** 个与运行时 selftest 重复的单元测试，只保留 `selftest()` 的公开契约校验；同时将 `CLEANUP_TODO.md` 的第 40 项更新为部分完成，保留库内 `eprintln!` 后续。
+- 本轮净变更为 `2 files changed, 13 insertions(+), 341 deletions(-)`；删除文件 **0** 个，删除过期/重复测试 **30** 个，收敛长期治理记录 **1** 条。
+
+### 验证结果
+- **测试**: `vx cargo test --workspace --all-targets --quiet` 通过。
+- **Lint**: `vx cargo clippy --workspace --all-targets --quiet -- -D warnings` 通过；编辑文件 `read_lints` 为 0。
+- **推送**: `auto-improve` 已推送到 `3c24479`。
+- **覆盖率**: 本轮未采集新的覆盖率基线。
+
+### 下一轮重点
+1. 继续处理 `selftest_functions.rs` 剩余的库内 `eprintln!`，评估是否迁移到结构化返回或日志依赖。
+2. 继续清理 `repository_bindings.rs` / `shell_bindings.rs` 中新增的 placeholder / no-panic / nonexistent-path 弱测试。
+3. 单开一轮修复 `move_package()` 在 `version=None` 时可能删除错误源版本目录的正确性问题。
+
+## 最新执行 (2026-04-07 23:52, 第三十五轮)
+
+
+### 执行摘要
+- 审查最近 iteration 提交 `82eec7b`、`284c77d`、`ed7eb06` 后，聚焦 `rez-next-python` 新扩张测试中的重复 membership smoke test、误导性命名和 placeholder 断言，不触碰运行时代码
+- 完成 2 个 cleanup 提交并已推送：`a58079c` 删除 `cli_functions.rs` / `depends_bindings.rs` / `build_functions.rs` 中 **17** 个重复或误导性测试，`0e88bae` 在 `CLEANUP_TODO.md` 记录 `bundle_functions.rs` placeholder 参数测试债务（commit body 含 `chore(cleanup): done`）
+- 本轮净变更为 `4 files changed, 9 insertions(+), 60 deletions(-)`；删除文件 **0** 个，删除过期/重复测试 **17** 个，新增结构性治理记录 **1** 条
+
+### 验证结果
+- **测试**: `vx cargo test --workspace --all-targets --all-features --quiet` 通过
+- **Lint**: `vx cargo clippy --workspace --all-targets --quiet -- -D warnings` 通过；本轮编辑文件 `read_lints` 为 0
+- **推送**: `auto-improve` 已推送到 `0e88bae`
+- **覆盖率**: 本轮未采集新的覆盖率基线
+
+### 下一轮重点
+1. 继续处理 `selftest_functions.rs` 的 runtime self-test / unit-test 双份漂移与库代码 `eprintln!` 问题
+2. 在 `bundle_functions.rs` 中删除围绕 `dest_packages_path` placeholder 的剩余测试噪音，等待真实提取行为落地后再补契约测试
+3. 单开一轮修复 `move_package()` 在 `version=None` 时可能删除错误源版本目录的正确性问题
+
+## 最新执行 (2026-04-07 19:11, 第三十四轮)
+
+
+### 执行摘要
+- 切到 sibling worktree `rez-next-auto-improve` 后，先审查最近 iteration 提交 `90d59dc`、`591a7d5`、`dfadbf5`，聚焦新近扩张的 `rez-next-python` 绑定测试文件
+- 完成 3 个 cleanup 提交并已推送：`5a37f39` 删除重复/过期 Python 绑定测试，`0e836fc` 去重 `cli_functions.rs` 的命令白名单与重复覆盖，`d40a5c1` 记录 `move_package()` 与 `selftest_functions.rs` 两个结构性后续（commit body 含 `chore(cleanup): done`）
+- 本轮净变更为 `7 files changed, 117 insertions(+), 267 deletions(-)`；`rez-next-python --lib` 测试数从 `858` 降到 `839`，净删除 **19** 个重复或低价值测试，并收紧多处 build/bind/rex/selftest 弱断言
+
+### 验证结果
+- **测试**: `vx cargo test --workspace --all-targets --quiet` 通过；`vx cargo test -p rez-next-python --lib --quiet` 为 `839 passed, 0 failed`；当前可枚举测试总数约 **2680**
+- **Lint**: `vx cargo clippy --workspace --all-targets --quiet -- -D warnings` 通过；本轮编辑文件 `read_lints` 为 0
+- **依赖审计**: `vx cargo audit -q` 仍报告 `bincode 2.0.1`、`paste 1.0.15`、`unic-ucd-version 0.9.0` unmaintained
+- **推送**: `auto-improve` 已推送到 `d40a5c1`
+
+### 下一轮重点
+1. 修正 `move_package()` 在 `version=None` 时可能删除错误源版本目录的风险，并先用测试锁定预期契约
+2. 拆出 `selftest_functions.rs` 的共享 helper，避免 runtime self-test 与单元测试继续双份漂移
+3. 继续审查新扩张的 Python compatibility 测试中剩余的 placeholder / nonexistent-path 弱断言
+
+
+
 ## 最新执行 (2026-04-06 21:57, 第三十二轮)
 
 ### 执行摘要
