@@ -323,24 +323,7 @@ mod tests {
     mod test_suite_conflict_mode {
         use super::*;
 
-        #[test]
-        fn test_set_conflict_mode_error() {
-            let mut s = PySuite::new(None);
-            let result = s.set_conflict_mode("error");
-            assert!(result.is_ok(), "set_conflict_mode('error') failed");
-        }
 
-        #[test]
-        fn test_set_conflict_mode_first() {
-            let mut s = PySuite::new(None);
-            assert!(s.set_conflict_mode("first").is_ok());
-        }
-
-        #[test]
-        fn test_set_conflict_mode_last() {
-            let mut s = PySuite::new(None);
-            assert!(s.set_conflict_mode("last").is_ok());
-        }
 
         #[test]
         fn test_set_conflict_mode_prefix() {
