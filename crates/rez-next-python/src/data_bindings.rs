@@ -681,4 +681,48 @@ mod tests {
             "zsh completion must mention 'rez': {content}"
         );
     }
+
+    // ── Cycle 128 additions ──────────────────────────────────────────────────
+
+    #[test]
+    fn test_bash_complete_constant_not_empty() {
+        assert!(!BASH_COMPLETE.is_empty(), "BASH_COMPLETE constant must not be empty");
+    }
+
+    #[test]
+    fn test_zsh_complete_has_compdef_directive() {
+        assert!(ZSH_COMPLETE.contains("#compdef"), "ZSH_COMPLETE must contain #compdef directive");
+    }
+
+    #[test]
+    fn test_fish_complete_has_complete_c_directive() {
+        assert!(FISH_COMPLETE.contains("complete -c"), "FISH_COMPLETE must use complete -c directives");
+    }
+
+    #[test]
+    fn test_get_completion_script_none_returns_ok() {
+        let d = PyRezData::new();
+        let r = d.get_completion_script(None);
+        assert!(r.is_ok(), "get_completion_script(None) must not error");
+        assert!(!r.unwrap().is_empty(), "fallback completion script must not be empty");
+    }
+
+    #[test]
+    fn test_get_default_config_contains_local_packages_path_key() {
+        let d = PyRezData::new();
+        let cfg = d.get_default_config();
+        assert!(cfg.contains("local_packages_path"), "default config must contain local_packages_path");
+    }
+
+    #[test]
+    fn test_bash_complete_lists_build_subcommand() {
+        assert!(BASH_COMPLETE.contains("build"), "bash completion must list build subcommand");
+    }
+
+    #[test]
+    fn test_list_data_resources_contains_completion_entry() {
+        let resources = list_data_resources();
+        let has_completion = resources.iter().any(|r| r.contains("bash") || r.contains("completion"));
+        assert!(has_completion, "data resources must include a completion entry");
+    }
 }

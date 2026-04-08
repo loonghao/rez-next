@@ -1166,5 +1166,88 @@ mod depends_bindings_tests {
         };
         assert_eq!(result.total_count(), 2, "two distinct entries should give total_count=2");
     }
-}
 
+    // -- Cycle 128 additions --
+
+    #[test]
+    fn test_depends_entry_requirement_field_stored() {
+        let e = PyDependsEntry {
+            name: "app".to_string(),
+            version: "1.0.0".to_string(),
+            requirement: "lib-2+<3".to_string(),
+            dependency_type: "direct".to_string(),
+        };
+        assert_eq!(e.requirement, "lib-2+<3");
+    }
+
+    #[test]
+    fn test_depends_result_empty_total_count_is_zero() {
+        let result = PyDependsResult {
+            queried_package: "orphan".to_string(),
+            direct_dependants: vec![],
+            transitive_dependants: vec![],
+        };
+        assert_eq!(result.total_count(), 0);
+    }
+
+    #[test]
+    fn test_depends_entry_dependency_type_stored() {
+        let e = PyDependsEntry {
+            name: "consumer".to_string(),
+            version: "0.1.0".to_string(),
+            requirement: "provider-1".to_string(),
+            dependency_type: "direct".to_string(),
+        };
+        assert_eq!(e.dependency_type, "direct");
+    }
+
+    #[test]
+    fn test_depends_result_queried_package_stored() {
+        let result = PyDependsResult {
+            queried_package: "numpy".to_string(),
+            direct_dependants: vec![],
+            transitive_dependants: vec![],
+        };
+        assert_eq!(result.queried_package, "numpy");
+    }
+
+    #[test]
+    fn test_depends_result_total_count_only_transitive() {
+        let e = PyDependsEntry {
+            name: "indirectconsumer".to_string(),
+            version: "1.0.0".to_string(),
+            requirement: "lib-1+".to_string(),
+            dependency_type: "transitive".to_string(),
+        };
+        let result = PyDependsResult {
+            queried_package: "lib".to_string(),
+            direct_dependants: vec![],
+            transitive_dependants: vec![e],
+        };
+        assert_eq!(result.total_count(), 1);
+    }
+
+    #[test]
+    fn test_depends_entry_repr_contains_requirement_string() {
+        let e = PyDependsEntry {
+            name: "pkgA".to_string(),
+            version: "2.0.0".to_string(),
+            requirement: "sharedlib-3+".to_string(),
+            dependency_type: "direct".to_string(),
+        };
+        let repr = e.__repr__();
+        assert!(repr.contains("sharedlib-3+"), "repr must contain requirement: {repr}");
+    }
+
+    #[test]
+    fn test_depends_entry_str_equals_repr_cy128() {
+        let e = PyDependsEntry {
+            name: "mypkg".to_string(),
+            version: "1.5.0".to_string(),
+            requirement: "dep-2+".to_string(),
+            dependency_type: "transitive".to_string(),
+        };
+        assert_eq!(e.__str__(), e.__repr__(), "__str__ must equal __repr__");
+    }
+
+}

@@ -430,6 +430,86 @@ mod tests {
             assert_eq!(mgr.repository_count(), 0);
         }
     }
+
+    mod test_selftest_cy128_suite {
+        /// Direct unit tests for suite subsystem (does not call selftest())
+
+        #[test]
+        fn test_suite_new_has_no_contexts() {
+            use rez_next_suites::Suite;
+            let s = Suite::new();
+            assert_eq!(s.len(), 0, "new Suite must have zero contexts");
+        }
+
+        #[test]
+        fn test_suite_with_description_stores_value() {
+            use rez_next_suites::Suite;
+            let s = Suite::new().with_description("my desc");
+            assert_eq!(s.description, Some("my desc".to_string()));
+        }
+
+        #[test]
+        fn test_suite_add_context_increases_len() {
+            use rez_next_suites::Suite;
+            let mut s = Suite::new();
+            s.add_context("ctx_a", vec!["python-3.9".to_string()]).unwrap();
+            assert_eq!(s.len(), 1);
+        }
+
+        #[test]
+        fn test_suite_duplicate_context_returns_err() {
+            use rez_next_suites::Suite;
+            let mut s = Suite::new();
+            s.add_context("ctx", vec![]).unwrap();
+            let r = s.add_context("ctx", vec![]);
+            assert!(r.is_err(), "duplicate context name must return Err");
+        }
+
+        #[test]
+        fn test_suite_save_and_is_suite() {
+            use rez_next_suites::Suite;
+            let dir = tempfile::tempdir().unwrap();
+            let path = dir.path().join("mytest_suite");
+            let mut s = Suite::new().with_description("test");
+            let _ = s.add_context("ctx_save", vec![]);
+            s.save(&path).unwrap();
+            assert!(Suite::is_suite(&path), "saved directory must be detected as suite");
+        }
+
+        #[test]
+        fn test_suite_load_roundtrip_description() {
+            use rez_next_suites::Suite;
+            let dir = tempfile::tempdir().unwrap();
+            let path = dir.path().join("rt_suite");
+            Suite::new().with_description("roundtrip desc").save(&path).unwrap();
+            let loaded = Suite::load(&path).unwrap();
+            assert_eq!(loaded.description, Some("roundtrip desc".to_string()));
+        }
+    }
+
+    mod test_selftest_cy128_version_extra {
+        /// Additional version edge cases
+
+        #[test]
+        fn test_version_range_lt_upper_bound() {
+            use rez_next_version::{Version, VersionRange};
+            let range = VersionRange::parse("<2.0").unwrap();
+            assert!(range.contains(&Version::parse("1.9.9").unwrap()));
+            assert!(!range.contains(&Version::parse("2.0").unwrap()));
+        }
+
+        #[test]
+        fn test_version_display_roundtrip() {
+            use rez_next_version::Version;
+            let v = Version::parse("3.9.1").unwrap();
+            let s = format!("{:?}", v);
+            assert!(!s.is_empty(), "version debug must be non-empty: {s}");
+        }
+
+        #[test]
+        fn test_version_parse_alpha_suffix() {
+            use rez_next_version::Version;
+            assert!(Version::parse("1.0.0-alpha1").is_ok());
+        }
+    }
 }
-
-
