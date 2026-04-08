@@ -1,6 +1,7 @@
-//! CLI compatibility functions exposed to Python.
+//! CLI compatibility stub functions exposed to Python.
 //!
-//! Provides programmatic access to the rez CLI commands via Python.
+//! This module currently validates command names against a fixed table and returns
+//! compatibility-style exit codes. It does not dispatch to the real rez CLI yet.
 
 use pyo3::prelude::*;
 
@@ -32,8 +33,9 @@ const KNOWN_COMMANDS: &[&str] = &[
     "bind",
 ];
 
-/// Run a rez CLI command programmatically.
-/// Equivalent to `rez <command> <args...>`
+/// Validate a known rez command name and return a compatibility success code.
+///
+/// This is currently a stub: `args` are ignored and no real CLI dispatch happens.
 #[pyfunction]
 #[pyo3(signature = (command, args=None))]
 pub fn cli_run(command: &str, args: Option<Vec<String>>) -> PyResult<i32> {
@@ -50,8 +52,8 @@ pub fn cli_run(command: &str, args: Option<Vec<String>>) -> PyResult<i32> {
 }
 
 
-/// Main entry point for rez CLI (equivalent to `rez` binary).
-/// Returns exit code.
+/// Compatibility-style main entry point for the Python stubbed CLI surface.
+/// Returns a synthetic exit code based on the first argument, if present.
 #[pyfunction]
 #[pyo3(signature = (args=None))]
 pub fn cli_main(args: Option<Vec<String>>) -> PyResult<i32> {
