@@ -567,6 +567,53 @@ mod tests {
                 env.info_messages
             );
         }
+
+        // ─────── Cycle 130 additions ──────────────────────────────────────────
+
+        #[test]
+        fn test_setenv_overwrite_then_check_value() {
+            // Set a var, overwrite it, check final value is the second one
+            let mut exec = RexExecutor::new();
+            exec.execute_commands("env.setenv('TOOL', 'v1')", "", None, None).unwrap();
+            let env = exec.execute_commands("env.setenv('TOOL', 'v2')", "", None, None).unwrap();
+            assert_eq!(
+                env.vars.get("TOOL").map(|s| s.as_str()),
+                Some("v2"),
+                "final TOOL value must be v2 after overwrite"
+            );
+        }
+
+        #[test]
+        fn test_prepend_path_multiple_entries_all_present() {
+            let mut exec = RexExecutor::new();
+            let cmds = "env.prepend_path('PATH', '/p1')\nenv.prepend_path('PATH', '/p2')";
+            let env = exec.execute_commands(cmds, "", None, None).unwrap();
+            let path_val = env.vars.get("PATH").cloned().unwrap_or_default();
+            assert!(path_val.contains("/p1"), "PATH must contain /p1: {}", path_val);
+            assert!(path_val.contains("/p2"), "PATH must contain /p2: {}", path_val);
+        }
+
+        #[test]
+        fn test_alias_and_setenv_in_same_script() {
+            let mut exec = RexExecutor::new();
+            let cmds = "env.setenv('MY_TOOL', 'active')\nalias('mytool', 'mytool --active')";
+            let env = exec.execute_commands(cmds, "", None, None).unwrap();
+            assert_eq!(env.vars.get("MY_TOOL").map(|s| s.as_str()), Some("active"));
+            assert!(
+                env.aliases.contains_key("mytool"),
+                "alias 'mytool' must be registered, aliases: {:?}", env.aliases
+            );
+        }
+
+        #[test]
+        fn test_execute_commands_returns_vars_map() {
+            // execute_commands must return a map (even if empty for no-op commands)
+            let mut exec = RexExecutor::new();
+            let env = exec.execute_commands("", "", None, None).unwrap();
+            // vars field is a HashMap — just verify it's accessible
+            let _ = env.vars.len(); // must not panic
+        }
     }
 }
+
 

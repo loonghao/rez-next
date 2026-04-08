@@ -536,6 +536,78 @@ mod tests {
             let _ = fs::remove_dir_all(&tmp);
         }
 
+        // ─────── Cycle 130 additions ──────────────────────────────────────────
+
+        #[test]
+        fn test_bundle_context_nested_dest_created() {
+            // Nested dest path should be created automatically
+            let tmp = std::env::temp_dir()
+                .join("rez_cy130_bundle_nested")
+                .join("sub")
+                .join("dir");
+            let _ = fs::remove_dir_all(std::env::temp_dir().join("rez_cy130_bundle_nested"));
+            let result = bundle_context(vec!["pkg-1.0".to_string()], tmp.to_str().unwrap(), false);
+            assert!(result.is_ok(), "nested dest should be created: {:?}", result);
+            assert!(tmp.join("bundle.yaml").exists(), "bundle.yaml must exist in nested dest");
+            let _ = fs::remove_dir_all(std::env::temp_dir().join("rez_cy130_bundle_nested"));
+        }
+
+        #[test]
+        fn test_list_bundles_counts_correctly() {
+            let base = std::env::temp_dir().join("rez_cy130_list_count");
+            let _ = fs::remove_dir_all(&base);
+            fs::create_dir_all(&base).unwrap();
+            for name in ["b1", "b2", "b3"] {
+                let bdir = base.join(name);
+                fs::create_dir_all(&bdir).unwrap();
+                fs::write(bdir.join("bundle.yaml"), b"packages:\n").unwrap();
+            }
+            let result = list_bundles(Some(base.to_str().unwrap())).unwrap();
+            assert_eq!(result.len(), 3, "should find exactly 3 bundles, got: {:?}", result);
+            let _ = fs::remove_dir_all(&base);
+        }
+
+        #[test]
+        fn test_unbundle_package_name_contains_version() {
+            // Package names with version separators should roundtrip correctly
+            let tmp = std::env::temp_dir().join("rez_cy130_unbundle_version");
+            let _ = fs::remove_dir_all(&tmp);
+            let pkgs = vec!["maya-2024.0.1".to_string()];
+            bundle_context(pkgs.clone(), tmp.to_str().unwrap(), false).unwrap();
+            let got = unbundle_context(tmp.to_str().unwrap(), None).unwrap();
+            assert!(
+                got.contains(&"maya-2024.0.1".to_string()),
+                "versioned package name must survive roundtrip: {:?}", got
+            );
+            let _ = fs::remove_dir_all(&tmp);
+        }
+
+        #[test]
+        fn test_bundle_context_returns_absolute_path() {
+            let tmp = std::env::temp_dir().join("rez_cy130_abs_path");
+            let _ = fs::remove_dir_all(&tmp);
+            let result = bundle_context(vec!["tool-1.0".to_string()], tmp.to_str().unwrap(), false).unwrap();
+            // The returned path must be an absolute-looking string (starts with / or drive letter)
+            assert!(
+                result.starts_with('/') || (result.len() > 2 && result.chars().nth(1) == Some(':')),
+                "returned path should be absolute: {}", result
+            );
+            let _ = fs::remove_dir_all(&tmp);
+        }
+
+        #[test]
+        fn test_bundle_with_version_specifier_package() {
+            // Packages with version range specifiers should survive the manifest roundtrip
+            let tmp = std::env::temp_dir().join("rez_cy130_bundle_range_pkg");
+            let _ = fs::remove_dir_all(&tmp);
+            let pkgs = vec!["python-3+".to_string(), "numpy-1.20+,<2".to_string()];
+            bundle_context(pkgs.clone(), tmp.to_str().unwrap(), false).unwrap();
+            let content = fs::read_to_string(tmp.join("bundle.yaml")).unwrap();
+            assert!(content.contains("python-3+"), "range pkg must appear in manifest");
+            assert!(content.contains("numpy-1.20+,<2"), "complex range pkg must appear");
+            let _ = fs::remove_dir_all(&tmp);
+        }
+
         #[test]
         fn test_bundle_dest_path_returned_is_dest_dir() {
             let tmp = std::env::temp_dir().join("rez_test_bundle_ret_path");

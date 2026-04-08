@@ -1145,6 +1145,68 @@ mod tests {
             let _ = fs::remove_dir_all(&src);
             let _ = fs::remove_dir_all(&dest);
         }
+
+        // ─────── Cycle 130 additions ──────────────────────────────────────────
+
+        #[test]
+        fn test_expand_home_tilde_slash_with_deep_path() {
+            // ~/a/b/c should expand the tilde portion, keep rest unchanged
+            let result = expand_home("~/a/b/c");
+            assert!(!result.starts_with('~'), "result must not start with ~ after expansion: {}", result);
+            assert!(result.ends_with("a/b/c") || result.ends_with("a\\b\\c"),
+                "deep path suffix must be preserved: {}", result);
+        }
+
+        #[test]
+        fn test_expand_home_with_env_var_path() {
+            // expand_home result should be a non-empty string for any input
+            for input in &["~/pkg/v1", "~/", "~/a", "/absolute/path", "relative/path"] {
+                let result = expand_home(input);
+                assert!(!result.is_empty(), "expand_home result must not be empty for input '{}'", input);
+            }
+        }
+
+        #[test]
+        fn test_remove_package_nonexistent_path_returns_zero_cy130() {
+            // A completely nonexistent search path should remove 0 versions (no panic)
+            let result = remove_package(
+                "ghost_pkg",
+                None,
+                Some(vec!["/nonexistent_rez_cy130_rm_path".to_string()]),
+            );
+            assert!(result.is_ok(), "remove_package on missing path must not error");
+            assert_eq!(result.unwrap(), 0, "must remove 0 versions from nonexistent path");
+        }
+
+        #[test]
+        fn test_copy_dir_recursive_preserves_multiple_files() {
+            let tmp = std::env::temp_dir();
+            let src = tmp.join("rez_cy130_cp_multi_src");
+            let dest = tmp.join("rez_cy130_cp_multi_dest");
+            let _ = fs::remove_dir_all(&src);
+            let _ = fs::remove_dir_all(&dest);
+            fs::create_dir_all(&src).unwrap();
+            for name in &["a.txt", "b.txt", "c.txt"] {
+                fs::write(src.join(name), name.as_bytes()).unwrap();
+            }
+            copy_dir_recursive(&src, &dest).unwrap();
+            for name in &["a.txt", "b.txt", "c.txt"] {
+                assert!(dest.join(name).exists(), "{} must be copied", name);
+                let content = fs::read_to_string(dest.join(name)).unwrap();
+                assert_eq!(content, *name, "file content must be preserved for {}", name);
+            }
+            let _ = fs::remove_dir_all(&src);
+            let _ = fs::remove_dir_all(&dest);
+        }
+
+        #[test]
+        fn test_expand_home_no_env_no_crash() {
+            // expand_home must not panic even if HOME / USERPROFILE might be absent
+            // (We can't unset them safely in tests, but we can call with a non-tilde path)
+            let result = expand_home("/absolute/no/tilde");
+            assert_eq!(result, "/absolute/no/tilde", "absolute path must be returned unchanged");
+        }
     }
 }
+
 

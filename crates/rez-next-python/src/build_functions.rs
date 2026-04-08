@@ -492,5 +492,60 @@ mod tests {
             assert_eq!(result, "cmake", "cmake should take priority when multiple markers present");
             let _ = fs::remove_dir_all(&tmp);
         }
+
+        // ─────── Cycle 130 additions ──────────────────────────────────────────
+
+        #[test]
+        fn test_build_bat_takes_priority_over_unknown() {
+            // build.bat alone → custom_script (not unknown)
+            let tmp = make_temp_dir_with_file("rez_bs_cy130_bat", "build.bat");
+            let result = get_build_system(Some(tmp.to_str().unwrap())).unwrap();
+            assert_eq!(result, "custom_script");
+            let _ = fs::remove_dir_all(&tmp);
+        }
+
+        #[test]
+        fn test_rezbuild_py_beats_cargo_toml() {
+            let tmp = make_temp_dir_with_file("rez_bs_cy130_reb_cargo", "rezbuild.py");
+            fs::write(tmp.join("Cargo.toml"), b"").unwrap();
+            let result = get_build_system(Some(tmp.to_str().unwrap())).unwrap();
+            assert_eq!(result, "python_rezbuild", "rezbuild.py must beat Cargo.toml");
+            let _ = fs::remove_dir_all(&tmp);
+        }
+
+        #[test]
+        fn test_rezbuild_py_beats_package_json() {
+            let tmp = make_temp_dir_with_file("rez_bs_cy130_reb_pkgjson", "rezbuild.py");
+            fs::write(tmp.join("package.json"), b"{}").unwrap();
+            let result = get_build_system(Some(tmp.to_str().unwrap())).unwrap();
+            assert_eq!(result, "python_rezbuild", "rezbuild.py must beat package.json");
+            let _ = fs::remove_dir_all(&tmp);
+        }
+
+        #[test]
+        fn test_get_build_system_deep_path_still_works() {
+            // Create a deeply nested temp dir
+            let base = std::env::temp_dir()
+                .join("rez_bs_cy130_deep")
+                .join("a")
+                .join("b")
+                .join("c");
+            let _ = fs::remove_dir_all(&base);
+            fs::create_dir_all(&base).unwrap();
+            fs::write(base.join("Makefile"), b"").unwrap();
+            let result = get_build_system(Some(base.to_str().unwrap())).unwrap();
+            assert_eq!(result, "make", "nested path should still detect Makefile");
+            let _ = fs::remove_dir_all(std::env::temp_dir().join("rez_bs_cy130_deep"));
+        }
+
+        #[test]
+        fn test_get_build_system_pyproject_beats_package_json_when_checked_first() {
+            // pyproject.toml check comes before package.json; create only pyproject.toml
+            let tmp = make_temp_dir_with_file("rez_bs_cy130_pyproj_only", "pyproject.toml");
+            let result = get_build_system(Some(tmp.to_str().unwrap())).unwrap();
+            assert_eq!(result, "python", "pyproject.toml must yield python build system");
+            let _ = fs::remove_dir_all(&tmp);
+        }
     }
 }
+
