@@ -1048,5 +1048,123 @@ mod depends_bindings_tests {
         };
         assert_eq!(e.__str__(), e.__repr__(), "__str__ must equal __repr__");
     }
+
+    // ── Cycle 122 additions ──────────────────────────────────────────────────
+
+    /// PyDependsResult with only direct entries → all_dependants length equals direct_dependants
+    #[test]
+    fn test_all_dependants_len_equals_direct_when_no_transitive() {
+        let result = PyDependsResult {
+            queried_package: "pkg".to_string(),
+            direct_dependants: vec![
+                PyDependsEntry {
+                    name: "a".to_string(),
+                    version: "1.0".to_string(),
+                    requirement: "pkg-1+".to_string(),
+                    dependency_type: "direct".to_string(),
+                },
+                PyDependsEntry {
+                    name: "b".to_string(),
+                    version: "2.0".to_string(),
+                    requirement: "pkg-1+".to_string(),
+                    dependency_type: "direct".to_string(),
+                },
+            ],
+            transitive_dependants: vec![],
+        };
+        assert_eq!(result.all_dependants().len(), result.direct_dependants.len());
+    }
+
+    /// format() with 2 direct entries shows both package-version strings
+    #[test]
+    fn test_format_two_direct_shows_both() {
+        let result = PyDependsResult {
+            queried_package: "lib".to_string(),
+            direct_dependants: vec![
+                PyDependsEntry {
+                    name: "app1".to_string(),
+                    version: "1.0.0".to_string(),
+                    requirement: "lib-1+".to_string(),
+                    dependency_type: "direct".to_string(),
+                },
+                PyDependsEntry {
+                    name: "app2".to_string(),
+                    version: "2.0.0".to_string(),
+                    requirement: "lib-1+".to_string(),
+                    dependency_type: "direct".to_string(),
+                },
+            ],
+            transitive_dependants: vec![],
+        };
+        let output = result.format();
+        assert!(output.contains("app1"), "format must include app1");
+        assert!(output.contains("app2"), "format must include app2");
+    }
+
+    /// repr of PyDependsResult shows correct direct count
+    #[test]
+    fn test_depends_result_repr_shows_direct_count() {
+        let result = PyDependsResult {
+            queried_package: "mylib".to_string(),
+            direct_dependants: vec![
+                PyDependsEntry {
+                    name: "dep1".to_string(),
+                    version: "1.0".to_string(),
+                    requirement: "mylib-1+".to_string(),
+                    dependency_type: "direct".to_string(),
+                },
+            ],
+            transitive_dependants: vec![],
+        };
+        let repr = result.__repr__();
+        assert!(repr.contains("direct=1"), "repr should show direct=1: {repr}");
+    }
+
+    /// compute_depends with a version range that doesn't match returns Ok with empty result
+    #[test]
+    fn test_compute_depends_with_range_no_match() {
+        // With empty paths, no packages will match regardless of range
+        let result = compute_depends("python", Some(">=999.0"), &[], false);
+        assert!(result.is_ok(), "compute_depends with non-matching range must return Ok");
+        let r = result.unwrap();
+        assert!(r.direct_dependants.is_empty(), "no packages should match version >=999.0");
+    }
+
+    /// PyDependsEntry requirement field is preserved accurately
+    #[test]
+    fn test_depends_entry_requirement_preserved() {
+        let req_str = "python-3.9+<4.0";
+        let entry = PyDependsEntry {
+            name: "testapp".to_string(),
+            version: "1.0.0".to_string(),
+            requirement: req_str.to_string(),
+            dependency_type: "direct".to_string(),
+        };
+        assert_eq!(entry.requirement, req_str, "requirement field must be preserved exactly");
+    }
+
+    /// total_count with 2 distinct direct entries returns 2
+    #[test]
+    fn test_total_count_two_distinct_direct() {
+        let result = PyDependsResult {
+            queried_package: "lib".to_string(),
+            direct_dependants: vec![
+                PyDependsEntry {
+                    name: "alpha".to_string(),
+                    version: "1.0".to_string(),
+                    requirement: "lib-1+".to_string(),
+                    dependency_type: "direct".to_string(),
+                },
+                PyDependsEntry {
+                    name: "beta".to_string(),
+                    version: "2.0".to_string(),
+                    requirement: "lib-1+".to_string(),
+                    dependency_type: "direct".to_string(),
+                },
+            ],
+            transitive_dependants: vec![],
+        };
+        assert_eq!(result.total_count(), 2, "two distinct entries should give total_count=2");
+    }
 }
 

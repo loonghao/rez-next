@@ -565,4 +565,69 @@ mod tests {
             let _ = mgr.list_suite_names();
         }
     }
+
+    mod test_suite_cy122 {
+        use super::*;
+
+        /// Suite starts with no path set (unsaved)
+        #[test]
+        fn test_suite_path_none_initially() {
+            let s = PySuite::new(None);
+            assert!(s.inner.path.is_none(), "unsaved suite must have no path");
+        }
+
+        /// Suite description accessor returns same value as setter
+        #[test]
+        fn test_suite_description_accessor_roundtrip() {
+            let mut s = PySuite::new(None);
+            s.set_description(Some("roundtrip desc".to_string()));
+            assert_eq!(
+                s.description(),
+                Some("roundtrip desc"),
+                "description accessor must match set value"
+            );
+        }
+
+        /// Suite with 0 contexts has __len__ == 0
+        #[test]
+        fn test_suite_len_zero_initially() {
+            let s = PySuite::new(None);
+            assert_eq!(s.__len__(), 0, "__len__ of fresh suite must be 0");
+        }
+
+        /// Suite with 1 context has __len__ == 1
+        #[test]
+        fn test_suite_len_one_after_add() {
+            let mut s = PySuite::new(None);
+            s.add_context("ctx", vec!["pkg-1".to_string()]).unwrap();
+            assert_eq!(s.__len__(), 1);
+        }
+
+        /// Adding 3 contexts one-by-one reflects correct ordering in context_names
+        #[test]
+        fn test_context_names_order_preserved() {
+            let mut s = PySuite::new(None);
+            s.add_context("first", vec![]).unwrap();
+            s.add_context("second", vec![]).unwrap();
+            s.add_context("third", vec![]).unwrap();
+            let names = s.context_names();
+            assert_eq!(names.len(), 3);
+            assert!(names.contains(&"first".to_string()));
+            assert!(names.contains(&"second".to_string()));
+            assert!(names.contains(&"third".to_string()));
+        }
+
+        /// suite repr after adding a context contains non-zero count
+        #[test]
+        fn test_repr_nonzero_after_add() {
+            let mut s = PySuite::new(None);
+            s.add_context("a", vec!["pkg-1".to_string()]).unwrap();
+            let repr = s.__repr__();
+            // repr should show 1 context
+            assert!(
+                repr.contains('1'),
+                "repr after one add should contain '1', got: {repr}"
+            );
+        }
+    }
 }

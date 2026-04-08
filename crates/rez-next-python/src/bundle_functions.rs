@@ -556,5 +556,84 @@ mod tests {
             let result = list_bundles(None);
             assert!(result.is_ok(), "list_bundles(None) must not error: {:?}", result);
         }
+
+        // ─────── Cycle 122 additions ──────────────────────────────────────────
+
+        #[test]
+        fn test_bundle_context_yaml_contains_dash_item_format() {
+            // Each package in the manifest appears as "  - <pkg>"
+            let tmp = std::env::temp_dir().join("rez_test_bundle_dash_fmt");
+            let _ = fs::remove_dir_all(&tmp);
+            let pkgs = vec!["mypkg-1.0".to_string()];
+            bundle_context(pkgs, tmp.to_str().unwrap(), false).unwrap();
+            let content = fs::read_to_string(tmp.join("bundle.yaml")).unwrap();
+            assert!(
+                content.contains("  - mypkg-1.0"),
+                "manifest items must be in YAML list format: {content}"
+            );
+            let _ = fs::remove_dir_all(&tmp);
+        }
+
+        #[test]
+        fn test_unbundle_with_dest_packages_path_does_not_panic() {
+            // dest_packages_path is reserved; passing it must not cause a panic or error
+            let tmp = std::env::temp_dir().join("rez_test_unbundle_dest_pp");
+            let _ = fs::remove_dir_all(&tmp);
+            let pkgs = vec!["pkg-1.0".to_string()];
+            bundle_context(pkgs, tmp.to_str().unwrap(), false).unwrap();
+            // Pass a non-None dest_packages_path — must not panic
+            let result = unbundle_context(tmp.to_str().unwrap(), Some("/some/dest/path"));
+            assert!(result.is_ok(), "unbundle with dest_packages_path must succeed: {:?}", result);
+            let _ = fs::remove_dir_all(&tmp);
+        }
+
+        #[test]
+        fn test_bundle_context_multiple_calls_safe() {
+            // Calling bundle_context twice on the same dest overwrites cleanly
+            let tmp = std::env::temp_dir().join("rez_test_bundle_twice");
+            let _ = fs::remove_dir_all(&tmp);
+            bundle_context(vec!["a-1.0".to_string()], tmp.to_str().unwrap(), false).unwrap();
+            bundle_context(vec!["b-2.0".to_string()], tmp.to_str().unwrap(), false).unwrap();
+            let content = fs::read_to_string(tmp.join("bundle.yaml")).unwrap();
+            assert!(content.contains("b-2.0"), "second bundle must overwrite first");
+            let _ = fs::remove_dir_all(&tmp);
+        }
+
+        #[test]
+        fn test_bundle_context_three_packages_manifest_length() {
+            let tmp = std::env::temp_dir().join("rez_test_bundle_three_len");
+            let _ = fs::remove_dir_all(&tmp);
+            let pkgs = vec!["p1-1.0".to_string(), "p2-2.0".to_string(), "p3-3.0".to_string()];
+            bundle_context(pkgs.clone(), tmp.to_str().unwrap(), false).unwrap();
+            let got = unbundle_context(tmp.to_str().unwrap(), None).unwrap();
+            assert_eq!(got.len(), 3, "should recover all 3 packages");
+            let _ = fs::remove_dir_all(&tmp);
+        }
+
+        #[test]
+        fn test_list_bundles_with_no_valid_bundles_returns_empty() {
+            // A directory with subdirs but no bundle.yaml in them → empty list
+            let base = std::env::temp_dir().join("rez_test_list_no_yaml");
+            let _ = fs::remove_dir_all(&base);
+            fs::create_dir_all(&base).unwrap();
+            fs::create_dir_all(base.join("not_a_bundle")).unwrap();
+            let result = list_bundles(Some(base.to_str().unwrap())).unwrap();
+            assert!(result.is_empty(), "dirs without bundle.yaml must not be listed");
+            let _ = fs::remove_dir_all(&base);
+        }
+
+        #[test]
+        fn test_unbundle_returns_correct_packages_list() {
+            let tmp = std::env::temp_dir().join("rez_test_unbundle_exact");
+            let _ = fs::remove_dir_all(&tmp);
+            let pkgs = vec!["houdini-20.0".to_string(), "python-3.10".to_string()];
+            bundle_context(pkgs.clone(), tmp.to_str().unwrap(), false).unwrap();
+            let got = unbundle_context(tmp.to_str().unwrap(), None).unwrap();
+            for p in &pkgs {
+                assert!(got.contains(p), "package '{}' should be in result, got: {:?}", p, got);
+            }
+            let _ = fs::remove_dir_all(&tmp);
+        }
     }
 }
+

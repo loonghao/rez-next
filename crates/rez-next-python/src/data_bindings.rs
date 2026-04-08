@@ -627,4 +627,58 @@ mod tests {
         let s2 = d2.get_completion_script(Some("bash")).unwrap();
         assert_eq!(s1, s2, "PyRezData instances must produce identical outputs");
     }
+
+    // ── Cycle 122 additions ──────────────────────────────────────────────────
+
+    #[test]
+    fn test_bash_complete_contains_env_subcommand() {
+        assert!(
+            BASH_COMPLETE.contains("env"),
+            "bash completion must include 'env' subcommand"
+        );
+    }
+
+    #[test]
+    fn test_fish_complete_contains_search_subcommand() {
+        assert!(
+            FISH_COMPLETE.contains("search"),
+            "fish completion must include 'search' subcommand"
+        );
+    }
+
+    #[test]
+    fn test_zsh_complete_contains_solve_subcommand() {
+        assert!(
+            ZSH_COMPLETE.contains("solve"),
+            "zsh completion must include 'solve' subcommand: {ZSH_COMPLETE}"
+        );
+    }
+
+    #[test]
+    fn test_example_package_py_has_author_or_description() {
+        // A well-formed package.py should have author or description
+        let has_author = EXAMPLE_PACKAGE_PY.contains("authors") || EXAMPLE_PACKAGE_PY.contains("description");
+        assert!(has_author, "example package.py must contain 'authors' or 'description' field");
+    }
+
+    #[test]
+    fn test_list_data_resources_includes_zsh() {
+        let resources = list_data_resources();
+        assert!(
+            resources.contains(&"completions/zsh".to_string()),
+            "list_data_resources must include completions/zsh: {:?}",
+            resources
+        );
+    }
+
+    #[test]
+    fn test_get_data_resource_zsh_contains_rez() {
+        let r = get_data_resource("completions/zsh");
+        assert!(r.is_ok(), "completions/zsh resource must be accessible");
+        let content = r.unwrap();
+        assert!(
+            content.contains("rez"),
+            "zsh completion must mention 'rez': {content}"
+        );
+    }
 }

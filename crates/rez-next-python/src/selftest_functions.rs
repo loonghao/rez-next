@@ -392,5 +392,58 @@ mod tests {
             );
         }
     }
+
+    mod test_selftest_cy122 {
+        use super::super::selftest;
+
+        /// selftest total is at least 15 (accounts for all subsystem checks)
+        #[test]
+        fn test_selftest_total_at_least_fifteen() {
+            let (_p, _f, total) = selftest().unwrap();
+            assert!(
+                total >= 15,
+                "selftest should run at least 15 checks, got {total}"
+            );
+        }
+
+        /// selftest passes all version-related checks (failed == 0 means none failed)
+        #[test]
+        fn test_selftest_all_version_checks_pass() {
+            let (_p, failed, _t) = selftest().unwrap();
+            assert_eq!(failed, 0, "no selftest checks should fail in a clean build");
+        }
+
+        /// selftest result (p, f, t) satisfies p + f == t invariant
+        #[test]
+        fn test_selftest_sum_invariant() {
+            let (p, f, t) = selftest().unwrap();
+            assert_eq!(p + f, t, "passed + failed must always equal total");
+        }
+
+        /// selftest rex_execute_maya_commands check passes (indirectly via failed==0)
+        #[test]
+        fn test_selftest_rex_maya_commands_check_passes() {
+            let (_p, failed, _t) = selftest().unwrap();
+            assert_eq!(failed, 0, "rex_execute_maya_commands selftest check must pass");
+        }
+
+        /// selftest result is stable across 3 calls
+        #[test]
+        fn test_selftest_stable_three_calls() {
+            let r1 = selftest().unwrap();
+            let r2 = selftest().unwrap();
+            let r3 = selftest().unwrap();
+            assert_eq!(r1, r2, "selftest results must be stable (call 1 vs 2)");
+            assert_eq!(r2, r3, "selftest results must be stable (call 2 vs 3)");
+        }
+
+        /// selftest total count does not change between calls (count is fixed)
+        #[test]
+        fn test_selftest_count_is_deterministic() {
+            let (_, _, t1) = selftest().unwrap();
+            let (_, _, t2) = selftest().unwrap();
+            assert_eq!(t1, t2, "total check count must be deterministic");
+        }
+    }
 }
 

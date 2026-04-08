@@ -1067,6 +1067,84 @@ mod tests {
             let _ = fs::remove_dir_all(&src);
             let _ = fs::remove_dir_all(&dest);
         }
+
+        // ── Cycle 122 additions ──────────────────────────────────────────────
+
+        #[test]
+        fn test_expand_home_relative_path_unchanged() {
+            // A relative path with no tilde must be returned unchanged
+            let p = "relative/to/cwd";
+            assert_eq!(expand_home(p), p, "relative path without tilde must not be modified");
+        }
+
+        #[test]
+        fn test_copy_dir_recursive_single_file() {
+            let tmp = std::env::temp_dir();
+            let src = tmp.join("rez_test_cp_single_file_src");
+            let dest = tmp.join("rez_test_cp_single_file_dest");
+            let _ = fs::remove_dir_all(&src);
+            let _ = fs::remove_dir_all(&dest);
+
+            fs::create_dir_all(&src).unwrap();
+            fs::write(src.join("only_file.txt"), b"single").unwrap();
+
+            copy_dir_recursive(&src, &dest).unwrap();
+
+            assert!(dest.join("only_file.txt").exists(), "single file must be copied");
+            assert_eq!(fs::read(dest.join("only_file.txt")).unwrap(), b"single");
+
+            let _ = fs::remove_dir_all(&src);
+            let _ = fs::remove_dir_all(&dest);
+        }
+
+        #[test]
+        fn test_remove_package_with_specific_version_leaves_other_versions() {
+            let tmp = std::env::temp_dir().join("rez_test_rm_specific_ver");
+            let _ = fs::remove_dir_all(&tmp);
+
+            // Create two versions
+            fs::create_dir_all(tmp.join("mypkg").join("1.0.0")).unwrap();
+            fs::create_dir_all(tmp.join("mypkg").join("2.0.0")).unwrap();
+
+            let result = remove_package(
+                "mypkg",
+                Some("1.0.0"),
+                Some(vec![tmp.to_string_lossy().to_string()]),
+            );
+            assert!(result.is_ok());
+            assert_eq!(result.unwrap(), 1, "should remove exactly 1 version");
+            // Version 1.0.0 should be gone, 2.0.0 should remain
+            assert!(!tmp.join("mypkg").join("1.0.0").exists(), "1.0.0 must be removed");
+            assert!(tmp.join("mypkg").join("2.0.0").exists(), "2.0.0 must remain");
+
+            let _ = fs::remove_dir_all(&tmp);
+        }
+
+        #[test]
+        fn test_expand_home_with_long_path_preserved() {
+            let p = "/very/long/absolute/path/to/some/package/directory/1.0.0";
+            assert_eq!(expand_home(p), p, "long absolute path must not be modified");
+        }
+
+        #[test]
+        fn test_copy_dir_recursive_creates_dest_if_not_exists() {
+            let tmp = std::env::temp_dir();
+            let src = tmp.join("rez_test_cp_create_dest_src");
+            let dest = tmp.join("rez_test_cp_create_dest_nonexistent");
+            let _ = fs::remove_dir_all(&src);
+            let _ = fs::remove_dir_all(&dest);
+
+            fs::create_dir_all(&src).unwrap();
+            fs::write(src.join("test.txt"), b"content").unwrap();
+
+            assert!(!dest.exists(), "dest must not exist before copy");
+            copy_dir_recursive(&src, &dest).unwrap();
+            assert!(dest.exists(), "dest must be created by copy_dir_recursive");
+            assert!(dest.join("test.txt").exists(), "file must be in created dest");
+
+            let _ = fs::remove_dir_all(&src);
+            let _ = fs::remove_dir_all(&dest);
+        }
     }
 }
 

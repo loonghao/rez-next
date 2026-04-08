@@ -430,5 +430,67 @@ mod tests {
             assert_eq!(result, "unknown", "empty dir should return 'unknown'");
             let _ = fs::remove_dir_all(&tmp);
         }
+
+        // ─────── Cycle 122 additions ──────────────────────────────────────────
+
+        #[test]
+        fn test_get_build_system_returns_ok_always() {
+            // For any input, the function must not return Err (only Ok)
+            let cases = [
+                Some("/nonexistent_dir_rez_bs_abc"),
+                None,
+            ];
+            for case in cases {
+                let result = get_build_system(case);
+                assert!(result.is_ok(), "get_build_system must always return Ok, got: {:?}", result);
+            }
+        }
+
+        #[test]
+        fn test_rezbuild_py_priority_over_all_build_markers() {
+            // rezbuild.py must win over every other marker
+            let tmp = make_temp_dir_with_file("rez_bs_rebpy_wins", "rezbuild.py");
+            for m in &["CMakeLists.txt", "Makefile", "setup.py", "Cargo.toml", "package.json"] {
+                fs::write(tmp.join(m), b"").unwrap();
+            }
+            let result = get_build_system(Some(tmp.to_str().unwrap())).unwrap();
+            assert_eq!(result, "python_rezbuild", "rezbuild.py must have highest priority");
+            let _ = fs::remove_dir_all(&tmp);
+        }
+
+        #[test]
+        fn test_build_bat_yields_custom_script() {
+            let tmp = make_temp_dir_with_file("rez_bs_bat_cs", "build.bat");
+            let result = get_build_system(Some(tmp.to_str().unwrap())).unwrap();
+            assert_eq!(result, "custom_script", "build.bat must map to custom_script");
+            let _ = fs::remove_dir_all(&tmp);
+        }
+
+        #[test]
+        fn test_build_sh_yields_custom_script() {
+            let tmp = make_temp_dir_with_file("rez_bs_sh_cs", "build.sh");
+            let result = get_build_system(Some(tmp.to_str().unwrap())).unwrap();
+            assert_eq!(result, "custom_script", "build.sh must map to custom_script");
+            let _ = fs::remove_dir_all(&tmp);
+        }
+
+        #[test]
+        fn test_lowercase_makefile_yields_make() {
+            let tmp = make_temp_dir_with_file("rez_bs_lc_mk", "makefile");
+            let result = get_build_system(Some(tmp.to_str().unwrap())).unwrap();
+            assert_eq!(result, "make", "lowercase makefile should map to make");
+            let _ = fs::remove_dir_all(&tmp);
+        }
+
+        #[test]
+        fn test_cmake_priority_when_multiple_markers_present() {
+            // cmake comes before make in detection order; both present → cmake
+            let tmp = make_temp_dir_with_file("rez_bs_cmake_multi", "CMakeLists.txt");
+            fs::write(tmp.join("Makefile"), b"").unwrap();
+            fs::write(tmp.join("setup.py"), b"").unwrap();
+            let result = get_build_system(Some(tmp.to_str().unwrap())).unwrap();
+            assert_eq!(result, "cmake", "cmake should take priority when multiple markers present");
+            let _ = fs::remove_dir_all(&tmp);
+        }
     }
 }

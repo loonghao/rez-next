@@ -579,5 +579,72 @@ mod tests {
         // Should return None for unknown tools
         assert!(result.is_none(), "nonexistent binder must return None");
     }
+
+    // ── Cycle 122 additions ──────────────────────────────────────────────────
+
+    #[test]
+    fn test_bind_result_with_none_executable_path_accessor() {
+        let r = PyBindResult {
+            name: "gcc".to_string(),
+            version: "13.0.0".to_string(),
+            install_path: "/pkgs/gcc/13.0.0".to_string(),
+            executable_path: None,
+        };
+        assert!(r.executable_path().is_none(), "accessor must return None when field is None");
+    }
+
+    #[test]
+    fn test_list_binders_count_at_least_three() {
+        let binders = list_binders();
+        assert!(
+            binders.len() >= 3,
+            "should have at least 3 built-in binders, got {}",
+            binders.len()
+        );
+    }
+
+    #[test]
+    fn test_bind_result_version_accessor_matches_field() {
+        let r = PyBindResult {
+            name: "node".to_string(),
+            version: "20.11.0".to_string(),
+            install_path: "/pkgs/node/20.11.0".to_string(),
+            executable_path: None,
+        };
+        assert_eq!(r.version(), r.version.as_str(), "version() accessor must match version field");
+    }
+
+    #[test]
+    fn test_bind_result_name_accessor_matches_field() {
+        let r = PyBindResult {
+            name: "rustc".to_string(),
+            version: "1.77.0".to_string(),
+            install_path: "/pkgs/rustc/1.77.0".to_string(),
+            executable_path: None,
+        };
+        assert_eq!(r.name(), r.name.as_str(), "name() accessor must match name field");
+    }
+
+    #[test]
+    fn test_extract_version_two_component() {
+        // e.g. "3.9" style version
+        let result = extract_version("Python 3.9");
+        assert_eq!(result, Some("3.9".to_string()), "two-component version should be extracted");
+    }
+
+    #[test]
+    fn test_bind_result_install_path_accessor_matches_field() {
+        let r = PyBindResult {
+            name: "cmake".to_string(),
+            version: "3.28.0".to_string(),
+            install_path: "/opt/cmake/3.28.0".to_string(),
+            executable_path: None,
+        };
+        assert_eq!(
+            r.install_path(),
+            r.install_path.as_str(),
+            "install_path() accessor must match install_path field"
+        );
+    }
 }
 
