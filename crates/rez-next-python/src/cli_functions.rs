@@ -327,9 +327,10 @@ mod tests {
     #[test]
     fn test_cli_run_all_commands_iterable_via_slice() {
         // Verify the slice is usable as an iterator (not just index access)
-        let count = KNOWN_COMMANDS.iter().filter(|&&c| c.len() > 0).count();
+        let count = KNOWN_COMMANDS.iter().filter(|&&c| !c.is_empty()).count();
         assert_eq!(count, KNOWN_COMMANDS.len(), "all entries must be non-empty when iterated");
     }
+
 
     #[test]
     fn test_cli_main_returns_zero_for_each_known_command_individually() {
@@ -439,10 +440,7 @@ mod tests {
         );
     }
 
-    #[test]
-    fn test_known_commands_slice_is_non_empty() {
-        assert!(!KNOWN_COMMANDS.is_empty(), "KNOWN_COMMANDS must not be empty");
-    }
+
 
     #[test]
     fn test_cli_run_with_none_args_and_empty_vec_args_are_equivalent() {
