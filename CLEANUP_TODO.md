@@ -300,6 +300,13 @@
 - Recent iteration cycles added many per-command tests that only lock in that stub behavior, so test count is growing faster than observable contract coverage.
 - Follow-up: decide whether `cli_functions.rs` should stay an explicit compatibility stub (with docs/tests renamed accordingly) or begin dispatching to real command behavior; until then, keep cleanup focused on deduping placeholder-smoke tests instead of strengthening the misleading contract.
 
+### 43. `config_bindings.rs` still grows through non-observable config smoke tests
+- **Status**: OPEN (cycle 128)
+- Recent iteration cycles added multiple tests that only assert non-empty strings, compile-time field access, or `get_field()` no-panic behavior for config values such as `local_packages_path`, `release_packages_path`, `use_rust_solver`, and `version_check_behavior`.
+- The file already has stronger nearby contracts for default values, getter/inner parity, and JSON field typing, so the remaining smoke cases mostly add count without adding behavioral signal.
+- Follow-up: when revisiting `config_bindings.rs`, consolidate around exact default-value contracts and selected typed `get_field()` assertions, and remove compile-only / no-panic checks instead of letting the file keep growing sideways.
+
+
 - **Status**: COMPLETE ✓ (cycle 19)
 
 
