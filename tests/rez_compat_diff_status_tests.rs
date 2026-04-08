@@ -1,9 +1,12 @@
-//! Rez Compat — rez.diff, rez.status, and rez.packages_ Compatibility Tests
+//! Rez Compat — rez.diff and rez.status/rez.packages_ Compatibility Tests
 //!
-//! Covers: context diff (added/removed/upgraded packages), context status lifecycle,
-//! and packages_ accessor methods (get_package, get_package_names, contains_package).
+//! Extracted from rez_compat_late_tests.rs (Cycle 140).
 //!
-//! Extracted from rez_compat_late_tests.rs (Cycle 75).
+//! Covers:
+//! - rez.diff: identical/upgraded/added/removed package detection
+//! - rez.status: ContextStatus enum transitions
+//! - rez.packages_: get_package / get_package_names / contains_package
+
 use rez_next_context::{ContextStatus, ResolvedContext};
 use rez_next_package::{Package, PackageRequirement};
 use rez_next_version::Version;
@@ -171,8 +174,9 @@ fn test_diff_removed_package_detected() {
     assert_eq!(*removed[0], "hqueue");
 }
 
-// ─── rez.status + rez.packages_ compat tests (Cycle 30) ──────────────────────
+// ─── Cycle 30: rez.status + rez.packages_ compat tests ────────────────────────
 
+/// rez.status compat: default created context starts in Resolving status.
 #[test]
 fn test_context_status_default_is_resolving() {
     let reqs = vec![PackageRequirement::parse("houdini-20+").unwrap()];
@@ -184,6 +188,7 @@ fn test_context_status_default_is_resolving() {
     );
 }
 
+/// rez.status compat: manually set to Resolved is preserved.
 #[test]
 fn test_context_status_resolved_set_and_read() {
     let reqs = vec![PackageRequirement::parse("maya-2024+").unwrap()];
@@ -192,6 +197,7 @@ fn test_context_status_resolved_set_and_read() {
     assert_eq!(ctx.status, ContextStatus::Resolved);
 }
 
+/// rez.status compat: Failed status is preserved.
 #[test]
 fn test_context_status_failed_set_and_read() {
     let reqs = vec![PackageRequirement::parse("nonexistent-99+").unwrap()];
@@ -200,6 +206,7 @@ fn test_context_status_failed_set_and_read() {
     assert_eq!(ctx.status, ContextStatus::Failed);
 }
 
+/// rez.status compat: Cached status is preserved.
 #[test]
 fn test_context_status_cached_set_and_read() {
     let reqs = vec![PackageRequirement::parse("nuke-15+").unwrap()];
@@ -208,6 +215,7 @@ fn test_context_status_cached_set_and_read() {
     assert_eq!(ctx.status, ContextStatus::Cached);
 }
 
+/// rez.packages_ compat: get_package returns None for unknown package name.
 #[test]
 fn test_context_get_package_unknown_returns_none() {
     let reqs = vec![PackageRequirement::parse("maya-2024+").unwrap()];
@@ -220,6 +228,7 @@ fn test_context_get_package_unknown_returns_none() {
     assert!(ctx.get_package("houdini").is_none());
 }
 
+/// rez.packages_ compat: get_package_names returns all resolved package names.
 #[test]
 fn test_context_get_package_names_lists_all() {
     let reqs = vec![
@@ -242,6 +251,7 @@ fn test_context_get_package_names_lists_all() {
     assert!(names.contains(&"nuke".to_string()));
 }
 
+/// rez.packages_ compat: contains_package correctly identifies presence/absence.
 #[test]
 fn test_context_contains_package_presence_and_absence() {
     let reqs = vec![PackageRequirement::parse("python-3.11+").unwrap()];
