@@ -406,5 +406,52 @@ mod tests {
             "Debug output must contain the check name, got: {formatted}"
         );
     }
+
+    // ─────── Cycle 133 additions ──────────────────────────────────────────
+
+    #[test]
+    fn test_summarize_selftest_empty_list_returns_zero_triple() {
+        let (passed, failed, total) = summarize_selftest_results(&[]);
+        assert_eq!(passed, 0, "no checks → 0 passed");
+        assert_eq!(failed, 0, "no checks → 0 failed");
+        assert_eq!(total, 0, "no checks → total 0");
+    }
+
+    #[test]
+    fn test_summarize_selftest_all_fail_case() {
+        let results = vec![
+            super::SelftestCheckResult::new("fail_a", false),
+            super::SelftestCheckResult::new("fail_b", false),
+        ];
+        let (passed, failed, total) = summarize_selftest_results(&results);
+        assert_eq!(passed, 0);
+        assert_eq!(failed, 2);
+        assert_eq!(total, 2);
+    }
+
+    #[test]
+    fn test_selftest_check_result_not_equal_when_name_differs() {
+        let a = super::SelftestCheckResult::new("check_alpha", true);
+        let b = super::SelftestCheckResult::new("check_beta", true);
+        assert_ne!(a, b, "different names must not be equal");
+    }
+
+    #[test]
+    fn test_selftest_check_result_not_equal_when_pass_flag_differs() {
+        let a = super::SelftestCheckResult::new("same_name", true);
+        let b = super::SelftestCheckResult::new("same_name", false);
+        assert_ne!(a, b, "different pass flags must not be equal");
+    }
+
+    #[test]
+    fn test_selftest_check_count_is_stable_at_expected_minimum() {
+        // The check list currently has 17 entries; guard against silent deletion
+        let results = collect_selftest_results();
+        assert!(
+            results.len() >= 15,
+            "collect_selftest_results() must return at least 15 checks, got {}",
+            results.len()
+        );
+    }
 }
 

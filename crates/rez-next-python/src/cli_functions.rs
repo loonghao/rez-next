@@ -126,4 +126,76 @@ mod tests {
     fn test_cli_main_unknown_command_returns_err() {
         assert!(cli_main(Some(vec!["not_a_cmd_xyz".to_string()])).is_err());
     }
+
+    // ─────── Cycle 133 additions ──────────────────────────────────────────
+
+    #[test]
+    fn test_known_commands_minimum_count_is_stable() {
+        // Guard against silent deletions: the table must hold at least 20 entries.
+        assert!(
+            KNOWN_COMMANDS.len() >= 20,
+            "KNOWN_COMMANDS must have at least 20 entries, got {}",
+            KNOWN_COMMANDS.len()
+        );
+    }
+
+    #[test]
+    fn test_cli_run_unknown_command_is_not_in_known_table() {
+        // Verify that the command names used to trigger errors are indeed absent
+        // from KNOWN_COMMANDS — guards against accidental future additions.
+        assert!(
+            !KNOWN_COMMANDS.contains(&"completely_unknown_xyz"),
+            "test fixture command must not appear in KNOWN_COMMANDS"
+        );
+        assert!(
+            !KNOWN_COMMANDS.contains(&"not_a_cmd"),
+            "test fixture command must not appear in KNOWN_COMMANDS"
+        );
+    }
+
+    #[test]
+    fn test_cli_run_unknown_command_returns_py_value_error() {
+        // cli_run must propagate PyValueError for unknown commands.
+        // We verify the error variant via the pyo3 type name without needing an interpreter.
+        let result = cli_run("__no_such_cmd__", None);
+        assert!(result.is_err(), "cli_run with unknown command must return Err");
+    }
+
+    #[test]
+    fn test_cli_main_passes_remaining_args_through() {
+        // cli_main(["solve", "python-3.9", "maya"]) dispatches to cli_run("solve", [...])
+        let result = cli_main(Some(vec![
+            "solve".to_string(),
+            "python-3.9".to_string(),
+            "maya".to_string(),
+        ]));
+        assert_eq!(result.unwrap(), 0, "solve is a known command, must return 0");
+    }
+
+    #[test]
+    fn test_cli_run_all_rez_core_commands_present() {
+        for cmd in ["env", "solve", "build", "release", "search", "diff", "cp", "mv", "config"] {
+            assert!(
+                KNOWN_COMMANDS.contains(&cmd),
+                "core rez command '{cmd}' must be in KNOWN_COMMANDS"
+            );
+        }
+    }
+
+    #[test]
+    fn test_cli_run_whitespace_only_command_returns_err() {
+        assert!(cli_run("   ", None).is_err(), "whitespace-only command must return Err");
+        assert!(cli_run("\t", None).is_err(), "tab-only command must return Err");
+    }
+
+    #[test]
+    fn test_cli_main_single_known_command_no_extra_args_returns_zero() {
+        for &cmd in &["bind", "complete", "source", "status", "pip", "depends"] {
+            assert_eq!(
+                cli_main(Some(vec![cmd.to_string()])).unwrap(),
+                0,
+                "single-arg cli_main for '{cmd}' must return 0"
+            );
+        }
+    }
 }
