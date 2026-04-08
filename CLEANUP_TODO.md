@@ -279,13 +279,10 @@
 - Follow-up: return or share the selected version from `copy_package()` so `move_package()` can delete the exact source directory it copied.
 
 ### 40. `selftest_functions.rs` still mixes library-side reporting with panic-prone checks
-- **Status**: PARTIAL ✓ (refreshed after cycle 123)
-- A later iteration cycle regrew `selftest_functions.rs` with cycle-tagged duplicate / vacuous unit tests; this cleanup pass removed those reintroduced checks and returned the file to a contract-level test surface (no panic, balanced counts, zero failures in a healthy runtime).
-- The duplicate-check half of this item is resolved again, which reduces the chance that runtime self-test logic and unit tests drift independently.
-- Remaining follow-up:
-  - `selftest()` still reports failures with `eprintln!` even though it lives in a library module.
-  - Several runtime checks still use `unwrap()`, so malformed internal fixtures can panic before the `(passed, failed, total)` contract is returned.
-  - If revisited, decide whether failures should move to structured return data / logging and whether the individual checks should stop panicking.
+- **Status**: COMPLETE ✓ (cycle 132)
+- Refactored `selftest()` around a shared `collect_selftest_results()` helper so the runtime path and unit tests now exercise the same contract surface.
+- Removed library-side `eprintln!` reporting; the Python API now returns counts only, and tests assert against structured check results instead of regrowing cycle-tagged smoke cases.
+- Replaced panic-prone internal `unwrap()` usage in the self-test checks with fallible guards, so malformed internal fixtures become failed checks instead of crashing the self-test entry point.
 
 ### 41. `bundle_functions.rs` still over-tests placeholder `dest_packages_path`
 
@@ -295,10 +292,12 @@
 - Follow-up: once package extraction is implemented, add filesystem-observable tests for the real extraction contract rather than reintroducing placeholder acceptance checks.
 
 ### 42. `cli_functions.rs` still documents a real CLI surface over a stubbed command table
-- **Status**: OPEN
-- `cli_run()` still discards `args` and returns `Ok(0)` for any entry in `KNOWN_COMMANDS`, while the docstring says it is equivalent to `rez <command> <args...>`.
-- Recent iteration cycles added many per-command tests that only lock in that stub behavior, so test count is growing faster than observable contract coverage.
-- Follow-up: decide whether `cli_functions.rs` should stay an explicit compatibility stub (with docs/tests renamed accordingly) or begin dispatching to real command behavior; until then, keep cleanup focused on deduping placeholder-smoke tests instead of strengthening the misleading contract.
+- **Status**: PARTIAL ✓ (cycle 132)
+- Doc comments now explicitly describe `cli_run()` / `cli_main()` as compatibility stubs that validate against `KNOWN_COMMANDS` and ignore `args`.
+- Removed the regrown per-command `Ok(0)` smoke tests; coverage now stays at the table level (known commands, malformed commands, `cli_main` dispatch) instead of growing sideways with each iteration cycle.
+- Remaining follow-up:
+  - `cli_run()` still discards `args` and does not dispatch to the real rez CLI.
+  - Decide whether this module should remain an explicit stub or begin routing into real command execution before widening the documented contract.
 
 ### 43. `config_bindings.rs` still grows through non-observable config smoke tests
 - **Status**: OPEN (cycle 128)
