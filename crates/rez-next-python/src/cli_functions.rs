@@ -350,4 +350,105 @@ mod tests {
         assert!(cli_run("123", None).is_err(), "'123' is not a known command");
         assert!(cli_run("0", None).is_err(), "'0' is not a known command");
     }
+
+    // ─────── Cycle 135 additions ──────────────────────────────────────────
+
+    #[test]
+    fn test_known_commands_contains_context_and_diff() {
+        assert!(
+            KNOWN_COMMANDS.contains(&"context"),
+            "'context' must be in KNOWN_COMMANDS"
+        );
+        assert!(
+            KNOWN_COMMANDS.contains(&"diff"),
+            "'diff' must be in KNOWN_COMMANDS"
+        );
+    }
+
+    #[test]
+    fn test_known_commands_contains_rm_cp_mv() {
+        for cmd in ["rm", "cp", "mv"] {
+            assert!(
+                KNOWN_COMMANDS.contains(&cmd),
+                "file-management command '{cmd}' must be in KNOWN_COMMANDS"
+            );
+        }
+    }
+
+    #[test]
+    fn test_cli_run_rm_command_returns_zero() {
+        assert_eq!(cli_run("rm", None).unwrap(), 0, "rm must return 0");
+    }
+
+    #[test]
+    fn test_cli_run_cp_command_returns_zero() {
+        assert_eq!(cli_run("cp", None).unwrap(), 0, "cp must return 0");
+    }
+
+    #[test]
+    fn test_cli_run_mv_command_returns_zero() {
+        assert_eq!(cli_run("mv", None).unwrap(), 0, "mv must return 0");
+    }
+
+    #[test]
+    fn test_cli_run_status_command_returns_zero() {
+        assert_eq!(cli_run("status", None).unwrap(), 0, "status must return 0");
+    }
+
+    #[test]
+    fn test_cli_run_view_command_returns_zero() {
+        assert_eq!(cli_run("view", None).unwrap(), 0, "view must return 0");
+    }
+
+    #[test]
+    fn test_cli_run_config_command_returns_zero() {
+        assert_eq!(cli_run("config", None).unwrap(), 0, "config must return 0");
+    }
+
+    #[test]
+    fn test_cli_run_interpret_command_returns_zero() {
+        assert_eq!(cli_run("interpret", None).unwrap(), 0, "interpret must return 0");
+    }
+
+    #[test]
+    fn test_cli_run_selftest_command_returns_zero() {
+        assert_eq!(cli_run("selftest", None).unwrap(), 0, "selftest must return 0");
+    }
+
+    #[test]
+    fn test_cli_run_source_command_returns_zero() {
+        assert_eq!(cli_run("source", None).unwrap(), 0, "source must return 0");
+    }
+
+    #[test]
+    fn test_cli_main_with_solve_and_packages_returns_zero() {
+        let result = cli_main(Some(vec![
+            "solve".to_string(),
+            "houdini-19.5".to_string(),
+            "python-3.9".to_string(),
+        ]));
+        assert_eq!(result.unwrap(), 0, "solve with houdini+python must return 0");
+    }
+
+    #[test]
+    fn test_cli_main_with_context_command_returns_zero() {
+        assert_eq!(
+            cli_main(Some(vec!["context".to_string()])).unwrap(),
+            0,
+            "context via cli_main must return 0"
+        );
+    }
+
+    #[test]
+    fn test_known_commands_slice_is_non_empty() {
+        assert!(!KNOWN_COMMANDS.is_empty(), "KNOWN_COMMANDS must not be empty");
+    }
+
+    #[test]
+    fn test_cli_run_with_none_args_and_empty_vec_args_are_equivalent() {
+        // Both None and Some(vec![]) must return the same exit code for known commands
+        let result_none = cli_run("build", None).unwrap();
+        let result_empty = cli_run("build", Some(vec![])).unwrap();
+        assert_eq!(result_none, result_empty, "None and empty args must yield same result");
+    }
 }

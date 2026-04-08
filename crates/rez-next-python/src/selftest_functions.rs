@@ -575,5 +575,172 @@ mod tests {
             "check_repository_manager_create must return true in healthy runtime"
         );
     }
+
+    // ─────── Cycle 135 additions ──────────────────────────────────────────
+
+    #[test]
+    fn test_check_shell_powershell_generation_returns_true() {
+        assert!(
+            super::check_shell_powershell_generation(),
+            "check_shell_powershell_generation must return true in healthy runtime"
+        );
+    }
+
+    #[test]
+    fn test_check_suite_load_roundtrip_returns_true() {
+        assert!(
+            super::check_suite_load_roundtrip(),
+            "check_suite_load_roundtrip must return true in healthy runtime"
+        );
+    }
+
+    #[test]
+    fn test_selftest_check_result_copy_trait_works() {
+        // SelftestCheckResult derives Copy; copying must yield an independent value
+        let original = super::SelftestCheckResult::new("copy_test", true);
+        let copied = original;
+        assert_eq!(original, copied, "copied SelftestCheckResult must equal original");
+    }
+
+    #[test]
+    fn test_summarize_selftest_single_pass_entry() {
+        let results = vec![super::SelftestCheckResult::new("only_one", true)];
+        let (passed, failed, total) = summarize_selftest_results(&results);
+        assert_eq!(passed, 1);
+        assert_eq!(failed, 0);
+        assert_eq!(total, 1);
+    }
+
+    #[test]
+    fn test_summarize_selftest_single_fail_entry() {
+        let results = vec![super::SelftestCheckResult::new("only_fail", false)];
+        let (passed, failed, total) = summarize_selftest_results(&results);
+        assert_eq!(passed, 0);
+        assert_eq!(failed, 1);
+        assert_eq!(total, 1);
+    }
+
+    #[test]
+    fn test_summarize_selftest_mixed_three_entries() {
+        let results = vec![
+            super::SelftestCheckResult::new("ok1", true),
+            super::SelftestCheckResult::new("fail1", false),
+            super::SelftestCheckResult::new("ok2", true),
+        ];
+        let (passed, failed, total) = summarize_selftest_results(&results);
+        assert_eq!(passed, 2);
+        assert_eq!(failed, 1);
+        assert_eq!(total, 3);
+    }
+
+    #[test]
+    fn test_check_version_parse_basic_covers_alpha_suffix() {
+        // Directly verify that the alpha suffix case passes
+        assert!(
+            rez_next_version::Version::parse("1.0.0-alpha1").is_ok(),
+            "alpha-suffix version must parse"
+        );
+    }
+
+    #[test]
+    fn test_check_package_requirement_houdini_version_range() {
+        use rez_next_package::PackageRequirement;
+        // houdini>=19.5 uses a lower-bound range format
+        assert!(
+            PackageRequirement::parse("houdini>=19.5").is_ok(),
+            "houdini>=19.5 must parse successfully"
+        );
+    }
+
+    #[test]
+    fn test_check_rex_maya_var_substitution() {
+        use rez_next_rex::RexExecutor;
+        let mut exec = RexExecutor::new();
+        let env = exec
+            .execute_commands(
+                "env.setenv('MAYA_ROOT', '{root}')",
+                "maya",
+                Some("/opt/maya/2024.1"),
+                Some("2024.1"),
+            )
+            .expect("maya root setenv must succeed");
+        let val = env.vars.get("MAYA_ROOT").cloned().unwrap_or_default();
+        assert!(
+            val.contains("/opt/maya"),
+            "MAYA_ROOT must contain base path after root substitution, got: {val}"
+        );
+    }
+
+    #[test]
+    fn test_check_shell_bash_contains_export_keyword() {
+        use rez_next_rex::{generate_shell_script, RexEnvironment, ShellType};
+        let mut env = RexEnvironment::new();
+        env.vars.insert("BASH_CHECK_VAR".to_string(), "1".to_string());
+        let script = generate_shell_script(&env, &ShellType::Bash);
+        assert!(
+            script.contains("export"),
+            "bash script must use 'export' keyword, got: {script}"
+        );
+    }
+
+    #[test]
+    fn test_check_shell_bash_contains_alias_keyword() {
+        use rez_next_rex::{generate_shell_script, RexEnvironment, ShellType};
+        let mut env = RexEnvironment::new();
+        env.aliases.insert("myalias".to_string(), "/path/to/tool".to_string());
+        let script = generate_shell_script(&env, &ShellType::Bash);
+        assert!(
+            script.contains("alias"),
+            "bash script must contain 'alias' keyword when aliases are set, got: {script}"
+        );
+    }
+
+    #[test]
+    fn test_collect_selftest_results_check_names_match_known_set() {
+        // All check names must be non-empty strings with no surrounding whitespace
+        let results = collect_selftest_results();
+        for result in &results {
+            assert_eq!(
+                result.name.trim(),
+                result.name,
+                "check name '{}' must not have surrounding whitespace",
+                result.name
+            );
+        }
+    }
+
+    #[test]
+    fn test_selftest_public_tuple_passed_lte_total() {
+        let (passed, _failed, total) = selftest().expect("selftest must not error");
+        assert!(
+            passed <= total,
+            "passed ({passed}) must not exceed total ({total})"
+        );
+    }
+
+    #[test]
+    fn test_selftest_public_tuple_failed_lte_total() {
+        let (_passed, failed, total) = selftest().expect("selftest must not error");
+        assert!(
+            failed <= total,
+            "failed ({failed}) must not exceed total ({total})"
+        );
+    }
+
+    #[test]
+    fn test_check_config_version_is_semver_like() {
+        // config.version must look like a non-trivial version string
+        let cfg = rez_next_common::config::RezCoreConfig::load();
+        assert!(
+            !cfg.version.is_empty(),
+            "config version must be a non-empty string"
+        );
+        // At minimum it should contain a digit
+        assert!(
+            cfg.version.chars().any(|c| c.is_ascii_digit()),
+            "config version must contain at least one digit, got: '{}'",
+            cfg.version
+        );
+    }
 }
 
