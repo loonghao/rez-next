@@ -18,8 +18,18 @@ rez = pytest.importorskip(
     reason="rez_next not built — run: maturin develop --features extension-module",
 )
 
+XFAIL_LATEST_PACKAGE_LEXICOGRAPHIC = (
+    "Current latest-package helpers sort version strings lexicographically, "
+    "so 3.9.0 still beats 3.11.0 on temp repos"
+)
+XFAIL_EMPTY_NAME_SCAN = (
+    "Current empty-name scans do not enumerate temp-repo package families, "
+    "so package-family and walk_packages helpers still return []"
+)
+
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
 
 
 def write_package_py(path, name, version, requires=None, commands=None):
@@ -314,9 +324,10 @@ class TestRepositoryManagerWithRealRepo:
         assert "3.9.0" in versions
         assert "3.11.0" in versions
 
-    @pytest.mark.xfail(reason="Requires get_latest_package to be implemented")
+    @pytest.mark.xfail(reason=XFAIL_LATEST_PACKAGE_LEXICOGRAPHIC)
     def test_get_latest_package(self, tmp_path):
         write_package_py(tmp_path / "python" / "3.9.0", "python", "3.9.0")
+
         write_package_py(tmp_path / "python" / "3.11.0", "python", "3.11.0")
 
         repo = rez.RepositoryManager(paths=[str(tmp_path)])
@@ -324,9 +335,10 @@ class TestRepositoryManagerWithRealRepo:
         assert latest is not None
         assert "3.11" in latest.version_str
 
-    @pytest.mark.xfail(reason="Requires get_package_family_names to be fully implemented")
+    @pytest.mark.xfail(reason=XFAIL_EMPTY_NAME_SCAN)
     def test_get_package_family_names_includes_all(self, tmp_path):
         write_package_py(tmp_path / "python" / "3.11.0", "python", "3.11.0")
+
         write_package_py(tmp_path / "numpy" / "1.25.0", "numpy", "1.25.0")
 
         repo = rez.RepositoryManager(paths=[str(tmp_path)])
@@ -401,8 +413,9 @@ class TestContextRepositoryIntegration:
         assert isinstance(pkgs, list)
         assert len(pkgs) == 2
 
-    @pytest.mark.xfail(reason="Requires top-level get_latest_package to be implemented")
+    @pytest.mark.xfail(reason=XFAIL_LATEST_PACKAGE_LEXICOGRAPHIC)
     def test_top_level_get_latest_package_fn(self, tmp_path):
+
         write_package_py(tmp_path / "python" / "3.9.0", "python", "3.9.0")
         write_package_py(tmp_path / "python" / "3.11.0", "python", "3.11.0")
 
@@ -417,8 +430,9 @@ class TestContextRepositoryIntegration:
         assert pkg is not None
         assert pkg.name == "python"
 
-    @pytest.mark.xfail(reason="Requires walk_packages to return all packages")
+    @pytest.mark.xfail(reason=XFAIL_EMPTY_NAME_SCAN)
     def test_top_level_walk_packages_fn(self, tmp_path):
+
         write_package_py(tmp_path / "python" / "3.11.0", "python", "3.11.0")
         write_package_py(tmp_path / "numpy" / "1.25.0", "numpy", "1.25.0")
 
@@ -426,9 +440,10 @@ class TestContextRepositoryIntegration:
         assert isinstance(pkgs, list)
         assert len(pkgs) == 2
 
-    @pytest.mark.xfail(reason="Requires get_package_family_names to be fully implemented")
+    @pytest.mark.xfail(reason=XFAIL_EMPTY_NAME_SCAN)
     def test_top_level_get_package_family_names_fn(self, tmp_path):
         write_package_py(tmp_path / "python" / "3.11.0", "python", "3.11.0")
+
         write_package_py(tmp_path / "numpy" / "1.25.0", "numpy", "1.25.0")
 
         names = rez.get_package_family_names(paths=[str(tmp_path)])

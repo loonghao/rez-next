@@ -305,6 +305,14 @@
 - The file already has stronger nearby contracts for default values, getter/inner parity, and JSON field typing, so the remaining smoke cases mostly add count without adding behavioral signal.
 - Follow-up: when revisiting `config_bindings.rs`, consolidate around exact default-value contracts and selected typed `get_field()` assertions, and remove compile-only / no-panic checks instead of letting the file keep growing sideways.
 
+### 44. Python repository compatibility tests still describe real contract drift as “not implemented”
+- **Status**: OPEN (cycle 39)
+- `test_context_repository_api.py` still carried stale `xfail` reasons even though the APIs exist and fail for narrower reasons:
+  - `RepositoryManager.get_latest_package()` and top-level `get_latest_package()` currently return `3.9.0` ahead of `3.11.0` because the binding sorts version strings lexicographically instead of using semantic version ordering.
+  - top-level `get_package_family_names()` / `walk_packages()` and `RepositoryManager.get_package_family_names()` still return `[]` on temp repos because the current implementation delegates to `find_packages("")`, which does not enumerate package families for an empty-name scan.
+- Follow-up: fix the binding helpers in a dedicated correctness change, then remove the now-accurate xfails instead of widening placeholder compatibility claims.
+
+
 
 - **Status**: COMPLETE ✓ (cycle 19)
 
