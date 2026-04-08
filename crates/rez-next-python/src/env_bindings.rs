@@ -875,4 +875,56 @@ mod tests {
             assert!(!env.env_vars.contains_key("TEMP_KEY"), "key should be removed");
         }
     }
+
+    mod test_env_cy125 {
+        use super::*;
+
+        /// empty_rez_env scripts map is initially empty
+        #[test]
+        fn test_empty_env_scripts_is_empty() {
+            let env = empty_rez_env(vec![]);
+            assert!(env.scripts.is_empty(), "scripts must be empty initially");
+        }
+
+        /// env_vars map is initially empty
+        #[test]
+        fn test_empty_env_vars_is_empty() {
+            let env = empty_rez_env(vec![]);
+            assert!(env.env_vars.is_empty(), "env_vars must be empty initially");
+        }
+
+        /// resolved_packages initially empty
+        #[test]
+        fn test_empty_env_resolved_packages_is_empty() {
+            let env = empty_rez_env(vec![]);
+            assert!(
+                env.resolved_packages.is_empty(),
+                "resolved_packages must be empty initially"
+            );
+        }
+
+        /// available_shells with two scripts returns two-element sorted list
+        #[test]
+        fn test_available_shells_two_scripts_sorted() {
+            let mut env = empty_rez_env(vec![]);
+            env.scripts.insert("zsh".to_string(), "# zsh".to_string());
+            env.scripts.insert("bash".to_string(), "# bash".to_string());
+            let shells = env.available_shells();
+            assert_eq!(shells.len(), 2);
+            // sorted lexicographically: bash < zsh
+            assert_eq!(shells[0], "bash");
+            assert_eq!(shells[1], "zsh");
+        }
+
+        /// env_vars supports inserting multiple distinct keys
+        #[test]
+        fn test_env_vars_multiple_keys() {
+            let mut env = empty_rez_env(vec![]);
+            env.env_vars.insert("A".to_string(), "1".to_string());
+            env.env_vars.insert("B".to_string(), "2".to_string());
+            assert_eq!(env.env_vars.len(), 2);
+            assert_eq!(env.env_vars["A"], "1");
+            assert_eq!(env.env_vars["B"], "2");
+        }
+    }
 }

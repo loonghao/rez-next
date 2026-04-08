@@ -690,4 +690,52 @@ mod tests {
             );
         }
     }
+
+    mod test_completion_cy125 {
+        use super::*;
+
+        /// supported_completion_shells returns at least 3 shells
+        #[test]
+        fn test_supported_shells_has_at_least_three() {
+            let shells = supported_completion_shells();
+            assert!(
+                shells.len() >= 3,
+                "must support at least 3 shells, got: {shells:?}"
+            );
+        }
+
+        /// get_completion_script for zsh returns Ok
+        #[test]
+        fn test_get_completion_script_zsh_is_ok() {
+            let result = get_completion_script(Some("zsh"));
+            assert!(result.is_ok(), "zsh completion script must succeed");
+        }
+
+        /// get_completion_script for powershell returns Ok
+        #[test]
+        fn test_get_completion_script_powershell_is_ok() {
+            let result = get_completion_script(Some("powershell"));
+            assert!(
+                result.is_ok(),
+                "powershell completion script must succeed"
+            );
+        }
+
+        /// bash completion script is non-empty
+        #[test]
+        fn test_bash_completion_script_is_nonempty() {
+            let script = get_completion_script(Some("bash")).unwrap();
+            assert!(!script.is_empty(), "bash completion script must not be empty");
+        }
+
+        /// fish completion script contains 'rez' token
+        #[test]
+        fn test_fish_script_contains_rez_token() {
+            let script = get_completion_script(Some("fish")).unwrap();
+            assert!(
+                script.contains("rez"),
+                "fish completion script must mention 'rez'"
+            );
+        }
+    }
 }

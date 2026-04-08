@@ -669,4 +669,57 @@ mod tests {
             );
         }
     }
+
+    mod test_shell_cy125 {
+        use super::*;
+
+        /// get_available_shells does not include an empty string entry
+        #[test]
+        fn test_available_shells_no_empty_entry() {
+            let shells = get_available_shells();
+            assert!(
+                shells.iter().all(|s| !s.is_empty()),
+                "no shell name should be empty in available shells: {shells:?}"
+            );
+        }
+
+        /// PyShell::new for "bash" succeeds
+        #[test]
+        fn test_pyshell_new_bash_is_ok() {
+            assert!(
+                PyShell::new("bash").is_ok(),
+                "PyShell::new('bash') must succeed"
+            );
+        }
+
+        /// PyShell::new for "zsh" succeeds
+        #[test]
+        fn test_pyshell_new_zsh_is_ok() {
+            assert!(
+                PyShell::new("zsh").is_ok(),
+                "PyShell::new('zsh') must succeed"
+            );
+        }
+
+        /// PyShell::new for an unknown shell returns Err
+        #[test]
+        fn test_pyshell_new_unknown_shell_is_err() {
+            let result = PyShell::new("unknownshell_cy125");
+            assert!(
+                result.is_err(),
+                "PyShell::new for unknown shell should return Err"
+            );
+        }
+
+        /// create_shell_script with no startup_commands still succeeds for bash
+        #[test]
+        fn test_create_shell_script_bash_no_startup_commands() {
+            let result = create_shell_script("bash", None, None, None);
+            assert!(
+                result.is_ok(),
+                "create_shell_script bash with no startup_commands must succeed"
+            );
+        }
+    }
 }
+

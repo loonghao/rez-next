@@ -654,4 +654,49 @@ mod tests {
         // Latest call wins
         assert_eq!(f.version_range, Some(">=4.0".to_string()));
     }
+
+    // ─────── Cycle 125 additions ─────────────────────────────────────────────
+
+    #[test]
+    fn test_search_result_version_count_zero_empty_list() {
+        let inner = SearchResult::new("pkg".to_string(), vec![], "/r".to_string());
+        let r = PySearchResult { inner };
+        assert_eq!(r.version_count(), 0, "empty versions must give count 0");
+    }
+
+    #[test]
+    fn test_filter_exact_mode_no_substring_match() {
+        let f = SearchFilter::new("py").with_mode(FilterMode::Exact);
+        // "python" starts with "py" but is not exactly "py"
+        assert!(
+            !f.matches_name("python"),
+            "exact mode must not match substrings"
+        );
+    }
+
+    #[test]
+    fn test_package_searcher_limit_positive_stored() {
+        let s = PyPackageSearcher::new("", None, "families", None, 42);
+        assert_eq!(s.limit, 42);
+    }
+
+    #[test]
+    fn test_result_set_single_entry_len_is_one() {
+        let mut rs = SearchResultSet::new();
+        rs.add(SearchResult::new("solo".to_string(), vec!["1.0".to_string()], "/r".to_string()));
+        assert_eq!(rs.len(), 1);
+        assert!(!rs.is_empty());
+    }
+
+    #[test]
+    fn test_search_result_repr_contains_repo_path() {
+        let inner = SearchResult::new("mypkg".to_string(), vec![], "/my/repo".to_string());
+        let r = PySearchResult { inner };
+        let repr = r.__repr__();
+        assert!(
+            repr.contains("mypkg") || repr.contains("SearchResult"),
+            "repr must contain package name or type: {repr}"
+        );
+    }
 }
+

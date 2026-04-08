@@ -529,4 +529,46 @@ mod tests {
             );
         }
     }
+
+    mod test_config_cy125 {
+        use super::*;
+
+        /// default config use_rust_solver is a bool accessible without panic
+        #[test]
+        fn test_default_config_use_rust_solver_field_accessible() {
+            let cfg = RezCoreConfig::default();
+            let _: bool = cfg.use_rust_solver;
+        }
+
+        /// PyConfig::new() repr is exactly "Config()"
+        #[test]
+        fn test_pyconfig_repr_is_config_parens() {
+            let cfg = PyConfig::new();
+            assert_eq!(cfg.__repr__(), "Config()");
+        }
+
+        /// rez_version from PyConfig::new is non-empty
+        #[test]
+        fn test_pyconfig_rez_version_nonempty() {
+            let cfg = PyConfig::new();
+            let v = cfg.rez_version();
+            assert!(!v.is_empty(), "rez_version must not be empty");
+        }
+
+        /// packages_path from RezCoreConfig is a Vec (may be empty on CI)
+        #[test]
+        fn test_packages_path_is_a_vec() {
+            let cfg = RezCoreConfig::default();
+            // Just verify it is iterable (type check at compile time) and does not panic
+            let _count = cfg.packages_path.len();
+        }
+
+        /// get_field for unknown key returns None
+        #[test]
+        fn test_get_field_unknown_key_is_none() {
+            let cfg = RezCoreConfig::load();
+            let result = cfg.get_field("__nonexistent_key_cy125__");
+            assert!(result.is_none(), "unknown field must return None");
+        }
+    }
 }

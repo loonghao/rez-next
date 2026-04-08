@@ -917,4 +917,55 @@ mod context_bindings_tests {
             }
         }
     }
+
+    mod test_context_cy125 {
+        use super::*;
+
+        /// resolved_packages with zero packages yields empty vec
+        #[test]
+        fn test_zero_packages_resolved_is_empty() {
+            let ctx = make_py_ctx_inner(&[]);
+            assert!(
+                ctx.resolved_packages.is_empty(),
+                "zero-package context must have empty resolved_packages"
+            );
+        }
+
+        /// environment_vars inserted key is retrievable
+        #[test]
+        fn test_environment_vars_insert_and_retrieve() {
+            let mut ctx = make_py_ctx_inner(&[("python", "3.10")]);
+            ctx.environment_vars
+                .insert("MY_VAR".to_string(), "hello".to_string());
+            assert_eq!(
+                ctx.environment_vars.get("MY_VAR").map(String::as_str),
+                Some("hello")
+            );
+        }
+
+        /// requirements list length matches input count for three packages
+        #[test]
+        fn test_requirements_len_matches_three_packages() {
+            let ctx = make_py_ctx_inner(&[("a", "1.0"), ("b", "2.0"), ("c", "3.0")]);
+            assert_eq!(ctx.requirements.len(), 3);
+        }
+
+        /// summary package_count for single package is 1
+        #[test]
+        fn test_summary_single_package_count_is_one() {
+            let ctx = make_py_ctx_inner(&[("python", "3.11.0")]);
+            assert_eq!(ctx.get_summary().package_count, 1);
+        }
+
+        /// status after construction is Resolved (not Failed)
+        #[test]
+        fn test_initial_status_is_resolved_not_failed() {
+            let ctx = make_py_ctx_inner(&[("python", "3.9")]);
+            assert_ne!(
+                ctx.status,
+                ContextStatus::Failed,
+                "freshly constructed context should not be Failed"
+            );
+        }
+    }
 }

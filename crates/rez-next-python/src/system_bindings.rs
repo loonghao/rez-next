@@ -582,5 +582,47 @@ mod tests {
             assert_eq!(c1, c2, "num_cpus must be deterministic");
         }
     }
+
+    mod test_system_cy125 {
+        use super::*;
+
+        /// num_cpus is at least 1
+        #[test]
+        fn test_num_cpus_at_least_one() {
+            let sys = PySystem::new();
+            assert!(sys.num_cpus() >= 1, "system must have at least 1 CPU");
+        }
+
+        /// platform string is non-empty
+        #[test]
+        fn test_platform_is_nonempty() {
+            assert!(!PySystem::platform_pub().is_empty(), "platform must be non-empty");
+        }
+
+        /// arch string is non-empty
+        #[test]
+        fn test_arch_is_nonempty() {
+            assert!(!PySystem::arch_pub().is_empty(), "arch must be non-empty");
+        }
+
+        /// os string is non-empty
+        #[test]
+        fn test_os_is_nonempty() {
+            assert!(!PySystem::os_pub().is_empty(), "os must be non-empty");
+        }
+
+        /// get_system().platform() matches PySystem::new().platform()
+        #[test]
+        fn test_get_system_platform_matches_new() {
+            let a = get_system();
+            let b = PySystem::new();
+            assert_eq!(
+                a.platform(),
+                b.platform(),
+                "get_system() and new() must report same platform"
+            );
+        }
+    }
 }
+
 
