@@ -295,5 +295,40 @@ mod tests {
     fn test_cli_run_search_returns_zero() {
         assert_eq!(cli_run("search", None).unwrap(), 0);
     }
+
+    // ─────── Cycle 123 additions ─────────────────────────────────────────────
+
+    #[test]
+    fn test_cli_run_config_returns_zero() {
+        assert_eq!(cli_run("config", None).unwrap(), 0);
+    }
+
+    #[test]
+    fn test_cli_run_source_returns_zero() {
+        assert_eq!(cli_run("source", None).unwrap(), 0);
+    }
+
+    #[test]
+    fn test_cli_run_cp_returns_zero() {
+        assert_eq!(cli_run("cp", None).unwrap(), 0);
+    }
+
+    #[test]
+    fn test_cli_run_mv_returns_zero() {
+        assert_eq!(cli_run("mv", None).unwrap(), 0);
+    }
+
+    #[test]
+    fn test_cli_run_rm_returns_zero() {
+        assert_eq!(cli_run("rm", None).unwrap(), 0);
+    }
+
+    #[test]
+    fn test_known_commands_contains_all_file_ops() {
+        // cp, mv, rm are file operation commands
+        assert!(KNOWN_COMMANDS.contains(&"cp"), "cp must be a known command");
+        assert!(KNOWN_COMMANDS.contains(&"mv"), "mv must be a known command");
+        assert!(KNOWN_COMMANDS.contains(&"rm"), "rm must be a known command");
+    }
 }
 

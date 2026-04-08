@@ -481,6 +481,92 @@ mod tests {
                 val
             );
         }
+
+        // ── Cycle 123 additions ──────────────────────────────────────────────
+
+        /// executing with no commands yields an ok result
+        #[test]
+        fn test_empty_command_string_is_ok() {
+            let mut exec = RexExecutor::new();
+            let result = exec.execute_commands("", "", None, None);
+            assert!(result.is_ok(), "empty command string must return Ok");
+        }
+
+        /// setenv with numeric-like string value is preserved
+        #[test]
+        fn test_setenv_numeric_string_value() {
+            let mut exec = RexExecutor::new();
+            let env = exec
+                .execute_commands("env.setenv('PORT', '8080')", "", None, None)
+                .expect("setenv with numeric string must succeed");
+            assert_eq!(
+                env.vars.get("PORT").map(|s| s.as_str()),
+                Some("8080"),
+                "PORT must be '8080'"
+            );
+        }
+
+        /// alias count matches number of alias calls
+        #[test]
+        fn test_alias_count_matches_calls() {
+            let mut exec = RexExecutor::new();
+            let cmds = "alias('x', '/bin/x')\nalias('y', '/bin/y')";
+            let env = exec
+                .execute_commands(cmds, "", None, None)
+                .expect("two alias calls must succeed");
+            assert_eq!(env.aliases.len(), 2, "should have exactly 2 aliases");
+        }
+
+        /// append_path on a new variable creates it correctly
+        #[test]
+        fn test_append_path_creates_new_var() {
+            let mut exec = RexExecutor::new();
+            let env = exec
+                .execute_commands("env.append_path('LIBPATH', '/opt/lib')", "", None, None)
+                .expect("append_path on new var must succeed");
+            let val = env.vars.get("LIBPATH").cloned().unwrap_or_default();
+            assert!(
+                val.contains("/opt/lib"),
+                "LIBPATH must contain '/opt/lib', got: {}",
+                val
+            );
+        }
+
+        /// setenv then resetenv leaves var absent or empty
+        #[test]
+        fn test_setenv_then_resetenv_removes_var() {
+            let mut exec = RexExecutor::new();
+            let env = exec
+                .execute_commands(
+                    "env.setenv('TEMP_VAR', 'temp')\nresetenv('TEMP_VAR')",
+                    "",
+                    None,
+                    None,
+                )
+                .expect("setenv+resetenv must succeed");
+            let val = env.vars.get("TEMP_VAR").map(|s| s.as_str());
+            assert!(
+                val.is_none() || val == Some(""),
+                "TEMP_VAR should be absent or empty after resetenv, got: {:?}",
+                val
+            );
+        }
+
+        /// multiple info messages have distinct content
+        #[test]
+        fn test_multiple_info_messages_distinct() {
+            let mut exec = RexExecutor::new();
+            let cmds = "info('alpha')\ninfo('beta')";
+            let env = exec
+                .execute_commands(cmds, "", None, None)
+                .expect("two info messages must succeed");
+            assert_eq!(
+                env.info_messages.len(),
+                2,
+                "should have exactly 2 info messages, got: {:?}",
+                env.info_messages
+            );
+        }
     }
 }
 

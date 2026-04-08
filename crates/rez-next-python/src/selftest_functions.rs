@@ -445,5 +445,51 @@ mod tests {
             assert_eq!(t1, t2, "total check count must be deterministic");
         }
     }
+
+    mod test_selftest_cy123 {
+        use super::super::selftest;
+
+        /// selftest passes value: passed > 0 always
+        #[test]
+        fn test_selftest_passed_nonzero() {
+            let (passed, _, _) = selftest().unwrap();
+            assert!(passed > 0, "selftest must have at least one passing check");
+        }
+
+        /// selftest total is at least 16
+        #[test]
+        fn test_selftest_total_at_least_sixteen() {
+            let (_, _, total) = selftest().unwrap();
+            assert!(total >= 16, "selftest should run at least 16 checks, got {total}");
+        }
+
+        /// failed count is zero (all checks pass in healthy build)
+        #[test]
+        fn test_selftest_cy123_failed_zero() {
+            let (_, failed, _) = selftest().unwrap();
+            assert_eq!(failed, 0, "no selftest checks should fail");
+        }
+
+        /// passed + failed == total holds for fresh call
+        #[test]
+        fn test_selftest_cy123_sum_invariant() {
+            let (p, f, t) = selftest().unwrap();
+            assert_eq!(p + f, t, "passed + failed must equal total");
+        }
+
+        /// selftest returns Ok (not Err) when called twice in sequence
+        #[test]
+        fn test_selftest_returns_ok_twice() {
+            assert!(selftest().is_ok(), "first selftest() call must return Ok");
+            assert!(selftest().is_ok(), "second selftest() call must return Ok");
+        }
+
+        /// selftest total is less than 50 (bounded upper limit)
+        #[test]
+        fn test_selftest_total_below_fifty() {
+            let (_, _, total) = selftest().unwrap();
+            assert!(total < 50, "selftest total should be < 50, got {total}");
+        }
+    }
 }
 
