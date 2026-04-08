@@ -643,4 +643,59 @@ mod tests {
             assert_eq!(mgr.count(), before + 1);
         }
     }
+
+    // ── Cycle 121 additions ─────────────────────────────────────────────────
+
+    mod test_cycle_121 {
+        use super::*;
+
+        #[test]
+        fn test_plugin_manager_count_at_least_fifteen() {
+            let mgr = PyRezPluginManager::new();
+            assert!(
+                mgr.count() >= 15,
+                "expected at least 15 built-in plugins, got {}",
+                mgr.count()
+            );
+        }
+
+        #[test]
+        fn test_plugin_manager_all_shell_plugins_have_descriptions() {
+            let mgr = PyRezPluginManager::new();
+            for p in mgr.get_plugins("shell") {
+                assert!(!p.description.is_empty(), "shell plugin '{}' has empty description", p.name);
+            }
+        }
+
+        #[test]
+        fn test_plugin_manager_all_build_system_plugins_have_versions() {
+            let mgr = PyRezPluginManager::new();
+            for p in mgr.get_plugins("build_system") {
+                assert!(!p.version.is_empty(), "build_system plugin '{}' has empty version", p.name);
+                assert!(p.version.contains('.'), "version must be semver-like: '{}'", p.version);
+            }
+        }
+
+        #[test]
+        fn test_is_shell_supported_pwsh() {
+            assert!(is_shell_supported("pwsh"), "pwsh (PowerShell Core) must be supported");
+        }
+
+        #[test]
+        fn test_plugin_new_constructor_sets_fields() {
+            let p = PyPlugin::new("mynewshell", "shell", "My new shell", "2.5.0");
+            assert_eq!(p.name, "mynewshell");
+            assert_eq!(p.plugin_type, "shell");
+            assert_eq!(p.description, "My new shell");
+            assert_eq!(p.version, "2.5.0");
+        }
+
+        #[test]
+        fn test_plugin_type_new_constructor() {
+            let pt = PyPluginType::new("custom_type");
+            assert_eq!(pt.name, "custom_type");
+            assert_eq!(pt.__str__(), "custom_type");
+            assert!(pt.__repr__().contains("custom_type"));
+        }
+    }
 }

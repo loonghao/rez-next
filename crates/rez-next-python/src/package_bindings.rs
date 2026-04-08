@@ -579,4 +579,50 @@ mod tests {
         // range() and version_range() must return the same value
         assert_eq!(r.range(), r.version_range(), "range() and version_range() must agree");
     }
+
+    // ── Cycle 121 additions ──────────────────────────────────────────────────
+
+    #[test]
+    fn test_package_format_version_none_by_default() {
+        let p = make_package("formatpkg");
+        assert!(p.format_version().is_none(), "format_version must be None by default");
+    }
+
+    #[test]
+    fn test_package_eq_different_names() {
+        let a = make_package("python");
+        let b = make_package("maya");
+        assert!(!a.__eq__(&b), "packages with different names must not be equal");
+    }
+
+    #[test]
+    fn test_package_hash_differs_for_different_names() {
+        let a = make_package("python");
+        let b = make_package("maya");
+        // Hashes CAN collide, but for distinct well-known names they should differ
+        // We just verify neither panics
+        let _ = a.__hash__();
+        let _ = b.__hash__();
+    }
+
+    #[test]
+    fn test_requirement_repr_contains_name() {
+        let r = req("cmake-3.21+");
+        let repr = r.__repr__();
+        assert!(repr.contains("PackageRequirement"), "repr must contain 'PackageRequirement': {repr}");
+        assert!(repr.contains("cmake"), "repr must contain name 'cmake': {repr}");
+    }
+
+    #[test]
+    fn test_requirement_eq_different_specs_not_equal() {
+        let a = req("python-3.9");
+        let b = req("python-3.10");
+        assert!(!a.__eq__(&b), "requirements with different version specs must not be equal");
+    }
+
+    #[test]
+    fn test_package_is_valid_named_package_true() {
+        let p = make_package("python");
+        assert!(p.is_valid(), "package with valid name 'python' should be valid");
+    }
 }

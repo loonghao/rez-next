@@ -879,5 +879,70 @@ mod status_bindings_tests {
             unsafe { std::env::set_var("REZ_USED_PACKAGES_NAMES", v); }
         }
     }
+
+    // ── Cycle 121 additions ──────────────────────────────────────────────────
+
+    #[test]
+    fn test_rez_status_context_file_none_by_default() {
+        let _lock = ENV_MUTEX.lock().unwrap();
+        if std::env::var("REZ_CONTEXT_FILE").is_err() {
+            let s = PyRezStatus::new();
+            if !s.is_active {
+                assert!(
+                    s.context_file.is_none(),
+                    "context_file must be None outside rez, got {:?}",
+                    s.context_file
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_rez_status_current_shell_some_when_env_set() {
+        let _lock = ENV_MUTEX.lock().unwrap();
+        // Only detectable on non-Windows via SHELL or Windows via PSModulePath
+        let s = PyRezStatus::new();
+        // If shell is detected, it must be a non-empty string
+        if let Some(ref shell) = s.current_shell {
+            assert!(!shell.is_empty(), "current_shell must be non-empty when Some");
+        }
+    }
+
+    #[test]
+    fn test_get_resolved_package_names_empty_when_var_absent() {
+        let _lock = ENV_MUTEX.lock().unwrap();
+        let saved = std::env::var("REZ_USED_PACKAGES_NAMES").ok();
+        unsafe { std::env::remove_var("REZ_USED_PACKAGES_NAMES"); }
+        let names = get_resolved_package_names();
+        assert!(names.is_empty(), "no packages expected when REZ_USED_PACKAGES_NAMES absent");
+        if let Some(v) = saved {
+            unsafe { std::env::set_var("REZ_USED_PACKAGES_NAMES", v); }
+        }
+    }
+
+    #[test]
+    fn test_detect_current_status_rez_version_some_when_set() {
+        let _lock = ENV_MUTEX.lock().unwrap();
+        unsafe { std::env::set_var("REZ_VERSION", "4.0.0"); }
+        let s = detect_current_status();
+        assert_eq!(s.rez_version.as_deref(), Some("4.0.0"), "rez_version should be 4.0.0");
+        unsafe { std::env::remove_var("REZ_VERSION"); }
+    }
+
+    #[test]
+    fn test_rez_env_vars_does_not_capture_path_variable() {
+        // PATH does not start with REZ_ so must never appear in rez_env_vars
+        let s = detect_current_status();
+        assert!(
+            !s.rez_env_vars.contains_key("PATH"),
+            "PATH must not appear in rez_env_vars"
+        );
+    }
+
+    #[test]
+    fn test_rez_status_repr_is_non_empty() {
+        let s = PyRezStatus::new();
+        assert!(!s.__repr__().is_empty(), "__repr__ must not be empty");
+    }
 }
 

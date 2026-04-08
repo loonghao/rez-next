@@ -263,5 +263,37 @@ mod tests {
             0
         );
     }
+
+    // ─────── Cycle 121 additions ─────────────────────────────────────────────
+
+    #[test]
+    fn test_cli_run_view_returns_zero() {
+        assert_eq!(cli_run("view", None).unwrap(), 0);
+    }
+
+    #[test]
+    fn test_cli_run_diff_returns_zero() {
+        assert_eq!(cli_run("diff", None).unwrap(), 0);
+    }
+
+    #[test]
+    fn test_cli_run_status_returns_zero() {
+        assert_eq!(cli_run("status", None).unwrap(), 0);
+    }
+
+    #[test]
+    fn test_cli_run_release_returns_zero() {
+        assert_eq!(cli_run("release", None).unwrap(), 0);
+    }
+
+    #[test]
+    fn test_cli_run_selftest_returns_zero() {
+        assert_eq!(cli_run("selftest", None).unwrap(), 0);
+    }
+
+    #[test]
+    fn test_cli_run_search_returns_zero() {
+        assert_eq!(cli_run("search", None).unwrap(), 0);
+    }
 }
 

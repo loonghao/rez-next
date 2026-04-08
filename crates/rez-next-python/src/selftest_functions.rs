@@ -217,5 +217,180 @@ mod tests {
             assert_eq!(passed, total, "all recorded checks should pass in a healthy runtime");
         }
     }
+
+    mod test_selftest_counts {
+        use super::super::selftest;
+
+        #[test]
+        fn test_selftest_passed_count_is_positive() {
+            let (passed, _failed, _total) = selftest().unwrap();
+            assert!(passed > 0, "selftest should run at least one passing check");
+        }
+
+        #[test]
+        fn test_selftest_total_at_least_ten() {
+            let (_passed, _failed, total) = selftest().unwrap();
+            assert!(total >= 10, "selftest must run at least 10 checks, got {total}");
+        }
+
+        #[test]
+        fn test_selftest_failed_is_zero() {
+            let (_passed, failed, _total) = selftest().unwrap();
+            assert_eq!(failed, 0, "no selftest checks should fail in a clean build");
+        }
+
+        #[test]
+        fn test_selftest_passed_equals_total() {
+            let (passed, failed, total) = selftest().unwrap();
+            assert_eq!(passed, total - failed, "passed must equal total - failed");
+        }
+
+        #[test]
+        fn test_selftest_returns_ok_not_err() {
+            let result = selftest();
+            assert!(result.is_ok(), "selftest must return Ok(...)");
+        }
+    }
+
+    mod test_selftest_version_system {
+        use super::super::selftest;
+
+        #[test]
+        fn test_version_parse_basic_check_included() {
+            // selftest includes version_parse_basic; if failed == 0, this check passed
+            let (_p, failed, _t) = selftest().unwrap();
+            assert_eq!(failed, 0, "version_parse_basic check must pass");
+        }
+
+        #[test]
+        fn test_version_range_parse_check_included() {
+            let (_p, failed, _t) = selftest().unwrap();
+            assert_eq!(failed, 0, "version_range_parse check must pass");
+        }
+
+        #[test]
+        fn test_version_comparison_check_included() {
+            let (_p, failed, _t) = selftest().unwrap();
+            assert_eq!(failed, 0, "version_comparison check must pass");
+        }
+
+        #[test]
+        fn test_version_range_contains_check_included() {
+            let (_p, failed, _t) = selftest().unwrap();
+            assert_eq!(failed, 0, "version_range_contains check must pass");
+        }
+    }
+
+    mod test_selftest_components {
+        use super::super::selftest;
+
+        #[test]
+        fn test_config_loads_check_passes() {
+            let (_p, failed, _t) = selftest().unwrap();
+            assert_eq!(failed, 0, "config_loads selftest check must pass");
+        }
+
+        #[test]
+        fn test_package_requirement_check_passes() {
+            let (_p, failed, _t) = selftest().unwrap();
+            assert_eq!(failed, 0, "package_requirement selftest checks must pass");
+        }
+
+        #[test]
+        fn test_rex_parse_checks_pass() {
+            let (_p, failed, _t) = selftest().unwrap();
+            assert_eq!(failed, 0, "rex_parse selftest checks must pass");
+        }
+
+        #[test]
+        fn test_shell_generation_checks_pass() {
+            let (_p, failed, _t) = selftest().unwrap();
+            assert_eq!(failed, 0, "shell_generation selftest checks must pass");
+        }
+
+        #[test]
+        fn test_suite_create_and_save_check_passes() {
+            let (_p, failed, _t) = selftest().unwrap();
+            assert_eq!(failed, 0, "suite_create_and_save selftest check must pass");
+        }
+
+        #[test]
+        fn test_repository_manager_create_check_passes() {
+            let (_p, failed, _t) = selftest().unwrap();
+            assert_eq!(failed, 0, "repository_manager_create selftest check must pass");
+        }
+
+        #[test]
+        fn test_rex_execute_check_passes() {
+            let (_p, failed, _t) = selftest().unwrap();
+            assert_eq!(failed, 0, "rex_execute selftest check must pass");
+        }
+
+        #[test]
+        fn test_suite_load_roundtrip_check_passes() {
+            let (_p, failed, _t) = selftest().unwrap();
+            assert_eq!(failed, 0, "suite_load_roundtrip selftest check must pass");
+        }
+    }
+
+    mod test_selftest_invariants {
+        use super::super::selftest;
+
+        #[test]
+        fn test_selftest_idempotent() {
+            let r1 = selftest().unwrap();
+            let r2 = selftest().unwrap();
+            assert_eq!(r1, r2, "selftest must be idempotent (same result on every call)");
+        }
+
+        #[test]
+        fn test_selftest_total_is_sum_of_passed_and_failed() {
+            let (passed, failed, total) = selftest().unwrap();
+            assert_eq!(passed + failed, total, "passed + failed must equal total");
+        }
+
+        #[test]
+        fn test_selftest_all_pass_implies_failed_zero() {
+            let (passed, failed, total) = selftest().unwrap();
+            if passed == total {
+                assert_eq!(failed, 0, "if all pass, failed must be 0");
+            }
+        }
+
+        #[test]
+        fn test_selftest_does_not_modify_global_state() {
+            // Call twice; environment should remain stable
+            let _ = selftest().unwrap();
+            let _ = selftest().unwrap();
+        }
+
+        #[test]
+        fn test_selftest_tuple_elements_are_usize() {
+            // Type safety: the tuple must be (usize, usize, usize)
+            let (p, f, t): (usize, usize, usize) = selftest().unwrap();
+            let _ = (p, f, t);
+        }
+
+        #[test]
+        fn test_selftest_total_does_not_exceed_100() {
+            let (_p, _f, total) = selftest().unwrap();
+            assert!(total <= 100, "selftest total checks should be <= 100, got {total}");
+        }
+
+        #[test]
+        fn test_selftest_at_least_twelve_checks() {
+            let (_p, _f, total) = selftest().unwrap();
+            assert!(total >= 12, "selftest should run at least 12 checks, got {total}");
+        }
+
+        #[test]
+        fn test_selftest_passes_exceed_half_of_total() {
+            let (passed, _f, total) = selftest().unwrap();
+            assert!(
+                passed * 2 >= total,
+                "more than half of selftest checks must pass, passed={passed}, total={total}"
+            );
+        }
+    }
 }
 

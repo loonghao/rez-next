@@ -775,4 +775,78 @@ mod release_tests {
         // (either success=false due to missing package.py, or success=true if dry-run skips)
         let _ = result; // must not panic
     }
+
+    // ── Cycle 121 additions ──────────────────────────────────────────────────
+
+    #[test]
+    fn test_release_result_install_path_field() {
+        let r = PyReleaseResult {
+            success: true,
+            package_name: "pathtestpkg".to_string(),
+            version: "1.0.0".to_string(),
+            install_path: "/pkgs/pathtestpkg/1.0.0".to_string(),
+            errors: vec![],
+            warnings: vec![],
+        };
+        assert_eq!(r.install_path, "/pkgs/pathtestpkg/1.0.0");
+    }
+
+    #[test]
+    fn test_release_result_errors_empty_means_success_possible() {
+        let r = PyReleaseResult {
+            success: true,
+            package_name: "cleanpkg".to_string(),
+            version: "0.1.0".to_string(),
+            install_path: "/dest/cleanpkg/0.1.0".to_string(),
+            errors: vec![],
+            warnings: vec![],
+        };
+        assert!(r.success && r.errors.is_empty());
+    }
+
+    #[test]
+    fn test_release_manager_str_is_non_empty() {
+        let mgr = PyReleaseManager::new(None, false, false);
+        assert!(!mgr.__str__().is_empty(), "__str__ must not be empty");
+    }
+
+    #[test]
+    fn test_release_mode_debug_format_all_variants() {
+        let debug_release = format!("{:?}", ReleaseMode::Release);
+        let debug_local = format!("{:?}", ReleaseMode::Local);
+        let debug_dry = format!("{:?}", ReleaseMode::DryRun);
+        assert!(debug_release.contains("Release"), "debug: {debug_release}");
+        assert!(debug_local.contains("Local"), "debug: {debug_local}");
+        assert!(debug_dry.contains("DryRun") || debug_dry.contains("Dry"), "debug: {debug_dry}");
+    }
+
+    #[test]
+    fn test_release_result_str_contains_package_name() {
+        let r = PyReleaseResult {
+            success: true,
+            package_name: "distinctname_xyz".to_string(),
+            version: "1.0.0".to_string(),
+            install_path: "/pkgs/distinctname_xyz/1.0.0".to_string(),
+            errors: vec![],
+            warnings: vec![],
+        };
+        assert!(
+            r.__str__().contains("distinctname_xyz"),
+            "str must contain package name, got: {}",
+            r.__str__()
+        );
+    }
+
+    #[test]
+    fn test_release_package_local_false_dry_false_is_release_mode() {
+        // release_package(local=false, dry_run=false) should use Release mode
+        // For a nonexistent path, it will fail gracefully but not panic
+        let result = release_package(
+            Some("/nonexistent/release_mode_test"),
+            false,
+            false,
+            None,
+        ).unwrap();
+        assert!(!result.success, "nonexistent path should yield failure");
+    }
 }
