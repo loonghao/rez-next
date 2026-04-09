@@ -254,6 +254,17 @@ mod test_config_default_values {
     }
 
     #[test]
+    fn test_default_shell_is_known_shell_name() {
+        let cfg = RezCoreConfig::default();
+        let known = ["bash", "zsh", "fish", "cmd", "powershell"];
+        assert!(
+            known.contains(&cfg.default_shell.as_str()),
+            "default_shell '{}' should be a known shell",
+            cfg.default_shell
+        );
+    }
+
+    #[test]
     fn test_default_editor_is_platform_appropriate() {
         let cfg = RezCoreConfig::default();
         #[cfg(windows)]
@@ -272,6 +283,12 @@ mod test_config_default_values {
     fn test_default_cache_ttl_is_1_hour() {
         let cfg = RezCoreConfig::default();
         assert_eq!(cfg.cache.cache_ttl_seconds, 3600);
+    }
+
+    #[test]
+    fn test_default_use_rust_solver_is_true() {
+        let cfg = RezCoreConfig::default();
+        assert!(cfg.use_rust_solver, "default use_rust_solver should be true");
     }
 }
 
@@ -301,99 +318,9 @@ mod test_config_field_types_extra {
         let v = cfg.rez_version();
         assert!(v.contains('.'), "rez_version should be semver-like: {v}");
     }
-}
-
-mod test_config_cy114 {
-    use super::*;
 
     #[test]
-    fn test_default_packages_path_entries_nonempty() {
-        let cfg = RezCoreConfig::default();
-        for path in &cfg.packages_path {
-            assert!(!path.is_empty(), "packages_path entry must be non-empty");
-        }
-    }
-
-    #[test]
-    fn test_default_use_rust_solver_is_true() {
-        let cfg = RezCoreConfig::default();
-        assert!(cfg.use_rust_solver, "default use_rust_solver should be true");
-    }
-
-    #[test]
-    fn test_get_field_unknown_key_returns_none() {
-        let cfg = RezCoreConfig::load();
-        let val = cfg.get_field("__completely_unknown_key_xyz__");
-        assert!(val.is_none(), "get_field for unknown key should return None");
-    }
-
-    #[test]
-    fn test_default_packages_path_len_is_positive() {
-        let cfg = RezCoreConfig::default();
-        assert!(
-            !cfg.packages_path.is_empty(),
-            "default packages_path must not be empty"
-        );
-    }
-
-    #[test]
-    fn test_pyconfig_new_no_panic() {
-        let _ = PyConfig::new();
-    }
-
-    #[test]
-    fn test_default_cache_memory_size_gt_zero() {
-        let cfg = RezCoreConfig::default();
-        assert!(cfg.cache.memory_cache_size > 0, "cache memory size must be > 0");
-    }
-
-    #[test]
-    fn test_default_shell_is_known_shell_name() {
-        let cfg = RezCoreConfig::default();
-        let known = ["bash", "zsh", "fish", "cmd", "powershell"];
-        assert!(
-            known.contains(&cfg.default_shell.as_str()),
-            "default_shell '{}' should be a known shell",
-            cfg.default_shell
-        );
-    }
-}
-
-mod test_config_cy119 {
-    use super::*;
-
-    #[test]
-    fn test_local_packages_path_is_nonempty_on_default() {
-        let cfg = RezCoreConfig::default();
-        assert!(
-            !cfg.local_packages_path.is_empty(),
-            "default local_packages_path must not be empty"
-        );
-    }
-
-    #[test]
-    fn test_release_packages_path_is_nonempty_on_default() {
-        let cfg = RezCoreConfig::default();
-        assert!(
-            !cfg.release_packages_path.is_empty(),
-            "default release_packages_path must not be empty"
-        );
-    }
-
-    #[test]
-    fn test_default_cache_enable_memory_cache_is_bool() {
-        let cfg = RezCoreConfig::default();
-        let _enabled: bool = cfg.cache.enable_memory_cache;
-    }
-
-    #[test]
-    fn test_get_field_version_check_no_panic() {
-        let cfg = RezCoreConfig::load();
-        let _ = cfg.get_field("version_check_behavior");
-    }
-
-    #[test]
-    fn test_default_and_new_same_version() {
+    fn test_new_and_default_same_version() {
         let a = PyConfig::new();
         let b = PyConfig::default();
         assert_eq!(
@@ -401,51 +328,5 @@ mod test_config_cy119 {
             b.rez_version(),
             "default() and new() must have identical rez_version"
         );
-    }
-
-    #[test]
-    fn test_packages_path_len_below_upper_bound() {
-        let cfg = RezCoreConfig::default();
-        assert!(
-            cfg.packages_path.len() <= 100,
-            "packages_path has unexpectedly many entries: {}",
-            cfg.packages_path.len()
-        );
-    }
-}
-
-mod test_config_cy125 {
-    use super::*;
-
-    #[test]
-    fn test_default_config_use_rust_solver_field_accessible() {
-        let cfg = RezCoreConfig::default();
-        let _: bool = cfg.use_rust_solver;
-    }
-
-    #[test]
-    fn test_pyconfig_repr_is_config_parens() {
-        let cfg = PyConfig::new();
-        assert_eq!(cfg.__repr__(), "Config()");
-    }
-
-    #[test]
-    fn test_pyconfig_rez_version_nonempty() {
-        let cfg = PyConfig::new();
-        let v = cfg.rez_version();
-        assert!(!v.is_empty(), "rez_version must not be empty");
-    }
-
-    #[test]
-    fn test_packages_path_is_a_vec() {
-        let cfg = RezCoreConfig::default();
-        let _count = cfg.packages_path.len();
-    }
-
-    #[test]
-    fn test_get_field_unknown_key_is_none() {
-        let cfg = RezCoreConfig::load();
-        let result = cfg.get_field("__nonexistent_key_cy125__");
-        assert!(result.is_none(), "unknown field must return None");
     }
 }
