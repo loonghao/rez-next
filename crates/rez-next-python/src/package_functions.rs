@@ -472,3 +472,7 @@ pub(crate) fn copy_dir_recursive(
 #[cfg(test)]
 #[path = "package_functions_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "package_functions_extra_tests.rs"]
+mod extra_tests;

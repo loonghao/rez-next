@@ -258,3 +258,7 @@ pub fn get_rez_env_var(key: &str) -> Option<String> {
 #[cfg(test)]
 #[path = "status_bindings_tests.rs"]
 mod status_bindings_tests;
+
+#[cfg(test)]
+#[path = "status_bindings_advanced_tests.rs"]
+mod status_bindings_advanced_tests;
