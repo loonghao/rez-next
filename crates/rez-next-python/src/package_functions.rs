@@ -487,3 +487,7 @@ mod tests;
 #[cfg(test)]
 #[path = "package_functions_extra_tests.rs"]
 mod extra_tests;
+
+#[cfg(test)]
+#[path = "package_functions_version_tests.rs"]
+mod version_tests;
