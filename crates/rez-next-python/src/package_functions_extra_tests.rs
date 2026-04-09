@@ -1,6 +1,6 @@
-//! Extra unit tests for `package_functions` — Cycles 103, 122, 130, 132 additions.
+//! Extra unit tests for `package_functions` — Cycles 103, 122, 130, 132, 155 additions.
 //! Split from package_functions_tests.rs (Cycle 147) to keep file size ≤500 lines.
-use crate::package_functions::{copy_dir_recursive, copy_package, expand_home, remove_package};
+use crate::package_functions::{copy_dir_recursive, copy_package, expand_home, move_package, remove_package};
 use std::fs;
 
 mod test_expand_home_extra {
@@ -485,5 +485,162 @@ mod test_package_helpers_extra {
             "expanded result must not start with tilde: {}",
             result
         );
+    }
+}
+
+// ─────── Cycle 155: move_package tests ──────────────────────────────────────
+
+mod test_move_package {
+    use super::{fs, move_package};
+
+    fn make_pkg(base: &std::path::Path, name: &str, version: &str) {
+        let dir = base.join(name).join(version);
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(
+            dir.join("package.py"),
+            format!("name = '{}'\nversion = '{}'\n", name, version).as_bytes(),
+        )
+        .unwrap();
+    }
+
+    /// `move_package` with explicit version: source directory must be deleted, dest must exist.
+    #[test]
+    fn test_move_package_explicit_version_removes_source() {
+        let src = std::env::temp_dir().join("rez_cy155_mv_src_explicit");
+        let dest = std::env::temp_dir().join("rez_cy155_mv_dest_explicit");
+        let _ = fs::remove_dir_all(&src);
+        let _ = fs::remove_dir_all(&dest);
+        make_pkg(&src, "mypkg", "1.0.0");
+
+        let result = move_package(
+            "mypkg",
+            dest.to_str().unwrap(),
+            Some("1.0.0"),
+            Some(vec![src.to_string_lossy().to_string()]),
+            false,
+            false,
+        );
+        assert!(result.is_ok(), "move must succeed: {:?}", result);
+        assert!(
+            dest.join("mypkg").join("1.0.0").join("package.py").exists(),
+            "package.py must be at destination"
+        );
+        assert!(
+            !src.join("mypkg").join("1.0.0").exists(),
+            "source version directory must be removed after move"
+        );
+
+        let _ = fs::remove_dir_all(&src);
+        let _ = fs::remove_dir_all(&dest);
+    }
+
+    /// `move_package` with version=None must copy the *latest* version and delete the
+    /// correct source directory — not a directory named "unknown".
+    #[test]
+    fn test_move_package_no_version_selects_latest_and_removes_correct_source() {
+        let src = std::env::temp_dir().join("rez_cy155_mv_src_auto_ver");
+        let dest = std::env::temp_dir().join("rez_cy155_mv_dest_auto_ver");
+        let _ = fs::remove_dir_all(&src);
+        let _ = fs::remove_dir_all(&dest);
+
+        // Two versions present; 2.0.0 is the latest and should be selected.
+        make_pkg(&src, "apkg", "1.0.0");
+        make_pkg(&src, "apkg", "2.0.0");
+
+        let result = move_package(
+            "apkg",
+            dest.to_str().unwrap(),
+            None,
+            Some(vec![src.to_string_lossy().to_string()]),
+            false,
+            false,
+        );
+        assert!(result.is_ok(), "move must succeed: {:?}", result);
+
+        // Destination must have the latest version.
+        assert!(
+            dest.join("apkg").join("2.0.0").join("package.py").exists(),
+            "latest version 2.0.0 must be at destination"
+        );
+
+        // The source 2.0.0 directory must be gone — this was the bug: previously "unknown" was
+        // used as the version string so the source was left behind.
+        assert!(
+            !src.join("apkg").join("2.0.0").exists(),
+            "source 2.0.0 directory must be deleted (not left behind due to 'unknown' bug)"
+        );
+
+        // The older version 1.0.0 must NOT be touched.
+        assert!(
+            src.join("apkg").join("1.0.0").exists(),
+            "source 1.0.0 (older, not moved) must remain untouched"
+        );
+
+        // There must be no directory named "unknown" anywhere.
+        assert!(
+            !src.join("apkg").join("unknown").exists(),
+            "no 'unknown' directory must exist in source"
+        );
+        assert!(
+            !dest.join("apkg").join("unknown").exists(),
+            "no 'unknown' directory must exist in dest"
+        );
+
+        let _ = fs::remove_dir_all(&src);
+        let _ = fs::remove_dir_all(&dest);
+    }
+
+    /// `keep_source=true` must copy but NOT delete the source.
+    #[test]
+    fn test_move_package_keep_source_does_not_remove_source() {
+        let src = std::env::temp_dir().join("rez_cy155_mv_src_keep");
+        let dest = std::env::temp_dir().join("rez_cy155_mv_dest_keep");
+        let _ = fs::remove_dir_all(&src);
+        let _ = fs::remove_dir_all(&dest);
+        make_pkg(&src, "kpkg", "3.0.0");
+
+        let result = move_package(
+            "kpkg",
+            dest.to_str().unwrap(),
+            Some("3.0.0"),
+            Some(vec![src.to_string_lossy().to_string()]),
+            false,
+            true,  // keep_source
+        );
+        assert!(result.is_ok(), "move with keep_source must succeed: {:?}", result);
+        assert!(
+            dest.join("kpkg").join("3.0.0").join("package.py").exists(),
+            "package.py must be at destination"
+        );
+        assert!(
+            src.join("kpkg").join("3.0.0").exists(),
+            "source must be kept when keep_source=true"
+        );
+
+        let _ = fs::remove_dir_all(&src);
+        let _ = fs::remove_dir_all(&dest);
+    }
+
+    /// Moving a non-existent package must return an error.
+    #[test]
+    fn test_move_package_nonexistent_returns_error() {
+        let src = std::env::temp_dir().join("rez_cy155_mv_src_missing");
+        let dest = std::env::temp_dir().join("rez_cy155_mv_dest_missing");
+        let _ = fs::remove_dir_all(&src);
+        let _ = fs::remove_dir_all(&dest);
+        fs::create_dir_all(&src).unwrap();
+
+        let result = move_package(
+            "ghost_pkg_xyz",
+            dest.to_str().unwrap(),
+            None,
+            Some(vec![src.to_string_lossy().to_string()]),
+            false,
+            false,
+        );
+        assert!(result.is_err(), "moving nonexistent package must return Err");
+
+        let _ = fs::remove_dir_all(&src);
+        let _ = fs::remove_dir_all(&dest);
     }
 }

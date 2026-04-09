@@ -92,7 +92,7 @@ pub fn get_latest_package(
     sorted.sort_by(|a, b| {
         b.version
             .as_ref()
-            .and_then(|bv| a.version.as_ref().map(|av| av.cmp(bv)))
+            .and_then(|bv| a.version.as_ref().map(|av| bv.cmp(av)))
             .unwrap_or(std::cmp::Ordering::Equal)
     });
 
@@ -304,10 +304,11 @@ pub fn copy_package(
             .find(|p| p.version.as_ref().is_some_and(|v| v.as_str() == ver))
     } else {
         let mut sorted = packages;
+        // Descending: b > a  →  bv.cmp(av) so that the latest version is first.
         sorted.sort_by(|a, b| {
             b.version
                 .as_ref()
-                .and_then(|bv| a.version.as_ref().map(|av| av.cmp(bv)))
+                .and_then(|bv| a.version.as_ref().map(|av| bv.cmp(av)))
                 .unwrap_or(std::cmp::Ordering::Equal)
         });
         sorted.into_iter().next()
@@ -387,7 +388,17 @@ pub fn move_package(
                     .collect()
             });
 
-        let ver_display = version.unwrap_or("unknown");
+        // Extract the actual version from the dest path returned by copy_package.
+        // dest is always <dest_path>/<pkg_name>/<actual_version>, so the last
+        // component is the version that was actually copied — even when version=None
+        // (in which case copy_package picks the latest automatically).
+        let dest_path_buf = std::path::PathBuf::from(&dest);
+        let ver_display_owned: String = dest_path_buf
+            .file_name()
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_else(|| version.unwrap_or("unknown").to_string());
+        let ver_display = ver_display_owned.as_str();
+
         for base in &search_paths {
             let candidate = base.join(pkg_name).join(ver_display);
             if candidate.exists() {
