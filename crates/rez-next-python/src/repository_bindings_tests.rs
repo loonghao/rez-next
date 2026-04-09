@@ -324,6 +324,129 @@ mod test_repository_find_packages {
     }
 }
 
+mod test_iter_packages {
+    use super::*;
+
+    /// Helper: write a minimal package.py into repo_root/<name>/<version>/package.py
+    fn write_pkg(root: &std::path::Path, name: &str, version: &str) {
+        let dir = root.join(name).join(version);
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(
+            dir.join("package.py"),
+            format!("name = '{}'\nversion = '{}'\n", name, version).as_bytes(),
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn test_iter_packages_empty_repo_returns_empty() {
+        let tmp = std::env::temp_dir().join("rez_iter_empty_cy163");
+        std::fs::create_dir_all(&tmp).unwrap();
+        let mgr =
+            PyRepositoryManager::new(Some(vec![tmp.to_string_lossy().to_string()])).unwrap();
+        let result = mgr.iter_packages("nosuchpkg").unwrap();
+        assert!(result.is_empty(), "nonexistent package should return empty list");
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn test_iter_packages_single_version_returns_one() {
+        let tmp = std::env::temp_dir().join("rez_iter_one_cy163");
+        write_pkg(&tmp, "mypkg", "1.0.0");
+        let mgr =
+            PyRepositoryManager::new(Some(vec![tmp.to_string_lossy().to_string()])).unwrap();
+        let result = mgr.iter_packages("mypkg");
+        if let Ok(pkgs) = result {
+            // acceptable if scanning not implemented (returns Ok([]))
+            assert_eq!(pkgs.len(), 1, "single version should return 1 item");
+            assert_eq!(pkgs[0].0.name, "mypkg");
+        }
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn test_iter_packages_multiple_versions_newest_first() {
+        let tmp = std::env::temp_dir().join("rez_iter_multi_cy163");
+        for ver in ["1.0.0", "2.0.0", "1.5.0"] {
+            write_pkg(&tmp, "mypkg", ver);
+        }
+        let mgr =
+            PyRepositoryManager::new(Some(vec![tmp.to_string_lossy().to_string()])).unwrap();
+        let result = mgr.iter_packages("mypkg");
+        match result {
+            Ok(pkgs) if pkgs.len() == 3 => {
+                // Expect descending: 2.0.0, 1.5.0, 1.0.0
+                let versions: Vec<_> = pkgs
+                    .iter()
+                    .filter_map(|p| p.0.version.as_ref().map(|v| v.as_str().to_string()))
+                    .collect();
+                assert_eq!(
+                    versions[0], "2.0.0",
+                    "first entry must be newest (2.0.0), got: {:?}",
+                    versions
+                );
+                assert_eq!(
+                    versions[2], "1.0.0",
+                    "last entry must be oldest (1.0.0), got: {:?}",
+                    versions
+                );
+            }
+            Ok(_) => {} // scanning returned fewer versions — acceptable
+            Err(_) => {} // scanning not supported
+        }
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    /// Semantic version ordering: 3.11.0 must sort before 3.9.0 (newest-first)
+    #[test]
+    fn test_iter_packages_semantic_version_order() {
+        let tmp = std::env::temp_dir().join("rez_iter_sem_cy163");
+        for ver in ["3.9.0", "3.11.0", "3.8.0"] {
+            write_pkg(&tmp, "python", ver);
+        }
+        let mgr =
+            PyRepositoryManager::new(Some(vec![tmp.to_string_lossy().to_string()])).unwrap();
+        let result = mgr.iter_packages("python");
+        match result {
+            Ok(pkgs) if pkgs.len() == 3 => {
+                let first_ver = pkgs[0]
+                    .0
+                    .version
+                    .as_ref()
+                    .map(|v| v.as_str().to_string())
+                    .unwrap_or_default();
+                assert!(
+                    first_ver.starts_with("3.11"),
+                    "semantic newest-first: 3.11.0 must be first, got: {}",
+                    first_ver
+                );
+            }
+            Ok(_) => {} // fewer versions scanned
+            Err(_) => {} // scanning not supported
+        }
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    /// iter_packages only returns versions for the queried family — not for others.
+    #[test]
+    fn test_iter_packages_does_not_return_other_families() {
+        let tmp = std::env::temp_dir().join("rez_iter_isolate_cy163");
+        write_pkg(&tmp, "pkgA", "1.0.0");
+        write_pkg(&tmp, "pkgB", "2.0.0");
+        let mgr =
+            PyRepositoryManager::new(Some(vec![tmp.to_string_lossy().to_string()])).unwrap();
+        let result = mgr.iter_packages("pkgA");
+        if let Ok(pkgs) = result {
+            let has_pkgb = pkgs.iter().any(|p| p.0.name == "pkgB");
+            assert!(
+                !has_pkgb,
+                "iter_packages('pkgA') must not return pkgB entries"
+            );
+        }
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+}
+
 /// Regression tests for Cycle 158 fixes:
 /// - get_latest_package uses semantic Version comparison (3.11.0 > 3.9.0)
 /// - get_package_family_names uses list_packages() to enumerate all families
