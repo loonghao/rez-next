@@ -299,6 +299,95 @@ mod test_repository_find_packages {
         assert!(pkgs.is_empty(), "expected no packages found without package.py");
         let _ = std::fs::remove_dir_all(&tmp);
     }
+
+    /// A package.py with syntax errors must be silently skipped; find_packages must not error.
+    ///
+    /// Verifies the `if let Ok(package) = load_package_from_path(...)` graceful-degradation
+    /// path in simple_repository.rs.
+    #[test]
+    fn test_find_packages_syntax_error_in_package_py_skips_gracefully() {
+        let tmp = std::env::temp_dir().join("rez_repo_syntax_err_cy166");
+        let pkg_dir = tmp.join("badpkg").join("1.0.0");
+        std::fs::create_dir_all(&pkg_dir).unwrap();
+        // Write deliberately malformed Python — unclosed string literal
+        std::fs::write(
+            pkg_dir.join("package.py"),
+            b"name = 'badpkg\nversion = '1.0.0'\n",
+        )
+        .unwrap();
+
+        let mgr =
+            PyRepositoryManager::new(Some(vec![tmp.to_string_lossy().to_string()])).unwrap();
+        // Must not return an error — syntax errors are silently skipped
+        let pkgs = mgr
+            .find_packages("badpkg")
+            .expect("find_packages must not error on a malformed package.py");
+        assert!(
+            pkgs.is_empty(),
+            "malformed package.py must be skipped, got {} packages",
+            pkgs.len()
+        );
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    /// An empty package.py must be silently skipped; find_packages must not error.
+    #[test]
+    fn test_find_packages_empty_package_py_skips_gracefully() {
+        let tmp = std::env::temp_dir().join("rez_repo_empty_py_cy166");
+        let pkg_dir = tmp.join("emptypkg").join("1.0.0");
+        std::fs::create_dir_all(&pkg_dir).unwrap();
+        std::fs::write(pkg_dir.join("package.py"), b"").unwrap();
+
+        let mgr =
+            PyRepositoryManager::new(Some(vec![tmp.to_string_lossy().to_string()])).unwrap();
+        let pkgs = mgr
+            .find_packages("emptypkg")
+            .expect("find_packages must not error on an empty package.py");
+        assert!(
+            pkgs.is_empty(),
+            "empty package.py must be skipped, got {} packages",
+            pkgs.len()
+        );
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    /// A repo containing one valid and one invalid package.py: only the valid one is returned.
+    ///
+    /// This exercises the mixed-repo scenario where degradation must be selective:
+    /// bad entries are dropped, good entries are preserved.
+    #[test]
+    fn test_find_packages_valid_and_invalid_mixed_returns_valid_only() {
+        let tmp = std::env::temp_dir().join("rez_repo_mixed_cy166");
+
+        // Valid package
+        let good_dir = tmp.join("goodpkg").join("1.0.0");
+        std::fs::create_dir_all(&good_dir).unwrap();
+        std::fs::write(
+            good_dir.join("package.py"),
+            b"name = 'goodpkg'\nversion = '1.0.0'\n",
+        )
+        .unwrap();
+
+        // Invalid package — missing 'name' field
+        let bad_dir = tmp.join("goodpkg").join("0.0.1");
+        std::fs::create_dir_all(&bad_dir).unwrap();
+        std::fs::write(bad_dir.join("package.py"), b"version = '0.0.1'\n").unwrap();
+
+        let mgr =
+            PyRepositoryManager::new(Some(vec![tmp.to_string_lossy().to_string()])).unwrap();
+        let pkgs = mgr
+            .find_packages("goodpkg")
+            .expect("find_packages must not error when some package.py entries are invalid");
+        // The valid 1.0.0 must be present; the invalid 0.0.1 is dropped
+        assert!(
+            pkgs.iter().any(|p| p.0.version.as_ref().map(|v| v.as_str()) == Some("1.0.0")),
+            "valid goodpkg 1.0.0 must be returned; got: {:?}",
+            pkgs.iter()
+                .map(|p| p.0.version.as_ref().map(|v| v.as_str().to_string()))
+                .collect::<Vec<_>>()
+        );
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
 }
 
 mod test_iter_packages {
