@@ -71,10 +71,14 @@
 - Follow-up: extract a shared temp-repo fixture helper and tighten `find_packages` / `get_latest_package` / `get_package_family_names` assertions around the path layouts we actually support.
 
 ### 39. Large Rust files remain above 800 lines after recent iteration growth
-- **Status**: OPEN
-- Current >800-line candidates (excluding `target/`): `tests/cli_e2e_tests.rs` (955), `tests/rez_compat_late_tests.rs` (942), `tests/rez_compat_search_tests.rs` (884), `crates/rez-next-solver/src/dependency_resolver_tests.rs` (864), `tests/rez_compat_misc_tests.rs` (862), `crates/rez-next-rex/src/executor_tests.rs` (856), `crates/rez-next-python/src/diff_bindings.rs` (854), `crates/rez-next-repository/src/filesystem_tests.rs` (850), `crates/rez-next-python/src/depends_bindings.rs` (840), `crates/rez-next-repository/src/scanner.rs` (834), `tests/rez_compat_tests.rs` (807), `tests/rez_solver_advanced_tests.rs` (806).
-- Progress update (cycle 139 / `auto-improve`): `crates/rez-next-python/src/env_bindings.rs` has already been split from ~930 lines down to 390 lines by extracting `env_bindings_tests.rs` (543 lines), so the next Python binding split candidates are `exceptions_bindings.rs`, `release_bindings.rs`, and `source_bindings.rs`.
-- Follow-up: prioritize splitting the mixed integration suites first (`cli_e2e_tests.rs`, `rez_compat_*`, `rez_solver_advanced_tests.rs`) before more iteration cycles add overlap.
+- **Status**: PARTIAL (Cycle 140)
+- Cycle 140 completed:
+  - `cli_e2e_tests.rs` (955 → ~390L): extracted `cli_e2e_helpers.rs` + `cli_e2e_misc_tests.rs`
+  - `rez_compat_late_tests.rs` (942 → ~649L): extracted `rez_compat_diff_status_tests.rs` (257L)
+- Remaining >800-line candidates: `rez_compat_search_tests.rs` (884), `rez_compat_misc_tests.rs` (862), `crates/rez-next-solver/src/dependency_resolver_tests.rs` (864), `crates/rez-next-rex/src/executor_tests.rs` (856), `crates/rez-next-repository/src/filesystem_tests.rs` (850), `crates/rez-next-repository/src/scanner.rs` (834), `tests/rez_compat_tests.rs` (807), `tests/rez_solver_advanced_tests.rs` (806).
+- Follow-up: continue splitting `rez_compat_search_tests.rs`, `rez_compat_misc_tests.rs`, and the crate-internal test files.
+
+
 
 
 1 TODO comment across the codebase (cycle 20 audit, unchanged from cycle 19):
@@ -263,10 +267,13 @@
 - File reduced from 713 → ~550 lines; all tests pass
 
 ### 37. Python shell detection logic is duplicated across bindings
-- **Status**: OPEN (cycle 33)
-- `shell_bindings.rs`, `completion_bindings.rs`, `status_bindings.rs`, `context_bindings.rs`, and `source_bindings.rs` each implement their own environment-based shell detection
-- The fallbacks have already drifted: `source_bindings.rs` says "Windows CMD fallback" but returns `powershell`, while `completion_bindings.rs` defaults any Windows environment to `powershell` and others still distinguish `cmd`
-- Follow-up: extract a shared helper in `rez-next-python` and align all call sites/tests to one shell-detection contract
+- **Status**: COMPLETE ✓ (cycle 148)
+- `detect_current_shell()` in `source_bindings.rs` is now the single authoritative implementation
+- `completion_bindings.rs`: deleted local copy, now imports `crate::source_bindings::detect_current_shell`
+- `shell_bindings.rs:get_current_shell()`: now delegates to `detect_current_shell()`
+- `status_bindings.rs:detect_shell_from_env()`: now wraps `detect_current_shell()` (returns `Some(...)`)
+- `context_bindings.rs:to_shell_script()`: auto-detect branch now uses `detect_current_shell()` instead of inline env checks
+- All 5 divergent implementations unified; PowerShell detection (PSModulePath) now consistently checked first across all callers
 
 ### 38. Python compatibility tests still duplicate helpers and overfit placeholder APIs
 - **Status**: OPEN (cycle 33)

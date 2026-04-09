@@ -29,6 +29,7 @@ pub(super) async fn make_yaml_pkg(root: &std::path::Path, name: &str, version: &
 }
 
 /// Create a package.yaml with a `variants` field.
+#[allow(dead_code)]
 pub(super) async fn make_yaml_pkg_with_variants(
     root: &std::path::Path,
     name: &str,
@@ -55,6 +56,7 @@ pub(super) async fn make_yaml_pkg_with_variants(
 }
 
 /// Create a minimal package.py under `root/name/version/package.py`.
+#[allow(dead_code)]
 pub(super) async fn make_py_pkg(root: &std::path::Path, name: &str, version: &str) {
     let dir = root.join(name).join(version);
     fs::create_dir_all(&dir).await.unwrap();
@@ -66,6 +68,7 @@ pub(super) async fn make_py_pkg(root: &std::path::Path, name: &str, version: &st
 }
 
 /// Create a package.py with `variants` field.
+#[allow(dead_code)]
 pub(super) async fn make_py_pkg_with_variants(
     root: &std::path::Path,
     name: &str,
