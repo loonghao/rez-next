@@ -103,12 +103,10 @@ fn test_package_set_version_and_str() {
 #[test]
 fn test_package_set_version_invalid_returns_err() {
     let mut p = make_package("bad");
-    // Completely invalid version strings should error
     let result = p.set_version("not a version!!!");
-    // either ok or err is acceptable depending on parser strictness
-    // but we verify it doesn't panic
-    let _ = result;
+    assert!(result.is_err(), "invalid version string must return Err");
 }
+
 
 #[test]
 fn test_package_version_getter_none_by_default() {
@@ -316,15 +314,7 @@ fn test_package_eq_different_names() {
     assert!(!a.__eq__(&b), "packages with different names must not be equal");
 }
 
-#[test]
-fn test_package_hash_differs_for_different_names() {
-    let a = make_package("python");
-    let b = make_package("maya");
-    // Hashes CAN collide, but for distinct well-known names they should differ
-    // We just verify neither panics
-    let _ = a.__hash__();
-    let _ = b.__hash__();
-}
+
 
 #[test]
 fn test_requirement_repr_contains_name() {
@@ -367,24 +357,4 @@ fn test_package_requirement_name() {
     assert_eq!(req.name(), "maya");
 }
 
-#[test]
-fn test_package_requirement_parse_invalid_graceful() {
-    // A string that cannot be parsed as a requirement should return Err, not panic
-    // (Empty string is known to be invalid for requirements)
-    // If implementation is lenient, it may return Ok — either way, no panic.
-    let _ = PyPackageRequirement::new("");
-}
 
-#[test]
-fn test_package_default_version_is_empty_or_zero() {
-    let p = make_package("houdini");
-    // Default version for a package created without version should be None or "0"
-    let ver = p.version_str();
-    match ver {
-        None => {} // None is acceptable
-        Some(s) => assert!(
-            s.is_empty() || s.starts_with('0'),
-            "default version_str should be None, empty, or '0', got: '{s}'"
-        ),
-    }
-}

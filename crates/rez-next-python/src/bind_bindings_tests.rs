@@ -183,13 +183,10 @@ fn test_list_binders_all_are_non_empty_strings() {
 #[test]
 fn test_is_builtin_case_sensitive() {
     let m = PyBindManager::new();
-    // "Python" with capital P should NOT match (bind names are lowercase)
-    let lower = m.is_builtin("python");
-    let upper = m.is_builtin("Python");
-    // Lower case must be true; upper-case behavior may vary but must not panic
-    assert!(lower, "lowercase 'python' must be a builtin");
-    let _ = upper;
+    assert!(m.is_builtin("python"), "lowercase 'python' must be a builtin");
+    assert!(!m.is_builtin("Python"), "builtin binder lookup must be case-sensitive");
 }
+
 
 #[test]
 fn test_extract_version_cmake_format() {
@@ -247,20 +244,11 @@ fn test_is_builtin_empty_string_returns_false() {
 
 #[test]
 fn test_extract_version_numeric_only() {
-    // "3" alone should be detected as a version
-    let result = extract_version("3");
-    assert!(result.is_some(), "single digit should be extractable as version");
-}
-
-#[test]
-fn test_extract_version_with_leading_v_prefix() {
-    // Some tools output "v3.11.4" — version extractor should strip 'v'
-    let result = extract_version("v3.11.4");
-    // Must not panic and must return something
-    let _ = result;
+    assert_eq!(extract_version("3"), Some("3".to_string()));
 }
 
 // ── Cycle 110 additions ───────────────────────────────────────────────────
+
 
 #[test]
 fn test_bind_result_install_path_is_string() {

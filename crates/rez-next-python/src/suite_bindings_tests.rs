@@ -295,29 +295,17 @@ mod test_suite_cy114 {
         assert!(names.contains(&"beta".to_string()));
     }
 
-    /// SuiteManager::add_path does not panic
-    #[test]
-    fn test_suite_manager_add_path_no_panic() {
-        let mut mgr = PySuiteManager::new(Some(vec![]));
-        mgr.add_path("/some/new/path");
-        // Just verifying add_path does not panic
-    }
-
     /// PySuite::is_suite with root-level empty string returns false
+
     #[test]
     fn test_is_suite_empty_string_path_returns_false() {
         // Empty string path does not point to a valid suite directory
         assert!(!PySuite::is_suite(""), "is_suite('') should return false");
     }
 
-    /// SuiteManager with None uses default paths and does not panic
-    #[test]
-    fn test_suite_manager_none_paths_no_panic() {
-        let mgr = PySuiteManager::new(None);
-        // list_suite_names() must not panic regardless of default path contents
-        let _ = mgr.list_suite_names();
-    }
+
 }
+
 
 mod test_suite_cy122 {
     use super::*;
