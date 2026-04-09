@@ -287,10 +287,15 @@
 
 
 ### 39. `move_package()` may delete the wrong source version when `version=None`
-- **Status**: OPEN (cycle 34)
-- `copy_package()` selects the latest available package version when `version` is omitted, but `move_package()` later removes `pkg_name/unknown` because it falls back to `version.unwrap_or("unknown")` instead of the version that was actually copied.
-- This looks like a correctness bug rather than low-risk cleanup, so it should be fixed in a dedicated change after locking the intended contract with tests.
-- Follow-up: return or share the selected version from `copy_package()` so `move_package()` can delete the exact source directory it copied.
+- **Status**: COMPLETE ✓ (cycle 155)
+- Fixed two correctness bugs in `package_functions.rs`:
+  1. **`move_package` source-deletion bug**: was using `version.unwrap_or("unknown")` to locate the source directory; now extracts the actual version from the `dest` path returned by `copy_package` so `version=None` correctly removes the copied version, not a directory named "unknown".
+  2. **`get_latest_package` / `copy_package` sort-direction bug**: both used `av.cmp(bv)` (ascending) when selecting the latest version, so the *minimum* version was returned instead of the maximum. Fixed to `bv.cmp(av)` (descending, latest first).
+- Added 4 `move_package` contract tests in `package_functions_extra_tests.rs`:
+  - `test_move_package_explicit_version_removes_source`
+  - `test_move_package_no_version_selects_latest_and_removes_correct_source` (the regression test)
+  - `test_move_package_keep_source_does_not_remove_source`
+  - `test_move_package_nonexistent_returns_error`
 
 ### 40. `selftest_functions.rs` still mixes library-side reporting with panic-prone checks
 - **Status**: COMPLETE ✓ (cycle 132)
