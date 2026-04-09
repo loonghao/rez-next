@@ -347,6 +347,128 @@ class TestRepositoryManagerWithRealRepo:
         pkgs = repo.find_packages("houdini")
         assert pkgs == []
 
+    # ── iter_packages ─────────────────────────────────────────────────────────
+
+    def test_iter_packages_returns_list(self, tmp_path):
+        write_package_py(tmp_path / "python" / "3.11.0", "python", "3.11.0")
+
+        repo = rez.RepositoryManager(paths=[str(tmp_path)])
+        pkgs = repo.iter_packages("python")
+        assert isinstance(pkgs, list)
+
+    def test_iter_packages_empty_repo_returns_empty(self, tmp_path):
+        repo = rez.RepositoryManager(paths=[str(tmp_path)])
+        pkgs = repo.iter_packages("nosuchpkg")
+        assert pkgs == []
+
+    def test_iter_packages_single_version_returns_one(self, tmp_path):
+        write_package_py(tmp_path / "mylib" / "2.0.0", "mylib", "2.0.0")
+
+        repo = rez.RepositoryManager(paths=[str(tmp_path)])
+        pkgs = repo.iter_packages("mylib")
+        assert len(pkgs) == 1
+        assert pkgs[0].name == "mylib"
+
+    def test_iter_packages_multiple_versions_returns_all(self, tmp_path):
+        for ver in ["1.0.0", "2.0.0", "1.5.0"]:
+            write_package_py(tmp_path / "mylib" / ver, "mylib", ver)
+
+        repo = rez.RepositoryManager(paths=[str(tmp_path)])
+        pkgs = repo.iter_packages("mylib")
+        assert len(pkgs) == 3
+        versions = {p.version_str for p in pkgs}
+        assert versions == {"1.0.0", "1.5.0", "2.0.0"}
+
+    def test_iter_packages_sorted_newest_first(self, tmp_path):
+        for ver in ["1.0.0", "3.0.0", "2.0.0"]:
+            write_package_py(tmp_path / "mylib" / ver, "mylib", ver)
+
+        repo = rez.RepositoryManager(paths=[str(tmp_path)])
+        pkgs = repo.iter_packages("mylib")
+        assert len(pkgs) == 3
+        # First must be the newest
+        assert pkgs[0].version_str == "3.0.0", (
+            f"Expected 3.0.0 first (newest), got: {[p.version_str for p in pkgs]}"
+        )
+
+    def test_iter_packages_semantic_version_order(self, tmp_path):
+        """3.11.0 must sort before 3.9.0 in newest-first order."""
+        for ver in ["3.9.0", "3.11.0", "3.8.0"]:
+            write_package_py(tmp_path / "python" / ver, "python", ver)
+
+        repo = rez.RepositoryManager(paths=[str(tmp_path)])
+        pkgs = repo.iter_packages("python")
+        assert len(pkgs) == 3
+        assert pkgs[0].version_str.startswith("3.11"), (
+            f"Semantic newest-first: 3.11.0 must be first, got: {[p.version_str for p in pkgs]}"
+        )
+
+    def test_iter_packages_only_returns_queried_family(self, tmp_path):
+        write_package_py(tmp_path / "pkgA" / "1.0.0", "pkgA", "1.0.0")
+        write_package_py(tmp_path / "pkgB" / "2.0.0", "pkgB", "2.0.0")
+
+        repo = rez.RepositoryManager(paths=[str(tmp_path)])
+        pkgs = repo.iter_packages("pkgA")
+        assert len(pkgs) == 1
+        assert pkgs[0].name == "pkgA"
+
+    # ── get_package_family_names ──────────────────────────────────────────────
+
+    def test_get_package_family_names_includes_all(self, tmp_path):
+        """get_package_family_names must enumerate ALL families in the repo."""
+        write_package_py(tmp_path / "python" / "3.11.0", "python", "3.11.0")
+        write_package_py(tmp_path / "numpy" / "1.25.0", "numpy", "1.25.0")
+
+        repo = rez.RepositoryManager(paths=[str(tmp_path)])
+        names = repo.get_package_family_names()
+        assert "python" in names, f"expected 'python' in {names}"
+        assert "numpy" in names, f"expected 'numpy' in {names}"
+
+    def test_get_package_family_names_deduplicates(self, tmp_path):
+        """Multiple versions of the same package must only appear once."""
+        for ver in ["1.0.0", "2.0.0"]:
+            write_package_py(tmp_path / "mylib" / ver, "mylib", ver)
+
+        repo = rez.RepositoryManager(paths=[str(tmp_path)])
+        names = repo.get_package_family_names()
+        assert names.count("mylib") == 1, f"mylib should appear once, got: {names}"
+
+    # ── graceful degradation on invalid package.py ───────────────────────────
+
+    def test_find_packages_syntax_error_skips_gracefully(self, tmp_path):
+        """A malformed package.py must be silently skipped; no exception raised."""
+        bad_dir = tmp_path / "badpkg" / "1.0.0"
+        bad_dir.mkdir(parents=True, exist_ok=True)
+        (bad_dir / "package.py").write_bytes(b"name = 'badpkg\nversion = '1.0.0'\n")
+
+        repo = rez.RepositoryManager(paths=[str(tmp_path)])
+        pkgs = repo.find_packages("badpkg")
+        assert pkgs == [], f"malformed package.py must be skipped, got {pkgs}"
+
+    def test_find_packages_empty_package_py_skips_gracefully(self, tmp_path):
+        """An empty package.py must be silently skipped."""
+        empty_dir = tmp_path / "emptypkg" / "1.0.0"
+        empty_dir.mkdir(parents=True, exist_ok=True)
+        (empty_dir / "package.py").write_bytes(b"")
+
+        repo = rez.RepositoryManager(paths=[str(tmp_path)])
+        pkgs = repo.find_packages("emptypkg")
+        assert pkgs == [], f"empty package.py must be skipped, got {pkgs}"
+
+    def test_find_packages_valid_and_invalid_mixed_returns_valid_only(self, tmp_path):
+        """Valid packages are returned even when sibling version has an invalid package.py."""
+        # Good version
+        write_package_py(tmp_path / "mypkg" / "1.0.0", "mypkg", "1.0.0")
+        # Bad version — missing 'name' field
+        bad_dir = tmp_path / "mypkg" / "0.0.1"
+        bad_dir.mkdir(parents=True, exist_ok=True)
+        (bad_dir / "package.py").write_bytes(b"version = '0.0.1'\n")
+
+        repo = rez.RepositoryManager(paths=[str(tmp_path)])
+        pkgs = repo.find_packages("mypkg")
+        versions = [p.version_str for p in pkgs]
+        assert "1.0.0" in versions, f"valid mypkg 1.0.0 must be returned; got {versions}"
+
 
 # ── Context + Repository integration ─────────────────────────────────────────
 
