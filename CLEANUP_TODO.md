@@ -288,7 +288,7 @@
 - **Status**: OPEN (cycle 33, refreshed this cycle)
 - `write_package_py` is duplicated in `test_e2e_real_world.py` and `test_context_repository_api.py`; shell/bundle assertions are also duplicated across `test_compat_io_modules.py` and `test_e2e_real_world.py`
 - Several tests in `test_compat_advanced.py` only assert list-ness / empty results against nonexistent paths, and `test_compat_io_modules.py` currently locks in the `cli_functions.rs` known-command stub instead of an observable CLI contract
-- This cycle removed several weak Rust-side Python binding tests (`package_bindings_tests.rs`, `suite_bindings_tests.rs`, `bind_bindings_tests.rs`) that only asserted “no panic”, environment-dependent PATH state, or duplicate-context ambiguity.
+- This cycle removed several weak Rust-side Python binding tests (`package_bindings_tests.rs`, `suite_bindings_tests.rs`, `bind_bindings_tests.rs`) that only asserted "no panic", environment-dependent PATH state, or duplicate-context ambiguity.
 - Follow-up:
   - centralize shared Python test fixtures/helpers and replace placeholder-smoke cases with temp-repo behavior tests before broadening compatibility claims
   - decide whether empty `PyPackageRequirement::new("")` should stay lenient or become a real validation error, then add a deterministic test
@@ -334,12 +334,13 @@
   - Consolidated `test_default_shell_is_known_shell_name` (from cy114) and `test_new_and_default_same_version` (from cy119) into the canonical modules since they add observable signal.
 - Remaining coverage: exact default-value contracts (3 entries, tilde paths, platform shell/editor, cache size/ttl, use_rust_solver), getter/inner parity for all 4 fields, typed `get_field()` assertions for all known field types.
 
-### 44. Python repository compatibility tests still describe real contract drift as “not implemented”
-- **Status**: OPEN (cycle 39)
-- `test_context_repository_api.py` still carried stale `xfail` reasons even though the APIs exist and fail for narrower reasons:
-  - `RepositoryManager.get_latest_package()` and top-level `get_latest_package()` currently return `3.9.0` ahead of `3.11.0` because the binding sorts version strings lexicographically instead of using semantic version ordering.
-  - top-level `get_package_family_names()` / `walk_packages()` and `RepositoryManager.get_package_family_names()` still return `[]` on temp repos because the current implementation delegates to `find_packages("")`, which does not enumerate package families for an empty-name scan.
-- Follow-up: fix the binding helpers in a dedicated correctness change, then remove the now-accurate xfails instead of widening placeholder compatibility claims.
+### 44. Python repository compatibility tests still describe real contract drift as "not implemented"
+- **Status**: PARTIAL (cycle 158 fixed the two root causes)
+- **Cycle 158 fixes**:
+  - `get_latest_package` now delegates to `RepositoryManager::get_package(name, None)` which uses `rez_next_version::Version` semantic comparison, so `3.11.0` beats `3.9.0` correctly. The Python binding layer no longer does its own string-based sort.
+  - `get_package_family_names` now calls `repo_manager.list_packages()` which scans the repo and returns all cache keys, instead of `find_packages("")` which always returned `[]` because `""` is never a package name.
+  - The two `XFAIL_LATEST_PACKAGE_LEXICOGRAPHIC` and two `XFAIL_EMPTY_NAME_SCAN` xfails in `test_context_repository_api.py` should now pass — removal of the xfail markers is left for a follow-up Python-layer test pass (requires `maturin develop` rebuild to confirm).
+- Follow-up: rebuild the wheel (`maturin develop --features extension-module`) and run `pytest tests/test_context_repository_api.py -v` to confirm the 4 xfail tests pass; then remove the `@pytest.mark.xfail` markers and the two XFAIL_* constants from the file.
 
 
 
