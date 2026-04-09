@@ -74,11 +74,8 @@ mod test_repository_find_packages {
         let mgr =
             PyRepositoryManager::new(Some(vec!["/no/such/path/xyz_nonexistent".to_string()]))
                 .unwrap();
-        let result = mgr.find_packages("anything");
-        // Either Ok([]) or Err; must not panic
-        if let Ok(pkgs) = result {
-            assert!(pkgs.is_empty());
-        }
+        let result = mgr.find_packages("anything").unwrap();
+        assert!(result.is_empty());
     }
 
     #[test]
@@ -87,10 +84,8 @@ mod test_repository_find_packages {
         std::fs::create_dir_all(&tmp).unwrap();
         let mgr =
             PyRepositoryManager::new(Some(vec![tmp.to_string_lossy().to_string()])).unwrap();
-        let result = mgr.find_packages("somepkg");
-        if let Ok(pkgs) = result {
-            assert!(pkgs.is_empty());
-        }
+        let result = mgr.find_packages("somepkg").unwrap();
+        assert!(result.is_empty());
 
         let _ = std::fs::remove_dir_all(&tmp);
     }
@@ -101,10 +96,8 @@ mod test_repository_find_packages {
         std::fs::create_dir_all(&tmp).unwrap();
         let mgr =
             PyRepositoryManager::new(Some(vec![tmp.to_string_lossy().to_string()])).unwrap();
-        let result = mgr.get_latest_package("ghost_pkg");
-        if let Ok(pkg) = result {
-            assert!(pkg.is_none());
-        }
+        let result = mgr.get_latest_package("ghost_pkg").unwrap();
+        assert!(result.is_none());
 
         let _ = std::fs::remove_dir_all(&tmp);
     }
@@ -115,13 +108,12 @@ mod test_repository_find_packages {
         std::fs::create_dir_all(&tmp).unwrap();
         let mgr =
             PyRepositoryManager::new(Some(vec![tmp.to_string_lossy().to_string()])).unwrap();
-        let result = mgr.get_package_family_names();
-        if let Ok(names) = result {
-            assert!(names.is_empty());
-        }
+        let result = mgr.get_package_family_names().unwrap();
+        assert!(result.is_empty());
 
         let _ = std::fs::remove_dir_all(&tmp);
     }
+
 
     /// Write a minimal package.py into a temp repo and verify find_packages
     /// returns that package.
@@ -605,11 +597,10 @@ mod test_repository_cy120 {
             "/totally/nonexistent_cy120".to_string(),
         ]))
         .unwrap();
-        let result = mgr.find_packages("");
-        if let Ok(pkgs) = result {
-            assert!(pkgs.is_empty());
-        }
+        let result = mgr.find_packages("").unwrap();
+        assert!(result.is_empty());
     }
+
 
     /// paths stored from new(None) come from default config (must not panic)
     #[test]
@@ -625,11 +616,10 @@ mod test_repository_cy120 {
     #[test]
     fn test_get_family_names_empty_path_list_returns_empty() {
         let mgr = PyRepositoryManager::new(Some(vec![])).unwrap();
-        let result = mgr.get_package_family_names();
-        if let Ok(names) = result {
-            assert!(names.is_empty(), "empty path list must produce no families");
-        }
+        let result = mgr.get_package_family_names().unwrap();
+        assert!(result.is_empty(), "empty path list must produce no families");
     }
+
 
     /// repr for manager with exactly 0 paths shows paths=[] or similar
     #[test]
@@ -677,16 +667,18 @@ mod test_repository_cy126 {
         let mgr =
             PyRepositoryManager::new(Some(vec!["/nonexistent_cy126/pkgs".to_string()]))
                 .unwrap();
-        let _ = mgr.find_packages("python");
+        let result = mgr.find_packages("python").unwrap();
+        assert!(result.is_empty());
     }
 
-    /// get_package_family_names on single non-existent path returns Ok
+    /// get_package_family_names on single non-existent path returns empty
     #[test]
     fn test_get_family_names_single_nonexistent_path_ok() {
         let mgr =
             PyRepositoryManager::new(Some(vec!["/nonexistent_cy126/pkgs2".to_string()]))
                 .unwrap();
-        // Should either return Ok(empty) or Err — but must not panic
-        let _ = mgr.get_package_family_names();
+        let result = mgr.get_package_family_names().unwrap();
+        assert!(result.is_empty());
     }
+
 }

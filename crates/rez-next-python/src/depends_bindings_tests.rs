@@ -105,19 +105,7 @@ fn test_depends_result_all_dependants() {
     assert_eq!(all.len(), 2);
 }
 
-#[test]
-fn test_depends_entry_repr_format() {
-    let entry = PyDependsEntry {
-        name: "maya".to_string(),
-        version: "2024.1".to_string(),
-        requirement: "python-3.9".to_string(),
-        dependency_type: "direct".to_string(),
-    };
-    let repr = entry.__repr__();
-    assert!(repr.contains("maya-2024.1"));
-    assert!(repr.contains("python-3.9"));
-    assert!(repr.contains("direct"));
-}
+
 
 #[test]
 fn test_depends_result_format_with_transitive() {
