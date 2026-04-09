@@ -702,6 +702,21 @@ fn bound_sets_intersect(a: &BoundSet, b: &BoundSet) -> bool {
         }
     }
 
+    // Check Eq(v) against inequality bounds: Eq(v) ∩ Ge(w) = ∅ when v < w,
+    // Eq(v) ∩ Gt(w) = ∅ when v <= w, Eq(v) ∩ Le(w) = ∅ when v > w,
+    // Eq(v) ∩ Lt(w) = ∅ when v >= w.
+    for eq_v in &eq_versions {
+        for bound in &combined_bounds {
+            match bound {
+                Bound::Ge(w) if *eq_v < w => return false,
+                Bound::Gt(w) if *eq_v <= w => return false,
+                Bound::Le(w) if *eq_v > w => return false,
+                Bound::Lt(w) if *eq_v >= w => return false,
+                _ => {}
+            }
+        }
+    }
+
     // Compute effective lower and upper bounds from combined set
     // Lower bound: maximum of all lower bounds (most restrictive)
     // Upper bound: minimum of all upper bounds (most restrictive)

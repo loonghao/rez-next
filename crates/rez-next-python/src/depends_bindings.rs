@@ -178,10 +178,19 @@ pub fn compute_depends(
         .filter(|s| !s.is_empty())
         .and_then(|s| VersionRange::parse(s).ok());
 
-    // Collect all packages
-    let all_packages = rt
-        .block_on(repo_manager.find_packages(""))
+    // Collect all packages: list_packages() returns package names, then fetch each by name.
+    // find_packages("") never matches anything because "" is not a valid package name.
+    let package_names = rt
+        .block_on(repo_manager.list_packages())
         .map_err(|e| e.to_string())?;
+
+    let mut all_packages = Vec::new();
+    for pkg_name in &package_names {
+        let pkgs = rt
+            .block_on(repo_manager.find_packages(pkg_name))
+            .map_err(|e| e.to_string())?;
+        all_packages.extend(pkgs);
+    }
 
     let mut direct_dependants = Vec::new();
 
