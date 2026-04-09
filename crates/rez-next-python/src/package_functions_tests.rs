@@ -1,6 +1,6 @@
 //! Unit tests for `package_functions` — split from the main module to keep file size ≤ 1000 lines.
 //! Extra tests (expand_home_extra/copy_package_fs/remove_package_extra/helpers) → package_functions_extra_tests.rs (Cycle 147)
-use crate::package_functions::{copy_dir_recursive, copy_package, expand_home, remove_package};
+use crate::package_functions::{copy_dir_recursive, expand_home, remove_package};
 use std::fs;
 
 mod test_expand_home {

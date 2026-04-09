@@ -3,6 +3,7 @@
 use crate::package_bindings::PyPackage;
 use crate::package_functions::expand_home;
 use crate::runtime::get_runtime;
+use crate::source_bindings::detect_current_shell;
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use rez_next_context::{ContextStatus, ResolvedContext};
@@ -281,23 +282,13 @@ impl PyResolvedContext {
             "cmd" => ShellType::Cmd,
             "powershell" | "pwsh" => ShellType::PowerShell,
             _ => {
-                // Auto-detect shell
-                if let Ok(sh) = std::env::var("SHELL") {
-                    if sh.contains("zsh") {
-                        ShellType::Zsh
-                    } else if sh.contains("fish") {
-                        ShellType::Fish
-                    } else {
-                        ShellType::Bash
-                    }
-                } else if cfg!(windows) {
-                    if std::env::var("PSModulePath").is_ok() {
-                        ShellType::PowerShell
-                    } else {
-                        ShellType::Cmd
-                    }
-                } else {
-                    ShellType::Bash
+                // Auto-detect shell using shared helper
+                match detect_current_shell().as_str() {
+                    "bash" => ShellType::Bash,
+                    "zsh" => ShellType::Zsh,
+                    "fish" => ShellType::Fish,
+                    "cmd" => ShellType::Cmd,
+                    _ => ShellType::PowerShell,
                 }
             }
         };

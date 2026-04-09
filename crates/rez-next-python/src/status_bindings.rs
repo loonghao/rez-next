@@ -7,6 +7,8 @@ use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList};
 use std::collections::HashMap;
 
+use crate::source_bindings::detect_current_shell;
+
 // ─── Public structs ──────────────────────────────────────────────────────────
 
 /// Status of the current rez-managed environment.
@@ -182,25 +184,7 @@ pub(crate) fn detect_current_status() -> PyRezStatus {
 }
 
 pub(crate) fn detect_shell_from_env() -> Option<String> {
-    // Unix SHELL
-    if let Ok(shell) = std::env::var("SHELL") {
-        if shell.contains("zsh") {
-            return Some("zsh".to_string());
-        } else if shell.contains("fish") {
-            return Some("fish".to_string());
-        } else if shell.contains("bash") {
-            return Some("bash".to_string());
-        }
-        return Some(shell);
-    }
-    // Windows
-    if cfg!(windows) {
-        if std::env::var("PSModulePath").is_ok() {
-            return Some("powershell".to_string());
-        }
-        return Some("cmd".to_string());
-    }
-    None
+    Some(detect_current_shell())
 }
 
 // ─── Python functions ─────────────────────────────────────────────────────────

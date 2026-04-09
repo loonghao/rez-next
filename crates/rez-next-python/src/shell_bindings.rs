@@ -4,6 +4,8 @@ use pyo3::prelude::*;
 use rez_next_rex::{generate_shell_script, RexEnvironment, ShellType};
 use std::collections::HashMap;
 
+use crate::source_bindings::detect_current_shell;
+
 /// Python wrapper for shell script generation.
 /// Equivalent to `rez.shell` module.
 #[pyclass(name = "Shell", from_py_object)]
@@ -106,24 +108,7 @@ pub fn get_available_shells() -> Vec<&'static str> {
 /// Detect current shell type from environment
 #[pyfunction]
 pub fn get_current_shell() -> String {
-    // Check SHELL env var (Unix)
-    if let Ok(shell) = std::env::var("SHELL") {
-        if shell.contains("bash") {
-            return "bash".to_string();
-        } else if shell.contains("zsh") {
-            return "zsh".to_string();
-        } else if shell.contains("fish") {
-            return "fish".to_string();
-        }
-    }
-    // Check Windows shell
-    if std::env::var("PSModulePath").is_ok() {
-        return "powershell".to_string();
-    }
-    if cfg!(windows) {
-        return "cmd".to_string();
-    }
-    "bash".to_string()
+    detect_current_shell()
 }
 
 #[cfg(test)]

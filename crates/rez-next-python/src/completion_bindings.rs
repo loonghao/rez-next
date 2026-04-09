@@ -5,6 +5,8 @@
 
 use pyo3::prelude::*;
 
+use crate::source_bindings::detect_current_shell;
+
 /// Shell types supported for completion
 const BASH_COMPLETION: &str = r#"
 # rez-next bash completion
@@ -240,25 +242,8 @@ pub fn get_completion_install_path(shell: Option<&str>) -> PyResult<String> {
     }
 }
 
-fn detect_current_shell() -> String {
-    // Check SHELL env var (Unix)
-    if let Ok(shell) = std::env::var("SHELL") {
-        if shell.contains("zsh") {
-            return "zsh".to_string();
-        }
-        if shell.contains("fish") {
-            return "fish".to_string();
-        }
-        if shell.contains("bash") {
-            return "bash".to_string();
-        }
-    }
-    // Windows PowerShell
-    if std::env::var("PSModulePath").is_ok() || cfg!(windows) {
-        return "powershell".to_string();
-    }
-    "bash".to_string()
-}
+
+
 
 #[cfg(test)]
 mod tests {
