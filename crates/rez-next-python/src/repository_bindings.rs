@@ -65,22 +65,49 @@ impl PyRepositoryManager {
 
     /// Get the latest version of a package
     fn get_latest_package(&self, name: &str) -> PyResult<Option<PyPackage>> {
-        let packages = self.find_packages(name)?;
-        let mut sorted = packages;
-        sorted.sort_by(|a, b| {
-            let av = a.0.version.as_ref().map(|v| v.as_str().to_string());
-            let bv = b.0.version.as_ref().map(|v| v.as_str().to_string());
-            bv.cmp(&av) // descending
-        });
-        Ok(sorted.into_iter().next())
+        let rt = get_runtime();
+
+        let mut repo_manager = RepositoryManager::new();
+        for (i, path) in self.paths.iter().enumerate() {
+            if path.exists() {
+                repo_manager.add_repository(Box::new(SimpleRepository::new(
+                    path.clone(),
+                    format!("repo_{}", i),
+                )));
+            }
+        }
+
+        // Use the repository manager's get_package(name, None) which sorts by
+        // rez_next_version::Version (semantic) rather than string comparison,
+        // ensuring "3.11.0" beats "3.9.0" correctly.
+        let result = rt
+            .block_on(repo_manager.get_package(name, None))
+            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+
+        Ok(result.map(|p| PyPackage((*p).clone())))
     }
 
-    /// List all package names in all repositories
+    /// List all package family names across all repositories
     fn get_package_family_names(&self) -> PyResult<Vec<String>> {
-        let packages = self.find_packages("")?;
-        let mut names: Vec<String> = packages.iter().map(|p| p.0.name.clone()).collect();
-        names.sort();
-        names.dedup();
+        let rt = get_runtime();
+
+        let mut repo_manager = RepositoryManager::new();
+        for (i, path) in self.paths.iter().enumerate() {
+            if path.exists() {
+                repo_manager.add_repository(Box::new(SimpleRepository::new(
+                    path.clone(),
+                    format!("repo_{}", i),
+                )));
+            }
+        }
+
+        // Use list_packages() which enumerates all cache keys after scanning,
+        // instead of find_packages("") which looks for the empty-string key and
+        // always returns [].
+        let names = rt
+            .block_on(repo_manager.list_packages())
+            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+
         Ok(names)
     }
 }
