@@ -3,6 +3,7 @@
 use crate::package_bindings::PyPackage;
 use crate::package_functions::expand_home;
 use crate::runtime::get_runtime;
+use crate::shell_utils::shell_type_from_str;
 use crate::source_bindings::detect_current_shell;
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
@@ -273,25 +274,12 @@ impl PyResolvedContext {
     /// shell: "bash" | "zsh" | "fish" | "cmd" | "powershell" (default: auto-detect)
     #[pyo3(signature = (shell=None))]
     fn to_shell_script(&self, shell: Option<&str>) -> PyResult<String> {
-        use rez_next_rex::{generate_shell_script, ShellType};
+        use rez_next_rex::generate_shell_script;
 
-        let shell_type = match shell.unwrap_or("auto") {
-            "bash" => ShellType::Bash,
-            "zsh" => ShellType::Zsh,
-            "fish" => ShellType::Fish,
-            "cmd" => ShellType::Cmd,
-            "powershell" | "pwsh" => ShellType::PowerShell,
-            _ => {
-                // Auto-detect shell using shared helper
-                match detect_current_shell().as_str() {
-                    "bash" => ShellType::Bash,
-                    "zsh" => ShellType::Zsh,
-                    "fish" => ShellType::Fish,
-                    "cmd" => ShellType::Cmd,
-                    _ => ShellType::PowerShell,
-                }
-            }
-        };
+        let shell_name = shell
+            .map(|s| s.to_string())
+            .unwrap_or_else(detect_current_shell);
+        let shell_type = shell_type_from_str(&shell_name);
 
         let rt = get_runtime();
 

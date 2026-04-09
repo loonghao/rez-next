@@ -8,6 +8,7 @@ use pyo3::prelude::*;
 
 // ── Shared infrastructure ─────────────────────────────────────────────────────
 pub(crate) mod runtime;
+pub(crate) mod shell_utils;
 
 // ── Domain-specific binding modules ──────────────────────────────────────────
 mod bind_bindings;

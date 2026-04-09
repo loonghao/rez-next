@@ -4,8 +4,9 @@
 //! resolved context so users can activate it with `source <script>` or `.` in
 //! POSIX shells, or `. <script>` in PowerShell.
 
+use crate::shell_utils::shell_type_from_str;
 use pyo3::prelude::*;
-use rez_next_rex::{generate_shell_script, RexEnvironment, ShellType};
+use rez_next_rex::{generate_shell_script, RexEnvironment};
 use std::path::PathBuf;
 
 /// Supported activation modes matching rez's `rez source` command.
@@ -148,13 +149,7 @@ pub(crate) fn detect_current_shell() -> String {
 
 /// Build an activation script string for the given packages and shell.
 pub(crate) fn build_activation_script(packages: &[String], shell_name: &str) -> String {
-    let shell_type = match shell_name.to_lowercase().as_str() {
-        "zsh" => ShellType::Zsh,
-        "fish" => ShellType::Fish,
-        "cmd" => ShellType::Cmd,
-        "powershell" | "pwsh" => ShellType::PowerShell,
-        _ => ShellType::Bash,
-    };
+    let shell_type = shell_type_from_str(shell_name);
 
     // Build a representative environment based on package list
     let mut env = RexEnvironment::new();
