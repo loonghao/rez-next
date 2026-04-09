@@ -148,28 +148,18 @@ mod test_repository_find_packages {
 
         let mgr =
             PyRepositoryManager::new(Some(vec![tmp.to_string_lossy().to_string()])).unwrap();
-        let result = mgr.find_packages("mypkg");
-        match result {
-            Ok(pkgs) => {
-                assert!(
-                    !pkgs.is_empty(),
-                    "should find mypkg in the temp repo, got empty"
-                );
-                assert!(
-                    pkgs.iter().any(|p| p.0.name == "mypkg"),
-                    "found packages: {:?}",
-                    pkgs.iter().map(|p| &p.0.name).collect::<Vec<_>>()
-                );
-            }
-            Err(e) => {
-                let msg = e.to_string();
-                assert!(
-                    !msg.contains("panic"),
-                    "find_packages must not panic: {}",
-                    msg
-                );
-            }
-        }
+        let pkgs = mgr
+            .find_packages("mypkg")
+            .expect("find_packages must succeed for a valid temp repo");
+        assert!(
+            !pkgs.is_empty(),
+            "should find mypkg in the temp repo, got empty"
+        );
+        assert!(
+            pkgs.iter().any(|p| p.0.name == "mypkg"),
+            "found packages: {:?}",
+            pkgs.iter().map(|p| &p.0.name).collect::<Vec<_>>()
+        );
 
         let _ = std::fs::remove_dir_all(&tmp);
     }
@@ -236,23 +226,10 @@ mod test_repository_find_packages {
 
         let mgr =
             PyRepositoryManager::new(Some(vec![tmp.to_string_lossy().to_string()])).unwrap();
-        let result = mgr.get_package_family_names();
-        if let Ok(names) = result {
-            // Should be deduplicated (alpha appears once) and sorted
-            let alpha_count = names.iter().filter(|n| *n == "alpha").count();
-            assert!(
-                alpha_count <= 1,
-                "alpha should be deduped, count={}",
-                alpha_count
-            );
-            let sorted = {
-                let mut s = names.clone();
-                s.sort();
-                s
-            };
-            assert_eq!(names, sorted, "family names should be sorted");
-        }
-        // Acceptable if repo scanning is not supported (result is Err)
+        let names = mgr
+            .get_package_family_names()
+            .expect("get_package_family_names must succeed for a valid temp repo");
+        assert_eq!(names, vec!["alpha".to_string(), "zebra".to_string()]);
 
         let _ = std::fs::remove_dir_all(&tmp);
     }
@@ -272,16 +249,21 @@ mod test_repository_find_packages {
         }
         let mgr =
             PyRepositoryManager::new(Some(vec![tmp.to_string_lossy().to_string()])).unwrap();
-        let result = mgr.get_package_family_names();
-        if let Ok(names) = result {
-            let mut sorted = names.clone();
-            sorted.sort();
-            assert_eq!(names, sorted, "family names must be sorted");
-        }
+        let names = mgr
+            .get_package_family_names()
+            .expect("get_package_family_names must succeed for a valid temp repo");
+        assert_eq!(
+            names,
+            vec![
+                "aa_pkg".to_string(),
+                "mm_pkg".to_string(),
+                "zz_pkg".to_string()
+            ]
+        );
         let _ = std::fs::remove_dir_all(&tmp);
     }
 
-    /// get_package_family_names on single-family repo returns at most one entry
+    /// get_package_family_names on single-family repo returns exactly one entry
     #[test]
     fn test_get_package_family_names_single_family_has_one_entry() {
         let tmp = std::env::temp_dir().join("rez_repo_single_family_cy114");
@@ -295,11 +277,10 @@ mod test_repository_find_packages {
 
         let mgr =
             PyRepositoryManager::new(Some(vec![tmp.to_string_lossy().to_string()])).unwrap();
-        let result = mgr.get_package_family_names();
-        if let Ok(names) = result {
-            let count = names.iter().filter(|n| n.as_str() == "unique_pkg").count();
-            assert!(count <= 1, "unique_pkg should appear at most once, got {count}");
-        }
+        let names = mgr
+            .get_package_family_names()
+            .expect("get_package_family_names must succeed for a single-family repo");
+        assert_eq!(names, vec!["unique_pkg".to_string()]);
         let _ = std::fs::remove_dir_all(&tmp);
     }
 
@@ -312,10 +293,10 @@ mod test_repository_find_packages {
 
         let mgr =
             PyRepositoryManager::new(Some(vec![tmp.to_string_lossy().to_string()])).unwrap();
-        let result = mgr.find_packages("empty_family");
-        if let Ok(pkgs) = result {
-            assert!(pkgs.is_empty(), "expected no packages found without package.py");
-        }
+        let pkgs = mgr
+            .find_packages("empty_family")
+            .expect("find_packages must succeed for a family directory without package.py");
+        assert!(pkgs.is_empty(), "expected no packages found without package.py");
         let _ = std::fs::remove_dir_all(&tmp);
     }
 }
@@ -351,14 +332,15 @@ mod test_iter_packages {
         write_pkg(&tmp, "mypkg", "1.0.0");
         let mgr =
             PyRepositoryManager::new(Some(vec![tmp.to_string_lossy().to_string()])).unwrap();
-        let result = mgr.iter_packages("mypkg");
-        if let Ok(pkgs) = result {
-            // acceptable if scanning not implemented (returns Ok([]))
-            assert_eq!(pkgs.len(), 1, "single version should return 1 item");
-            assert_eq!(pkgs[0].0.name, "mypkg");
-        }
+        let pkgs = mgr
+            .iter_packages("mypkg")
+            .expect("iter_packages must succeed for a valid temp repo");
+        assert_eq!(pkgs.len(), 1, "single version should return 1 item");
+        assert_eq!(pkgs[0].0.name, "mypkg");
+        assert_eq!(pkgs[0].0.version.as_ref().map(|v| v.as_str()), Some("1.0.0"));
         let _ = std::fs::remove_dir_all(&tmp);
     }
+
 
     #[test]
     fn test_iter_packages_multiple_versions_newest_first() {
@@ -417,16 +399,15 @@ mod test_iter_packages {
         write_pkg(&tmp, "pkgB", "2.0.0");
         let mgr =
             PyRepositoryManager::new(Some(vec![tmp.to_string_lossy().to_string()])).unwrap();
-        let result = mgr.iter_packages("pkgA");
-        if let Ok(pkgs) = result {
-            let has_pkgb = pkgs.iter().any(|p| p.0.name == "pkgB");
-            assert!(
-                !has_pkgb,
-                "iter_packages('pkgA') must not return pkgB entries"
-            );
-        }
+        let pkgs = mgr
+            .iter_packages("pkgA")
+            .expect("iter_packages must succeed for a valid temp repo");
+        assert_eq!(pkgs.len(), 1, "iter_packages('pkgA') must only return pkgA");
+        assert_eq!(pkgs[0].0.name, "pkgA");
+        assert_eq!(pkgs[0].0.version.as_ref().map(|v| v.as_str()), Some("1.0.0"));
         let _ = std::fs::remove_dir_all(&tmp);
     }
+
 }
 
 /// Regression tests for Cycle 158 fixes:
