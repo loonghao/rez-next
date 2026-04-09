@@ -190,14 +190,11 @@ mod test_repository_find_packages {
 
         let mgr =
             PyRepositoryManager::new(Some(vec![tmp.to_string_lossy().to_string()])).unwrap();
-        let result = mgr.get_latest_package("mypkg");
-        match result {
-            Ok(Some(pkg)) => {
-                assert_eq!(pkg.0.name, "mypkg");
-            }
-            Ok(None) => {} // acceptable if scanning not implemented
-            Err(_) => {}
-        }
+        let pkg = mgr
+            .get_latest_package("mypkg")
+            .expect("get_latest_package must not error with a populated repo")
+            .expect("get_latest_package must return Some for mypkg (3 versions in repo)");
+        assert_eq!(pkg.0.name, "mypkg");
 
         let _ = std::fs::remove_dir_all(&tmp);
     }
@@ -216,12 +213,11 @@ mod test_repository_find_packages {
 
         let mgr =
             PyRepositoryManager::new(Some(vec![tmp.to_string_lossy().to_string()])).unwrap();
-        let result = mgr.get_latest_package("singlepkg");
-        match result {
-            Ok(Some(pkg)) => assert_eq!(pkg.0.name, "singlepkg"),
-            Ok(None) => {} // acceptable if scanning not implemented
-            Err(_) => {}
-        }
+        let pkg = mgr
+            .get_latest_package("singlepkg")
+            .expect("get_latest_package must not error")
+            .expect("get_latest_package must return Some for singlepkg");
+        assert_eq!(pkg.0.name, "singlepkg");
         let _ = std::fs::remove_dir_all(&tmp);
     }
 
@@ -372,28 +368,17 @@ mod test_iter_packages {
         }
         let mgr =
             PyRepositoryManager::new(Some(vec![tmp.to_string_lossy().to_string()])).unwrap();
-        let result = mgr.iter_packages("mypkg");
-        match result {
-            Ok(pkgs) if pkgs.len() == 3 => {
-                // Expect descending: 2.0.0, 1.5.0, 1.0.0
-                let versions: Vec<_> = pkgs
-                    .iter()
-                    .filter_map(|p| p.0.version.as_ref().map(|v| v.as_str().to_string()))
-                    .collect();
-                assert_eq!(
-                    versions[0], "2.0.0",
-                    "first entry must be newest (2.0.0), got: {:?}",
-                    versions
-                );
-                assert_eq!(
-                    versions[2], "1.0.0",
-                    "last entry must be oldest (1.0.0), got: {:?}",
-                    versions
-                );
-            }
-            Ok(_) => {} // scanning returned fewer versions — acceptable
-            Err(_) => {} // scanning not supported
-        }
+        let pkgs = mgr
+            .iter_packages("mypkg")
+            .expect("iter_packages must not error with a populated repo");
+        assert_eq!(pkgs.len(), 3, "iter_packages must return all 3 versions: {:?}", pkgs.iter().map(|p| &p.0.name).collect::<Vec<_>>());
+        // Expect descending: 2.0.0, 1.5.0, 1.0.0
+        let versions: Vec<_> = pkgs
+            .iter()
+            .filter_map(|p| p.0.version.as_ref().map(|v| v.as_str().to_string()))
+            .collect();
+        assert_eq!(versions[0], "2.0.0", "first entry must be newest (2.0.0), got: {:?}", versions);
+        assert_eq!(versions[2], "1.0.0", "last entry must be oldest (1.0.0), got: {:?}", versions);
         let _ = std::fs::remove_dir_all(&tmp);
     }
 
@@ -406,24 +391,21 @@ mod test_iter_packages {
         }
         let mgr =
             PyRepositoryManager::new(Some(vec![tmp.to_string_lossy().to_string()])).unwrap();
-        let result = mgr.iter_packages("python");
-        match result {
-            Ok(pkgs) if pkgs.len() == 3 => {
-                let first_ver = pkgs[0]
-                    .0
-                    .version
-                    .as_ref()
-                    .map(|v| v.as_str().to_string())
-                    .unwrap_or_default();
-                assert!(
-                    first_ver.starts_with("3.11"),
-                    "semantic newest-first: 3.11.0 must be first, got: {}",
-                    first_ver
-                );
-            }
-            Ok(_) => {} // fewer versions scanned
-            Err(_) => {} // scanning not supported
-        }
+        let pkgs = mgr
+            .iter_packages("python")
+            .expect("iter_packages must not error with a populated repo");
+        assert_eq!(pkgs.len(), 3, "iter_packages must return all 3 python versions");
+        let first_ver = pkgs[0]
+            .0
+            .version
+            .as_ref()
+            .map(|v| v.as_str().to_string())
+            .unwrap_or_default();
+        assert!(
+            first_ver.starts_with("3.11"),
+            "semantic newest-first: 3.11.0 must be first, got: {}",
+            first_ver
+        );
         let _ = std::fs::remove_dir_all(&tmp);
     }
 
@@ -471,20 +453,17 @@ mod test_repository_cy158_fixes {
 
         let mgr =
             PyRepositoryManager::new(Some(vec![tmp.to_string_lossy().to_string()])).unwrap();
-        let result = mgr.get_latest_package("python");
-        match result {
-            Ok(Some(pkg)) => {
-                assert_eq!(pkg.0.name, "python");
-                let version_str = pkg.0.version.as_ref().map(|v| v.as_str().to_string()).unwrap_or_default();
-                assert!(
-                    version_str.starts_with("3.11"),
-                    "latest python must be 3.11.x (semantic), got: {}",
-                    version_str
-                );
-            }
-            Ok(None) => {} // acceptable if scanning not implemented
-            Err(_) => {}
-        }
+        let pkg = mgr
+            .get_latest_package("python")
+            .expect("get_latest_package must not error with a populated repo")
+            .expect("get_latest_package must return Some for python with 3 versions");
+        assert_eq!(pkg.0.name, "python");
+        let version_str = pkg.0.version.as_ref().map(|v| v.as_str().to_string()).unwrap_or_default();
+        assert!(
+            version_str.starts_with("3.11"),
+            "latest python must be 3.11.x (semantic), got: {}",
+            version_str
+        );
         let _ = std::fs::remove_dir_all(&tmp);
     }
 
