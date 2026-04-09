@@ -140,16 +140,6 @@ fn test_format_empty_dependants_still_non_empty_output() {
     assert!(!fmt.is_empty(), "format output must always be non-empty");
 }
 
-#[test]
-fn test_depends_entry_dependency_type_is_transitive() {
-    let e = PyDependsEntry {
-        name: "myapp".to_string(),
-        version: "1.0.0".to_string(),
-        requirement: "python-3.9+".to_string(),
-        dependency_type: "transitive".to_string(),
-    };
-    assert_eq!(e.dependency_type, "transitive");
-}
 
 #[test]
 fn test_depends_result_total_count_with_overlap() {

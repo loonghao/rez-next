@@ -13,6 +13,8 @@ import os
 
 import pytest
 
+from conftest import write_package_py
+
 rez = pytest.importorskip(
     "rez_next",
     reason="rez_next not built — run: maturin develop --features extension-module",
@@ -26,22 +28,6 @@ XFAIL_EMPTY_NAME_SCAN = (
     "Current empty-name scans do not enumerate temp-repo package families, "
     "so package-family and walk_packages helpers still return []"
 )
-
-
-# ── Helpers ───────────────────────────────────────────────────────────────────
-
-
-
-def write_package_py(path, name, version, requires=None, commands=None):
-    """Write a minimal package.py to *path* directory."""
-    path.mkdir(parents=True, exist_ok=True)
-    lines = [f'name = "{name}"', f'version = "{version}"']
-    if requires:
-        req_list = ", ".join(f'"{r}"' for r in requires)
-        lines.append(f"requires = [{req_list}]")
-    if commands:
-        lines.append(f'commands = """\n{commands}\n"""')
-    (path / "package.py").write_text("\n".join(lines) + "\n")
 
 
 # ── ResolvedContext attributes ────────────────────────────────────────────────
