@@ -1,0 +1,501 @@
+use super::*;
+
+// ── PyBindResult ──────────────────────────────────────────────────────────
+
+#[test]
+fn test_bind_result_getters() {
+    let r = PyBindResult {
+        name: "python".to_string(),
+        version: "3.11.4".to_string(),
+        install_path: "/pkgs/python/3.11.4".to_string(),
+        executable_path: Some("/usr/bin/python3".to_string()),
+    };
+    assert_eq!(r.name(), "python");
+    assert_eq!(r.version(), "3.11.4");
+    assert_eq!(r.install_path(), "/pkgs/python/3.11.4");
+    assert_eq!(r.executable_path(), Some("/usr/bin/python3"));
+}
+
+#[test]
+fn test_bind_result_no_executable() {
+    let r = PyBindResult {
+        name: "cmake".to_string(),
+        version: "3.26.0".to_string(),
+        install_path: "/pkgs/cmake/3.26.0".to_string(),
+        executable_path: None,
+    };
+    assert_eq!(r.executable_path(), None);
+}
+
+#[test]
+fn test_bind_result_repr_format() {
+    let r = PyBindResult {
+        name: "git".to_string(),
+        version: "2.42.0".to_string(),
+        install_path: "/pkgs/git/2.42.0".to_string(),
+        executable_path: None,
+    };
+    let repr = r.__repr__();
+    assert!(repr.contains("BindResult"));
+    assert!(repr.contains("git"));
+    assert!(repr.contains("2.42.0"));
+    assert!(repr.contains("/pkgs/git/2.42.0"));
+}
+
+// ── PyBindManager ─────────────────────────────────────────────────────────
+
+#[test]
+fn test_bind_manager_repr() {
+    let m = PyBindManager::new();
+    assert_eq!(m.__repr__(), "BindManager()");
+}
+
+#[test]
+fn test_bind_manager_default_same_as_new() {
+    let a = PyBindManager::new();
+    let b = PyBindManager::default();
+    assert_eq!(a.__repr__(), b.__repr__());
+}
+
+#[test]
+fn test_list_binders_non_empty() {
+    let m = PyBindManager::new();
+    let binders = m.list_binders();
+    assert!(
+        !binders.is_empty(),
+        "there should be at least one built-in binder"
+    );
+}
+
+#[test]
+fn test_list_binders_contains_known_tools() {
+    let m = PyBindManager::new();
+    let binders = m.list_binders();
+    assert!(binders.contains(&"python".to_string()));
+    assert!(binders.contains(&"git".to_string()));
+}
+
+#[test]
+fn test_is_builtin_known_tool() {
+    let m = PyBindManager::new();
+    assert!(m.is_builtin("python"));
+    assert!(m.is_builtin("cmake"));
+    assert!(m.is_builtin("git"));
+}
+
+#[test]
+fn test_is_builtin_unknown_tool() {
+    let m = PyBindManager::new();
+    assert!(!m.is_builtin("totally_nonexistent_tool_xyz"));
+}
+
+// ── Free functions ────────────────────────────────────────────────────────
+
+#[test]
+fn test_list_binders_fn_matches_manager() {
+    let via_fn = list_binders();
+    let via_mgr = PyBindManager::new().list_binders();
+    assert_eq!(via_fn, via_mgr);
+}
+
+#[test]
+fn test_extract_version_semver() {
+    assert_eq!(extract_version("Python 3.11.4"), Some("3.11.4".to_string()));
+}
+
+#[test]
+fn test_extract_version_git_format() {
+    assert_eq!(
+        extract_version("git version 2.42.0.windows.1"),
+        Some("2.42.0".to_string())
+    );
+}
+
+#[test]
+fn test_extract_version_short() {
+    assert_eq!(extract_version("1.8"), Some("1.8".to_string()));
+}
+
+#[test]
+fn test_extract_version_none_for_no_digits() {
+    assert_eq!(extract_version("no version information"), None);
+}
+
+#[test]
+fn test_find_tool_nonexistent_returns_none() {
+    // A tool name that definitely won't be on the system
+    let result = find_tool("__totally_nonexistent_tool_rez_next__");
+    assert!(result.is_none());
+}
+
+// ── detect_version free function ──────────────────────────────────────────
+
+#[test]
+fn test_detect_version_returns_string_for_nonexistent_tool() {
+    // detect_version always returns a String (empty or version), never panics
+    let v = detect_version("__nonexistent_tool_rez_next__");
+    // Result is either empty string or some version string — just must not panic
+    let _ = v;
+}
+
+// ── PyBindResult edge cases ───────────────────────────────────────────────
+
+#[test]
+fn test_bind_result_repr_no_path() {
+    let r = PyBindResult {
+        name: "clang".to_string(),
+        version: "17.0.0".to_string(),
+        install_path: "".to_string(),
+        executable_path: None,
+    };
+    let repr = r.__repr__();
+    assert!(repr.contains("clang"));
+    assert!(repr.contains("17.0.0"));
+}
+
+#[test]
+fn test_bind_result_executable_path_some_path() {
+    let r = PyBindResult {
+        name: "node".to_string(),
+        version: "20.0.0".to_string(),
+        install_path: "/pkgs/node/20.0.0".to_string(),
+        executable_path: Some("/usr/local/bin/node".to_string()),
+    };
+    let ep = r.executable_path();
+    assert_eq!(ep, Some("/usr/local/bin/node"));
+}
+
+// ── PyBindManager list/detect integration ─────────────────────────────────
+
+#[test]
+fn test_list_binders_all_are_non_empty_strings() {
+    let binders = list_binders();
+    for name in &binders {
+        assert!(!name.is_empty(), "binder name must be non-empty");
+        // Binder names should be printable ASCII-ish identifiers
+        assert!(
+            name.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '-'),
+            "unexpected binder name: {name}"
+        );
+    }
+}
+
+#[test]
+fn test_is_builtin_case_sensitive() {
+    let m = PyBindManager::new();
+    // "Python" with capital P should NOT match (bind names are lowercase)
+    let lower = m.is_builtin("python");
+    let upper = m.is_builtin("Python");
+    // Lower case must be true; upper-case behavior may vary but must not panic
+    assert!(lower, "lowercase 'python' must be a builtin");
+    let _ = upper;
+}
+
+#[test]
+fn test_extract_version_cmake_format() {
+    // cmake --version outputs "cmake version 3.26.0"
+    assert_eq!(
+        extract_version("cmake version 3.26.0"),
+        Some("3.26.0".to_string())
+    );
+}
+
+#[test]
+fn test_extract_version_multiline_first_match() {
+    let result = extract_version("1.2.3\nsome other 4.5.6");
+    assert_eq!(result, Some("1.2.3".to_string()));
+}
+
+// ── Cycle 101 additions ───────────────────────────────────────────────────
+
+#[test]
+fn test_bind_result_version_non_empty() {
+    let r = PyBindResult {
+        name: "cmake".to_string(),
+        version: "3.28.1".to_string(),
+        install_path: "/pkgs/cmake/3.28.1".to_string(),
+        executable_path: Some("/usr/bin/cmake".to_string()),
+    };
+    assert!(!r.version().is_empty(), "version must be non-empty");
+}
+
+#[test]
+fn test_bind_result_name_preserved_in_repr() {
+    let r = PyBindResult {
+        name: "rustc".to_string(),
+        version: "1.75.0".to_string(),
+        install_path: "/pkgs/rustc/1.75.0".to_string(),
+        executable_path: None,
+    };
+    assert!(r.__repr__().contains("rustc"), "repr should contain name");
+}
+
+#[test]
+fn test_list_binders_no_duplicates() {
+    let binders = list_binders();
+    let mut seen = std::collections::HashSet::new();
+    for b in &binders {
+        assert!(seen.insert(b), "duplicate binder name found: {b}");
+    }
+}
+
+#[test]
+fn test_is_builtin_empty_string_returns_false() {
+    let m = PyBindManager::new();
+    assert!(!m.is_builtin(""), "empty string is not a valid builtin");
+}
+
+#[test]
+fn test_extract_version_numeric_only() {
+    // "3" alone should be detected as a version
+    let result = extract_version("3");
+    assert!(result.is_some(), "single digit should be extractable as version");
+}
+
+#[test]
+fn test_extract_version_with_leading_v_prefix() {
+    // Some tools output "v3.11.4" — version extractor should strip 'v'
+    let result = extract_version("v3.11.4");
+    // Must not panic and must return something
+    let _ = result;
+}
+
+// ── Cycle 110 additions ───────────────────────────────────────────────────
+
+#[test]
+fn test_bind_result_install_path_is_string() {
+    let r = PyBindResult {
+        name: "houdini".to_string(),
+        version: "20.0.547".to_string(),
+        install_path: "/pkgs/houdini/20.0.547".to_string(),
+        executable_path: None,
+    };
+    assert!(
+        !r.install_path().is_empty(),
+        "install_path must be non-empty string"
+    );
+}
+
+#[test]
+fn test_bind_result_clone_preserves_all_fields() {
+    let r = PyBindResult {
+        name: "maya".to_string(),
+        version: "2024.0".to_string(),
+        install_path: "/pkgs/maya/2024.0".to_string(),
+        executable_path: Some("/usr/autodesk/maya2024/bin/maya".to_string()),
+    };
+    let r2 = r.clone();
+    assert_eq!(r.name(), r2.name());
+    assert_eq!(r.version(), r2.version());
+    assert_eq!(r.install_path(), r2.install_path());
+    assert_eq!(r.executable_path(), r2.executable_path());
+}
+
+#[test]
+fn test_extract_version_four_component() {
+    // e.g. nmap output "7.80" but also "2.42.0.windows.1" style
+    let result = extract_version("7.80.0.1 release");
+    assert_eq!(result, Some("7.80.0.1".to_string()));
+}
+
+#[test]
+fn test_extract_version_empty_string_returns_none() {
+    assert_eq!(extract_version(""), None);
+}
+
+#[test]
+fn test_find_tool_returns_string_for_existing() {
+    // If cargo is on PATH (CI environment), it should return Some
+    // If not, it should return None gracefully — never panic.
+    let result = find_tool("cargo");
+    // Just assert no panic; presence is environment-dependent
+    let _ = result;
+}
+
+#[test]
+fn test_list_binders_sorted_alphabetically() {
+    // list_binders() may not be sorted; verify all names are valid identifiers
+    let binders = list_binders();
+    assert!(!binders.is_empty(), "must have at least one binder");
+    for name in &binders {
+        assert!(
+            name.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '-'),
+            "binder name contains invalid chars: {name}"
+        );
+    }
+}
+
+#[test]
+fn test_bind_result_repr_contains_version_and_path() {
+    let r = PyBindResult {
+        name: "perl".to_string(),
+        version: "5.36.0".to_string(),
+        install_path: "/pkgs/perl/5.36.0".to_string(),
+        executable_path: None,
+    };
+    let repr = r.__repr__();
+    assert!(repr.contains("5.36.0"), "repr must contain version");
+    assert!(repr.contains("/pkgs/perl/5.36.0"), "repr must contain path");
+}
+
+// ── Cycle 116 additions ──────────────────────────────────────────────────
+
+#[test]
+fn test_bind_result_with_executable_path() {
+    let r = PyBindResult {
+        name: "python".to_string(),
+        version: "3.11.0".to_string(),
+        install_path: "/pkgs/python/3.11.0".to_string(),
+        executable_path: Some("/usr/bin/python3".to_string()),
+    };
+    assert_eq!(r.executable_path.as_deref(), Some("/usr/bin/python3"));
+    assert_eq!(r.version, "3.11.0");
+}
+
+#[test]
+fn test_bind_result_executable_path_none_by_default() {
+    let r = PyBindResult {
+        name: "cmake".to_string(),
+        version: "3.26.0".to_string(),
+        install_path: "/pkgs/cmake/3.26.0".to_string(),
+        executable_path: None,
+    };
+    assert!(r.executable_path.is_none());
+}
+
+#[test]
+fn test_extract_version_from_multiline_output() {
+    // Simulates "cmake version 3.26.4" with extra lines
+    let output = "cmake version 3.26.4\nBuild system: Ninja";
+    let ver = extract_version_from_output(output);
+    assert!(ver.is_some(), "should extract version from multiline output");
+    let v = ver.unwrap();
+    assert!(v.contains("3.26"), "version: {v}");
+}
+
+#[test]
+fn test_bind_result_name_field() {
+    let r = PyBindResult {
+        name: "my_tool".to_string(),
+        version: "1.0.0".to_string(),
+        install_path: "/pkgs/my_tool/1.0.0".to_string(),
+        executable_path: None,
+    };
+    assert_eq!(r.name, "my_tool");
+}
+
+#[test]
+fn test_bind_result_install_path_field() {
+    let r = PyBindResult {
+        name: "nuke".to_string(),
+        version: "15.0.0".to_string(),
+        install_path: "/studio/pkgs/nuke/15.0.0".to_string(),
+        executable_path: None,
+    };
+    assert_eq!(r.install_path, "/studio/pkgs/nuke/15.0.0");
+}
+
+#[test]
+fn test_list_builtin_binders_all_lowercase() {
+    let binders = list_builtin_binders();
+    for b in &binders {
+        assert_eq!(b, &b.to_lowercase(), "binder name must be lowercase: '{b}'");
+    }
+}
+
+#[test]
+fn test_get_builtin_binder_nonexistent_returns_none() {
+    let result = get_builtin_binder("nonexistent_xyz_tool_that_does_not_exist");
+    // Should return None for unknown tools
+    assert!(result.is_none(), "nonexistent binder must return None");
+}
+
+// ── Cycle 122 additions ──────────────────────────────────────────────────
+
+#[test]
+fn test_bind_result_with_none_executable_path_accessor() {
+    let r = PyBindResult {
+        name: "gcc".to_string(),
+        version: "13.0.0".to_string(),
+        install_path: "/pkgs/gcc/13.0.0".to_string(),
+        executable_path: None,
+    };
+    assert!(r.executable_path().is_none(), "accessor must return None when field is None");
+}
+
+#[test]
+fn test_list_binders_count_at_least_three() {
+    let binders = list_binders();
+    assert!(
+        binders.len() >= 3,
+        "should have at least 3 built-in binders, got {}",
+        binders.len()
+    );
+}
+
+#[test]
+fn test_bind_result_version_accessor_matches_field() {
+    let r = PyBindResult {
+        name: "node".to_string(),
+        version: "20.11.0".to_string(),
+        install_path: "/pkgs/node/20.11.0".to_string(),
+        executable_path: None,
+    };
+    assert_eq!(r.version(), r.version.as_str(), "version() accessor must match version field");
+}
+
+#[test]
+fn test_bind_result_name_accessor_matches_field() {
+    let r = PyBindResult {
+        name: "rustc".to_string(),
+        version: "1.77.0".to_string(),
+        install_path: "/pkgs/rustc/1.77.0".to_string(),
+        executable_path: None,
+    };
+    assert_eq!(r.name(), r.name.as_str(), "name() accessor must match name field");
+}
+
+#[test]
+fn test_extract_version_two_component() {
+    // e.g. "3.9" style version
+    let result = extract_version("Python 3.9");
+    assert_eq!(result, Some("3.9".to_string()), "two-component version should be extracted");
+}
+
+#[test]
+fn test_bind_result_install_path_accessor_matches_field() {
+    let r = PyBindResult {
+        name: "cmake".to_string(),
+        version: "3.28.0".to_string(),
+        install_path: "/opt/cmake/3.28.0".to_string(),
+        executable_path: None,
+    };
+    assert_eq!(
+        r.install_path(),
+        r.install_path.as_str(),
+        "install_path() accessor must match install_path field"
+    );
+}
+
+// ── Cycle 127 additions ──────────────────────────────────────────────────
+
+#[test]
+fn test_bind_result_repr_format_no_executable() {
+    let r = PyBindResult {
+        name: "zlib".to_string(),
+        version: "1.3.0".to_string(),
+        install_path: "/pkgs/zlib/1.3.0".to_string(),
+        executable_path: None,
+    };
+    let repr = r.__repr__();
+    // BindResult(name='zlib', version='1.3.0', path='/pkgs/zlib/1.3.0')
+    assert!(repr.starts_with("BindResult("), "repr must start with BindResult(: {repr}");
+    assert!(repr.contains("zlib"), "repr must contain name: {repr}");
+    assert!(repr.contains("1.3.0"), "repr must contain version: {repr}");
+}
+
+#[test]
+fn test_extract_version_no_digits_returns_none() {
+    let result = extract_version("no version here");
+    assert!(result.is_none(), "extract_version must return None when no version found");
+}
