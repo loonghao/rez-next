@@ -74,15 +74,16 @@
 - Follow-up: if repo scanning is ever hardened to always succeed on well-formed temp repos, convert the remaining `if let` branches to `unwrap()`-style assertions.
 
 ### 39. Large Rust files remain above 800 lines after recent iteration growth
-- **Status**: COMPLETE ✓ (cycle 156 audit)
+- **Status**: COMPLETE ✓ (cycle 159 final)
 - Cycle 140 extracted `cli_e2e_helpers.rs`, `cli_e2e_misc_tests.rs`, `rez_compat_diff_status_tests.rs`.
-- Cycle 156 audit: all previously listed candidates are now below 800 lines:
-  - `scanner.rs` 730L, `rez_compat_search_tests.rs` 476L, `dependency_resolver_tests.rs` 474L
-  - `filesystem_tests.rs` 384L, `rez_compat_misc_tests.rs` 368L, `diff_bindings.rs` 355L
-  - `context_bindings.rs` 351L, `cli_e2e_tests.rs` 349L, `executor_tests.rs` 322L
-  - `rez_compat_late_tests.rs` 270L, `rez_solver_advanced_tests.rs` 482L
+- Cycle 156 audit: most candidates dropped below 800 lines; `scanner.rs` held at 730L.
+- Cycle 159: `scanner.rs` grew to 834L and was split into `scanner/{mod,cache,path,scan}.rs`
+  - `mod.rs` (113L) — struct definition + `new()` + `Default`
+  - `cache.rs` (170L) — caching, eviction, background refresh, preload
+  - `path.rs` (114L) — `glob_to_regex`, `is_package_file`, `should_exclude_path`, `normalize_path`, `matches_pattern`
+  - `scan.rs` (250L) — `scan_repository`, `collect_directories_recursive`, `scan_directory_optimized`, `scan_package_file_optimized`, `detect_package_format_smart`, `read_file_memory_mapped`
 - No files in the workspace currently exceed 800 lines (excluding `target/`).
-- Follow-up: keep monitoring as new iteration cycles add tests; `scanner.rs` at 730L is the next split candidate if growth continues.
+- Follow-up: keep monitoring; `scanner_tests.rs` (496L), `filesystem_tests.rs`, and `scanner/scan.rs` are the next watch candidates.
 
 
 
