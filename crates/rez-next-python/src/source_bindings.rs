@@ -300,4 +300,4 @@ pub fn resolve_source_mode(
 
 #[cfg(test)]
 #[path = "source_bindings_tests.rs"]
-mod tests;
+mod source_bindings_tests;

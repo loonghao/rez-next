@@ -200,4 +200,4 @@ pub fn register_all_exceptions(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
 #[cfg(test)]
 #[path = "exceptions_bindings_tests.rs"]
-mod tests;
+mod exceptions_bindings_tests;

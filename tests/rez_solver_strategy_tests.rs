@@ -2,7 +2,7 @@
 //!
 //! Extracted from rez_solver_advanced_tests.rs (Cycle 142).
 
-use rez_next_package::{PackageRequirement, Requirement};
+use rez_next_package::Requirement;
 use rez_next_solver::{DependencyResolver, SolverConfig};
 use rez_next_version::Version;
 use std::sync::Arc;

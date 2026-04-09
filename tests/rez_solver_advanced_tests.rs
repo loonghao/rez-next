@@ -17,7 +17,6 @@
 
 use rez_next_package::{PackageRequirement, Requirement};
 use rez_next_solver::{DependencyGraph, DependencyResolver, SolverConfig};
-use rez_next_version::Version;
 use std::sync::Arc;
 
 #[path = "solver_helpers.rs"]

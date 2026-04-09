@@ -3,7 +3,7 @@
 //! Extracted from rez_compat_tests.rs (Cycle 142).
 
 use rez_core::version::{Version, VersionRange};
-use rez_next_package::{Package, PackageRequirement};
+use rez_next_package::Package;
 use rez_next_rex::{generate_shell_script, RexExecutor, ShellType};
 
 // ─── End-to-end workflow tests ──────────────────────────────────────────────

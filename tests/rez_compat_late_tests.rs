@@ -5,8 +5,6 @@
 //! Rex info/shell + VersionRange union + rez.config tests
 //! → extracted to rez_compat_rex_config_tests.rs
 
-use rez_next_rex::{generate_shell_script, RexEnvironment, ShellType};
-
 // ─── Context activation script E2E tests (296-300) ──────────────────────────
 
 /// rez context: activation script for bash sets correct env vars

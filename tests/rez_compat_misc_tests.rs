@@ -6,8 +6,6 @@
 //! Cycle 141: extracted context.to_dict/Solver weak/Version new/Package new/Rex edge/
 //!            Package commands into rez_compat_context_dict_tests.rs.
 
-use rez_core::version::{Version, VersionRange};
-
 // ─── Rex DSL completeness tests ───────────────────────────────────────────────
 
 /// Rex: unsetenv should remove a previously set variable
