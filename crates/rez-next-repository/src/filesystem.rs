@@ -492,7 +492,12 @@ struct PackageScanResult {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // FileSystemRepository unit tests (extracted to filesystem_tests.rs, Cycle 63)
+// variants/package.py/concurrent tests split to filesystem_variants_py_concurrent_tests.rs (Cycle 145)
 // ─────────────────────────────────────────────────────────────────────────────
 #[cfg(test)]
 #[path = "filesystem_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "filesystem_variants_py_concurrent_tests.rs"]
+mod variants_py_concurrent_tests;
