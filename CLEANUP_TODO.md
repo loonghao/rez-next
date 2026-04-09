@@ -276,10 +276,15 @@
 - All 5 divergent implementations unified; PowerShell detection (PSModulePath) now consistently checked first across all callers
 
 ### 38. Python compatibility tests still duplicate helpers and overfit placeholder APIs
-- **Status**: OPEN (cycle 33)
+- **Status**: OPEN (cycle 33, refreshed this cycle)
 - `write_package_py` is duplicated in `test_e2e_real_world.py` and `test_context_repository_api.py`; shell/bundle assertions are also duplicated across `test_compat_io_modules.py` and `test_e2e_real_world.py`
 - Several tests in `test_compat_advanced.py` only assert list-ness / empty results against nonexistent paths, and `test_compat_io_modules.py` currently locks in the `cli_functions.rs` known-command stub instead of an observable CLI contract
-- Follow-up: centralize shared Python test fixtures/helpers and replace placeholder-smoke cases with temp-repo behavior tests before broadening compatibility claims
+- This cycle removed several weak Rust-side Python binding tests (`package_bindings_tests.rs`, `suite_bindings_tests.rs`, `bind_bindings_tests.rs`) that only asserted “no panic”, environment-dependent PATH state, or duplicate-context ambiguity.
+- Follow-up:
+  - centralize shared Python test fixtures/helpers and replace placeholder-smoke cases with temp-repo behavior tests before broadening compatibility claims
+  - decide whether empty `PyPackageRequirement::new("")` should stay lenient or become a real validation error, then add a deterministic test
+  - decide whether `extract_version("v3.11.4")` should normalize to `3.11.4` or explicitly preserve the raw token, then add a deterministic test
+
 
 ### 39. `move_package()` may delete the wrong source version when `version=None`
 - **Status**: OPEN (cycle 34)
