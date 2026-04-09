@@ -1,0 +1,490 @@
+//! Tests for plugin bindings — split from plugins_bindings.rs to keep the main file ≤1000 lines.
+
+use super::*;
+
+mod test_plugin_struct {
+    use super::*;
+
+    #[test]
+    fn test_plugin_repr() {
+        let p = PyPlugin {
+            name: "bash".to_string(),
+            plugin_type: "shell".to_string(),
+            description: "Unix Bash shell".to_string(),
+            version: "1.0.0".to_string(),
+        };
+        let r = p.__repr__();
+        assert!(r.contains("bash"), "repr must contain plugin name");
+        assert!(r.contains("shell"), "repr must contain plugin type");
+    }
+
+    #[test]
+    fn test_plugin_str() {
+        let p = PyPlugin {
+            name: "cmake".to_string(),
+            plugin_type: "build_system".to_string(),
+            description: "CMake".to_string(),
+            version: "1.0.0".to_string(),
+        };
+        let s = p.__str__();
+        assert!(s.contains("cmake"));
+        assert!(s.contains("build_system"));
+    }
+
+    #[test]
+    fn test_plugin_type_repr() {
+        let pt = PyPluginType::new("shell");
+        assert!(pt.__repr__().contains("shell"));
+    }
+
+    #[test]
+    fn test_plugin_type_str() {
+        let pt = PyPluginType::new("release_hook");
+        assert_eq!(pt.__str__(), "release_hook");
+    }
+}
+
+mod test_plugin_manager {
+    use super::*;
+
+    #[test]
+    fn test_plugin_manager_creates_with_builtins() {
+        let mgr = PyRezPluginManager::new();
+        assert!(mgr.count() > 0);
+    }
+
+    #[test]
+    fn test_get_shell_plugins() {
+        let mgr = PyRezPluginManager::new();
+        let shells = mgr.get_plugins("shell");
+        assert!(!shells.is_empty());
+        let names: Vec<_> = shells.iter().map(|s| s.name.as_str()).collect();
+        assert!(names.contains(&"bash"));
+        assert!(names.contains(&"powershell"));
+        assert!(names.contains(&"fish"));
+    }
+
+    #[test]
+    fn test_get_build_system_plugins() {
+        let mgr = PyRezPluginManager::new();
+        let bsys = mgr.get_plugins("build_system");
+        assert!(!bsys.is_empty());
+        let names: Vec<_> = bsys.iter().map(|b| b.name.as_str()).collect();
+        assert!(names.contains(&"cmake"));
+        assert!(names.contains(&"python_rezbuild"));
+    }
+
+    #[test]
+    fn test_has_plugin() {
+        let mgr = PyRezPluginManager::new();
+        assert!(mgr.has_plugin("shell", "bash"));
+        assert!(mgr.has_plugin("shell", "powershell"));
+        assert!(!mgr.has_plugin("shell", "nonexistent_shell"));
+    }
+
+    #[test]
+    fn test_plugin_types_sorted() {
+        let mgr = PyRezPluginManager::new();
+        let types = mgr.plugin_types();
+        // plugin_types() sorts alphabetically
+        let mut sorted = types.clone();
+        sorted.sort();
+        assert_eq!(types, sorted, "plugin_types() should return sorted list");
+    }
+
+    #[test]
+    fn test_plugin_types_contains_all_categories() {
+        let mgr = PyRezPluginManager::new();
+        let types = mgr.plugin_types();
+        assert!(types.contains(&"shell".to_string()));
+        assert!(types.contains(&"build_system".to_string()));
+        assert!(types.contains(&"release_hook".to_string()));
+        assert!(types.contains(&"package_repository".to_string()));
+    }
+
+    #[test]
+    fn test_get_plugin_by_name_and_type() {
+        let mgr = PyRezPluginManager::new();
+        let found = mgr.get_plugin("shell", "bash");
+        assert!(found.is_some(), "bash shell plugin must exist");
+        let p = found.unwrap();
+        assert_eq!(p.name, "bash");
+        assert_eq!(p.plugin_type, "shell");
+    }
+
+    #[test]
+    fn test_get_plugin_missing_returns_none() {
+        let mgr = PyRezPluginManager::new();
+        assert!(mgr.get_plugin("shell", "no_such_shell_xyz").is_none());
+    }
+
+    #[test]
+    fn test_register_custom_plugin() {
+        let mut mgr = PyRezPluginManager::new();
+        let before = mgr.count();
+        let plugin = PyPlugin {
+            name: "my_custom_shell".to_string(),
+            plugin_type: "shell".to_string(),
+            description: "Custom test shell".to_string(),
+            version: "0.1.0".to_string(),
+        };
+        mgr.register_plugin(plugin);
+        assert_eq!(mgr.count(), before + 1);
+        assert!(mgr.has_plugin("shell", "my_custom_shell"));
+    }
+
+    #[test]
+    fn test_manager_repr_includes_count() {
+        let mgr = PyRezPluginManager::new();
+        let r = mgr.__repr__();
+        let count_str = mgr.count().to_string();
+        assert!(
+            r.contains(&count_str),
+            "repr '{}' should include count '{}'",
+            r,
+            count_str
+        );
+    }
+}
+
+mod test_free_functions {
+    use super::*;
+
+    #[test]
+    fn test_get_shell_types_includes_standard_shells() {
+        let mgr = PyRezPluginManager::new();
+        let shell_types = mgr.get_shell_types();
+        assert!(shell_types.contains(&"bash".to_string()));
+        assert!(shell_types.contains(&"cmd".to_string()));
+        assert!(shell_types.contains(&"powershell".to_string()));
+    }
+
+    #[test]
+    fn test_get_build_system_types_includes_standard() {
+        let mgr = PyRezPluginManager::new();
+        let bs_types = mgr.get_build_system_types();
+        assert!(bs_types.contains(&"cmake".to_string()));
+        assert!(bs_types.contains(&"cargo".to_string()));
+    }
+
+    #[test]
+    fn test_is_shell_supported() {
+        assert!(is_shell_supported("bash"));
+        assert!(is_shell_supported("PowerShell")); // case-insensitive
+        assert!(!is_shell_supported("nonexistent_xyz"));
+    }
+
+    #[test]
+    fn test_get_shell_types_free_fn_not_empty() {
+        let types = get_shell_types();
+        assert!(!types.is_empty(), "get_shell_types() must return non-empty list");
+        assert!(types.contains(&"bash".to_string()));
+    }
+
+    #[test]
+    fn test_get_build_system_types_free_fn_not_empty() {
+        let types = get_build_system_types();
+        assert!(!types.is_empty());
+        assert!(types.contains(&"cmake".to_string()));
+    }
+
+    // ── New tests (Cycle 96) ─────────────────────────────────────────────
+
+    #[test]
+    fn test_is_shell_supported_zsh() {
+        assert!(is_shell_supported("zsh"));
+    }
+
+    #[test]
+    fn test_is_shell_supported_fish() {
+        assert!(is_shell_supported("fish"));
+    }
+
+    #[test]
+    fn test_is_shell_supported_cmd_windows() {
+        assert!(is_shell_supported("cmd"), "cmd must be a supported shell");
+    }
+
+    #[test]
+    fn test_get_shell_types_count_at_least_five() {
+        let types = get_shell_types();
+        assert!(
+            types.len() >= 5,
+            "expected at least 5 shell types, got {}",
+            types.len()
+        );
+    }
+
+    #[test]
+    fn test_get_build_system_types_contains_make() {
+        let types = get_build_system_types();
+        assert!(types.contains(&"make".to_string()));
+    }
+
+    #[test]
+    fn test_get_build_system_types_contains_python_rezbuild() {
+        let types = get_build_system_types();
+        assert!(types.contains(&"python_rezbuild".to_string()));
+    }
+
+    // ── Cycle 103 additions ──────────────────────────────────────────────
+
+    #[test]
+    fn test_get_shell_types_are_lowercase() {
+        let shells = get_shell_types();
+        for s in &shells {
+            assert_eq!(s, &s.to_lowercase(), "shell type must be lowercase: {s}");
+        }
+    }
+
+    #[test]
+    fn test_get_build_system_types_are_lowercase() {
+        let types = get_build_system_types();
+        for t in &types {
+            assert_eq!(t, &t.to_lowercase(), "build system type must be lowercase: {t}");
+        }
+    }
+
+    #[test]
+    fn test_plugin_description_field_accessible() {
+        let p = PyPlugin {
+            name: "bash".to_string(),
+            plugin_type: "shell".to_string(),
+            description: "Bash shell integration".to_string(),
+            version: "2.0.0".to_string(),
+        };
+        assert!(!p.description.is_empty(), "description must not be empty");
+        assert!(p.description.contains("Bash"));
+    }
+
+    #[test]
+    fn test_plugin_version_field_accessible() {
+        let p = PyPlugin {
+            name: "cmake".to_string(),
+            plugin_type: "build_system".to_string(),
+            description: "CMake build".to_string(),
+            version: "3.0.0".to_string(),
+        };
+        assert_eq!(p.version, "3.0.0");
+    }
+
+    #[test]
+    fn test_plugin_manager_get_shell_types_non_empty() {
+        let mgr = PyRezPluginManager::new();
+        let shell_types = mgr.get_shell_types();
+        assert!(
+            !shell_types.is_empty(),
+            "get_shell_types must return at least one shell type"
+        );
+        // Every shell type must be a non-empty lowercase string
+        for s in &shell_types {
+            assert!(!s.is_empty(), "shell type must not be empty");
+            assert_eq!(s, &s.to_lowercase(), "shell type must be lowercase: {s}");
+        }
+    }
+
+    #[test]
+    fn test_plugin_manager_get_build_system_types_non_empty() {
+        let mgr = PyRezPluginManager::new();
+        let build_types = mgr.get_build_system_types();
+        assert!(
+            !build_types.is_empty(),
+            "get_build_system_types must return at least one type"
+        );
+        for t in &build_types {
+            assert!(!t.is_empty(), "build system type must not be empty");
+            assert_eq!(t, &t.to_lowercase(), "build system type must be lowercase: {t}");
+        }
+    }
+
+    #[test]
+    fn test_get_shell_types_no_duplicates() {
+        let shells = get_shell_types();
+        let mut deduped = shells.clone();
+        deduped.dedup();
+        assert_eq!(
+            shells, deduped,
+            "get_shell_types must not return duplicates"
+        );
+    }
+}
+
+// ── Cycle 115 additions ─────────────────────────────────────────────────
+
+mod test_cycle_115 {
+    use super::*;
+
+    #[test]
+    fn test_plugin_manager_has_filesystem_repo_plugin() {
+        let mgr = PyRezPluginManager::new();
+        assert!(
+            mgr.has_plugin("package_repository", "filesystem"),
+            "filesystem repo plugin must be registered"
+        );
+    }
+
+    #[test]
+    fn test_plugin_manager_release_hooks_exist() {
+        let mgr = PyRezPluginManager::new();
+        let hooks = mgr.get_plugins("release_hook");
+        assert!(!hooks.is_empty(), "at least one release_hook plugin must exist");
+        let names: Vec<_> = hooks.iter().map(|h| h.name.as_str()).collect();
+        assert!(names.contains(&"emailer") || names.contains(&"command"),
+            "known release hooks must be registered, got: {:?}", names);
+    }
+
+    #[test]
+    fn test_plugin_manager_get_plugins_unknown_type_is_empty() {
+        let mgr = PyRezPluginManager::new();
+        let result = mgr.get_plugins("nonexistent_plugin_type_xyz");
+        assert!(result.is_empty(), "unknown plugin type must return empty list");
+    }
+
+    #[test]
+    fn test_plugin_type_repr_format() {
+        let pt = PyPluginType::new("build_system");
+        let repr = pt.__repr__();
+        assert!(repr.starts_with("PluginType("), "repr: {repr}");
+        assert!(repr.ends_with(')'), "repr: {repr}");
+        assert!(repr.contains("build_system"), "repr: {repr}");
+    }
+
+    #[test]
+    fn test_plugin_version_is_semver_like() {
+        let mgr = PyRezPluginManager::new();
+        let shells = mgr.get_plugins("shell");
+        for plugin in &shells {
+            assert!(
+                plugin.version.contains('.'),
+                "plugin version should be semver-like, got: '{}'", plugin.version
+            );
+        }
+    }
+
+    #[test]
+    fn test_get_plugin_case_sensitive_type() {
+        let mgr = PyRezPluginManager::new();
+        // plugin type lookup is exact-case (lowercase)
+        let found = mgr.get_plugin("Shell", "bash");
+        // type "Shell" (capital S) does not exist → should return None
+        assert!(found.is_none(), "uppercase type lookup should not match");
+    }
+
+    #[test]
+    fn test_register_plugin_increases_count_by_one() {
+        let mut mgr = PyRezPluginManager::new();
+        let before = mgr.count();
+        mgr.register_plugin(PyPlugin {
+            name: "unique_test_plugin".to_string(),
+            plugin_type: "shell".to_string(),
+            description: "Test".to_string(),
+            version: "0.0.1".to_string(),
+        });
+        assert_eq!(mgr.count(), before + 1);
+    }
+}
+
+// ── Cycle 121 additions ─────────────────────────────────────────────────
+
+mod test_cycle_121 {
+    use super::*;
+
+    #[test]
+    fn test_plugin_manager_count_at_least_fifteen() {
+        let mgr = PyRezPluginManager::new();
+        assert!(
+            mgr.count() >= 15,
+            "expected at least 15 built-in plugins, got {}",
+            mgr.count()
+        );
+    }
+
+    #[test]
+    fn test_plugin_manager_all_shell_plugins_have_descriptions() {
+        let mgr = PyRezPluginManager::new();
+        for p in mgr.get_plugins("shell") {
+            assert!(!p.description.is_empty(), "shell plugin '{}' has empty description", p.name);
+        }
+    }
+
+    #[test]
+    fn test_plugin_manager_all_build_system_plugins_have_versions() {
+        let mgr = PyRezPluginManager::new();
+        for p in mgr.get_plugins("build_system") {
+            assert!(!p.version.is_empty(), "build_system plugin '{}' has empty version", p.name);
+            assert!(p.version.contains('.'), "version must be semver-like: '{}'", p.version);
+        }
+    }
+
+    #[test]
+    fn test_is_shell_supported_pwsh() {
+        assert!(is_shell_supported("pwsh"), "pwsh (PowerShell Core) must be supported");
+    }
+
+    #[test]
+    fn test_plugin_new_constructor_sets_fields() {
+        let p = PyPlugin::new("mynewshell", "shell", "My new shell", "2.5.0");
+        assert_eq!(p.name, "mynewshell");
+        assert_eq!(p.plugin_type, "shell");
+        assert_eq!(p.description, "My new shell");
+        assert_eq!(p.version, "2.5.0");
+    }
+
+    #[test]
+    fn test_plugin_type_new_constructor() {
+        let pt = PyPluginType::new("custom_type");
+        assert_eq!(pt.name, "custom_type");
+        assert_eq!(pt.__str__(), "custom_type");
+        assert!(pt.__repr__().contains("custom_type"));
+    }
+}
+
+mod test_plugins_cy126 {
+    use super::*;
+
+    /// plugin_manager contains at least one shell plugin
+    #[test]
+    fn test_plugin_manager_has_shell_plugins() {
+        let mgr = PyRezPluginManager::new();
+        let shells = mgr.get_plugins("shell");
+        assert!(!shells.is_empty(), "must have at least one shell plugin");
+    }
+
+    /// get_plugins for unknown type returns empty vec (not panic)
+    #[test]
+    fn test_get_plugins_unknown_type_is_empty() {
+        let mgr = PyRezPluginManager::new();
+        let result = mgr.get_plugins("nonexistent_type_cy126");
+        assert!(
+            result.is_empty(),
+            "unknown plugin type must return empty list"
+        );
+    }
+
+    /// PyPlugin repr contains plugin name
+    #[test]
+    fn test_plugin_repr_contains_name() {
+        let p = PyPlugin::new("test_shell", "shell", "Test shell", "1.0.0");
+        let repr = p.__repr__();
+        assert!(
+            repr.contains("test_shell"),
+            "repr must contain plugin name: {repr}"
+        );
+    }
+
+    /// is_shell_supported returns false for clearly unsupported shell
+    #[test]
+    fn test_is_shell_supported_fake_shell_false() {
+        assert!(
+            !is_shell_supported("notashell_cy126"),
+            "fake shell must not be reported as supported"
+        );
+    }
+
+    /// PyPlugin type field is stored correctly
+    #[test]
+    fn test_plugin_type_field_stored() {
+        let p = PyPlugin::new("cmake", "build_system", "CMake build system", "3.26.0");
+        assert_eq!(p.plugin_type, "build_system");
+    }
+}
