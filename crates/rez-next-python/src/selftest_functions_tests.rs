@@ -3,7 +3,8 @@
 use std::collections::HashSet;
 
 use crate::selftest_functions::{
-    collect_selftest_results, selftest, summarize_selftest_results, SelftestCheckResult,
+    collect_selftest_results, selftest, selftest_verbose, summarize_selftest_results,
+    SelftestCheckResult,
 };
 
 #[test]
@@ -455,15 +456,8 @@ fn test_check_config_version_is_semver_like() {
 }
 
 // ── Cycle 136 additions ───────────────────────────────────────────────────
-
-#[test]
-fn test_collect_selftest_results_count_is_positive() {
-    let results = collect_selftest_results();
-    assert!(
-        !results.is_empty(),
-        "collect_selftest_results must return at least one entry"
-    );
-}
+// Note: count_is_positive / summarize_empty / passed+failed=total
+// are already covered by earlier tests; only distinct additions kept.
 
 #[test]
 fn test_selftest_check_result_passed_field() {
@@ -477,20 +471,25 @@ fn test_selftest_check_result_failed_field() {
     assert!(!r.passed, "passed field must be false when constructed with false");
 }
 
+// ── Cycle 160 additions ───────────────────────────────────────────────────────
+
 #[test]
-fn test_summarize_empty_results_all_zero() {
-    let (passed, failed, total) = summarize_selftest_results(&[]);
-    assert_eq!(passed, 0, "no results → passed must be 0");
-    assert_eq!(failed, 0, "no results → failed must be 0");
-    assert_eq!(total, 0, "no results → total must be 0");
+fn test_selftest_verbose_count_matches_collect() {
+    let verbose = selftest_verbose().expect("selftest_verbose must not error");
+    let results = collect_selftest_results();
+    assert_eq!(
+        verbose.len(),
+        results.len(),
+        "selftest_verbose() must return one entry per check"
+    );
 }
 
 #[test]
-fn test_selftest_passed_plus_failed_equals_total() {
-    let (passed, failed, total) = selftest().expect("selftest must succeed");
-    assert_eq!(
-        passed + failed,
-        total,
-        "passed ({passed}) + failed ({failed}) must equal total ({total})"
-    );
+fn test_selftest_verbose_names_and_flags_match_collect() {
+    let verbose = selftest_verbose().expect("selftest_verbose must not error");
+    let results = collect_selftest_results();
+    for ((name, passed), result) in verbose.iter().zip(results.iter()) {
+        assert_eq!(name, result.name, "verbose name must match collect name");
+        assert_eq!(*passed, result.passed, "verbose flag must match collect flag for '{name}'");
+    }
 }

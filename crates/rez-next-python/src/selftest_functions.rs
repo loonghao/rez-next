@@ -277,6 +277,21 @@ pub fn selftest() -> PyResult<(usize, usize, usize)> {
     Ok(summarize_selftest_results(&collect_selftest_results()))
 }
 
+/// Run basic self-tests and return each check result as (name, passed) pairs.
+///
+/// Unlike [`selftest()`] which only returns a summary tuple, this function
+/// returns the full breakdown so callers can identify exactly which checks
+/// failed without relying on stderr output.
+///
+/// Returns a list of `(name: str, passed: bool)` tuples, one per check.
+#[pyfunction]
+pub fn selftest_verbose() -> PyResult<Vec<(String, bool)>> {
+    Ok(collect_selftest_results()
+        .into_iter()
+        .map(|r| (r.name.to_string(), r.passed))
+        .collect())
+}
+
 #[cfg(test)]
 #[path = "selftest_functions_tests.rs"]
 mod tests;

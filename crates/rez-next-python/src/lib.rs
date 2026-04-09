@@ -71,7 +71,7 @@ use package_functions::{
     move_package, remove_package, resolve_packages, walk_packages,
 };
 use rex_functions::rex_interpret;
-use selftest_functions::selftest;
+use selftest_functions::{selftest, selftest_verbose};
 
 /// Register a submodule and insert it into `sys.modules` so that dotted-path imports work.
 ///
@@ -138,6 +138,7 @@ fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(remove_package, m)?)?;
     m.add_function(wrap_pyfunction!(walk_packages, m)?)?;
     m.add_function(wrap_pyfunction!(selftest, m)?)?;
+    m.add_function(wrap_pyfunction!(selftest_verbose, m)?)?;
     m.add_function(wrap_pyfunction!(build_package, m)?)?;
     m.add_function(wrap_pyfunction!(bundle_context, m)?)?;
     m.add_function(wrap_pyfunction!(pip_bindings::pip_install, m)?)?;
