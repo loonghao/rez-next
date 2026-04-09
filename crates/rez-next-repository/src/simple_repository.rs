@@ -266,3 +266,7 @@ impl Default for RepositoryManager {
 #[cfg(test)]
 #[path = "simple_repository_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "simple_repository_advanced_tests.rs"]
+mod advanced_tests;

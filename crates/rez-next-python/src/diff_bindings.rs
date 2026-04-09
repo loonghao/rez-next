@@ -384,3 +384,7 @@ pub fn format_diff(diff: &PyContextDiff) -> String {
 #[cfg(test)]
 #[path = "diff_bindings_tests.rs"]
 mod diff_bindings_tests;
+
+#[cfg(test)]
+#[path = "diff_bindings_advanced_tests.rs"]
+mod diff_bindings_advanced_tests;

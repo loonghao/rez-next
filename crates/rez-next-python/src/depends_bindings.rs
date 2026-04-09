@@ -350,3 +350,7 @@ pub fn print_depends(
 #[cfg(test)]
 #[path = "depends_bindings_tests.rs"]
 mod depends_bindings_tests;
+
+#[cfg(test)]
+#[path = "depends_bindings_advanced_tests.rs"]
+mod depends_bindings_advanced_tests;
