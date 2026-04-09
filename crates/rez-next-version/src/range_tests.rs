@@ -399,4 +399,100 @@ mod tests {
             assert!(!inter.contains(&v("2.0")), "2.0 not in r1 (strict <)");
         }
     }
+
+    // ── intersects() method — boundary tests (Cycle 162) ────────────────────
+    // These lock the Eq-vs-Ge/Lt fix from Cycle 161: before the fix,
+    // `==3.9` intersects `>=3.9` returned false because the Ge bound was
+    // compared with strict-less-than instead of less-than-or-equal.
+
+    #[test]
+    fn test_intersects_overlapping_ranges() {
+        let r1 = VersionRange::parse(">=1.0,<3.0").unwrap();
+        let r2 = VersionRange::parse(">=2.0,<4.0").unwrap();
+        assert!(r1.intersects(&r2), ">=1,<3 must intersect >=2,<4");
+        assert!(r2.intersects(&r1), "intersects must be symmetric");
+    }
+
+    #[test]
+    fn test_intersects_disjoint_ranges() {
+        let r1 = VersionRange::parse(">=1.0,<2.0").unwrap();
+        let r2 = VersionRange::parse(">=3.0,<4.0").unwrap();
+        assert!(!r1.intersects(&r2), ">=1,<2 must not intersect >=3,<4");
+        assert!(!r2.intersects(&r1), "intersects must be symmetric");
+    }
+
+    #[test]
+    fn test_intersects_eq_equals_ge_boundary() {
+        // Regression for Cycle 161: ==3.9 ∩ >=3.9 was incorrectly returning false
+        let eq = VersionRange::parse("==3.9").unwrap();
+        let ge = VersionRange::parse(">=3.9").unwrap();
+        assert!(
+            eq.intersects(&ge),
+            "==3.9 must intersect >=3.9 (boundary inclusive)"
+        );
+        assert!(ge.intersects(&eq), "intersects symmetric for eq/ge boundary");
+    }
+
+    #[test]
+    fn test_intersects_eq_below_ge_boundary() {
+        // ==3.8 ∩ >=3.9 must be empty: 3.8 < 3.9 violates the lower bound
+        let eq = VersionRange::parse("==3.8").unwrap();
+        let ge = VersionRange::parse(">=3.9").unwrap();
+        assert!(
+            !eq.intersects(&ge),
+            "==3.8 must not intersect >=3.9 (3.8 < lower bound)"
+        );
+    }
+
+    #[test]
+    fn test_intersects_eq_equals_lt_boundary() {
+        // ==3.9 ∩ <3.9 must be empty: strict upper excludes 3.9 itself
+        let eq = VersionRange::parse("==3.9").unwrap();
+        let lt = VersionRange::parse("<3.9").unwrap();
+        assert!(
+            !eq.intersects(&lt),
+            "==3.9 must not intersect <3.9 (strict upper bound)"
+        );
+    }
+
+    #[test]
+    fn test_intersects_eq_below_lt_boundary() {
+        // ==3.8 ∩ <3.9 must intersect: 3.8 < 3.9 satisfies the upper bound
+        let eq = VersionRange::parse("==3.8").unwrap();
+        let lt = VersionRange::parse("<3.9").unwrap();
+        assert!(
+            eq.intersects(&lt),
+            "==3.8 must intersect <3.9 (3.8 is within upper bound)"
+        );
+    }
+
+    #[test]
+    fn test_intersects_with_any_range() {
+        let any = VersionRange::parse("").unwrap();
+        let specific = VersionRange::parse(">=2.0,<3.0").unwrap();
+        assert!(any.intersects(&specific), "any must intersect every specific range");
+        assert!(specific.intersects(&any), "intersects symmetric with any");
+    }
+
+    #[test]
+    fn test_intersects_or_range_partial_overlap() {
+        // (<1.0|>=3.0) ∩ >=2.0 should intersect via the >=3.0 arm
+        let or_range = VersionRange::parse("<1.0|>=3.0").unwrap();
+        let ge2 = VersionRange::parse(">=2.0").unwrap();
+        assert!(
+            or_range.intersects(&ge2),
+            "(<1|>=3) must intersect >=2 via >=3 arm"
+        );
+    }
+
+    #[test]
+    fn test_intersects_or_range_no_overlap() {
+        // (<1.0|>=5.0) ∩ >=2.0,<4.0 — the >=5 arm doesn't reach and <1 arm is below
+        let or_range = VersionRange::parse("<1.0|>=5.0").unwrap();
+        let mid = VersionRange::parse(">=2.0,<4.0").unwrap();
+        assert!(
+            !or_range.intersects(&mid),
+            "(<1|>=5) must not intersect >=2,<4"
+        );
+    }
 }
