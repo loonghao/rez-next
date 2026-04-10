@@ -20,14 +20,8 @@ rez = pytest.importorskip(
     reason="rez_next not built — run: maturin develop --features extension-module",
 )
 
-XFAIL_LATEST_PACKAGE_LEXICOGRAPHIC = (
-    "Current latest-package helpers sort version strings lexicographically, "
-    "so 3.9.0 still beats 3.11.0 on temp repos"
-)
-XFAIL_EMPTY_NAME_SCAN = (
-    "Current empty-name scans do not enumerate temp-repo package families, "
-    "so package-family and walk_packages helpers still return []"
-)
+
+
 
 
 # ── ResolvedContext attributes ────────────────────────────────────────────────
@@ -310,7 +304,6 @@ class TestRepositoryManagerWithRealRepo:
         assert "3.9.0" in versions
         assert "3.11.0" in versions
 
-    @pytest.mark.xfail(reason=XFAIL_LATEST_PACKAGE_LEXICOGRAPHIC)
     def test_get_latest_package(self, tmp_path):
         write_package_py(tmp_path / "python" / "3.9.0", "python", "3.9.0")
 
@@ -321,7 +314,6 @@ class TestRepositoryManagerWithRealRepo:
         assert latest is not None
         assert "3.11" in latest.version_str
 
-    @pytest.mark.xfail(reason=XFAIL_EMPTY_NAME_SCAN)
     def test_get_package_family_names_includes_all(self, tmp_path):
         write_package_py(tmp_path / "python" / "3.11.0", "python", "3.11.0")
 
@@ -521,7 +513,6 @@ class TestContextRepositoryIntegration:
         assert isinstance(pkgs, list)
         assert len(pkgs) == 2
 
-    @pytest.mark.xfail(reason=XFAIL_LATEST_PACKAGE_LEXICOGRAPHIC)
     def test_top_level_get_latest_package_fn(self, tmp_path):
 
         write_package_py(tmp_path / "python" / "3.9.0", "python", "3.9.0")
@@ -538,7 +529,6 @@ class TestContextRepositoryIntegration:
         assert pkg is not None
         assert pkg.name == "python"
 
-    @pytest.mark.xfail(reason=XFAIL_EMPTY_NAME_SCAN)
     def test_top_level_walk_packages_fn(self, tmp_path):
 
         write_package_py(tmp_path / "python" / "3.11.0", "python", "3.11.0")
@@ -548,7 +538,6 @@ class TestContextRepositoryIntegration:
         assert isinstance(pkgs, list)
         assert len(pkgs) == 2
 
-    @pytest.mark.xfail(reason=XFAIL_EMPTY_NAME_SCAN)
     def test_top_level_get_package_family_names_fn(self, tmp_path):
         write_package_py(tmp_path / "python" / "3.11.0", "python", "3.11.0")
 
