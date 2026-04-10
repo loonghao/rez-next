@@ -261,12 +261,13 @@ impl PyResolvedContext {
     }
 
     /// Print the context summary (rez compat: context.print_info())
-    fn print_info(&self) {
+    fn print_info(&self) -> String {
         let summary = self.inner.get_summary();
-        println!("resolved packages ({}):", summary.package_count);
+        let mut out = format!("resolved packages ({}):\n", summary.package_count);
         for (name, version) in &summary.package_versions {
-            println!("  {}-{}", name, version);
+            out.push_str(&format!("  {}-{}\n", name, version));
         }
+        out
     }
 
     /// Generate a shell activation script for the resolved context.

@@ -109,27 +109,31 @@ impl PyRezStatus {
     }
 
     /// Pretty-print a summary (like `rez status` terminal output).
-    fn print_status(&self) {
+    fn print_status(&self) -> String {
         if self.is_active {
-            println!("Current rez context:");
+            let mut out = String::from("Current rez context:\n");
             if let Some(ref f) = self.context_file {
-                println!("  context file : {}", f);
+                out.push_str(&format!("  context file : {}\n", f));
             }
             if let Some(ref cwd) = self.context_cwd {
-                println!("  created in   : {}", cwd);
+                out.push_str(&format!("  created in   : {}\n", cwd));
             }
             if let Some(ref shell) = self.current_shell {
-                println!("  shell        : {}", shell);
+                out.push_str(&format!("  shell        : {}\n", shell));
             }
             if let Some(ref ver) = self.rez_version {
-                println!("  rez version  : {}", ver);
+                out.push_str(&format!("  rez version  : {}\n", ver));
             }
-            println!("  packages ({}):", self.resolved_packages.len());
+            out.push_str(&format!(
+                "  packages ({}):\n",
+                self.resolved_packages.len()
+            ));
             for pkg in &self.resolved_packages {
-                println!("    {}", pkg);
+                out.push_str(&format!("    {}\n", pkg));
             }
+            out
         } else {
-            println!("Not in a rez context.");
+            String::from("Not in a rez context.\n")
         }
     }
 }

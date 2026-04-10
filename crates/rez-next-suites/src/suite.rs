@@ -314,29 +314,43 @@ impl Suite {
         self.contexts.is_empty()
     }
 
-    /// Print a human-readable representation of the suite
-    pub fn print_info(&self) {
-        println!("Suite:");
+    /// Return a human-readable representation of the suite as a String.
+    ///
+    /// Callers can print to stdout, log, or write to a file as needed.
+    pub fn format_info(&self) -> String {
+        let mut out = String::new();
+        out.push_str("Suite:\n");
         if let Some(ref desc) = self.description {
-            println!("  Description: {}", desc);
+            out.push_str(&format!("  Description: {}\n", desc));
         }
         if let Some(ref path) = self.path {
-            println!("  Path: {}", path.display());
+            out.push_str(&format!("  Path: {}\n", path.display()));
         }
-        println!("  Conflict mode: {:?}", self.conflict_mode);
-        println!("  Contexts ({}):", self.contexts.len());
+        out.push_str(&format!("  Conflict mode: {:?}\n", self.conflict_mode));
+        out.push_str(&format!("  Contexts ({}):\n", self.contexts.len()));
         for ctx in &self.contexts {
             let status = if ctx.disabled { " [disabled]" } else { "" };
-            println!("    {} - {}{}", ctx.name, ctx.requests.join(", "), status);
+            out.push_str(&format!(
+                "    {} - {}{}\n",
+                ctx.name,
+                ctx.requests.join(", "),
+                status
+            ));
             if !ctx.tool_aliases.is_empty() {
                 for (alias, original) in &ctx.tool_aliases {
-                    println!("      alias: {} -> {}", alias, original);
+                    out.push_str(&format!("      alias: {} -> {}\n", alias, original));
                 }
             }
             if !ctx.hidden_tools.is_empty() {
-                println!("      hidden: {}", ctx.hidden_tools.join(", "));
+                out.push_str(&format!("      hidden: {}\n", ctx.hidden_tools.join(", ")));
             }
         }
+        out
+    }
+
+    /// Print a human-readable representation of the suite to stdout
+    pub fn print_info(&self) {
+        print!("{}", self.format_info());
     }
 }
 
