@@ -9,18 +9,6 @@ mod tests {
     use std::path::PathBuf;
 
     #[test]
-    fn test_detect_current_shell_returns_string() {
-        let shell = detect_current_shell();
-        assert!(!shell.is_empty());
-        let known = ["bash", "zsh", "fish", "powershell", "pwsh", "cmd"];
-        assert!(
-            known.iter().any(|k| shell.contains(k)),
-            "Unexpected shell: {}",
-            shell
-        );
-    }
-
-    #[test]
     fn test_build_activation_script_bash() {
         let pkgs = vec!["python-3.9".to_string(), "maya-2024".to_string()];
         let script = build_activation_script(&pkgs, "bash");

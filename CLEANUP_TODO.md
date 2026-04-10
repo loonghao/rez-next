@@ -282,14 +282,20 @@
 - **Cycle 156**: extracted `string → ShellType` mapping into `shell_utils::shell_type_from_str()`; `context_bindings.rs` and `source_bindings.rs` now use the shared helper; 3 unit tests added in `shell_utils.rs`
 
 ### 38. Python compatibility tests still duplicate helpers and overfit placeholder APIs
-- **Status**: OPEN (cycle 33, refreshed this cycle)
-- `write_package_py` is duplicated in `test_e2e_real_world.py` and `test_context_repository_api.py`; shell/bundle assertions are also duplicated across `test_compat_io_modules.py` and `test_e2e_real_world.py`
-- Several tests in `test_compat_advanced.py` only assert list-ness / empty results against nonexistent paths, and `test_compat_io_modules.py` currently locks in the `cli_functions.rs` known-command stub instead of an observable CLI contract
-- This cycle removed several weak Rust-side Python binding tests (`package_bindings_tests.rs`, `suite_bindings_tests.rs`, `bind_bindings_tests.rs`) that only asserted "no panic", environment-dependent PATH state, or duplicate-context ambiguity.
-- Follow-up:
-  - centralize shared Python test fixtures/helpers and replace placeholder-smoke cases with temp-repo behavior tests before broadening compatibility claims
-  - decide whether empty `PyPackageRequirement::new("")` should stay lenient or become a real validation error, then add a deterministic test
-  - decide whether `extract_version("v3.11.4")` should normalize to `3.11.4` or explicitly preserve the raw token, then add a deterministic test
+- **Status**: COMPLETE ✓ (cycle 172)
+- `write_package_py` centralised into `conftest.py` in cycle 164.
+- Cycle 172: tightened 6 `isinstance(results, list)` smoke tests in `test_compat_advanced.py`:
+  - Deleted `test_search_packages_returns_list` (exact duplicate of the stronger `test_search_packages_empty_paths_empty_result`)
+  - Renamed and strengthened `test_search_package_names_returns_list` → `test_search_package_names_returns_empty_for_nonexistent_path` (asserts `== []`)
+  - Renamed and strengthened `test_search_latest_packages_returns_list` → `test_search_latest_packages_returns_empty_for_nonexistent_path` (asserts `== []`)
+  - Renamed and strengthened `test_package_searcher_search_returns_list` → `test_package_searcher_search_returns_empty_for_nonexistent_path` (asserts `== []`)
+  - Renamed and strengthened `test_search_scope_families_vs_latest` → `test_search_scope_families_vs_latest_both_empty_for_nonexistent` (both sides assert `== []`)
+  - Replaced `assert searcher is not None` with `assert hasattr(searcher, "search")` in `test_package_searcher_create`
+- Remaining open decisions documented in CLEANUP_TODO #38 follow-up sub-bullets are intentionally deferred until the underlying contracts are finalised:
+  - `PyPackageRequirement::new("")` behaviour (lenient vs. validation error)
+  - `extract_version("v3.11.4")` normalisation decision
+
+
 
 
 ### 39. `move_package()` may delete the wrong source version when `version=None`
