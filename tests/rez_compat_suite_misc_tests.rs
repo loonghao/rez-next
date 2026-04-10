@@ -6,21 +6,22 @@
 use rez_core::version::{Version, VersionRange};
 use rez_next_suites::Suite;
 
-/// Suite: hide_tool should work without error
+/// Suite: hide_tool should succeed when context exists and hidden tool absent from get_tools
 #[test]
 fn test_suite_hide_tool() {
     let mut suite = Suite::new();
     suite
         .add_context("maya", vec!["maya-2024".to_string()])
         .unwrap();
-    let result = suite.hide_tool("maya", "some_internal_tool");
-    if let Ok(()) = result {
-        let tools = suite.get_tools().unwrap_or_default();
-        assert!(
-            !tools.contains_key("some_internal_tool"),
-            "hidden tool 'some_internal_tool' should not appear in get_tools()"
-        );
-    }
+    // hide_tool must succeed when context exists (idempotent even if tool is not yet exposed)
+    suite
+        .hide_tool("maya", "some_internal_tool")
+        .expect("hide_tool on an existing context must not fail");
+    let tools = suite.get_tools().unwrap_or_default();
+    assert!(
+        !tools.contains_key("some_internal_tool"),
+        "hidden tool 'some_internal_tool' should not appear in get_tools()"
+    );
 }
 
 /// Suite: remove_context should work
@@ -116,6 +117,10 @@ fn test_package_requirement_weak() {
     use rez_next_package::package::PackageRequirement;
     let req_normal = PackageRequirement::parse("python").unwrap();
     assert!(!req_normal.weak, "normal requirement should not be weak");
+
+    let req_weak = PackageRequirement::parse("~python").unwrap();
+    assert!(req_weak.weak, "~-prefixed requirement must have weak=true");
+    assert_eq!(req_weak.name, "python", "weak requirement name should strip the ~ prefix");
 }
 
 /// rez: DependencyResolver basic test
