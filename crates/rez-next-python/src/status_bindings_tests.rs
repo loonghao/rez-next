@@ -71,6 +71,13 @@ fn test_detect_current_shell_returns_valid_shell() {
         known.iter().any(|k| shell.contains(k)),
         "unexpected shell: {shell}"
     );
+    // On Windows CI, PSModulePath is always set, so we get exactly "powershell".
+    #[cfg(target_os = "windows")]
+    assert_eq!(
+        shell.as_str(),
+        "powershell",
+        "expected powershell on Windows, got: {shell}"
+    );
 }
 
 #[test]
