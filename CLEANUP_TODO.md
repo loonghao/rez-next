@@ -344,6 +344,20 @@
 - **Cycle 158 fixes**: `get_latest_package` uses semantic Version comparison; `get_package_family_names` uses `list_packages()` instead of empty-string scan.
 - **Cycle 168**: Removed all 5 `@pytest.mark.xfail` decorators and the two `XFAIL_*` constants from `test_context_repository_api.py`. Root cause was already fixed in Rust (Cycle 158/163), confirmed by 30 Rust unit tests including `test_get_latest_package_semantic_version_beats_lexicographic` and `test_get_package_family_names_enumerates_all_families`.
 
+### 45. `println!` in library code — suite/benchmarks/bindings
+- **Status**: COMPLETE ✓ (cycle 44)
+- `suite.rs::print_info()` refactored: extracted `format_info() -> String`, `print_info()` now delegates to `format_info() + print!()`
+- `benchmarks.rs::run_comprehensive_benchmarks()`: removed 6 `println!` calls, function now returns `Vec<BenchmarkResult>` without side effects
+- `context_bindings.rs::print_info()` and `status_bindings.rs::print_status()`: changed from `println!` to returning `String`; Python callers can `print()` the return value
+
+### 46. Duplicate and vacuous tests in compat test files
+- **Status**: COMPLETE ✓ (cycle 44)
+- `rez_compat_rex_config_tests.rs`: removed 12 tests that were exact duplicates of `rez_compat_activation_tests.rs` (lines 289-451); kept 9 unique config tests
+- `filesystem_tests.rs`: removed 3 `#[allow(dead_code)]` helpers never called from this module
+- `rez_compat_misc_tests.rs`: removed 3 vacuous tests (`test_package_name_non_empty` tautology, `test_package_version_optional` constructor default, `test_requirement_name_only` assignment); tightened `test_rex_empty_commands_no_error`
+- `rez_compat_search_tests.rs`: removed 2 vacuous tests (`test_search_filter_limit_respected` pure assignment, `test_search_scope_variants` enum assignment)
+- `rez_compat_pip_tests.rs`: removed 2 hardcoded-string tests (`test_data_bash_completion_valid`, `test_data_default_config_has_required_fields`)
+
 
 
 - **Status**: COMPLETE ✓ (cycle 19)
