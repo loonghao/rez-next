@@ -1,61 +1,62 @@
 # rez-next auto-improve 执行记录
 
-## 最新执行 (2026-04-10 03:18) — Cycle 162
+## 最新执行 (2026-04-10 19:57) — Cycle 180
 
 ### 执行摘要
 
-**Cycle 162（commits `09c4365`, `65db9ac`）**：采纳清理 Agent 的 selftest_functions_tests 重写，并为 `VersionRange::intersects()` 增加 9 个边界测试
+**Cycle 180（commit `072111f`）**：拆分 `package_functions_extra_tests.rs`（646 行）并新增 2 个边界测试
 
-**Cycle 162a（09c4365）**：
-- 采纳清理 Agent 的 `selftest_functions_tests.rs` 重写（433→124 行，删除 37 个重复/弱测试，保留 9 个高质量契约测试）
-- 1351 rez-next-python lib tests pass
+**变更内容**：
+- `package_functions_extra_tests.rs`：从 646 行缩减为 227 行，只保留 expand_home/copy_package/remove_package 基础测试
+- 新建 `package_functions_move_tests.rs`（514 行）：迁移 `test_package_helpers_move` + `test_move_package` 模块
+- 新增 2 个测试：
+  - `test_copy_package_no_version_selects_latest`：3 版本时 copy_package(version=None) 必须选 3.0.0
+  - `test_move_package_no_version_three_versions_picks_latest`：3 版本时 move 选最新并删除正确来源
+- `package_functions.rs`：注册新 `move_tests` 模块（`#[path = "package_functions_move_tests.rs"] mod move_tests`）
+- 净增 +522/-423 行（重组，非净增代码）
 
-**Cycle 162b（65db9ac）**：
-- 在 `range_tests.rs` 为 `VersionRange::intersects()` 新增 9 个边界测试
-  - `test_intersects_overlapping_ranges` — 基本重叠验证（含对称性）
-  - `test_intersects_disjoint_ranges` — 不相交验证（含对称性）
-  - `test_intersects_eq_equals_ge_boundary` — **Cycle 161 回归锁定**：`==3.9 ∩ >=3.9` 必须相交
-  - `test_intersects_eq_below_ge_boundary` — `==3.8 ∩ >=3.9` 必须不相交
-  - `test_intersects_eq_equals_lt_boundary` — `==3.9 ∩ <3.9` 必须不相交（严格上界）
-  - `test_intersects_eq_below_lt_boundary` — `==3.8 ∩ <3.9` 必须相交
-  - `test_intersects_with_any_range` — any 与任意 range 相交
-  - `test_intersects_or_range_partial_overlap` — OR range 部分重叠
-  - `test_intersects_or_range_no_overlap` — OR range 无重叠
-- rez-next-version: 134 tests pass（+9），0 clippy warnings
+**测试结果**：**1330 lib passed**（+2 新），0 failed，0 clippy warnings
 
 ### 当前提交
-- `65db9ac` — test(version): Cycle 162 - add 9 intersects() boundary tests [iteration-done]
-- `09c4365` — refactor(python): Cycle 162a - adopt cleanup-agent selftest_functions_tests rewrite
+- `072111f` — refactor(pkg-fns): Cycle 180 [iteration-done]
 
-### 测试统计（截至 Cycle 162）
-- `cargo test -p rez-next-python --lib`: **1351 passed**, 0 failed
-- `cargo test -p rez-next-version`: **134 passed**, 0 failed
+### 测试统计（截至 Cycle 180）
+- `cargo test -p rez-next-python --lib`：**1330 passed**，0 failed
 - Clippy warnings: **0**
 
 ### 当前项目状态
-**分支**: `auto-improve`（已推送至 origin，commit `65db9ac`）
+**分支**: `auto-improve`（已推送至 origin，commit `072111f`）
 **Clippy warnings**: 0
-**注意**: auto-improve 分支通过 worktree 在 `G:/PycharmProjects/github/rez-next-auto-improve`
+**注意**：auto-improve 分支通过 worktree 在 `G:/PycharmProjects/github/rez-next-auto-improve`
 
-### 当前 range_tests.rs 状态（Cycle 162 后）
+### 大文件状态（Cycle 180）
+
 | 文件 | 行数 | 状态 |
 |------|------|------|
-| `range_tests.rs` | ~494 | ✓ 含新 intersects 测试组 |
-| `selftest_functions_tests.rs` | 124 | ✓ 重写为契约测试 |
+| `crates/rez-next-version/src/range.rs` | 779 | ✓ (<1000) |
+| `crates/rez-next-suites/src/suite.rs` | 733 | ✓ (<1000) |
+| `crates/rez-next-rex/src/parser.rs` | 716 | ✓ (<1000) |
+| `crates/rez-next-solver/src/astar/heuristics.rs` | 714 | ✓ (<1000) |
+| `src/cli/commands/rm.rs` | 692 | ✓ (<1000) |
+| `crates/rez-next-cache/src/tests.rs` | 664 | ✓ (<1000) |
+| `crates/rez-next-version/src/version.rs` | 664 | ✓ (<1000) |
+| `src/cli/commands/bundle.rs` | 650 | ✓ (<1000) |
+| `package_functions_extra_tests.rs` | 227 | ✓ (from 646) |
+| `package_functions_move_tests.rs` | 514 | ✓ (new) |
 
 ### 下一阶段待改进项（优先级排序）
-
-1. **`VersionRange` 边界测试扩展**：`subtract`/`is_subset_of`/`is_superset_of` 仍没有专项边界测试
-2. **CLEANUP_TODO #37**：`shell_utils.rs` 已有 `shell_type_from_str`，`detect_shell_from_env` 在 `status_bindings.rs` 是 `Some(detect_current_shell())` 的冗余包装；可考虑内联简化
-3. **CLEANUP_TODO #38**（Python 测试 helpers 重复）：`write_package_py` 等集中到共享 fixture
-4. **CLEANUP_TODO #33**（PARTIAL）：`cli_e2e_tests.rs` 的 `skip_no_bin!()` implicit skip 问题
+1. **`bundle_functions_tests.rs` 626 行**：按测试类别拆分（bundle, unbundle, manifest 各自独立文件）
+2. **`rex_functions_tests.rs` 595 行**：按 rex 命令类型分组拆分
+3. **`range.rs` 779 行**：考虑拆分为 `range/` 目录（parse.rs, contains.rs, combine.rs）
+4. **`heuristics.rs` 714 行**：A* 启发函数拆分
+5. **`rm.rs` CLI 692 行**：考虑提取辅助函数
 
 ### 重要教训（历史）
-- **Cycle 162**: `intersects()` 之前没有专项测试——要用边界测试锁定每一个 bug 修复
-- **Cycle 161**: `Eq-vs-Ge/Lt` bug：`==3.9` intersects `>=3.9` 返回 false，因为 Ge bound 用了严格小于而非小于等于
+- **Cycle 180**: `#[path = "..."] mod name;` 中，子测试模块引用父文件 `use super::xxx` 时，需要在文件顶层和子模块的 `use super::` 中都声明使用到的符号
+- **Cycle 179**: lenient solver 对 unknown package 返回 `Ok` + `failed_requirements`，不是 `Err`
+- **Cycle 167**: `detect_current_shell()` 返回 `String`（非 `Option`），测试断言用 `.as_str()` 而非 `.as_deref()`
+- **Cycle 165**: PowerShell `[System.Text.Encoding]::UTF8` 写文件会添加 BOM，应使用 `replace_in_file` 工具
+- **Cycle 164**: 分支实际进度比 memory.md 记录超前；需要在每次启动时通过 `git log` 确认最新提交
 - **Cycle 155**: `av.cmp(bv)` = ascending, `bv.cmp(av)` = descending（Rust sort_by 语义）
-- **Cycle 154**: `config_bindings.rs` 中 `inner` 字段需要 `pub(crate)` 才能被测试文件访问
 - `#[path = "xxx_tests.rs"] mod tests;` 模式：将内联测试拆分到独立文件的标准方式
-- Windows PowerShell：cargo 输出被 CLIXML 包裹，用 Out-File -Encoding utf8 + ReadAllLines 读取
-- rebase 到 origin/main 时因 memory.md 冲突，改用 merge + --ours 策略
-- `replace_in_file` 只替换第一个匹配项；当旧内容超大时，先用 `write_to_file` 写出完整文件更安全
+- Windows PowerShell：cargo 输出被 CLIXML 包裹，用 `$out | ForEach-Object { $_.ToString() }` 提取
