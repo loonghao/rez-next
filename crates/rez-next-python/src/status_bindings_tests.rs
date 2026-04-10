@@ -1,4 +1,5 @@
 use super::*;
+use crate::source_bindings::detect_current_shell;
 use std::sync::Mutex;
 
 // Serialize all tests that mutate process-global environment variables.
@@ -61,29 +62,26 @@ fn test_rez_status_resolved_packages_from_env() {
 }
 
 #[test]
-fn test_detect_shell_from_env_returns_valid_shell() {
+fn test_detect_current_shell_returns_valid_shell() {
     // On Windows, PSModulePath is always present so powershell is detected.
     // On Linux/macOS, SHELL governs. Either way, the result must be a known shell name.
-    let shell = detect_shell_from_env();
-    // In a rez-unactivated env, shell detection may return None; if Some, must be known.
-    if let Some(ref s) = shell {
-        let known = ["bash", "zsh", "fish", "powershell", "cmd"];
-        assert!(
-            known.iter().any(|k| s.contains(k)),
-            "unexpected shell: {s}"
-        );
-    }
+    let shell = detect_current_shell();
+    let known = ["bash", "zsh", "fish", "powershell", "cmd"];
+    assert!(
+        known.iter().any(|k| shell.contains(k)),
+        "unexpected shell: {shell}"
+    );
 }
 
 #[test]
 #[cfg(not(target_os = "windows"))]
-fn test_detect_shell_from_env_maps_bash_posix() {
+fn test_detect_current_shell_maps_bash_posix() {
     let _lock = ENV_MUTEX.lock().unwrap();
     // Only run on POSIX where PSModulePath does not interfere
     unsafe {
         std::env::set_var("SHELL", "/bin/bash");
     }
-    assert_eq!(detect_shell_from_env().as_deref(), Some("bash"));
+    assert_eq!(detect_current_shell().as_str(), "bash");
     unsafe {
         std::env::remove_var("SHELL");
     }
@@ -257,12 +255,12 @@ fn test_get_rez_env_var_missing_returns_none() {
 
 #[test]
 #[cfg(not(target_os = "windows"))]
-fn test_detect_shell_from_env_maps_zsh() {
+fn test_detect_current_shell_maps_zsh() {
     let _lock = ENV_MUTEX.lock().unwrap();
     unsafe {
         std::env::set_var("SHELL", "/usr/bin/zsh");
     }
-    assert_eq!(detect_shell_from_env().as_deref(), Some("zsh"));
+    assert_eq!(detect_current_shell().as_str(), "zsh");
     unsafe {
         std::env::remove_var("SHELL");
     }
@@ -270,12 +268,12 @@ fn test_detect_shell_from_env_maps_zsh() {
 
 #[test]
 #[cfg(not(target_os = "windows"))]
-fn test_detect_shell_from_env_maps_fish() {
+fn test_detect_current_shell_maps_fish() {
     let _lock = ENV_MUTEX.lock().unwrap();
     unsafe {
         std::env::set_var("SHELL", "/usr/local/bin/fish");
     }
-    assert_eq!(detect_shell_from_env().as_deref(), Some("fish"));
+    assert_eq!(detect_current_shell().as_str(), "fish");
     unsafe {
         std::env::remove_var("SHELL");
     }

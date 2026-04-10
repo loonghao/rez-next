@@ -168,7 +168,7 @@ pub(crate) fn detect_current_status() -> PyRezStatus {
         .unwrap_or_default();
 
     // Detect shell from SHELL env var or OS
-    let current_shell = detect_shell_from_env();
+    let current_shell = Some(detect_current_shell());
 
     PyRezStatus {
         is_active,
@@ -183,9 +183,6 @@ pub(crate) fn detect_current_status() -> PyRezStatus {
     }
 }
 
-pub(crate) fn detect_shell_from_env() -> Option<String> {
-    Some(detect_current_shell())
-}
 
 // ─── Python functions ─────────────────────────────────────────────────────────
 
