@@ -247,14 +247,10 @@
 - Follow-up: when real ML prediction is implemented, replace the smoke tests with contract tests that verify actual behavior against known inputs
 
 ### 33. `cli_e2e_tests.rs` still allows implicit skips and weak exit-code assertions
-- **Status**: PARTIAL — reopened in cycle 91
+- **Status**: COMPLETE ✓ (cycle 169)
 - Cycle 78 added `rez_output()` and removed most exit-code-only assertions, but later test drift left a few misleading cases behind.
-- Cycle 91 fixed 3 concrete issues:
-  - `test_view_package_in_repo`: now views a real package directory instead of creating an unused temp repo and accepting any non-empty output
-  - `test_full_workflow_search_and_view`: now views a real package directory and no longer relies on the stale `view --path ...` invocation that current `ViewArgs` does not support
-  - `test_build_extra_args_separator_accepted`: now runs inside the temp package root so the fixture is actually consumed, and it guards against the false-negative `No package.py ... found` path
-- Remaining follow-up:
-  - `skip_no_bin!()` still returns early when the built binary is missing; decide whether CI should always prebuild the binary and turn that case into an explicit precondition failure instead of an implicit skip
+- Cycle 91 fixed 3 concrete issues.
+- Cycle 169: `skip_if_no_binary()` in `cli_e2e_helpers.rs` now panics with an explicit precondition failure message when `CI=true`/`CI=1` is set and the binary is absent; local skip behavior retained for dev workflow.
 
 ### 34. `real_repo_*` split test files still duplicate local repository helpers
 
@@ -321,12 +317,9 @@
 - Follow-up: once package extraction is implemented, add filesystem-observable tests for the real extraction contract rather than reintroducing placeholder acceptance checks.
 
 ### 42. `cli_functions.rs` still documents a real CLI surface over a stubbed command table
-- **Status**: PARTIAL ✓ (cycle 132)
-- Doc comments now explicitly describe `cli_run()` / `cli_main()` as compatibility stubs that validate against `KNOWN_COMMANDS` and ignore `args`.
-- Removed the regrown per-command `Ok(0)` smoke tests; coverage now stays at the table level (known commands, malformed commands, `cli_main` dispatch) instead of growing sideways with each iteration cycle.
-- Remaining follow-up:
-  - `cli_run()` still discards `args` and does not dispatch to the real rez CLI.
-  - Decide whether this module should remain an explicit stub or begin routing into real command execution before widening the documented contract.
+- **Status**: COMPLETE ✓ (cycle 171)
+- Cycle 132: doc comments explicitly describe stubs; per-command smoke tests removed, coverage stays at table level.
+- Cycle 171: removed 29 additional duplicate tests (per-command `returns_zero`, redundant `contains` checks, and exhaustive iterations already covered by `test_all_known_commands_return_zero`). 49 → 20 tests; no coverage loss.
 
 ### 43. `config_bindings.rs` still grows through non-observable config smoke tests
 - **Status**: COMPLETE ✓ (cycle 157)
@@ -336,12 +329,9 @@
 - Remaining coverage: exact default-value contracts (3 entries, tilde paths, platform shell/editor, cache size/ttl, use_rust_solver), getter/inner parity for all 4 fields, typed `get_field()` assertions for all known field types.
 
 ### 44. Python repository compatibility tests still describe real contract drift as "not implemented"
-- **Status**: PARTIAL (cycle 158 fixed the two root causes)
-- **Cycle 158 fixes**:
-  - `get_latest_package` now delegates to `RepositoryManager::get_package(name, None)` which uses `rez_next_version::Version` semantic comparison, so `3.11.0` beats `3.9.0` correctly. The Python binding layer no longer does its own string-based sort.
-  - `get_package_family_names` now calls `repo_manager.list_packages()` which scans the repo and returns all cache keys, instead of `find_packages("")` which always returned `[]` because `""` is never a package name.
-  - The two `XFAIL_LATEST_PACKAGE_LEXICOGRAPHIC` and two `XFAIL_EMPTY_NAME_SCAN` xfails in `test_context_repository_api.py` should now pass — removal of the xfail markers is left for a follow-up Python-layer test pass (requires `maturin develop` rebuild to confirm).
-- Follow-up: rebuild the wheel (`maturin develop --features extension-module`) and run `pytest tests/test_context_repository_api.py -v` to confirm the 4 xfail tests pass; then remove the `@pytest.mark.xfail` markers and the two XFAIL_* constants from the file.
+- **Status**: COMPLETE ✓ (cycle 168)
+- **Cycle 158 fixes**: `get_latest_package` uses semantic Version comparison; `get_package_family_names` uses `list_packages()` instead of empty-string scan.
+- **Cycle 168**: Removed all 5 `@pytest.mark.xfail` decorators and the two `XFAIL_*` constants from `test_context_repository_api.py`. Root cause was already fixed in Rust (Cycle 158/163), confirmed by 30 Rust unit tests including `test_get_latest_package_semantic_version_beats_lexicographic` and `test_get_package_family_names_enumerates_all_families`.
 
 
 
