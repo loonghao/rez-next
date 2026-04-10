@@ -28,69 +28,7 @@ pub(super) async fn make_yaml_pkg(root: &std::path::Path, name: &str, version: &
     fs::write(dir.join("package.yaml"), content).await.unwrap();
 }
 
-/// Create a package.yaml with a `variants` field.
-#[allow(dead_code)]
-pub(super) async fn make_yaml_pkg_with_variants(
-    root: &std::path::Path,
-    name: &str,
-    version: &str,
-    variants: &[&[&str]],
-) {
-    let dir = root.join(name).join(version);
-    fs::create_dir_all(&dir).await.unwrap();
-    let mut variant_yaml = String::new();
-    if !variants.is_empty() {
-        variant_yaml.push_str("variants:\n");
-        for group in variants {
-            let reqs: Vec<String> = group.iter().map(|r| format!("    - \"{}\"", r)).collect();
-            variant_yaml.push_str("  -\n");
-            variant_yaml.push_str(&reqs.join("\n"));
-            variant_yaml.push('\n');
-        }
-    }
-    let content = format!(
-        "name: \"{}\"\nversion: \"{}\"\ndescription: \"Test\"\n{}",
-        name, version, variant_yaml
-    );
-    fs::write(dir.join("package.yaml"), content).await.unwrap();
-}
 
-/// Create a minimal package.py under `root/name/version/package.py`.
-#[allow(dead_code)]
-pub(super) async fn make_py_pkg(root: &std::path::Path, name: &str, version: &str) {
-    let dir = root.join(name).join(version);
-    fs::create_dir_all(&dir).await.unwrap();
-    let content = format!(
-        "name = \"{}\"\nversion = \"{}\"\ndescription = \"Test package\"\n",
-        name, version
-    );
-    fs::write(dir.join("package.py"), content).await.unwrap();
-}
-
-/// Create a package.py with `variants` field.
-#[allow(dead_code)]
-pub(super) async fn make_py_pkg_with_variants(
-    root: &std::path::Path,
-    name: &str,
-    version: &str,
-    variants: &[&[&str]],
-) {
-    let dir = root.join(name).join(version);
-    fs::create_dir_all(&dir).await.unwrap();
-    let mut variant_lines = String::from("variants = [\n");
-    for group in variants {
-        let reqs: Vec<String> = group.iter().map(|r| format!("    \"{}\"", r)).collect();
-        variant_lines.push_str("    [");
-        variant_lines.push_str(&reqs.join(", "));
-        variant_lines.push_str("],\n");
-    }
-    variant_lines.push_str("]\n");
-    let content = format!(
-        "name = \"{}\"\nversion = \"{}\"\ndescription = \"Test\"\n{}",
-        name, version, variant_lines
-    );
-    fs::write(dir.join("package.py"), content).await.unwrap();
-}
 
 // ── construction / getters / setters ─────────────────────────────────────────
 
