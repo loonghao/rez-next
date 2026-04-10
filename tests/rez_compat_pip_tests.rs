@@ -524,15 +524,6 @@ fn test_source_write_tempfile_roundtrip() {
 
 // ─── Data module tests ──────────────────────────────────────────────────────
 
-/// rez data: built-in bash completion script is non-empty and valid
-#[test]
-fn test_data_bash_completion_valid() {
-    // Verify bash completion content can be used
-    let content = "# rez-next bash completion\n_rez_next() { local cur opts; }\ncomplete -F _rez_next rez-next\n";
-    assert!(content.contains("_rez_next"));
-    assert!(content.contains("complete -F"));
-}
-
 /// rez data: example package.py content is parseable by PackageSerializer
 #[test]
 fn test_data_example_package_parseable() {
@@ -556,11 +547,4 @@ requires = ["python-3.9+"]
     assert_eq!(pkg.version.as_ref().unwrap().as_str(), "1.0.0");
 }
 
-/// rez data: default rezconfig contains required fields
-#[test]
-fn test_data_default_config_has_required_fields() {
-    let config_content = "packages_path = [\"~/packages\"]\nlocal_packages_path = \"~/packages\"\nrelease_packages_path = \"/packages/int\"\n";
-    assert!(config_content.contains("packages_path"));
-    assert!(config_content.contains("local_packages_path"));
-    assert!(config_content.contains("release_packages_path"));
-}
+

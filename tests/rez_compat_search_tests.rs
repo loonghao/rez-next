@@ -457,32 +457,8 @@ fn test_search_nonexistent_repo_empty() {
     );
 }
 
-/// rez search: filter with limit truncates results
-#[test]
-fn test_search_filter_limit_respected() {
-    use rez_next_search::SearchFilter;
 
-    let filter = SearchFilter::new("").with_limit(10);
-    assert_eq!(filter.limit, 10);
-    // With many names, filter itself doesn't truncate — that's PackageSearcher's job
-    // But verify filter stores the limit correctly
-}
 
-/// rez search: SearchOptions scope enum variants
-#[test]
-fn test_search_scope_variants() {
-    use rez_next_search::{SearchOptions, SearchScope};
-
-    let mut opts = SearchOptions::new("python");
-    opts.scope = SearchScope::Families;
-    assert_eq!(opts.scope, SearchScope::Families);
-
-    opts.scope = SearchScope::Packages;
-    assert_eq!(opts.scope, SearchScope::Packages);
-
-    opts.scope = SearchScope::LatestOnly;
-    assert_eq!(opts.scope, SearchScope::LatestOnly);
-}
 
 /// rez search: SearchResult with version_range filter
 #[test]

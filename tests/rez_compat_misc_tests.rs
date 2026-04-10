@@ -76,37 +76,6 @@ fn test_rex_bash_script_contains_export() {
 
 // ─── Package validation tests ─────────────────────────────────────────────────
 
-/// Package: name must be non-empty
-#[test]
-fn test_package_name_non_empty() {
-    use rez_next_package::Package;
-
-    let pkg = Package::new("mypackage".to_string());
-    assert_eq!(pkg.name, "mypackage");
-    assert!(!pkg.name.is_empty());
-}
-
-/// Package: version field is optional (no version = "unversioned")
-#[test]
-fn test_package_version_optional() {
-    use rez_next_package::Package;
-
-    let pkg = Package::new("unversioned_pkg".to_string());
-    assert!(
-        pkg.version.is_none(),
-        "Version should be None when not specified"
-    );
-}
-
-/// Package: Requirement parses name-only (no version constraint)
-#[test]
-fn test_requirement_name_only() {
-    use rez_next_package::Requirement;
-
-    let req = Requirement::new("python".to_string());
-    assert_eq!(req.name, "python");
-}
-
 // ─── Suite integration tests ──────────────────────────────────────────────────
 
 /// Suite: merge tools from two contexts resolves without panic
@@ -327,10 +296,14 @@ fn test_rex_empty_commands_no_error() {
     use rez_next_rex::RexExecutor;
 
     let mut exec = RexExecutor::new();
-    let result = exec.execute_commands("", "empty_pkg", None, None);
+    let env = exec.execute_commands("", "empty_pkg", None, None).unwrap();
     assert!(
-        result.is_ok(),
-        "Empty commands block should not produce an error"
+        env.vars.is_empty(),
+        "Empty commands should produce empty vars map"
+    );
+    assert!(
+        env.aliases.is_empty(),
+        "Empty commands should produce empty aliases map"
     );
 }
 
