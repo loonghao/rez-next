@@ -261,9 +261,10 @@
 
 
 ### 35. Split-test migration notice shells still build as empty integration targets
-- **Status**: COMPLETE ✓ (cycle 77)
-- Deleted `tests/rez_solver_graph_tests.rs`, `tests/rez_solver_platform_tests.rs`, and `tests/rez_compat_late_tests.rs` — all were 7-11 line comment-only files with no tests; git history in the split-file commit messages is sufficient
-- All tests continued to pass (0 failed); test-target noise reduced by 3 empty crates
+- **Status**: COMPLETE ✓ (cycle 77 + cycle 173)
+- Cycle 77: Deleted `tests/rez_solver_graph_tests.rs`, `tests/rez_solver_platform_tests.rs`, and an empty `tests/rez_compat_late_tests.rs` — all were 7-11 line comment-only files with no tests; git history in the split-file commit messages is sufficient
+- Cycle 173: Deleted a **re-grown** `tests/rez_compat_late_tests.rs` (314 lines, 13 tests) — all 13 tests were exact duplicates already present in `tests/rez_compat_activation_tests.rs` (which is a superset with 25 tests). Coverage unchanged; test-target noise reduced.
+- All tests continued to pass (0 failed, 1328 lib tests + 25 activation_tests)
 
 ### 36. Compat cycle tests now overlap with dedicated solver-graph topology coverage
 - **Status**: COMPLETE ✓ (cycle 77)
