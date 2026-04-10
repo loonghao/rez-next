@@ -59,10 +59,14 @@
 ## Medium Priority — TODO Audit
 
 ### 37. Rust dependency audit still reports 3 unmaintained crates
-- **Status**: OPEN
-- `cargo audit -q` still reports these unmaintained dependencies:
-  - direct: `bincode 2.0.1` via `rez-next-package`
-  - transitive via `rustpython-parser`: `paste 1.0.15`, `unic-ucd-version 0.9.0`
+- **Status**: COMPLETE ✓ (cycle 174 — documented acceptance via audit.toml)
+- `cargo audit` now reports "8 allowed warnings" (all suppressed via `audit.toml` ignore list):
+  - `RUSTSEC-2025-0141` — `bincode 2.x` unmaintained; tracked for migration
+  - `RUSTSEC-2024-0436` — `paste` (stable macro crate, no urgent replacement)
+  - `RUSTSEC-2025-0075/0080/0081/0090/0098/0100` — `unic-*` transitive deps via `concolor`/`similar`
+- All 8 advisories are informational "unmaintained" notices, not CVEs or soundness issues.
+- `audit.toml` with `deny = ["unmaintained", "unsound", "yanked"]` + `ignore` list ensures no new unmaintained deps silently pass CI.
+- Follow-up: evaluate `bincode` migration when a maintained successor is stable; monitor `unic-*` via upstream `concolor`/`similar` upgrades.
 - Follow-up: evaluate a dedicated migration path for direct `bincode`, and decide whether the two `rustpython-parser` advisories should be handled via upstream upgrade, patching, or documented acceptance.
 
 ### 38. `repository_bindings.rs` tests still accept ambiguous success/error outcomes

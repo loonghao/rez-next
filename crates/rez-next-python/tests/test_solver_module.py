@@ -33,8 +33,9 @@ class TestResolvedContextAPI:
         from rez_next.resolved_context import ResolvedContext
 
         ctx = ResolvedContext([])
-        assert ctx is not None
+        assert ctx.success is True
         assert ctx.num_resolved_packages == 0
+        assert ctx.resolved_packages == []
 
     def test_context_with_nonexistent_package(self):
         """Resolving a package not in any repo should fail (success=False)."""
@@ -80,7 +81,8 @@ class TestResolvePackagesFunction:
 
     def test_resolve_empty(self):
         result = rez.resolve_packages([])
-        assert result is not None
+        assert result.success is True
+        assert result.resolved_packages == []
 
     def test_resolve_returns_context(self):
         ctx = rez.resolve_packages([])
@@ -88,7 +90,8 @@ class TestResolvePackagesFunction:
 
     def test_resolve_with_paths(self):
         ctx = rez.resolve_packages([], paths=["/nonexistent/repo/path"])
-        assert ctx is not None
+        assert ctx.success is True
+        assert ctx.resolved_packages == []
 
     def test_resolve_empty_returns_success(self):
         ctx = rez.resolve_packages([])
@@ -110,7 +113,8 @@ class TestResolvePackagesFunction:
 
     def test_resolve_with_empty_paths(self):
         ctx = rez.resolve_packages([], paths=[])
-        assert ctx is not None
+        assert ctx.success is True
+        assert ctx.resolved_packages == []
 
     def test_resolve_multiple_calls_independent(self):
         ctx1 = rez.resolve_packages([])
@@ -124,7 +128,7 @@ class TestRepositoryManager:
 
     def test_create(self):
         repo = rez.RepositoryManager()
-        assert repo is not None
+        assert isinstance(repo, rez.RepositoryManager)
 
     def test_find_packages_empty(self):
         repo = rez.RepositoryManager()
@@ -134,7 +138,7 @@ class TestRepositoryManager:
     def test_find_packages_returns_list(self):
         repo = rez.RepositoryManager()
         results = repo.find_packages("python")
-        assert isinstance(results, list)
+        assert results == [], "RepositoryManager with no paths must return empty list"
 
     def test_multiple_repo_managers_independent(self):
         repo1 = rez.RepositoryManager()
@@ -145,11 +149,11 @@ class TestRepositoryManager:
         """Searching for empty string should return empty list, not crash."""
         repo = rez.RepositoryManager()
         results = repo.find_packages("")
-        assert isinstance(results, list)
+        assert results == [], "Empty package name search must return empty list"
 
     def test_find_packages_special_chars(self):
         """Package names with special chars should return empty, not crash."""
         repo = rez.RepositoryManager()
         results = repo.find_packages("pkg-with-hyphens_and_underscores")
-        assert isinstance(results, list)
+        assert results == [], "Hyphenated package name with no paths must return empty list"
 
