@@ -107,10 +107,16 @@ fn test_diamond_dependency_same_range_unifies() {
         "D should be resolved exactly once (not duplicated)"
     );
 
-    let d_ver = d_packages[0].package.version.as_ref().map(|v| v.as_str());
-    assert!(
-        d_ver == Some("2.0.0") || d_ver == Some("1.5.0"),
-        "D should be resolved to a valid version (2.0.0 or 1.5.0), got: {:?}",
+    // Solver selects the latest available version by default → D-2.0.0 beats D-1.5.0
+    let d_ver = d_packages[0]
+        .package
+        .version
+        .as_ref()
+        .map(|v| v.as_str())
+        .unwrap_or("");
+    assert_eq!(
+        d_ver, "2.0.0",
+        "solver must select latest D version (2.0.0), got: {:?}",
         d_ver
     );
 }
@@ -340,7 +346,8 @@ fn test_resolver_empty_requirements() {
     );
 }
 
-/// Unknown package (not in repo) handled gracefully
+/// Unknown package (not in repo) → solver returns Ok with failed_requirements populated.
+/// Lenient mode does not hard-error; the unsatisfied requirement is recorded instead.
 #[test]
 fn test_resolver_unknown_package_graceful() {
     let (_tmp, repo) = build_test_repo(&[("python", "3.11.0", &[])]);
@@ -355,18 +362,27 @@ fn test_resolver_unknown_package_graceful() {
         .collect();
 
     let result = rt.block_on(resolver.resolve(reqs));
-    match result {
-        Ok(resolution) => {
-            assert!(
-                resolution.resolved_packages.is_empty()
-                    || !resolution.failed_requirements.is_empty(),
-                "unknown package should not resolve cleanly"
-            );
-        }
-        Err(_) => {
-            // Error is also acceptable
-        }
-    }
+    let resolution = result.expect("lenient solver must return Ok for unknown packages");
+    assert!(
+        !resolution.failed_requirements.is_empty(),
+        "unknown package must appear in failed_requirements, got none"
+    );
+    assert!(
+        resolution
+            .failed_requirements
+            .iter()
+            .any(|r| r.to_string().contains("totally_nonexistent_xyz_12345")),
+        "failed_requirements must identify 'totally_nonexistent_xyz_12345', got: {:?}",
+        resolution
+            .failed_requirements
+            .iter()
+            .map(|r| r.to_string())
+            .collect::<Vec<_>>()
+    );
+    assert!(
+        resolution.resolved_packages.is_empty(),
+        "unknown package must not appear in resolved_packages"
+    );
 }
 
 // ─── DependencyGraph structural tests ────────────────────────────────────────
