@@ -121,8 +121,26 @@ env.prepend_path('PYTHONPATH', '{root}/lib/python/site-packages')
 
 // ── Skip guard ────────────────────────────────────────────────────────────────
 
+/// Returns `true` when the binary is absent **and** we are NOT in CI.
+///
+/// In CI (`CI=true` or `CI=1`) a missing binary is a hard precondition
+/// failure: `panic!` instead of a silent skip.  Locally the test is simply
+/// skipped so developers are not forced to rebuild before running unit tests.
 pub fn skip_if_no_binary() -> bool {
-    !rez_next_bin().exists()
+    if !rez_next_bin().exists() {
+        let in_ci = std::env::var("CI")
+            .map(|v| v == "true" || v == "1")
+            .unwrap_or(false);
+        if in_ci {
+            panic!(
+                "CI precondition failure: rez-next binary not found at {:?}. \
+                 Ensure `cargo build` runs before the e2e test step.",
+                rez_next_bin()
+            );
+        }
+        return true;
+    }
+    false
 }
 
 #[macro_export]
