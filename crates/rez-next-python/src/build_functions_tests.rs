@@ -149,11 +149,13 @@ mod test_get_build_system {
     }
 
     #[test]
-    fn test_cargo_toml_with_package_json_cargo_wins() {
+    fn test_cargo_toml_with_package_json_nodejs_wins() {
+        // package.json is checked before Cargo.toml in get_build_system priority order
         let tmp = make_temp_dir_with_file("rez_bs_cargo_vs_node", "Cargo.toml");
         fs::write(tmp.join("package.json"), b"{}").unwrap();
         let result = get_build_system(Some(tmp.to_str().unwrap())).unwrap();
-        let _ = result; // either "nodejs" or "cargo" depending on order
+        assert_eq!(result, "nodejs", "package.json takes priority over Cargo.toml");
+        let _ = fs::remove_dir_all(&tmp);
     }
 
     #[test]
@@ -163,7 +165,7 @@ mod test_get_build_system {
     }
 
     #[test]
-    fn test_all_known_build_system_types_non_empty() {
+    fn test_all_known_build_system_types_exact_mapping() {
         for (marker, expected) in &[
             ("CMakeLists.txt", "cmake"),
             ("Makefile", "make"),
@@ -176,8 +178,7 @@ mod test_get_build_system {
             let dir_name = format!("rez_bs_type_check_{}", marker.replace('.', "_"));
             let tmp = make_temp_dir_with_file(&dir_name, marker);
             let result = get_build_system(Some(tmp.to_str().unwrap())).unwrap();
-            assert!(!result.is_empty(), "build system type must not be empty for marker '{}'", marker);
-            let _ = expected;
+            assert_eq!(result, *expected, "marker '{}' must map to build system '{}'", marker, expected);
             let _ = fs::remove_dir_all(&tmp);
         }
     }
