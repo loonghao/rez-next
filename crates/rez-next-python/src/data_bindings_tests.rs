@@ -130,42 +130,52 @@ fn test_rez_data_list_resources_count() {
 #[test]
 fn test_rez_data_get_resource_bash_ok() {
     let d = PyRezData::new();
-    let r = d.get_resource("completions/bash");
-    assert!(r.is_ok());
-    assert!(r.unwrap().contains("_rez_next"));
+    let content = d
+        .get_resource("completions/bash")
+        .expect("completions/bash must be a known resource");
+    assert!(content.contains("_rez_next"), "bash completion must define _rez_next: {content}");
 }
 
 #[test]
 fn test_rez_data_get_resource_zsh_ok() {
     let d = PyRezData::new();
-    let r = d.get_resource("completions/zsh");
-    assert!(r.is_ok());
-    assert!(r.unwrap().contains("rez-next"));
+    let content = d
+        .get_resource("completions/zsh")
+        .expect("completions/zsh must be a known resource");
+    assert!(content.contains("rez-next"), "zsh completion must mention rez-next: {content}");
 }
 
 #[test]
 fn test_rez_data_get_resource_fish_ok() {
     let d = PyRezData::new();
-    let r = d.get_resource("completions/fish");
-    assert!(r.is_ok());
-    let content = r.unwrap();
-    assert!(content.contains("fish completion") || content.contains("rez-next"));
+    let content = d
+        .get_resource("completions/fish")
+        .expect("completions/fish must be a known resource");
+    assert!(
+        content.contains("complete -c rez-next"),
+        "fish completion must have 'complete -c rez-next' directive: {content}"
+    );
 }
 
 #[test]
 fn test_rez_data_get_resource_example_package_ok() {
     let d = PyRezData::new();
-    let r = d.get_resource("examples/package.py");
-    assert!(r.is_ok());
-    assert!(r.unwrap().contains("name = \"my_package\""));
+    let content = d
+        .get_resource("examples/package.py")
+        .expect("examples/package.py must be a known resource");
+    assert!(
+        content.contains("name = \"my_package\""),
+        "example package must define name = \"my_package\": {content}"
+    );
 }
 
 #[test]
 fn test_rez_data_get_resource_config_ok() {
     let d = PyRezData::new();
-    let r = d.get_resource("config/rezconfig.py");
-    assert!(r.is_ok());
-    assert!(r.unwrap().contains("packages_path"));
+    let content = d
+        .get_resource("config/rezconfig.py")
+        .expect("config/rezconfig.py must be a known resource");
+    assert!(content.contains("packages_path"), "rezconfig must define packages_path: {content}");
 }
 
 #[test]
@@ -199,8 +209,12 @@ fn test_list_data_resources_non_empty() {
 
 #[test]
 fn test_get_data_resource_bash() {
-    let r = get_data_resource("completions/bash");
-    assert!(r.is_ok());
+    let content = get_data_resource("completions/bash")
+        .expect("completions/bash must be a known data resource");
+    assert!(
+        content.contains("_rez_next"),
+        "bash completion data resource must define _rez_next: {content}"
+    );
 }
 
 #[test]
@@ -260,10 +274,13 @@ fn test_default_rezconfig_has_local_packages_path() {
 #[test]
 fn test_rez_data_get_completion_script_bash_no_panic() {
     let d = PyRezData::new();
-    let r = d.get_completion_script(Some("bash"));
-    assert!(r.is_ok());
-    let script = r.unwrap();
-    assert!(!script.is_empty(), "bash completion must not be empty");
+    let script = d
+        .get_completion_script(Some("bash"))
+        .expect("bash completion must not error");
+    assert!(
+        script.contains("_rez_next"),
+        "bash completion must define _rez_next function: {script}"
+    );
 }
 
 #[test]
@@ -278,30 +295,36 @@ fn test_rez_data_get_completion_script_none_defaults_to_bash() {
 #[test]
 fn test_rez_data_get_completion_script_zsh() {
     let d = PyRezData::new();
-    let r = d.get_completion_script(Some("zsh"));
-    assert!(r.is_ok(), "zsh completion should succeed: {:?}", r);
-    let content = r.unwrap();
-    assert!(!content.is_empty(), "zsh completion script must not be empty");
+    let content = d
+        .get_completion_script(Some("zsh"))
+        .expect("zsh completion should succeed");
     assert!(
-        content.contains("rez") || content.contains("zsh"),
-        "zsh script should mention rez or zsh: {content}"
+        content.contains("#compdef"),
+        "zsh completion script must contain #compdef directive: {content}"
     );
 }
 
 #[test]
 fn test_rez_data_get_completion_script_fish() {
     let d = PyRezData::new();
-    let r = d.get_completion_script(Some("fish"));
-    assert!(r.is_ok(), "fish completion should succeed: {:?}", r);
-    let content = r.unwrap();
-    assert!(!content.is_empty(), "fish completion script must not be empty");
+    let content = d
+        .get_completion_script(Some("fish"))
+        .expect("fish completion should succeed");
+    assert!(
+        content.contains("complete -c"),
+        "fish completion script must contain 'complete -c' directive: {content}"
+    );
 }
 
 #[test]
 fn test_rez_data_get_completion_script_unknown_shell_errs() {
     let d = PyRezData::new();
     let r = d.get_completion_script(Some("tcsh_unknown_shell_xyz"));
-    let _ = r;
+    assert!(
+        r.is_err(),
+        "get_completion_script with unknown shell must return Err, got: {:?}",
+        r
+    );
 }
 
 #[test]
