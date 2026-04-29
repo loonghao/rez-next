@@ -6,6 +6,8 @@
 //! - `get_pip_dependencies(package_name) -> list[str]`
 
 use pyo3::prelude::*;
+use crate::package_functions::expand_home;
+use crate::runtime::get_runtime;
 
 /// Represents a pip package converted to rez format.
 #[pyclass(name = "PipPackage", from_py_object)]
@@ -211,24 +213,85 @@ pub fn convert_pip_to_rez(
     })
 }
 
+/// Helper: create a RepositoryManager from given paths or config default.
+fn make_pip_repo_manager(paths: Option<Vec<String>>) -> rez_next_repository::simple_repository::RepositoryManager {
+    use rez_next_common::config::RezCoreConfig;
+    use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
+    use std::path::PathBuf;
+
+    let config = RezCoreConfig::load();
+    let mut repo_manager = RepositoryManager::new();
+
+    let pkg_paths: Vec<PathBuf> = paths
+        .map(|p| p.into_iter().map(PathBuf::from).collect())
+        .unwrap_or_else(|| {
+            config
+                .packages_path
+                .iter()
+                .map(|p| PathBuf::from(expand_home(p)))
+                .collect()
+        });
+
+    for (i, path) in pkg_paths.iter().enumerate() {
+        if path.exists() {
+            repo_manager.add_repository(Box::new(SimpleRepository::new(
+                path.clone(),
+                format!("repo_{}", i),
+            )));
+        }
+    }
+
+    repo_manager
+}
+
 /// Get a list of packages that depend on a given pip package.
 /// Equivalent to `rez depends <pkg>` but for pip packages.
 ///
-/// **Not yet implemented.** Raises `NotImplementedError` when called.
-/// Full implementation requires scanning local rez package repos for any
-/// package that lists `package_name` in its requires.
+/// Scans local rez package repos for any package that lists
+/// `package_name` in its requires.
 #[pyfunction]
 #[pyo3(signature = (package_name, paths=None))]
 pub fn get_pip_dependencies(
     package_name: &str,
     paths: Option<Vec<String>>,
 ) -> PyResult<Vec<String>> {
-    let _ = paths;
-    Err(pyo3::exceptions::PyNotImplementedError::new_err(format!(
-        "get_pip_dependencies is not yet implemented in rez_next. \
-         Queried package: '{package_name}'. \
-         Use the original `rez depends` command to find reverse dependencies."
-    )))
+    let rt = get_runtime();
+    let repo_manager = make_pip_repo_manager(paths);
+
+    // Get all package families
+    let families = rt
+        .block_on(repo_manager.list_packages())
+        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+
+    let normalized_name = normalize_package_name(package_name);
+    let mut dependents = Vec::new();
+
+    for family in &families {
+        // Get packages for this family
+        let packages = rt
+            .block_on(repo_manager.find_packages(family))
+            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+
+        // Check if any version of this package requires the given package
+        for pkg in &packages {
+            for req in &pkg.requires {
+                // Extract package name from requirement (e.g., "numpy-1.25+" -> "numpy")
+                let req_name = req
+                    .trim()
+                    .chars()
+                    .take_while(|c| *c != '-' && *c != '<' && *c != '>' && *c != '=' && *c != '!' && *c != '~')
+                    .collect::<String>();
+                let req_normalized = normalize_package_name(&req_name);
+
+                if req_normalized == normalized_name {
+                    dependents.push(family.to_string());
+                    break;
+                }
+            }
+        }
+    }
+
+    Ok(dependents)
 }
 
 /// Write a package.py file for a pip-converted package to disk.
