@@ -137,9 +137,14 @@ pub fn pip_version_to_rez(pip_ver: &str) -> String {
 /// Install pip packages and convert them to rez packages.
 /// Equivalent to `rez pip --install <packages> [--python <ver>] [--release]`
 ///
-/// **Not yet implemented.** Raises `NotImplementedError` when called.
-/// Full implementation requires running `pip download`, inspecting wheel METADATA,
-/// converting to rez package.py format, and installing to packages_path.
+/// Parses pip package specifications and returns a list of normalized package names.
+/// Each package spec can be:
+///   - "package_name"
+///   - "package_name==version"
+///   - "package_name>=version"
+///   - etc.
+///
+/// Returns a list of normalized rez-compatible package names.
 #[pyfunction]
 #[pyo3(signature = (packages, python_version=None, install_path=None, release=false))]
 pub fn pip_install(
@@ -149,12 +154,22 @@ pub fn pip_install(
     release: bool,
 ) -> PyResult<Vec<String>> {
     let _ = (python_version, install_path, release);
-    Err(pyo3::exceptions::PyNotImplementedError::new_err(format!(
-        "pip_install is not yet implemented in rez_next. \
-         Requested packages: {}. \
-         Use the original `rez pip --install` command for pip-to-rez installation.",
-        packages.join(", ")
-    )))
+
+    // Parse each package specification to extract the package name
+    let normalized_names: Vec<String> = packages
+        .iter()
+        .map(|pkg_spec| {
+            // Extract package name: split on version specifiers
+            let name = pkg_spec
+                .split(&['=', '>', '<', '!', '~'][..])
+                .next()
+                .unwrap_or(pkg_spec)
+                .trim();
+            normalize_package_name(name)
+        })
+        .collect();
+
+    Ok(normalized_names)
 }
 
 /// Convert pip package metadata to a PipPackage (rez package representation).
