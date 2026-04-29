@@ -165,9 +165,18 @@ pub fn register_all_exceptions(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
     // Package
     m.add("PackageNotFound", m.py().get_type::<PackageNotFound>())?;
-    m.add("PackageFamilyNotFound", m.py().get_type::<PackageFamilyNotFound>())?;
-    m.add("PackageVersionConflict", m.py().get_type::<PackageVersionConflict>())?;
-    m.add("PackageRequestError", m.py().get_type::<PackageRequestError>())?;
+    m.add(
+        "PackageFamilyNotFound",
+        m.py().get_type::<PackageFamilyNotFound>(),
+    )?;
+    m.add(
+        "PackageVersionConflict",
+        m.py().get_type::<PackageVersionConflict>(),
+    )?;
+    m.add(
+        "PackageRequestError",
+        m.py().get_type::<PackageRequestError>(),
+    )?;
     m.add("PackageParseError", m.py().get_type::<PackageParseError>())?;
 
     // Resolve
@@ -180,17 +189,26 @@ pub fn register_all_exceptions(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("RezReleaseError", m.py().get_type::<RezReleaseError>())?;
 
     // Config
-    m.add("ConfigurationError", m.py().get_type::<ConfigurationError>())?;
+    m.add(
+        "ConfigurationError",
+        m.py().get_type::<ConfigurationError>(),
+    )?;
 
     // Context / bundle
-    m.add("ContextBundleError", m.py().get_type::<ContextBundleError>())?;
+    m.add(
+        "ContextBundleError",
+        m.py().get_type::<ContextBundleError>(),
+    )?;
 
     // Suite
     m.add("SuiteError", m.py().get_type::<SuiteError>())?;
 
     // Rex
     m.add("RexError", m.py().get_type::<RexError>())?;
-    m.add("RexUndefinedVariableError", m.py().get_type::<RexUndefinedVariableError>())?;
+    m.add(
+        "RexUndefinedVariableError",
+        m.py().get_type::<RexUndefinedVariableError>(),
+    )?;
 
     // System
     m.add("RezSystemError", m.py().get_type::<RezSystemError>())?;

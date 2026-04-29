@@ -10,11 +10,7 @@ mod test_bundle_context {
     fn test_bundle_context_creates_directory() {
         let tmp = std::env::temp_dir().join("rez_test_bundle_create");
         let _ = fs::remove_dir_all(&tmp);
-        let result = bundle_context(
-            vec!["python-3.9".to_string()],
-            tmp.to_str().unwrap(),
-            false,
-        );
+        let result = bundle_context(vec!["python-3.9".to_string()], tmp.to_str().unwrap(), false);
         assert!(result.is_ok(), "bundle_context must succeed: {:?}", result);
         assert!(tmp.exists(), "bundle directory must be created");
         assert!(tmp.join("bundle.yaml").exists(), "bundle.yaml must exist");
@@ -32,8 +28,14 @@ mod test_bundle_context {
         )
         .unwrap();
         let content = fs::read_to_string(tmp.join("bundle.yaml")).unwrap();
-        assert!(content.contains("python-3.9"), "manifest must contain python-3.9");
-        assert!(content.contains("maya-2024"), "manifest must contain maya-2024");
+        assert!(
+            content.contains("python-3.9"),
+            "manifest must contain python-3.9"
+        );
+        assert!(
+            content.contains("maya-2024"),
+            "manifest must contain maya-2024"
+        );
         let _ = fs::remove_dir_all(&tmp);
     }
 
@@ -43,7 +45,10 @@ mod test_bundle_context {
         let _ = fs::remove_dir_all(&tmp);
         bundle_context(vec!["pkg-1.0".to_string()], tmp.to_str().unwrap(), true).unwrap();
         let content = fs::read_to_string(tmp.join("bundle.yaml")).unwrap();
-        assert!(content.contains("skip_solve: true"), "skip_solve must be true in manifest");
+        assert!(
+            content.contains("skip_solve: true"),
+            "skip_solve must be true in manifest"
+        );
         let _ = fs::remove_dir_all(&tmp);
     }
 
@@ -120,8 +125,16 @@ mod test_list_bundles {
         fs::write(b2.join("bundle.yaml"), b"packages:\n  - maya-2024\n").unwrap();
 
         let result = list_bundles(Some(base.to_str().unwrap())).unwrap();
-        assert!(result.contains(&"bundle_alpha".to_string()), "should find bundle_alpha: {:?}", result);
-        assert!(result.contains(&"bundle_beta".to_string()), "should find bundle_beta: {:?}", result);
+        assert!(
+            result.contains(&"bundle_alpha".to_string()),
+            "should find bundle_alpha: {:?}",
+            result
+        );
+        assert!(
+            result.contains(&"bundle_beta".to_string()),
+            "should find bundle_beta: {:?}",
+            result
+        );
         let _ = fs::remove_dir_all(&base);
     }
 
@@ -147,7 +160,10 @@ mod test_list_bundles {
     #[test]
     fn test_list_bundles_nonexistent_path_returns_empty() {
         let result = list_bundles(Some("/nonexistent_bundle_search_path_xyz")).unwrap();
-        assert!(result.is_empty(), "nonexistent path should return empty list");
+        assert!(
+            result.is_empty(),
+            "nonexistent path should return empty list"
+        );
     }
 
     #[test]
@@ -166,8 +182,14 @@ mod test_list_bundles {
         fs::create_dir_all(&invalid).unwrap();
 
         let result = list_bundles(Some(base.to_str().unwrap())).unwrap();
-        assert!(result.contains(&"valid_bundle".to_string()), "valid_bundle must be listed");
-        assert!(!result.contains(&"not_a_bundle".to_string()), "not_a_bundle must NOT be listed");
+        assert!(
+            result.contains(&"valid_bundle".to_string()),
+            "valid_bundle must be listed"
+        );
+        assert!(
+            !result.contains(&"not_a_bundle".to_string()),
+            "not_a_bundle must NOT be listed"
+        );
         let _ = fs::remove_dir_all(&base);
     }
 
@@ -178,7 +200,10 @@ mod test_list_bundles {
         // Bundle with empty package list
         bundle_context(vec![], tmp.to_str().unwrap(), false).unwrap();
         let got = unbundle_context(tmp.to_str().unwrap(), None).unwrap();
-        assert!(got.is_empty(), "unbundle of empty bundle should return empty list");
+        assert!(
+            got.is_empty(),
+            "unbundle of empty bundle should return empty list"
+        );
         let _ = fs::remove_dir_all(&tmp);
     }
 
@@ -188,7 +213,10 @@ mod test_list_bundles {
         let _ = fs::remove_dir_all(&tmp);
         bundle_context(vec!["python-3.9".to_string()], tmp.to_str().unwrap(), false).unwrap();
         let content = fs::read_to_string(tmp.join("bundle.yaml")).unwrap();
-        assert!(content.contains("# rez bundle manifest"), "manifest should have header comment");
+        assert!(
+            content.contains("# rez bundle manifest"),
+            "manifest should have header comment"
+        );
         let _ = fs::remove_dir_all(&tmp);
     }
 
@@ -198,7 +226,10 @@ mod test_list_bundles {
         let _ = fs::remove_dir_all(&tmp);
         bundle_context(vec!["pkg-1.0".to_string()], tmp.to_str().unwrap(), false).unwrap();
         let content = fs::read_to_string(tmp.join("bundle.yaml")).unwrap();
-        assert!(content.contains("skip_solve: false"), "skip_solve false must appear in manifest");
+        assert!(
+            content.contains("skip_solve: false"),
+            "skip_solve false must appear in manifest"
+        );
         let _ = fs::remove_dir_all(&tmp);
     }
 
@@ -206,9 +237,17 @@ mod test_list_bundles {
     fn test_bundle_single_package_manifest() {
         let tmp = std::env::temp_dir().join("rez_test_bundle_single_pkg");
         let _ = fs::remove_dir_all(&tmp);
-        bundle_context(vec!["houdini-20.0".to_string()], tmp.to_str().unwrap(), false).unwrap();
+        bundle_context(
+            vec!["houdini-20.0".to_string()],
+            tmp.to_str().unwrap(),
+            false,
+        )
+        .unwrap();
         let content = fs::read_to_string(tmp.join("bundle.yaml")).unwrap();
-        assert!(content.contains("houdini-20.0"), "single package must appear in manifest");
+        assert!(
+            content.contains("houdini-20.0"),
+            "single package must appear in manifest"
+        );
         let _ = fs::remove_dir_all(&tmp);
     }
 }
@@ -229,7 +268,11 @@ mod test_unbundle_context_extended {
         let got = unbundle_context(tmp.to_str().unwrap(), None).unwrap();
         assert_eq!(got.len(), 3, "should recover 3 packages");
         for p in &pkgs {
-            assert!(got.contains(p), "package '{}' should be in unbundle result", p);
+            assert!(
+                got.contains(p),
+                "package '{}' should be in unbundle result",
+                p
+            );
         }
         let _ = fs::remove_dir_all(&tmp);
     }
@@ -239,11 +282,24 @@ mod test_unbundle_context_extended {
         let tmp = std::env::temp_dir().join("rez_test_bundle_overwrite");
         let _ = fs::remove_dir_all(&tmp);
         // First bundle
-        bundle_context(vec!["old-pkg-1.0".to_string()], tmp.to_str().unwrap(), false).unwrap();
+        bundle_context(
+            vec!["old-pkg-1.0".to_string()],
+            tmp.to_str().unwrap(),
+            false,
+        )
+        .unwrap();
         // Second bundle with different contents
-        bundle_context(vec!["new-pkg-2.0".to_string()], tmp.to_str().unwrap(), false).unwrap();
+        bundle_context(
+            vec!["new-pkg-2.0".to_string()],
+            tmp.to_str().unwrap(),
+            false,
+        )
+        .unwrap();
         let content = fs::read_to_string(tmp.join("bundle.yaml")).unwrap();
-        assert!(content.contains("new-pkg-2.0"), "overwritten manifest must have new package");
+        assert!(
+            content.contains("new-pkg-2.0"),
+            "overwritten manifest must have new package"
+        );
         let _ = fs::remove_dir_all(&tmp);
     }
 }
@@ -266,9 +322,15 @@ mod test_list_bundles_extended {
         fs::write(bdir.join("bundle.yaml"), b"packages:\n  - python-3.9\n").unwrap();
 
         let result = list_bundles(Some(base.to_str().unwrap())).unwrap();
-        assert!(result.contains(&"real_bundle".to_string()), "real_bundle must appear");
+        assert!(
+            result.contains(&"real_bundle".to_string()),
+            "real_bundle must appear"
+        );
         // The file named bundle.yaml at the base level should not be listed
-        assert!(!result.iter().any(|s| s.is_empty()), "no empty-name bundles");
+        assert!(
+            !result.iter().any(|s| s.is_empty()),
+            "no empty-name bundles"
+        );
         let _ = fs::remove_dir_all(&base);
     }
 
@@ -287,7 +349,11 @@ mod test_list_bundles_extended {
         let got = unbundle_context(tmp.to_str().unwrap(), None).unwrap();
         assert_eq!(got.len(), 5, "should recover 5 packages, got: {:?}", got);
         for p in &pkgs {
-            assert!(got.contains(p), "package '{}' missing in unbundle result", p);
+            assert!(
+                got.contains(p),
+                "package '{}' missing in unbundle result",
+                p
+            );
         }
         let _ = fs::remove_dir_all(&tmp);
     }
@@ -297,8 +363,7 @@ mod test_list_bundles_extended {
         let tmp = std::env::temp_dir().join("rez_test_bundle_path_valid");
         let _ = fs::remove_dir_all(&tmp);
         let result =
-            bundle_context(vec!["pkg-1.0".to_string()], tmp.to_str().unwrap(), false)
-                .unwrap();
+            bundle_context(vec!["pkg-1.0".to_string()], tmp.to_str().unwrap(), false).unwrap();
         assert!(!result.is_empty(), "returned path must not be empty");
         assert!(
             !result.contains('\0'),
@@ -363,7 +428,10 @@ mod test_list_bundles_extended {
         let first = fs::read_to_string(tmp.join("bundle.yaml")).unwrap();
         bundle_context(pkgs.clone(), tmp.to_str().unwrap(), false).unwrap();
         let second = fs::read_to_string(tmp.join("bundle.yaml")).unwrap();
-        assert_eq!(first, second, "idempotent bundle should produce same manifest");
+        assert_eq!(
+            first, second,
+            "idempotent bundle should produce same manifest"
+        );
         let _ = fs::remove_dir_all(&tmp);
     }
 
@@ -376,7 +444,10 @@ mod test_list_bundles_extended {
         let pkgs = vec!["foo-1.0".to_string()];
         bundle_context(pkgs, tmp.to_str().unwrap(), false).unwrap();
         let content = fs::read_to_string(tmp.join("bundle.yaml")).unwrap();
-        assert!(content.contains("packages:"), "manifest must contain 'packages:' key");
+        assert!(
+            content.contains("packages:"),
+            "manifest must contain 'packages:' key"
+        );
         let _ = fs::remove_dir_all(&tmp);
     }
 
@@ -386,7 +457,10 @@ mod test_list_bundles_extended {
         let _ = fs::remove_dir_all(&tmp);
         bundle_context(vec!["pkg-1.0".to_string()], tmp.to_str().unwrap(), true).unwrap();
         let content = fs::read_to_string(tmp.join("bundle.yaml")).unwrap();
-        assert!(content.contains("skip_solve: true"), "skip_solve must be true in manifest");
+        assert!(
+            content.contains("skip_solve: true"),
+            "skip_solve must be true in manifest"
+        );
         let _ = fs::remove_dir_all(&tmp);
     }
 
@@ -397,7 +471,10 @@ mod test_list_bundles_extended {
         let pkgs = vec!["alpha-1.0".to_string(), "beta-2.0".to_string()];
         bundle_context(pkgs, tmp.to_str().unwrap(), false).unwrap();
         let content = fs::read_to_string(tmp.join("bundle.yaml")).unwrap();
-        assert!(content.contains("alpha-1.0"), "manifest must list alpha-1.0");
+        assert!(
+            content.contains("alpha-1.0"),
+            "manifest must list alpha-1.0"
+        );
         assert!(content.contains("beta-2.0"), "manifest must list beta-2.0");
         let _ = fs::remove_dir_all(&tmp);
     }
@@ -406,10 +483,12 @@ mod test_list_bundles_extended {
     fn test_unbundle_returns_nonempty_for_valid_bundle() {
         let tmp = std::env::temp_dir().join("rez_test_unbundle_nonempty");
         let _ = fs::remove_dir_all(&tmp);
-        bundle_context(vec!["mypkg-3.0".to_string()], tmp.to_str().unwrap(), false)
-            .unwrap();
+        bundle_context(vec!["mypkg-3.0".to_string()], tmp.to_str().unwrap(), false).unwrap();
         let packages = unbundle_context(tmp.to_str().unwrap(), None).unwrap();
-        assert!(!packages.is_empty(), "unbundle should return at least one package");
+        assert!(
+            !packages.is_empty(),
+            "unbundle should return at least one package"
+        );
         let _ = fs::remove_dir_all(&tmp);
     }
 
@@ -424,8 +503,15 @@ mod test_list_bundles_extended {
             .join("dir");
         let _ = fs::remove_dir_all(std::env::temp_dir().join("rez_cy130_bundle_nested"));
         let result = bundle_context(vec!["pkg-1.0".to_string()], tmp.to_str().unwrap(), false);
-        assert!(result.is_ok(), "nested dest should be created: {:?}", result);
-        assert!(tmp.join("bundle.yaml").exists(), "bundle.yaml must exist in nested dest");
+        assert!(
+            result.is_ok(),
+            "nested dest should be created: {:?}",
+            result
+        );
+        assert!(
+            tmp.join("bundle.yaml").exists(),
+            "bundle.yaml must exist in nested dest"
+        );
         let _ = fs::remove_dir_all(std::env::temp_dir().join("rez_cy130_bundle_nested"));
     }
 
@@ -440,7 +526,12 @@ mod test_list_bundles_extended {
             fs::write(bdir.join("bundle.yaml"), b"packages:\n").unwrap();
         }
         let result = list_bundles(Some(base.to_str().unwrap())).unwrap();
-        assert_eq!(result.len(), 3, "should find exactly 3 bundles, got: {:?}", result);
+        assert_eq!(
+            result.len(),
+            3,
+            "should find exactly 3 bundles, got: {:?}",
+            result
+        );
         let _ = fs::remove_dir_all(&base);
     }
 
@@ -454,7 +545,8 @@ mod test_list_bundles_extended {
         let got = unbundle_context(tmp.to_str().unwrap(), None).unwrap();
         assert!(
             got.contains(&"maya-2024.0.1".to_string()),
-            "versioned package name must survive roundtrip: {:?}", got
+            "versioned package name must survive roundtrip: {:?}",
+            got
         );
         let _ = fs::remove_dir_all(&tmp);
     }
@@ -463,11 +555,13 @@ mod test_list_bundles_extended {
     fn test_bundle_context_returns_absolute_path() {
         let tmp = std::env::temp_dir().join("rez_cy130_abs_path");
         let _ = fs::remove_dir_all(&tmp);
-        let result = bundle_context(vec!["tool-1.0".to_string()], tmp.to_str().unwrap(), false).unwrap();
+        let result =
+            bundle_context(vec!["tool-1.0".to_string()], tmp.to_str().unwrap(), false).unwrap();
         // The returned path must be an absolute-looking string (starts with / or drive letter)
         assert!(
             result.starts_with('/') || (result.len() > 2 && result.chars().nth(1) == Some(':')),
-            "returned path should be absolute: {}", result
+            "returned path should be absolute: {}",
+            result
         );
         let _ = fs::remove_dir_all(&tmp);
     }
@@ -480,8 +574,14 @@ mod test_list_bundles_extended {
         let pkgs = vec!["python-3+".to_string(), "numpy-1.20+,<2".to_string()];
         bundle_context(pkgs.clone(), tmp.to_str().unwrap(), false).unwrap();
         let content = fs::read_to_string(tmp.join("bundle.yaml")).unwrap();
-        assert!(content.contains("python-3+"), "range pkg must appear in manifest");
-        assert!(content.contains("numpy-1.20+,<2"), "complex range pkg must appear");
+        assert!(
+            content.contains("python-3+"),
+            "range pkg must appear in manifest"
+        );
+        assert!(
+            content.contains("numpy-1.20+,<2"),
+            "complex range pkg must appear"
+        );
         let _ = fs::remove_dir_all(&tmp);
     }
 
@@ -493,7 +593,9 @@ mod test_list_bundles_extended {
         let returned = bundle_context(pkgs, tmp.to_str().unwrap(), false).unwrap();
         // Normalize separators for comparison
         assert!(
-            returned.replace('\\', "/").contains("rez_test_bundle_ret_path"),
+            returned
+                .replace('\\', "/")
+                .contains("rez_test_bundle_ret_path"),
             "returned path should contain dest dir name, got: {returned}"
         );
         let _ = fs::remove_dir_all(&tmp);
@@ -503,7 +605,11 @@ mod test_list_bundles_extended {
     fn test_list_bundles_default_path_returns_result() {
         // Calling with None should not panic; returns an empty or non-empty list
         let result = list_bundles(None);
-        assert!(result.is_ok(), "list_bundles(None) must not error: {:?}", result);
+        assert!(
+            result.is_ok(),
+            "list_bundles(None) must not error: {:?}",
+            result
+        );
     }
 
     // ─────── Cycle 122 additions ──────────────────────────────────────────
@@ -532,7 +638,11 @@ mod test_list_bundles_extended {
         bundle_context(pkgs, tmp.to_str().unwrap(), false).unwrap();
         // Pass a non-None dest_packages_path — must not panic
         let result = unbundle_context(tmp.to_str().unwrap(), Some("/some/dest/path"));
-        assert!(result.is_ok(), "unbundle with dest_packages_path must succeed: {:?}", result);
+        assert!(
+            result.is_ok(),
+            "unbundle with dest_packages_path must succeed: {:?}",
+            result
+        );
         let _ = fs::remove_dir_all(&tmp);
     }
 
@@ -544,7 +654,10 @@ mod test_list_bundles_extended {
         bundle_context(vec!["a-1.0".to_string()], tmp.to_str().unwrap(), false).unwrap();
         bundle_context(vec!["b-2.0".to_string()], tmp.to_str().unwrap(), false).unwrap();
         let content = fs::read_to_string(tmp.join("bundle.yaml")).unwrap();
-        assert!(content.contains("b-2.0"), "second bundle must overwrite first");
+        assert!(
+            content.contains("b-2.0"),
+            "second bundle must overwrite first"
+        );
         let _ = fs::remove_dir_all(&tmp);
     }
 
@@ -552,7 +665,11 @@ mod test_list_bundles_extended {
     fn test_bundle_context_three_packages_manifest_length() {
         let tmp = std::env::temp_dir().join("rez_test_bundle_three_len");
         let _ = fs::remove_dir_all(&tmp);
-        let pkgs = vec!["p1-1.0".to_string(), "p2-2.0".to_string(), "p3-3.0".to_string()];
+        let pkgs = vec![
+            "p1-1.0".to_string(),
+            "p2-2.0".to_string(),
+            "p3-3.0".to_string(),
+        ];
         bundle_context(pkgs.clone(), tmp.to_str().unwrap(), false).unwrap();
         let got = unbundle_context(tmp.to_str().unwrap(), None).unwrap();
         assert_eq!(got.len(), 3, "should recover all 3 packages");
@@ -567,7 +684,10 @@ mod test_list_bundles_extended {
         fs::create_dir_all(&base).unwrap();
         fs::create_dir_all(base.join("not_a_bundle")).unwrap();
         let result = list_bundles(Some(base.to_str().unwrap())).unwrap();
-        assert!(result.is_empty(), "dirs without bundle.yaml must not be listed");
+        assert!(
+            result.is_empty(),
+            "dirs without bundle.yaml must not be listed"
+        );
         let _ = fs::remove_dir_all(&base);
     }
 
@@ -579,7 +699,12 @@ mod test_list_bundles_extended {
         bundle_context(pkgs.clone(), tmp.to_str().unwrap(), false).unwrap();
         let got = unbundle_context(tmp.to_str().unwrap(), None).unwrap();
         for p in &pkgs {
-            assert!(got.contains(p), "package '{}' should be in result, got: {:?}", p, got);
+            assert!(
+                got.contains(p),
+                "package '{}' should be in result, got: {:?}",
+                p,
+                got
+            );
         }
         let _ = fs::remove_dir_all(&tmp);
     }
@@ -590,8 +715,12 @@ mod test_list_bundles_extended {
     fn test_bundle_context_result_has_no_null_bytes() {
         let tmp = std::env::temp_dir().join("rez_cy132_bundle_null");
         let _ = fs::remove_dir_all(&tmp);
-        let returned = bundle_context(vec!["pkg-1.0".to_string()], tmp.to_str().unwrap(), false).unwrap();
-        assert!(!returned.contains('\0'), "bundle_context result must not contain null bytes");
+        let returned =
+            bundle_context(vec!["pkg-1.0".to_string()], tmp.to_str().unwrap(), false).unwrap();
+        assert!(
+            !returned.contains('\0'),
+            "bundle_context result must not contain null bytes"
+        );
         let _ = fs::remove_dir_all(&tmp);
     }
 
@@ -601,9 +730,16 @@ mod test_list_bundles_extended {
         let tmp = std::env::temp_dir().join("rez_cy132_unbundle_only_skip");
         let _ = fs::remove_dir_all(&tmp);
         fs::create_dir_all(&tmp).unwrap();
-        fs::write(tmp.join("bundle.yaml"), b"# rez bundle manifest\nskip_solve: false\n").unwrap();
+        fs::write(
+            tmp.join("bundle.yaml"),
+            b"# rez bundle manifest\nskip_solve: false\n",
+        )
+        .unwrap();
         let result = unbundle_context(tmp.to_str().unwrap(), None).unwrap();
-        assert!(result.is_empty(), "manifest with no packages section must return empty list");
+        assert!(
+            result.is_empty(),
+            "manifest with no packages section must return empty list"
+        );
         let _ = fs::remove_dir_all(&tmp);
     }
 
@@ -619,8 +755,14 @@ mod test_list_bundles_extended {
         }
         let result = list_bundles(Some(base.to_str().unwrap())).unwrap();
         assert_eq!(result.len(), 3, "should find all 3 bundles");
-        assert_eq!(result[0], "a_bundle", "first must be a_bundle (alphabetical)");
-        assert_eq!(result[2], "z_bundle", "last must be z_bundle (alphabetical)");
+        assert_eq!(
+            result[0], "a_bundle",
+            "first must be a_bundle (alphabetical)"
+        );
+        assert_eq!(
+            result[2], "z_bundle",
+            "last must be z_bundle (alphabetical)"
+        );
         let _ = fs::remove_dir_all(&base);
     }
 }

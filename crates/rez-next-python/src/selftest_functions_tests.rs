@@ -13,7 +13,10 @@ use crate::selftest_functions::{
 #[test]
 fn test_selftest_returns_balanced_tuple_without_panic() {
     let result = std::panic::catch_unwind(selftest);
-    assert!(result.is_ok(), "selftest() should not panic in Rust unit tests");
+    assert!(
+        result.is_ok(),
+        "selftest() should not panic in Rust unit tests"
+    );
 
     let (passed, failed, total) = result.unwrap().expect("selftest() should return Ok");
     assert_eq!(passed + failed, total, "selftest() counts should balance");
@@ -25,11 +28,21 @@ fn test_selftest_results_have_unique_non_empty_names() {
     let results = collect_selftest_results();
     let mut names = HashSet::new();
 
-    assert!(!results.is_empty(), "selftest should expose at least one check");
+    assert!(
+        !results.is_empty(),
+        "selftest should expose at least one check"
+    );
 
     for result in &results {
-        assert!(!result.name.is_empty(), "selftest check names must be non-empty");
-        assert!(names.insert(result.name), "duplicate selftest check name: {}", result.name);
+        assert!(
+            !result.name.is_empty(),
+            "selftest check names must be non-empty"
+        );
+        assert!(
+            names.insert(result.name),
+            "duplicate selftest check name: {}",
+            result.name
+        );
     }
 }
 
@@ -42,7 +55,10 @@ fn test_selftest_results_all_pass_in_healthy_runtime() {
         .map(|result| result.name)
         .collect();
 
-    assert!(failing.is_empty(), "selftest should not report failures: {failing:?}");
+    assert!(
+        failing.is_empty(),
+        "selftest should not report failures: {failing:?}"
+    );
 }
 
 #[test]
@@ -66,7 +82,10 @@ fn test_selftest_includes_core_contract_checks() {
         "suite_load_roundtrip",
         "repository_manager_create",
     ] {
-        assert!(names.contains(name), "missing expected selftest check: {name}");
+        assert!(
+            names.contains(name),
+            "missing expected selftest check: {name}"
+        );
     }
 }
 
@@ -118,6 +137,9 @@ fn test_selftest_verbose_names_and_flags_match_collect() {
     let results = collect_selftest_results();
     for ((name, passed), result) in verbose.iter().zip(results.iter()) {
         assert_eq!(name, result.name, "verbose name must match collect name");
-        assert_eq!(*passed, result.passed, "verbose flag must match collect flag for '{name}'");
+        assert_eq!(
+            *passed, result.passed,
+            "verbose flag must match collect flag for '{name}'"
+        );
     }
 }

@@ -177,7 +177,10 @@ mod test_free_functions {
     #[test]
     fn test_get_shell_types_free_fn_not_empty() {
         let types = get_shell_types();
-        assert!(!types.is_empty(), "get_shell_types() must return non-empty list");
+        assert!(
+            !types.is_empty(),
+            "get_shell_types() must return non-empty list"
+        );
         assert!(types.contains(&"bash".to_string()));
     }
 
@@ -241,7 +244,11 @@ mod test_free_functions {
     fn test_get_build_system_types_are_lowercase() {
         let types = get_build_system_types();
         for t in &types {
-            assert_eq!(t, &t.to_lowercase(), "build system type must be lowercase: {t}");
+            assert_eq!(
+                t,
+                &t.to_lowercase(),
+                "build system type must be lowercase: {t}"
+            );
         }
     }
 
@@ -293,7 +300,11 @@ mod test_free_functions {
         );
         for t in &build_types {
             assert!(!t.is_empty(), "build system type must not be empty");
-            assert_eq!(t, &t.to_lowercase(), "build system type must be lowercase: {t}");
+            assert_eq!(
+                t,
+                &t.to_lowercase(),
+                "build system type must be lowercase: {t}"
+            );
         }
     }
 
@@ -327,17 +338,26 @@ mod test_cycle_115 {
     fn test_plugin_manager_release_hooks_exist() {
         let mgr = PyRezPluginManager::new();
         let hooks = mgr.get_plugins("release_hook");
-        assert!(!hooks.is_empty(), "at least one release_hook plugin must exist");
+        assert!(
+            !hooks.is_empty(),
+            "at least one release_hook plugin must exist"
+        );
         let names: Vec<_> = hooks.iter().map(|h| h.name.as_str()).collect();
-        assert!(names.contains(&"emailer") || names.contains(&"command"),
-            "known release hooks must be registered, got: {:?}", names);
+        assert!(
+            names.contains(&"emailer") || names.contains(&"command"),
+            "known release hooks must be registered, got: {:?}",
+            names
+        );
     }
 
     #[test]
     fn test_plugin_manager_get_plugins_unknown_type_is_empty() {
         let mgr = PyRezPluginManager::new();
         let result = mgr.get_plugins("nonexistent_plugin_type_xyz");
-        assert!(result.is_empty(), "unknown plugin type must return empty list");
+        assert!(
+            result.is_empty(),
+            "unknown plugin type must return empty list"
+        );
     }
 
     #[test]
@@ -356,7 +376,8 @@ mod test_cycle_115 {
         for plugin in &shells {
             assert!(
                 plugin.version.contains('.'),
-                "plugin version should be semver-like, got: '{}'", plugin.version
+                "plugin version should be semver-like, got: '{}'",
+                plugin.version
             );
         }
     }
@@ -403,7 +424,11 @@ mod test_cycle_121 {
     fn test_plugin_manager_all_shell_plugins_have_descriptions() {
         let mgr = PyRezPluginManager::new();
         for p in mgr.get_plugins("shell") {
-            assert!(!p.description.is_empty(), "shell plugin '{}' has empty description", p.name);
+            assert!(
+                !p.description.is_empty(),
+                "shell plugin '{}' has empty description",
+                p.name
+            );
         }
     }
 
@@ -411,14 +436,25 @@ mod test_cycle_121 {
     fn test_plugin_manager_all_build_system_plugins_have_versions() {
         let mgr = PyRezPluginManager::new();
         for p in mgr.get_plugins("build_system") {
-            assert!(!p.version.is_empty(), "build_system plugin '{}' has empty version", p.name);
-            assert!(p.version.contains('.'), "version must be semver-like: '{}'", p.version);
+            assert!(
+                !p.version.is_empty(),
+                "build_system plugin '{}' has empty version",
+                p.name
+            );
+            assert!(
+                p.version.contains('.'),
+                "version must be semver-like: '{}'",
+                p.version
+            );
         }
     }
 
     #[test]
     fn test_is_shell_supported_pwsh() {
-        assert!(is_shell_supported("pwsh"), "pwsh (PowerShell Core) must be supported");
+        assert!(
+            is_shell_supported("pwsh"),
+            "pwsh (PowerShell Core) must be supported"
+        );
     }
 
     #[test]

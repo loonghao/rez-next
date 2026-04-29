@@ -28,8 +28,6 @@ pub(super) async fn make_yaml_pkg(root: &std::path::Path, name: &str, version: &
     fs::write(dir.join("package.yaml"), content).await.unwrap();
 }
 
-
-
 // ── construction / getters / setters ─────────────────────────────────────────
 
 #[test]

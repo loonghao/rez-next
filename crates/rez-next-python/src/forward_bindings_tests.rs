@@ -21,7 +21,10 @@ mod test_rez_forward_struct {
         let fwd = PyRezForward::new("python".to_string(), None);
         let s = fwd.__str__();
         assert!(s.contains("python"), "str must mention tool name");
-        assert!(!s.contains("context:"), "str without context must not include context:");
+        assert!(
+            !s.contains("context:"),
+            "str without context must not include context:"
+        );
     }
 
     #[test]
@@ -63,7 +66,10 @@ mod test_rez_forward_struct {
     fn test_forward_dry_run_multiple_args() {
         let fwd = PyRezForward::new("hython".to_string(), None);
         let result = fwd.execute(
-            Some(vec!["-c".to_string(), "import sys; print(sys.version)".to_string()]),
+            Some(vec![
+                "-c".to_string(),
+                "import sys; print(sys.version)".to_string(),
+            ]),
             true,
         );
         assert!(result.is_ok());
@@ -96,7 +102,10 @@ mod test_rez_forward_struct {
         let fwd = PyRezForward::new("nuke".to_string(), Some("uuid-1234".to_string()));
         let s = fwd.__str__();
         assert!(s.contains("->"), "should contain arrow separator");
-        assert!(s.contains("context:uuid-1234"), "should contain context label");
+        assert!(
+            s.contains("context:uuid-1234"),
+            "should contain context label"
+        );
     }
 
     #[test]
@@ -171,8 +180,14 @@ mod test_generate_scripts {
     #[test]
     fn test_generate_forward_script_powershell_invoke_function() {
         let script = generate_forward_script("katana", Some("powershell")).unwrap();
-        assert!(script.contains("Invoke-RezTool"), "powershell script should define Invoke-RezTool");
-        assert!(script.contains("@args"), "powershell script should forward @args");
+        assert!(
+            script.contains("Invoke-RezTool"),
+            "powershell script should define Invoke-RezTool"
+        );
+        assert!(
+            script.contains("@args"),
+            "powershell script should forward @args"
+        );
     }
 
     #[test]
@@ -184,7 +199,10 @@ mod test_generate_scripts {
     #[test]
     fn test_generate_forward_script_cmd_percent_star() {
         let script = generate_forward_script("gaffer", Some("cmd")).unwrap();
-        assert!(script.contains("%*"), "cmd script should use %* for arg forwarding");
+        assert!(
+            script.contains("%*"),
+            "cmd script should use %* for arg forwarding"
+        );
     }
 
     // ── Cycle 101 additions ───────────────────────────────────────────────
@@ -218,14 +236,19 @@ mod test_generate_scripts {
     #[test]
     fn test_generate_forward_script_fish_has_function_keyword() {
         let script = generate_forward_script("houdini", Some("fish")).unwrap();
-        assert!(script.contains("function"), "fish script must have 'function' keyword");
+        assert!(
+            script.contains("function"),
+            "fish script must have 'function' keyword"
+        );
     }
 
     #[test]
     fn test_generate_forward_script_cmd_has_echo_off() {
         let script = generate_forward_script("hython", Some("cmd")).unwrap();
-        assert!(script.contains("@echo off") || script.contains("echo off"),
-            "cmd script should disable echo: {script}");
+        assert!(
+            script.contains("@echo off") || script.contains("echo off"),
+            "cmd script should disable echo: {script}"
+        );
     }
 
     #[test]
@@ -237,7 +260,10 @@ mod test_generate_scripts {
     #[test]
     fn test_rez_forward_context_id_none_when_not_provided() {
         let fwd = PyRezForward::new("rez-gui".to_string(), None);
-        assert!(fwd.context_id().is_none(), "context_id should be None when not provided");
+        assert!(
+            fwd.context_id().is_none(),
+            "context_id should be None when not provided"
+        );
     }
 
     // ── Cycle 112 additions ───────────────────────────────────────────────
@@ -259,7 +285,9 @@ mod test_generate_scripts {
     #[test]
     fn test_rez_forward_execute_dry_run_args_joined_by_space() {
         let fwd = PyRezForward::new("render".to_string(), None);
-        let result = fwd.execute(Some(vec!["--threads".to_string(), "8".to_string()]), true).unwrap();
+        let result = fwd
+            .execute(Some(vec!["--threads".to_string(), "8".to_string()]), true)
+            .unwrap();
         assert!(result.contains("--threads"), "should contain first arg");
         assert!(result.contains("8"), "should contain second arg");
     }
@@ -267,25 +295,37 @@ mod test_generate_scripts {
     #[test]
     fn test_generate_forward_script_zsh_contains_tool() {
         let script = generate_forward_script("clarisse", Some("zsh")).unwrap();
-        assert!(script.contains("clarisse"), "zsh script should mention tool");
+        assert!(
+            script.contains("clarisse"),
+            "zsh script should mention tool"
+        );
     }
 
     #[test]
     fn test_generate_forward_script_powershell_has_comment_line() {
         let script = generate_forward_script("nuke", Some("powershell")).unwrap();
-        assert!(script.contains('#'), "powershell script should have comment line");
+        assert!(
+            script.contains('#'),
+            "powershell script should have comment line"
+        );
     }
 
     #[test]
     fn test_generate_forward_script_bash_has_shebang() {
         let script = generate_forward_script("hython", Some("bash")).unwrap();
-        assert!(script.starts_with("#!/"), "bash script must start with shebang");
+        assert!(
+            script.starts_with("#!/"),
+            "bash script must start with shebang"
+        );
     }
 
     #[test]
     fn test_generate_forward_script_fish_contains_end_keyword() {
         let script = generate_forward_script("katana", Some("fish")).unwrap();
-        assert!(script.contains("end"), "fish script must close function with 'end'");
+        assert!(
+            script.contains("end"),
+            "fish script must close function with 'end'"
+        );
     }
 
     // ── Cycle 117 additions ───────────────────────────────────────────────
@@ -293,21 +333,32 @@ mod test_generate_scripts {
     #[test]
     fn test_forward_tool_name_with_underscores() {
         let fwd = PyRezForward::new("render_manager_v2".to_string(), None);
-        assert_eq!(fwd.tool_name(), "render_manager_v2", "underscored tool name must be preserved");
+        assert_eq!(
+            fwd.tool_name(),
+            "render_manager_v2",
+            "underscored tool name must be preserved"
+        );
     }
 
     #[test]
     fn test_forward_no_context_str_has_no_arrow() {
         let fwd = PyRezForward::new("nuke".to_string(), None);
         let s = fwd.__str__();
-        assert!(!s.contains("->"), "str without context must not contain '->'");
+        assert!(
+            !s.contains("->"),
+            "str without context must not contain '->'"
+        );
     }
 
     #[test]
     fn test_forward_context_id_set_and_retrieved() {
         let ctx = "my-ctx-42".to_string();
         let fwd = PyRezForward::new("maya".to_string(), Some(ctx.clone()));
-        assert_eq!(fwd.context_id(), Some(ctx), "context_id getter must return set value");
+        assert_eq!(
+            fwd.context_id(),
+            Some(ctx),
+            "context_id getter must return set value"
+        );
     }
 
     #[test]
@@ -322,21 +373,32 @@ mod test_generate_scripts {
     #[test]
     fn test_generate_forward_script_cmd_contains_rez_next_forward() {
         let script = generate_forward_script("hython", Some("cmd")).unwrap();
-        assert!(script.contains("rez-next forward"), "cmd script must invoke rez-next forward");
+        assert!(
+            script.contains("rez-next forward"),
+            "cmd script must invoke rez-next forward"
+        );
     }
 
     #[test]
     fn test_generate_forward_script_powershell_contains_set_alias() {
         let script = generate_forward_script("clarisse", Some("powershell")).unwrap();
-        assert!(script.contains("Set-Alias"), "powershell script must use Set-Alias");
+        assert!(
+            script.contains("Set-Alias"),
+            "powershell script must use Set-Alias"
+        );
     }
 
     #[test]
     fn test_generate_forward_script_fish_end_after_function() {
         let script = generate_forward_script("nuke", Some("fish")).unwrap();
-        let fn_pos = script.find("function").expect("fish script must have 'function'");
+        let fn_pos = script
+            .find("function")
+            .expect("fish script must have 'function'");
         let end_pos = script.rfind("end").expect("fish script must have 'end'");
-        assert!(end_pos > fn_pos, "'end' must appear after 'function' in fish script");
+        assert!(
+            end_pos > fn_pos,
+            "'end' must appear after 'function' in fish script"
+        );
     }
 
     // ── Cycle 124 additions ───────────────────────────────────────────────
@@ -344,26 +406,41 @@ mod test_generate_scripts {
     #[test]
     fn test_forward_tool_name_empty_string_is_preserved() {
         let fwd = PyRezForward::new(String::new(), None);
-        assert_eq!(fwd.tool_name(), "", "empty tool name must round-trip unchanged");
+        assert_eq!(
+            fwd.tool_name(),
+            "",
+            "empty tool name must round-trip unchanged"
+        );
     }
 
     #[test]
     fn test_forward_repr_equals_str_when_no_context() {
         let fwd = PyRezForward::new("katana".to_string(), None);
-        assert_eq!(fwd.__repr__(), fwd.__str__(), "__repr__ and __str__ must be identical when context is None");
+        assert_eq!(
+            fwd.__repr__(),
+            fwd.__str__(),
+            "__repr__ and __str__ must be identical when context is None"
+        );
     }
 
     #[test]
     fn test_forward_repr_equals_str_when_context_set() {
         let fwd = PyRezForward::new("maya".to_string(), Some("ctx-01".to_string()));
-        assert_eq!(fwd.__repr__(), fwd.__str__(), "__repr__ and __str__ must be identical when context is set");
+        assert_eq!(
+            fwd.__repr__(),
+            fwd.__str__(),
+            "__repr__ and __str__ must be identical when context is set"
+        );
     }
 
     #[test]
     fn test_forward_execute_dry_run_returns_dry_run_prefix() {
         let fwd = PyRezForward::new("houdini".to_string(), None);
         let result = fwd.execute(None, true).unwrap();
-        assert!(result.starts_with("[dry-run]"), "dry-run result must start with '[dry-run]': {result}");
+        assert!(
+            result.starts_with("[dry-run]"),
+            "dry-run result must start with '[dry-run]': {result}"
+        );
     }
 
     #[test]
@@ -371,7 +448,10 @@ mod test_generate_scripts {
         let fwd = PyRezForward::new("nuke".to_string(), None);
         let args = vec!["--version".to_string()];
         let result = fwd.execute(Some(args), true).unwrap();
-        assert!(result.contains("nuke"), "dry-run result must contain tool name: {result}");
+        assert!(
+            result.contains("nuke"),
+            "dry-run result must contain tool name: {result}"
+        );
     }
 
     #[test]

@@ -46,7 +46,10 @@ fn test_depends_entry_transitive_type() {
     };
     assert_eq!(entry.dependency_type, "transitive");
     let repr = entry.__repr__();
-    assert!(repr.contains("transitive"), "repr should show dependency_type");
+    assert!(
+        repr.contains("transitive"),
+        "repr should show dependency_type"
+    );
 }
 
 // __str__ == __repr__ contract — one canonical test covers direct and transitive:
@@ -59,7 +62,11 @@ fn test_depends_entry_str_equals_repr_contract() {
             requirement: "dep-2+".to_string(),
             dependency_type: dep_type.to_string(),
         };
-        assert_eq!(e.__str__(), e.__repr__(), "__str__ must equal __repr__ for {dep_type}");
+        assert_eq!(
+            e.__str__(),
+            e.__repr__(),
+            "__str__ must equal __repr__ for {dep_type}"
+        );
     }
 }
 
@@ -140,7 +147,6 @@ fn test_format_empty_dependants_still_non_empty_output() {
     assert!(!fmt.is_empty(), "format output must always be non-empty");
 }
 
-
 #[test]
 fn test_depends_result_total_count_with_overlap() {
     let entry = PyDependsEntry {
@@ -160,7 +166,11 @@ fn test_depends_result_total_count_with_overlap() {
         direct_dependants: vec![entry],
         transitive_dependants: vec![entry2],
     };
-    assert_eq!(result.total_count(), 1, "duplicate entry should be deduplicated");
+    assert_eq!(
+        result.total_count(),
+        1,
+        "duplicate entry should be deduplicated"
+    );
 }
 
 #[test]
@@ -216,7 +226,10 @@ fn test_all_dependants_len_equals_direct_when_no_transitive() {
         ],
         transitive_dependants: vec![],
     };
-    assert_eq!(result.all_dependants().len(), result.direct_dependants.len());
+    assert_eq!(
+        result.all_dependants().len(),
+        result.direct_dependants.len()
+    );
 }
 
 #[test]
@@ -257,7 +270,10 @@ fn test_depends_result_repr_shows_direct_count() {
         transitive_dependants: vec![],
     };
     let repr = result.__repr__();
-    assert!(repr.contains("direct=1"), "repr should show direct=1: {repr}");
+    assert!(
+        repr.contains("direct=1"),
+        "repr should show direct=1: {repr}"
+    );
 }
 
 #[test]
@@ -296,7 +312,10 @@ fn test_depends_entry_repr_contains_requirement_string() {
         dependency_type: "direct".to_string(),
     };
     let repr = e.__repr__();
-    assert!(repr.contains("sharedlib-3+"), "repr must contain requirement: {repr}");
+    assert!(
+        repr.contains("sharedlib-3+"),
+        "repr must contain requirement: {repr}"
+    );
 }
 
 #[test]
@@ -347,7 +366,11 @@ fn test_compute_depends_real_repo_finds_direct_dependant() {
         result.direct_dependants.len(),
         1,
         "maya must appear as direct dependant of python, got: {:?}",
-        result.direct_dependants.iter().map(|e| &e.name).collect::<Vec<_>>()
+        result
+            .direct_dependants
+            .iter()
+            .map(|e| &e.name)
+            .collect::<Vec<_>>()
     );
     assert_eq!(result.direct_dependants[0].name, "maya");
     assert_eq!(result.direct_dependants[0].version, "2024.1");
@@ -372,10 +395,17 @@ fn test_compute_depends_real_repo_transitive_discovers_indirect() {
         result.transitive_dependants.len(),
         1,
         "nuke should appear as transitive dependant via maya, got: {:?}",
-        result.transitive_dependants.iter().map(|e| &e.name).collect::<Vec<_>>()
+        result
+            .transitive_dependants
+            .iter()
+            .map(|e| &e.name)
+            .collect::<Vec<_>>()
     );
     assert_eq!(result.transitive_dependants[0].name, "nuke");
-    assert_eq!(result.transitive_dependants[0].dependency_type, "transitive");
+    assert_eq!(
+        result.transitive_dependants[0].dependency_type,
+        "transitive"
+    );
 }
 
 #[test]
@@ -399,13 +429,16 @@ fn test_compute_depends_real_repo_version_range_excludes_non_matching() {
     write_package(dir.path(), "maya", "2024.1", &["python-3.9"]);
 
     // python-3.9 does NOT overlap with >=3.11, so maya should be excluded.
-    let result =
-        compute_depends("python", Some(">=3.11"), &[dir.path().to_path_buf()], false)
-            .expect("compute_depends must succeed");
+    let result = compute_depends("python", Some(">=3.11"), &[dir.path().to_path_buf()], false)
+        .expect("compute_depends must succeed");
 
     assert!(
         result.direct_dependants.is_empty(),
         "maya requires python-3.9 which doesn't overlap >=3.11; should be excluded, got: {:?}",
-        result.direct_dependants.iter().map(|e| &e.name).collect::<Vec<_>>()
+        result
+            .direct_dependants
+            .iter()
+            .map(|e| &e.name)
+            .collect::<Vec<_>>()
     );
 }

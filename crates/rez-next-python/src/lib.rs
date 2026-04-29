@@ -3,7 +3,6 @@
 //! Exposes a Python compatibility layer for supported Rez APIs.
 //! Usage: `import rez_next as rez` for the currently implemented surface area.
 
-
 use pyo3::prelude::*;
 
 // ── Shared infrastructure ─────────────────────────────────────────────────────

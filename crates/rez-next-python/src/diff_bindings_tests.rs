@@ -378,7 +378,10 @@ fn test_format_diff_downgraded_uses_v_prefix() {
 fn test_compute_diff_single_unchanged() {
     let pkg = make_pkg("python", "3.10.0");
     let diffs = compute_diff(std::slice::from_ref(&pkg), std::slice::from_ref(&pkg));
-    let unchanged = diffs.iter().filter(|d| d.change_type == "unchanged").count();
+    let unchanged = diffs
+        .iter()
+        .filter(|d| d.change_type == "unchanged")
+        .count();
     assert_eq!(unchanged, 1, "Single identical package should be unchanged");
 }
 
@@ -405,7 +408,10 @@ fn test_context_diff_is_identical_with_only_unchanged() {
         num_unchanged: 3,
         diffs: vec![],
     };
-    assert!(diff_obj.is_identical(), "all-unchanged diff must be identical");
+    assert!(
+        diff_obj.is_identical(),
+        "all-unchanged diff must be identical"
+    );
 }
 
 #[test]
@@ -438,20 +444,20 @@ fn test_format_diff_upgraded_shows_versions() {
         diffs,
     };
     let output = format_diff(&diff_obj);
-    assert!(output.contains("3.9.0"), "should show old version: {output}");
-    assert!(output.contains("3.11.0"), "should show new version: {output}");
+    assert!(
+        output.contains("3.9.0"),
+        "should show old version: {output}"
+    );
+    assert!(
+        output.contains("3.11.0"),
+        "should show new version: {output}"
+    );
 }
 
 #[test]
 fn test_compute_diff_multiple_upgrades() {
-    let old = vec![
-        make_pkg("python", "3.9.0"),
-        make_pkg("numpy", "1.24.0"),
-    ];
-    let new = vec![
-        make_pkg("python", "3.11.0"),
-        make_pkg("numpy", "1.26.0"),
-    ];
+    let old = vec![make_pkg("python", "3.9.0"), make_pkg("numpy", "1.24.0")];
+    let new = vec![make_pkg("python", "3.11.0"), make_pkg("numpy", "1.26.0")];
     let diffs = compute_diff(&old, &new);
     let upgraded = diffs.iter().filter(|d| d.change_type == "upgraded").count();
     assert_eq!(upgraded, 2, "both packages should be upgraded");
@@ -481,7 +487,11 @@ fn test_package_diff_str_equals_repr() {
         new_version: Some("3.11.0".to_string()),
         change_type: "upgraded".to_string(),
     };
-    assert_eq!(d.__str__(), d.__repr__(), "__str__ and __repr__ must be identical");
+    assert_eq!(
+        d.__str__(),
+        d.__repr__(),
+        "__str__ and __repr__ must be identical"
+    );
 }
 
 #[test]
@@ -501,7 +511,10 @@ fn test_format_diff_added_uses_plus_prefix() {
         diffs,
     };
     let output = format_diff(&diff_obj);
-    assert!(output.contains("+ houdini"), "Added package must use '+ ' prefix: {output}");
+    assert!(
+        output.contains("+ houdini"),
+        "Added package must use '+ ' prefix: {output}"
+    );
 }
 
 #[test]
@@ -512,13 +525,25 @@ fn test_compute_diff_counts_are_correct() {
         make_pkg("c", "2.0"),
     ];
     let new = vec![
-        make_pkg("a", "1.1"),  // upgraded
-        make_pkg("b", "1.0"),  // unchanged
-        make_pkg("d", "3.0"),  // added; c removed
+        make_pkg("a", "1.1"), // upgraded
+        make_pkg("b", "1.0"), // unchanged
+        make_pkg("d", "3.0"), // added; c removed
     ];
     let diffs = compute_diff(&old, &new);
     assert_eq!(diffs.iter().filter(|d| d.change_type == "added").count(), 1);
-    assert_eq!(diffs.iter().filter(|d| d.change_type == "removed").count(), 1);
-    assert_eq!(diffs.iter().filter(|d| d.change_type == "upgraded").count(), 1);
-    assert_eq!(diffs.iter().filter(|d| d.change_type == "unchanged").count(), 1);
+    assert_eq!(
+        diffs.iter().filter(|d| d.change_type == "removed").count(),
+        1
+    );
+    assert_eq!(
+        diffs.iter().filter(|d| d.change_type == "upgraded").count(),
+        1
+    );
+    assert_eq!(
+        diffs
+            .iter()
+            .filter(|d| d.change_type == "unchanged")
+            .count(),
+        1
+    );
 }

@@ -72,7 +72,11 @@ mod tests {
     #[test]
     fn test_all_known_commands_return_zero() {
         for &cmd in KNOWN_COMMANDS {
-            assert_eq!(cli_run(cmd, None).unwrap(), 0, "known command '{cmd}' must return 0");
+            assert_eq!(
+                cli_run(cmd, None).unwrap(),
+                0,
+                "known command '{cmd}' must return 0"
+            );
         }
     }
 
@@ -81,7 +85,10 @@ mod tests {
         let mut seen = HashSet::new();
 
         for &cmd in KNOWN_COMMANDS {
-            assert!(!cmd.is_empty(), "KNOWN_COMMANDS must not contain an empty string entry");
+            assert!(
+                !cmd.is_empty(),
+                "KNOWN_COMMANDS must not contain an empty string entry"
+            );
             assert_eq!(cmd, cmd.to_lowercase(), "command '{cmd}' must be lowercase");
             assert!(seen.insert(cmd), "duplicate command found: '{cmd}'");
         }
@@ -90,7 +97,10 @@ mod tests {
     #[test]
     fn test_known_commands_include_python_stub_surface() {
         for cmd in ["benchmark", "bind", "complete", "forward", "gui", "suite"] {
-            assert!(KNOWN_COMMANDS.contains(&cmd), "{cmd} must remain in the compatibility table");
+            assert!(
+                KNOWN_COMMANDS.contains(&cmd),
+                "{cmd} must remain in the compatibility table"
+            );
         }
     }
 
@@ -158,7 +168,10 @@ mod tests {
         // cli_run must propagate PyValueError for unknown commands.
         // We verify the error variant via the pyo3 type name without needing an interpreter.
         let result = cli_run("__no_such_cmd__", None);
-        assert!(result.is_err(), "cli_run with unknown command must return Err");
+        assert!(
+            result.is_err(),
+            "cli_run with unknown command must return Err"
+        );
     }
 
     #[test]
@@ -169,12 +182,18 @@ mod tests {
             "python-3.9".to_string(),
             "maya".to_string(),
         ]));
-        assert_eq!(result.unwrap(), 0, "solve is a known command, must return 0");
+        assert_eq!(
+            result.unwrap(),
+            0,
+            "solve is a known command, must return 0"
+        );
     }
 
     #[test]
     fn test_cli_run_all_rez_core_commands_present() {
-        for cmd in ["env", "solve", "build", "release", "search", "diff", "cp", "mv", "config"] {
+        for cmd in [
+            "env", "solve", "build", "release", "search", "diff", "cp", "mv", "config",
+        ] {
             assert!(
                 KNOWN_COMMANDS.contains(&cmd),
                 "core rez command '{cmd}' must be in KNOWN_COMMANDS"
@@ -184,8 +203,14 @@ mod tests {
 
     #[test]
     fn test_cli_run_whitespace_only_command_returns_err() {
-        assert!(cli_run("   ", None).is_err(), "whitespace-only command must return Err");
-        assert!(cli_run("\t", None).is_err(), "tab-only command must return Err");
+        assert!(
+            cli_run("   ", None).is_err(),
+            "whitespace-only command must return Err"
+        );
+        assert!(
+            cli_run("\t", None).is_err(),
+            "tab-only command must return Err"
+        );
     }
 
     #[test]
@@ -196,14 +221,22 @@ mod tests {
             "--install".to_string(),
             "--clean".to_string(),
         ]));
-        assert_eq!(result.unwrap(), 0, "build command with extra flags must return 0");
+        assert_eq!(
+            result.unwrap(),
+            0,
+            "build command with extra flags must return 0"
+        );
     }
 
     #[test]
     fn test_cli_main_unknown_command_in_first_position_returns_err() {
         // When the first arg is unknown, cli_main must propagate the error from cli_run
         assert!(
-            cli_main(Some(vec!["unknown_cmd_xyz".to_string(), "extra".to_string()])).is_err(),
+            cli_main(Some(vec![
+                "unknown_cmd_xyz".to_string(),
+                "extra".to_string()
+            ]))
+            .is_err(),
             "cli_main with unknown first-arg must return Err"
         );
     }
@@ -211,9 +244,18 @@ mod tests {
     #[test]
     fn test_cli_run_case_sensitive_upper_returns_err() {
         // Commands are case-sensitive; uppercase variants must fail
-        assert!(cli_run("ENV", None).is_err(), "uppercase 'ENV' must return Err");
-        assert!(cli_run("Build", None).is_err(), "mixed-case 'Build' must return Err");
-        assert!(cli_run("SOLVE", None).is_err(), "uppercase 'SOLVE' must return Err");
+        assert!(
+            cli_run("ENV", None).is_err(),
+            "uppercase 'ENV' must return Err"
+        );
+        assert!(
+            cli_run("Build", None).is_err(),
+            "mixed-case 'Build' must return Err"
+        );
+        assert!(
+            cli_run("SOLVE", None).is_err(),
+            "uppercase 'SOLVE' must return Err"
+        );
     }
 
     #[test]
@@ -242,7 +284,10 @@ mod tests {
     #[test]
     fn test_cli_run_numeric_string_command_returns_err() {
         // Purely numeric strings are not valid commands
-        assert!(cli_run("123", None).is_err(), "'123' is not a known command");
+        assert!(
+            cli_run("123", None).is_err(),
+            "'123' is not a known command"
+        );
         assert!(cli_run("0", None).is_err(), "'0' is not a known command");
     }
 }

@@ -127,8 +127,14 @@ mod test_system_repr_and_extras {
     fn test_repr_contains_platform_arch_os() {
         let sys = PySystem::new();
         let repr = sys.__repr__();
-        assert!(repr.contains("System("), "repr must start with 'System(': {repr}");
-        assert!(repr.contains("platform="), "repr must contain 'platform=': {repr}");
+        assert!(
+            repr.contains("System("),
+            "repr must start with 'System(': {repr}"
+        );
+        assert!(
+            repr.contains("platform="),
+            "repr must contain 'platform=': {repr}"
+        );
         assert!(repr.contains("arch="), "repr must contain 'arch=': {repr}");
         assert!(repr.contains("os="), "repr must contain 'os=': {repr}");
     }
@@ -182,7 +188,11 @@ mod test_system_repr_and_extras {
             "rez_version should have at least major.minor: '{ver}'"
         );
         let major = parts[0].parse::<u64>();
-        assert!(major.is_ok(), "major version should be numeric: '{}'", parts[0]);
+        assert!(
+            major.is_ok(),
+            "major version should be numeric: '{}'",
+            parts[0]
+        );
     }
 
     #[test]
@@ -213,7 +223,10 @@ mod test_system_additional {
     #[test]
     fn test_platform_not_contains_slash() {
         let platform = PySystem::platform_pub();
-        assert!(!platform.contains('/'), "platform must not contain '/': '{platform}'");
+        assert!(
+            !platform.contains('/'),
+            "platform must not contain '/': '{platform}'"
+        );
     }
 
     #[test]
@@ -237,7 +250,8 @@ mod test_system_additional {
             let patch_num = parts[2].split('-').next().unwrap_or("");
             assert!(
                 patch_num.parse::<u64>().is_ok(),
-                "patch version should start with numeric: '{}'", parts[2]
+                "patch version should start with numeric: '{}'",
+                parts[2]
             );
         }
     }
@@ -260,16 +274,24 @@ mod test_system_additional {
     fn test_arch_not_numeric_only() {
         let arch = PySystem::arch_pub();
         let all_digits = arch.chars().all(|c| c.is_ascii_digit());
-        assert!(!all_digits || arch.is_empty(),
-            "arch should not be purely numeric: '{arch}'");
+        assert!(
+            !all_digits || arch.is_empty(),
+            "arch should not be purely numeric: '{arch}'"
+        );
     }
 
     #[test]
     fn test_repr_contains_platform_arch_os() {
         let sys = PySystem::new();
         let repr = sys.__repr__();
-        assert!(repr.contains("System("), "repr must start with System(: '{repr}'");
-        assert!(repr.contains("platform="), "repr must contain platform=: '{repr}'");
+        assert!(
+            repr.contains("System("),
+            "repr must start with System(: '{repr}'"
+        );
+        assert!(
+            repr.contains("platform="),
+            "repr must contain platform=: '{repr}'"
+        );
         assert!(repr.contains("arch="), "repr must contain arch=: '{repr}'");
         assert!(repr.contains("os="), "repr must contain os=: '{repr}'");
     }
@@ -296,7 +318,10 @@ mod test_system_additional {
     fn test_os_contains_no_newlines() {
         let os = PySystem::os_pub();
         assert!(!os.contains('\n'), "os must not contain newlines: '{os}'");
-        assert!(!os.contains('\r'), "os must not contain carriage returns: '{os}'");
+        assert!(
+            !os.contains('\r'),
+            "os must not contain carriage returns: '{os}'"
+        );
     }
 }
 
@@ -419,7 +444,10 @@ mod test_system_cy125 {
 
     #[test]
     fn test_platform_is_nonempty() {
-        assert!(!PySystem::platform_pub().is_empty(), "platform must be non-empty");
+        assert!(
+            !PySystem::platform_pub().is_empty(),
+            "platform must be non-empty"
+        );
     }
 
     #[test]

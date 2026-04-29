@@ -21,7 +21,10 @@ fn test_package_diff_repr_unknown_type_shows_unchanged_label() {
     };
     let r = d.__repr__();
     assert!(r.contains("lib"), "repr must contain package name");
-    assert!(r.contains("unchanged"), "repr must contain 'unchanged' for unknown type");
+    assert!(
+        r.contains("unchanged"),
+        "repr must contain 'unchanged' for unknown type"
+    );
 }
 
 #[test]
@@ -62,7 +65,10 @@ fn test_format_diff_upgraded_uses_caret_prefix() {
         diffs,
     };
     let output = format_diff(&diff_obj);
-    assert!(output.contains("^ alembic"), "Upgraded package must use '^ ' prefix: {output}");
+    assert!(
+        output.contains("^ alembic"),
+        "Upgraded package must use '^ ' prefix: {output}"
+    );
 }
 
 // ── Cycle 117 additions ───────────────────────────────────────────────────
@@ -91,7 +97,10 @@ fn test_to_dict_added_old_version_is_none() {
         new_version: Some("15.0".to_string()),
         change_type: "added".to_string(),
     };
-    assert!(d.old_version.is_none(), "added package must have None old_version");
+    assert!(
+        d.old_version.is_none(),
+        "added package must have None old_version"
+    );
     assert_eq!(d.new_version.as_deref(), Some("15.0"));
 }
 
@@ -159,16 +168,19 @@ fn test_context_diff_total_count_matches_diffs_len() {
         make_pkg("c", "3.0"),
     ];
     let new = vec![
-        make_pkg("a", "1.1"),  // upgraded
-        make_pkg("b", "2.0"),  // unchanged
-        make_pkg("d", "4.0"),  // added; c removed
+        make_pkg("a", "1.1"), // upgraded
+        make_pkg("b", "2.0"), // unchanged
+        make_pkg("d", "4.0"), // added; c removed
     ];
     let diffs = compute_diff(&old, &new);
     let total_diffs = diffs.len();
     let num_added = diffs.iter().filter(|d| d.change_type == "added").count();
     let num_removed = diffs.iter().filter(|d| d.change_type == "removed").count();
     let num_upgraded = diffs.iter().filter(|d| d.change_type == "upgraded").count();
-    let num_unchanged = diffs.iter().filter(|d| d.change_type == "unchanged").count();
+    let num_unchanged = diffs
+        .iter()
+        .filter(|d| d.change_type == "unchanged")
+        .count();
     let sum = num_added + num_removed + num_upgraded + num_unchanged;
     assert_eq!(sum, total_diffs, "sum of counts must equal total diffs");
 }
@@ -205,7 +217,10 @@ fn test_format_diff_output_lines_count_matches_changes() {
     };
     let output = format_diff(&diff_obj);
     let line_count = output.lines().count();
-    assert_eq!(line_count, 2, "format_diff should output 2 lines for 2 changes: got {line_count}");
+    assert_eq!(
+        line_count, 2,
+        "format_diff should output 2 lines for 2 changes: got {line_count}"
+    );
 }
 
 // ── Cycle 127 additions ───────────────────────────────────────────────────
@@ -251,7 +266,10 @@ fn test_package_diff_repr_removed_shows_old_version() {
         change_type: "removed".to_string(),
     };
     let r = d.__repr__();
-    assert!(r.contains("19.5"), "removed repr must show old version: {r}");
+    assert!(
+        r.contains("19.5"),
+        "removed repr must show old version: {r}"
+    );
     assert!(r.contains("houdini"), "removed repr must contain name: {r}");
 }
 
@@ -259,8 +277,14 @@ fn test_package_diff_repr_removed_shows_old_version() {
 fn test_compute_diff_same_version_unchanged() {
     let pkgs = vec![make_pkg("python", "3.9.0"), make_pkg("maya", "2023.0")];
     let diffs = compute_diff(&pkgs, &pkgs);
-    let unchanged = diffs.iter().filter(|d| d.change_type == "unchanged").count();
-    assert_eq!(unchanged, 2, "identical package lists must produce 2 unchanged diffs");
+    let unchanged = diffs
+        .iter()
+        .filter(|d| d.change_type == "unchanged")
+        .count();
+    assert_eq!(
+        unchanged, 2,
+        "identical package lists must produce 2 unchanged diffs"
+    );
 }
 
 #[test]
@@ -268,6 +292,12 @@ fn test_compute_diff_downgrade_detected() {
     let old = vec![make_pkg("nuke", "15.0")];
     let new = vec![make_pkg("nuke", "14.0")];
     let diffs = compute_diff(&old, &new);
-    let downgraded = diffs.iter().filter(|d| d.change_type == "downgraded").count();
-    assert_eq!(downgraded, 1, "lower version must be detected as 'downgraded'");
+    let downgraded = diffs
+        .iter()
+        .filter(|d| d.change_type == "downgraded")
+        .count();
+    assert_eq!(
+        downgraded, 1,
+        "lower version must be detected as 'downgraded'"
+    );
 }

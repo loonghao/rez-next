@@ -174,7 +174,8 @@ fn test_list_binders_all_are_non_empty_strings() {
         assert!(!name.is_empty(), "binder name must be non-empty");
         // Binder names should be printable ASCII-ish identifiers
         assert!(
-            name.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '-'),
+            name.chars()
+                .all(|c| c.is_alphanumeric() || c == '_' || c == '-'),
             "unexpected binder name: {name}"
         );
     }
@@ -183,10 +184,15 @@ fn test_list_binders_all_are_non_empty_strings() {
 #[test]
 fn test_is_builtin_case_sensitive() {
     let m = PyBindManager::new();
-    assert!(m.is_builtin("python"), "lowercase 'python' must be a builtin");
-    assert!(!m.is_builtin("Python"), "builtin binder lookup must be case-sensitive");
+    assert!(
+        m.is_builtin("python"),
+        "lowercase 'python' must be a builtin"
+    );
+    assert!(
+        !m.is_builtin("Python"),
+        "builtin binder lookup must be case-sensitive"
+    );
 }
-
 
 #[test]
 fn test_extract_version_cmake_format() {
@@ -249,7 +255,6 @@ fn test_extract_version_numeric_only() {
 
 // ── Cycle 110 additions ───────────────────────────────────────────────────
 
-
 #[test]
 fn test_bind_result_install_path_is_string() {
     let r = PyBindResult {
@@ -307,7 +312,8 @@ fn test_list_binders_sorted_alphabetically() {
     assert!(!binders.is_empty(), "must have at least one binder");
     for name in &binders {
         assert!(
-            name.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '-'),
+            name.chars()
+                .all(|c| c.is_alphanumeric() || c == '_' || c == '-'),
             "binder name contains invalid chars: {name}"
         );
     }
@@ -356,7 +362,10 @@ fn test_extract_version_from_multiline_output() {
     // Simulates "cmake version 3.26.4" with extra lines
     let output = "cmake version 3.26.4\nBuild system: Ninja";
     let ver = extract_version_from_output(output);
-    assert!(ver.is_some(), "should extract version from multiline output");
+    assert!(
+        ver.is_some(),
+        "should extract version from multiline output"
+    );
     let v = ver.unwrap();
     assert!(v.contains("3.26"), "version: {v}");
 }
@@ -408,7 +417,10 @@ fn test_bind_result_with_none_executable_path_accessor() {
         install_path: "/pkgs/gcc/13.0.0".to_string(),
         executable_path: None,
     };
-    assert!(r.executable_path().is_none(), "accessor must return None when field is None");
+    assert!(
+        r.executable_path().is_none(),
+        "accessor must return None when field is None"
+    );
 }
 
 #[test]
@@ -429,7 +441,11 @@ fn test_bind_result_version_accessor_matches_field() {
         install_path: "/pkgs/node/20.11.0".to_string(),
         executable_path: None,
     };
-    assert_eq!(r.version(), r.version.as_str(), "version() accessor must match version field");
+    assert_eq!(
+        r.version(),
+        r.version.as_str(),
+        "version() accessor must match version field"
+    );
 }
 
 #[test]
@@ -440,14 +456,22 @@ fn test_bind_result_name_accessor_matches_field() {
         install_path: "/pkgs/rustc/1.77.0".to_string(),
         executable_path: None,
     };
-    assert_eq!(r.name(), r.name.as_str(), "name() accessor must match name field");
+    assert_eq!(
+        r.name(),
+        r.name.as_str(),
+        "name() accessor must match name field"
+    );
 }
 
 #[test]
 fn test_extract_version_two_component() {
     // e.g. "3.9" style version
     let result = extract_version("Python 3.9");
-    assert_eq!(result, Some("3.9".to_string()), "two-component version should be extracted");
+    assert_eq!(
+        result,
+        Some("3.9".to_string()),
+        "two-component version should be extracted"
+    );
 }
 
 #[test]
@@ -477,7 +501,10 @@ fn test_bind_result_repr_format_no_executable() {
     };
     let repr = r.__repr__();
     // BindResult(name='zlib', version='1.3.0', path='/pkgs/zlib/1.3.0')
-    assert!(repr.starts_with("BindResult("), "repr must start with BindResult(: {repr}");
+    assert!(
+        repr.starts_with("BindResult("),
+        "repr must start with BindResult(: {repr}"
+    );
     assert!(repr.contains("zlib"), "repr must contain name: {repr}");
     assert!(repr.contains("1.3.0"), "repr must contain version: {repr}");
 }
@@ -485,5 +512,8 @@ fn test_bind_result_repr_format_no_executable() {
 #[test]
 fn test_extract_version_no_digits_returns_none() {
     let result = extract_version("no version here");
-    assert!(result.is_none(), "extract_version must return None when no version found");
+    assert!(
+        result.is_none(),
+        "extract_version must return None when no version found"
+    );
 }

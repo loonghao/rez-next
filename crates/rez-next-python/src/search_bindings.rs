@@ -203,5 +203,3 @@ pub fn search_latest_packages(
 #[cfg(test)]
 #[path = "search_bindings_tests.rs"]
 mod tests;
-
-

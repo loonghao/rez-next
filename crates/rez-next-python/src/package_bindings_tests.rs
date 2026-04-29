@@ -88,8 +88,14 @@ fn test_package_str_without_version() {
 fn test_package_repr_format() {
     let p = make_package("houdini");
     let repr = p.__repr__();
-    assert!(repr.contains("Package"), "repr must contain 'Package', got {repr}");
-    assert!(repr.contains("houdini"), "repr must contain name, got {repr}");
+    assert!(
+        repr.contains("Package"),
+        "repr must contain 'Package', got {repr}"
+    );
+    assert!(
+        repr.contains("houdini"),
+        "repr must contain name, got {repr}"
+    );
 }
 
 #[test]
@@ -107,11 +113,13 @@ fn test_package_set_version_invalid_returns_err() {
     assert!(result.is_err(), "invalid version string must return Err");
 }
 
-
 #[test]
 fn test_package_version_getter_none_by_default() {
     let p = make_package("nuke");
-    assert!(p.version().is_none(), "freshly created package has no version");
+    assert!(
+        p.version().is_none(),
+        "freshly created package has no version"
+    );
 }
 
 #[test]
@@ -168,7 +176,10 @@ fn test_conflict_requirement_already_conflict() {
     // If it's already a conflict, conflict_requirement() should still start with '!'
     let r = req("!maya");
     let cr = r.conflict_requirement();
-    assert!(cr.starts_with('!'), "conflict of conflict should stay !, got {cr}");
+    assert!(
+        cr.starts_with('!'),
+        "conflict of conflict should stay !, got {cr}"
+    );
 }
 
 // ─── Additional PyPackage tests ───────────────────────────────────────────
@@ -185,8 +196,14 @@ fn test_package_repr_with_version() {
     let mut p = make_package("houdini");
     p.set_version("20.5.0").unwrap();
     let repr = p.__repr__();
-    assert!(repr.contains("Package("), "repr must contain 'Package(', got {repr}");
-    assert!(repr.contains("houdini-20.5.0"), "repr must contain 'houdini-20.5.0', got {repr}");
+    assert!(
+        repr.contains("Package("),
+        "repr must contain 'Package(', got {repr}"
+    );
+    assert!(
+        repr.contains("houdini-20.5.0"),
+        "repr must contain 'houdini-20.5.0', got {repr}"
+    );
 }
 
 #[test]
@@ -195,7 +212,10 @@ fn test_package_eq_same_name_same_version() {
     let mut b = make_package("python");
     a.set_version("3.10.0").unwrap();
     b.set_version("3.10.0").unwrap();
-    assert!(a.__eq__(&b), "packages with same name+version must be equal");
+    assert!(
+        a.__eq__(&b),
+        "packages with same name+version must be equal"
+    );
 }
 
 #[test]
@@ -204,7 +224,10 @@ fn test_package_eq_different_version() {
     let mut b = make_package("python");
     a.set_version("3.10.0").unwrap();
     b.set_version("3.11.0").unwrap();
-    assert!(!a.__eq__(&b), "packages with different versions must not be equal");
+    assert!(
+        !a.__eq__(&b),
+        "packages with different versions must not be equal"
+    );
 }
 
 #[test]
@@ -213,7 +236,11 @@ fn test_package_hash_same_for_equal_packages() {
     let mut b = make_package("rez");
     a.set_version("2.0.0").unwrap();
     b.set_version("2.0.0").unwrap();
-    assert_eq!(a.__hash__(), b.__hash__(), "equal packages must have same hash");
+    assert_eq!(
+        a.__hash__(),
+        b.__hash__(),
+        "equal packages must have same hash"
+    );
 }
 
 #[test]
@@ -221,19 +248,29 @@ fn test_package_version_str_getter() {
     let mut p = make_package("cmake");
     p.set_version("3.26.4").unwrap();
     let vs = p.version_str();
-    assert_eq!(vs.as_deref(), Some("3.26.4"), "version_str must return version string");
+    assert_eq!(
+        vs.as_deref(),
+        Some("3.26.4"),
+        "version_str must return version string"
+    );
 }
 
 #[test]
 fn test_package_build_requires_empty_by_default() {
     let p = make_package("test_pkg");
-    assert!(p.build_requires().is_empty(), "build_requires must be empty by default");
+    assert!(
+        p.build_requires().is_empty(),
+        "build_requires must be empty by default"
+    );
 }
 
 #[test]
 fn test_package_private_build_requires_empty_by_default() {
     let p = make_package("test_pkg");
-    assert!(p.private_build_requires().is_empty(), "private_build_requires must be empty by default");
+    assert!(
+        p.private_build_requires().is_empty(),
+        "private_build_requires must be empty by default"
+    );
 }
 
 #[test]
@@ -251,7 +288,10 @@ fn test_package_tools_empty_by_default() {
 #[test]
 fn test_package_load_nonexistent_returns_err() {
     let result = PyPackage::load("/nonexistent/path/package.py");
-    assert!(result.is_err(), "loading non-existent package.py should return Err");
+    assert!(
+        result.is_err(),
+        "loading non-existent package.py should return Err"
+    );
 }
 
 // ── Cycle 115 additions ──────────────────────────────────────────────────
@@ -289,14 +329,21 @@ fn test_package_cachable_none_by_default() {
 #[test]
 fn test_package_relocatable_none_by_default() {
     let p = make_package("relocpkg");
-    assert!(p.relocatable().is_none(), "relocatable must be None by default");
+    assert!(
+        p.relocatable().is_none(),
+        "relocatable must be None by default"
+    );
 }
 
 #[test]
 fn test_requirement_version_range_matches_range() {
     let r = req("python-3.9+<4");
     // range() and version_range() must return the same value
-    assert_eq!(r.range(), r.version_range(), "range() and version_range() must agree");
+    assert_eq!(
+        r.range(),
+        r.version_range(),
+        "range() and version_range() must agree"
+    );
 }
 
 // ── Cycle 121 additions ──────────────────────────────────────────────────
@@ -304,37 +351,53 @@ fn test_requirement_version_range_matches_range() {
 #[test]
 fn test_package_format_version_none_by_default() {
     let p = make_package("formatpkg");
-    assert!(p.format_version().is_none(), "format_version must be None by default");
+    assert!(
+        p.format_version().is_none(),
+        "format_version must be None by default"
+    );
 }
 
 #[test]
 fn test_package_eq_different_names() {
     let a = make_package("python");
     let b = make_package("maya");
-    assert!(!a.__eq__(&b), "packages with different names must not be equal");
+    assert!(
+        !a.__eq__(&b),
+        "packages with different names must not be equal"
+    );
 }
-
-
 
 #[test]
 fn test_requirement_repr_contains_name() {
     let r = req("cmake-3.21+");
     let repr = r.__repr__();
-    assert!(repr.contains("PackageRequirement"), "repr must contain 'PackageRequirement': {repr}");
-    assert!(repr.contains("cmake"), "repr must contain name 'cmake': {repr}");
+    assert!(
+        repr.contains("PackageRequirement"),
+        "repr must contain 'PackageRequirement': {repr}"
+    );
+    assert!(
+        repr.contains("cmake"),
+        "repr must contain name 'cmake': {repr}"
+    );
 }
 
 #[test]
 fn test_requirement_eq_different_specs_not_equal() {
     let a = req("python-3.9");
     let b = req("python-3.10");
-    assert!(!a.__eq__(&b), "requirements with different version specs must not be equal");
+    assert!(
+        !a.__eq__(&b),
+        "requirements with different version specs must not be equal"
+    );
 }
 
 #[test]
 fn test_package_is_valid_named_package_true() {
     let p = make_package("python");
-    assert!(p.is_valid(), "package with valid name 'python' should be valid");
+    assert!(
+        p.is_valid(),
+        "package with valid name 'python' should be valid"
+    );
 }
 
 // ─────── Cycle 126 additions ─────────────────────────────────────────────
@@ -348,7 +411,10 @@ fn test_package_name_roundtrip() {
 #[test]
 fn test_package_requirement_parse_valid() {
     let req = PyPackageRequirement::new("python-3.9+");
-    assert!(req.is_ok(), "valid requirement string must parse without error");
+    assert!(
+        req.is_ok(),
+        "valid requirement string must parse without error"
+    );
 }
 
 #[test]
@@ -356,5 +422,3 @@ fn test_package_requirement_name() {
     let req = PyPackageRequirement::new("maya-2024").unwrap();
     assert_eq!(req.name(), "maya");
 }
-
-

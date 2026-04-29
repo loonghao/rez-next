@@ -60,7 +60,14 @@ pub(crate) fn summarize_selftest_results(results: &[SelftestCheckResult]) -> (us
 }
 
 pub(crate) fn check_version_parse_basic() -> bool {
-    let cases = ["1.0.0", "2.1.3", "1.0.0-alpha1", "3.2.1", "0.0.1", "100.200.300"];
+    let cases = [
+        "1.0.0",
+        "2.1.3",
+        "1.0.0-alpha1",
+        "3.2.1",
+        "0.0.1",
+        "100.200.300",
+    ];
     cases
         .iter()
         .all(|version| rez_next_version::Version::parse(version).is_ok())

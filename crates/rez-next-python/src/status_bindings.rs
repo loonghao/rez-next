@@ -124,10 +124,7 @@ impl PyRezStatus {
             if let Some(ref ver) = self.rez_version {
                 out.push_str(&format!("  rez version  : {}\n", ver));
             }
-            out.push_str(&format!(
-                "  packages ({}):\n",
-                self.resolved_packages.len()
-            ));
+            out.push_str(&format!("  packages ({}):\n", self.resolved_packages.len()));
             for pkg in &self.resolved_packages {
                 out.push_str(&format!("    {}\n", pkg));
             }
@@ -186,7 +183,6 @@ pub(crate) fn detect_current_status() -> PyRezStatus {
         rez_env_vars: env_vars,
     }
 }
-
 
 // ─── Python functions ─────────────────────────────────────────────────────────
 

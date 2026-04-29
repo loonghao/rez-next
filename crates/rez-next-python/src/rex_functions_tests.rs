@@ -31,12 +31,7 @@ mod test_rex_execute {
     fn test_prepend_path_creates_path_entry() {
         let mut exec = RexExecutor::new();
         let env = exec
-            .execute_commands(
-                "env.prepend_path('PATH', '/custom/bin')",
-                "",
-                None,
-                None,
-            )
+            .execute_commands("env.prepend_path('PATH', '/custom/bin')", "", None, None)
             .expect("execute must succeed");
         let path_val = env.vars.get("PATH").cloned().unwrap_or_default();
         assert!(
@@ -106,12 +101,7 @@ mod test_rex_execute {
     fn test_append_path_adds_to_path() {
         let mut exec = RexExecutor::new();
         let env = exec
-            .execute_commands(
-                "env.append_path('PATH', '/extra/bin')",
-                "",
-                None,
-                None,
-            )
+            .execute_commands("env.append_path('PATH', '/extra/bin')", "", None, None)
             .expect("append_path must succeed");
         let path_val = env.vars.get("PATH").cloned().unwrap_or_default();
         assert!(
@@ -147,17 +137,13 @@ mod test_rex_execute {
                 Some("1.0"),
             )
             .expect("execute with context must succeed");
-        assert!(
-            env.vars.contains_key("PKG_ROOT"),
-            "PKG_ROOT must be set"
-        );
+        assert!(env.vars.contains_key("PKG_ROOT"), "PKG_ROOT must be set");
     }
 
     #[test]
     fn test_multiple_prepend_path_ordering() {
         let mut exec = RexExecutor::new();
-        let cmds =
-            "env.prepend_path('PATH', '/first')\nenv.prepend_path('PATH', '/second')";
+        let cmds = "env.prepend_path('PATH', '/first')\nenv.prepend_path('PATH', '/second')";
         let env = exec
             .execute_commands(cmds, "", None, None)
             .expect("multiple prepend must succeed");
@@ -172,12 +158,8 @@ mod test_rex_execute {
     #[test]
     fn test_execute_commands_returns_ok_for_valid_commands() {
         let mut exec = RexExecutor::new();
-        let result = exec.execute_commands(
-            "env.setenv('TEST_VALID', 'yes')",
-            "testpkg",
-            None,
-            None,
-        );
+        let result =
+            exec.execute_commands("env.setenv('TEST_VALID', 'yes')", "testpkg", None, None);
         assert!(result.is_ok(), "valid command must return Ok");
     }
 
@@ -188,7 +170,11 @@ mod test_rex_execute {
         let env = exec
             .execute_commands(cmds, "", None, None)
             .expect("execute must succeed");
-        assert_eq!(env.info_messages.len(), 3, "all info() calls should be preserved");
+        assert_eq!(
+            env.info_messages.len(),
+            3,
+            "all info() calls should be preserved"
+        );
     }
 
     #[test]
@@ -279,9 +265,18 @@ mod test_rex_execute {
         let env = exec
             .execute_commands(cmds, "", None, None)
             .expect("multiple alias must succeed");
-        assert!(env.aliases.contains_key("tool_a"), "tool_a must be registered");
-        assert!(env.aliases.contains_key("tool_b"), "tool_b must be registered");
-        assert!(env.aliases.contains_key("tool_c"), "tool_c must be registered");
+        assert!(
+            env.aliases.contains_key("tool_a"),
+            "tool_a must be registered"
+        );
+        assert!(
+            env.aliases.contains_key("tool_b"),
+            "tool_b must be registered"
+        );
+        assert!(
+            env.aliases.contains_key("tool_c"),
+            "tool_c must be registered"
+        );
     }
 
     #[test]
@@ -292,7 +287,10 @@ mod test_rex_execute {
             .execute_commands(cmds, "", None, None)
             .expect("info+stop must succeed");
         assert!(env.stopped, "stopped must be true");
-        assert!(!env.info_messages.is_empty(), "info message must be recorded");
+        assert!(
+            !env.info_messages.is_empty(),
+            "info message must be recorded"
+        );
     }
 
     #[test]
@@ -316,7 +314,10 @@ mod test_rex_execute {
             .execute_commands(cmds, "", None, None)
             .expect("setenv+info must succeed");
         assert_eq!(env.vars.get("TAGGED").map(|s| s.as_str()), Some("yes"));
-        assert!(!env.info_messages.is_empty(), "info message must be recorded");
+        assert!(
+            !env.info_messages.is_empty(),
+            "info message must be recorded"
+        );
     }
 
     #[test]
@@ -335,13 +336,22 @@ mod test_rex_execute {
     #[test]
     fn test_append_then_prepend_ordering() {
         let mut exec = RexExecutor::new();
-        let cmds = "env.append_path('TESTPATH', '/appended')\nenv.prepend_path('TESTPATH', '/prepended')";
+        let cmds =
+            "env.append_path('TESTPATH', '/appended')\nenv.prepend_path('TESTPATH', '/prepended')";
         let env = exec
             .execute_commands(cmds, "", None, None)
             .expect("append+prepend must succeed");
         let val = env.vars.get("TESTPATH").cloned().unwrap_or_default();
-        assert!(val.contains("/appended"), "TESTPATH must contain /appended, got: {}", val);
-        assert!(val.contains("/prepended"), "TESTPATH must contain /prepended, got: {}", val);
+        assert!(
+            val.contains("/appended"),
+            "TESTPATH must contain /appended, got: {}",
+            val
+        );
+        assert!(
+            val.contains("/prepended"),
+            "TESTPATH must contain /prepended, got: {}",
+            val
+        );
     }
 
     // ── Cycle 120 additions ──────────────────────────────────────────────
@@ -368,7 +378,13 @@ mod test_rex_execute {
         let env = exec
             .execute_commands(cmds, "", None, None)
             .expect("5 setenv must succeed");
-        for (key, val) in [("V1", "a"), ("V2", "b"), ("V3", "c"), ("V4", "d"), ("V5", "e")] {
+        for (key, val) in [
+            ("V1", "a"),
+            ("V2", "b"),
+            ("V3", "c"),
+            ("V4", "d"),
+            ("V5", "e"),
+        ] {
             assert_eq!(
                 env.vars.get(key).map(|s| s.as_str()),
                 Some(val),
@@ -381,12 +397,7 @@ mod test_rex_execute {
     fn test_alias_with_spaces_in_value() {
         let mut exec = RexExecutor::new();
         let env = exec
-            .execute_commands(
-                "alias('ll', 'ls -la --color=auto')",
-                "",
-                None,
-                None,
-            )
+            .execute_commands("alias('ll', 'ls -la --color=auto')", "", None, None)
             .expect("alias with spaces must succeed");
         assert!(
             env.aliases.contains_key("ll"),
@@ -415,8 +426,15 @@ mod test_rex_execute {
         let env = exec
             .execute_commands("info('rez-next-cycle120')", "", None, None)
             .expect("info must succeed");
-        let found = env.info_messages.iter().any(|m| m.contains("rez-next-cycle120"));
-        assert!(found, "info message 'rez-next-cycle120' must be preserved, got: {:?}", env.info_messages);
+        let found = env
+            .info_messages
+            .iter()
+            .any(|m| m.contains("rez-next-cycle120"));
+        assert!(
+            found,
+            "info message 'rez-next-cycle120' must be preserved, got: {:?}",
+            env.info_messages
+        );
     }
 
     #[test]
@@ -518,8 +536,11 @@ mod test_rex_execute {
     #[test]
     fn test_setenv_overwrite_then_check_value() {
         let mut exec = RexExecutor::new();
-        exec.execute_commands("env.setenv('TOOL', 'v1')", "", None, None).unwrap();
-        let env = exec.execute_commands("env.setenv('TOOL', 'v2')", "", None, None).unwrap();
+        exec.execute_commands("env.setenv('TOOL', 'v1')", "", None, None)
+            .unwrap();
+        let env = exec
+            .execute_commands("env.setenv('TOOL', 'v2')", "", None, None)
+            .unwrap();
         assert_eq!(
             env.vars.get("TOOL").map(|s| s.as_str()),
             Some("v2"),
@@ -533,8 +554,16 @@ mod test_rex_execute {
         let cmds = "env.prepend_path('PATH', '/p1')\nenv.prepend_path('PATH', '/p2')";
         let env = exec.execute_commands(cmds, "", None, None).unwrap();
         let path_val = env.vars.get("PATH").cloned().unwrap_or_default();
-        assert!(path_val.contains("/p1"), "PATH must contain /p1: {}", path_val);
-        assert!(path_val.contains("/p2"), "PATH must contain /p2: {}", path_val);
+        assert!(
+            path_val.contains("/p1"),
+            "PATH must contain /p1: {}",
+            path_val
+        );
+        assert!(
+            path_val.contains("/p2"),
+            "PATH must contain /p2: {}",
+            path_val
+        );
     }
 
     #[test]
@@ -545,7 +574,8 @@ mod test_rex_execute {
         assert_eq!(env.vars.get("MY_TOOL").map(|s| s.as_str()), Some("active"));
         assert!(
             env.aliases.contains_key("mytool"),
-            "alias 'mytool' must be registered, aliases: {:?}", env.aliases
+            "alias 'mytool' must be registered, aliases: {:?}",
+            env.aliases
         );
     }
 
@@ -562,7 +592,12 @@ mod test_rex_execute {
     fn test_setenv_special_chars_in_var_name() {
         let mut exec = RexExecutor::new();
         let env = exec
-            .execute_commands("env.setenv('MY_TOOL_ROOT_123', '/opt/tool')", "", None, None)
+            .execute_commands(
+                "env.setenv('MY_TOOL_ROOT_123', '/opt/tool')",
+                "",
+                None,
+                None,
+            )
             .expect("setenv with underscores must succeed");
         assert_eq!(
             env.vars.get("MY_TOOL_ROOT_123").map(|s| s.as_str()),
@@ -590,6 +625,9 @@ mod test_rex_execute {
         let env = exec
             .execute_commands("env.setenv('NO_STOP', 'yes')", "", None, None)
             .expect("normal execute must succeed");
-        assert!(!env.stopped, "stopped must be false when stop() was not called");
+        assert!(
+            !env.stopped,
+            "stopped must be false when stop() was not called"
+        );
     }
 }

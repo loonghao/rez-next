@@ -235,7 +235,10 @@ mod test_config_default_values {
     fn test_default_packages_path_contains_tilde() {
         let cfg = RezCoreConfig::default();
         let has_tilde = cfg.packages_path.iter().any(|p| p.starts_with('~'));
-        assert!(has_tilde, "default packages_path should contain tilde paths");
+        assert!(
+            has_tilde,
+            "default packages_path should contain tilde paths"
+        );
     }
 
     #[test]
@@ -288,7 +291,10 @@ mod test_config_default_values {
     #[test]
     fn test_default_use_rust_solver_is_true() {
         let cfg = RezCoreConfig::default();
-        assert!(cfg.use_rust_solver, "default use_rust_solver should be true");
+        assert!(
+            cfg.use_rust_solver,
+            "default use_rust_solver should be true"
+        );
     }
 }
 
@@ -299,7 +305,10 @@ mod test_config_field_types_extra {
     fn test_get_field_release_packages_path_is_string() {
         let cfg = RezCoreConfig::load();
         let val = cfg.get_field("release_packages_path");
-        assert!(val.is_some(), "release_packages_path should be a known field");
+        assert!(
+            val.is_some(),
+            "release_packages_path should be a known field"
+        );
         if let Some(serde_json::Value::String(s)) = val {
             assert!(!s.is_empty(), "release_packages_path should not be empty");
         }

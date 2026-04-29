@@ -211,10 +211,18 @@ fn test_write_pip_package_creates_package_py() {
         description: "A test package".to_string(),
     };
     let result = write_pip_package(&pkg, tmp.to_str().unwrap(), false);
-    assert!(result.is_ok(), "write_pip_package should succeed: {:?}", result);
+    assert!(
+        result.is_ok(),
+        "write_pip_package should succeed: {:?}",
+        result
+    );
 
     let pkg_py = tmp.join("testpkg").join("0.1.0").join("package.py");
-    assert!(pkg_py.exists(), "package.py should be created at {:?}", pkg_py);
+    assert!(
+        pkg_py.exists(),
+        "package.py should be created at {:?}",
+        pkg_py
+    );
 
     let content = std::fs::read_to_string(&pkg_py).unwrap();
     assert!(content.contains("name = \"testpkg\""));
@@ -276,7 +284,10 @@ fn test_to_package_py_authors_is_pip() {
         description: "".to_string(),
     };
     let py = pkg.to_package_py();
-    assert!(py.contains("authors = [\"pip\"]"), "authors should be [\"pip\"], got:\n{py}");
+    assert!(
+        py.contains("authors = [\"pip\"]"),
+        "authors should be [\"pip\"], got:\n{py}"
+    );
 }
 
 #[test]
@@ -312,7 +323,11 @@ fn test_write_pip_package_overwrite_true_replaces() {
         description: "updated".to_string(),
     };
     let result = write_pip_package(&pkg2, tmp.to_str().unwrap(), true);
-    assert!(result.is_ok(), "overwrite=true should succeed: {:?}", result);
+    assert!(
+        result.is_ok(),
+        "overwrite=true should succeed: {:?}",
+        result
+    );
 
     let _ = std::fs::remove_dir_all(&tmp);
 }
@@ -360,7 +375,10 @@ fn test_convert_pip_to_rez_multiple_requires() {
     assert_eq!(pkg.requires.len(), 3, "expected 3 requires");
     // All names should be normalized (no uppercase, no underscores)
     for r in &pkg.requires {
-        assert!(r.chars().all(|c| !c.is_uppercase()), "require should be lowercase: {r}");
+        assert!(
+            r.chars().all(|c| !c.is_uppercase()),
+            "require should be lowercase: {r}"
+        );
     }
 }
 
@@ -389,7 +407,10 @@ fn test_pip_package_repr_and_str_differ() {
     let s = pkg.__str__();
     // repr wraps in PipPackage(...), str is plain name-version
     assert!(repr.starts_with("PipPackage("), "repr: {repr}");
-    assert!(!s.starts_with("PipPackage("), "str should not have wrapper: {s}");
+    assert!(
+        !s.starts_with("PipPackage("),
+        "str should not have wrapper: {s}"
+    );
     assert_eq!(s, "pkg-1.0.0");
 }
 
@@ -425,7 +446,10 @@ fn test_to_package_py_version_in_site_packages_path() {
     };
     let py = pkg.to_package_py();
     // The template embeds python.major and python.minor; not the package version
-    assert!(py.contains("site-packages"), "site-packages path missing: {py}");
+    assert!(
+        py.contains("site-packages"),
+        "site-packages path missing: {py}"
+    );
 }
 
 #[test]
@@ -435,8 +459,7 @@ fn test_pip_version_to_rez_exact_single_zero() {
 
 #[test]
 fn test_convert_pip_to_rez_description_propagated() {
-    let pkg =
-        convert_pip_to_rez("mylib", "1.0.0", None, Some("A useful library")).unwrap();
+    let pkg = convert_pip_to_rez("mylib", "1.0.0", None, Some("A useful library")).unwrap();
     assert_eq!(pkg.description, "A useful library");
 }
 
@@ -452,27 +475,39 @@ fn test_normalize_package_name_mixed_case_lowercased() {
 fn test_normalize_package_name_underscores_become_hyphens() {
     // normalize_package_name converts underscores to hyphens (pip convention)
     let result = normalize_package_name("my_package");
-    assert_eq!(result, "my-package", "underscores must be converted to hyphens");
+    assert_eq!(
+        result, "my-package",
+        "underscores must be converted to hyphens"
+    );
 }
 
 #[test]
 fn test_pip_version_to_rez_exact_with_patch() {
     // ==1.2.3 → exact 1.2.3
     let result = pip_version_to_rez("==1.2.3");
-    assert!(result.contains("1.2.3"), "exact version '1.2.3' must appear in result: {result}");
+    assert!(
+        result.contains("1.2.3"),
+        "exact version '1.2.3' must appear in result: {result}"
+    );
 }
 
 #[test]
 fn test_pip_version_to_rez_tilde_eq_maps_to_compatible() {
     // ~=2.1 means >=2.1,==2.*  (compatible release)
     let result = pip_version_to_rez("~=2.1");
-    assert!(result.contains("2.1"), "compatible release '~=2.1' must include '2.1': {result}");
+    assert!(
+        result.contains("2.1"),
+        "compatible release '~=2.1' must include '2.1': {result}"
+    );
 }
 
 #[test]
 fn test_convert_pip_to_rez_empty_requires_produces_empty_vec() {
     let pkg = convert_pip_to_rez("libfoo", "0.1.0", None, None).unwrap();
-    assert!(pkg.requires.is_empty(), "package with no deps must have empty requires vec");
+    assert!(
+        pkg.requires.is_empty(),
+        "package with no deps must have empty requires vec"
+    );
 }
 
 #[test]
@@ -483,5 +518,10 @@ fn test_pip_package_str_format_is_name_dash_version() {
         requires: vec![],
         description: "".to_string(),
     };
-    assert_eq!(pkg.__str__(), "requests-2.28.0", "__str__ must be name-version: {}", pkg.__str__());
+    assert_eq!(
+        pkg.__str__(),
+        "requests-2.28.0",
+        "__str__ must be name-version: {}",
+        pkg.__str__()
+    );
 }

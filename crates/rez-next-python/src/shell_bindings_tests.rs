@@ -54,7 +54,8 @@ mod test_shell_script_generation {
     #[test]
     fn test_cmd_script_sets_env_var() {
         let mut env = RexEnvironment::new();
-        env.vars.insert("CMD_VAR".to_string(), "cmd_val".to_string());
+        env.vars
+            .insert("CMD_VAR".to_string(), "cmd_val".to_string());
         let script = generate_shell_script(&env, &ShellType::Cmd);
         assert!(
             script.contains("CMD_VAR"),
@@ -279,7 +280,10 @@ mod test_shell_extra_cy98 {
         let mut aliases = HashMap::new();
         aliases.insert("gs".to_string(), "git status".to_string());
         let result = create_shell_script("bash", None, Some(aliases), None);
-        assert!(result.is_ok(), "create_shell_script with aliases should succeed");
+        assert!(
+            result.is_ok(),
+            "create_shell_script with aliases should succeed"
+        );
         let script = result.unwrap();
         assert!(
             script.contains("gs") || script.contains("git"),
@@ -320,7 +324,12 @@ mod test_shell_extra_cy104 {
     fn test_available_shells_all_lowercase() {
         let shells = get_available_shells();
         for s in &shells {
-            assert_eq!(*s, s.to_lowercase(), "shell name '{}' should be lowercase", s);
+            assert_eq!(
+                *s,
+                s.to_lowercase(),
+                "shell name '{}' should be lowercase",
+                s
+            );
         }
     }
 
@@ -363,8 +372,16 @@ mod test_shell_cy114 {
         for name in &["bash", "zsh", "fish", "cmd", "powershell"] {
             let shell = PyShell::new(name).unwrap();
             let repr = shell.__repr__();
-            assert!(repr.contains(name), "repr for '{}' should contain shell name, got: {repr}", name);
-            assert!(repr.contains("Shell"), "repr for '{}' should contain 'Shell', got: {repr}", name);
+            assert!(
+                repr.contains(name),
+                "repr for '{}' should contain shell name, got: {repr}",
+                name
+            );
+            assert!(
+                repr.contains("Shell"),
+                "repr for '{}' should contain 'Shell', got: {repr}",
+                name
+            );
         }
     }
 
@@ -394,7 +411,10 @@ mod test_shell_cy114 {
         let mut aliases = HashMap::new();
         aliases.insert("cl".to_string(), "cls".to_string());
         let result = create_shell_script("cmd", None, Some(aliases), None);
-        assert!(result.is_ok(), "create_shell_script cmd with aliases should succeed");
+        assert!(
+            result.is_ok(),
+            "create_shell_script cmd with aliases should succeed"
+        );
     }
 
     #[test]
@@ -402,7 +422,11 @@ mod test_shell_cy114 {
         let shells = get_available_shells();
         let mut seen = std::collections::HashSet::new();
         for s in &shells {
-            assert!(seen.insert(*s), "duplicate shell '{}' in get_available_shells()", s);
+            assert!(
+                seen.insert(*s),
+                "duplicate shell '{}' in get_available_shells()",
+                s
+            );
         }
     }
 
@@ -432,7 +456,10 @@ mod test_shell_cy120 {
     fn test_create_shell_script_cmd_with_startup_commands() {
         let cmds = vec!["echo hello from cmd".to_string()];
         let result = create_shell_script("cmd", None, None, Some(cmds));
-        assert!(result.is_ok(), "create_shell_script cmd with startup_commands must succeed");
+        assert!(
+            result.is_ok(),
+            "create_shell_script cmd with startup_commands must succeed"
+        );
     }
 
     #[test]
@@ -467,7 +494,10 @@ mod test_shell_cy120 {
     fn test_create_shell_script_fish_with_startup_commands() {
         let cmds = vec!["set -x FISH_INIT 1".to_string()];
         let result = create_shell_script("fish", None, None, Some(cmds));
-        assert!(result.is_ok(), "create_shell_script fish with startup_commands must succeed");
+        assert!(
+            result.is_ok(),
+            "create_shell_script fish with startup_commands must succeed"
+        );
     }
 }
 
@@ -485,23 +515,35 @@ mod test_shell_cy125 {
 
     #[test]
     fn test_pyshell_new_bash_is_ok() {
-        assert!(PyShell::new("bash").is_ok(), "PyShell::new('bash') must succeed");
+        assert!(
+            PyShell::new("bash").is_ok(),
+            "PyShell::new('bash') must succeed"
+        );
     }
 
     #[test]
     fn test_pyshell_new_zsh_is_ok() {
-        assert!(PyShell::new("zsh").is_ok(), "PyShell::new('zsh') must succeed");
+        assert!(
+            PyShell::new("zsh").is_ok(),
+            "PyShell::new('zsh') must succeed"
+        );
     }
 
     #[test]
     fn test_pyshell_new_unknown_shell_is_err() {
         let result = PyShell::new("unknownshell_cy125");
-        assert!(result.is_err(), "PyShell::new for unknown shell should return Err");
+        assert!(
+            result.is_err(),
+            "PyShell::new for unknown shell should return Err"
+        );
     }
 
     #[test]
     fn test_create_shell_script_bash_no_startup_commands() {
         let result = create_shell_script("bash", None, None, None);
-        assert!(result.is_ok(), "create_shell_script bash with no startup_commands must succeed");
+        assert!(
+            result.is_ok(),
+            "create_shell_script bash with no startup_commands must succeed"
+        );
     }
 }

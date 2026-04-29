@@ -35,7 +35,10 @@ mod tests {
         assert!(matches!(shell_type_from_str("zsh"), ShellType::Zsh));
         assert!(matches!(shell_type_from_str("fish"), ShellType::Fish));
         assert!(matches!(shell_type_from_str("cmd"), ShellType::Cmd));
-        assert!(matches!(shell_type_from_str("powershell"), ShellType::PowerShell));
+        assert!(matches!(
+            shell_type_from_str("powershell"),
+            ShellType::PowerShell
+        ));
         assert!(matches!(shell_type_from_str("pwsh"), ShellType::PowerShell));
         assert!(matches!(shell_type_from_str("ps1"), ShellType::PowerShell));
     }
@@ -44,7 +47,10 @@ mod tests {
     fn test_shell_type_from_str_case_insensitive() {
         assert!(matches!(shell_type_from_str("BASH"), ShellType::Bash));
         assert!(matches!(shell_type_from_str("ZSH"), ShellType::Zsh));
-        assert!(matches!(shell_type_from_str("PowerShell"), ShellType::PowerShell));
+        assert!(matches!(
+            shell_type_from_str("PowerShell"),
+            ShellType::PowerShell
+        ));
     }
 
     #[test]

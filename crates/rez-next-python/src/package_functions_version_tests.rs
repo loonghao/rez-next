@@ -146,7 +146,11 @@ mod test_copy_package_version_selection {
             Some(vec![src.to_string_lossy().to_string()]),
             false,
         );
-        assert!(result.is_ok(), "copy of single-version package must succeed: {:?}", result);
+        assert!(
+            result.is_ok(),
+            "copy of single-version package must succeed: {:?}",
+            result
+        );
         assert!(
             dest.join("spkg").join("7.3.2").join("package.py").exists(),
             "7.3.2 must be at destination"

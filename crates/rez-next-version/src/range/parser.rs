@@ -1,7 +1,7 @@
 //! Version range string parsing — converts range strings into BoundSets.
 
-use super::types::{Bound, BoundSet};
 use super::super::Version;
+use super::types::{Bound, BoundSet};
 use rez_next_common::RezCoreError;
 
 /// Parse a range string into a vector of BoundSets (disjunction)

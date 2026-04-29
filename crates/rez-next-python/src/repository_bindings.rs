@@ -87,12 +87,14 @@ impl PyRepositoryManager {
 
         // Sort descending by semantic version (newest first), matching rez.packages.iter_packages
         packages.sort_by(|a, b| {
-            let va = a.0.version.as_ref().and_then(|v| {
-                rez_next_version::Version::parse(v.as_str()).ok()
-            });
-            let vb = b.0.version.as_ref().and_then(|v| {
-                rez_next_version::Version::parse(v.as_str()).ok()
-            });
+            let va =
+                a.0.version
+                    .as_ref()
+                    .and_then(|v| rez_next_version::Version::parse(v.as_str()).ok());
+            let vb =
+                b.0.version
+                    .as_ref()
+                    .and_then(|v| rez_next_version::Version::parse(v.as_str()).ok());
             match (va, vb) {
                 (Some(a), Some(b)) => b.cmp(&a), // descending: newest first
                 (Some(_), None) => std::cmp::Ordering::Less,

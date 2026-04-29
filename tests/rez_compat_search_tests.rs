@@ -457,9 +457,6 @@ fn test_search_nonexistent_repo_empty() {
     );
 }
 
-
-
-
 /// rez search: SearchResult with version_range filter
 #[test]
 fn test_search_filter_version_range() {

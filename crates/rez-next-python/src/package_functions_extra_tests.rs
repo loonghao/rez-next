@@ -103,7 +103,11 @@ mod test_copy_package_fs {
 
         let pkg_dir = src.join("pkg2").join("2.0.0");
         fs::create_dir_all(&pkg_dir).unwrap();
-        fs::write(pkg_dir.join("package.py"), b"name = 'pkg2'\nversion = '2.0.0'\n").unwrap();
+        fs::write(
+            pkg_dir.join("package.py"),
+            b"name = 'pkg2'\nversion = '2.0.0'\n",
+        )
+        .unwrap();
 
         let dest_pkg = dest.join("pkg2").join("2.0.0");
         fs::create_dir_all(&dest_pkg).unwrap();
@@ -150,7 +154,10 @@ mod test_copy_package_fs {
         );
         assert!(result.is_ok(), "force copy must succeed: {:?}", result);
         let new_content = fs::read_to_string(dest_pkg.join("package.py")).unwrap();
-        assert!(new_content.contains("new_content"), "overwrite must use new source");
+        assert!(
+            new_content.contains("new_content"),
+            "overwrite must use new source"
+        );
 
         let _ = fs::remove_dir_all(&src);
         let _ = fs::remove_dir_all(&dest);
@@ -174,7 +181,11 @@ mod test_remove_package_extra {
             Some(vec![tmp.to_string_lossy().to_string()]),
         );
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), 0, "missing version should return 0 removals");
+        assert_eq!(
+            result.unwrap(),
+            0,
+            "missing version should return 0 removals"
+        );
 
         let _ = fs::remove_dir_all(&tmp);
     }
@@ -195,7 +206,10 @@ mod test_remove_package_extra {
         );
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), 1);
-        assert!(!tmp.join("bigpkg").exists(), "entire family must be removed");
+        assert!(
+            !tmp.join("bigpkg").exists(),
+            "entire family must be removed"
+        );
 
         let _ = fs::remove_dir_all(&tmp);
     }

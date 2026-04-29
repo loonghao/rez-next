@@ -201,7 +201,11 @@ fn test_package_family_versions_empty_when_no_version() {
     assert_eq!(family.num_versions(), 1);
     // versions() only includes packages with Some(version)
     let versions = family.versions();
-    assert!(versions.is_empty(), "versionless pkg should not appear: {:?}", versions);
+    assert!(
+        versions.is_empty(),
+        "versionless pkg should not appear: {:?}",
+        versions
+    );
 }
 
 #[test]
@@ -226,7 +230,10 @@ fn test_package_family_repr_zero_versions() {
     let family = PyPackageFamily::new("mypkg".to_string());
     let repr = family.__repr__();
     assert!(repr.contains("mypkg"), "repr: {repr}");
-    assert!(repr.contains('0'.to_string().as_str()), "repr should show 0 versions: {repr}");
+    assert!(
+        repr.contains('0'.to_string().as_str()),
+        "repr should show 0 versions: {repr}"
+    );
 }
 
 // ── Additional PyRezEnv tests ────────────────────────────────────────────
@@ -242,7 +249,8 @@ fn test_rez_env_success_flag_on_stub() {
 fn test_rez_env_available_shells_with_scripts() {
     let mut env = empty_rez_env(vec![]);
     env.scripts.insert("zsh".to_string(), "# zsh\n".to_string());
-    env.scripts.insert("bash".to_string(), "# bash\n".to_string());
+    env.scripts
+        .insert("bash".to_string(), "# bash\n".to_string());
     let shells = env.available_shells();
     assert!(shells.contains(&"bash".to_string()));
     assert!(shells.contains(&"zsh".to_string()));
@@ -274,11 +282,10 @@ fn test_rez_env_write_script_powershell_content() {
     let tmp_file = std::env::temp_dir().join("rez_test_write_ps1.ps1");
     let _ = std::fs::remove_file(&tmp_file);
     let mut env = empty_rez_env(vec![]);
-    env.scripts.insert(
-        "powershell".to_string(),
-        "$env:FOO = 'bar'\n".to_string(),
-    );
-    env.write_script(tmp_file.to_str().unwrap(), "powershell").unwrap();
+    env.scripts
+        .insert("powershell".to_string(), "$env:FOO = 'bar'\n".to_string());
+    env.write_script(tmp_file.to_str().unwrap(), "powershell")
+        .unwrap();
     let content = std::fs::read_to_string(&tmp_file).unwrap();
     assert!(content.contains("FOO"));
     let _ = std::fs::remove_file(&tmp_file);
@@ -366,7 +373,8 @@ fn test_rez_env_print_script_missing_shell_does_not_panic() {
 #[test]
 fn test_rez_env_print_script_with_registered_shell_does_not_panic() {
     let mut env = empty_rez_env(vec![]);
-    env.scripts.insert("bash".to_string(), "export X=1\n".to_string());
+    env.scripts
+        .insert("bash".to_string(), "export X=1\n".to_string());
     // Should not panic when shell is present
     env.print_script("bash");
 }
@@ -410,7 +418,7 @@ fn test_package_family_add_same_version_twice_increments_count() {
     let mut family = PyPackageFamily::new("dup_pkg".to_string());
     family.add_package(make_pkg("dup_pkg", "1.0.0"));
     family.add_package(make_pkg("dup_pkg", "1.0.0")); // duplicate
-    // num_versions counts raw list length, duplicates allowed
+                                                      // num_versions counts raw list length, duplicates allowed
     assert_eq!(family.num_versions(), 2);
 }
 
@@ -458,7 +466,10 @@ mod test_env_cy119 {
             .insert("bash".to_string(), "export OVERWRITTEN=1\n".to_string());
         env.write_script(tmp.to_str().unwrap(), "bash").unwrap();
         let content = std::fs::read_to_string(&tmp).unwrap();
-        assert!(content.contains("OVERWRITTEN"), "file should be overwritten");
+        assert!(
+            content.contains("OVERWRITTEN"),
+            "file should be overwritten"
+        );
         let _ = std::fs::remove_file(&tmp);
     }
 
@@ -483,10 +494,14 @@ mod test_env_cy119 {
     #[test]
     fn test_env_vars_key_removal() {
         let mut env = empty_rez_env(vec![]);
-        env.env_vars.insert("TEMP_KEY".to_string(), "val".to_string());
+        env.env_vars
+            .insert("TEMP_KEY".to_string(), "val".to_string());
         assert!(env.env_vars.contains_key("TEMP_KEY"));
         env.env_vars.remove("TEMP_KEY");
-        assert!(!env.env_vars.contains_key("TEMP_KEY"), "key should be removed");
+        assert!(
+            !env.env_vars.contains_key("TEMP_KEY"),
+            "key should be removed"
+        );
     }
 }
 

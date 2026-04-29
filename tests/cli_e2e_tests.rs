@@ -367,7 +367,6 @@ fn test_bundle_create() {
     );
 }
 
-
 #[test]
 fn test_bundle_create_multiple_packages() {
     skip_no_bin!();
@@ -388,4 +387,3 @@ fn test_bind_help() {
     let out = rez_ok(&["bind", "--help"]);
     assert!(!out.trim().is_empty());
 }
-

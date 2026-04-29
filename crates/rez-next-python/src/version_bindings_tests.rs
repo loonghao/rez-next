@@ -359,7 +359,10 @@ fn test_py_version_le_same_version() {
 fn test_py_version_ne_same_is_false() {
     let v1 = pv("3.0.0");
     let v2 = pv("3.0.0");
-    assert!(!v1.__ne__(&v2), "__ne__ must return false for equal versions");
+    assert!(
+        !v1.__ne__(&v2),
+        "__ne__ must return false for equal versions"
+    );
 }
 
 #[test]
@@ -383,7 +386,10 @@ fn test_py_version_range_repr_contains_range_str() {
 fn test_py_version_range_contains_exact_boundary_version() {
     // ">=1.5" — exactly 1.5 must be included
     let r = pvr(">=1.5");
-    assert!(r.contains(&pv("1.5")), "exact lower boundary must be contained");
+    assert!(
+        r.contains(&pv("1.5")),
+        "exact lower boundary must be contained"
+    );
     assert!(
         r.contains(&pv("1.6")),
         "version above lower boundary must be contained"
@@ -414,7 +420,11 @@ fn test_py_version_range_subtract_disjoint_returns_original() {
 #[test]
 fn test_py_version_major_token_single_digit() {
     let v = pv("3.11.0");
-    assert_eq!(v.major(), Some("3".to_string()), "major of '3.11.0' must be '3'");
+    assert_eq!(
+        v.major(),
+        Some("3".to_string()),
+        "major of '3.11.0' must be '3'"
+    );
 }
 
 #[test]
@@ -430,24 +440,38 @@ fn test_py_version_minor_token_two_digits() {
 #[test]
 fn test_py_version_patch_token_present() {
     let v = pv("1.2.3");
-    assert_eq!(v.patch(), Some("3".to_string()), "patch of '1.2.3' must be '3'");
+    assert_eq!(
+        v.patch(),
+        Some("3".to_string()),
+        "patch of '1.2.3' must be '3'"
+    );
 }
 
 #[test]
 fn test_py_version_is_empty_true_for_empty_string() {
     let v = pv("");
-    assert!(v.is_empty(), "empty version string must report is_empty()=true");
+    assert!(
+        v.is_empty(),
+        "empty version string must report is_empty()=true"
+    );
 }
 
 #[test]
 fn test_py_version_is_empty_false_for_non_empty() {
     let v = pv("1.0");
-    assert!(!v.is_empty(), "non-empty version must report is_empty()=false");
+    assert!(
+        !v.is_empty(),
+        "non-empty version must report is_empty()=false"
+    );
 }
 
 #[test]
 fn test_py_version_trim_to_two_tokens() {
     let v = pv("1.2.3.4");
     let trimmed = v.trim(2).unwrap();
-    assert_eq!(trimmed.__str__(), "1.2", "trim(2) of '1.2.3.4' must yield '1.2'");
+    assert_eq!(
+        trimmed.__str__(),
+        "1.2",
+        "trim(2) of '1.2.3.4' must yield '1.2'"
+    );
 }

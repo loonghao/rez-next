@@ -120,7 +120,10 @@ fn test_package_requirement_weak() {
 
     let req_weak = PackageRequirement::parse("~python").unwrap();
     assert!(req_weak.weak, "~-prefixed requirement must have weak=true");
-    assert_eq!(req_weak.name, "python", "weak requirement name should strip the ~ prefix");
+    assert_eq!(
+        req_weak.name, "python",
+        "weak requirement name should strip the ~ prefix"
+    );
 }
 
 /// rez: DependencyResolver basic test

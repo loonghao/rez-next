@@ -1,6 +1,8 @@
 //! Unit tests for `copy_dir_recursive` helpers and `move_package` — split from
 //! `package_functions_extra_tests.rs` in Cycle 180 to keep each file ≤500 lines.
-use crate::package_functions::{copy_dir_recursive, copy_package, expand_home, move_package, remove_package};
+use crate::package_functions::{
+    copy_dir_recursive, copy_package, expand_home, move_package, remove_package,
+};
 use std::fs;
 
 mod test_package_helpers_move {
@@ -9,7 +11,11 @@ mod test_package_helpers_move {
     #[test]
     fn test_expand_home_tilde_slash_prefix_only() {
         let middle = "path/with~tilde/in/middle";
-        assert_eq!(expand_home(middle), middle, "embedded tilde must not be expanded");
+        assert_eq!(
+            expand_home(middle),
+            middle,
+            "embedded tilde must not be expanded"
+        );
     }
 
     #[test]
@@ -86,7 +92,11 @@ mod test_package_helpers_move {
     #[test]
     fn test_expand_home_relative_path_unchanged() {
         let p = "relative/to/cwd";
-        assert_eq!(expand_home(p), p, "relative path without tilde must not be modified");
+        assert_eq!(
+            expand_home(p),
+            p,
+            "relative path without tilde must not be modified"
+        );
     }
 
     #[test]
@@ -102,7 +112,10 @@ mod test_package_helpers_move {
 
         copy_dir_recursive(&src, &dest).unwrap();
 
-        assert!(dest.join("only_file.txt").exists(), "single file must be copied");
+        assert!(
+            dest.join("only_file.txt").exists(),
+            "single file must be copied"
+        );
         assert_eq!(fs::read(dest.join("only_file.txt")).unwrap(), b"single");
 
         let _ = fs::remove_dir_all(&src);
@@ -124,8 +137,14 @@ mod test_package_helpers_move {
         );
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), 1, "should remove exactly 1 version");
-        assert!(!tmp.join("mypkg").join("1.0.0").exists(), "1.0.0 must be removed");
-        assert!(tmp.join("mypkg").join("2.0.0").exists(), "2.0.0 must remain");
+        assert!(
+            !tmp.join("mypkg").join("1.0.0").exists(),
+            "1.0.0 must be removed"
+        );
+        assert!(
+            tmp.join("mypkg").join("2.0.0").exists(),
+            "2.0.0 must remain"
+        );
 
         let _ = fs::remove_dir_all(&tmp);
     }
@@ -150,7 +169,10 @@ mod test_package_helpers_move {
         assert!(!dest.exists(), "dest must not exist before copy");
         copy_dir_recursive(&src, &dest).unwrap();
         assert!(dest.exists(), "dest must be created by copy_dir_recursive");
-        assert!(dest.join("test.txt").exists(), "file must be in created dest");
+        assert!(
+            dest.join("test.txt").exists(),
+            "file must be in created dest"
+        );
 
         let _ = fs::remove_dir_all(&src);
         let _ = fs::remove_dir_all(&dest);
@@ -161,7 +183,11 @@ mod test_package_helpers_move {
     #[test]
     fn test_expand_home_tilde_slash_with_deep_path() {
         let result = expand_home("~/a/b/c");
-        assert!(!result.starts_with('~'), "result must not start with ~ after expansion: {}", result);
+        assert!(
+            !result.starts_with('~'),
+            "result must not start with ~ after expansion: {}",
+            result
+        );
         assert!(
             result.ends_with("a/b/c") || result.ends_with("a\\b\\c"),
             "deep path suffix must be preserved: {}",
@@ -173,7 +199,11 @@ mod test_package_helpers_move {
     fn test_expand_home_with_env_var_path() {
         for input in &["~/pkg/v1", "~/", "~/a", "/absolute/path", "relative/path"] {
             let result = expand_home(input);
-            assert!(!result.is_empty(), "expand_home result must not be empty for input '{}'", input);
+            assert!(
+                !result.is_empty(),
+                "expand_home result must not be empty for input '{}'",
+                input
+            );
         }
     }
 
@@ -203,7 +233,11 @@ mod test_package_helpers_move {
         for name in &["a.txt", "b.txt", "c.txt"] {
             assert!(dest.join(name).exists(), "{} must be copied", name);
             let content = fs::read_to_string(dest.join(name)).unwrap();
-            assert_eq!(content, *name, "file content must be preserved for {}", name);
+            assert_eq!(
+                content, *name,
+                "file content must be preserved for {}",
+                name
+            );
         }
         let _ = fs::remove_dir_all(&src);
         let _ = fs::remove_dir_all(&dest);
@@ -212,7 +246,10 @@ mod test_package_helpers_move {
     #[test]
     fn test_expand_home_no_env_no_crash() {
         let result = expand_home("/absolute/no/tilde");
-        assert_eq!(result, "/absolute/no/tilde", "absolute path must be returned unchanged");
+        assert_eq!(
+            result, "/absolute/no/tilde",
+            "absolute path must be returned unchanged"
+        );
     }
 
     // ─────── Cycle 132 additions ──────────────────────────────────────────
@@ -232,7 +269,10 @@ mod test_package_helpers_move {
         copy_dir_recursive(&src, &dest).unwrap();
 
         let copied = fs::read(dest.join("data.bin")).unwrap();
-        assert_eq!(copied, binary_data, "binary file content must be preserved byte-for-byte");
+        assert_eq!(
+            copied, binary_data,
+            "binary file content must be preserved byte-for-byte"
+        );
 
         let _ = fs::remove_dir_all(&src);
         let _ = fs::remove_dir_all(&dest);
@@ -249,7 +289,10 @@ mod test_package_helpers_move {
         let result = remove_package("pkgA", None, Some(vec![tmp.to_string_lossy().to_string()]));
         assert!(result.is_ok());
         assert!(!tmp.join("pkgA").exists(), "pkgA family must be removed");
-        assert!(tmp.join("pkgB").exists(), "pkgB family must NOT be affected");
+        assert!(
+            tmp.join("pkgB").exists(),
+            "pkgB family must NOT be affected"
+        );
 
         let _ = fs::remove_dir_all(&tmp);
     }
@@ -279,7 +322,11 @@ mod test_package_helpers_move {
         for v in &["1.0.0", "2.0.0", "3.0.0"] {
             let dir = src.join("multipkg").join(v);
             fs::create_dir_all(&dir).unwrap();
-            fs::write(dir.join("package.py"), format!("name = 'multipkg'\nversion = '{}'\n", v).as_bytes()).unwrap();
+            fs::write(
+                dir.join("package.py"),
+                format!("name = 'multipkg'\nversion = '{}'\n", v).as_bytes(),
+            )
+            .unwrap();
         }
 
         let result = copy_package(
@@ -289,10 +336,17 @@ mod test_package_helpers_move {
             Some(vec![src.to_string_lossy().to_string()]),
             false,
         );
-        assert!(result.is_ok(), "copy with no version must succeed: {:?}", result);
+        assert!(
+            result.is_ok(),
+            "copy with no version must succeed: {:?}",
+            result
+        );
         // Must copy the latest (3.0.0), not an older version.
         assert!(
-            dest.join("multipkg").join("3.0.0").join("package.py").exists(),
+            dest.join("multipkg")
+                .join("3.0.0")
+                .join("package.py")
+                .exists(),
             "latest version 3.0.0 must be at destination; dest returned: {:?}",
             result
         );
@@ -430,7 +484,11 @@ mod test_move_package {
             false,
             true, // keep_source
         );
-        assert!(result.is_ok(), "move with keep_source must succeed: {:?}", result);
+        assert!(
+            result.is_ok(),
+            "move with keep_source must succeed: {:?}",
+            result
+        );
         assert!(
             dest.join("kpkg").join("3.0.0").join("package.py").exists(),
             "package.py must be at destination"
@@ -461,7 +519,10 @@ mod test_move_package {
             false,
             false,
         );
-        assert!(result.is_err(), "moving nonexistent package must return Err");
+        assert!(
+            result.is_err(),
+            "moving nonexistent package must return Err"
+        );
 
         let _ = fs::remove_dir_all(&src);
         let _ = fs::remove_dir_all(&dest);
@@ -490,7 +551,11 @@ mod test_move_package {
             false,
             false,
         );
-        assert!(result.is_ok(), "move with 3 versions must succeed: {:?}", result);
+        assert!(
+            result.is_ok(),
+            "move with 3 versions must succeed: {:?}",
+            result
+        );
         assert!(
             dest.join("tpkg").join("3.0.0").join("package.py").exists(),
             "3.0.0 must be at destination"

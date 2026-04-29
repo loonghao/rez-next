@@ -2,7 +2,9 @@
 
 #[cfg(test)]
 mod release_tests {
-    use crate::release_bindings::{release_package, PyReleaseManager, PyReleaseResult, ReleaseMode};
+    use crate::release_bindings::{
+        release_package, PyReleaseManager, PyReleaseResult, ReleaseMode,
+    };
 
     #[test]
     fn test_release_mode_from_str() {
@@ -54,7 +56,11 @@ mod release_tests {
         let result = mgr
             .release(Some(dir.path().to_str().unwrap()), Some("test release"))
             .unwrap();
-        assert!(result.success, "dry_run should succeed: {:?}", result.errors);
+        assert!(
+            result.success,
+            "dry_run should succeed: {:?}",
+            result.errors
+        );
         assert!(result.install_path.contains("[dry-run]"));
         assert_eq!(result.package_name, "testpkg");
         assert_eq!(result.version, "1.0.0");
@@ -175,7 +181,9 @@ mod release_tests {
         let mut f = std::fs::File::create(&pkg_path).unwrap();
         writeln!(f, "name = 'drytestpkg'\nversion = '0.1.0'\n").unwrap();
         let mgr = PyReleaseManager::new(Some("dry_run"), false, false);
-        let result = mgr.release(Some(dir.path().to_str().unwrap()), None).unwrap();
+        let result = mgr
+            .release(Some(dir.path().to_str().unwrap()), None)
+            .unwrap();
         assert!(result.success);
         assert!(
             result.install_path.starts_with("[dry-run]"),
@@ -196,7 +204,10 @@ mod release_tests {
         let result = mgr
             .release(Some(dir.path().to_str().unwrap()), Some("review note"))
             .unwrap();
-        assert!(!result.warnings.is_empty(), "warnings should contain dry-run note");
+        assert!(
+            !result.warnings.is_empty(),
+            "warnings should contain dry-run note"
+        );
         assert!(
             result.warnings[0].contains("review note"),
             "warning: {}",
@@ -321,7 +332,10 @@ mod release_tests {
     fn test_release_manager_local_mode_str_contains_local() {
         let mgr = PyReleaseManager::new(Some("local"), false, false);
         let s = mgr.__str__();
-        assert!(s.contains("Local"), "str must contain Local for local mode: '{s}'");
+        assert!(
+            s.contains("Local"),
+            "str must contain Local for local mode: '{s}'"
+        );
     }
 
     #[test]
@@ -339,10 +353,18 @@ mod release_tests {
 
     #[test]
     fn test_release_mode_debug_format() {
-        let modes = [ReleaseMode::Release, ReleaseMode::Local, ReleaseMode::DryRun];
+        let modes = [
+            ReleaseMode::Release,
+            ReleaseMode::Local,
+            ReleaseMode::DryRun,
+        ];
         for m in &modes {
             let debug_str = format!("{:?}", m);
-            assert!(!debug_str.is_empty(), "debug format must not be empty for {:?}", m);
+            assert!(
+                !debug_str.is_empty(),
+                "debug format must not be empty for {:?}",
+                m
+            );
         }
     }
 
@@ -367,7 +389,11 @@ mod release_tests {
             package_name: "multi_err_pkg".to_string(),
             version: "0.1.0".to_string(),
             install_path: String::new(),
-            errors: vec!["error1".to_string(), "error2".to_string(), "error3".to_string()],
+            errors: vec![
+                "error1".to_string(),
+                "error2".to_string(),
+                "error3".to_string(),
+            ],
             warnings: vec![],
         };
         assert_eq!(r.errors.len(), 3);
@@ -404,12 +430,16 @@ mod release_tests {
     fn test_release_manager_str_dry_run_label() {
         let mgr = PyReleaseManager::new(Some("dry_run"), false, false);
         let s = mgr.__str__();
-        assert!(s.contains("DryRun") || s.contains("Dry"), "str must mention dry run: '{s}'");
+        assert!(
+            s.contains("DryRun") || s.contains("Dry"),
+            "str must mention dry run: '{s}'"
+        );
     }
 
     #[test]
     fn test_release_function_dry_run_arg() {
-        let result = release_package(Some("/nonexistent/path_dry_test"), false, true, None).unwrap();
+        let result =
+            release_package(Some("/nonexistent/path_dry_test"), false, true, None).unwrap();
         let _ = result;
     }
 
@@ -452,7 +482,10 @@ mod release_tests {
         let debug_dry = format!("{:?}", ReleaseMode::DryRun);
         assert!(debug_release.contains("Release"), "debug: {debug_release}");
         assert!(debug_local.contains("Local"), "debug: {debug_local}");
-        assert!(debug_dry.contains("DryRun") || debug_dry.contains("Dry"), "debug: {debug_dry}");
+        assert!(
+            debug_dry.contains("DryRun") || debug_dry.contains("Dry"),
+            "debug: {debug_dry}"
+        );
     }
 
     #[test]
@@ -474,13 +507,8 @@ mod release_tests {
 
     #[test]
     fn test_release_package_local_false_dry_false_is_release_mode() {
-        let result = release_package(
-            Some("/nonexistent/release_mode_test"),
-            false,
-            false,
-            None,
-        )
-        .unwrap();
+        let result =
+            release_package(Some("/nonexistent/release_mode_test"), false, false, None).unwrap();
         assert!(!result.success, "nonexistent path should yield failure");
     }
 

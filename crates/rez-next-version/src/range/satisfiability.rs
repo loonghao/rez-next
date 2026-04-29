@@ -1,7 +1,7 @@
 //! Satisfiability checking for version range BoundSets.
 
-use super::types::{Bound, BoundSet};
 use super::super::Version;
+use super::types::{Bound, BoundSet};
 
 /// Check if a single BoundSet is satisfiable (not trivially empty due to conflicting bounds)
 pub(super) fn is_bound_set_satisfiable(bs: &BoundSet) -> bool {

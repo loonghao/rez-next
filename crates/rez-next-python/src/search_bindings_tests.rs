@@ -158,7 +158,11 @@ fn test_result_set_add_and_names() {
 
 #[test]
 fn test_result_set_single_version_latest() {
-    let r = SearchResult::new("gcc".to_string(), vec!["12.0".to_string()], "/r".to_string());
+    let r = SearchResult::new(
+        "gcc".to_string(),
+        vec!["12.0".to_string()],
+        "/r".to_string(),
+    );
     assert_eq!(r.latest, Some("12.0".to_string()));
     assert_eq!(r.version_count(), 1);
 }
@@ -170,7 +174,11 @@ fn test_search_result_multiple_versions_latest_is_last() {
     // SearchResult::new sets latest to the last element (if any)
     let inner = SearchResult::new(
         "cmake".to_string(),
-        vec!["3.20.0".to_string(), "3.26.0".to_string(), "3.28.0".to_string()],
+        vec![
+            "3.20.0".to_string(),
+            "3.26.0".to_string(),
+            "3.28.0".to_string(),
+        ],
         "/pkgs".to_string(),
     );
     // latest is computed as the last version in the list
@@ -247,7 +255,10 @@ fn test_package_searcher_limit_zero_means_unlimited() {
 fn test_filter_regex_mode_if_supported() {
     // Prefix mode: pattern "py" must not match "scipy"
     let f = SearchFilter::new("py");
-    assert!(!f.matches_name("scipy"), "prefix 'py' must not match 'scipy'");
+    assert!(
+        !f.matches_name("scipy"),
+        "prefix 'py' must not match 'scipy'"
+    );
 }
 
 #[test]
@@ -264,8 +275,11 @@ fn test_filter_contains_mode_case_insensitive() {
 
 #[test]
 fn test_search_result_single_version_name_preserved() {
-    let inner =
-        SearchResult::new("houdini".to_string(), vec!["20.0".to_string()], "/vfx".to_string());
+    let inner = SearchResult::new(
+        "houdini".to_string(),
+        vec!["20.0".to_string()],
+        "/vfx".to_string(),
+    );
     let r = PySearchResult { inner };
     assert_eq!(r.name(), "houdini");
     assert_eq!(r.version_count(), 1);
@@ -430,7 +444,11 @@ fn test_package_searcher_scope_latest_stored() {
 fn test_search_result_latest_is_last_version() {
     let inner = SearchResult::new(
         "maya".to_string(),
-        vec!["2022.0".to_string(), "2023.0".to_string(), "2024.0".to_string()],
+        vec![
+            "2022.0".to_string(),
+            "2023.0".to_string(),
+            "2024.0".to_string(),
+        ],
         "/pkgs".to_string(),
     );
     let r = PySearchResult { inner };
@@ -441,7 +459,11 @@ fn test_search_result_latest_is_last_version() {
 fn test_result_set_add_three_and_len_is_three() {
     let mut rs = SearchResultSet::new();
     for name in &["pkg_a", "pkg_b", "pkg_c"] {
-        rs.add(SearchResult::new(name.to_string(), vec![], "/r".to_string()));
+        rs.add(SearchResult::new(
+            name.to_string(),
+            vec![],
+            "/r".to_string(),
+        ));
     }
     assert_eq!(rs.len(), 3);
     assert!(!rs.is_empty());
@@ -469,7 +491,10 @@ fn test_search_result_version_count_zero_empty_list() {
 fn test_filter_exact_mode_no_substring_match() {
     let f = SearchFilter::new("py").with_mode(FilterMode::Exact);
     // "python" starts with "py" but is not exactly "py"
-    assert!(!f.matches_name("python"), "exact mode must not match substrings");
+    assert!(
+        !f.matches_name("python"),
+        "exact mode must not match substrings"
+    );
 }
 
 #[test]

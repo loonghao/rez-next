@@ -232,13 +232,10 @@ fn test_vfx_pipeline_dependency_resolution() {
     let parsed: Vec<(String, Version, Vec<PackageRequirement>)> = packages
         .into_iter()
         .map(|(name, ver, reqs)| {
-            let version =
-                Version::parse(ver).unwrap_or_else(|_| panic!("Bad version: {}", ver));
+            let version = Version::parse(ver).unwrap_or_else(|_| panic!("Bad version: {}", ver));
             let requirements = reqs
                 .into_iter()
-                .map(|r| {
-                    PackageRequirement::parse(r).unwrap_or_else(|_| panic!("Bad req: {}", r))
-                })
+                .map(|r| PackageRequirement::parse(r).unwrap_or_else(|_| panic!("Bad req: {}", r)))
                 .collect();
             (name.to_string(), version, requirements)
         })

@@ -12,16 +12,25 @@ mod tests {
     fn test_build_activation_script_bash() {
         let pkgs = vec!["python-3.9".to_string(), "maya-2024".to_string()];
         let script = build_activation_script(&pkgs, "bash");
-        assert!(script.contains("REZ_RESOLVE"), "bash script should set REZ_RESOLVE");
+        assert!(
+            script.contains("REZ_RESOLVE"),
+            "bash script should set REZ_RESOLVE"
+        );
         assert!(script.contains("export"), "bash script should use export");
-        assert!(script.contains("python-3.9"), "bash script should contain package name");
+        assert!(
+            script.contains("python-3.9"),
+            "bash script should contain package name"
+        );
     }
 
     #[test]
     fn test_build_activation_script_powershell() {
         let pkgs = vec!["python-3.9".to_string()];
         let script = build_activation_script(&pkgs, "powershell");
-        assert!(script.contains("REZ_RESOLVE"), "ps1 script should set REZ_RESOLVE");
+        assert!(
+            script.contains("REZ_RESOLVE"),
+            "ps1 script should set REZ_RESOLVE"
+        );
         assert!(
             script.contains("$env:") || script.contains("REZ_"),
             "ps1 should use $env: syntax"
@@ -166,14 +175,14 @@ mod tests {
 
     #[test]
     fn test_source_manager_repr_contains_shell_and_packages() {
-        let mgr = PySourceManager::new(
-            vec!["houdini-19.5".to_string()],
-            Some("fish".to_string()),
-        );
+        let mgr = PySourceManager::new(vec!["houdini-19.5".to_string()], Some("fish".to_string()));
         let repr = mgr.__repr__();
         assert!(repr.contains("SourceManager"), "repr: {repr}");
         assert!(repr.contains("fish"), "repr should show shell: {repr}");
-        assert!(repr.contains("houdini-19.5"), "repr should show pkg: {repr}");
+        assert!(
+            repr.contains("houdini-19.5"),
+            "repr should show pkg: {repr}"
+        );
     }
 
     #[test]
@@ -185,10 +194,7 @@ mod tests {
 
     #[test]
     fn test_source_manager_explicit_shell_override_in_get_content() {
-        let mgr = PySourceManager::new(
-            vec!["cmake-3.26".to_string()],
-            Some("bash".to_string()),
-        );
+        let mgr = PySourceManager::new(vec!["cmake-3.26".to_string()], Some("bash".to_string()));
         let content = mgr.get_activation_script_content(Some("powershell".to_string()));
         assert!(content.contains("REZ_RESOLVE"), "content: {content}");
         assert!(
@@ -215,7 +221,10 @@ mod tests {
         let pkgs = vec!["python-3.9".to_string()];
         let script = build_activation_script(&pkgs, "tcsh");
         assert!(script.contains("REZ_RESOLVE"), "script: {script}");
-        assert!(script.contains("export"), "bash branch must use export: {script}");
+        assert!(
+            script.contains("export"),
+            "bash branch must use export: {script}"
+        );
     }
 
     #[test]
@@ -223,8 +232,7 @@ mod tests {
         use tempfile::TempDir;
         let tmp = TempDir::new().unwrap();
         let dest = tmp.path().join("subdir").join("activate.sh");
-        let mgr =
-            PySourceManager::new(vec!["python-3.9".to_string()], Some("bash".to_string()));
+        let mgr = PySourceManager::new(vec!["python-3.9".to_string()], Some("bash".to_string()));
         std::fs::create_dir_all(dest.parent().unwrap()).unwrap();
         let content = mgr.get_activation_script_content(None);
         std::fs::write(&dest, &content).unwrap();
@@ -237,13 +245,23 @@ mod tests {
     fn test_build_activation_script_sets_rezpkg_for_each_package() {
         let pkgs = vec!["python-3.9".to_string(), "cmake-3.26".to_string()];
         let script = build_activation_script(&pkgs, "bash");
-        assert!(script.contains("REZPKG_PYTHON"), "should set REZPKG_PYTHON: {script}");
-        assert!(script.contains("REZPKG_CMAKE"), "should set REZPKG_CMAKE: {script}");
+        assert!(
+            script.contains("REZPKG_PYTHON"),
+            "should set REZPKG_PYTHON: {script}"
+        );
+        assert!(
+            script.contains("REZPKG_CMAKE"),
+            "should set REZPKG_CMAKE: {script}"
+        );
     }
 
     #[test]
     fn test_source_manager_multiple_packages_all_in_content() {
-        let pkgs = vec!["alpha-1.0".to_string(), "beta-2.0".to_string(), "gamma-3.0".to_string()];
+        let pkgs = vec![
+            "alpha-1.0".to_string(),
+            "beta-2.0".to_string(),
+            "gamma-3.0".to_string(),
+        ];
         let mgr = PySourceManager::new(pkgs, Some("bash".to_string()));
         let content = mgr.get_activation_script_content(None);
         assert!(content.contains("alpha-1.0"), "content: {content}");
@@ -253,10 +271,7 @@ mod tests {
 
     #[test]
     fn test_source_manager_fish_shell_explicit() {
-        let mgr = PySourceManager::new(
-            vec!["nuke-14.0".to_string()],
-            Some("fish".to_string()),
-        );
+        let mgr = PySourceManager::new(vec!["nuke-14.0".to_string()], Some("fish".to_string()));
         let content = mgr.get_activation_script_content(None);
         assert!(content.contains("REZ_RESOLVE"), "fish content: {content}");
     }
@@ -274,13 +289,13 @@ mod tests {
 
     #[test]
     fn test_source_manager_repr_format() {
-        let mgr = PySourceManager::new(
-            vec!["python-3.9".to_string()],
-            Some("bash".to_string()),
-        );
+        let mgr = PySourceManager::new(vec!["python-3.9".to_string()], Some("bash".to_string()));
         let repr = mgr.__repr__();
         assert!(!repr.is_empty(), "repr must not be empty");
-        assert!(repr.contains("SourceManager"), "repr must contain 'SourceManager', got: {repr}");
+        assert!(
+            repr.contains("SourceManager"),
+            "repr must contain 'SourceManager', got: {repr}"
+        );
     }
 
     #[test]
@@ -336,7 +351,10 @@ mod tests {
         let pkgs = vec!["python-3.11.2".to_string()];
         let script = build_activation_script(&pkgs, "bash");
         assert!(script.contains("REZPKG_PYTHON"), "script: {script}");
-        assert!(script.contains("3.11.2"), "version in REZPKG_PYTHON: {script}");
+        assert!(
+            script.contains("3.11.2"),
+            "version in REZPKG_PYTHON: {script}"
+        );
     }
 
     #[test]
@@ -380,15 +398,24 @@ mod tests {
     fn test_build_activation_script_zsh_shell() {
         let pkgs = vec!["python-3.11".to_string()];
         let script = build_activation_script(&pkgs, "zsh");
-        assert!(script.contains("REZ_RESOLVE"), "zsh script must set REZ_RESOLVE: {script}");
-        assert!(script.contains("python-3.11"), "zsh script must include package name: {script}");
+        assert!(
+            script.contains("REZ_RESOLVE"),
+            "zsh script must set REZ_RESOLVE: {script}"
+        );
+        assert!(
+            script.contains("python-3.11"),
+            "zsh script must include package name: {script}"
+        );
     }
 
     #[test]
     fn test_source_manager_get_content_none_shell_uses_default() {
         let mgr = PySourceManager::new(vec!["nuke-14.0".to_string()], None);
         let content = mgr.get_activation_script_content(None);
-        assert!(!content.is_empty(), "content must not be empty when shell is None");
+        assert!(
+            !content.is_empty(),
+            "content must not be empty when shell is None"
+        );
         assert!(content.contains("REZ_RESOLVE"), "content: {content}");
     }
 
@@ -405,7 +432,11 @@ mod tests {
 
     #[test]
     fn test_source_manager_repr_contains_package_count() {
-        let pkgs = vec!["a-1.0".to_string(), "b-2.0".to_string(), "c-3.0".to_string()];
+        let pkgs = vec![
+            "a-1.0".to_string(),
+            "b-2.0".to_string(),
+            "c-3.0".to_string(),
+        ];
         let mgr = PySourceManager::new(pkgs, Some("bash".to_string()));
         let repr = mgr.__repr__();
         assert!(!repr.is_empty(), "repr must not be empty");
@@ -428,7 +459,10 @@ mod tests {
     #[test]
     fn test_source_manager_empty_packages_is_empty() {
         let mgr = PySourceManager::new(vec![], None);
-        assert!(mgr.packages().is_empty(), "empty packages list must round-trip as empty");
+        assert!(
+            mgr.packages().is_empty(),
+            "empty packages list must round-trip as empty"
+        );
     }
 
     #[test]
@@ -440,6 +474,9 @@ mod tests {
     #[test]
     fn test_detect_shell_is_nonempty() {
         let shell = detect_shell();
-        assert!(!shell.is_empty(), "detect_shell must return a non-empty string");
+        assert!(
+            !shell.is_empty(),
+            "detect_shell must return a non-empty string"
+        );
     }
 }

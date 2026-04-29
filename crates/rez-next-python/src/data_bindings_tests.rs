@@ -133,7 +133,10 @@ fn test_rez_data_get_resource_bash_ok() {
     let content = d
         .get_resource("completions/bash")
         .expect("completions/bash must be a known resource");
-    assert!(content.contains("_rez_next"), "bash completion must define _rez_next: {content}");
+    assert!(
+        content.contains("_rez_next"),
+        "bash completion must define _rez_next: {content}"
+    );
 }
 
 #[test]
@@ -142,7 +145,10 @@ fn test_rez_data_get_resource_zsh_ok() {
     let content = d
         .get_resource("completions/zsh")
         .expect("completions/zsh must be a known resource");
-    assert!(content.contains("rez-next"), "zsh completion must mention rez-next: {content}");
+    assert!(
+        content.contains("rez-next"),
+        "zsh completion must mention rez-next: {content}"
+    );
 }
 
 #[test]
@@ -175,7 +181,10 @@ fn test_rez_data_get_resource_config_ok() {
     let content = d
         .get_resource("config/rezconfig.py")
         .expect("config/rezconfig.py must be a known resource");
-    assert!(content.contains("packages_path"), "rezconfig must define packages_path: {content}");
+    assert!(
+        content.contains("packages_path"),
+        "rezconfig must define packages_path: {content}"
+    );
 }
 
 #[test]
@@ -227,10 +236,19 @@ fn test_get_data_resource_unknown_errors() {
 fn test_write_completion_script_to_file() {
     use tempfile::TempDir;
     let tmp = TempDir::new().unwrap();
-    let dest = tmp.path().join("rez-complete.bash").to_str().unwrap().to_string();
+    let dest = tmp
+        .path()
+        .join("rez-complete.bash")
+        .to_str()
+        .unwrap()
+        .to_string();
     let d = PyRezData::new();
     let result = d.write_completion_script(&dest, Some("bash"));
-    assert!(result.is_ok(), "write_completion_script should succeed: {:?}", result);
+    assert!(
+        result.is_ok(),
+        "write_completion_script should succeed: {:?}",
+        result
+    );
     let written = std::fs::read_to_string(&dest).unwrap();
     assert!(written.contains("_rez_next"));
 }
@@ -247,28 +265,46 @@ fn test_write_completion_script_unknown_shell_errors() {
 
 #[test]
 fn test_bash_complete_contains_compgen() {
-    assert!(BASH_COMPLETE.contains("compgen"), "bash completion must use compgen");
+    assert!(
+        BASH_COMPLETE.contains("compgen"),
+        "bash completion must use compgen"
+    );
 }
 
 #[test]
 fn test_zsh_complete_contains_compdef() {
-    assert!(ZSH_COMPLETE.contains("#compdef"), "zsh must have #compdef: {ZSH_COMPLETE}");
+    assert!(
+        ZSH_COMPLETE.contains("#compdef"),
+        "zsh must have #compdef: {ZSH_COMPLETE}"
+    );
 }
 
 #[test]
 fn test_fish_complete_contains_complete_c() {
-    assert!(FISH_COMPLETE.contains("complete -c rez-next"), "fish completion must have `complete -c rez-next`");
+    assert!(
+        FISH_COMPLETE.contains("complete -c rez-next"),
+        "fish completion must have `complete -c rez-next`"
+    );
 }
 
 #[test]
 fn test_example_package_py_has_commands_fn() {
-    assert!(EXAMPLE_PACKAGE_PY.contains("def commands():"), "package.py must define commands()");
+    assert!(
+        EXAMPLE_PACKAGE_PY.contains("def commands():"),
+        "package.py must define commands()"
+    );
 }
 
 #[test]
 fn test_default_rezconfig_has_local_packages_path() {
-    assert!(DEFAULT_REZCONFIG.contains("local_packages_path"), "rezconfig must define local_packages_path");
-    assert!(DEFAULT_REZCONFIG.contains("default_shell"), "rezconfig must define default_shell");
+    assert!(
+        DEFAULT_REZCONFIG.contains("local_packages_path"),
+        "rezconfig must define local_packages_path"
+    );
+    assert!(
+        DEFAULT_REZCONFIG.contains("default_shell"),
+        "rezconfig must define default_shell"
+    );
 }
 
 #[test]
@@ -289,7 +325,10 @@ fn test_rez_data_get_completion_script_none_defaults_to_bash() {
     let r = d.get_completion_script(None);
     assert!(r.is_ok(), "None shell should default to bash: {:?}", r);
     let content = r.unwrap();
-    assert!(content.contains("_rez_next"), "default completion should be bash");
+    assert!(
+        content.contains("_rez_next"),
+        "default completion should be bash"
+    );
 }
 
 #[test]
@@ -331,7 +370,10 @@ fn test_rez_data_get_completion_script_unknown_shell_errs() {
 fn test_rez_data_default_config_template_non_empty() {
     let d = PyRezData::new();
     let tmpl = d.get_default_config();
-    assert!(!tmpl.is_empty(), "default config template must not be empty");
+    assert!(
+        !tmpl.is_empty(),
+        "default config template must not be empty"
+    );
 }
 
 #[test]
@@ -346,7 +388,10 @@ fn test_rez_data_bash_completion_contains_subcommands() {
 fn test_rez_data_example_package_str_non_empty() {
     let d = PyRezData::new();
     let example = d.get_example_package();
-    assert!(!example.is_empty(), "example package definition must not be empty");
+    assert!(
+        !example.is_empty(),
+        "example package definition must not be empty"
+    );
     assert!(
         example.contains("name") || example.contains("version"),
         "example package must contain 'name' or 'version': {example}"
@@ -388,8 +433,12 @@ fn test_zsh_complete_contains_solve_subcommand() {
 
 #[test]
 fn test_example_package_py_has_author_or_description() {
-    let has_author = EXAMPLE_PACKAGE_PY.contains("authors") || EXAMPLE_PACKAGE_PY.contains("description");
-    assert!(has_author, "example package.py must contain 'authors' or 'description' field");
+    let has_author =
+        EXAMPLE_PACKAGE_PY.contains("authors") || EXAMPLE_PACKAGE_PY.contains("description");
+    assert!(
+        has_author,
+        "example package.py must contain 'authors' or 'description' field"
+    );
 }
 
 #[test]
@@ -423,12 +472,18 @@ fn test_bash_complete_mentions_rez_command() {
 
 #[test]
 fn test_zsh_complete_has_compdef_directive() {
-    assert!(ZSH_COMPLETE.contains("#compdef"), "ZSH_COMPLETE must contain #compdef directive");
+    assert!(
+        ZSH_COMPLETE.contains("#compdef"),
+        "ZSH_COMPLETE must contain #compdef directive"
+    );
 }
 
 #[test]
 fn test_fish_complete_has_complete_c_directive() {
-    assert!(FISH_COMPLETE.contains("complete -c"), "FISH_COMPLETE must use complete -c directives");
+    assert!(
+        FISH_COMPLETE.contains("complete -c"),
+        "FISH_COMPLETE must use complete -c directives"
+    );
 }
 
 #[test]
@@ -436,24 +491,38 @@ fn test_get_completion_script_none_returns_ok() {
     let d = PyRezData::new();
     let r = d.get_completion_script(None);
     assert!(r.is_ok(), "get_completion_script(None) must not error");
-    assert!(!r.unwrap().is_empty(), "fallback completion script must not be empty");
+    assert!(
+        !r.unwrap().is_empty(),
+        "fallback completion script must not be empty"
+    );
 }
 
 #[test]
 fn test_get_default_config_contains_local_packages_path_key() {
     let d = PyRezData::new();
     let cfg = d.get_default_config();
-    assert!(cfg.contains("local_packages_path"), "default config must contain local_packages_path");
+    assert!(
+        cfg.contains("local_packages_path"),
+        "default config must contain local_packages_path"
+    );
 }
 
 #[test]
 fn test_bash_complete_lists_build_subcommand() {
-    assert!(BASH_COMPLETE.contains("build"), "bash completion must list build subcommand");
+    assert!(
+        BASH_COMPLETE.contains("build"),
+        "bash completion must list build subcommand"
+    );
 }
 
 #[test]
 fn test_list_data_resources_contains_completion_entry() {
     let resources = list_data_resources();
-    let has_completion = resources.iter().any(|r| r.contains("bash") || r.contains("completion"));
-    assert!(has_completion, "data resources must include a completion entry");
+    let has_completion = resources
+        .iter()
+        .any(|r| r.contains("bash") || r.contains("completion"));
+    assert!(
+        has_completion,
+        "data resources must include a completion entry"
+    );
 }

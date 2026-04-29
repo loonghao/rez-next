@@ -105,8 +105,6 @@ fn test_depends_result_all_dependants() {
     assert_eq!(all.len(), 2);
 }
 
-
-
 #[test]
 fn test_depends_result_format_with_transitive() {
     let result = PyDependsResult {
@@ -226,7 +224,10 @@ fn test_format_sorted_alphabetically() {
     let output = result.format();
     let arnold_pos = output.find("arnold").unwrap();
     let zbrush_pos = output.find("zbrush").unwrap();
-    assert!(arnold_pos < zbrush_pos, "arnold should appear before zbrush");
+    assert!(
+        arnold_pos < zbrush_pos,
+        "arnold should appear before zbrush"
+    );
 }
 
 #[test]
@@ -249,7 +250,10 @@ fn test_compute_depends_transitive_false_empty_repo() {
     let result = compute_depends("arnold", None, &[], false);
     assert!(result.is_ok());
     let r = result.unwrap();
-    assert!(r.transitive_dependants.is_empty(), "No transitive when flag=false");
+    assert!(
+        r.transitive_dependants.is_empty(),
+        "No transitive when flag=false"
+    );
 }
 
 #[test]
@@ -257,7 +261,10 @@ fn test_compute_depends_transitive_true_empty_repo() {
     let result = compute_depends("arnold", None, &[], true);
     assert!(result.is_ok());
     let r = result.unwrap();
-    assert!(r.transitive_dependants.is_empty(), "Empty repo → 0 transitive");
+    assert!(
+        r.transitive_dependants.is_empty(),
+        "Empty repo → 0 transitive"
+    );
 }
 
 #[test]

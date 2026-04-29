@@ -77,7 +77,11 @@ mod test_remove_package {
 
         let pkg_dir = tmp.join("mypkg").join("1.0.0");
         fs::create_dir_all(&pkg_dir).unwrap();
-        fs::write(pkg_dir.join("package.py"), b"name = 'mypkg'\nversion = '1.0.0'\n").unwrap();
+        fs::write(
+            pkg_dir.join("package.py"),
+            b"name = 'mypkg'\nversion = '1.0.0'\n",
+        )
+        .unwrap();
 
         let result = remove_package(
             "mypkg",
@@ -242,8 +246,11 @@ mod test_copy_dir_recursive {
 
         fs::create_dir_all(&src).unwrap();
         for i in 0..5 {
-            fs::write(src.join(format!("file{}.txt", i)), format!("content{}", i).as_bytes())
-                .unwrap();
+            fs::write(
+                src.join(format!("file{}.txt", i)),
+                format!("content{}", i).as_bytes(),
+            )
+            .unwrap();
         }
 
         copy_dir_recursive(&src, &dest).unwrap();

@@ -430,7 +430,10 @@ mod tests {
             eq.intersects(&ge),
             "==3.9 must intersect >=3.9 (boundary inclusive)"
         );
-        assert!(ge.intersects(&eq), "intersects symmetric for eq/ge boundary");
+        assert!(
+            ge.intersects(&eq),
+            "intersects symmetric for eq/ge boundary"
+        );
     }
 
     #[test]
@@ -470,7 +473,10 @@ mod tests {
     fn test_intersects_with_any_range() {
         let any = VersionRange::parse("").unwrap();
         let specific = VersionRange::parse(">=2.0,<3.0").unwrap();
-        assert!(any.intersects(&specific), "any must intersect every specific range");
+        assert!(
+            any.intersects(&specific),
+            "any must intersect every specific range"
+        );
         assert!(specific.intersects(&any), "intersects symmetric with any");
     }
 

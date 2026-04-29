@@ -1,4 +1,4 @@
-﻿//! Rez Compat — pip-to-rez Conversion, Solver Conflict Detection, Complex Requirement,
+//! Rez Compat — pip-to-rez Conversion, Solver Conflict Detection, Complex Requirement,
 //! Source Module, Data Module Tests
 //!
 //! Extracted from rez_compat_solver_tests.rs (Cycle 32).
@@ -546,5 +546,3 @@ requires = ["python-3.9+"]
     assert!(pkg.version.is_some());
     assert_eq!(pkg.version.as_ref().unwrap().as_str(), "1.0.0");
 }
-
-

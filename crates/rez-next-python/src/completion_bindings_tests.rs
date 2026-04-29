@@ -141,14 +141,23 @@ fn test_print_completion_script_valid_shell_no_panic() {
 fn test_bash_script_contains_build_and_release() {
     let script = get_completion_script(Some("bash")).unwrap();
     assert!(script.contains("build"), "bash script should list 'build'");
-    assert!(script.contains("release"), "bash script should list 'release'");
+    assert!(
+        script.contains("release"),
+        "bash script should list 'release'"
+    );
 }
 
 #[test]
 fn test_bash_script_contains_bundle_and_config() {
     let script = get_completion_script(Some("bash")).unwrap();
-    assert!(script.contains("bundle"), "bash script should list 'bundle'");
-    assert!(script.contains("config"), "bash script should list 'config'");
+    assert!(
+        script.contains("bundle"),
+        "bash script should list 'bundle'"
+    );
+    assert!(
+        script.contains("config"),
+        "bash script should list 'config'"
+    );
 }
 
 // ── zsh script subcommand descriptions ───────────────────────────────────
@@ -230,8 +239,14 @@ fn test_zsh_script_ends_with_rez_next_call() {
 #[test]
 fn test_fish_script_contains_build_and_release() {
     let script = get_completion_script(Some("fish")).unwrap();
-    assert!(script.contains("build"), "fish script should contain 'build'");
-    assert!(script.contains("release"), "fish script should contain 'release'");
+    assert!(
+        script.contains("build"),
+        "fish script should contain 'build'"
+    );
+    assert!(
+        script.contains("release"),
+        "fish script should contain 'release'"
+    );
 }
 
 // ── powershell script ─────────────────────────────────────────────────────
@@ -345,7 +360,10 @@ mod test_completion_cy129 {
     #[test]
     fn test_bash_script_contains_status() {
         let script = get_completion_script(Some("bash")).unwrap();
-        assert!(script.contains("status"), "bash script must list 'status' subcommand");
+        assert!(
+            script.contains("status"),
+            "bash script must list 'status' subcommand"
+        );
     }
 
     #[test]
@@ -360,25 +378,37 @@ mod test_completion_cy129 {
     #[test]
     fn test_fish_script_contains_context() {
         let script = get_completion_script(Some("fish")).unwrap();
-        assert!(script.contains("context"), "fish script must mention 'context' subcommand");
+        assert!(
+            script.contains("context"),
+            "fish script must mention 'context' subcommand"
+        );
     }
 
     #[test]
     fn test_powershell_script_contains_env() {
         let script = get_completion_script(Some("powershell")).unwrap();
-        assert!(script.contains("env"), "powershell script must contain 'env' command");
+        assert!(
+            script.contains("env"),
+            "powershell script must contain 'env' command"
+        );
     }
 
     #[test]
     fn test_fish_install_path_ends_with_dot_fish() {
         let path = get_completion_install_path(Some("fish")).unwrap();
-        assert!(path.ends_with(".fish"), "fish install path must end with '.fish': {path}");
+        assert!(
+            path.ends_with(".fish"),
+            "fish install path must end with '.fish': {path}"
+        );
     }
 
     #[test]
     fn test_bash_script_contains_interpret() {
         let script = get_completion_script(Some("bash")).unwrap();
-        assert!(script.contains("interpret"), "bash script must list 'interpret' subcommand");
+        assert!(
+            script.contains("interpret"),
+            "bash script must list 'interpret' subcommand"
+        );
     }
 
     #[test]
@@ -393,7 +423,10 @@ mod test_completion_cy129 {
     #[test]
     fn test_powershell_script_contains_solve() {
         let script = get_completion_script(Some("powershell")).unwrap();
-        assert!(script.contains("solve"), "powershell script must contain 'solve' command");
+        assert!(
+            script.contains("solve"),
+            "powershell script must contain 'solve' command"
+        );
     }
 
     #[test]
@@ -414,12 +447,18 @@ mod test_completion_cy129 {
     #[test]
     fn test_bash_script_contains_forward() {
         let script = get_completion_script(Some("bash")).unwrap();
-        assert!(script.contains("forward"), "bash script must list 'forward' subcommand");
+        assert!(
+            script.contains("forward"),
+            "bash script must list 'forward' subcommand"
+        );
     }
 
     #[test]
     fn test_fish_script_contains_suite() {
         let script = get_completion_script(Some("fish")).unwrap();
-        assert!(script.contains("suite"), "fish script must mention 'suite' subcommand");
+        assert!(
+            script.contains("suite"),
+            "fish script must mention 'suite' subcommand"
+        );
     }
 }

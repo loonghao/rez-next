@@ -76,7 +76,10 @@ mod test_get_build_system {
         let tmp = make_temp_dir_with_file("rez_bs_priority", "rezbuild.py");
         fs::write(tmp.join("CMakeLists.txt"), b"").unwrap();
         let result = get_build_system(Some(tmp.to_str().unwrap())).unwrap();
-        assert_eq!(result, "python_rezbuild", "rezbuild.py should take priority over CMakeLists.txt");
+        assert_eq!(
+            result, "python_rezbuild",
+            "rezbuild.py should take priority over CMakeLists.txt"
+        );
         let _ = fs::remove_dir_all(&tmp);
     }
 
@@ -84,7 +87,10 @@ mod test_get_build_system {
     fn test_build_sh_detected_as_custom_script() {
         let tmp = make_temp_dir_with_file("rez_bs_build_sh", "build.sh");
         let result = get_build_system(Some(tmp.to_str().unwrap())).unwrap();
-        assert_eq!(result, "custom_script", "build.sh should map to custom_script");
+        assert_eq!(
+            result, "custom_script",
+            "build.sh should map to custom_script"
+        );
         let _ = fs::remove_dir_all(&tmp);
     }
 
@@ -92,7 +98,10 @@ mod test_get_build_system {
     fn test_build_bat_detected_as_custom_script() {
         let tmp = make_temp_dir_with_file("rez_bs_build_bat", "build.bat");
         let result = get_build_system(Some(tmp.to_str().unwrap())).unwrap();
-        assert_eq!(result, "custom_script", "build.bat should map to custom_script");
+        assert_eq!(
+            result, "custom_script",
+            "build.bat should map to custom_script"
+        );
         let _ = fs::remove_dir_all(&tmp);
     }
 
@@ -135,7 +144,10 @@ mod test_get_build_system {
     fn test_rezbuild_py_detected() {
         let tmp = make_temp_dir_with_file("rez_bs_rezbuild", "rezbuild.py");
         let result = get_build_system(Some(tmp.to_str().unwrap())).unwrap();
-        assert_eq!(result, "python_rezbuild", "rezbuild.py must map to python_rezbuild");
+        assert_eq!(
+            result, "python_rezbuild",
+            "rezbuild.py must map to python_rezbuild"
+        );
         let _ = fs::remove_dir_all(&tmp);
     }
 
@@ -154,7 +166,10 @@ mod test_get_build_system {
         let tmp = make_temp_dir_with_file("rez_bs_cargo_vs_node", "Cargo.toml");
         fs::write(tmp.join("package.json"), b"{}").unwrap();
         let result = get_build_system(Some(tmp.to_str().unwrap())).unwrap();
-        assert_eq!(result, "nodejs", "package.json takes priority over Cargo.toml");
+        assert_eq!(
+            result, "nodejs",
+            "package.json takes priority over Cargo.toml"
+        );
         let _ = fs::remove_dir_all(&tmp);
     }
 
@@ -178,7 +193,11 @@ mod test_get_build_system {
             let dir_name = format!("rez_bs_type_check_{}", marker.replace('.', "_"));
             let tmp = make_temp_dir_with_file(&dir_name, marker);
             let result = get_build_system(Some(tmp.to_str().unwrap())).unwrap();
-            assert_eq!(result, *expected, "marker '{}' must map to build system '{}'", marker, expected);
+            assert_eq!(
+                result, *expected,
+                "marker '{}' must map to build system '{}'",
+                marker, expected
+            );
             let _ = fs::remove_dir_all(&tmp);
         }
     }
@@ -189,7 +208,10 @@ mod test_get_build_system {
         fs::write(tmp.join("CMakeLists.txt"), b"").unwrap();
         fs::write(tmp.join("Makefile"), b"").unwrap();
         let result = get_build_system(Some(tmp.to_str().unwrap())).unwrap();
-        assert_eq!(result, "python_rezbuild", "rezbuild.py must have highest priority");
+        assert_eq!(
+            result, "python_rezbuild",
+            "rezbuild.py must have highest priority"
+        );
         let _ = fs::remove_dir_all(&tmp);
     }
 
@@ -197,7 +219,10 @@ mod test_get_build_system {
     fn test_build_sh_beats_empty_dir() {
         let tmp = make_temp_dir_with_file("rez_bs_buildsh_only", "build.sh");
         let result = get_build_system(Some(tmp.to_str().unwrap())).unwrap();
-        assert_eq!(result, "custom_script", "build.sh must map to custom_script");
+        assert_eq!(
+            result, "custom_script",
+            "build.sh must map to custom_script"
+        );
         let _ = fs::remove_dir_all(&tmp);
     }
 
@@ -205,7 +230,10 @@ mod test_get_build_system {
     fn test_pyproject_toml_alone_detected() {
         let tmp = make_temp_dir_with_file("rez_bs_pyproj_only", "pyproject.toml");
         let result = get_build_system(Some(tmp.to_str().unwrap())).unwrap();
-        assert_eq!(result, "python", "pyproject.toml alone should map to python");
+        assert_eq!(
+            result, "python",
+            "pyproject.toml alone should map to python"
+        );
         let _ = fs::remove_dir_all(&tmp);
     }
 
@@ -229,7 +257,10 @@ mod test_get_build_system {
     fn test_get_build_system_result_is_non_empty() {
         let tmp = make_temp_dir_with_file("rez_bs_non_empty", "");
         let result = get_build_system(Some(tmp.to_str().unwrap())).unwrap();
-        assert!(!result.is_empty(), "get_build_system must always return non-empty string");
+        assert!(
+            !result.is_empty(),
+            "get_build_system must always return non-empty string"
+        );
         let _ = fs::remove_dir_all(&tmp);
     }
 
@@ -255,7 +286,10 @@ mod test_get_build_system {
     fn test_setup_py_yields_python_build_system() {
         let tmp = make_temp_dir_with_file("rez_bs_setup_py2", "setup.py");
         let result = get_build_system(Some(tmp.to_str().unwrap())).unwrap();
-        assert_eq!(result, "python", "setup.py should detect python build system");
+        assert_eq!(
+            result, "python",
+            "setup.py should detect python build system"
+        );
         let _ = fs::remove_dir_all(&tmp);
     }
 
@@ -263,7 +297,10 @@ mod test_get_build_system {
     fn test_cargo_toml_yields_cargo_build_system() {
         let tmp = make_temp_dir_with_file("rez_bs_cargo2", "Cargo.toml");
         let result = get_build_system(Some(tmp.to_str().unwrap())).unwrap();
-        assert_eq!(result, "cargo", "Cargo.toml should detect cargo build system");
+        assert_eq!(
+            result, "cargo",
+            "Cargo.toml should detect cargo build system"
+        );
         let _ = fs::remove_dir_all(&tmp);
     }
 
@@ -271,7 +308,10 @@ mod test_get_build_system {
     fn test_package_json_yields_nodejs_build_system() {
         let tmp = make_temp_dir_with_file("rez_bs_pkgjson2", "package.json");
         let result = get_build_system(Some(tmp.to_str().unwrap())).unwrap();
-        assert_eq!(result, "nodejs", "package.json should detect nodejs build system");
+        assert_eq!(
+            result, "nodejs",
+            "package.json should detect nodejs build system"
+        );
         let _ = fs::remove_dir_all(&tmp);
     }
 
@@ -287,24 +327,34 @@ mod test_get_build_system {
 
     #[test]
     fn test_get_build_system_returns_ok_always() {
-        let cases = [
-            Some("/nonexistent_dir_rez_bs_abc"),
-            None,
-        ];
+        let cases = [Some("/nonexistent_dir_rez_bs_abc"), None];
         for case in cases {
             let result = get_build_system(case);
-            assert!(result.is_ok(), "get_build_system must always return Ok, got: {:?}", result);
+            assert!(
+                result.is_ok(),
+                "get_build_system must always return Ok, got: {:?}",
+                result
+            );
         }
     }
 
     #[test]
     fn test_rezbuild_py_priority_over_all_build_markers() {
         let tmp = make_temp_dir_with_file("rez_bs_rebpy_wins", "rezbuild.py");
-        for m in &["CMakeLists.txt", "Makefile", "setup.py", "Cargo.toml", "package.json"] {
+        for m in &[
+            "CMakeLists.txt",
+            "Makefile",
+            "setup.py",
+            "Cargo.toml",
+            "package.json",
+        ] {
             fs::write(tmp.join(m), b"").unwrap();
         }
         let result = get_build_system(Some(tmp.to_str().unwrap())).unwrap();
-        assert_eq!(result, "python_rezbuild", "rezbuild.py must have highest priority");
+        assert_eq!(
+            result, "python_rezbuild",
+            "rezbuild.py must have highest priority"
+        );
         let _ = fs::remove_dir_all(&tmp);
     }
 
@@ -312,7 +362,10 @@ mod test_get_build_system {
     fn test_build_bat_yields_custom_script() {
         let tmp = make_temp_dir_with_file("rez_bs_bat_cs", "build.bat");
         let result = get_build_system(Some(tmp.to_str().unwrap())).unwrap();
-        assert_eq!(result, "custom_script", "build.bat must map to custom_script");
+        assert_eq!(
+            result, "custom_script",
+            "build.bat must map to custom_script"
+        );
         let _ = fs::remove_dir_all(&tmp);
     }
 
@@ -320,7 +373,10 @@ mod test_get_build_system {
     fn test_build_sh_yields_custom_script() {
         let tmp = make_temp_dir_with_file("rez_bs_sh_cs", "build.sh");
         let result = get_build_system(Some(tmp.to_str().unwrap())).unwrap();
-        assert_eq!(result, "custom_script", "build.sh must map to custom_script");
+        assert_eq!(
+            result, "custom_script",
+            "build.sh must map to custom_script"
+        );
         let _ = fs::remove_dir_all(&tmp);
     }
 
@@ -338,7 +394,10 @@ mod test_get_build_system {
         fs::write(tmp.join("Makefile"), b"").unwrap();
         fs::write(tmp.join("setup.py"), b"").unwrap();
         let result = get_build_system(Some(tmp.to_str().unwrap())).unwrap();
-        assert_eq!(result, "cmake", "cmake should take priority when multiple markers present");
+        assert_eq!(
+            result, "cmake",
+            "cmake should take priority when multiple markers present"
+        );
         let _ = fs::remove_dir_all(&tmp);
     }
 
@@ -357,7 +416,10 @@ mod test_get_build_system {
         let tmp = make_temp_dir_with_file("rez_bs_cy130_reb_cargo", "rezbuild.py");
         fs::write(tmp.join("Cargo.toml"), b"").unwrap();
         let result = get_build_system(Some(tmp.to_str().unwrap())).unwrap();
-        assert_eq!(result, "python_rezbuild", "rezbuild.py must beat Cargo.toml");
+        assert_eq!(
+            result, "python_rezbuild",
+            "rezbuild.py must beat Cargo.toml"
+        );
         let _ = fs::remove_dir_all(&tmp);
     }
 
@@ -366,7 +428,10 @@ mod test_get_build_system {
         let tmp = make_temp_dir_with_file("rez_bs_cy130_reb_pkgjson", "rezbuild.py");
         fs::write(tmp.join("package.json"), b"{}").unwrap();
         let result = get_build_system(Some(tmp.to_str().unwrap())).unwrap();
-        assert_eq!(result, "python_rezbuild", "rezbuild.py must beat package.json");
+        assert_eq!(
+            result, "python_rezbuild",
+            "rezbuild.py must beat package.json"
+        );
         let _ = fs::remove_dir_all(&tmp);
     }
 
@@ -389,7 +454,10 @@ mod test_get_build_system {
     fn test_get_build_system_pyproject_beats_package_json_when_checked_first() {
         let tmp = make_temp_dir_with_file("rez_bs_cy130_pyproj_only", "pyproject.toml");
         let result = get_build_system(Some(tmp.to_str().unwrap())).unwrap();
-        assert_eq!(result, "python", "pyproject.toml must yield python build system");
+        assert_eq!(
+            result, "python",
+            "pyproject.toml must yield python build system"
+        );
         let _ = fs::remove_dir_all(&tmp);
     }
 
@@ -398,7 +466,14 @@ mod test_get_build_system {
     #[test]
     fn test_get_build_system_result_is_known_value() {
         let known = [
-            "cmake", "make", "python_rezbuild", "python", "nodejs", "cargo", "custom_script", "unknown",
+            "cmake",
+            "make",
+            "python_rezbuild",
+            "python",
+            "nodejs",
+            "cargo",
+            "custom_script",
+            "unknown",
         ];
         let tmp = make_temp_dir_with_file("rez_bs_cy132_known", "");
         let result = get_build_system(Some(tmp.to_str().unwrap())).unwrap();
@@ -423,7 +498,10 @@ mod test_get_build_system {
     fn test_get_build_system_cargo_toml_alone_is_cargo() {
         let tmp = make_temp_dir_with_file("rez_bs_cy132_cargo_alone", "Cargo.toml");
         let result = get_build_system(Some(tmp.to_str().unwrap())).unwrap();
-        assert_eq!(result, "cargo", "Cargo.toml alone must be detected as cargo");
+        assert_eq!(
+            result, "cargo",
+            "Cargo.toml alone must be detected as cargo"
+        );
         let _ = fs::remove_dir_all(&tmp);
     }
 }

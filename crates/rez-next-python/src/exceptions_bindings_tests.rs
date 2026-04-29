@@ -10,7 +10,11 @@ mod tests {
             .iter()
             .find(|(name, _)| *name == "RezError");
         assert!(root.is_some(), "RezError must be in hierarchy");
-        assert_eq!(root.unwrap().1, "Exception", "RezError must extend Exception");
+        assert_eq!(
+            root.unwrap().1,
+            "Exception",
+            "RezError must extend Exception"
+        );
     }
 
     #[test]
@@ -193,8 +197,13 @@ mod tests {
             .find(|(n, _)| *n == "SolveFailure")
             .expect("SolveFailure must exist");
         assert_eq!(entry.1, "ResolveError");
-        let is_parent = EXCEPTION_HIERARCHY.iter().any(|(_, p)| *p == "SolveFailure");
-        assert!(!is_parent, "SolveFailure should be a leaf (no children in hierarchy)");
+        let is_parent = EXCEPTION_HIERARCHY
+            .iter()
+            .any(|(_, p)| *p == "SolveFailure");
+        assert!(
+            !is_parent,
+            "SolveFailure should be a leaf (no children in hierarchy)"
+        );
     }
 
     #[test]
@@ -253,7 +262,10 @@ mod tests {
     #[test]
     fn test_suite_error_is_leaf() {
         let is_parent = EXCEPTION_HIERARCHY.iter().any(|(_, p)| *p == "SuiteError");
-        assert!(!is_parent, "SuiteError should be a leaf with no children in hierarchy");
+        assert!(
+            !is_parent,
+            "SuiteError should be a leaf with no children in hierarchy"
+        );
     }
 
     #[test]
@@ -294,7 +306,10 @@ mod tests {
         let is_parent = EXCEPTION_HIERARCHY
             .iter()
             .any(|(_, p)| *p == "PackageFamilyNotFound");
-        assert!(!is_parent, "PackageFamilyNotFound should be a leaf with no children");
+        assert!(
+            !is_parent,
+            "PackageFamilyNotFound should be a leaf with no children"
+        );
     }
 
     #[test]
@@ -302,20 +317,29 @@ mod tests {
         let is_parent = EXCEPTION_HIERARCHY
             .iter()
             .any(|(_, p)| *p == "ConfigurationError");
-        assert!(!is_parent, "ConfigurationError should be a leaf with no children");
+        assert!(
+            !is_parent,
+            "ConfigurationError should be a leaf with no children"
+        );
     }
 
     #[test]
     fn test_all_exception_names_non_empty() {
         for (name, _parent) in EXCEPTION_HIERARCHY {
-            assert!(!name.is_empty(), "Found empty exception name in EXCEPTION_HIERARCHY");
+            assert!(
+                !name.is_empty(),
+                "Found empty exception name in EXCEPTION_HIERARCHY"
+            );
         }
     }
 
     #[test]
     fn test_all_parent_names_non_empty() {
         for (_name, parent) in EXCEPTION_HIERARCHY {
-            assert!(!parent.is_empty(), "Found empty parent name in EXCEPTION_HIERARCHY");
+            assert!(
+                !parent.is_empty(),
+                "Found empty parent name in EXCEPTION_HIERARCHY"
+            );
         }
     }
 
@@ -324,7 +348,10 @@ mod tests {
         let is_parent = EXCEPTION_HIERARCHY
             .iter()
             .any(|(_, p)| *p == "RexUndefinedVariableError");
-        assert!(!is_parent, "RexUndefinedVariableError should be a leaf with no children");
+        assert!(
+            !is_parent,
+            "RexUndefinedVariableError should be a leaf with no children"
+        );
     }
 
     #[test]
@@ -332,7 +359,10 @@ mod tests {
         let is_parent = EXCEPTION_HIERARCHY
             .iter()
             .any(|(_, p)| *p == "RezBuildError");
-        assert!(!is_parent, "RezBuildError should be a leaf with no children");
+        assert!(
+            !is_parent,
+            "RezBuildError should be a leaf with no children"
+        );
     }
 
     #[test]
@@ -340,7 +370,10 @@ mod tests {
         let is_parent = EXCEPTION_HIERARCHY
             .iter()
             .any(|(_, p)| *p == "RezReleaseError");
-        assert!(!is_parent, "RezReleaseError should be a leaf with no children");
+        assert!(
+            !is_parent,
+            "RezReleaseError should be a leaf with no children"
+        );
     }
 
     #[test]
@@ -348,7 +381,10 @@ mod tests {
         let is_parent = EXCEPTION_HIERARCHY
             .iter()
             .any(|(_, p)| *p == "PackageVersionConflict");
-        assert!(!is_parent, "PackageVersionConflict should be a leaf with no children");
+        assert!(
+            !is_parent,
+            "PackageVersionConflict should be a leaf with no children"
+        );
     }
 
     #[test]
@@ -356,7 +392,10 @@ mod tests {
         let is_parent = EXCEPTION_HIERARCHY
             .iter()
             .any(|(_, p)| *p == "PackageRequestError");
-        assert!(!is_parent, "PackageRequestError should be a leaf with no children");
+        assert!(
+            !is_parent,
+            "PackageRequestError should be a leaf with no children"
+        );
     }
 
     #[test]
@@ -364,7 +403,10 @@ mod tests {
         let is_parent = EXCEPTION_HIERARCHY
             .iter()
             .any(|(_, p)| *p == "PackageParseError");
-        assert!(!is_parent, "PackageParseError should be a leaf with no children");
+        assert!(
+            !is_parent,
+            "PackageParseError should be a leaf with no children"
+        );
     }
 
     #[test]
@@ -384,7 +426,11 @@ mod tests {
     #[test]
     fn test_no_self_loop_in_hierarchy() {
         for (name, parent) in EXCEPTION_HIERARCHY {
-            assert_ne!(name, parent, "Exception '{}' must not be its own parent", name);
+            assert_ne!(
+                name, parent,
+                "Exception '{}' must not be its own parent",
+                name
+            );
         }
     }
 
@@ -414,7 +460,11 @@ mod tests {
             "PackageConflict",
         ];
         for name in &pkg_exceptions {
-            assert!(name.contains("Package"), "Expected 'Package' in name, got '{}'", name);
+            assert!(
+                name.contains("Package"),
+                "Expected 'Package' in name, got '{}'",
+                name
+            );
         }
     }
 
@@ -429,7 +479,8 @@ mod tests {
             assert!(
                 names.contains(parent) || *parent == "Exception",
                 "Parent '{}' of '{}' must be in hierarchy or be 'Exception'",
-                parent, name
+                parent,
+                name
             );
         }
     }
@@ -461,7 +512,8 @@ mod tests {
             assert!(
                 depth2.contains(name),
                 "Expected '{}' to be a child of ResolveError, found: {:?}",
-                name, depth2
+                name,
+                depth2
             );
         }
     }
@@ -476,7 +528,10 @@ mod tests {
             .iter()
             .find(|(n, _)| *n == "RezBuildError")
             .expect("RezBuildError must exist");
-        assert_ne!(system.0, build.0, "RezSystemError and RezBuildError should be distinct");
+        assert_ne!(
+            system.0, build.0,
+            "RezSystemError and RezBuildError should be distinct"
+        );
     }
 
     #[test]
@@ -529,13 +584,19 @@ mod tests {
     #[test]
     fn test_rez_error_appears_as_parent() {
         let has_rez_error_parent = EXCEPTION_HIERARCHY.iter().any(|(_, p)| *p == "RezError");
-        assert!(has_rez_error_parent, "RezError must appear as a parent in the hierarchy");
+        assert!(
+            has_rez_error_parent,
+            "RezError must appear as a parent in the hierarchy"
+        );
     }
 
     #[test]
     fn test_no_self_loop_in_hierarchy_cy124() {
         for (name, parent) in EXCEPTION_HIERARCHY.iter() {
-            assert_ne!(name, parent, "exception '{name}' must not be its own parent");
+            assert_ne!(
+                name, parent,
+                "exception '{name}' must not be its own parent"
+            );
         }
     }
 
@@ -552,7 +613,9 @@ mod tests {
 
     #[test]
     fn test_rez_build_error_present_in_hierarchy() {
-        let found = EXCEPTION_HIERARCHY.iter().any(|(n, _)| *n == "RezBuildError");
+        let found = EXCEPTION_HIERARCHY
+            .iter()
+            .any(|(n, _)| *n == "RezBuildError");
         assert!(found, "RezBuildError must be present in the hierarchy");
     }
 }

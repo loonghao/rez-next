@@ -329,7 +329,10 @@ mod test_solver_config {
             paths: vec![],
         };
         let repr = solver.__repr__();
-        assert!(!repr.contains("paths=-"), "repr must not show negative path count: {repr}");
+        assert!(
+            !repr.contains("paths=-"),
+            "repr must not show negative path count: {repr}"
+        );
     }
 
     #[test]
@@ -381,7 +384,10 @@ mod test_solver_config {
             paths: vec![],
         };
         let repr = solver.__repr__();
-        assert!(!repr.starts_with(' '), "repr must not start with whitespace: '{repr}'");
+        assert!(
+            !repr.starts_with(' '),
+            "repr must not start with whitespace: '{repr}'"
+        );
     }
 
     #[test]
@@ -417,7 +423,9 @@ mod test_solver_cy120 {
 
     #[test]
     fn test_solver_ten_paths_len_is_ten() {
-        let paths: Vec<PathBuf> = (0..10).map(|i| PathBuf::from(format!("/pkg/{i}"))).collect();
+        let paths: Vec<PathBuf> = (0..10)
+            .map(|i| PathBuf::from(format!("/pkg/{i}")))
+            .collect();
         let solver = PySolver {
             config: SolverConfig::default(),
             paths: paths.clone(),

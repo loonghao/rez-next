@@ -160,9 +160,14 @@ mod test_suite_extra {
         s.add_context("a", vec!["pkg-1".to_string()]).unwrap();
         s.add_context("b", vec!["pkg-2".to_string()]).unwrap();
         let repr = s.__repr__();
-        assert!(repr.contains("Suite("), "repr must start with Suite(, got {repr}");
-        assert!(repr.contains('2') || repr.contains("contexts=2"),
-            "repr must reflect 2 contexts, got {repr}");
+        assert!(
+            repr.contains("Suite("),
+            "repr must start with Suite(, got {repr}"
+        );
+        assert!(
+            repr.contains('2') || repr.contains("contexts=2"),
+            "repr must reflect 2 contexts, got {repr}"
+        );
     }
 
     #[test]
@@ -181,7 +186,10 @@ mod test_suite_extra {
         s.add_context("y", vec![]).unwrap();
         s.remove_context("x").unwrap();
         s.remove_context("y").unwrap();
-        assert!(s.context_names().is_empty(), "context_names must be empty after removing all");
+        assert!(
+            s.context_names().is_empty(),
+            "context_names must be empty after removing all"
+        );
     }
 
     #[test]
@@ -217,7 +225,11 @@ mod test_suite_extra {
     fn test_suite_conflict_mode_default_is_lowercase() {
         let s = PySuite::new(None);
         let mode = s.conflict_mode();
-        assert_eq!(mode, mode.to_lowercase(), "conflict_mode must be lowercase: '{mode}'");
+        assert_eq!(
+            mode,
+            mode.to_lowercase(),
+            "conflict_mode must be lowercase: '{mode}'"
+        );
     }
 
     #[test]
@@ -231,7 +243,10 @@ mod test_suite_extra {
     fn test_suite_set_description_to_none_clears_value() {
         let mut s = PySuite::new(Some("initial"));
         s.set_description(None);
-        assert!(s.description().is_none(), "description must be None after set to None");
+        assert!(
+            s.description().is_none(),
+            "description must be None after set to None"
+        );
     }
 
     #[test]
@@ -253,7 +268,10 @@ mod test_suite_cy114 {
     fn test_repr_empty_suite_shows_zero() {
         let s = PySuite::new(None);
         let repr = s.__repr__();
-        assert!(repr.contains('0'), "repr of empty suite must show 0: {repr}");
+        assert!(
+            repr.contains('0'),
+            "repr of empty suite must show 0: {repr}"
+        );
     }
 
     /// conflict_mode round-trip: set then get returns same value
@@ -262,7 +280,10 @@ mod test_suite_cy114 {
         let mut s = PySuite::new(None);
         s.set_conflict_mode("error").unwrap();
         let mode = s.conflict_mode();
-        assert_eq!(mode, "error", "conflict_mode should return 'error' after setting");
+        assert_eq!(
+            mode, "error",
+            "conflict_mode should return 'error' after setting"
+        );
     }
 
     /// conflict_mode round-trip for 'first'
@@ -271,7 +292,10 @@ mod test_suite_cy114 {
         let mut s = PySuite::new(None);
         s.set_conflict_mode("first").unwrap();
         let mode = s.conflict_mode();
-        assert_eq!(mode, "first", "conflict_mode should return 'first' after setting");
+        assert_eq!(
+            mode, "first",
+            "conflict_mode should return 'first' after setting"
+        );
     }
 
     /// conflict_mode round-trip for 'last'
@@ -280,7 +304,10 @@ mod test_suite_cy114 {
         let mut s = PySuite::new(None);
         s.set_conflict_mode("last").unwrap();
         let mode = s.conflict_mode();
-        assert_eq!(mode, "last", "conflict_mode should return 'last' after setting");
+        assert_eq!(
+            mode, "last",
+            "conflict_mode should return 'last' after setting"
+        );
     }
 
     /// context_names returns exactly the contexts added (no extras)
@@ -302,10 +329,7 @@ mod test_suite_cy114 {
         // Empty string path does not point to a valid suite directory
         assert!(!PySuite::is_suite(""), "is_suite('') should return false");
     }
-
-
 }
-
 
 mod test_suite_cy122 {
     use super::*;
@@ -391,7 +415,10 @@ mod test_suite_cy127 {
     fn test_remove_nonexistent_context_returns_err() {
         let mut s = PySuite::new(None);
         let result = s.remove_context("ghost");
-        assert!(result.is_err(), "removing non-existent context must return Err");
+        assert!(
+            result.is_err(),
+            "removing non-existent context must return Err"
+        );
     }
 
     /// Suite with Some description initialises description correctly
@@ -407,7 +434,10 @@ mod test_suite_cy127 {
         let mut s = PySuite::new(None);
         s.add_context("dup", vec![]).unwrap();
         let result = s.add_context("dup", vec![]);
-        assert!(result.is_err(), "adding a duplicate context name must return Err");
+        assert!(
+            result.is_err(),
+            "adding a duplicate context name must return Err"
+        );
     }
 }
 
@@ -419,7 +449,10 @@ mod test_suite_cy129 {
     fn test_repr_includes_suite_prefix() {
         let s = PySuite::new(Some("cy129 suite"));
         let r = s.__repr__();
-        assert!(r.starts_with("Suite("), "__repr__ must start with 'Suite(', got: {r}");
+        assert!(
+            r.starts_with("Suite("),
+            "__repr__ must start with 'Suite(', got: {r}"
+        );
     }
 
     /// Suite description set then clear results in None
@@ -429,7 +462,10 @@ mod test_suite_cy129 {
         s.set_description(Some("temp".to_string()));
         assert_eq!(s.description(), Some("temp"));
         s.set_description(None);
-        assert!(s.description().is_none(), "description must be None after clearing");
+        assert!(
+            s.description().is_none(),
+            "description must be None after clearing"
+        );
     }
 
     /// Suite with 5 contexts has __len__ == 5
