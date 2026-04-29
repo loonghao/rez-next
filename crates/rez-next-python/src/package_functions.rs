@@ -193,21 +193,16 @@ pub fn iter_packages(
 #[pyfunction]
 #[pyo3(signature = (paths=None))]
 pub fn get_package_family_names(paths: Option<Vec<String>>) -> PyResult<Vec<String>> {
-    use std::collections::HashSet;
-
     let rt = get_runtime();
 
     let repo_manager = make_repo_manager(paths);
 
-    // Search with empty string to list all packages
-    let packages = rt
-        .block_on(repo_manager.find_packages(""))
+    // Use list_packages to get all family names
+    let names = rt
+        .block_on(repo_manager.list_packages())
         .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
 
-    let mut names: HashSet<String> = packages.iter().map(|p| p.name.clone()).collect();
-    let mut result: Vec<String> = names.drain().collect();
-    result.sort();
-    Ok(result)
+    Ok(names)
 }
 
 /// Walk all packages across all configured repositories.
@@ -222,23 +217,29 @@ pub fn walk_packages(py: Python, paths: Option<Vec<String>>) -> PyResult<Py<PyAn
 
     let repo_manager = make_repo_manager(paths);
 
-    // Find all packages (empty string matches all)
-    let packages = rt
-        .block_on(repo_manager.find_packages(""))
+    // Get all family names first
+    let family_names = rt
+        .block_on(repo_manager.list_packages())
         .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
 
-    // Group by family name
+    // Group by family name with all versions
     let mut families: HashMap<String, Vec<String>> = HashMap::new();
-    for pkg in &packages {
-        let ver = pkg
-            .version
-            .as_ref()
-            .map(|v| v.as_str())
-            .unwrap_or("unknown");
-        families
-            .entry(pkg.name.clone())
-            .or_default()
-            .push(ver.to_string());
+
+    for name in &family_names {
+        let packages = rt
+            .block_on(repo_manager.find_packages(name))
+            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+
+        let versions: Vec<String> = packages
+            .iter()
+            .map(|p| {
+                p.version
+                    .as_ref()
+                    .map(|v| v.as_str().to_string())
+                    .unwrap_or_else(|| "unknown".to_string())
+            })
+            .collect();
+        families.insert(name.clone(), versions);
     }
 
     // Sort versions within each family
