@@ -5,9 +5,9 @@
 //! - `convert_pip_to_rez(pip_name, pip_version) -> Package`
 //! - `get_pip_dependencies(package_name) -> list[str]`
 
-use pyo3::prelude::*;
 use crate::package_functions::expand_home;
 use crate::runtime::get_runtime;
+use pyo3::prelude::*;
 
 /// Represents a pip package converted to rez format.
 #[pyclass(name = "PipPackage", from_py_object)]
@@ -214,7 +214,9 @@ pub fn convert_pip_to_rez(
 }
 
 /// Helper: create a RepositoryManager from given paths or config default.
-fn make_pip_repo_manager(paths: Option<Vec<String>>) -> rez_next_repository::simple_repository::RepositoryManager {
+fn make_pip_repo_manager(
+    paths: Option<Vec<String>>,
+) -> rez_next_repository::simple_repository::RepositoryManager {
     use rez_next_common::config::RezCoreConfig;
     use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
     use std::path::PathBuf;
@@ -279,7 +281,9 @@ pub fn get_pip_dependencies(
                 let req_name = req
                     .trim()
                     .chars()
-                    .take_while(|c| *c != '-' && *c != '<' && *c != '>' && *c != '=' && *c != '!' && *c != '~')
+                    .take_while(|c| {
+                        *c != '-' && *c != '<' && *c != '>' && *c != '=' && *c != '!' && *c != '~'
+                    })
                     .collect::<String>();
                 let req_normalized = normalize_package_name(&req_name);
 

@@ -565,11 +565,7 @@ mod test_system_edge_cases {
     fn test_repr_ends_with_closing_paren() {
         let sys = PySystem::new();
         let repr = sys.__repr__();
-        assert!(
-            repr.ends_with(')'),
-            "repr must end with ')': '{}'",
-            repr
-        );
+        assert!(repr.ends_with(')'), "repr must end with ')': '{}'", repr);
     }
 
     #[test]

@@ -486,23 +486,38 @@ mod tests {
     fn test_write_temp_activation_script_creates_file() {
         let mgr = PySourceManager::new(vec!["python-3.9".to_string()], Some("bash".to_string()));
         let result = mgr.write_temp_activation_script(None);
-        assert!(result.is_ok(), "write_temp_activation_script should succeed");
+        assert!(
+            result.is_ok(),
+            "write_temp_activation_script should succeed"
+        );
         let path = result.unwrap();
         assert!(!path.is_empty(), "returned path must not be empty");
         // The file should exist (best-effort check, may fail if cleaned up)
         if std::path::Path::new(&path).exists() {
             let content = std::fs::read_to_string(&path).unwrap();
-            assert!(content.contains("REZ_RESOLVE"), "temp script must contain REZ_RESOLVE");
+            assert!(
+                content.contains("REZ_RESOLVE"),
+                "temp script must contain REZ_RESOLVE"
+            );
         }
     }
 
     #[test]
     fn test_write_temp_activation_script_powershell() {
-        let mgr = PySourceManager::new(vec!["maya-2024".to_string()], Some("powershell".to_string()));
+        let mgr = PySourceManager::new(
+            vec!["maya-2024".to_string()],
+            Some("powershell".to_string()),
+        );
         let result = mgr.write_temp_activation_script(Some("powershell".to_string()));
-        assert!(result.is_ok(), "write_temp_activation_script(ps1) should succeed");
+        assert!(
+            result.is_ok(),
+            "write_temp_activation_script(ps1) should succeed"
+        );
         let path = result.unwrap();
-        assert!(path.ends_with(".ps1") || path.contains("powershell"), "temp file should have ps1 extension or indicate powershell");
+        assert!(
+            path.ends_with(".ps1") || path.contains("powershell"),
+            "temp file should have ps1 extension or indicate powershell"
+        );
     }
 
     #[test]
@@ -517,7 +532,10 @@ mod tests {
         );
         assert!(result.is_ok(), "write_source_script should succeed");
         let written_path = result.unwrap();
-        assert!(std::path::Path::new(&written_path).exists() || dest.exists(), "destination file should exist");
+        assert!(
+            std::path::Path::new(&written_path).exists() || dest.exists(),
+            "destination file should exist"
+        );
     }
 
     #[test]
@@ -529,7 +547,10 @@ mod tests {
         );
         assert!(result.is_ok(), "resolve_source_mode inline should succeed");
         let content = result.unwrap();
-        assert!(content.contains("REZ_RESOLVE"), "inline mode must return script content with REZ_RESOLVE");
+        assert!(
+            content.contains("REZ_RESOLVE"),
+            "inline mode must return script content with REZ_RESOLVE"
+        );
     }
 
     #[test]
@@ -539,9 +560,15 @@ mod tests {
             "bash".to_string(),
             "tempfile".to_string(),
         );
-        assert!(result.is_ok(), "resolve_source_mode tempfile should succeed");
+        assert!(
+            result.is_ok(),
+            "resolve_source_mode tempfile should succeed"
+        );
         let path = result.unwrap();
-        assert!(!path.is_empty(), "tempfile mode must return a non-empty path");
+        assert!(
+            !path.is_empty(),
+            "tempfile mode must return a non-empty path"
+        );
     }
 
     #[test]
@@ -557,9 +584,16 @@ mod tests {
         );
         assert!(result.is_ok(), "resolve_source_mode file: should succeed");
         let written_path = result.unwrap();
-        assert_eq!(written_path, dest.to_string_lossy().to_string(), "should return the exact path given");
+        assert_eq!(
+            written_path,
+            dest.to_string_lossy().to_string(),
+            "should return the exact path given"
+        );
         let content = std::fs::read_to_string(&dest).unwrap();
-        assert!(content.contains("REZ_RESOLVE"), "written file must contain REZ_RESOLVE");
+        assert!(
+            content.contains("REZ_RESOLVE"),
+            "written file must contain REZ_RESOLVE"
+        );
     }
 
     #[test]
@@ -581,7 +615,10 @@ mod tests {
         );
         assert!(result.is_ok(), "auto shell should succeed with inline mode");
         let content = result.unwrap();
-        assert!(content.contains("REZ_RESOLVE"), "auto shell inline mode must contain REZ_RESOLVE");
+        assert!(
+            content.contains("REZ_RESOLVE"),
+            "auto shell inline mode must contain REZ_RESOLVE"
+        );
     }
 
     #[test]
@@ -594,8 +631,14 @@ mod tests {
         assert!(result.is_ok(), "write_activation_script should succeed");
         let path = result.unwrap();
         let content = std::fs::read_to_string(&path).unwrap();
-        assert!(content.starts_with("# rez-next activation script"), "script must start with header comment");
-        assert!(content.contains("REZ_RESOLVE"), "script must contain REZ_RESOLVE");
+        assert!(
+            content.starts_with("# rez-next activation script"),
+            "script must start with header comment"
+        );
+        assert!(
+            content.contains("REZ_RESOLVE"),
+            "script must contain REZ_RESOLVE"
+        );
     }
 
     #[test]
@@ -613,6 +656,9 @@ mod tests {
     fn test_source_manager_write_temp_activation_script_default_shell() {
         let mgr = PySourceManager::new(vec!["pkg-1.0".to_string()], None);
         let result = mgr.write_temp_activation_script(None);
-        assert!(result.is_ok(), "write_temp_activation_script with default shell should succeed");
+        assert!(
+            result.is_ok(),
+            "write_temp_activation_script with default shell should succeed"
+        );
     }
 }
