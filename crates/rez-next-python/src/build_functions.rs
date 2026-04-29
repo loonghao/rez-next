@@ -128,3 +128,7 @@ pub fn get_build_system(source_dir: Option<&str>) -> PyResult<String> {
     }
     Ok("unknown".to_string())
 }
+
+#[cfg(test)]
+#[path = "build_functions_tests.rs"]
+mod tests;

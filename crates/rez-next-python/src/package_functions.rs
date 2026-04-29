@@ -92,7 +92,7 @@ pub fn get_latest_package(
     sorted.sort_by(|a, b| {
         b.version
             .as_ref()
-            .and_then(|bv| a.version.as_ref().map(|av| av.cmp(bv)))
+            .and_then(|bv| a.version.as_ref().map(|av| bv.cmp(av)))
             .unwrap_or(std::cmp::Ordering::Equal)
     });
 
@@ -193,21 +193,16 @@ pub fn iter_packages(
 #[pyfunction]
 #[pyo3(signature = (paths=None))]
 pub fn get_package_family_names(paths: Option<Vec<String>>) -> PyResult<Vec<String>> {
-    use std::collections::HashSet;
-
     let rt = get_runtime();
 
     let repo_manager = make_repo_manager(paths);
 
-    // Search with empty string to list all packages
-    let packages = rt
-        .block_on(repo_manager.find_packages(""))
+    // Use list_packages to get all family names
+    let names = rt
+        .block_on(repo_manager.list_packages())
         .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
 
-    let mut names: HashSet<String> = packages.iter().map(|p| p.name.clone()).collect();
-    let mut result: Vec<String> = names.drain().collect();
-    result.sort();
-    Ok(result)
+    Ok(names)
 }
 
 /// Walk all packages across all configured repositories.
@@ -222,23 +217,29 @@ pub fn walk_packages(py: Python, paths: Option<Vec<String>>) -> PyResult<Py<PyAn
 
     let repo_manager = make_repo_manager(paths);
 
-    // Find all packages (empty string matches all)
-    let packages = rt
-        .block_on(repo_manager.find_packages(""))
+    // Get all family names first
+    let family_names = rt
+        .block_on(repo_manager.list_packages())
         .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
 
-    // Group by family name
+    // Group by family name with all versions
     let mut families: HashMap<String, Vec<String>> = HashMap::new();
-    for pkg in &packages {
-        let ver = pkg
-            .version
-            .as_ref()
-            .map(|v| v.as_str())
-            .unwrap_or("unknown");
-        families
-            .entry(pkg.name.clone())
-            .or_default()
-            .push(ver.to_string());
+
+    for name in &family_names {
+        let packages = rt
+            .block_on(repo_manager.find_packages(name))
+            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+
+        let versions: Vec<String> = packages
+            .iter()
+            .map(|p| {
+                p.version
+                    .as_ref()
+                    .map(|v| v.as_str().to_string())
+                    .unwrap_or_else(|| "unknown".to_string())
+            })
+            .collect();
+        families.insert(name.clone(), versions);
     }
 
     // Sort versions within each family
@@ -304,10 +305,11 @@ pub fn copy_package(
             .find(|p| p.version.as_ref().is_some_and(|v| v.as_str() == ver))
     } else {
         let mut sorted = packages;
+        // Descending: b > a  →  bv.cmp(av) so that the latest version is first.
         sorted.sort_by(|a, b| {
             b.version
                 .as_ref()
-                .and_then(|bv| a.version.as_ref().map(|av| av.cmp(bv)))
+                .and_then(|bv| a.version.as_ref().map(|av| bv.cmp(av)))
                 .unwrap_or(std::cmp::Ordering::Equal)
         });
         sorted.into_iter().next()
@@ -387,7 +389,17 @@ pub fn move_package(
                     .collect()
             });
 
-        let ver_display = version.unwrap_or("unknown");
+        // Extract the actual version from the dest path returned by copy_package.
+        // dest is always <dest_path>/<pkg_name>/<actual_version>, so the last
+        // component is the version that was actually copied — even when version=None
+        // (in which case copy_package picks the latest automatically).
+        let dest_path_buf = std::path::PathBuf::from(&dest);
+        let ver_display_owned: String = dest_path_buf
+            .file_name()
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_else(|| version.unwrap_or("unknown").to_string());
+        let ver_display = ver_display_owned.as_str();
+
         for base in &search_paths {
             let candidate = base.join(pkg_name).join(ver_display);
             if candidate.exists() {
@@ -467,151 +479,20 @@ pub(crate) fn copy_dir_recursive(
     Ok(())
 }
 
+// ─── Rust unit tests (in separate file to keep this file ≤ 1000 lines) ───────
+
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use std::fs;
+#[path = "package_functions_tests.rs"]
+mod tests;
 
-    mod test_expand_home {
-        use super::*;
+#[cfg(test)]
+#[path = "package_functions_extra_tests.rs"]
+mod extra_tests;
 
-        #[test]
-        fn test_expand_home_no_tilde() {
-            let p = "/absolute/path";
-            assert_eq!(expand_home(p), p);
-        }
+#[cfg(test)]
+#[path = "package_functions_version_tests.rs"]
+mod version_tests;
 
-        #[test]
-        fn test_expand_home_relative_no_tilde() {
-            let p = "relative/path";
-            assert_eq!(expand_home(p), p);
-        }
-
-        #[test]
-        fn test_expand_home_tilde_slash_expands() {
-            // If HOME/USERPROFILE is set, ~/foo must be expanded to <home>/foo
-            if let Ok(home) = std::env::var("USERPROFILE").or_else(|_| std::env::var("HOME")) {
-                let expanded = expand_home("~/packages");
-                assert!(
-                    expanded.starts_with(&home),
-                    "expanded '{}' should start with home '{}'",
-                    expanded,
-                    home
-                );
-                assert!(
-                    expanded.ends_with("packages") || expanded.contains("packages"),
-                    "expanded path should retain the suffix"
-                );
-            }
-        }
-
-        #[test]
-        fn test_expand_home_bare_tilde_expands() {
-            if let Ok(home) = std::env::var("USERPROFILE").or_else(|_| std::env::var("HOME")) {
-                let expanded = expand_home("~");
-                assert_eq!(expanded, home);
-            }
-        }
-
-        #[test]
-        fn test_expand_home_tilde_in_middle_is_unchanged() {
-            // Only leading ~ is handled
-            let p = "/some/~/path";
-            assert_eq!(expand_home(p), p);
-        }
-    }
-
-    mod test_copy_dir_recursive {
-        use super::*;
-
-        #[test]
-        fn test_copy_flat_directory() {
-            let tmp = std::env::temp_dir();
-            let src = tmp.join("rez_test_copy_src_flat");
-            let dest = tmp.join("rez_test_copy_dest_flat");
-
-            let _ = fs::remove_dir_all(&src);
-            let _ = fs::remove_dir_all(&dest);
-
-            fs::create_dir_all(&src).unwrap();
-            fs::write(src.join("file1.txt"), b"hello").unwrap();
-            fs::write(src.join("file2.txt"), b"world").unwrap();
-
-            copy_dir_recursive(&src, &dest).unwrap();
-
-            assert!(dest.join("file1.txt").exists());
-            assert!(dest.join("file2.txt").exists());
-            assert_eq!(fs::read(dest.join("file1.txt")).unwrap(), b"hello");
-            assert_eq!(fs::read(dest.join("file2.txt")).unwrap(), b"world");
-
-            let _ = fs::remove_dir_all(&src);
-            let _ = fs::remove_dir_all(&dest);
-        }
-
-        #[test]
-        fn test_copy_nested_directory() {
-            let tmp = std::env::temp_dir();
-            let src = tmp.join("rez_test_copy_src_nested");
-            let dest = tmp.join("rez_test_copy_dest_nested");
-
-            let _ = fs::remove_dir_all(&src);
-            let _ = fs::remove_dir_all(&dest);
-
-            let sub = src.join("subdir");
-            fs::create_dir_all(&sub).unwrap();
-            fs::write(src.join("root.txt"), b"root").unwrap();
-            fs::write(sub.join("child.txt"), b"child").unwrap();
-
-            copy_dir_recursive(&src, &dest).unwrap();
-
-            assert!(dest.join("root.txt").exists());
-            assert!(dest.join("subdir").join("child.txt").exists());
-            assert_eq!(
-                fs::read(dest.join("subdir").join("child.txt")).unwrap(),
-                b"child"
-            );
-
-            let _ = fs::remove_dir_all(&src);
-            let _ = fs::remove_dir_all(&dest);
-        }
-
-        #[test]
-        fn test_copy_empty_directory() {
-            let tmp = std::env::temp_dir();
-            let src = tmp.join("rez_test_copy_src_empty");
-            let dest = tmp.join("rez_test_copy_dest_empty");
-
-            let _ = fs::remove_dir_all(&src);
-            let _ = fs::remove_dir_all(&dest);
-
-            fs::create_dir_all(&src).unwrap();
-            copy_dir_recursive(&src, &dest).unwrap();
-            assert!(dest.exists());
-
-            let _ = fs::remove_dir_all(&src);
-            let _ = fs::remove_dir_all(&dest);
-        }
-
-        #[test]
-        fn test_copy_preserves_file_content() {
-            let tmp = std::env::temp_dir();
-            let src = tmp.join("rez_test_copy_src_content");
-            let dest = tmp.join("rez_test_copy_dest_content");
-
-            let _ = fs::remove_dir_all(&src);
-            let _ = fs::remove_dir_all(&dest);
-
-            fs::create_dir_all(&src).unwrap();
-            let content = b"rez-next package.py content\nversion = '1.0.0'\n";
-            fs::write(src.join("package.py"), content).unwrap();
-
-            copy_dir_recursive(&src, &dest).unwrap();
-
-            let copied = fs::read(dest.join("package.py")).unwrap();
-            assert_eq!(copied, content);
-
-            let _ = fs::remove_dir_all(&src);
-            let _ = fs::remove_dir_all(&dest);
-        }
-    }
-}
+#[cfg(test)]
+#[path = "package_functions_move_tests.rs"]
+mod move_tests;

@@ -1,12 +1,13 @@
-//! Python bindings for rez-next
+//! Python bindings for rez-next.
 //!
-//! Provides a drop-in replacement for the original Rez Python API.
-//! Usage: `import rez_next as rez` — all rez APIs work identically.
+//! Exposes a Python compatibility layer for supported Rez APIs.
+//! Usage: `import rez_next as rez` for the currently implemented surface area.
 
 use pyo3::prelude::*;
 
 // ── Shared infrastructure ─────────────────────────────────────────────────────
 pub(crate) mod runtime;
+pub(crate) mod shell_utils;
 
 // ── Domain-specific binding modules ──────────────────────────────────────────
 mod bind_bindings;
@@ -69,7 +70,7 @@ use package_functions::{
     move_package, remove_package, resolve_packages, walk_packages,
 };
 use rex_functions::rex_interpret;
-use selftest_functions::selftest;
+use selftest_functions::{selftest, selftest_verbose};
 
 /// Register a submodule and insert it into `sys.modules` so that dotted-path imports work.
 ///
@@ -136,6 +137,7 @@ fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(remove_package, m)?)?;
     m.add_function(wrap_pyfunction!(walk_packages, m)?)?;
     m.add_function(wrap_pyfunction!(selftest, m)?)?;
+    m.add_function(wrap_pyfunction!(selftest_verbose, m)?)?;
     m.add_function(wrap_pyfunction!(build_package, m)?)?;
     m.add_function(wrap_pyfunction!(bundle_context, m)?)?;
     m.add_function(wrap_pyfunction!(pip_bindings::pip_install, m)?)?;

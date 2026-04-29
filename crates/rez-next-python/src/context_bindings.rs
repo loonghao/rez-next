@@ -3,6 +3,8 @@
 use crate::package_bindings::PyPackage;
 use crate::package_functions::expand_home;
 use crate::runtime::get_runtime;
+use crate::shell_utils::shell_type_from_str;
+use crate::source_bindings::detect_current_shell;
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use rez_next_context::{ContextStatus, ResolvedContext};
@@ -259,12 +261,13 @@ impl PyResolvedContext {
     }
 
     /// Print the context summary (rez compat: context.print_info())
-    fn print_info(&self) {
+    fn print_info(&self) -> String {
         let summary = self.inner.get_summary();
-        println!("resolved packages ({}):", summary.package_count);
+        let mut out = format!("resolved packages ({}):\n", summary.package_count);
         for (name, version) in &summary.package_versions {
-            println!("  {}-{}", name, version);
+            out.push_str(&format!("  {}-{}\n", name, version));
         }
+        out
     }
 
     /// Generate a shell activation script for the resolved context.
@@ -272,35 +275,12 @@ impl PyResolvedContext {
     /// shell: "bash" | "zsh" | "fish" | "cmd" | "powershell" (default: auto-detect)
     #[pyo3(signature = (shell=None))]
     fn to_shell_script(&self, shell: Option<&str>) -> PyResult<String> {
-        use rez_next_rex::{generate_shell_script, ShellType};
+        use rez_next_rex::generate_shell_script;
 
-        let shell_type = match shell.unwrap_or("auto") {
-            "bash" => ShellType::Bash,
-            "zsh" => ShellType::Zsh,
-            "fish" => ShellType::Fish,
-            "cmd" => ShellType::Cmd,
-            "powershell" | "pwsh" => ShellType::PowerShell,
-            _ => {
-                // Auto-detect shell
-                if let Ok(sh) = std::env::var("SHELL") {
-                    if sh.contains("zsh") {
-                        ShellType::Zsh
-                    } else if sh.contains("fish") {
-                        ShellType::Fish
-                    } else {
-                        ShellType::Bash
-                    }
-                } else if cfg!(windows) {
-                    if std::env::var("PSModulePath").is_ok() {
-                        ShellType::PowerShell
-                    } else {
-                        ShellType::Cmd
-                    }
-                } else {
-                    ShellType::Bash
-                }
-            }
-        };
+        let shell_name = shell
+            .map(|s| s.to_string())
+            .unwrap_or_else(detect_current_shell);
+        let shell_type = shell_type_from_str(&shell_name);
 
         let rt = get_runtime();
 
@@ -406,221 +386,8 @@ impl PyResolvedContext {
     }
 }
 
+// ─── Rust unit tests ─────────────────────────────────────────────────────────
+
 #[cfg(test)]
-mod context_bindings_tests {
-
-    use rez_next_context::{ContextStatus, ResolvedContext};
-
-    use rez_next_package::{Package, PackageRequirement};
-    use rez_next_version::Version;
-
-    fn make_py_ctx_inner(pkgs: &[(&str, &str)]) -> ResolvedContext {
-        let reqs: Vec<PackageRequirement> = pkgs
-            .iter()
-            .map(|(n, v)| PackageRequirement::parse(&format!("{}-{}", n, v)).unwrap())
-            .collect();
-        let mut ctx = ResolvedContext::from_requirements(reqs);
-        for (name, ver) in pkgs {
-            let mut pkg = Package::new(name.to_string());
-            pkg.version = Some(Version::parse(ver).unwrap());
-            ctx.resolved_packages.push(pkg);
-        }
-        ctx.status = ContextStatus::Resolved;
-        ctx
-    }
-
-    // ── success / failure ────────────────────────────────────────────
-
-    #[test]
-    fn test_success_is_true_when_resolved() {
-        let ctx = make_py_ctx_inner(&[("python", "3.11.0")]);
-        assert_eq!(ctx.status, ContextStatus::Resolved);
-    }
-
-    #[test]
-    fn test_success_is_false_when_failed() {
-        let mut ctx = make_py_ctx_inner(&[]);
-        ctx.status = ContextStatus::Failed;
-        assert_eq!(ctx.status, ContextStatus::Failed);
-    }
-
-    // ── resolved_packages ───────────────────────────────────────────
-
-    #[test]
-    fn test_resolved_packages_count() {
-        let ctx = make_py_ctx_inner(&[("python", "3.11.0"), ("maya", "2024.1")]);
-        assert_eq!(ctx.resolved_packages.len(), 2);
-    }
-
-    #[test]
-    fn test_get_resolved_package_by_name() {
-        let ctx = make_py_ctx_inner(&[("python", "3.11.0"), ("maya", "2024.1")]);
-        let py_pkg = ctx.resolved_packages.iter().find(|p| p.name == "python");
-        assert!(py_pkg.is_some());
-        let ver = py_pkg.unwrap().version.as_ref().unwrap();
-        assert_eq!(ver.as_str(), "3.11.0");
-    }
-
-    #[test]
-    fn test_get_resolved_package_not_found() {
-        let ctx = make_py_ctx_inner(&[("python", "3.11.0")]);
-        let not_found = ctx.resolved_packages.iter().find(|p| p.name == "houdini");
-        assert!(not_found.is_none());
-    }
-
-    // ── requirements round-trip ─────────────────────────────────────
-
-    #[test]
-    fn test_requirements_stored_correctly() {
-        let ctx = make_py_ctx_inner(&[("python", "3.11.0"), ("maya", "2024.1")]);
-        assert_eq!(ctx.requirements.len(), 2);
-        let req_names: Vec<&str> = ctx.requirements.iter().map(|r| r.name.as_str()).collect();
-        assert!(req_names.contains(&"python"));
-        assert!(req_names.contains(&"maya"));
-    }
-
-    // ── id uniqueness ────────────────────────────────────────────────
-
-    #[test]
-    fn test_context_ids_are_unique() {
-        let ctx1 = make_py_ctx_inner(&[("python", "3.9.0")]);
-        let ctx2 = make_py_ctx_inner(&[("python", "3.9.0")]);
-        assert_ne!(ctx1.id, ctx2.id, "each context must have a unique ID");
-    }
-
-    // ── environment_vars injection ───────────────────────────────────
-
-    #[test]
-    fn test_environment_vars_can_be_set() {
-        let mut ctx = make_py_ctx_inner(&[("python", "3.11.0")]);
-        ctx.environment_vars
-            .insert("MY_TOOL".to_string(), "active".to_string());
-        assert_eq!(
-            ctx.environment_vars.get("MY_TOOL"),
-            Some(&"active".to_string())
-        );
-    }
-
-    // ── get_summary ──────────────────────────────────────────────────
-
-    #[test]
-    fn test_get_summary_package_count() {
-        let ctx = make_py_ctx_inner(&[("python", "3.11.0"), ("houdini", "20.0")]);
-        let summary = ctx.get_summary();
-        assert_eq!(summary.package_count, 2);
-    }
-
-    #[test]
-    fn test_get_summary_package_versions() {
-        let ctx = make_py_ctx_inner(&[("python", "3.11.0")]);
-        let summary = ctx.get_summary();
-        assert!(summary.package_versions.contains_key("python"));
-        assert_eq!(
-            summary.package_versions.get("python"),
-            Some(&"3.11.0".to_string())
-        );
-    }
-
-    // ── created_at timestamp ─────────────────────────────────────────
-
-    #[test]
-    fn test_created_at_is_positive() {
-        let ctx = make_py_ctx_inner(&[]);
-        assert!(
-            ctx.created_at > 0,
-            "created_at timestamp should be positive"
-        );
-    }
-
-    // ── failure_description ──────────────────────────────────────────
-
-    #[test]
-    fn test_failure_description_none_when_resolved() {
-        let ctx = make_py_ctx_inner(&[("python", "3.11.0")]);
-        assert_eq!(ctx.status, ContextStatus::Resolved);
-        // failure_description is None when resolved — verify via status
-        let is_failed = ctx.status == ContextStatus::Failed;
-        assert!(!is_failed);
-    }
-
-    #[test]
-    fn test_failure_description_some_when_failed() {
-        let mut ctx = make_py_ctx_inner(&[]);
-        ctx.status = ContextStatus::Failed;
-        let is_failed = ctx.status == ContextStatus::Failed;
-        assert!(is_failed, "Status should be Failed");
-    }
-
-    // ── empty resolved context ───────────────────────────────────────
-
-    #[test]
-    fn test_empty_context_zero_packages() {
-        let ctx = make_py_ctx_inner(&[]);
-        assert_eq!(ctx.resolved_packages.len(), 0);
-    }
-
-    #[test]
-    fn test_get_summary_empty_context() {
-        let ctx = make_py_ctx_inner(&[]);
-        let summary = ctx.get_summary();
-        assert_eq!(summary.package_count, 0);
-        assert!(summary.package_versions.is_empty());
-    }
-
-    // ── multiple environment vars ────────────────────────────────────
-
-    #[test]
-    fn test_environment_vars_multiple_entries() {
-        let mut ctx = make_py_ctx_inner(&[("python", "3.11.0")]);
-        ctx.environment_vars
-            .insert("PYTHONPATH".to_string(), "/usr/lib/python3.11".to_string());
-        ctx.environment_vars
-            .insert("PATH".to_string(), "/usr/bin:/bin".to_string());
-        ctx.environment_vars
-            .insert("REZ_USED".to_string(), "1".to_string());
-        assert_eq!(ctx.environment_vars.len(), 3);
-        assert_eq!(ctx.environment_vars.get("REZ_USED"), Some(&"1".to_string()));
-    }
-
-    // ── resolved_packages order preserved ───────────────────────────
-
-    #[test]
-    fn test_resolved_packages_order_preserved() {
-        let ctx = make_py_ctx_inner(&[("alpha", "1.0.0"), ("zeta", "2.0.0"), ("beta", "3.0.0")]);
-        let names: Vec<&str> = ctx
-            .resolved_packages
-            .iter()
-            .map(|p| p.name.as_str())
-            .collect();
-        assert_eq!(
-            names,
-            vec!["alpha", "zeta", "beta"],
-            "Order should match insertion order"
-        );
-    }
-
-    // ── get_summary returns correct version strings ──────────────────
-
-    #[test]
-    fn test_get_summary_all_packages_present() {
-        let ctx = make_py_ctx_inner(&[
-            ("python", "3.11.0"),
-            ("maya", "2024.1"),
-            ("arnold", "7.3.0"),
-        ]);
-        let summary = ctx.get_summary();
-        assert_eq!(summary.package_count, 3);
-        assert!(summary.package_versions.contains_key("python"));
-        assert!(summary.package_versions.contains_key("maya"));
-        assert!(summary.package_versions.contains_key("arnold"));
-        assert_eq!(summary.package_versions["arnold"], "7.3.0");
-    }
-
-    // ── requirements count matches input ────────────────────────────
-
-    #[test]
-    fn test_requirements_count_matches_input_len() {
-        let ctx = make_py_ctx_inner(&[("python", "3.11.0"), ("houdini", "20.0"), ("nuke", "14.0")]);
-        assert_eq!(ctx.requirements.len(), 3);
-    }
-}
+#[path = "context_bindings_tests.rs"]
+mod context_bindings_tests;

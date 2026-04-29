@@ -118,3 +118,7 @@ pub fn list_bundles(search_path: Option<&str>) -> PyResult<Vec<String>> {
     bundles.sort();
     Ok(bundles)
 }
+
+#[cfg(test)]
+#[path = "bundle_functions_tests.rs"]
+mod tests;

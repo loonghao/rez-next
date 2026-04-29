@@ -148,3 +148,11 @@ impl Default for RexExecutor {
 #[cfg(test)]
 #[path = "executor_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "executor_phase_cmd_tests.rs"]
+mod phase_cmd_tests;
+
+#[cfg(test)]
+#[path = "executor_stop_error_tests.rs"]
+mod stop_error_tests;

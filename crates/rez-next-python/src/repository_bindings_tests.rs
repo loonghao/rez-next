@@ -1,0 +1,619 @@
+//! Tests for PyRepositoryManager — split from repository_bindings.rs to keep the main file ≤1000 lines.
+
+use super::*;
+
+mod test_repository_manager_construction {
+    use super::*;
+
+    #[test]
+    fn test_new_with_empty_paths() {
+        let mgr = PyRepositoryManager::new(Some(vec![])).unwrap();
+        assert!(mgr.paths.is_empty());
+    }
+
+    #[test]
+    fn test_new_with_explicit_paths() {
+        let mgr = PyRepositoryManager::new(Some(vec![
+            "/tmp/pkgs1".to_string(),
+            "/tmp/pkgs2".to_string(),
+        ]))
+        .unwrap();
+        assert_eq!(mgr.paths.len(), 2);
+        assert_eq!(mgr.paths[0], PathBuf::from("/tmp/pkgs1"));
+        assert_eq!(mgr.paths[1], PathBuf::from("/tmp/pkgs2"));
+    }
+
+    #[test]
+    fn test_paths_order_preserved() {
+        let paths = vec![
+            "/first".to_string(),
+            "/second".to_string(),
+            "/third".to_string(),
+        ];
+        let mgr = PyRepositoryManager::new(Some(paths)).unwrap();
+        assert_eq!(mgr.paths[0], PathBuf::from("/first"));
+        assert_eq!(mgr.paths[1], PathBuf::from("/second"));
+        assert_eq!(mgr.paths[2], PathBuf::from("/third"));
+    }
+
+    #[test]
+    fn test_duplicate_paths_preserved() {
+        let mgr = PyRepositoryManager::new(Some(vec![
+            "/same/path".to_string(),
+            "/same/path".to_string(),
+        ]))
+        .unwrap();
+        // The manager stores all provided paths unchanged — no deduplication at construction time
+        assert_eq!(mgr.paths.len(), 2);
+    }
+
+    #[test]
+    fn test_new_with_none_does_not_panic() {
+        // Default config paths — just ensure no panic
+        let result = PyRepositoryManager::new(None);
+        assert!(result.is_ok(), "new(None) must not fail");
+    }
+
+    #[test]
+    fn test_repr_shows_paths() {
+        let mgr =
+            PyRepositoryManager::new(Some(vec!["/x/first".to_string(), "/y/second".to_string()]))
+                .unwrap();
+        let repr = mgr.__repr__();
+        assert!(repr.contains("RepositoryManager"), "repr: {}", repr);
+        assert!(repr.contains("first"), "repr: {}", repr);
+        assert!(repr.contains("second"), "repr: {}", repr);
+    }
+
+    #[test]
+    fn test_repr_empty_paths_shows_empty_array() {
+        let mgr = PyRepositoryManager::new(Some(vec![])).unwrap();
+        let repr = mgr.__repr__();
+        assert!(repr.contains("RepositoryManager"), "repr: {}", repr);
+        assert!(
+            repr.contains("[]"),
+            "repr for empty should show []: {}",
+            repr
+        );
+    }
+}
+
+mod test_repository_find_packages {
+    use super::*;
+
+    #[test]
+    fn test_find_packages_in_nonexistent_dir_returns_empty() {
+        let mgr = PyRepositoryManager::new(Some(vec!["/no/such/path/xyz_nonexistent".to_string()]))
+            .unwrap();
+        let result = mgr.find_packages("anything").unwrap();
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_find_packages_in_empty_temp_dir_returns_empty() {
+        let tmp = std::env::temp_dir().join("rez_repo_test_empty");
+        std::fs::create_dir_all(&tmp).unwrap();
+        let mgr = PyRepositoryManager::new(Some(vec![tmp.to_string_lossy().to_string()])).unwrap();
+        let result = mgr.find_packages("somepkg").unwrap();
+        assert!(result.is_empty());
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn test_find_packages_empty_name_on_nonexistent_returns_empty() {
+        let mgr =
+            PyRepositoryManager::new(Some(vec!["/totally/nonexistent_cy157".to_string()])).unwrap();
+        let result = mgr.find_packages("").unwrap();
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_get_latest_package_empty_repo_returns_none() {
+        let tmp = std::env::temp_dir().join("rez_repo_latest_empty");
+        std::fs::create_dir_all(&tmp).unwrap();
+        let mgr = PyRepositoryManager::new(Some(vec![tmp.to_string_lossy().to_string()])).unwrap();
+        let result = mgr.get_latest_package("ghost_pkg").unwrap();
+        assert!(result.is_none());
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn test_get_package_family_names_empty_repo_returns_empty() {
+        let tmp = std::env::temp_dir().join("rez_repo_family_empty");
+        std::fs::create_dir_all(&tmp).unwrap();
+        let mgr = PyRepositoryManager::new(Some(vec![tmp.to_string_lossy().to_string()])).unwrap();
+        let result = mgr.get_package_family_names().unwrap();
+        assert!(result.is_empty());
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    /// Write a minimal package.py into a temp repo and verify find_packages
+    /// returns that package.
+    #[test]
+    fn test_find_packages_with_real_package_py() {
+        let tmp = std::env::temp_dir().join("rez_repo_real_pkg_cy90");
+        let pkg_dir = tmp.join("mypkg").join("1.0.0");
+        std::fs::create_dir_all(&pkg_dir).unwrap();
+        std::fs::write(
+            pkg_dir.join("package.py"),
+            b"name = 'mypkg'\nversion = '1.0.0'\n",
+        )
+        .unwrap();
+
+        let mgr = PyRepositoryManager::new(Some(vec![tmp.to_string_lossy().to_string()])).unwrap();
+        let pkgs = mgr
+            .find_packages("mypkg")
+            .expect("find_packages must succeed for a valid temp repo");
+        assert!(
+            !pkgs.is_empty(),
+            "should find mypkg in the temp repo, got empty"
+        );
+        assert!(
+            pkgs.iter().any(|p| p.0.name == "mypkg"),
+            "found packages: {:?}",
+            pkgs.iter().map(|p| &p.0.name).collect::<Vec<_>>()
+        );
+
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    /// get_latest_package with multiple versions returns the highest
+    #[test]
+    fn test_get_latest_package_returns_highest_version() {
+        let tmp = std::env::temp_dir().join("rez_repo_multi_ver_cy114");
+        for ver in ["1.0.0", "2.0.0", "1.5.0"] {
+            let dir = tmp.join("mypkg").join(ver);
+            std::fs::create_dir_all(&dir).unwrap();
+            std::fs::write(
+                dir.join("package.py"),
+                format!("name = 'mypkg'\nversion = '{}'\n", ver).as_bytes(),
+            )
+            .unwrap();
+        }
+
+        let mgr = PyRepositoryManager::new(Some(vec![tmp.to_string_lossy().to_string()])).unwrap();
+        let pkg = mgr
+            .get_latest_package("mypkg")
+            .expect("get_latest_package must not error with a populated repo")
+            .expect("get_latest_package must return Some for mypkg (3 versions in repo)");
+        assert_eq!(pkg.0.name, "mypkg");
+
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    /// get_latest_package with a single package returns Some with correct name
+    #[test]
+    fn test_get_latest_package_with_one_package() {
+        let tmp = std::env::temp_dir().join("rez_repo_latest_one_cy98");
+        let pkg_dir = tmp.join("singlepkg").join("3.2.1");
+        std::fs::create_dir_all(&pkg_dir).unwrap();
+        std::fs::write(
+            pkg_dir.join("package.py"),
+            b"name = 'singlepkg'\nversion = '3.2.1'\n",
+        )
+        .unwrap();
+
+        let mgr = PyRepositoryManager::new(Some(vec![tmp.to_string_lossy().to_string()])).unwrap();
+        let pkg = mgr
+            .get_latest_package("singlepkg")
+            .expect("get_latest_package must not error")
+            .expect("get_latest_package must return Some for singlepkg");
+        assert_eq!(pkg.0.name, "singlepkg");
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn test_get_package_family_names_dedup_and_sorted() {
+        let tmp = std::env::temp_dir().join("rez_repo_family_sort_cy90");
+        for (name, ver) in [("zebra", "1.0.0"), ("alpha", "2.0.0"), ("alpha", "1.0.0")] {
+            let dir = tmp.join(name).join(ver);
+            std::fs::create_dir_all(&dir).unwrap();
+            std::fs::write(
+                dir.join("package.py"),
+                format!("name = '{}'\nversion = '{}'\n", name, ver).as_bytes(),
+            )
+            .unwrap();
+        }
+
+        let mgr = PyRepositoryManager::new(Some(vec![tmp.to_string_lossy().to_string()])).unwrap();
+        let names = mgr
+            .get_package_family_names()
+            .expect("get_package_family_names must succeed for a valid temp repo");
+        assert_eq!(names, vec!["alpha".to_string(), "zebra".to_string()]);
+
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    /// get_package_family_names returns sorted list across 3 families
+    #[test]
+    fn test_get_package_family_names_sorted_order() {
+        let tmp = std::env::temp_dir().join("rez_repo_sorted_cy98");
+        for (name, ver) in [
+            ("zz_pkg", "1.0.0"),
+            ("aa_pkg", "1.0.0"),
+            ("mm_pkg", "2.0.0"),
+        ] {
+            let dir = tmp.join(name).join(ver);
+            std::fs::create_dir_all(&dir).unwrap();
+            std::fs::write(
+                dir.join("package.py"),
+                format!("name = '{}'\nversion = '{}'\n", name, ver).as_bytes(),
+            )
+            .unwrap();
+        }
+        let mgr = PyRepositoryManager::new(Some(vec![tmp.to_string_lossy().to_string()])).unwrap();
+        let names = mgr
+            .get_package_family_names()
+            .expect("get_package_family_names must succeed for a valid temp repo");
+        assert_eq!(
+            names,
+            vec![
+                "aa_pkg".to_string(),
+                "mm_pkg".to_string(),
+                "zz_pkg".to_string()
+            ]
+        );
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    /// get_package_family_names on single-family repo returns exactly one entry
+    #[test]
+    fn test_get_package_family_names_single_family_has_one_entry() {
+        let tmp = std::env::temp_dir().join("rez_repo_single_family_cy114");
+        let dir = tmp.join("unique_pkg").join("1.0.0");
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(
+            dir.join("package.py"),
+            b"name = 'unique_pkg'\nversion = '1.0.0'\n",
+        )
+        .unwrap();
+
+        let mgr = PyRepositoryManager::new(Some(vec![tmp.to_string_lossy().to_string()])).unwrap();
+        let names = mgr
+            .get_package_family_names()
+            .expect("get_package_family_names must succeed for a single-family repo");
+        assert_eq!(names, vec!["unique_pkg".to_string()]);
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    /// find_packages on a dir with a family subdirectory but no package.py returns empty
+    #[test]
+    fn test_find_packages_dir_without_packages_returns_empty() {
+        let tmp = std::env::temp_dir().join("rez_repo_nopackage_cy114");
+        let sub = tmp.join("empty_family");
+        std::fs::create_dir_all(&sub).unwrap();
+
+        let mgr = PyRepositoryManager::new(Some(vec![tmp.to_string_lossy().to_string()])).unwrap();
+        let pkgs = mgr
+            .find_packages("empty_family")
+            .expect("find_packages must succeed for a family directory without package.py");
+        assert!(
+            pkgs.is_empty(),
+            "expected no packages found without package.py"
+        );
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    /// A package.py with syntax errors must be silently skipped; find_packages must not error.
+    ///
+    /// Verifies the `if let Ok(package) = load_package_from_path(...)` graceful-degradation
+    /// path in simple_repository.rs.
+    #[test]
+    fn test_find_packages_syntax_error_in_package_py_skips_gracefully() {
+        let tmp = std::env::temp_dir().join("rez_repo_syntax_err_cy166");
+        let pkg_dir = tmp.join("badpkg").join("1.0.0");
+        std::fs::create_dir_all(&pkg_dir).unwrap();
+        // Write deliberately malformed Python — unclosed string literal
+        std::fs::write(
+            pkg_dir.join("package.py"),
+            b"name = 'badpkg\nversion = '1.0.0'\n",
+        )
+        .unwrap();
+
+        let mgr = PyRepositoryManager::new(Some(vec![tmp.to_string_lossy().to_string()])).unwrap();
+        // Must not return an error — syntax errors are silently skipped
+        let pkgs = mgr
+            .find_packages("badpkg")
+            .expect("find_packages must not error on a malformed package.py");
+        assert!(
+            pkgs.is_empty(),
+            "malformed package.py must be skipped, got {} packages",
+            pkgs.len()
+        );
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    /// An empty package.py must be silently skipped; find_packages must not error.
+    #[test]
+    fn test_find_packages_empty_package_py_skips_gracefully() {
+        let tmp = std::env::temp_dir().join("rez_repo_empty_py_cy166");
+        let pkg_dir = tmp.join("emptypkg").join("1.0.0");
+        std::fs::create_dir_all(&pkg_dir).unwrap();
+        std::fs::write(pkg_dir.join("package.py"), b"").unwrap();
+
+        let mgr = PyRepositoryManager::new(Some(vec![tmp.to_string_lossy().to_string()])).unwrap();
+        let pkgs = mgr
+            .find_packages("emptypkg")
+            .expect("find_packages must not error on an empty package.py");
+        assert!(
+            pkgs.is_empty(),
+            "empty package.py must be skipped, got {} packages",
+            pkgs.len()
+        );
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    /// A repo containing one valid and one invalid package.py: only the valid one is returned.
+    ///
+    /// This exercises the mixed-repo scenario where degradation must be selective:
+    /// bad entries are dropped, good entries are preserved.
+    #[test]
+    fn test_find_packages_valid_and_invalid_mixed_returns_valid_only() {
+        let tmp = std::env::temp_dir().join("rez_repo_mixed_cy166");
+
+        // Valid package
+        let good_dir = tmp.join("goodpkg").join("1.0.0");
+        std::fs::create_dir_all(&good_dir).unwrap();
+        std::fs::write(
+            good_dir.join("package.py"),
+            b"name = 'goodpkg'\nversion = '1.0.0'\n",
+        )
+        .unwrap();
+
+        // Invalid package — missing 'name' field
+        let bad_dir = tmp.join("goodpkg").join("0.0.1");
+        std::fs::create_dir_all(&bad_dir).unwrap();
+        std::fs::write(bad_dir.join("package.py"), b"version = '0.0.1'\n").unwrap();
+
+        let mgr = PyRepositoryManager::new(Some(vec![tmp.to_string_lossy().to_string()])).unwrap();
+        let pkgs = mgr
+            .find_packages("goodpkg")
+            .expect("find_packages must not error when some package.py entries are invalid");
+        // The valid 1.0.0 must be present; the invalid 0.0.1 is dropped
+        assert!(
+            pkgs.iter()
+                .any(|p| p.0.version.as_ref().map(|v| v.as_str()) == Some("1.0.0")),
+            "valid goodpkg 1.0.0 must be returned; got: {:?}",
+            pkgs.iter()
+                .map(|p| p.0.version.as_ref().map(|v| v.as_str().to_string()))
+                .collect::<Vec<_>>()
+        );
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+}
+
+mod test_iter_packages {
+    use super::*;
+
+    /// Helper: write a minimal package.py into repo_root/<name>/<version>/package.py
+    fn write_pkg(root: &std::path::Path, name: &str, version: &str) {
+        let dir = root.join(name).join(version);
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(
+            dir.join("package.py"),
+            format!("name = '{}'\nversion = '{}'\n", name, version).as_bytes(),
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn test_iter_packages_empty_repo_returns_empty() {
+        let tmp = std::env::temp_dir().join("rez_iter_empty_cy163");
+        std::fs::create_dir_all(&tmp).unwrap();
+        let mgr = PyRepositoryManager::new(Some(vec![tmp.to_string_lossy().to_string()])).unwrap();
+        let result = mgr.iter_packages("nosuchpkg").unwrap();
+        assert!(
+            result.is_empty(),
+            "nonexistent package should return empty list"
+        );
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn test_iter_packages_single_version_returns_one() {
+        let tmp = std::env::temp_dir().join("rez_iter_one_cy163");
+        write_pkg(&tmp, "mypkg", "1.0.0");
+        let mgr = PyRepositoryManager::new(Some(vec![tmp.to_string_lossy().to_string()])).unwrap();
+        let pkgs = mgr
+            .iter_packages("mypkg")
+            .expect("iter_packages must succeed for a valid temp repo");
+        assert_eq!(pkgs.len(), 1, "single version should return 1 item");
+        assert_eq!(pkgs[0].0.name, "mypkg");
+        assert_eq!(
+            pkgs[0].0.version.as_ref().map(|v| v.as_str()),
+            Some("1.0.0")
+        );
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn test_iter_packages_multiple_versions_newest_first() {
+        let tmp = std::env::temp_dir().join("rez_iter_multi_cy163");
+        for ver in ["1.0.0", "2.0.0", "1.5.0"] {
+            write_pkg(&tmp, "mypkg", ver);
+        }
+        let mgr = PyRepositoryManager::new(Some(vec![tmp.to_string_lossy().to_string()])).unwrap();
+        let pkgs = mgr
+            .iter_packages("mypkg")
+            .expect("iter_packages must not error with a populated repo");
+        assert_eq!(
+            pkgs.len(),
+            3,
+            "iter_packages must return all 3 versions: {:?}",
+            pkgs.iter().map(|p| &p.0.name).collect::<Vec<_>>()
+        );
+        // Expect descending: 2.0.0, 1.5.0, 1.0.0
+        let versions: Vec<_> = pkgs
+            .iter()
+            .filter_map(|p| p.0.version.as_ref().map(|v| v.as_str().to_string()))
+            .collect();
+        assert_eq!(
+            versions[0], "2.0.0",
+            "first entry must be newest (2.0.0), got: {:?}",
+            versions
+        );
+        assert_eq!(
+            versions[2], "1.0.0",
+            "last entry must be oldest (1.0.0), got: {:?}",
+            versions
+        );
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    /// Semantic version ordering: 3.11.0 must sort before 3.9.0 (newest-first)
+    #[test]
+    fn test_iter_packages_semantic_version_order() {
+        let tmp = std::env::temp_dir().join("rez_iter_sem_cy163");
+        for ver in ["3.9.0", "3.11.0", "3.8.0"] {
+            write_pkg(&tmp, "python", ver);
+        }
+        let mgr = PyRepositoryManager::new(Some(vec![tmp.to_string_lossy().to_string()])).unwrap();
+        let pkgs = mgr
+            .iter_packages("python")
+            .expect("iter_packages must not error with a populated repo");
+        assert_eq!(
+            pkgs.len(),
+            3,
+            "iter_packages must return all 3 python versions"
+        );
+        let first_ver = pkgs[0]
+            .0
+            .version
+            .as_ref()
+            .map(|v| v.as_str().to_string())
+            .unwrap_or_default();
+        assert!(
+            first_ver.starts_with("3.11"),
+            "semantic newest-first: 3.11.0 must be first, got: {}",
+            first_ver
+        );
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    /// iter_packages only returns versions for the queried family — not for others.
+    #[test]
+    fn test_iter_packages_does_not_return_other_families() {
+        let tmp = std::env::temp_dir().join("rez_iter_isolate_cy163");
+        write_pkg(&tmp, "pkgA", "1.0.0");
+        write_pkg(&tmp, "pkgB", "2.0.0");
+        let mgr = PyRepositoryManager::new(Some(vec![tmp.to_string_lossy().to_string()])).unwrap();
+        let pkgs = mgr
+            .iter_packages("pkgA")
+            .expect("iter_packages must succeed for a valid temp repo");
+        assert_eq!(pkgs.len(), 1, "iter_packages('pkgA') must only return pkgA");
+        assert_eq!(pkgs[0].0.name, "pkgA");
+        assert_eq!(
+            pkgs[0].0.version.as_ref().map(|v| v.as_str()),
+            Some("1.0.0")
+        );
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+}
+
+/// Regression tests for Cycle 158 fixes:
+/// - get_latest_package uses semantic Version comparison (3.11.0 > 3.9.0)
+/// - get_package_family_names uses list_packages() to enumerate all families
+mod test_repository_cy158_fixes {
+    use super::*;
+
+    /// Cycle 158: get_latest_package must return 3.11.0 over 3.9.0.
+    /// String comparison would return 3.9.0 (lexicographic "3.9" > "3.11"),
+    /// semantic Version comparison must return 3.11.0 (numeric 11 > 9).
+    #[test]
+    fn test_get_latest_package_semantic_version_beats_lexicographic() {
+        let tmp = std::env::temp_dir().join("rez_repo_sem_ver_cy158");
+        for ver in ["3.9.0", "3.11.0", "3.8.0"] {
+            let dir = tmp.join("python").join(ver);
+            std::fs::create_dir_all(&dir).unwrap();
+            std::fs::write(
+                dir.join("package.py"),
+                format!("name = 'python'\nversion = '{}'\n", ver).as_bytes(),
+            )
+            .unwrap();
+        }
+
+        let mgr = PyRepositoryManager::new(Some(vec![tmp.to_string_lossy().to_string()])).unwrap();
+        let pkg = mgr
+            .get_latest_package("python")
+            .expect("get_latest_package must not error with a populated repo")
+            .expect("get_latest_package must return Some for python with 3 versions");
+        assert_eq!(pkg.0.name, "python");
+        let version_str = pkg
+            .0
+            .version
+            .as_ref()
+            .map(|v| v.as_str().to_string())
+            .unwrap_or_default();
+        assert!(
+            version_str.starts_with("3.11"),
+            "latest python must be 3.11.x (semantic), got: {}",
+            version_str
+        );
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    /// Cycle 158: get_package_family_names must enumerate all families.
+    /// Previously used find_packages("") which always returned [] because
+    /// the cache key "" never matches any package name.
+    #[test]
+    fn test_get_package_family_names_enumerates_all_families() {
+        let tmp = std::env::temp_dir().join("rez_repo_family_enum_cy158");
+        for (name, ver) in [
+            ("python", "3.11.0"),
+            ("numpy", "1.25.0"),
+            ("scipy", "1.11.0"),
+        ] {
+            let dir = tmp.join(name).join(ver);
+            std::fs::create_dir_all(&dir).unwrap();
+            std::fs::write(
+                dir.join("package.py"),
+                format!("name = '{}'\nversion = '{}'\n", name, ver).as_bytes(),
+            )
+            .unwrap();
+        }
+
+        let mgr = PyRepositoryManager::new(Some(vec![tmp.to_string_lossy().to_string()])).unwrap();
+        let result = mgr.get_package_family_names();
+        match result {
+            Ok(names) => {
+                assert!(
+                    names.contains(&"python".to_string()),
+                    "expected 'python' in families, got: {:?}",
+                    names
+                );
+                assert!(
+                    names.contains(&"numpy".to_string()),
+                    "expected 'numpy' in families, got: {:?}",
+                    names
+                );
+                assert!(
+                    names.contains(&"scipy".to_string()),
+                    "expected 'scipy' in families, got: {:?}",
+                    names
+                );
+                // Must be sorted
+                let sorted = {
+                    let mut s = names.clone();
+                    s.sort();
+                    s
+                };
+                assert_eq!(names, sorted, "family names must be sorted");
+            }
+            Err(e) => {
+                panic!("get_package_family_names must not fail on a valid repo: {e}");
+            }
+        }
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    /// Cycle 158: get_package_family_names on empty path list returns empty.
+    #[test]
+    fn test_get_package_family_names_empty_path_list_returns_empty() {
+        let mgr = PyRepositoryManager::new(Some(vec![])).unwrap();
+        let result = mgr.get_package_family_names().unwrap();
+        assert!(
+            result.is_empty(),
+            "empty path list must produce no families"
+        );
+    }
+}

@@ -19,6 +19,9 @@ mod solver;
 #[cfg(test)]
 mod dependency_resolver_tests;
 
+#[cfg(test)]
+mod resolver_version_strategy_tests;
+
 pub use astar::astar_search::{AStarSearch, SearchStats};
 pub use astar::heuristics::{
     AdaptiveHeuristic, CompositeHeuristic, ConflictPenaltyHeuristic, DependencyDepthHeuristic,

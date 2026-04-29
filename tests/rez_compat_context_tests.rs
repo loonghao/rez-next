@@ -122,22 +122,20 @@ fn test_rex_alias_with_path() {
 
     let commands = "env.alias('maya', '/opt/autodesk/maya2024/bin/maya')";
     let mut exec = RexExecutor::new();
-    let result = exec.execute_commands(
-        commands,
-        "maya",
-        Some("/opt/autodesk/maya2024"),
-        Some("2024"),
+    let env = exec
+        .execute_commands(
+            commands,
+            "maya",
+            Some("/opt/autodesk/maya2024"),
+            Some("2024"),
+        )
+        .expect("env.alias() is a supported rex command and must succeed");
+    // Contract: alias must store "maya" in aliases map
+    assert!(
+        env.aliases.contains_key("maya"),
+        "env.alias('maya', ...) should populate aliases with key 'maya'; got: {:?}",
+        env.aliases.keys().collect::<Vec<_>>()
     );
-    // Either succeeds with alias set, or silently ignores unrecognized command
-    if let Ok(env) = result {
-        // Contract: the alias() call must store "maya" in aliases or vars.
-        let has_alias = env.aliases.contains_key("maya") || env.vars.contains_key("maya");
-        assert!(
-            has_alias,
-            "env.alias('maya', ...) should populate aliases or vars with key 'maya'"
-        );
-    }
-    // Err case: parse errors are acceptable for edge cases
 }
 
 /// rez rex: setenv with {root} interpolation

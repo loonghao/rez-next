@@ -29,3 +29,7 @@ pub fn rex_interpret(
     }
     Ok(dict.into_any().unbind())
 }
+
+#[cfg(test)]
+#[path = "rex_functions_tests.rs"]
+mod tests;
