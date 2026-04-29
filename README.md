@@ -372,6 +372,18 @@ cargo bench --bench simple_package_benchmark
 
 </details>
 
+### Python API performance
+
+Measured with `pytest-benchmark` (Python layer over Rust core).
+
+| Operation | Time (avg) | Throughput |
+|-----------|-------------|------------|
+| `pip_install()` | ~420 ns | 2.38M ops/sec |
+| `walk_packages()` | ~42 μs | 23.9K ops/sec |
+| `get_pip_dependencies()` | ~293 μs | 3.41K ops/sec |
+
+> Benchmark results from Cycle 188 (pytest-benchmark, Python 3.12).
+
 ---
 
 ## Documentation

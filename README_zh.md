@@ -371,6 +371,18 @@ cargo bench --bench simple_package_benchmark
 
 </details>
 
+### Python API 性能
+
+使用 `pytest-benchmark` 测量（Python 层调用 Rust 核心）。
+
+| 操作 | 耗时 (平均) | 吞吐量 |
+|------|-------------|--------|
+| `pip_install()` | ~420 ns | 2.38M ops/sec |
+| `walk_packages()` | ~42 μs | 23.9K ops/sec |
+| `get_pip_dependencies()` | ~293 μs | 3.41K ops/sec |
+
+> 基准测试结果来自 Cycle 188 (pytest-benchmark, Python 3.12)。
+
 ---
 
 ## 文档
