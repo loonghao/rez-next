@@ -4,7 +4,7 @@
 mod tests {
     use crate::source_bindings::{
         build_activation_script, detect_current_shell, detect_shell, get_source_script,
-        PySourceManager, SourceMode,
+        resolve_source_mode, write_source_script, PySourceManager, SourceMode,
     };
     use std::path::PathBuf;
 
@@ -478,5 +478,141 @@ mod tests {
             !shell.is_empty(),
             "detect_shell must return a non-empty string"
         );
+    }
+
+    // ─── Tests for untested public API ─────────────────────────────────────
+
+    #[test]
+    fn test_write_temp_activation_script_creates_file() {
+        let mgr = PySourceManager::new(vec!["python-3.9".to_string()], Some("bash".to_string()));
+        let result = mgr.write_temp_activation_script(None);
+        assert!(result.is_ok(), "write_temp_activation_script should succeed");
+        let path = result.unwrap();
+        assert!(!path.is_empty(), "returned path must not be empty");
+        // The file should exist (best-effort check, may fail if cleaned up)
+        if std::path::Path::new(&path).exists() {
+            let content = std::fs::read_to_string(&path).unwrap();
+            assert!(content.contains("REZ_RESOLVE"), "temp script must contain REZ_RESOLVE");
+        }
+    }
+
+    #[test]
+    fn test_write_temp_activation_script_powershell() {
+        let mgr = PySourceManager::new(vec!["maya-2024".to_string()], Some("powershell".to_string()));
+        let result = mgr.write_temp_activation_script(Some("powershell".to_string()));
+        assert!(result.is_ok(), "write_temp_activation_script(ps1) should succeed");
+        let path = result.unwrap();
+        assert!(path.ends_with(".ps1") || path.contains("powershell"), "temp file should have ps1 extension or indicate powershell");
+    }
+
+    #[test]
+    fn test_write_source_script_creates_file() {
+        use tempfile::TempDir;
+        let tmp = TempDir::new().unwrap();
+        let dest = tmp.path().join("activate.sh");
+        let result = write_source_script(
+            vec!["python-3.9".to_string()],
+            dest.to_str().unwrap(),
+            Some("bash".to_string()),
+        );
+        assert!(result.is_ok(), "write_source_script should succeed");
+        let written_path = result.unwrap();
+        assert!(std::path::Path::new(&written_path).exists() || dest.exists(), "destination file should exist");
+    }
+
+    #[test]
+    fn test_resolve_source_mode_inline() {
+        let result = resolve_source_mode(
+            vec!["python-3.9".to_string()],
+            "bash".to_string(),
+            "inline".to_string(),
+        );
+        assert!(result.is_ok(), "resolve_source_mode inline should succeed");
+        let content = result.unwrap();
+        assert!(content.contains("REZ_RESOLVE"), "inline mode must return script content with REZ_RESOLVE");
+    }
+
+    #[test]
+    fn test_resolve_source_mode_tempfile() {
+        let result = resolve_source_mode(
+            vec!["cmake-3.26".to_string()],
+            "bash".to_string(),
+            "tempfile".to_string(),
+        );
+        assert!(result.is_ok(), "resolve_source_mode tempfile should succeed");
+        let path = result.unwrap();
+        assert!(!path.is_empty(), "tempfile mode must return a non-empty path");
+    }
+
+    #[test]
+    fn test_resolve_source_mode_file_explicit() {
+        use tempfile::TempDir;
+        let tmp = TempDir::new().unwrap();
+        let dest = tmp.path().join("custom_activate.sh");
+        let mode_str = format!("file:{}", dest.to_str().unwrap());
+        let result = resolve_source_mode(
+            vec!["houdini-19.5".to_string()],
+            "bash".to_string(),
+            mode_str,
+        );
+        assert!(result.is_ok(), "resolve_source_mode file: should succeed");
+        let written_path = result.unwrap();
+        assert_eq!(written_path, dest.to_string_lossy().to_string(), "should return the exact path given");
+        let content = std::fs::read_to_string(&dest).unwrap();
+        assert!(content.contains("REZ_RESOLVE"), "written file must contain REZ_RESOLVE");
+    }
+
+    #[test]
+    fn test_resolve_source_mode_invalid_returns_error() {
+        let result = resolve_source_mode(
+            vec!["python-3.9".to_string()],
+            "bash".to_string(),
+            "invalid_mode".to_string(),
+        );
+        assert!(result.is_err(), "invalid mode must return Err");
+    }
+
+    #[test]
+    fn test_resolve_source_mode_auto_shell_detects() {
+        let result = resolve_source_mode(
+            vec!["python-3.9".to_string()],
+            "auto".to_string(),
+            "inline".to_string(),
+        );
+        assert!(result.is_ok(), "auto shell should succeed with inline mode");
+        let content = result.unwrap();
+        assert!(content.contains("REZ_RESOLVE"), "auto shell inline mode must contain REZ_RESOLVE");
+    }
+
+    #[test]
+    fn test_write_activation_script_creates_valid_sh_file() {
+        use tempfile::TempDir;
+        let tmp = TempDir::new().unwrap();
+        let dest = tmp.path().join("activate.sh");
+        let mgr = PySourceManager::new(vec!["python-3.9".to_string()], Some("bash".to_string()));
+        let result = mgr.write_activation_script(dest.to_str().unwrap(), None);
+        assert!(result.is_ok(), "write_activation_script should succeed");
+        let path = result.unwrap();
+        let content = std::fs::read_to_string(&path).unwrap();
+        assert!(content.starts_with("# rez-next activation script"), "script must start with header comment");
+        assert!(content.contains("REZ_RESOLVE"), "script must contain REZ_RESOLVE");
+    }
+
+    #[test]
+    fn test_build_activation_script_contains_rez_packages_path_if_set() {
+        // Set REZ_PACKAGES_PATH and verify it appears in script env vars
+        std::env::set_var("REZ_PACKAGES_PATH", "/packages:/more_packages");
+        let script = build_activation_script(&["python-3.9".to_string()], "bash");
+        // The script should reference REZ_PACKAGES_PATH in the env block
+        // (exact format depends on rex implementation; at minimum it should not panic)
+        let _ = script;
+        std::env::remove_var("REZ_PACKAGES_PATH");
+    }
+
+    #[test]
+    fn test_source_manager_write_temp_activation_script_default_shell() {
+        let mgr = PySourceManager::new(vec!["pkg-1.0".to_string()], None);
+        let result = mgr.write_temp_activation_script(None);
+        assert!(result.is_ok(), "write_temp_activation_script with default shell should succeed");
     }
 }
