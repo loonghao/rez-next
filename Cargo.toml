@@ -85,7 +85,6 @@ rez-next-package = { version = "0.3.0", path = "crates/rez-next-package", defaul
 rez-next-solver = { version = "0.3.0", path = "crates/rez-next-solver", default-features = false }
 rez-next-repository = { version = "0.3.0", path = "crates/rez-next-repository", default-features = false }
 rez-next-context = { version = "0.3.0", path = "crates/rez-next-context", default-features = false }
-# rez-core-rex = { path = "crates/rez-core-rex" }  # Temporarily disabled due to compilation errors
 rez-next-build = { version = "0.3.0", path = "crates/rez-next-build" }
 rez-next-cache = { version = "0.3.0", path = "crates/rez-next-cache" }
 rez-next-suites = { version = "0.3.0", path = "crates/rez-next-suites" }
