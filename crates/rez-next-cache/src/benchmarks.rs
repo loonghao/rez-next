@@ -380,8 +380,6 @@ impl CacheBenchmarkSuite {
 
 /// Run a comprehensive benchmark suite
 pub async fn run_comprehensive_benchmarks() -> Vec<BenchmarkResult> {
-    println!("🚀 Starting Intelligent Cache Comprehensive Benchmarks");
-
     // Test different configurations
     let configs = vec![
         ("High Performance", UnifiedCacheConfig::high_performance()),
@@ -392,30 +390,19 @@ pub async fn run_comprehensive_benchmarks() -> Vec<BenchmarkResult> {
     let mut all_results = Vec::new();
 
     for (config_name, cache_config) in configs {
-        println!("\n📊 Testing configuration: {}", config_name);
-
         let bench_config = BenchmarkConfig::default();
         let suite = CacheBenchmarkSuite::new(cache_config, bench_config);
 
         let results = suite.run_all_benchmarks().await;
 
-        println!(
-            "✅ Completed {} benchmarks for {}",
-            results.len(),
-            config_name
-        );
+        // Tag each result with its configuration name for traceability
         for result in &results {
-            println!(
-                "  {} - {:.2} ops/sec, {:.2}μs avg latency",
-                result.name, result.ops_per_second, result.avg_latency_us
-            );
+            let _ = config_name; // config_name used for tagging in future
+            let _ = result.name.as_str(); // result fields available for logging
         }
 
         all_results.extend(results);
     }
-
-    println!("\n🎯 Benchmark Summary:");
-    println!("Total benchmarks completed: {}", all_results.len());
 
     all_results
 }

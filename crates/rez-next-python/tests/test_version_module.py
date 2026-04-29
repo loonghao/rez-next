@@ -180,3 +180,28 @@ class TestVersionRangeClassMethods:
         r = rez.VersionRange(">=3.0")
         union_r = any_r.union(r)
         assert union_r.is_any()
+
+
+class TestVersionHash:
+    """Test Version and VersionRange hashability (for use in dict/set)."""
+
+    def test_version_hash_consistent(self):
+        v = rez.Version("1.2.3")
+        assert hash(v) == hash(rez.Version("1.2.3"))
+
+    def test_version_hash_differs(self):
+        v1 = rez.Version("1.2.3")
+        v2 = rez.Version("1.2.4")
+        assert hash(v1) != hash(v2)
+
+    def test_version_in_set(self):
+        v1 = rez.Version("1.0")
+        v2 = rez.Version("2.0")
+        s = {v1, v2}
+        assert len(s) == 2
+        assert v1 in s
+        assert v2 in s
+
+    def test_version_range_hash(self):
+        r = rez.VersionRange(">=1.0,<2.0")
+        assert isinstance(hash(r), int)

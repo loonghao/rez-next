@@ -359,7 +359,11 @@ tools:
 
     let pkg = PackageSerializer::load_from_file(&path).unwrap();
     assert_eq!(pkg.name, "houdini_plugin");
-    assert!(pkg.version.is_some());
+    assert_eq!(
+        pkg.version.as_ref().map(|v| v.as_str()),
+        Some("3.0.0"),
+        "version must parse to '3.0.0'"
+    );
     assert!(
         !pkg.requires.is_empty(),
         "requires should be parsed from YAML"

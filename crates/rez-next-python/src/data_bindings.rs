@@ -9,7 +9,7 @@
 use pyo3::prelude::*;
 
 /// Embedded completion script for bash
-const BASH_COMPLETE: &str = r#"# rez-next bash completion
+pub(crate) const BASH_COMPLETE: &str = r#"# rez-next bash completion
 _rez_next() {
     local cur prev opts
     COMPREPLY=()
@@ -27,7 +27,7 @@ complete -F _rez_next rez-next rez_next
 "#;
 
 /// Embedded completion script for fish
-const FISH_COMPLETE: &str = r#"# rez-next fish completion
+pub(crate) const FISH_COMPLETE: &str = r#"# rez-next fish completion
 # Place in ~/.config/fish/completions/rez-next.fish
 
 set -l commands env solve build release status search view diff cp mv rm bundle config selftest gui context suite interpret depends pip forward benchmark complete source bind
@@ -62,7 +62,7 @@ complete -c rez-next -n "__fish_seen_subcommand_from solve" -l verbose -d "Verbo
 "#;
 
 /// Embedded completion script for zsh
-const ZSH_COMPLETE: &str = r#"# rez-next zsh completion
+pub(crate) const ZSH_COMPLETE: &str = r#"# rez-next zsh completion
 #compdef rez-next
 
 _rez_next() {
@@ -82,7 +82,7 @@ _rez_next() {
 "#;
 
 /// Example package.py content
-const EXAMPLE_PACKAGE_PY: &str = r#"name = "my_package"
+pub(crate) const EXAMPLE_PACKAGE_PY: &str = r#"name = "my_package"
 version = "1.0.0"
 description = "An example rez package"
 authors = ["Your Name"]
@@ -97,7 +97,7 @@ def commands():
 "#;
 
 /// Default rezconfig.py template
-const DEFAULT_REZCONFIG: &str = r#"# rez-next configuration
+pub(crate) const DEFAULT_REZCONFIG: &str = r#"# rez-next configuration
 # See https://github.com/loonghao/rez-next for documentation
 
 # Package search paths
@@ -255,110 +255,6 @@ pub fn get_completion_script(shell: Option<&str>) -> PyResult<String> {
     PyRezData::new().get_completion_script(shell)
 }
 
-// ─── Unit tests ─────────────────────────────────────────────────────────────
-
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_fish_completion_not_empty() {
-        assert!(
-            FISH_COMPLETE.len() > 10,
-            "fish completion should have meaningful content"
-        );
-        assert!(FISH_COMPLETE.contains("rez-next"));
-        assert!(FISH_COMPLETE.contains("complete -c rez-next"));
-    }
-
-    #[test]
-    fn test_resource_lookup_fish() {
-        let content = match "completions/fish" {
-            "completions/fish" => FISH_COMPLETE.to_string(),
-            _ => panic!("not found"),
-        };
-        assert!(!content.is_empty());
-        assert!(content.contains("fish completion"));
-    }
-
-    #[test]
-    fn test_bash_completion_not_empty() {
-        assert!(
-            BASH_COMPLETE.len() > 10,
-            "bash completion should have meaningful content"
-        );
-        assert!(BASH_COMPLETE.contains("_rez_next"));
-    }
-
-    #[test]
-    fn test_zsh_completion_not_empty() {
-        assert!(
-            ZSH_COMPLETE.len() > 10,
-            "zsh completion should have meaningful content"
-        );
-        assert!(ZSH_COMPLETE.contains("rez-next"));
-    }
-
-    #[test]
-    fn test_example_package_py_valid() {
-        // Should contain required fields
-        assert!(EXAMPLE_PACKAGE_PY.contains("name"));
-        assert!(EXAMPLE_PACKAGE_PY.contains("version"));
-        assert!(EXAMPLE_PACKAGE_PY.contains("requires"));
-    }
-
-    #[test]
-    fn test_default_rezconfig_valid() {
-        assert!(DEFAULT_REZCONFIG.contains("packages_path"));
-        assert!(DEFAULT_REZCONFIG.contains("local_packages_path"));
-    }
-
-    #[test]
-    fn test_list_resources_non_empty() {
-        let data = PyRezData::new();
-        let resources = data.list_resources();
-        assert!(!resources.is_empty());
-        assert!(resources.contains(&"completions/bash".to_string()));
-        assert!(resources.contains(&"examples/package.py".to_string()));
-    }
-
-    #[test]
-    fn test_write_completion_to_file() {
-        use tempfile::TempDir;
-        let tmp = TempDir::new().unwrap();
-        let dest = tmp.path().join("rez-complete.bash");
-        // Write directly (no PyO3 GIL in tests)
-        let content = BASH_COMPLETE;
-        std::fs::write(&dest, content).unwrap();
-        let written = std::fs::read_to_string(&dest).unwrap();
-        assert!(written.contains("_rez_next"));
-    }
-
-    #[test]
-    fn test_resource_lookup_bash() {
-        // Direct string match — no PyO3 in unit tests
-        let content = match "completions/bash" {
-            "completions/bash" => BASH_COMPLETE.to_string(),
-            _ => panic!("not found"),
-        };
-        assert!(!content.is_empty());
-    }
-
-    #[test]
-    fn test_resource_lookup_example_package() {
-        let content = EXAMPLE_PACKAGE_PY;
-        assert!(content.contains("name = \"my_package\""));
-    }
-
-    #[test]
-    fn test_write_example_package_to_dir() {
-        use tempfile::TempDir;
-        let tmp = TempDir::new().unwrap();
-        let dest_dir = tmp.path().to_str().unwrap();
-        let pkg_path = std::path::PathBuf::from(dest_dir).join("package.py");
-        std::fs::write(&pkg_path, EXAMPLE_PACKAGE_PY).unwrap();
-        assert!(pkg_path.exists());
-        let content = std::fs::read_to_string(&pkg_path).unwrap();
-        assert!(content.contains("my_package"));
-    }
-}
+#[path = "data_bindings_tests.rs"]
+mod tests;

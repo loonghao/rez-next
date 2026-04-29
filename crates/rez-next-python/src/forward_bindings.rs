@@ -166,67 +166,6 @@ exec rez-next forward {} "$@"
     Ok(script)
 }
 
-// ── Tests ────────────────────────────────────────────────────────────────────
-
 #[cfg(test)]
-mod forward_tests {
-    use super::*;
-
-    #[test]
-    fn test_rez_forward_new() {
-        let fwd = PyRezForward::new("maya".to_string(), None);
-        assert_eq!(fwd.tool_name(), "maya");
-        assert!(fwd.context_id().is_none());
-    }
-
-    #[test]
-    fn test_rez_forward_with_context() {
-        let fwd = PyRezForward::new("houdini".to_string(), Some("ctx-abc123".to_string()));
-        assert_eq!(fwd.context_id(), Some("ctx-abc123".to_string()));
-    }
-
-    #[test]
-    fn test_forward_dry_run() {
-        let fwd = PyRezForward::new("python".to_string(), None);
-        let result = fwd.execute(Some(vec!["--version".to_string()]), true);
-        assert!(result.is_ok());
-        let out = result.unwrap();
-        assert!(out.contains("[dry-run]"));
-        assert!(out.contains("python"));
-    }
-
-    #[test]
-    fn test_generate_forward_script_bash() {
-        let script = generate_forward_script("maya", Some("bash")).unwrap();
-        assert!(script.contains("rez-next forward maya"));
-        assert!(script.contains("#!/usr/bin/env bash"));
-    }
-
-    #[test]
-    fn test_generate_forward_script_powershell() {
-        let script = generate_forward_script("houdini", Some("powershell")).unwrap();
-        assert!(script.contains("rez-next forward houdini"));
-        assert!(script.contains("Set-Alias"));
-    }
-
-    #[test]
-    fn test_generate_forward_script_fish() {
-        let script = generate_forward_script("nuke", Some("fish")).unwrap();
-        assert!(script.contains("function nuke"));
-        assert!(script.contains("rez-next forward nuke"));
-    }
-
-    #[test]
-    fn test_generate_forward_script_cmd() {
-        let script = generate_forward_script("hython", Some("cmd")).unwrap();
-        assert!(script.contains("@echo off"));
-        assert!(script.contains("rez-next forward hython"));
-    }
-
-    #[test]
-    fn test_forward_str() {
-        let fwd = PyRezForward::new("python".to_string(), None);
-        let s = fwd.__str__();
-        assert!(s.contains("python"));
-    }
-}
+#[path = "forward_bindings_tests.rs"]
+mod forward_tests;

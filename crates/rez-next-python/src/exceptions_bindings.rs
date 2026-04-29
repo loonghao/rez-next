@@ -132,6 +132,30 @@ pyo3::create_exception!(
     "Raised for internal rez-next errors.\n\nEquivalent to rez.exceptions.RezSystemError."
 );
 
+// ─── Exception name constants (for documentation / mapping) ───────────────────
+
+/// Map of exception class name -> parent class name (for hierarchy validation).
+#[cfg(test)]
+pub(crate) const EXCEPTION_HIERARCHY: &[(&str, &str)] = &[
+    ("RezError", "Exception"),
+    ("PackageNotFound", "RezError"),
+    ("PackageFamilyNotFound", "RezError"),
+    ("PackageVersionConflict", "RezError"),
+    ("PackageRequestError", "RezError"),
+    ("PackageParseError", "RezError"),
+    ("ResolveError", "RezError"),
+    ("SolveFailure", "ResolveError"),
+    ("PackageConflict", "ResolveError"),
+    ("RezBuildError", "RezError"),
+    ("RezReleaseError", "RezError"),
+    ("ConfigurationError", "RezError"),
+    ("ContextBundleError", "RezError"),
+    ("SuiteError", "RezError"),
+    ("RexError", "RezError"),
+    ("RexUndefinedVariableError", "RexError"),
+    ("RezSystemError", "RezError"),
+];
+
 // ─── Registration ─────────────────────────────────────────────────────────────
 
 /// Register all custom exception types into the given submodule.
@@ -191,3 +215,7 @@ pub fn register_all_exceptions(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
     Ok(())
 }
+
+#[cfg(test)]
+#[path = "exceptions_bindings_tests.rs"]
+mod exceptions_bindings_tests;

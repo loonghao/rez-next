@@ -114,34 +114,26 @@ class TestSearchModule:
         assert hasattr(search, "PackageSearcher")
         assert hasattr(search, "SearchResult")
 
-    def test_search_packages_returns_list(self):
-        import rez_next.search as search
-        results = search.search_packages(
-            pattern="", paths=["/nonexistent/path_xyz"]
-        )
-        assert isinstance(results, list)
-
     def test_search_packages_empty_paths_empty_result(self):
         import rez_next.search as search
         results = search.search_packages(
             pattern="python", paths=["/nonexistent/path_xyz"]
         )
-        assert isinstance(results, list)
-        assert len(results) == 0
+        assert results == [], f"nonexistent path must yield empty results, got {results}"
 
-    def test_search_package_names_returns_list(self):
+    def test_search_package_names_returns_empty_for_nonexistent_path(self):
         import rez_next.search as search
         names = search.search_package_names(
             pattern="", paths=["/nonexistent/path_xyz"]
         )
-        assert isinstance(names, list)
+        assert names == [], f"nonexistent path must yield empty names, got {names}"
 
-    def test_search_latest_packages_returns_list(self):
+    def test_search_latest_packages_returns_empty_for_nonexistent_path(self):
         import rez_next.search as search
         results = search.search_latest_packages(
             pattern="", paths=["/nonexistent/path_xyz"]
         )
-        assert isinstance(results, list)
+        assert results == [], f"nonexistent path must yield empty results, got {results}"
 
     def test_package_searcher_create(self):
         import rez_next.search as search
@@ -150,7 +142,7 @@ class TestSearchModule:
             paths=["/nonexistent/path_xyz"],
             scope="families",
         )
-        assert searcher is not None
+        assert hasattr(searcher, "search"), "PackageSearcher must expose .search()"
 
     def test_package_searcher_repr(self):
         import rez_next.search as search
@@ -159,15 +151,15 @@ class TestSearchModule:
         assert "maya" in r
         assert "latest" in r
 
-    def test_package_searcher_search_returns_list(self):
+    def test_package_searcher_search_returns_empty_for_nonexistent_path(self):
         import rez_next.search as search
         searcher = search.PackageSearcher(
             pattern="", paths=["/nonexistent/path_xyz"]
         )
         results = searcher.search()
-        assert isinstance(results, list)
+        assert results == [], f"search on nonexistent path must be empty, got {results}"
 
-    def test_search_scope_families_vs_latest(self):
+    def test_search_scope_families_vs_latest_both_empty_for_nonexistent(self):
         import rez_next.search as search
         families = search.search_packages(
             scope="families", paths=["/nonexistent/path_xyz"]
@@ -175,8 +167,8 @@ class TestSearchModule:
         latest = search.search_packages(
             scope="latest", paths=["/nonexistent/path_xyz"]
         )
-        assert isinstance(families, list)
-        assert isinstance(latest, list)
+        assert families == [], f"families scope on nonexistent path must be empty, got {families}"
+        assert latest == [], f"latest scope on nonexistent path must be empty, got {latest}"
 
     def test_top_level_search_packages_callable(self):
         assert callable(rez.search_packages)

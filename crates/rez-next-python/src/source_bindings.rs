@@ -4,8 +4,9 @@
 //! resolved context so users can activate it with `source <script>` or `.` in
 //! POSIX shells, or `. <script>` in PowerShell.
 
+use crate::shell_utils::shell_type_from_str;
 use pyo3::prelude::*;
-use rez_next_rex::{generate_shell_script, RexEnvironment, ShellType};
+use rez_next_rex::{generate_shell_script, RexEnvironment};
 use std::path::PathBuf;
 
 /// Supported activation modes matching rez's `rez source` command.
@@ -33,8 +34,8 @@ pub enum SourceMode {
 #[pyclass(name = "SourceManager")]
 #[derive(Debug)]
 pub struct PySourceManager {
-    packages: Vec<String>,
-    shell_type: String,
+    pub(crate) packages: Vec<String>,
+    pub(crate) shell_type: String,
 }
 
 #[pymethods]
@@ -121,7 +122,7 @@ impl PySourceManager {
 }
 
 /// Detect the current shell based on environment variables.
-fn detect_current_shell() -> String {
+pub(crate) fn detect_current_shell() -> String {
     // PowerShell
     if std::env::var("PSModulePath").is_ok() {
         return "powershell".to_string();
@@ -147,20 +148,13 @@ fn detect_current_shell() -> String {
 }
 
 /// Build an activation script string for the given packages and shell.
-fn build_activation_script(packages: &[String], shell_name: &str) -> String {
-    let shell_type = match shell_name.to_lowercase().as_str() {
-        "zsh" => ShellType::Zsh,
-        "fish" => ShellType::Fish,
-        "cmd" => ShellType::Cmd,
-        "powershell" | "pwsh" => ShellType::PowerShell,
-        _ => ShellType::Bash,
-    };
+pub(crate) fn build_activation_script(packages: &[String], shell_name: &str) -> String {
+    let shell_type = shell_type_from_str(shell_name);
 
     // Build a representative environment based on package list
     let mut env = RexEnvironment::new();
 
     // Set REZ_CONTEXT_FILE marker (rez standard).
-    // Use the platform-specific temp directory so this works on Windows too.
     let context_file = std::env::temp_dir()
         .join("rez_context.rxt")
         .to_string_lossy()
@@ -176,9 +170,6 @@ fn build_activation_script(packages: &[String], shell_name: &str) -> String {
     }
 
     // For each package, set REZPKG_<NAME>=<version>.
-    // Note: this is a best-effort indicator of the resolved version; it does
-    // NOT encode the installation path.  Consumers needing the actual path
-    // should use ResolvedContext.get_tools() or inspect Package.base directly.
     for pkg in packages {
         let parts: Vec<&str> = pkg.splitn(2, '-').collect();
         let pkg_name = parts[0].to_uppercase().replace(['-', '.'], "_");
@@ -302,179 +293,6 @@ pub fn resolve_source_mode(
     }
 }
 
-// ─── Unit tests ─────────────────────────────────────────────────────────────
-
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_detect_current_shell_returns_string() {
-        let shell = detect_current_shell();
-        assert!(!shell.is_empty());
-        let known = ["bash", "zsh", "fish", "powershell", "pwsh", "cmd"];
-        assert!(
-            known.iter().any(|k| shell.contains(k)),
-            "Unexpected shell: {}",
-            shell
-        );
-    }
-
-    #[test]
-    fn test_build_activation_script_bash() {
-        let pkgs = vec!["python-3.9".to_string(), "maya-2024".to_string()];
-        let script = build_activation_script(&pkgs, "bash");
-        assert!(
-            script.contains("REZ_RESOLVE"),
-            "bash script should set REZ_RESOLVE"
-        );
-        assert!(script.contains("export"), "bash script should use export");
-        assert!(
-            script.contains("python-3.9"),
-            "bash script should contain package name"
-        );
-    }
-
-    #[test]
-    fn test_build_activation_script_powershell() {
-        let pkgs = vec!["python-3.9".to_string()];
-        let script = build_activation_script(&pkgs, "powershell");
-        assert!(
-            script.contains("REZ_RESOLVE"),
-            "ps1 script should set REZ_RESOLVE"
-        );
-        // PowerShell uses $env: syntax
-        assert!(
-            script.contains("$env:") || script.contains("REZ_"),
-            "ps1 should use $env: syntax"
-        );
-    }
-
-    #[test]
-    fn test_build_activation_script_zsh() {
-        let pkgs = vec!["houdini-19.5".to_string()];
-        let script = build_activation_script(&pkgs, "zsh");
-        assert!(script.contains("REZ_RESOLVE"));
-        assert!(script.contains("houdini-19.5"));
-    }
-
-    #[test]
-    fn test_build_activation_script_fish() {
-        let pkgs = vec!["nuke-14.0".to_string()];
-        let script = build_activation_script(&pkgs, "fish");
-        assert!(script.contains("REZ_RESOLVE"));
-    }
-
-    #[test]
-    fn test_source_manager_new_default_shell() {
-        let mgr = PySourceManager::new(vec!["python-3.9".to_string()], None);
-        assert!(!mgr.shell_type.is_empty());
-        assert_eq!(mgr.packages.len(), 1);
-    }
-
-    #[test]
-    fn test_source_manager_new_explicit_shell() {
-        let mgr = PySourceManager::new(vec!["maya-2024".to_string()], Some("bash".to_string()));
-        assert_eq!(mgr.shell_type, "bash");
-    }
-
-    #[test]
-    fn test_source_manager_get_activation_content() {
-        let mgr = PySourceManager::new(
-            vec!["python-3.10".to_string(), "pip-23".to_string()],
-            Some("bash".to_string()),
-        );
-        let content = mgr.get_activation_script_content(None);
-        assert!(content.contains("REZ_RESOLVE"));
-        assert!(!content.is_empty());
-    }
-
-    #[test]
-    fn test_write_activation_script_to_file() {
-        use tempfile::TempDir;
-        let tmp = TempDir::new().unwrap();
-        let dest = tmp.path().join("activate.sh");
-        let mgr = PySourceManager::new(vec!["python-3.9".to_string()], Some("bash".to_string()));
-        // No Python GIL available in unit tests — call the internal function directly
-        let content = mgr.get_activation_script_content(None);
-        std::fs::write(&dest, &content).unwrap();
-        let written = std::fs::read_to_string(&dest).unwrap();
-        assert!(written.contains("REZ_RESOLVE"));
-    }
-
-    #[test]
-    fn test_pkg_env_var_generation() {
-        let pkgs = vec!["python-3.9".to_string(), "my-tool-2.0".to_string()];
-        let script = build_activation_script(&pkgs, "bash");
-        // Should contain REZPKG_PYTHON
-        assert!(script.contains("REZPKG_PYTHON"), "Should set REZPKG_PYTHON");
-    }
-
-    #[test]
-    fn test_activation_script_header_comment() {
-        let pkgs = vec!["python-3.9".to_string()];
-        let script = build_activation_script(&pkgs, "bash");
-        assert!(
-            script.starts_with("# rez-next activation script"),
-            "Script should start with header comment"
-        );
-    }
-
-    #[test]
-    fn test_source_mode_inline_variant() {
-        // Verify SourceMode::Inline is constructable and usable
-        let mode = SourceMode::Inline;
-        assert_eq!(mode, SourceMode::Inline);
-    }
-
-    #[test]
-    fn test_source_mode_tempfile_variant() {
-        let mode = SourceMode::TempFile;
-        assert_eq!(mode, SourceMode::TempFile);
-    }
-
-    #[test]
-    fn test_source_mode_file_variant() {
-        let path = PathBuf::from("/tmp/activate.sh");
-        let mode = SourceMode::File(path.clone());
-        assert_eq!(mode, SourceMode::File(path));
-    }
-
-    #[test]
-    fn test_resolve_source_mode_inline_logic() {
-        let pkgs = vec!["python-3.9".to_string()];
-        // Test inline mode: build_activation_script should return content directly
-        let content = build_activation_script(&pkgs, "bash");
-        assert!(content.contains("REZ_RESOLVE"));
-        assert!(content.contains("python-3.9"));
-        // Verify SourceMode::Inline is used in match
-        let mode = SourceMode::Inline;
-        let result = match mode {
-            SourceMode::Inline => build_activation_script(&pkgs, "bash"),
-            SourceMode::TempFile => "tempfile".to_string(),
-            SourceMode::File(_) => "file".to_string(),
-        };
-        assert!(result.contains("REZ_RESOLVE"));
-    }
-
-    #[test]
-    fn test_resolve_source_mode_file_logic() {
-        use tempfile::TempDir;
-        let pkgs = vec!["maya-2024".to_string()];
-        let tmp = TempDir::new().unwrap();
-        let dest = tmp.path().join("activate_test.sh");
-        let mode = SourceMode::File(dest.clone());
-        let result = match mode {
-            SourceMode::Inline => "inline".to_string(),
-            SourceMode::TempFile => "tempfile".to_string(),
-            SourceMode::File(path) => {
-                let script = build_activation_script(&pkgs, "bash");
-                std::fs::write(&path, &script).unwrap();
-                path.to_string_lossy().to_string()
-            }
-        };
-        assert!(!result.is_empty());
-        let written = std::fs::read_to_string(&dest).unwrap();
-        assert!(written.contains("maya-2024"));
-    }
-}
+#[path = "source_bindings_tests.rs"]
+mod source_bindings_tests;
