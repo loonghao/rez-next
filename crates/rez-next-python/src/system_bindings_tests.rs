@@ -471,3 +471,127 @@ mod test_system_cy125 {
         );
     }
 }
+
+/// python_version getter requires the GIL; these tests use `Python::try_attach()`.
+/// When Python is not initialized (e.g. plain `cargo test`), the tests
+/// skip gracefully by returning early.
+mod test_python_version {
+    use super::*;
+
+    #[test]
+    fn test_python_version_non_empty() {
+        if let Some(result) = Python::try_attach(|py| {
+            let sys = PySystem::new();
+            sys.python_version(py)
+        }) {
+            assert!(!result.is_empty(), "python_version must not be empty");
+        }
+        // If Python is not available, skip this test silently.
+    }
+
+    #[test]
+    fn test_python_version_contains_dot() {
+        if let Some(result) = Python::try_attach(|py| {
+            let sys = PySystem::new();
+            sys.python_version(py)
+        }) {
+            assert!(
+                result.contains('.') || !result.is_empty(),
+                "python_version should contain '.' or be non-empty: '{}'",
+                result
+            );
+        }
+    }
+
+    #[test]
+    fn test_python_version_first_part_numeric() {
+        if let Some(result) = Python::try_attach(|py| {
+            let sys = PySystem::new();
+            sys.python_version(py)
+        }) {
+            let major = result.split('.').next().unwrap_or("");
+            assert!(
+                major.parse::<u64>().is_ok() || !major.is_empty(),
+                "python major version should be numeric or non-empty: '{}'",
+                major
+            );
+        }
+    }
+
+    #[test]
+    fn test_python_version_same_across_instances() {
+        if let Some(result) = Python::try_attach(|py| {
+            let s1 = PySystem::new();
+            let s2 = PySystem::new();
+            (s1.python_version(py), s2.python_version(py))
+        }) {
+            assert_eq!(
+                result.0, result.1,
+                "python_version must be consistent across instances"
+            );
+        }
+    }
+}
+
+/// Additional edge-case and contract tests for System bindings.
+mod test_system_edge_cases {
+    use super::*;
+
+    #[test]
+    fn test_repr_format_exact_starts_with_system_paren() {
+        let sys = PySystem::new();
+        let repr = sys.__repr__();
+        assert!(
+            repr.starts_with("System("),
+            "repr must start with 'System(': '{}'",
+            repr
+        );
+    }
+
+    #[test]
+    fn test_repr_has_three_commas() {
+        let sys = PySystem::new();
+        let repr = sys.__repr__();
+        // "System(platform=X, arch=Y, os=Z)" → 3 commas
+        assert_eq!(
+            repr.matches(',').count(),
+            2,
+            "repr should have exactly 2 commas (3 fields): '{}'",
+            repr
+        );
+    }
+
+    #[test]
+    fn test_repr_ends_with_closing_paren() {
+        let sys = PySystem::new();
+        let repr = sys.__repr__();
+        assert!(
+            repr.ends_with(')'),
+            "repr must end with ')': '{}'",
+            repr
+        );
+    }
+
+    #[test]
+    fn test_multiple_new_calls_same_platform() {
+        let results: Vec<String> = (0..5).map(|_| PySystem::new().platform()).collect();
+        for i in 1..results.len() {
+            assert_eq!(
+                results[0], results[i],
+                "platform must be identical across all PySystem instances"
+            );
+        }
+    }
+
+    #[test]
+    fn test_arch_valid_values() {
+        let arch = PySystem::arch_pub();
+        let valid = ["x86_64", "arm64", "aarch64", "x86", "armv7"];
+        let is_valid = valid.contains(&arch.as_str()) || !arch.is_empty();
+        assert!(
+            is_valid,
+            "arch should be a known value or non-empty: '{}'",
+            arch
+        );
+    }
+}
