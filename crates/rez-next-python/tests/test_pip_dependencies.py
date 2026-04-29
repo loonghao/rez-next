@@ -40,3 +40,29 @@ class TestGetPipDependencies:
         assert isinstance(result, list)
         if result:
             assert "mypackage" in result
+
+    def test_get_pip_dependencies_multiple_dependents(self, tmp_path):
+        """Multiple packages depending on the same pip package."""
+        # Create 2 packages that depend on "numpy"
+        pkg1 = pip.PipPackage("pkg1", "1.0.0", requires=["numpy-1.25+"])
+        pkg2 = pip.PipPackage("pkg2", "2.0.0", requires=["numpy-1.25+"])
+        pip.write_pip_package(pkg1, str(tmp_path))
+        pip.write_pip_package(pkg2, str(tmp_path))
+
+        # Check dependencies for "numpy"
+        result = pip.get_pip_dependencies("numpy", paths=[str(tmp_path)])
+        assert isinstance(result, list)
+        assert len(result) == 2
+        assert "pkg1" in result
+        assert "pkg2" in result
+
+    def test_get_pip_dependencies_no_dependencies(self, tmp_path):
+        """Package with no dependencies should not appear."""
+        # Create a package with no requires
+        pkg = pip.PipPackage("mypackage", "1.0.0")
+        pip.write_pip_package(pkg, str(tmp_path))
+
+        # Check dependencies for "numpy" (should be empty)
+        result = pip.get_pip_dependencies("numpy", paths=[str(tmp_path)])
+        assert isinstance(result, list)
+        assert len(result) == 0
