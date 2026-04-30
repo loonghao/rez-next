@@ -37,7 +37,7 @@ fn test_zsh_script_returned() {
 fn test_fish_script_returned() {
     let script = get_completion_script(Some("fish")).unwrap();
     assert!(script.contains("complete -c rez-next"));
-    assert!(script.contains("__rez_needs_command"));
+    assert!(script.contains("__rez_next_complete"));
 }
 
 #[test]
@@ -142,59 +142,51 @@ fn test_get_completion_script_py_valid_shell_no_panic() {
     assert!(get_completion_script_py(Some("bash")).is_ok());
 }
 
-// ── bash script command-list coverage ────────────────────────────────────
+// ── bash script: dynamic mode checks ────────────────────────────────────
 
 #[test]
-fn test_bash_script_contains_build_and_release() {
+fn test_bash_script_uses_dynamic_mode() {
     let script = get_completion_script(Some("bash")).unwrap();
-    assert!(script.contains("build"), "bash script should list 'build'");
-    assert!(
-        script.contains("release"),
-        "bash script should list 'release'"
-    );
+    assert!(script.contains("--dynamic"), "bash script should use --dynamic flag");
+    assert!(script.contains("COMP_LINE"), "bash script should read COMP_LINE");
+    assert!(script.contains("COMP_POINT"), "bash script should read COMP_POINT");
 }
 
 #[test]
-fn test_bash_script_contains_bundle_and_config() {
+fn test_bash_script_defines_complete_function() {
     let script = get_completion_script(Some("bash")).unwrap();
-    assert!(
-        script.contains("bundle"),
-        "bash script should list 'bundle'"
-    );
-    assert!(
-        script.contains("config"),
-        "bash script should list 'config'"
-    );
+    assert!(script.contains("_rez_next_complete"), "bash script should define completion function");
+    assert!(script.contains("COMPREPLY"), "bash script should set COMPREPLY");
 }
 
 // ── zsh script subcommand descriptions ───────────────────────────────────
 
 #[test]
-fn test_zsh_script_contains_solve_description() {
+fn test_zsh_script_uses_dynamic_for_solve() {
     let script = get_completion_script(Some("zsh")).unwrap();
     assert!(
-        script.contains("solve:solve a set of package requirements"),
-        "zsh should describe 'solve'"
+        script.contains("--dynamic"),
+        "zsh should use --dynamic for solve"
     );
 }
 
 #[test]
-fn test_zsh_script_contains_bind_description() {
+fn test_zsh_script_uses_dynamic_for_bind() {
     let script = get_completion_script(Some("zsh")).unwrap();
     assert!(
-        script.contains("bind:bind a system tool as a rez package"),
-        "zsh should describe 'bind'"
+        script.contains("--dynamic"),
+        "zsh should use --dynamic for bind"
     );
 }
 
 // ── fish script structural checks ────────────────────────────────────────
 
 #[test]
-fn test_fish_script_contains_needs_command_function() {
+fn test_fish_script_defines_correct_function() {
     let script = get_completion_script(Some("fish")).unwrap();
     assert!(
-        script.contains("function __rez_needs_command"),
-        "fish script should define __rez_needs_command"
+        script.contains("function __rez_next_complete"),
+        "fish script should define __rez_next_complete"
     );
 }
 
@@ -222,11 +214,11 @@ fn test_get_completion_script_py_all_shells_no_panic() {
 // ── bash script: case block for env/solve ────────────────────────────────
 
 #[test]
-fn test_bash_script_has_compreply_for_env_and_solve() {
+fn test_bash_script_handles_env_solve_dynamically() {
     let script = get_completion_script(Some("bash")).unwrap();
     assert!(
-        script.contains("env|solve") || (script.contains("env") && script.contains("solve")),
-        "bash script should handle env/solve completion"
+        script.contains("--dynamic"),
+        "bash script should use --dynamic for env/solve completion"
     );
 }
 
@@ -244,16 +236,17 @@ fn test_zsh_script_ends_with_rez_next_call() {
 // ── fish script: contains all major subcommands ───────────────────────────
 
 #[test]
-fn test_fish_script_contains_build_and_release() {
+fn test_fish_script_uses_dynamic_mode() {
     let script = get_completion_script(Some("fish")).unwrap();
-    assert!(
-        script.contains("build"),
-        "fish script should contain 'build'"
-    );
-    assert!(
-        script.contains("release"),
-        "fish script should contain 'release'"
-    );
+    assert!(script.contains("--dynamic"), "fish script should use --dynamic flag");
+    assert!(script.contains("commandline"), "fish script should read commandline");
+}
+
+#[test]
+fn test_fish_script_defines_complete_function() {
+    let script = get_completion_script(Some("fish")).unwrap();
+    assert!(script.contains("__rez_next_complete"), "fish script should define __rez_next_complete function");
+    assert!(script.contains("complete -c rez"), "fish script should register completions for rez");
 }
 
 // ── powershell script ─────────────────────────────────────────────────────
@@ -292,11 +285,11 @@ fn test_install_path_unknown_shell_errors() {
 // ── bash script contains -p / --paths path-completion ────────────────────
 
 #[test]
-fn test_bash_script_handles_paths_flag() {
+fn test_bash_script_handles_paths_dynamically() {
     let script = get_completion_script(Some("bash")).unwrap();
     assert!(
-        script.contains("-p") || script.contains("--paths"),
-        "bash completion should handle -p/--paths directory completion"
+        script.contains("--dynamic"),
+        "bash script should use --dynamic (paths handled dynamically)"
     );
 }
 
@@ -333,12 +326,15 @@ mod test_completion_cy119 {
     }
 
     #[test]
-    fn test_powershell_script_lists_twenty_commands() {
+    fn test_powershell_script_uses_dynamic_mode() {
         let script = get_completion_script(Some("powershell")).unwrap();
-        let count = script.split('\'').count() / 2;
         assert!(
-            count >= 20,
-            "powershell script should list at least 20 commands, found ~{count}"
+            script.contains("--dynamic"),
+            "powershell script should use --dynamic flag"
+        );
+        assert!(
+            script.contains("COMP_LINE"),
+            "powershell script should read COMP_LINE"
         );
     }
 
@@ -365,38 +361,38 @@ mod test_completion_cy129 {
     use super::*;
 
     #[test]
-    fn test_bash_script_contains_status() {
+    fn test_bash_script_uses_dynamic_for_all_commands() {
         let script = get_completion_script(Some("bash")).unwrap();
         assert!(
-            script.contains("status"),
-            "bash script must list 'status' subcommand"
+            script.contains("--dynamic"),
+            "bash script should use --dynamic for all commands"
         );
     }
 
     #[test]
-    fn test_zsh_script_contains_search_description() {
+    fn test_zsh_script_handles_search_dynamically() {
         let script = get_completion_script(Some("zsh")).unwrap();
         assert!(
-            script.contains("search"),
-            "zsh script must describe 'search' subcommand"
+            script.contains("--dynamic"),
+            "zsh script should use --dynamic for search"
         );
     }
 
     #[test]
-    fn test_fish_script_contains_context() {
+    fn test_fish_script_handles_context_dynamically() {
         let script = get_completion_script(Some("fish")).unwrap();
         assert!(
-            script.contains("context"),
-            "fish script must mention 'context' subcommand"
+            script.contains("--dynamic"),
+            "fish script should use --dynamic for context"
         );
     }
 
     #[test]
-    fn test_powershell_script_contains_env() {
+    fn test_powershell_script_handles_env_dynamically() {
         let script = get_completion_script(Some("powershell")).unwrap();
         assert!(
-            script.contains("env"),
-            "powershell script must contain 'env' command"
+            script.contains("--dynamic"),
+            "powershell script should use --dynamic for env"
         );
     }
 
@@ -410,11 +406,11 @@ mod test_completion_cy129 {
     }
 
     #[test]
-    fn test_bash_script_contains_interpret() {
+    fn test_bash_script_handles_interpret_dynamically() {
         let script = get_completion_script(Some("bash")).unwrap();
         assert!(
-            script.contains("interpret"),
-            "bash script must list 'interpret' subcommand"
+            script.contains("--dynamic"),
+            "bash script should use --dynamic for interpret"
         );
     }
 
@@ -428,11 +424,11 @@ mod test_completion_cy129 {
     }
 
     #[test]
-    fn test_powershell_script_contains_solve() {
+    fn test_powershell_script_handles_solve_dynamically() {
         let script = get_completion_script(Some("powershell")).unwrap();
         assert!(
-            script.contains("solve"),
-            "powershell script must contain 'solve' command"
+            script.contains("--dynamic"),
+            "powershell script should use --dynamic for solve"
         );
     }
 
@@ -452,20 +448,20 @@ mod test_completion_cy129 {
     }
 
     #[test]
-    fn test_bash_script_contains_forward() {
+    fn test_bash_script_handles_forward_dynamically() {
         let script = get_completion_script(Some("bash")).unwrap();
         assert!(
-            script.contains("forward"),
-            "bash script must list 'forward' subcommand"
+            script.contains("--dynamic"),
+            "bash script should use --dynamic for forward"
         );
     }
 
     #[test]
-    fn test_fish_script_contains_suite() {
+    fn test_fish_script_handles_suite_dynamically() {
         let script = get_completion_script(Some("fish")).unwrap();
         assert!(
-            script.contains("suite"),
-            "fish script must mention 'suite' subcommand"
+            script.contains("--dynamic"),
+            "fish script should use --dynamic for suite"
         );
     }
 }
