@@ -196,3 +196,98 @@ fn test_package_requirement_display_format() {
     assert_eq!(r3.to_string(), "~python-3.9");
 }
 
+#[test]
+fn test_package_qualified_name_with_version() {
+    let mut pkg = Package::new("test_pkg".to_string());
+    pkg.version = Some(Version::parse("1.0.0").unwrap());
+    assert_eq!(pkg.qualified_name(), "test_pkg-1.0.0");
+}
+
+#[test]
+fn test_package_qualified_name_without_version() {
+    let pkg = Package::new("test_pkg".to_string());
+    assert_eq!(pkg.qualified_name(), "test_pkg");
+}
+
+#[test]
+fn test_package_as_exact_requirement_with_version() {
+    let mut pkg = Package::new("test_pkg".to_string());
+    pkg.version = Some(Version::parse("1.0.0").unwrap());
+    assert_eq!(pkg.as_exact_requirement(), "test_pkg==1.0.0");
+}
+
+#[test]
+fn test_package_as_exact_requirement_without_version() {
+    let pkg = Package::new("test_pkg".to_string());
+    assert_eq!(pkg.as_exact_requirement(), "test_pkg");
+}
+
+#[test]
+fn test_package_num_variants_empty() {
+    let pkg = Package::new("test_pkg".to_string());
+    assert_eq!(pkg.num_variants(), 0);
+}
+
+#[test]
+fn test_package_num_variants_with_variants() {
+    let mut pkg = Package::new("test_pkg".to_string());
+    pkg.variants.push(vec!["variant1".to_string()]);
+    pkg.variants.push(vec!["variant2".to_string()]);
+    assert_eq!(pkg.num_variants(), 2);
+}
+
+#[test]
+fn test_package_is_valid() {
+    let pkg = Package::new("test_pkg".to_string());
+    assert!(pkg.is_valid());
+}
+
+#[test]
+fn test_package_is_package_always_true() {
+    let pkg = Package::new("test_pkg".to_string());
+    assert!(pkg.is_package());
+}
+
+#[test]
+fn test_package_is_variant_always_false() {
+    let pkg = Package::new("test_pkg".to_string());
+    assert!(!pkg.is_variant());
+}
+
+#[test]
+fn test_package_add_requirement() {
+    let mut pkg = Package::new("test_pkg".to_string());
+    pkg.add_requirement("python-3.9".to_string());
+    assert_eq!(pkg.requires.len(), 1);
+    assert_eq!(pkg.requires[0], "python-3.9");
+}
+
+#[test]
+fn test_package_add_build_requirement() {
+    let mut pkg = Package::new("test_pkg".to_string());
+    pkg.add_build_requirement("numpy".to_string());
+    assert_eq!(pkg.build_requires.len(), 1);
+    assert_eq!(pkg.build_requires[0], "numpy");
+}
+
+#[test]
+fn test_package_add_variant() {
+    let mut pkg = Package::new("test_pkg".to_string());
+    pkg.add_variant(vec!["maya".to_string(), "houdini".to_string()]);
+    assert_eq!(pkg.variants.len(), 1);
+    assert_eq!(pkg.variants[0].len(), 2);
+}
+
+#[test]
+fn test_package_validate_invalid_characters() {
+    let pkg = Package::new("my@pkg".to_string());
+    assert!(pkg.validate().is_err());
+}
+
+#[test]
+fn test_package_validate_empty_requirement() {
+    let mut pkg = Package::new("test_pkg".to_string());
+    pkg.requires.push("".to_string());
+    assert!(pkg.validate().is_err());
+}
+
