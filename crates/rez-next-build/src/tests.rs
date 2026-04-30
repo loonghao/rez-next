@@ -405,11 +405,83 @@ mod build_tests {
         let pkg = make_package("testpkg", "1.0.0");
         let req = make_request(pkg, tmp.path().to_path_buf());
         let _id = manager.start_build(req).await.unwrap();
-
+        
         let stats = manager.get_stats();
         assert_eq!(
             stats.builds_started, 1,
             "builds_started should be incremented"
         );
+    }
+
+    #[test]
+    fn test_build_system_detect_with_ambiguous_files() {
+        let tmp = TempDir::new().unwrap();
+        // Write multiple build files - custom script (build.sh) has priority over CMake
+        std::fs::write(tmp.path().join("CMakeLists.txt"), "cmake_minimum_required(VERSION 3.0)").unwrap();
+        std::fs::write(tmp.path().join("Makefile"), "all:\necho build").unwrap();
+        std::fs::write(tmp.path().join("build.sh"), "#!/bin/bash").unwrap();
+        
+        let system = BuildSystem::detect(tmp.path());
+        assert!(system.is_ok());
+        // build.sh has priority over CMakeLists.txt and Makefile
+        assert!(matches!(system.unwrap(), BuildSystem::Custom(_)));
+    }
+
+    #[test]
+    fn test_build_options_with_all_fields() {
+        let mut opts = BuildOptions::default();
+        opts.force_rebuild = true;
+        opts.skip_tests = true;
+        opts.release_mode = true;
+        opts.build_args = vec!["-j4".to_string(), "--verbose".to_string()];
+        opts.env_vars.insert("MY_VAR".to_string(), "value".to_string());
+        
+        assert!(opts.force_rebuild);
+        assert!(opts.skip_tests);
+        assert!(opts.release_mode);
+        assert_eq!(opts.build_args.len(), 2);
+        assert_eq!(opts.env_vars.len(), 1);
+    }
+
+    #[test]
+    fn test_build_stats_default() {
+        let stats = BuildStats::default();
+        assert_eq!(stats.builds_started, 0);
+        assert_eq!(stats.builds_successful, 0);
+        assert_eq!(stats.builds_failed, 0);
+        assert_eq!(stats.builds_running, 0);
+        assert_eq!(stats.total_build_time_ms, 0);
+        assert_eq!(stats.avg_build_time_ms, 0.0);
+    }
+
+    #[test]
+    fn test_build_system_type_equality() {
+        assert_eq!(BuildSystemType::CMake, BuildSystemType::CMake);
+        assert_eq!(BuildSystemType::Make, BuildSystemType::Make);
+        assert_ne!(BuildSystemType::CMake, BuildSystemType::Make);
+    }
+
+    #[tokio::test]
+    async fn test_build_manager_multiple_builds() {
+        let mut manager = BuildManager::new();
+        let tmp = TempDir::new().unwrap();
+        
+        // Write a package.py so detection doesn't error
+        std::fs::write(
+            tmp.path().join("package.py"),
+            "name = 'multi'\nversion = '1.0.0'\n",
+        )
+        .unwrap();
+        
+        let pkg = make_package("multi", "1.0.0");
+        let req = make_request(pkg, tmp.path().to_path_buf());
+        
+        // Start multiple builds
+        let id1 = manager.start_build(req.clone()).await.unwrap();
+        let id2 = manager.start_build(req).await.unwrap();
+        
+        assert!(!id1.is_empty());
+        assert!(!id2.is_empty());
+        assert_ne!(id1, id2, "Build IDs should be unique");
     }
 }
