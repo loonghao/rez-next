@@ -398,9 +398,7 @@ impl Version {
 
         // If all compared tokens are equal, shorter version is considered greater.
         // This follows rez semantics where "2" > "2.alpha1".
-        // FIX: Inverted logic - shorter version should be GREATER, so we compare tokens1 vs tokens2
-        // and REVERSE the result (or compare tokens2 vs tokens1 which gives opposite result)
-        tokens1.len().cmp(&tokens2.len()).reverse()
+        tokens2.len().cmp(&tokens1.len())
     }
 }
 
@@ -561,6 +559,13 @@ mod tests {
         let v2 = ver("1.0.0");
         assert!(v1 > v2, "2.0.0 > 1.0.0 should be true");
         assert!(v2 < v1, "1.0.0 < 2.0.0 should be true");
+    }
+
+    #[test]
+    fn test_range_contains_ge() {
+        // Test if VersionRange::contains() bug is fixed
+        let range = crate::VersionRange::parse(">=1.0.0").unwrap();
+        assert!(range.contains(&ver("1.0.0")), ">=1.0.0 should contain 1.0.0");
     }
 
     #[test]
