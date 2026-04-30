@@ -99,6 +99,43 @@
 - **CLI stubs** (1): `view.rs` (1, context package viewing)
 - The remaining TODO is a non-blocking stub implementation for future features.
 
+## Cycle 21+ — Code Quality Improvements (2026-04-30)
+
+### 20. Type hints for Python API compatibility layer
+- **Status**: COMPLETE ✓
+- Added type hints to `_add_dict_access_to_package()`, `_add_dict_access_to_resolved_context()`, and `_add_dot_visualization()` helper functions.
+- Improved `to_dot()` method: better docstring, improved requirement name parsing (handle version specifiers).
+- Commit: `48c59c2` - `chore(cleanup): stage1-4: add type hints to Python API compatibility layer`
+
+### 21. GitHub Security Alert 11
+- **Status**: OPEN (low severity)
+- GitHub reported 1 low vulnerability on default branch (dependabot alert 11).
+- Investigate in next cycle: run `cargo audit` and check audit.toml.
+
+### 22. `to_dot()` test coverage
+- **Status**: OPEN
+- The `to_dot()` method (added in cycle 21, commit `ae4290c`) has no test coverage.
+- Consider adding a smoke test in next cycle.
+
+### Codebase Health Metrics (2026-04-30)
+
+| Metric | Value |
+|--------|-------|
+| Rust tests | 197 passed, 0 failed |
+| Python tests | Not run this cycle (maturin build failed) |
+| Clippy warnings (`-D warnings`) | 0 |
+| Ignored tests | 1 (doc-test in `rez_next_build`) |
+| `allow(dead_code)` attributes | 0 |
+| TODO/FIXME in code | 1 (CLI stub in `view.rs`) |
+| Dead code | 0 |
+
+### Next Cycle Focus
+
+1. Investigate GitHub security alert 11 (dependabot) - run `cargo audit`
+2. Add tests for `to_dot()` method
+3. Fix any `clippy::pedantic` warnings (exit code 1 when run)
+4. Check for unused dependencies in Cargo.toml
+
 ### 14. Disabled benchmark files removal
 - **Status**: COMPLETE ✓ (cycle 20)
 - Deleted 13 disabled benchmark files (~7400 lines, ~220KB): build_cache_benchmark, comprehensive_benchmark_suite, solver_benchmark, context_benchmark, simple_*_benchmark, performance_validation_*
