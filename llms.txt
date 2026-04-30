@@ -82,6 +82,16 @@ vx just bench           # Run benchmarks
 - `crates/` → Rust source (13 crates)
 - `tests/` → Integration tests
 
+## Test Coverage (as of Cycle 208)
+
+- `rez-next-version`: 161 tests (version parsing, comparison, ranges)
+- `rez-next-solver`: 53 tests (conflict resolution, graph, config)
+- `rez-next-repository`: 205 tests (SimpleRepository, RepositoryManager)
+- `rez-next-package`: 96 tests (Package, PackageRequirement, serialization)
+- `rez-next-cache`: 46 tests (IntelligentCacheManager, TTL, eviction)
+- `rez-next-search`: 61 tests (SearchFilter, Searcher, SearchResult)
+- Full workspace: 1600+ tests, 0 clippy warnings
+
 ## Architecture Highlights
 
 - **Solver**: A* algorithm + backtracking + cycle detection
