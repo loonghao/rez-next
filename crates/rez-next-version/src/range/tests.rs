@@ -130,7 +130,7 @@ fn test_range_parse_not_equal() {
 //     assert!(united.contains(&ver("0.9.0")));
 //     assert!(united.contains(&ver("2.0.0")));
 //     assert!(!united.contains(&ver("1.5.0")));
-}
+// }
 
 #[test]
 fn test_range_subtract() {

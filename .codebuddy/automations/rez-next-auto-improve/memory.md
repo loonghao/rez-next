@@ -1,10 +1,49 @@
 # rez-next auto-improve 执行记录#
 
-## 最新执行 (2026-04-30) — Cycle 201#
+## 最新执行 (2026-04-30) — Cycle 202#
 
 ### 执行摘要#
 
-**Cycle 201（commit `fa02ddc`）**：为 `DependencyGraph` 添加全面的单元测试。
+**Cycle 202（commit `bb38206`）**：为 `SolverConfig`、`SolverRequest`、`DependencySolver` 添加全面的单元测试。
+
+### 变更内容#
+
+- 在 `crates/rez-next-solver/src/solver.rs` 添加测试模块（`#[cfg(test)] mod tests`）：
+  - `test_solver_config_default()` — 测试 SolverConfig 默认值
+  - `test_solver_config_custom()` — 测试自定义配置
+  - `test_conflict_strategy_variants()` — 测试所有 ConflictStrategy 变体
+  - `test_solver_request_new()` — 测试 SolverRequest::new()
+  - `test_solver_request_with_constraint()` — 测试添加约束
+  - `test_solver_request_with_exclude()` — 测试排除包
+  - `test_solver_request_with_platform()` — 测试平台约束
+  - `test_solver_request_with_arch()` — 测试架构约束
+  - `test_solver_stats_default()` — 测试 SolverStats 默认值
+  - `test_dependency_solver_new()` — 测试 DependencySolver::new()
+  - `test_dependency_solver_with_config()` — 测试自定义配置创建
+  - `test_dependency_solver_default_trait()` — 测试 Default trait
+  - `test_solver_config_serde()` — 测试 Serialize/Deserialize
+
+### 测试结果#
+
+- `cargo test -p rez-next-solver --lib solver`：**53 passed**，0 failed（包含已有测试）
+- 新增测试：14 passed
+- Clippy warnings: 0 (rez-next-solver，已修复未使用 import 警告)
+- 编译检查：通过
+
+### 当前提交#
+
+- `bb38206` — test(solver): add SolverConfig and SolverRequest unit tests (Cycle 202) [iteration-done]#
+
+### 下一轮目标#
+
+**Cycle 203**：继续改进
+1. 为 `rez-next-repository` crate 添加单元测试
+2. 检查 `rez-next-package` crate 的测试覆盖率
+3. 运行完整工作区测试确保没有回归
+
+---
+
+## 上一执行 (2026-04-30) — Cycle 201#
 
 ### 变更内容#
 
