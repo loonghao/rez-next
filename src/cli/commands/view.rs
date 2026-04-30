@@ -69,8 +69,7 @@ fn view_current_package(args: &ViewArgs) -> RezCoreResult<()> {
     }
 
     // Load the context from file
-    let rt = tokio::runtime::Runtime::new()
-        .map_err(|e| RezCoreError::Repository(e.to_string()))?;
+    let rt = tokio::runtime::Runtime::new().map_err(|e| RezCoreError::Repository(e.to_string()))?;
     let context: ResolvedContext = rt
         .block_on(ContextSerializer::load_from_file(ctx_path))
         .map_err(|e| RezCoreError::Repository(e.to_string()))?;
