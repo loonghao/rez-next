@@ -579,14 +579,13 @@ mod graph_tests {
         // This test verifies the behavior when conflicts exist
         let result = g.get_resolved_packages();
         // Depending on implementation, this might error or return filtered results
+        // Just ensure the function doesn't panic
         match result {
-            Ok(pkgs) => {
-                // If ok, should return some packages
-                assert!(pkgs.len() > 0 || pkgs.len() == 0);
+            Ok(_pkgs) => {
+                // Success path - function returned without error
             }
             Err(_) => {
-                // If err, that's also valid behavior
-                assert!(true);
+                // Error path is also valid behavior
             }
         }
     }

@@ -433,13 +433,17 @@ mod build_tests {
 
     #[test]
     fn test_build_options_with_all_fields() {
-        let mut opts = BuildOptions::default();
-        opts.force_rebuild = true;
-        opts.skip_tests = true;
-        opts.release_mode = true;
-        opts.build_args = vec!["-j4".to_string(), "--verbose".to_string()];
-        opts.env_vars
-            .insert("MY_VAR".to_string(), "value".to_string());
+        let opts = BuildOptions {
+            force_rebuild: true,
+            skip_tests: true,
+            release_mode: true,
+            build_args: vec!["-j4".to_string(), "--verbose".to_string()],
+            env_vars: {
+                let mut m = std::collections::HashMap::new();
+                m.insert("MY_VAR".to_string(), "value".to_string());
+                m
+            },
+        };
 
         assert!(opts.force_rebuild);
         assert!(opts.skip_tests);

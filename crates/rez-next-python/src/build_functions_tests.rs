@@ -568,12 +568,81 @@ version = "1.0.0"
         }
         let _ = std::fs::remove_dir_all(&tmp);
     }
+
+    #[test]
+    fn test_build_package_with_yaml_loads_without_file_not_found() {
+        // Test that package.yaml can also be loaded
+        let tmp = std::env::temp_dir().join("rez_bs_pkg_yaml");
+        let _ = std::fs::remove_dir_all(&tmp);
+        std::fs::create_dir_all(&tmp).unwrap();
+        let pkg = r#"
+name: test_pkg
+version: "1.0.0"
+        "#;
+        std::fs::write(tmp.join("package.yaml"), pkg).unwrap();
+        let result = build_package(Some(tmp.to_str().unwrap()), false, false, None);
+        // Should not be a "No package.py or package.yaml" error
+        if let Err(e) = &result {
+            let err_str = e.to_string();
+            assert!(
+                !err_str.contains("No package.py"),
+                "Should not be a 'No package.py' error: {}",
+                err_str
+            );
+        }
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn test_build_package_install_flag() {
+        // Test that install=true doesn't cause panic
+        let tmp = std::env::temp_dir().join("rez_bs_install");
+        let _ = std::fs::remove_dir_all(&tmp);
+        std::fs::create_dir_all(&tmp).unwrap();
+        make_minimal_package(&tmp);
+        let result = build_package(Some(tmp.to_str().unwrap()), true, false, None);
+        // Should complete without panic (build may fail, but that's expected)
+        let _ = result;
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn test_build_package_clean_flag() {
+        // Test that clean=true doesn't cause panic
+        let tmp = std::env::temp_dir().join("rez_bs_clean");
+        let _ = std::fs::remove_dir_all(&tmp);
+        std::fs::create_dir_all(&tmp).unwrap();
+        make_minimal_package(&tmp);
+        let result = build_package(Some(tmp.to_str().unwrap()), false, true, None);
+        // Should complete without panic
+        let _ = result;
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn test_build_package_with_install_path() {
+        // Test that custom install_path doesn't cause panic
+        let tmp = std::env::temp_dir().join("rez_bs_inst_path");
+        let _ = std::fs::remove_dir_all(&tmp);
+        std::fs::create_dir_all(&tmp).unwrap();
+        make_minimal_package(&tmp);
+        let install_path = std::env::temp_dir().join("rez_bs_inst_dest");
+        let result = build_package(
+            Some(tmp.to_str().unwrap()),
+            false,
+            false,
+            Some(install_path.to_str().unwrap()),
+        );
+        // Should complete without panic
+        let _ = result;
+        let _ = std::fs::remove_dir_all(&tmp);
+        let _ = std::fs::remove_dir_all(&install_path);
+    }
 }
 
 // ── get_buildsys_types() tests (Cycle 2) ─────────────────────────────
 
 mod test_get_buildsys_types {
-    use super::*;
     use crate::build_functions::get_buildsys_types;
 
     #[test]

@@ -434,11 +434,16 @@ mod tests {
 
     #[test]
     fn test_execution_config_custom() {
-        let mut config = ExecutionConfig::default();
-        config.timeout_seconds = 600;
-        config.capture_output = false;
-        config.working_directory = Some(PathBuf::from("/tmp"));
-        config.additional_env_vars.insert("CUSTOM".to_string(), "value".to_string());
+        let config = ExecutionConfig {
+            timeout_seconds: 600,
+            capture_output: false,
+            working_directory: Some(PathBuf::from("/tmp")),
+            additional_env_vars: {
+                let mut m = std::collections::HashMap::new();
+                m.insert("CUSTOM".to_string(), "value".to_string());
+                m
+            },
+        };
 
         assert_eq!(config.timeout_seconds, 600);
         assert!(!config.capture_output);
