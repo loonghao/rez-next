@@ -71,14 +71,21 @@ fn test_unknown_shell_is_not_in_supported_list() {
 #[test]
 fn test_bash_script_lists_rez_commands() {
     let script = get_completion_script(Some("bash")).unwrap();
-    assert!(script.contains("env"));
-    assert!(script.contains("solve"));
+    assert!(script.contains("_rez_next_complete"), "bash script should define _rez_next_complete function");
+    assert!(script.contains("--dynamic"), "bash script should use --dynamic mode");
 }
 
 #[test]
 fn test_zsh_script_lists_env_command() {
     let script = get_completion_script(Some("zsh")).unwrap();
-    assert!(script.contains("env:create a resolved environment"));
+    assert!(
+        script.contains("_rez_next"),
+        "zsh script should define _rez_next function"
+    );
+    assert!(
+        script.contains("--dynamic"),
+        "zsh script should use --dynamic mode"
+    );
 }
 
 #[test]
