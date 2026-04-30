@@ -418,3 +418,155 @@ fn get_path_separator() -> String {
         ":".to_string()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::ContextConfig;
+
+    #[test]
+    fn test_env_operation_variants() {
+        let _ = EnvOperation::Set("value".to_string());
+        let _ = EnvOperation::Prepend("value".to_string(), ":".to_string());
+        let _ = EnvOperation::Append("value".to_string(), ";".to_string());
+        let _ = EnvOperation::Unset;
+    }
+
+    #[test]
+    fn test_env_var_definition_creation() {
+        let def = EnvVarDefinition {
+            name: "TEST_VAR".to_string(),
+            operation: EnvOperation::Set("test_value".to_string()),
+            source_package: Some("test_pkg".to_string()),
+            priority: 50,
+        };
+
+        assert_eq!(def.name, "TEST_VAR");
+        assert_eq!(def.priority, 50);
+        assert_eq!(def.source_package, Some("test_pkg".to_string()));
+    }
+
+    #[test]
+    fn test_env_var_definition_no_source() {
+        let def = EnvVarDefinition {
+            name: "GLOBAL_VAR".to_string(),
+            operation: EnvOperation::Set("global_value".to_string()),
+            source_package: None,
+            priority: 1000,
+        };
+
+        assert!(def.source_package.is_none());
+        assert_eq!(def.priority, 1000);
+    }
+
+    #[test]
+    fn test_env_diff_is_empty_true() {
+        let diff = EnvDiff {
+            added: HashMap::new(),
+            modified: HashMap::new(),
+            removed: Vec::new(),
+        };
+
+        assert!(diff.is_empty());
+        assert_eq!(diff.change_count(), 0);
+    }
+
+    #[test]
+    fn test_env_diff_is_empty_false_with_added() {
+        let mut added = HashMap::new();
+        added.insert("NEW_VAR".to_string(), "value".to_string());
+
+        let diff = EnvDiff {
+            added,
+            modified: HashMap::new(),
+            removed: Vec::new(),
+        };
+
+        assert!(!diff.is_empty());
+        assert_eq!(diff.change_count(), 1);
+    }
+
+    #[test]
+    fn test_env_diff_is_empty_false_with_modified() {
+        let mut modified = HashMap::new();
+        modified.insert("MOD_VAR".to_string(), ("old".to_string(), "new".to_string()));
+
+        let diff = EnvDiff {
+            added: HashMap::new(),
+            modified,
+            removed: Vec::new(),
+        };
+
+        assert!(!diff.is_empty());
+        assert_eq!(diff.change_count(), 1);
+    }
+
+    #[test]
+    fn test_env_diff_is_empty_false_with_removed() {
+        let diff = EnvDiff {
+            added: HashMap::new(),
+            modified: HashMap::new(),
+            removed: vec!["OLD_VAR".to_string()],
+        };
+
+        assert!(!diff.is_empty());
+        assert_eq!(diff.change_count(), 1);
+    }
+
+    #[test]
+    fn test_env_diff_change_count_multiple() {
+        let mut added = HashMap::new();
+        added.insert("VAR1".to_string(), "val1".to_string());
+        added.insert("VAR2".to_string(), "val2".to_string());
+
+        let mut modified = HashMap::new();
+        modified.insert("VAR3".to_string(), ("old".to_string(), "new".to_string()));
+
+        let diff = EnvDiff {
+            added,
+            modified,
+            removed: vec!["VAR4".to_string(), "VAR5".to_string()],
+        };
+
+        assert_eq!(diff.change_count(), 5);
+    }
+
+    #[test]
+    fn test_get_path_separator() {
+        let separator = get_path_separator();
+        // On Windows, should be ";", on Unix ":"
+        if cfg!(windows) {
+            assert_eq!(separator, ";");
+        } else {
+            assert_eq!(separator, ":");
+        }
+    }
+
+    #[test]
+    fn test_environment_manager_new_with_inherit() {
+        let config = ContextConfig {
+            inherit_parent_env: true,
+            ..Default::default()
+        };
+        let manager = EnvironmentManager::new(config);
+        
+        // base_env should have some variables (since we inherit)
+        // Note: this test may behave differently in different environments
+        // Just verify the manager was created successfully
+        let _ = manager;
+    }
+
+    #[test]
+    fn test_environment_manager_new_without_inherit() {
+        let config = ContextConfig {
+            inherit_parent_env: false,
+            ..Default::default()
+        };
+        let manager = EnvironmentManager::new(config);
+        
+        // base_env should be empty
+        // Note: we can't directly access base_env since it's private
+        // This test just verifies creation doesn't panic
+        let _ = manager;
+    }
+}
