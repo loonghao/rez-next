@@ -405,7 +405,7 @@ mod build_tests {
         let pkg = make_package("testpkg", "1.0.0");
         let req = make_request(pkg, tmp.path().to_path_buf());
         let _id = manager.start_build(req).await.unwrap();
-        
+
         let stats = manager.get_stats();
         assert_eq!(
             stats.builds_started, 1,
@@ -417,10 +417,14 @@ mod build_tests {
     fn test_build_system_detect_with_ambiguous_files() {
         let tmp = TempDir::new().unwrap();
         // Write multiple build files - custom script (build.sh) has priority over CMake
-        std::fs::write(tmp.path().join("CMakeLists.txt"), "cmake_minimum_required(VERSION 3.0)").unwrap();
+        std::fs::write(
+            tmp.path().join("CMakeLists.txt"),
+            "cmake_minimum_required(VERSION 3.0)",
+        )
+        .unwrap();
         std::fs::write(tmp.path().join("Makefile"), "all:\necho build").unwrap();
         std::fs::write(tmp.path().join("build.sh"), "#!/bin/bash").unwrap();
-        
+
         let system = BuildSystem::detect(tmp.path());
         assert!(system.is_ok());
         // build.sh has priority over CMakeLists.txt and Makefile
@@ -434,8 +438,9 @@ mod build_tests {
         opts.skip_tests = true;
         opts.release_mode = true;
         opts.build_args = vec!["-j4".to_string(), "--verbose".to_string()];
-        opts.env_vars.insert("MY_VAR".to_string(), "value".to_string());
-        
+        opts.env_vars
+            .insert("MY_VAR".to_string(), "value".to_string());
+
         assert!(opts.force_rebuild);
         assert!(opts.skip_tests);
         assert!(opts.release_mode);
@@ -465,23 +470,184 @@ mod build_tests {
     async fn test_build_manager_multiple_builds() {
         let mut manager = BuildManager::new();
         let tmp = TempDir::new().unwrap();
-        
+
         // Write a package.py so detection doesn't error
         std::fs::write(
             tmp.path().join("package.py"),
             "name = 'multi'\nversion = '1.0.0'\n",
         )
         .unwrap();
-        
+
         let pkg = make_package("multi", "1.0.0");
         let req = make_request(pkg, tmp.path().to_path_buf());
-        
+
         // Start multiple builds
         let id1 = manager.start_build(req.clone()).await.unwrap();
         let id2 = manager.start_build(req).await.unwrap();
-        
+
         assert!(!id1.is_empty());
         assert!(!id2.is_empty());
         assert_ne!(id1, id2, "Build IDs should be unique");
+    }
+
+    // ── BuildManager additional API tests ─────────────────────────────────
+
+    #[tokio::test]
+    async fn test_cancel_build_success() {
+        let mut manager = BuildManager::new();
+        let tmp = TempDir::new().unwrap();
+
+        // Write a package.py so detection doesn't error
+        std::fs::write(
+            tmp.path().join("package.py"),
+            "name = 'cancel_test'\nversion = '1.0.0'\n",
+        )
+        .unwrap();
+
+        let pkg = make_package("cancel_test", "1.0.0");
+        let req = make_request(pkg, tmp.path().to_path_buf());
+
+        // Start a build
+        let build_id = manager.start_build(req).await.unwrap();
+
+        // Cancel the build
+        let result = manager.cancel_build(&build_id).await;
+        assert!(
+            result.is_ok(),
+            "cancel_build should succeed for active build"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_cancel_build_nonexistent() {
+        let mut manager = BuildManager::new();
+
+        // Try to cancel a non-existent build
+        let result = manager.cancel_build("nonexistent-id").await;
+        assert!(
+            result.is_err(),
+            "cancel_build should fail for non-existent build"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_get_build_status() {
+        let mut manager = BuildManager::new();
+        let tmp = TempDir::new().unwrap();
+
+        // Write a package.py so detection doesn't error
+        std::fs::write(
+            tmp.path().join("package.py"),
+            "name = 'status_test'\nversion = '1.0.0'\n",
+        )
+        .unwrap();
+
+        let pkg = make_package("status_test", "1.0.0");
+        let req = make_request(pkg, tmp.path().to_path_buf());
+
+        // Start a build
+        let build_id = manager.start_build(req).await.unwrap();
+
+        // Get build status
+        let status = manager.get_build_status(&build_id);
+        // Status should be Some (either Running or Completed)
+        assert!(status.is_some(), "active build should have a status");
+    }
+
+    #[test]
+    fn test_get_active_builds_empty() {
+        let manager = BuildManager::new();
+        let active = manager.get_active_builds();
+        assert_eq!(active.len(), 0, "new manager should have no active builds");
+    }
+
+    #[tokio::test]
+    async fn test_get_active_builds_after_start() {
+        let mut manager = BuildManager::new();
+        let tmp = TempDir::new().unwrap();
+
+        // Write a package.py so detection doesn't error
+        std::fs::write(
+            tmp.path().join("package.py"),
+            "name = 'active_test'\nversion = '1.0.0'\n",
+        )
+        .unwrap();
+
+        let pkg = make_package("active_test", "1.0.0");
+        let req = make_request(pkg, tmp.path().to_path_buf());
+
+        // Start a build
+        let build_id = manager.start_build(req).await.unwrap();
+
+        // Should have one active build
+        let active = manager.get_active_builds();
+        assert_eq!(active.len(), 1, "should have one active build");
+        assert_eq!(active[0], build_id, "active build ID should match");
+    }
+
+    #[tokio::test]
+    async fn test_clean_build_dir() {
+        let manager = BuildManager::new();
+
+        // Create a build directory with some content
+        let build_dir = &manager.get_config().build_dir;
+        std::fs::create_dir_all(build_dir).unwrap();
+        std::fs::write(build_dir.join("test_file.txt"), "test").unwrap();
+
+        // Clean the build directory
+        let result = manager.clean_build_dir().await;
+        assert!(result.is_ok(), "clean_build_dir should succeed");
+
+        // Directory should exist but be empty
+        assert!(
+            build_dir.exists(),
+            "build directory should exist after clean"
+        );
+        let entries: Vec<_> = std::fs::read_dir(build_dir).unwrap().collect();
+        assert_eq!(
+            entries.len(),
+            0,
+            "build directory should be empty after clean"
+        );
+    }
+
+    #[test]
+    fn test_get_config() {
+        let manager = BuildManager::new();
+        let config = manager.get_config();
+
+        // Config should have default values
+        assert_eq!(config.max_concurrent_builds, 4);
+        assert_eq!(config.build_timeout_seconds, 3600);
+        assert!(!config.clean_before_build);
+        assert!(config.keep_artifacts);
+    }
+
+    #[tokio::test]
+    async fn test_wait_for_build_success() {
+        let mut manager = BuildManager::new();
+        let tmp = TempDir::new().unwrap();
+
+        // Write a package.py so detection doesn't error
+        std::fs::write(
+            tmp.path().join("package.py"),
+            "name = 'wait_test'\nversion = '1.0.0'\n",
+        )
+        .unwrap();
+
+        let pkg = make_package("wait_test", "1.0.0");
+        let req = make_request(pkg, tmp.path().to_path_buf());
+
+        // Start a build
+        let build_id = manager.start_build(req).await.unwrap();
+
+        // Wait for build to complete
+        let result = manager.wait_for_build(&build_id).await;
+        assert!(result.is_ok(), "wait_for_build should succeed");
+
+        let build_result = result.unwrap();
+        // Build may succeed or fail depending on the test environment
+        // Just ensure we got a valid result
+        assert!(!build_result.build_id.is_empty());
     }
 }
