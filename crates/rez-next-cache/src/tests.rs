@@ -640,6 +640,7 @@ mod tests {
         );
     }
 
+
     /// Test CacheLevelStats hit_rate calculation
     #[test]
     fn test_cache_level_stats_hit_rate_precision() {
@@ -660,5 +661,85 @@ mod tests {
             (stats.load_factor - 0.5).abs() < 1e-10,
             "Load factor should be 0.5 for 5 entries / 10 capacity"
         );
+    }
+
+    /// Test cache with empty key
+    #[tokio::test]
+    async fn test_cache_empty_key() {
+        let config = UnifiedCacheConfig::default();
+        let cache = IntelligentCacheManager::<String, String>::new(config);
+
+        // Empty key should be allowed (depends on implementation)
+        cache.put("".to_string(), "empty_value".to_string()).await.unwrap();
+        let result = cache.get(&"".to_string()).await;
+        assert_eq!(result, Some("empty_value".to_string()));
+    }
+
+    /// Test cache with very long key
+    #[tokio::test]
+    async fn test_cache_very_long_key() {
+        let config = UnifiedCacheConfig::default();
+        let cache = IntelligentCacheManager::<String, String>::new(config);
+
+        let long_key = "x".repeat(1000);
+        cache.put(long_key.clone(), "long_key_value".to_string()).await.unwrap();
+        let result = cache.get(&long_key).await;
+        assert_eq!(result, Some("long_key_value".to_string()));
+    }
+
+    /// Test cache update existing key
+    #[tokio::test]
+    async fn test_cache_update_existing_key() {
+        let config = UnifiedCacheConfig::default();
+        let cache = IntelligentCacheManager::<String, String>::new(config);
+
+        cache.put("key1".to_string(), "value1".to_string()).await.unwrap();
+        // Update the same key
+        cache.put("key1".to_string(), "value_updated".to_string()).await.unwrap();
+
+        let result = cache.get(&"key1".to_string()).await;
+        assert_eq!(result, Some("value_updated".to_string()));
+    }
+
+    /// Test cache stats after multiple operations
+    #[tokio::test]
+    async fn test_cache_stats_after_operations() {
+        let config = UnifiedCacheConfig::default();
+        let cache = IntelligentCacheManager::<String, String>::new(config);
+
+        // Initial stats
+        let stats = cache.get_stats().await;
+        assert_eq!(stats.overall_stats.total_entries, 0);
+
+        // Add entries
+        for i in 0..5 {
+            cache.put(format!("key_{}", i), format!("value_{}", i)).await.unwrap();
+        }
+
+        let stats = cache.get_stats().await;
+        assert_eq!(stats.overall_stats.total_entries, 5);
+
+        // Remove some entries
+        cache.remove(&"key_1".to_string()).await;
+        cache.remove(&"key_3".to_string()).await;
+
+        let stats = cache.get_stats().await;
+        assert_eq!(stats.overall_stats.total_entries, 3);
+    }
+
+    /// Test cache with custom TTL
+    #[tokio::test]
+    async fn test_cache_custom_ttl() {
+        let config = UnifiedCacheConfig {
+            l1_config: L1CacheConfig {
+                default_ttl: 1, // 1 second TTL
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let cache = IntelligentCacheManager::<String, String>::new(config);
+
+        cache.put("ttl_key".to_string(), "ttl_value".to_string()).await.unwrap();
+        assert!(cache.contains_key(&"ttl_key".to_string()).await);
     }
 }
