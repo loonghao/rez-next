@@ -159,7 +159,7 @@ fn test_diff_identical_contexts_no_changes() {
     let mut maya = Package::new("maya".to_string());
     maya.version = Some(Version::parse("2024.1").unwrap());
 
-    let pkgs = vec![python, maya];
+    let pkgs = [python, maya];
     // Simulate compute_diff by checking both lists are equal
     // (testing logic inline since compute_diff is in the python crate)
     let old_names: Vec<&str> = pkgs.iter().map(|p| p.name.as_str()).collect();

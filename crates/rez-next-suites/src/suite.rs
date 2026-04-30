@@ -8,21 +8,16 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 /// Status of a suite
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum SuiteStatus {
     /// Suite is valid and all contexts resolved successfully
+    #[default]
     Okay,
     /// Suite has context resolution failures
     Error,
     /// Suite is loading
     Loading,
-}
-
-impl Default for SuiteStatus {
-    fn default() -> Self {
-        Self::Okay
-    }
 }
 
 /// Suite on-disk file format (suite.yaml)

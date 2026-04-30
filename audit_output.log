@@ -1,0 +1,452 @@
+    Fetching advisory database from `https://github.com/RustSec/advisory-db.git`
+      Loaded 1060 security advisories (from C:\Users\hallong\.cargo\advisory-db)
+    Updating crates.io index
+    Scanning Cargo.lock for vulnerabilities (393 crate dependencies)
+Crate:     rustls-webpki
+Version:   0.103.10
+Title:     Name constraints for URI names were incorrectly accepted
+Date:      2026-04-14
+ID:        RUSTSEC-2026-0098
+URL:       https://rustsec.org/advisories/RUSTSEC-2026-0098
+Solution:  Upgrade to >=0.103.12, <0.104.0-alpha.1 OR >=0.104.0-alpha.6
+Dependency tree:
+rustls-webpki 0.103.10
+├── rustls-platform-verifier 0.6.2
+│   └── reqwest 0.13.2
+│       └── rez-next-build 0.3.0
+│           ├── rez-next-python 0.3.0
+│           └── rez-next 0.3.0
+└── rustls 0.23.37
+    ├── tokio-rustls 0.26.4
+    │   ├── reqwest 0.13.2
+    │   └── hyper-rustls 0.27.7
+    │       └── reqwest 0.13.2
+    ├── rustls-platform-verifier 0.6.2
+    ├── reqwest 0.13.2
+    ├── quinn-proto 0.11.14
+    │   └── quinn 0.11.9
+    │       └── reqwest 0.13.2
+    ├── quinn 0.11.9
+    └── hyper-rustls 0.27.7
+
+Crate:     rustls-webpki
+Version:   0.103.10
+Title:     Name constraints were accepted for certificates asserting a wildcard name
+Date:      2026-04-14
+ID:        RUSTSEC-2026-0099
+URL:       https://rustsec.org/advisories/RUSTSEC-2026-0099
+Solution:  Upgrade to >=0.103.12, <0.104.0-alpha.1 OR >=0.104.0-alpha.6
+
+Crate:     rustls-webpki
+Version:   0.103.10
+Title:     Reachable panic in certificate revocation list parsing
+Date:      2026-04-22
+ID:        RUSTSEC-2026-0104
+URL:       https://rustsec.org/advisories/RUSTSEC-2026-0104
+Solution:  Upgrade to >=0.103.13, <0.104.0-alpha.1 OR >=0.104.0-alpha.7
+
+Crate:     bincode
+Version:   2.0.1
+Warning:   unmaintained
+Title:     Bincode is unmaintained
+Date:      2025-12-16
+ID:        RUSTSEC-2025-0141
+URL:       https://rustsec.org/advisories/RUSTSEC-2025-0141
+Dependency tree:
+bincode 2.0.1
+└── rez-next-package 0.3.0
+    ├── rez-next-suites 0.3.0
+    │   ├── rez-next-python 0.3.0
+    │   └── rez-next 0.3.0
+    ├── rez-next-solver 0.3.0
+    │   ├── rez-next-suites 0.3.0
+    │   ├── rez-next-python 0.3.0
+    │   ├── rez-next-context 0.3.0
+    │   │   ├── rez-next-suites 0.3.0
+    │   │   ├── rez-next-python 0.3.0
+    │   │   ├── rez-next-build 0.3.0
+    │   │   │   ├── rez-next-python 0.3.0
+    │   │   │   └── rez-next 0.3.0
+    │   │   └── rez-next 0.3.0
+    │   └── rez-next 0.3.0
+    ├── rez-next-search 0.3.0
+    │   ├── rez-next-python 0.3.0
+    │   └── rez-next 0.3.0
+    ├── rez-next-repository 0.3.0
+    │   ├── rez-next-suites 0.3.0
+    │   ├── rez-next-solver 0.3.0
+    │   ├── rez-next-search 0.3.0
+    │   ├── rez-next-python 0.3.0
+    │   └── rez-next 0.3.0
+    ├── rez-next-python 0.3.0
+    ├── rez-next-context 0.3.0
+    ├── rez-next-build 0.3.0
+    ├── rez-next-bind 0.3.0
+    │   ├── rez-next-python 0.3.0
+    │   └── rez-next 0.3.0
+    └── rez-next 0.3.0
+
+Crate:     paste
+Version:   1.0.15
+Warning:   unmaintained
+Title:     paste - no longer maintained
+Date:      2024-10-07
+ID:        RUSTSEC-2024-0436
+URL:       https://rustsec.org/advisories/RUSTSEC-2024-0436
+Dependency tree:
+paste 1.0.15
+└── malachite-bigint 0.2.3
+    ├── rustpython-parser 0.4.0
+    │   └── rez-next-package 0.3.0
+    │       ├── rez-next-suites 0.3.0
+    │       │   ├── rez-next-python 0.3.0
+    │       │   └── rez-next 0.3.0
+    │       ├── rez-next-solver 0.3.0
+    │       │   ├── rez-next-suites 0.3.0
+    │       │   ├── rez-next-python 0.3.0
+    │       │   ├── rez-next-context 0.3.0
+    │       │   │   ├── rez-next-suites 0.3.0
+    │       │   │   ├── rez-next-python 0.3.0
+    │       │   │   ├── rez-next-build 0.3.0
+    │       │   │   │   ├── rez-next-python 0.3.0
+    │       │   │   │   └── rez-next 0.3.0
+    │       │   │   └── rez-next 0.3.0
+    │       │   └── rez-next 0.3.0
+    │       ├── rez-next-search 0.3.0
+    │       │   ├── rez-next-python 0.3.0
+    │       │   └── rez-next 0.3.0
+    │       ├── rez-next-repository 0.3.0
+    │       │   ├── rez-next-suites 0.3.0
+    │       │   ├── rez-next-solver 0.3.0
+    │       │   ├── rez-next-search 0.3.0
+    │       │   ├── rez-next-python 0.3.0
+    │       │   └── rez-next 0.3.0
+    │       ├── rez-next-python 0.3.0
+    │       ├── rez-next-context 0.3.0
+    │       ├── rez-next-build 0.3.0
+    │       ├── rez-next-bind 0.3.0
+    │       │   ├── rez-next-python 0.3.0
+    │       │   └── rez-next 0.3.0
+    │       └── rez-next 0.3.0
+    └── rustpython-ast 0.4.0
+        ├── rustpython-parser 0.4.0
+        └── rez-next-package 0.3.0
+
+Crate:     unic-char-property
+Version:   0.9.0
+Warning:   unmaintained
+Title:     `unic-char-property` is unmaintained
+Date:      2025-10-18
+ID:        RUSTSEC-2025-0081
+URL:       https://rustsec.org/advisories/RUSTSEC-2025-0081
+Dependency tree:
+unic-char-property 0.9.0
+├── unic-ucd-ident 0.9.0
+│   └── rustpython-parser 0.4.0
+│       └── rez-next-package 0.3.0
+│           ├── rez-next-suites 0.3.0
+│           │   ├── rez-next-python 0.3.0
+│           │   └── rez-next 0.3.0
+│           ├── rez-next-solver 0.3.0
+│           │   ├── rez-next-suites 0.3.0
+│           │   ├── rez-next-python 0.3.0
+│           │   ├── rez-next-context 0.3.0
+│           │   │   ├── rez-next-suites 0.3.0
+│           │   │   ├── rez-next-python 0.3.0
+│           │   │   ├── rez-next-build 0.3.0
+│           │   │   │   ├── rez-next-python 0.3.0
+│           │   │   │   └── rez-next 0.3.0
+│           │   │   └── rez-next 0.3.0
+│           │   └── rez-next 0.3.0
+│           ├── rez-next-search 0.3.0
+│           │   ├── rez-next-python 0.3.0
+│           │   └── rez-next 0.3.0
+│           ├── rez-next-repository 0.3.0
+│           │   ├── rez-next-suites 0.3.0
+│           │   ├── rez-next-solver 0.3.0
+│           │   ├── rez-next-search 0.3.0
+│           │   ├── rez-next-python 0.3.0
+│           │   └── rez-next 0.3.0
+│           ├── rez-next-python 0.3.0
+│           ├── rez-next-context 0.3.0
+│           ├── rez-next-build 0.3.0
+│           ├── rez-next-bind 0.3.0
+│           │   ├── rez-next-python 0.3.0
+│           │   └── rez-next 0.3.0
+│           └── rez-next 0.3.0
+└── unic-emoji-char 0.9.0
+    └── rustpython-parser 0.4.0
+
+Crate:     unic-char-range
+Version:   0.9.0
+Warning:   unmaintained
+Title:     `unic-char-range` is unmaintained
+Date:      2025-10-18
+ID:        RUSTSEC-2025-0075
+URL:       https://rustsec.org/advisories/RUSTSEC-2025-0075
+Dependency tree:
+unic-char-range 0.9.0
+├── unic-ucd-ident 0.9.0
+│   └── rustpython-parser 0.4.0
+│       └── rez-next-package 0.3.0
+│           ├── rez-next-suites 0.3.0
+│           │   ├── rez-next-python 0.3.0
+│           │   └── rez-next 0.3.0
+│           ├── rez-next-solver 0.3.0
+│           │   ├── rez-next-suites 0.3.0
+│           │   ├── rez-next-python 0.3.0
+│           │   ├── rez-next-context 0.3.0
+│           │   │   ├── rez-next-suites 0.3.0
+│           │   │   ├── rez-next-python 0.3.0
+│           │   │   ├── rez-next-build 0.3.0
+│           │   │   │   ├── rez-next-python 0.3.0
+│           │   │   │   └── rez-next 0.3.0
+│           │   │   └── rez-next 0.3.0
+│           │   └── rez-next 0.3.0
+│           ├── rez-next-search 0.3.0
+│           │   ├── rez-next-python 0.3.0
+│           │   └── rez-next 0.3.0
+│           ├── rez-next-repository 0.3.0
+│           │   ├── rez-next-suites 0.3.0
+│           │   ├── rez-next-solver 0.3.0
+│           │   ├── rez-next-search 0.3.0
+│           │   ├── rez-next-python 0.3.0
+│           │   └── rez-next 0.3.0
+│           ├── rez-next-python 0.3.0
+│           ├── rez-next-context 0.3.0
+│           ├── rez-next-build 0.3.0
+│           ├── rez-next-bind 0.3.0
+│           │   ├── rez-next-python 0.3.0
+│           │   └── rez-next 0.3.0
+│           └── rez-next 0.3.0
+├── unic-emoji-char 0.9.0
+│   └── rustpython-parser 0.4.0
+└── unic-char-property 0.9.0
+    ├── unic-ucd-ident 0.9.0
+    └── unic-emoji-char 0.9.0
+
+Crate:     unic-common
+Version:   0.9.0
+Warning:   unmaintained
+Title:     `unic-common` is unmaintained
+Date:      2025-10-18
+ID:        RUSTSEC-2025-0080
+URL:       https://rustsec.org/advisories/RUSTSEC-2025-0080
+Dependency tree:
+unic-common 0.9.0
+└── unic-ucd-version 0.9.0
+    ├── unic-ucd-ident 0.9.0
+    │   └── rustpython-parser 0.4.0
+    │       └── rez-next-package 0.3.0
+    │           ├── rez-next-suites 0.3.0
+    │           │   ├── rez-next-python 0.3.0
+    │           │   └── rez-next 0.3.0
+    │           ├── rez-next-solver 0.3.0
+    │           │   ├── rez-next-suites 0.3.0
+    │           │   ├── rez-next-python 0.3.0
+    │           │   ├── rez-next-context 0.3.0
+    │           │   │   ├── rez-next-suites 0.3.0
+    │           │   │   ├── rez-next-python 0.3.0
+    │           │   │   ├── rez-next-build 0.3.0
+    │           │   │   │   ├── rez-next-python 0.3.0
+    │           │   │   │   └── rez-next 0.3.0
+    │           │   │   └── rez-next 0.3.0
+    │           │   └── rez-next 0.3.0
+    │           ├── rez-next-search 0.3.0
+    │           │   ├── rez-next-python 0.3.0
+    │           │   └── rez-next 0.3.0
+    │           ├── rez-next-repository 0.3.0
+    │           │   ├── rez-next-suites 0.3.0
+    │           │   ├── rez-next-solver 0.3.0
+    │           │   ├── rez-next-search 0.3.0
+    │           │   ├── rez-next-python 0.3.0
+    │           │   └── rez-next 0.3.0
+    │           ├── rez-next-python 0.3.0
+    │           ├── rez-next-context 0.3.0
+    │           ├── rez-next-build 0.3.0
+    │           ├── rez-next-bind 0.3.0
+    │           │   ├── rez-next-python 0.3.0
+    │           │   └── rez-next 0.3.0
+    │           └── rez-next 0.3.0
+    └── unic-emoji-char 0.9.0
+        └── rustpython-parser 0.4.0
+
+Crate:     unic-emoji-char
+Version:   0.9.0
+Warning:   unmaintained
+Title:     `unic-emoji-char` is unmaintained
+Date:      2025-10-18
+ID:        RUSTSEC-2025-0090
+URL:       https://rustsec.org/advisories/RUSTSEC-2025-0090
+Dependency tree:
+unic-emoji-char 0.9.0
+└── rustpython-parser 0.4.0
+    └── rez-next-package 0.3.0
+        ├── rez-next-suites 0.3.0
+        │   ├── rez-next-python 0.3.0
+        │   └── rez-next 0.3.0
+        ├── rez-next-solver 0.3.0
+        │   ├── rez-next-suites 0.3.0
+        │   ├── rez-next-python 0.3.0
+        │   ├── rez-next-context 0.3.0
+        │   │   ├── rez-next-suites 0.3.0
+        │   │   ├── rez-next-python 0.3.0
+        │   │   ├── rez-next-build 0.3.0
+        │   │   │   ├── rez-next-python 0.3.0
+        │   │   │   └── rez-next 0.3.0
+        │   │   └── rez-next 0.3.0
+        │   └── rez-next 0.3.0
+        ├── rez-next-search 0.3.0
+        │   ├── rez-next-python 0.3.0
+        │   └── rez-next 0.3.0
+        ├── rez-next-repository 0.3.0
+        │   ├── rez-next-suites 0.3.0
+        │   ├── rez-next-solver 0.3.0
+        │   ├── rez-next-search 0.3.0
+        │   ├── rez-next-python 0.3.0
+        │   └── rez-next 0.3.0
+        ├── rez-next-python 0.3.0
+        ├── rez-next-context 0.3.0
+        ├── rez-next-build 0.3.0
+        ├── rez-next-bind 0.3.0
+        │   ├── rez-next-python 0.3.0
+        │   └── rez-next 0.3.0
+        └── rez-next 0.3.0
+
+Crate:     unic-ucd-ident
+Version:   0.9.0
+Warning:   unmaintained
+Title:     `unic-ucd-ident` is unmaintained
+Date:      2025-10-18
+ID:        RUSTSEC-2025-0100
+URL:       https://rustsec.org/advisories/RUSTSEC-2025-0100
+Dependency tree:
+unic-ucd-ident 0.9.0
+└── rustpython-parser 0.4.0
+    └── rez-next-package 0.3.0
+        ├── rez-next-suites 0.3.0
+        │   ├── rez-next-python 0.3.0
+        │   └── rez-next 0.3.0
+        ├── rez-next-solver 0.3.0
+        │   ├── rez-next-suites 0.3.0
+        │   ├── rez-next-python 0.3.0
+        │   ├── rez-next-context 0.3.0
+        │   │   ├── rez-next-suites 0.3.0
+        │   │   ├── rez-next-python 0.3.0
+        │   │   ├── rez-next-build 0.3.0
+        │   │   │   ├── rez-next-python 0.3.0
+        │   │   │   └── rez-next 0.3.0
+        │   │   └── rez-next 0.3.0
+        │   └── rez-next 0.3.0
+        ├── rez-next-search 0.3.0
+        │   ├── rez-next-python 0.3.0
+        │   └── rez-next 0.3.0
+        ├── rez-next-repository 0.3.0
+        │   ├── rez-next-suites 0.3.0
+        │   ├── rez-next-solver 0.3.0
+        │   ├── rez-next-search 0.3.0
+        │   ├── rez-next-python 0.3.0
+        │   └── rez-next 0.3.0
+        ├── rez-next-python 0.3.0
+        ├── rez-next-context 0.3.0
+        ├── rez-next-build 0.3.0
+        ├── rez-next-bind 0.3.0
+        │   ├── rez-next-python 0.3.0
+        │   └── rez-next 0.3.0
+        └── rez-next 0.3.0
+
+Crate:     unic-ucd-version
+Version:   0.9.0
+Warning:   unmaintained
+Title:     `unic-ucd-version` is unmaintained
+Date:      2025-10-18
+ID:        RUSTSEC-2025-0098
+URL:       https://rustsec.org/advisories/RUSTSEC-2025-0098
+Dependency tree:
+unic-ucd-version 0.9.0
+├── unic-ucd-ident 0.9.0
+│   └── rustpython-parser 0.4.0
+│       └── rez-next-package 0.3.0
+│           ├── rez-next-suites 0.3.0
+│           │   ├── rez-next-python 0.3.0
+│           │   └── rez-next 0.3.0
+│           ├── rez-next-solver 0.3.0
+│           │   ├── rez-next-suites 0.3.0
+│           │   ├── rez-next-python 0.3.0
+│           │   ├── rez-next-context 0.3.0
+│           │   │   ├── rez-next-suites 0.3.0
+│           │   │   ├── rez-next-python 0.3.0
+│           │   │   ├── rez-next-build 0.3.0
+│           │   │   │   ├── rez-next-python 0.3.0
+│           │   │   │   └── rez-next 0.3.0
+│           │   │   └── rez-next 0.3.0
+│           │   └── rez-next 0.3.0
+│           ├── rez-next-search 0.3.0
+│           │   ├── rez-next-python 0.3.0
+│           │   └── rez-next 0.3.0
+│           ├── rez-next-repository 0.3.0
+│           │   ├── rez-next-suites 0.3.0
+│           │   ├── rez-next-solver 0.3.0
+│           │   ├── rez-next-search 0.3.0
+│           │   ├── rez-next-python 0.3.0
+│           │   └── rez-next 0.3.0
+│           ├── rez-next-python 0.3.0
+│           ├── rez-next-context 0.3.0
+│           ├── rez-next-build 0.3.0
+│           ├── rez-next-bind 0.3.0
+│           │   ├── rez-next-python 0.3.0
+│           │   └── rez-next 0.3.0
+│           └── rez-next 0.3.0
+└── unic-emoji-char 0.9.0
+    └── rustpython-parser 0.4.0
+
+Crate:     rand
+Version:   0.8.5
+Warning:   unsound
+Title:     Rand is unsound with a custom logger using `rand::rng()`
+Date:      2026-04-09
+ID:        RUSTSEC-2026-0097
+URL:       https://rustsec.org/advisories/RUSTSEC-2026-0097
+Dependency tree:
+rand 0.8.5
+├── unicode_names2_generator 1.3.0
+│   └── unicode_names2 1.3.0
+│       └── rustpython-parser 0.4.0
+│           └── rez-next-package 0.3.0
+│               ├── rez-next-suites 0.3.0
+│               │   ├── rez-next-python 0.3.0
+│               │   └── rez-next 0.3.0
+│               ├── rez-next-solver 0.3.0
+│               │   ├── rez-next-suites 0.3.0
+│               │   ├── rez-next-python 0.3.0
+│               │   ├── rez-next-context 0.3.0
+│               │   │   ├── rez-next-suites 0.3.0
+│               │   │   ├── rez-next-python 0.3.0
+│               │   │   ├── rez-next-build 0.3.0
+│               │   │   │   ├── rez-next-python 0.3.0
+│               │   │   │   └── rez-next 0.3.0
+│               │   │   └── rez-next 0.3.0
+│               │   └── rez-next 0.3.0
+│               ├── rez-next-search 0.3.0
+│               │   ├── rez-next-python 0.3.0
+│               │   └── rez-next 0.3.0
+│               ├── rez-next-repository 0.3.0
+│               │   ├── rez-next-suites 0.3.0
+│               │   ├── rez-next-solver 0.3.0
+│               │   ├── rez-next-search 0.3.0
+│               │   ├── rez-next-python 0.3.0
+│               │   └── rez-next 0.3.0
+│               ├── rez-next-python 0.3.0
+│               ├── rez-next-context 0.3.0
+│               ├── rez-next-build 0.3.0
+│               ├── rez-next-bind 0.3.0
+│               │   ├── rez-next-python 0.3.0
+│               │   └── rez-next 0.3.0
+│               └── rez-next 0.3.0
+└── phf_generator 0.11.3
+    └── phf_codegen 0.11.3
+        ├── unicode_names2_generator 1.3.0
+        └── rustpython-parser 0.4.0
+
+error: 3 vulnerabilities found!
+warning: 9 allowed warnings found

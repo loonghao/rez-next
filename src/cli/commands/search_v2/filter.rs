@@ -160,10 +160,8 @@ pub fn filter_latest_versions(results: Vec<SearchResult>) -> Vec<SearchResult> {
         if let Some(existing) = latest_map.get(package_name) {
             // Compare versions
             match (&result.package.version, &existing.package.version) {
-                (Some(new_ver), Some(existing_ver)) => {
-                    if new_ver > existing_ver {
-                        latest_map.insert(package_name.clone(), result);
-                    }
+                (Some(new_ver), Some(existing_ver)) if new_ver > existing_ver => {
+                    latest_map.insert(package_name.clone(), result);
                 }
                 (Some(_), None) => {
                     latest_map.insert(package_name.clone(), result);

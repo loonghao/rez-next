@@ -1,0 +1,336 @@
+    Checking rez-next-common v0.3.0 (G:\PycharmProjects\github\rez-next\crates\rez-next-common)
+   Compiling aws-lc-rs v1.16.2
+    Checking aws-lc-sys v0.39.1
+   Compiling rustls v0.23.37
+    Checking rez-next-version v0.3.0 (G:\PycharmProjects\github\rez-next\crates\rez-next-version)
+    Checking rez-next-cache v0.3.0 (G:\PycharmProjects\github\rez-next\crates\rez-next-cache)
+    Checking rez-next-package v0.3.0 (G:\PycharmProjects\github\rez-next\crates\rez-next-package)
+    Checking rez-next-rex v0.3.0 (G:\PycharmProjects\github\rez-next\crates\rez-next-rex)
+    Checking rustls-webpki v0.103.10
+warning: this `if` can be collapsed into the outer `match`
+   --> crates\rez-next-package\src\python_ast_parser\commands.rs:112:41
+    |
+112 | / ...                   if call.args.len() >= 2 {
+113 | | ...                       if let (Ok(k), Ok(v)) = (
+114 | | ...                           self.extract_string_value(&call.args[0]),
+115 | | ...                           self.extract_string_value(&call.args[1]),
+...   |
+122 | | ...                   }
+    | |_______________________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#collapsible_match
+    = note: `#[warn(clippy::collapsible_match)]` on by default
+help: collapse nested if block
+    |
+111 ~                                     "setenv"
+112 ~                                         if call.args.len() >= 2 => {
+113 |                                             if let (Ok(k), Ok(v)) = (
+...
+121 |                                             }
+122 ~                                         }
+    |
+
+warning: this `if` can be collapsed into the outer `match`
+   --> crates\rez-next-package\src\python_ast_parser\commands.rs:132:41
+    |
+132 | / ...                   if call.args.len() >= 2 {
+133 | | ...                       if let (Ok(k), Ok(v)) = (
+134 | | ...                           self.extract_string_value(&call.args[0]),
+135 | | ...                           self.extract_string_value(&call.args[1]),
+...   |
+142 | | ...                   }
+    | |_______________________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#collapsible_match
+help: collapse nested if block
+    |
+131 ~                                     "prepend_path"
+132 ~                                         if call.args.len() >= 2 => {
+133 |                                             if let (Ok(k), Ok(v)) = (
+...
+141 |                                             }
+142 ~                                         }
+    |
+
+warning: this `if` can be collapsed into the outer `match`
+   --> crates\rez-next-package\src\python_ast_parser\commands.rs:145:41
+    |
+145 | / ...                   if call.args.len() >= 2 {
+146 | | ...                       if let (Ok(k), Ok(v)) = (
+147 | | ...                           self.extract_string_value(&call.args[0]),
+148 | | ...                           self.extract_string_value(&call.args[1]),
+...   |
+155 | | ...                   }
+    | |_______________________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#collapsible_match
+help: collapse nested if block
+    |
+144 ~                                     "append_path"
+145 ~                                         if call.args.len() >= 2 => {
+146 |                                             if let (Ok(k), Ok(v)) = (
+...
+154 |                                             }
+155 ~                                         }
+    |
+
+warning: this `if` can be collapsed into the outer `match`
+   --> crates\rez-next-package\src\python_ast_parser\commands.rs:158:41
+    |
+158 | / ...                   if call.args.len() >= 2 {
+159 | | ...                       if let (Ok(k), Ok(v)) = (
+160 | | ...                           self.extract_string_value(&call.args[0]),
+161 | | ...                           self.extract_string_value(&call.args[1]),
+...   |
+168 | | ...                   }
+    | |_______________________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#collapsible_match
+help: collapse nested if block
+    |
+157 ~                                     "setenv_if_empty"
+158 ~                                         if call.args.len() >= 2 => {
+159 |                                             if let (Ok(k), Ok(v)) = (
+...
+167 |                                             }
+168 ~                                         }
+    |
+
+warning: this `if` can be collapsed into the outer `match`
+   --> crates\rez-next-package\src\python_ast_parser\commands.rs:221:33
+    |
+221 | / ...                   if call.args.len() >= 2 {
+222 | | ...                       if let (Ok(name), Ok(cmd)) = (
+223 | | ...                           self.extract_string_value(&call.args[0]),
+224 | | ...                           self.extract_string_value(&call.args[1]),
+...   |
+228 | | ...                   }
+    | |_______________________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#collapsible_match
+help: collapse nested if block
+    |
+220 ~                             "alias"
+221 ~                                 if call.args.len() >= 2 => {
+222 |                                     if let (Ok(name), Ok(cmd)) = (
+...
+227 |                                     }
+228 ~                                 }
+    |
+
+warning: this `if` can be collapsed into the outer `match`
+   --> crates\rez-next-package\src\python_ast_parser\commands.rs:273:33
+    |
+273 | / ...                   if call.args.len() >= 2 {
+274 | | ...                       if let (Ok(k), Ok(v)) = (
+275 | | ...                           self.extract_string_value(&call.args[0]),
+276 | | ...                           self.extract_string_value(&call.args[1]),
+...   |
+280 | | ...                   }
+    | |_______________________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#collapsible_match
+help: collapse nested if block
+    |
+272 ~                             "setenv"
+273 ~                                 if call.args.len() >= 2 => {
+274 |                                     if let (Ok(k), Ok(v)) = (
+...
+279 |                                     }
+280 ~                                 }
+    |
+
+warning: this `if` can be collapsed into the outer `match`
+   --> crates\rez-next-package\src\python_ast_parser\commands.rs:283:33
+    |
+283 | / ...                   if call.args.len() >= 2 {
+284 | | ...                       if let (Ok(k), Ok(v)) = (
+285 | | ...                           self.extract_string_value(&call.args[0]),
+286 | | ...                           self.extract_string_value(&call.args[1]),
+...   |
+290 | | ...                   }
+    | |_______________________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#collapsible_match
+help: collapse nested if block
+    |
+282 ~                             "prependenv"
+283 ~                                 if call.args.len() >= 2 => {
+284 |                                     if let (Ok(k), Ok(v)) = (
+...
+289 |                                     }
+290 ~                                 }
+    |
+
+warning: this `if` can be collapsed into the outer `match`
+   --> crates\rez-next-package\src\python_ast_parser\commands.rs:293:33
+    |
+293 | / ...                   if call.args.len() >= 2 {
+294 | | ...                       if let (Ok(k), Ok(v)) = (
+295 | | ...                           self.extract_string_value(&call.args[0]),
+296 | | ...                           self.extract_string_value(&call.args[1]),
+...   |
+300 | | ...                   }
+    | |_______________________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#collapsible_match
+help: collapse nested if block
+    |
+292 ~                             "appendenv"
+293 ~                                 if call.args.len() >= 2 => {
+294 |                                     if let (Ok(k), Ok(v)) = (
+...
+299 |                                     }
+300 ~                                 }
+    |
+
+warning: `rez-next-package` (lib) generated 8 warnings (run `cargo clippy --fix --lib -p rez-next-package -- ` to apply 8 suggestions)
+    Checking rez-next-repository v0.3.0 (G:\PycharmProjects\github\rez-next\crates\rez-next-repository)
+    Checking rez-next-bind v0.3.0 (G:\PycharmProjects\github\rez-next\crates\rez-next-bind)
+warning: `rez-next-package` (lib test) generated 8 warnings (8 duplicates)
+    Checking rez-next-solver v0.3.0 (G:\PycharmProjects\github\rez-next\crates\rez-next-solver)
+    Checking rez-next-search v0.3.0 (G:\PycharmProjects\github\rez-next\crates\rez-next-search)
+    Checking rez-next-context v0.3.0 (G:\PycharmProjects\github\rez-next\crates\rez-next-context)
+    Checking tokio-rustls v0.26.4
+    Checking rustls-platform-verifier v0.6.2
+    Checking hyper-rustls v0.27.7
+    Checking reqwest v0.13.2
+    Checking rez-next-suites v0.3.0 (G:\PycharmProjects\github\rez-next\crates\rez-next-suites)
+warning: this `impl` can be derived
+  --> crates\rez-next-suites\src\suite.rs:22:1
+   |
+22 | / impl Default for SuiteStatus {
+23 | |     fn default() -> Self {
+24 | |         Self::Okay
+25 | |     }
+26 | | }
+   | |_^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#derivable_impls
+   = note: `-W clippy::derivable-impls` implied by `-W clippy::complexity`
+   = help: to override `-W clippy::complexity` add `#[allow(clippy::derivable_impls)]`
+help: replace the manual implementation with a derive attribute and mark the default variant
+   |
+13 + #[derive(Default)]
+14 | pub enum SuiteStatus {
+15 |     /// Suite is valid and all contexts resolved successfully
+16 ~     #[default]
+17 ~     Okay,
+   |
+
+warning: this `impl` can be derived
+  --> crates\rez-next-suites\src\suite_tool.rs:19:1
+   |
+19 | / impl Default for ToolConflictMode {
+20 | |     fn default() -> Self {
+21 | |         Self::Error
+22 | |     }
+23 | | }
+   | |_^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#derivable_impls
+help: replace the manual implementation with a derive attribute and mark the default variant
+   |
+ 8 + #[derive(Default)]
+ 9 | pub enum ToolConflictMode {
+10 |     /// Raise an error if there is a conflict (default)
+11 ~     #[default]
+12 ~     Error,
+   |
+
+warning: `rez-next-suites` (lib) generated 2 warnings (run `cargo clippy --fix --lib -p rez-next-suites -- ` to apply 2 suggestions)
+    Checking rez-next-build v0.3.0 (G:\PycharmProjects\github\rez-next\crates\rez-next-build)
+warning: `rez-next-suites` (lib test) generated 2 warnings (2 duplicates)
+    Checking rez-next v0.3.0 (G:\PycharmProjects\github\rez-next)
+    Checking rez-next-python v0.3.0 (G:\PycharmProjects\github\rez-next\crates\rez-next-python)
+warning: this `if` can be collapsed into the outer `match`
+   --> src\cli\commands\search_v2\filter.rs:164:21
+    |
+164 | /                     if new_ver > existing_ver {
+165 | |                         latest_map.insert(package_name.clone(), result);
+166 | |                     }
+    | |_____________________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#collapsible_match
+    = note: `#[warn(clippy::collapsible_match)]` on by default
+help: collapse nested if block
+    |
+163 ~                 (Some(new_ver), Some(existing_ver))
+164 ~                     if new_ver > existing_ver => {
+165 |                         latest_map.insert(package_name.clone(), result);
+166 ~                     }
+    |
+
+warning: `rez-next` (lib) generated 1 warning (run `cargo clippy --fix --lib -p rez-next -- ` to apply 1 suggestion)
+warning: useless use of `vec!`
+   --> tests\rez_compat_complete_diff_tests.rs:162:16
+    |
+162 |     let pkgs = vec![python, maya];
+    |                ^^^^^^^^^^^^^^^^^^ help: you can use an array directly: `[python, maya]`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#useless_vec
+    = note: `-W clippy::useless-vec` implied by `-W clippy::perf`
+    = help: to override `-W clippy::perf` add `#[allow(clippy::useless_vec)]`
+
+warning: `rez-next` (test "rez_compat_complete_diff_tests") generated 1 warning (run `cargo clippy --fix --test "rez_compat_complete_diff_tests" -p rez-next -- ` to apply 1 suggestion)
+warning: `rez-next` (lib test) generated 1 warning (1 duplicate)
+warning: useless use of `vec!`
+   --> tests\rez_compat_advanced_tests.rs:154:20
+    |
+154 |     let packages = vec![consumer];
+    |                    ^^^^^^^^^^^^^^ help: you can use an array directly: `[consumer]`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#useless_vec
+    = note: `-W clippy::useless-vec` implied by `-W clippy::perf`
+    = help: to override `-W clippy::perf` add `#[allow(clippy::useless_vec)]`
+
+warning: `rez-next` (test "rez_compat_advanced_tests") generated 1 warning (run `cargo clippy --fix --test "rez_compat_advanced_tests" -p rez-next -- ` to apply 1 suggestion)
+warning: this `if` can be collapsed into the outer `match`
+  --> src\bin\rez-next.rs:54:25
+   |
+54 | /                         if arg_groups.len() > 1 && !arg_groups[1].is_empty() {
+55 | |                             if let Err(e) = rez_core::cli::commands::env::execute_with_extra_args(
+56 | |                                 env_args.clone(),
+57 | |                                 arg_groups[1].clone(),
+...  |
+62 | |                             return;
+63 | |                         }
+   | |_________________________^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#collapsible_match
+   = note: `#[warn(clippy::collapsible_match)]` on by default
+help: collapse nested if block
+   |
+53 ~                     RezCommand::Env(ref mut env_args)
+54 ~                         if arg_groups.len() > 1 && !arg_groups[1].is_empty() => {
+55 |                             if let Err(e) = rez_core::cli::commands::env::execute_with_extra_args(
+...
+62 |                             return;
+63 ~                         }
+   |
+
+warning: this `if` can be collapsed into the outer `match`
+  --> src\bin\rez-next.rs:66:25
+   |
+66 | /                         if arg_groups.len() > 1 && !arg_groups[1].is_empty() {
+67 | |                             // Pass extra args as build-args string
+68 | |                             let extra = arg_groups[1].join(" ");
+69 | |                             if build_args.build_args.is_none() {
+...  |
+73 | |                         }
+   | |_________________________^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#collapsible_match
+help: collapse nested if block
+   |
+65 ~                     RezCommand::Build(ref mut build_args)
+66 ~                         if arg_groups.len() > 1 && !arg_groups[1].is_empty() => {
+67 |                             // Pass extra args as build-args string
+...
+72 |                             // Fall through to normal execute with updated args
+73 ~                         }
+   |
+
+warning: `rez-next` (bin "rez-next") generated 2 warnings (run `cargo clippy --fix --bin "rez-next" -p rez-next -- ` to apply 2 suggestions)
+warning: `rez-next` (bin "rez-next" test) generated 2 warnings (2 duplicates)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 11.50s
