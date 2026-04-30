@@ -229,19 +229,16 @@ impl TimestampRule {
 impl Rule for TimestampRule {
     fn matches(&self, package: &Package) -> bool {
         if let Some(ts) = package.timestamp {
-            let ts_i64 = ts as i64;
             if self.before {
                 if self.inclusive {
-                    ts_i64 <= self.timestamp
+                    ts <= self.timestamp
                 } else {
-                    ts_i64 < self.timestamp
+                    ts < self.timestamp
                 }
+            } else if self.inclusive {
+                ts >= self.timestamp
             } else {
-                if self.inclusive {
-                    ts_i64 >= self.timestamp
-                } else {
-                    ts_i64 > self.timestamp
-                }
+                ts > self.timestamp
             }
         } else {
             false
@@ -332,7 +329,7 @@ impl PackageFilter {
     pub fn add_exclusion(&mut self, family: Option<&str>, rule: Box<dyn Rule + Send + Sync>) {
         self.excludes
             .entry(family.map(String::from))
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(rule);
     }
 
@@ -340,7 +337,7 @@ impl PackageFilter {
     pub fn add_inclusion(&mut self, family: Option<&str>, rule: Box<dyn Rule + Send + Sync>) {
         self.includes
             .entry(family.map(String::from))
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(rule);
     }
 
