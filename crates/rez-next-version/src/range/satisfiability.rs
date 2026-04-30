@@ -92,7 +92,7 @@ pub(super) fn is_bound_set_satisfiable(bs: &BoundSet) -> bool {
     true
 }
 
-/// Check if two BoundSets can simultaneously be satisfied (have intersection)
+/// Check if two `BoundSet`s can simultaneously be satisfied (have intersection)
 pub(super) fn bound_sets_intersect(a: &BoundSet, b: &BoundSet) -> bool {
     // Quick check: if either is Any, they intersect
     let a_any = a.bounds.iter().all(|bnd| matches!(bnd, Bound::Any));

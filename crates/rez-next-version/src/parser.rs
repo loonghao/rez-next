@@ -271,6 +271,7 @@ impl VersionParser {
     }
 
     /// Parse a complete version string
+    #[allow(clippy::missing_errors_doc)]
     pub fn parse_version(&self, input: &str) -> Result<Version, RezCoreError> {
         // Use the new state machine parser for better performance
         // but fall back to the original implementation for now

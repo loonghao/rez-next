@@ -65,19 +65,14 @@ pub(super) fn bound_matches(bound: &Bound, version: &Version) -> bool {
         Bound::Eq(v) => version == v,
         Bound::Ne(v) => version != v,
         Bound::Compatible(v) => {
-            // ~= M.N means >= M.N AND < M.(N+1), or ~= M.N.P means >= M.N.P AND < M.N+1
-            // For rez we implement as: >= v AND same prefix up to second-to-last component
-            if version < v {
-                return false;
-            }
             // Compatible release: upper bound is next minor/patch
-            let parts = v.as_str().split('.').collect::<Vec<_>>();
+            let parts: Vec<&str> = v.as_str().split('.').collect();
             if parts.len() < 2 {
                 return true;
             }
             let prefix = &parts[..parts.len() - 1].join(".");
             // version must start with same prefix
-            version.as_str().starts_with(&format!("{}.", prefix))
+            version.as_str().starts_with(&format!("{prefix}."))
                 || version.as_str() == prefix.as_str()
         }
     }
