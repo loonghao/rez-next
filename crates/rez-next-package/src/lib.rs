@@ -12,10 +12,12 @@
 pub mod package;
 pub mod python_ast_parser;
 pub mod serialization; // Always available for CLI usage
+pub mod filter; // Package filtering support
 
 pub use package::*;
 pub use python_ast_parser::*;
 pub use serialization::{PackageFormat, PackageSerializer}; // Always available for CLI usage
+pub use filter::*; // Package filtering support
 
 // Always export requirement types for CLI usage
 pub mod requirement;
