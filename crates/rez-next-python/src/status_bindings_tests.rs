@@ -19,6 +19,9 @@ fn test_is_in_rez_context_false_outside() {
 
 #[test]
 fn test_get_context_file_none_outside_context() {
+    let _lock = ENV_MUTEX.lock().unwrap();
+    // Outside any rez env the function should return None (CI has no rez)
+    // Acquire mutex to prevent concurrent env mutations from other tests.
     if std::env::var("REZ_CONTEXT_FILE").is_err() {
         assert!(get_context_file().is_none());
     }

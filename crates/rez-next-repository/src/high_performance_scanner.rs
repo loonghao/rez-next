@@ -59,14 +59,8 @@ impl Default for HighPerformanceConfig {
 #[derive(Debug, Clone)]
 struct AdvancedCacheEntry {
     result: PackageScanResult,
-    // TODO(cleanup): `mtime` not yet read; consider removing if cache invalidation logic is not implemented.
-    mtime: SystemTime,
-    // TODO(cleanup): `size` not yet read; consider removing if cache invalidation logic is not implemented.
-    size: u64,
     access_count: u64,
     last_accessed: SystemTime,
-    // TODO(cleanup): `prediction_score` not yet read; consider removing if prefetch logic is not implemented.
-    prediction_score: f64,
 }
 
 /// High-performance repository scanner
