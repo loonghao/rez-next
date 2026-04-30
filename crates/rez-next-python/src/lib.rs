@@ -157,7 +157,7 @@ fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(search_bindings::search_packages, m)?)?;
     m.add_function(wrap_pyfunction!(search_bindings::search_package_names, m)?)?;
     m.add_function(wrap_pyfunction!(
-        completion_bindings::get_completion_script,
+        completion_bindings::get_completion_script_py,
         m
     )?)?;
     m.add_function(wrap_pyfunction!(diff_bindings::diff_contexts, m)?)?;
@@ -470,13 +470,9 @@ fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // ── Submodule: rez.complete ───────────────────────────────────────────────
     let complete_mod = PyModule::new(m.py(), "complete")?;
     complete_mod.add_function(wrap_pyfunction!(
-        completion_bindings::get_completion_script,
+        completion_bindings::get_completion_script_py,
         &complete_mod
-    )?)?;
-    complete_mod.add_function(wrap_pyfunction!(
-        completion_bindings::print_completion_script,
-        &complete_mod
-    )?)?;
+    )?    )?;
     complete_mod.add_function(wrap_pyfunction!(
         completion_bindings::supported_completion_shells,
         &complete_mod

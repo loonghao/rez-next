@@ -128,11 +128,11 @@ fn test_install_path_unknown_is_not_in_supported_list() {
     assert!(!shells.contains(&"csh".to_string()));
 }
 
-// ── print_completion_script ────────────────────────────────────────────
+// ── get_completion_script_py ────────────────────────────────────────────
 
 #[test]
-fn test_print_completion_script_valid_shell_no_panic() {
-    assert!(print_completion_script(Some("bash")).is_ok());
+fn test_get_completion_script_py_valid_shell_no_panic() {
+    assert!(get_completion_script_py(Some("bash")).is_ok());
 }
 
 // ── bash script command-list coverage ────────────────────────────────────
@@ -199,14 +199,14 @@ fn test_install_path_pwsh_alias_returns_powershell_path() {
     assert!(!path.is_empty(), "pwsh install path should not be empty");
 }
 
-// ── print_completion_script for all shells ────────────────────────────────
+// ── get_completion_script_py for all shells ────────────────────────────────
 
 #[test]
-fn test_print_completion_script_all_shells_no_panic() {
+fn test_get_completion_script_py_all_shells_no_panic() {
     for shell in &["zsh", "fish", "powershell"] {
         assert!(
-            print_completion_script(Some(shell)).is_ok(),
-            "print_completion_script({}) should not error",
+            get_completion_script_py(Some(shell)).is_ok(),
+            "get_completion_script_py({}) should not error",
             shell
         );
     }

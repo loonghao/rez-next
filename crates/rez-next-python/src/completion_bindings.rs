@@ -200,13 +200,11 @@ pub fn get_completion_script(shell: Option<&str>) -> PyResult<String> {
     }
 }
 
-/// Write the completion script to stdout (mimics `rez complete`).
+/// Get the completion script as a string (mimics `rez complete`).
 #[pyfunction]
 #[pyo3(signature = (shell=None))]
-pub fn print_completion_script(shell: Option<&str>) -> PyResult<()> {
-    let script = get_completion_script(shell)?;
-    print!("{}", script);
-    Ok(())
+pub fn get_completion_script_py(shell: Option<&str>) -> PyResult<String> {
+    get_completion_script(shell)
 }
 
 /// List all supported shells for completion.
