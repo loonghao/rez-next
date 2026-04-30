@@ -336,3 +336,162 @@ mod arc_package_serde {
         Ok(Arc::new(package))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rez_next_package::Package;
+    use std::path::PathBuf;
+    use std::sync::Arc;
+
+    // Helper to create a test package
+    fn make_package(name: &str, version: &str) -> Arc<Package> {
+        let mut pkg = Package::new(name.to_string());
+        pkg.version = Some(rez_next_version::Version::parse(version).unwrap());
+        Arc::new(pkg)
+    }
+
+    // Helper to create a test resolved package
+    fn make_resolved_package(name: &str, version: &str) -> ResolvedPackage {
+        let pkg = make_package(name, version);
+        ResolvedPackage::new(pkg, PathBuf::from(format!("/packages/{}", name)), true)
+    }
+
+    #[test]
+    fn test_rez_resolved_context_new() {
+        let reqs = vec![];
+        let ctx = RezResolvedContext::new(reqs);
+        assert!(!ctx.failed);
+        assert_eq!(ctx.resolved_packages.len(), 0);
+        assert_eq!(ctx.requirements.len(), 0);
+        assert!(ctx.failure_description.is_none());
+        assert!(!ctx.user.is_empty());
+        assert!(!ctx.host.is_empty());
+    }
+
+    #[test]
+    fn test_rez_resolved_context_with_requirements() {
+        let reqs = vec![
+            rez_next_package::Requirement::new("python".to_string()),
+            rez_next_package::Requirement::new("maya".to_string()),
+        ];
+        let ctx = RezResolvedContext::new(reqs);
+        assert_eq!(ctx.requirements.len(), 2);
+    }
+
+    #[test]
+    fn test_get_package_names_empty() {
+        let ctx = RezResolvedContext::new(vec![]);
+        let names = ctx.get_package_names();
+        assert!(names.is_empty());
+    }
+
+    #[test]
+    fn test_get_package_names_with_packages() {
+        let mut ctx = RezResolvedContext::new(vec![]);
+        ctx.resolved_packages.push(make_resolved_package("python", "3.9.0"));
+        ctx.resolved_packages.push(make_resolved_package("maya", "2024.0.0"));
+        ctx.resolved_packages.push(make_resolved_package("numpy", "1.24.0"));
+
+        let names = ctx.get_package_names();
+        assert_eq!(names.len(), 3);
+        assert!(names.contains(&"python".to_string()));
+        assert!(names.contains(&"maya".to_string()));
+        assert!(names.contains(&"numpy".to_string()));
+    }
+
+    #[test]
+    fn test_resolved_package_new() {
+        let pkg = make_package("test_pkg", "1.0.0");
+        let root = PathBuf::from("/packages/test_pkg");
+        let rp = ResolvedPackage::new(pkg.clone(), root.clone(), true);
+
+        assert_eq!(rp.root, root);
+        assert!(rp.requested);
+        assert!(rp.variant_index.is_none());
+        assert!(rp.conflict.is_none());
+        assert_eq!(rp.parent_packages.len(), 0);
+        assert_eq!(rp.package.name, "test_pkg");
+    }
+
+    #[test]
+    fn test_resolved_package_with_variant() {
+        let pkg = make_package("test_pkg", "1.0.0");
+        let rp = ResolvedPackage::new(pkg, PathBuf::from("/packages/test_pkg"), true)
+            .with_variant(2);
+
+        assert_eq!(rp.variant_index, Some(2));
+    }
+
+    #[test]
+    fn test_resolved_package_add_parent() {
+        let pkg = make_package("child", "1.0.0");
+        let mut rp = ResolvedPackage::new(pkg, PathBuf::from("/packages/child"), false);
+
+        rp.add_parent("parent1".to_string());
+        assert_eq!(rp.parent_packages.len(), 1);
+        assert_eq!(rp.parent_packages[0], "parent1");
+
+        // Adding duplicate should not increase count
+        rp.add_parent("parent1".to_string());
+        assert_eq!(rp.parent_packages.len(), 1);
+
+        rp.add_parent("parent2".to_string());
+        assert_eq!(rp.parent_packages.len(), 2);
+    }
+
+    #[test]
+    fn test_rez_resolved_context_failed() {
+        let mut ctx = RezResolvedContext::new(vec![]);
+        ctx.failed = true;
+        ctx.failure_description = Some("Dependency conflict".to_string());
+
+        assert!(ctx.failed);
+        assert_eq!(ctx.failure_description, Some("Dependency conflict".to_string()));
+    }
+
+    #[test]
+    fn test_rez_resolved_context_metadata() {
+        let mut ctx = RezResolvedContext::new(vec![]);
+        ctx.metadata.insert("build_type".to_string(), "release".to_string());
+        ctx.metadata.insert("target".to_string(), "linux".to_string());
+
+        assert_eq!(ctx.metadata.len(), 2);
+        assert_eq!(
+            ctx.metadata.get("build_type"),
+            Some(&"release".to_string())
+        );
+    }
+
+    #[test]
+    fn test_get_summary_empty_context() {
+        let ctx = RezResolvedContext::new(vec![]);
+        let summary = ctx.get_summary();
+
+        assert_eq!(summary.num_packages, 0);
+        assert!(summary.package_names.is_empty());
+        assert!(!summary.failed);
+        assert_eq!(summary.requirements.len(), 0);
+    }
+
+    #[test]
+    fn test_get_summary_with_packages() {
+        let mut ctx = RezResolvedContext::new(vec![]);
+        ctx.resolved_packages.push(make_resolved_package("python", "3.9.0"));
+        ctx.resolved_packages.push(make_resolved_package("maya", "2024.0.0"));
+
+        let summary = ctx.get_summary();
+        assert_eq!(summary.num_packages, 2);
+        assert_eq!(summary.package_names.len(), 2);
+    }
+
+    #[test]
+    fn test_resolved_context_clone() {
+        let ctx = RezResolvedContext::new(vec![]);
+        let cloned = ctx.clone();
+
+        assert_eq!(ctx.failed, cloned.failed);
+        assert_eq!(ctx.user, cloned.user);
+        assert_eq!(ctx.platform, cloned.platform);
+    }
+}
