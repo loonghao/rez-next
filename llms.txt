@@ -1,0 +1,124 @@
+# rez-next LLMs Index
+
+> Concise usage index for AI agents. For full API reference, see llms-full.txt.
+
+## Project Identity
+
+- **Name**: rez-next
+- **Description**: High-performance Rust rewrite of Rez package manager with Python bindings
+- **Drop-in usage**: `import rez_next as rez`
+- **Status**: Partial compatibility (many workflows work, not all APIs implemented)
+- **Version**: 0.3.1
+- **License**: Apache 2.0
+
+## Quick Patterns
+
+### Installation
+```bash
+# From source
+git clone https://github.com/loonghao/rez-next
+cd rez-next
+cargo build --release
+
+# Python bindings
+pip install rez-next
+```
+
+### Basic Usage
+```python
+import rez_next as rez
+from rez_next.packages_ import get_latest_package, iter_packages
+from rez_next.resolved_context import resolve_packages
+
+# Get latest package
+pkg = get_latest_package("python")
+
+# Iterate packages
+for p in iter_packages("maya"):
+    print(p.version)
+
+# Resolve dependencies
+ctx = resolve_packages(["python-3.9", "maya-2024"])
+```
+
+## Module Map
+
+| Import Path | Rez Equivalent | Status |
+|-------------|----------------|--------|
+| `rez_next.version` | `rez.vendor.version` | ✅ Stable |
+| `rez_next.packages_` | `rez.packages_` | ✅ Stable |
+| `rez_next.resolved_context` | `rez.resolved_context` | ✅ Stable |
+| `rez_next.suite` | `rez.suite` | ✅ Stable |
+| `rez_next.config` | `rez.config` | ✅ Stable |
+| `rez_next.system` | `rez.system` | ✅ Stable |
+| `rez_next.shell` | `rez.shells` | ✅ Stable |
+| `rez_next.rex` | `rez.rex` | ✅ Stable |
+| `rez_next.build_` | `rez.build_` | ⚠️ Partial |
+| `rez_next.release` | `rez.release` | ⚠️ Partial |
+| `rez_next.bind` | `rez.bind` | ⚠️ Partial |
+| `rez_next.search` | `rez.cli.search` | ✅ Stable |
+| `rez_next.diff` | `rez.cli.diff` | ✅ Stable |
+| `rez_next.depends` | `rez.cli.depends` | ✅ Stable |
+| `rez_next.status` | `rez.cli.status` | ✅ Stable |
+| `rez_next.complete` | `rez.cli.complete` | ✅ Stable |
+
+## Development Commands
+
+```bash
+vx just build           # Development build
+vx just test            # Run tests
+vx just lint            # Clippy linting
+vx just fmt             # Format code
+vx just ci              # Full CI check
+vx just bench           # Run benchmarks
+```
+
+## Key Files for Agents
+
+- `AGENTS.md` → Project map and progressive disclosure
+- `README.md` → Human-oriented overview
+- `docs/contributing.md` → Development workflow
+- `docs/python-integration.md` → Python API coverage
+- `crates/` → Rust source (13 crates)
+- `tests/` → Integration tests
+
+## Architecture Highlights
+
+- **Solver**: A* algorithm + backtracking + cycle detection
+- **Version parser**: State machine (handles `1.0 > 1.0.0` correctly)
+- **Package parser**: RustPython AST
+- **Caching**: Multi-level (memory + disk)
+- **Shell support**: bash, zsh, fish, PowerShell, cmd
+
+## Common Tasks
+
+### Adding a new Python submodule
+1. Implement in `crates/rez-next-python/src/`
+2. Add PyO3 bindings
+3. Export in `rez-next-python/__init__.py`
+4. Add tests in `tests/`
+5. Update `docs/python-integration.md`
+
+### Debugging
+```bash
+RUST_LOG=debug cargo run -- <args>
+```
+
+### Benchmarking
+```bash
+cargo bench --workspace
+```
+
+## Constraints
+
+- ⚠️ Not all Rez APIs implemented
+- ⚠️ Python bindings partial (18 submodules)
+- ⚠️ Pre-1.0 (breaking changes possible)
+- ✅ Use `vx` for tool management (see `vx.toml`)
+
+## Links
+
+- Repository: https://github.com/loonghao/rez-next
+- Issues: https://github.com/loonghao/rez-next/issues
+- For detailed API: see `llms-full.txt`
+- For human docs: see `docs/` directory
