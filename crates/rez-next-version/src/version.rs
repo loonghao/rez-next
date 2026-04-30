@@ -443,6 +443,10 @@ impl Clone for Version {
 mod tests {
     use super::*;
 
+    fn ver(s: &str) -> Version {
+        Version::parse(s).unwrap()
+    }
+
     #[test]
     fn test_version_creation() {
         let version = Version::parse("1.2.3").unwrap();
@@ -539,6 +543,22 @@ mod tests {
         let copied = version.clone();
         assert_eq!(version.as_str(), copied.as_str());
         assert_eq!(version.tokens.len(), copied.tokens.len());
+    }
+
+    #[test]
+    fn test_version_ord_basic() {
+        let v1 = ver("1.0.0");
+        let v2 = ver("1.0.0");
+        assert!(v1 >= v2, "1.0.0 >= 1.0.0 should be true");
+        assert!(v1 <= v2, "1.0.0 <= 1.0.0 should be true");
+    }
+
+    #[test]
+    fn test_version_ord_greater() {
+        let v1 = ver("2.0.0");
+        let v2 = ver("1.0.0");
+        assert!(v1 > v2, "2.0.0 > 1.0.0 should be true");
+        assert!(v2 < v1, "1.0.0 < 2.0.0 should be true");
     }
 
     #[test]

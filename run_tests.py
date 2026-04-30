@@ -3,7 +3,7 @@
 import subprocess
 
 result = subprocess.run(
-    ["cargo", "test", "-p", "rez-next-version", "--lib", "test_range_"],
+    ["cargo", "test", "-p", "rez-next-version", "--lib", "test_version_ord"],
     capture_output=True,
     text=True
 )
@@ -11,5 +11,5 @@ result = subprocess.run(
 print("STDOUT:")
 print(result.stdout)
 print("\nSTDERR:")
-print(result.stderr)
+print(result.stderr[-2000:] if len(result.stderr) > 2000 else result.stderr)
 print(f"\nReturn code: {result.returncode}")
