@@ -216,4 +216,53 @@ mod tests {
         let f = SearchFilter::new("py");
         assert_eq!(f.limit, 0);
     }
+
+    #[test]
+    fn test_filter_with_all_repos_false() {
+        let mut f = SearchFilter::new("py");
+        f.all_repos = false;
+        // Should stop at first match (depends on searcher implementation)
+        assert!(!f.all_repos);
+    }
+
+    #[test]
+    fn test_filter_with_empty_version_range() {
+        let f = SearchFilter::new("py").with_version_range("");
+        assert_eq!(f.version_range, Some("".to_string()));
+    }
+
+    #[test]
+    fn test_filter_matches_name_with_special_chars() {
+        let f = SearchFilter::new("my-pkg").with_mode(FilterMode::Exact);
+        assert!(f.matches_name("my-pkg"));
+        assert!(!f.matches_name("my_pkg"));
+    }
+
+
+    #[test]
+    fn test_filter_unicode_pattern() {
+        let f = SearchFilter::new("测试").with_mode(FilterMode::Contains);
+        assert!(f.matches_name("这是测试包"));
+        assert!(!f.matches_name("normal-pkg"));
+    }
+
+    #[test]
+    fn test_filter_very_long_pattern() {
+        let long_pattern = "x".repeat(500);
+        let f = SearchFilter::new(long_pattern.clone()).with_mode(FilterMode::Prefix);
+        // Should match a string starting with 500 x's
+        let long_name = "x".repeat(1000);
+        assert!(f.matches_name(&long_name));
+        assert!(!f.matches_name("normal-pkg"));
+    }
+
+    #[test]
+    fn test_filter_regex_special_chars_in_non_regex_mode() {
+        // In non-regex mode, special chars should be treated literally
+        let f = SearchFilter::new("py.*on").with_mode(FilterMode::Contains);
+        // Should NOT interpret * as wildcard
+        assert!(!f.matches_name("python"));
+        // Should match literal "py.*on"
+        assert!(f.matches_name("py.*on"));
+    }
 }

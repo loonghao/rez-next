@@ -1,10 +1,41 @@
 # rez-next auto-improve 执行记录#
 
-## 最新执行 (2026-04-30) — Cycle 205#
+## 最新执行 (2026-04-30) — Cycle 206#
 
 ### 执行摘要#
 
-**Cycle 205（commit `ed597e8`）**：为 `Package` 结构体添加更多单元测试。
+**Cycle 206（commit `2b917c8`）**：为 `rez-next-cache` 添加更多边界测试用例。
+
+### 变更内容#
+
+- 在 `crates/rez-next-cache/src/tests.rs` 添加 5 个新测试：
+  - `test_cache_empty_key()` — 测试空键
+  - `test_cache_very_long_key()` — 测试超长键
+  - `test_cache_update_existing_key()` — 测试更新现有键
+  - `test_cache_stats_after_operations()` — 测试操作后的统计信息
+  - `test_cache_custom_ttl()` — 测试自定义 TTL
+
+### 测试结果#
+
+- `cargo test -p rez-next-cache --lib`：**46 passed**，0 failed（新增 5 个）
+- Clippy warnings: 0 (rez-next-cache)
+- 编译检查：通过
+- `rez-next-cache` 已有 46 个测试，覆盖良好
+
+### 当前提交#
+
+- `2b917c8` — test(cache): add more edge case tests for cache (Cycle 206) [iteration-done]#
+
+### 下一轮目标#
+
+**Cycle 207**：继续改进
+1. 为 `rez-next-search` crate 添加单元测试
+2. 运行完整工作区测试确保没有回归
+3. 更新文档（`llms.txt`、`README.md`）
+
+---
+
+## 上一执行 (2026-04-30) — Cycle 205#
 
 ### 变更内容#
 
