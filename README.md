@@ -27,7 +27,7 @@ curl -fsSL https://raw.githubusercontent.com/loonghao/rez-next/main/install.sh |
 Or with a specific version:
 
 ```bash
-REZ_NEXT_VERSION=0.3.0 curl -fsSL https://raw.githubusercontent.com/loonghao/rez-next/main/install.sh | sh
+REZ_NEXT_VERSION=0.3.1 curl -fsSL https://raw.githubusercontent.com/loonghao/rez-next/main/install.sh | sh
 ```
 
 Environment variables:
@@ -72,7 +72,7 @@ rez-next self-update
 rez-next self-update --check
 
 # Update to a specific version
-rez-next self-update --version 0.3.0
+rez-next self-update --version 0.3.1
 
 # Force reinstall of the current version
 rez-next self-update --force
