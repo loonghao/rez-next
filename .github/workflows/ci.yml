@@ -151,6 +151,8 @@ jobs:
           components: llvm-tools-preview
       - uses: Swatinem/rust-cache@v2
       - uses: taiki-e/install-action@cargo-llvm-cov
+      - name: Build rez-next binary (required for e2e tests)
+        run: cargo build --bin rez-next
       - run: cargo llvm-cov --workspace --exclude rez-next-python --lcov --output-path lcov.info
       - uses: codecov/codecov-action@v6
         with:

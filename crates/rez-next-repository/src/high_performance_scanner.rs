@@ -59,14 +59,8 @@ impl Default for HighPerformanceConfig {
 #[derive(Debug, Clone)]
 struct AdvancedCacheEntry {
     result: PackageScanResult,
-    #[allow(dead_code)] // Written for cache invalidation, not yet read
-    mtime: SystemTime,
-    #[allow(dead_code)] // Written for cache invalidation, not yet read
-    size: u64,
     access_count: u64,
     last_accessed: SystemTime,
-    #[allow(dead_code)] // Written by prefetch predictor, not yet read
-    prediction_score: f64,
 }
 
 /// High-performance repository scanner
@@ -310,7 +304,6 @@ impl HighPerformanceScanner {
             RezCoreError::from(e)
         })?;
         let file_size = metadata.len();
-        let mtime = metadata.modified().unwrap_or(SystemTime::UNIX_EPOCH);
 
         // Choose optimal reading strategy
         let content = if file_size > self.config.mmap_threshold {
@@ -349,7 +342,7 @@ impl HighPerformanceScanner {
         };
 
         // Cache the result
-        self.cache_result(path, &result, mtime, file_size);
+        self.cache_result(path, &result);
 
         Ok(result)
     }
@@ -403,15 +396,12 @@ impl HighPerformanceScanner {
     }
 
     /// Cache scan result
-    fn cache_result(&self, path: &Path, result: &PackageScanResult, mtime: SystemTime, size: u64) {
+    fn cache_result(&self, path: &Path, result: &PackageScanResult) {
         let mut cache = self.cache.write();
         let entry = AdvancedCacheEntry {
             result: result.clone(),
-            mtime,
-            size,
             access_count: 1,
             last_accessed: SystemTime::now(),
-            prediction_score: self.prefetch_predictor.calculate_cache_score(path),
         };
         cache.put(path.to_path_buf(), entry);
     }

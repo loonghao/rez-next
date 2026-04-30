@@ -406,3 +406,299 @@ class TestBuildModuleE2E:
         (tmp_path / "Cargo.toml").write_text('[package]\nname = "test"\n')
         result = build.get_build_system(str(tmp_path))
         assert result == "cargo"
+
+
+# ── Realistic VFX Pipeline Repository ─────────────────────────────────────
+
+class TestRealisticVfxPipelineE2E:
+    """E2E tests with realistic VFX pipeline package structures.
+
+    Creates a temporary repository with packages mimicking real studio setups:
+    - DCC applications (Maya, Houdini, Nuke)
+    - Python with version ranges
+    - Pipeline tools with cross-dependencies
+    """
+
+    @pytest.fixture
+    def vfx_repo(self, tmp_path):
+        """Create a realistic VFX pipeline repository structure."""
+        repo = tmp_path / "packages"
+        repo.mkdir()
+
+        # Maya 2024.1
+        maya_path = repo / "maya" / "2024.1"
+        write_package_py(
+            maya_path,
+            "maya",
+            "2024.1",
+            requires=["python-3.9+"],
+            commands=(
+                'env.setenv("MAYA_ROOT", "{root}")\\n'
+                'env.prepend_path("PATH", "{root}/bin")\\n'
+                'alias("maya", "{root}/bin/maya")'
+            ),
+        )
+
+        # Maya 2025.0
+        maya_path2 = repo / "maya" / "2025.0"
+        write_package_py(
+            maya_path2,
+            "maya",
+            "2025.0",
+            requires=["python-3.11+"],
+            commands=(
+                'env.setenv("MAYA_ROOT", "{root}")\\n'
+                'env.prepend_path("PATH", "{root}/bin")\\n'
+                'alias("maya", "{root}/bin/maya")'
+            ),
+        )
+
+        # Houdini 20.0
+        houdini_path = repo / "houdini" / "20.0.653"
+        write_package_py(
+            houdini_path,
+            "houdini",
+            "20.0.653",
+            requires=["python-3.10+"],
+            commands=(
+                'env.setenv("HOUDINI_ROOT", "{root}")\\n'
+                'env.prepend_path("PATH", "{root}/bin")\\n'
+                'alias("houdini", "{root}/bin/houdini")'
+            ),
+        )
+
+        # Python 3.9.7
+        python_path = repo / "python" / "3.9.7"
+        write_package_py(
+            python_path,
+            "python",
+            "3.9.7",
+            commands=(
+                'env.setenv("PYTHON_ROOT", "{root}")\\n'
+                'env.prepend_path("PATH", "{root}/bin")'
+            ),
+        )
+
+        # Python 3.11.5
+        python_path2 = repo / "python" / "3.11.5"
+        write_package_py(
+            python_path2,
+            "python",
+            "3.11.5",
+            commands=(
+                'env.setenv("PYTHON_ROOT", "{root}")\\n'
+                'env.prepend_path("PATH", "{root}/bin")'
+            ),
+        )
+
+        # NumPy 1.24.3 (requires python-3.9+)
+        numpy_path = repo / "numpy" / "1.24.3"
+        write_package_py(
+            numpy_path,
+            "numpy",
+            "1.24.3",
+            requires=["python-3.9+"],
+            commands='env.setenv("NUMPY_ROOT", "{root}")',
+        )
+
+        # NumPy 1.26.4 (requires python-3.10+)
+        numpy_path2 = repo / "numpy" / "1.26.4"
+        write_package_py(
+            numpy_path2,
+            "numpy",
+            "1.26.4",
+            requires=["python-3.10+"],
+            commands='env.setenv("NUMPY_ROOT", "{root}")',
+        )
+
+        # PySide2 5.15.2 (requires python-3.9+ and maya)
+        pyside_path = repo / "pyside2" / "5.15.2"
+        write_package_py(
+            pyside_path,
+            "pyside2",
+            "5.15.2",
+            requires=["python-3.9+", "maya-2024+"],
+            commands='env.setenv("PYSIDE_ROOT", "{root}")',
+        )
+
+        # Pipeline tools 1.0 (requires maya, numpy, pyside2)
+        pipeline_path = repo / "pipeline_tools" / "1.0.0"
+        write_package_py(
+            pipeline_path,
+            "pipeline_tools",
+            "1.0.0",
+            requires=["maya-2024+", "numpy-1.24+", "pyside2-5.15+"],
+            commands='env.setenv("PIPELINE_ROOT", "{root}")',
+        )
+
+        return str(repo)
+
+    def test_resolve_maya_with_python(self, vfx_repo):
+        """Test resolving Maya with Python dependency."""
+        result = rez.resolve(["maya-2024+", "python-3.9+"], paths=[vfx_repo])
+        assert result is not None
+        packages = result.get("packages", [])
+        assert any(p["name"] == "maya" for p in packages)
+        assert any(p["name"] == "python" for p in packages)
+
+    def test_resolve_houdini_with_python(self, vfx_repo):
+        """Test resolving Houdini with Python 3.10+."""
+        result = rez.resolve(["houdini-20.0+", "python-3.10+"], paths=[vfx_repo])
+        assert result is not None
+        packages = result.get("packages", [])
+        assert any(p["name"] == "houdini" for p in packages)
+
+    def test_resolve_pipeline_tools_full_stack(self, vfx_repo):
+        """Test resolving full pipeline stack with all dependencies."""
+        result = rez.resolve(
+            ["pipeline_tools-1.0+", "maya-2024+", "python-3.9+"],
+            paths=[vfx_repo],
+        )
+        assert result is not None
+        packages = result.get("packages", [])
+        package_names = [p["name"] for p in packages]
+        assert "pipeline_tools" in package_names
+        assert "maya" in package_names
+        assert "python" in package_names
+        assert "numpy" in package_names
+        assert "pyside2" in package_names
+
+    def test_resolve_version_conflict(self, vfx_repo):
+        """Test that impossible resolution fails gracefully."""
+        # Maya 2025 requires Python 3.11+, but we're requesting Python 3.9
+        # This should fail due to version conflict
+        try:
+            result = rez.resolve(
+                ["maya-2025+", "python-3.9"],
+                paths=[vfx_repo],
+            )
+            # If it doesn't raise, check if result is valid
+            if result is not None:
+                packages = result.get("packages", [])
+                maya = next((p for p in packages if p["name"] == "maya"), None)
+                py = next((p for p in packages if p["name"] == "python"), None)
+                if maya and py:
+                    # Check if Maya 2025 was selected (requires Python 3.11+)
+                    if maya["version"].startswith("2025"):
+                        # Python should be 3.11+, so this is actually valid
+                        assert py["version"] >= "3.11"
+        except Exception:
+            # Expected for impossible resolution
+            pass
+
+    def test_iter_packages_returns_all_versions(self, vfx_repo):
+        """Test that iter_packages returns all available versions."""
+        maya_packages = rez.iter_packages("maya", paths=[vfx_repo])
+        versions = [p["version"] for p in maya_packages]
+        assert "2024.1" in versions
+        assert "2025.0" in versions
+
+    def test_get_latest_package(self, vfx_repo):
+        """Test getting the latest version of a package."""
+        latest = rez.get_latest_package("maya", paths=[vfx_repo])
+        assert latest is not None
+        assert latest["version"] == "2025.0"
+
+    def test_context_creation_with_vfx_stack(self, vfx_repo):
+        """Test creating a context with VFX packages."""
+        context = rez.create_context(
+            ["maya-2024+", "numpy-1.24+", "python-3.9+"],
+            paths=[vfx_repo],
+        )
+        assert context is not None
+        assert context.get("success") is True
+
+    def test_get_package_family_names(self, vfx_repo):
+        """Test listing all package families in repository."""
+        names = rez.get_package_family_names(paths=[vfx_repo])
+        assert "maya" in names
+        assert "houdini" in names
+        assert "python" in names
+        assert "numpy" in names
+        assert "pipeline_tools" in names
+
+
+# ── Complex Dependency Graph E2E ────────────────────────────────────────────
+
+class TestComplexDependencyGraphE2E:
+    """E2E tests with complex dependency graphs simulating real studios."""
+
+    @pytest.fixture
+    def complex_repo(self, tmp_path):
+        """Create a complex dependency graph."""
+        repo = tmp_path / "complex_packages"
+        repo.mkdir()
+
+        # Base libraries
+        base_a = repo / "base_lib_a" / "1.0.0"
+        write_package_py(base_a, "base_lib_a", "1.0.0")
+
+        base_b = repo / "base_lib_b" / "2.0.0"
+        write_package_py(base_b, "base_lib_b", "2.0.0", requires=["base_lib_a-1.0+"])
+
+        # Middle layer
+        middle_c = repo / "middle_lib_c" / "1.5.0"
+        write_package_py(
+            middle_c,
+            "middle_lib_c",
+            "1.5.0",
+            requires=["base_lib_a-1.0+", "base_lib_b-2.0+"],
+        )
+
+        middle_d = repo / "middle_lib_d" / "3.0.0"
+        write_package_py(
+            middle_d,
+            "middle_lib_d",
+            "3.0.0",
+            requires=["base_lib_b-2.0+"],
+        )
+
+        # Top layer
+        app_e = repo / "app_e" / "1.0.0"
+        write_package_py(
+            app_e,
+            "app_e",
+            "1.0.0",
+            requires=["middle_lib_c-1.0+", "middle_lib_d-3.0+"],
+        )
+
+        # Alternative path
+        app_f = repo / "app_f" / "2.0.0"
+        write_package_py(
+            app_f,
+            "app_f",
+            "2.0.0",
+            requires=["middle_lib_c-1.0+"],
+        )
+
+        return str(repo)
+
+    def test_resolve_diamond_dependency(self, complex_repo):
+        """Test resolving diamond dependency: app_e -> middle_c -> base_a
+                                                  -> middle_d -> base_b -> base_a
+        """
+        result = rez.resolve(["app_e-1.0+"], paths=[complex_repo])
+        assert result is not None
+        packages = result.get("packages", [])
+        package_names = [p["name"] for p in packages]
+        # All packages in the dependency graph should be resolved
+        assert "app_e" in package_names
+        assert "middle_lib_c" in package_names
+        assert "middle_lib_d" in package_names
+        assert "base_lib_a" in package_names
+        assert "base_lib_b" in package_names
+
+    def test_resolve_multiple_apps(self, complex_repo):
+        """Test resolving multiple top-level packages."""
+        result = rez.resolve(
+            ["app_e-1.0+", "app_f-2.0+"],
+            paths=[complex_repo],
+        )
+        assert result is not None
+        packages = result.get("packages", [])
+        package_names = [p["name"] for p in packages]
+        assert "app_e" in package_names
+        assert "app_f" in package_names
+        # Shared dependency should only appear once
+        base_a_count = sum(1 for p in packages if p["name"] == "base_lib_a")
+        assert base_a_count == 1

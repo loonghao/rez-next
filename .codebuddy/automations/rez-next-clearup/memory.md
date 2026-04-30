@@ -1,5 +1,28 @@
 # rez-next cleanup 执行记录
 
+## 最新执行 (2026-04-30 08:37, 第四十五轮)
+
+### 执行摘要
+- 审查 main 分支自上一轮（2026-04-10）以来的变更：v0.3.0/v0.3.1 发布，大量新增测试文件（`*_tests.rs`）和模块重构（`scanner.rs` → `scanner/`，`range.rs` → `range/`）。
+- **阶段 4（代码规范治理）已完成**：迭代 Agent 在提交 `2e982f7 style: use pattern guards to simplify match arms` 中已修复所有 clippy 警告（`collapsible_match` × 6、`derivable_impls` × 2、`useless_vec` × 2）。无需重复提交。
+- **测试失败记录**：`status_bindings::status_bindings_tests::test_get_context_file_none_outside_context` 失败（`get_context_file().is_none()` 断言失败）。原因：该测试未获取 `ENV_MUTEX`，可能被其他测试设置 `REZ_CONTEXT_FILE` 环境变量影响。**与清理无关，留待后续调查**。
+- 全量测试：1349 passed; 1 failed（上述测试）；clippy 0 warnings；编译通过。
+
+### 验证结果
+- **定向测试**: 未运行（阶段 4 已由迭代 Agent 完成）
+- **全量测试**: `vx cargo test --workspace --all-targets --quiet` 1349 passed; 1 failed
+- **Lint**: `vx cargo clippy --workspace --all-targets --quiet` 通过；0 warnings
+- **编译**: `vx cargo check --workspace` 通过
+
+### 下一轮重点
+1. **阶段 1（过期代码清理）**：扫描新增的 `*_tests.rs` 文件，识别并删除重复/空泛测试
+2. **阶段 2（过期文档清理）**：检查 `README.md` / `README_zh.md` 是否与 v0.3.0 功能一致
+3. **阶段 3（过期测试清理）**：处理 `status_bindings_tests.rs` 的 `ENV_MUTEX` 缺失问题（或移至正确的序列化测试）
+4. **阶段 5（依赖治理）**：评估 `bincode 2.0.1` 迁移可行性（RUSTSEC-2025-0141）
+5. **阶段 6（结构性重构评估）**：检查新增的 `scanner/` / `range/` 模块是否进一步拆分必要
+
+---
+
 ## 最新执行 (2026-04-10 21:43, 第四十四轮)
 
 ### 执行摘要

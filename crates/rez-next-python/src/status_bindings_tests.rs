@@ -19,6 +19,9 @@ fn test_is_in_rez_context_false_outside() {
 
 #[test]
 fn test_get_context_file_none_outside_context() {
+    let _lock = ENV_MUTEX.lock().unwrap();
+    // Outside any rez env the function should return None (CI has no rez)
+    // Acquire mutex to prevent concurrent env mutations from other tests.
     if std::env::var("REZ_CONTEXT_FILE").is_err() {
         assert!(get_context_file().is_none());
     }
@@ -36,6 +39,7 @@ fn test_get_resolved_package_names_empty_outside() {
 
 #[test]
 fn test_rez_status_inactive_repr() {
+    let _lock = ENV_MUTEX.lock().unwrap();
     let status = detect_current_status();
     // Only test the inactive case (CI env)
     if !status.is_active {
@@ -251,6 +255,7 @@ fn test_active_repr_includes_package_count() {
 
 #[test]
 fn test_get_rez_env_var_missing_returns_none() {
+    let _lock = ENV_MUTEX.lock().unwrap();
     // Use a key that should never exist in CI
     let val = get_rez_env_var("STATUS_BINDINGS_NONEXISTENT_KEY_90XYZ");
     assert!(
@@ -290,6 +295,7 @@ fn test_detect_current_shell_maps_fish() {
 
 #[test]
 fn test_get_rez_env_var_empty_key_returns_none() {
+    let _lock = ENV_MUTEX.lock().unwrap();
     let val = get_rez_env_var("");
     if std::env::var("REZ_").is_err() {
         assert!(val.is_none(), "empty key should yield None, got {:?}", val);
@@ -387,6 +393,7 @@ fn test_default_rez_status_is_active_default_false_when_no_rez_env() {
 
 #[test]
 fn test_rez_status_str_matches_repr() {
+    let _lock = ENV_MUTEX.lock().unwrap();
     // __str__ must delegate to __repr__
     let s = PyRezStatus::new();
     assert_eq!(s.__str__(), s.__repr__());

@@ -151,7 +151,7 @@ fn test_depends_direct_dependent_found() {
     let mut consumer = Package::new("my_tool".to_string());
     consumer.requires = vec!["python-3+".to_string()];
 
-    let packages = vec![consumer];
+    let packages = [consumer];
     let target = "python";
     let dependents: Vec<&Package> = packages
         .iter()

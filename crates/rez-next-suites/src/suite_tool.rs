@@ -3,10 +3,11 @@
 use serde::{Deserialize, Serialize};
 
 /// How to handle tool name conflicts between contexts
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum ToolConflictMode {
     /// Raise an error if there is a conflict (default)
+    #[default]
     Error,
     /// Use the tool from the context added first
     First,
@@ -14,12 +15,6 @@ pub enum ToolConflictMode {
     Last,
     /// Alias conflicting tools with context prefix: `<context>_<tool>`
     Prefix,
-}
-
-impl Default for ToolConflictMode {
-    fn default() -> Self {
-        Self::Error
-    }
 }
 
 impl std::str::FromStr for ToolConflictMode {

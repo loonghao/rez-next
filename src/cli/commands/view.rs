@@ -5,6 +5,7 @@
 use crate::cli::utils::expand_home_path;
 use clap::Args;
 use rez_next_common::{error::RezCoreResult, RezCoreError};
+use rez_next_context::{ContextSerializer, ResolvedContext};
 use rez_next_package::{Package, PackageSerializer};
 use std::path::Path;
 
@@ -53,13 +54,40 @@ pub fn execute(args: ViewArgs) -> RezCoreResult<()> {
 }
 
 /// View a package from the current context
-fn view_current_package(_args: &ViewArgs) -> RezCoreResult<()> {
-    // TODO: Implement current context package viewing
-    // This requires integration with rez-core-context
+fn view_current_package(args: &ViewArgs) -> RezCoreResult<()> {
+    // Try to get context file from environment variable
+    let ctx_file = std::env::var("REZ_CONTEXT_FILE").map_err(|_| {
+        RezCoreError::Repository("Not in a resolved environment context".to_string())
+    })?;
 
-    Err(RezCoreError::Repository(
-        "Not in a resolved environment context".to_string(),
-    ))
+    let ctx_path = Path::new(&ctx_file);
+    if !ctx_path.exists() {
+        return Err(RezCoreError::Repository(format!(
+            "Context file not found: {}",
+            ctx_file
+        )));
+    }
+
+    // Load the context from file
+    let rt = tokio::runtime::Runtime::new().map_err(|e| RezCoreError::Repository(e.to_string()))?;
+    let context: ResolvedContext = rt
+        .block_on(ContextSerializer::load_from_file(ctx_path))
+        .map_err(|e| RezCoreError::Repository(e.to_string()))?;
+
+    // Find the package in the resolved packages
+    let pkg = context
+        .resolved_packages
+        .iter()
+        .find(|p| p.name == args.package)
+        .cloned()
+        .ok_or_else(|| {
+            RezCoreError::Repository(format!(
+                "Package '{}' not found in current context",
+                args.package
+            ))
+        })?;
+
+    display_package(&pkg, args)
 }
 
 /// View a package from repositories

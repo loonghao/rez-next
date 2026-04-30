@@ -50,27 +50,27 @@ fn handle_grouped_command(args: Vec<String>) {
             // Handle extra arguments for specific commands
             if let Some(ref mut command) = cli.command {
                 match command {
-                    RezCommand::Env(ref mut env_args) => {
-                        if arg_groups.len() > 1 && !arg_groups[1].is_empty() {
-                            if let Err(e) = rez_core::cli::commands::env::execute_with_extra_args(
-                                env_args.clone(),
-                                arg_groups[1].clone(),
-                            ) {
-                                eprintln!("Error: {}", e);
-                                process::exit(1);
-                            }
-                            return;
+                    RezCommand::Env(ref mut env_args)
+                        if arg_groups.len() > 1 && !arg_groups[1].is_empty() =>
+                    {
+                        if let Err(e) = rez_core::cli::commands::env::execute_with_extra_args(
+                            env_args.clone(),
+                            arg_groups[1].clone(),
+                        ) {
+                            eprintln!("Error: {}", e);
+                            process::exit(1);
                         }
+                        return;
                     }
-                    RezCommand::Build(ref mut build_args) => {
-                        if arg_groups.len() > 1 && !arg_groups[1].is_empty() {
-                            // Pass extra args as build-args string
-                            let extra = arg_groups[1].join(" ");
-                            if build_args.build_args.is_none() {
-                                build_args.build_args = Some(extra);
-                            }
-                            // Fall through to normal execute with updated args
+                    RezCommand::Build(ref mut build_args)
+                        if arg_groups.len() > 1 && !arg_groups[1].is_empty() =>
+                    {
+                        // Pass extra args as build-args string
+                        let extra = arg_groups[1].join(" ");
+                        if build_args.build_args.is_none() {
+                            build_args.build_args = Some(extra);
                         }
+                        // Fall through to normal execute with updated args
                     }
                     _ => {}
                 }

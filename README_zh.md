@@ -27,7 +27,7 @@ curl -fsSL https://raw.githubusercontent.com/loonghao/rez-next/main/install.sh |
 或指定版本安装：
 
 ```bash
-REZ_NEXT_VERSION=0.3.0 curl -fsSL https://raw.githubusercontent.com/loonghao/rez-next/main/install.sh | sh
+REZ_NEXT_VERSION=0.3.1 curl -fsSL https://raw.githubusercontent.com/loonghao/rez-next/main/install.sh | sh
 ```
 
 环境变量说明：
@@ -72,7 +72,7 @@ rez-next self-update
 rez-next self-update --check
 
 # 更新到指定版本
-rez-next self-update --version 0.3.0
+rez-next self-update --version 0.3.1
 
 # 强制重新安装当前版本
 rez-next self-update --force
