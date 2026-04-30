@@ -608,3 +608,30 @@ Clippy warnings: **0** (cycle 20, `--all-targets`)
   - `cargo audit`: 9 allowed warnings (unmaintained crates)
 - **Next cycle priority**: Evaluate if 17 files > 500 lines should be refactored
 
+## Cycle 3 — Structural Refactoring Evaluation (2026-04-30)
+
+### Files > 500 lines found (29 total):
+- `rez-next-package/src/filter.rs` (777 lines) - NEW file from iteration agent
+- `rez-next-python/src/bundle_functions_tests.rs` (768 lines)
+- `rez-next-suites/src/suite.rs` (742 lines)
+- `rez-next-version/src/version.rs` (664 lines)
+- `rez-next-python/src/source_bindings_tests.rs` (664 lines)
+- `rez-next-cache/src/tests.rs` (664 lines)
+- (23 more files > 500 lines)
+- **Assessment**: Most are test files (`*_tests.rs`) or CLI commands (`src/cli/commands/`)
+- **Risk**: Low (test files and CLI commands have limited refactoring benefit)
+- **Action**: Recorded for next cycle evaluation
+- **Follow-up**: Evaluate if `filter.rs` (777 lines, new code) should be split
+
+### Cleanup Summary (Cycle 3):
+- **Dead code removed**: 0 instances (already cleaned in previous cycles)
+- **Expired docs removed**: 2 files updated (python-integration.md, python-integration_zh.md)
+- **Expired tests removed**: 0 (1 legitimate ignored doc-test in cmd_builder.rs)
+- **Code standard issues fixed**: 7 instances (println! → return String, clippy warnings in filter.rs)
+- **Dependencies audited**: 9 warnings (1 new: RUSTSEC-2026-0097, added to audit.toml)
+- **Health metrics**:
+  - Test pass rate: 3171/3171 (100%)
+  - Clippy warnings: 0
+  - `cargo audit`: 9 allowed warnings (unmaintained/unsound crates)
+- **Next cycle priority**: Evaluate if `filter.rs` (777 lines) should be split
+
