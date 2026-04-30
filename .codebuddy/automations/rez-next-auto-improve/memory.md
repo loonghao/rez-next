@@ -1,6 +1,44 @@
 # rez-next auto-improve 执行记录#
 
-## 最新执行 (2026-04-30) — Cycle 199#
+## 最新执行 (2026-04-30) — Cycle 200#
+
+### 执行摘要#
+
+**Cycle 200（commit `44fdb00`）**：为 `ConflictResolver` 添加全面的单元测试。
+
+### 变更内容#
+
+- 在 `crates/rez-next-solver/src/conflict.rs` 添加测试模块（`#[cfg(test)] mod tests`）：
+  - `test_conflict_resolver_new_latest_wins()` — 测试 LatestWins 策略选择最新版本
+  - `test_conflict_resolver_new_earliest_wins()` — 测试 EarliestWins 策略选择最早版本
+  - `test_conflict_resolver_fail_on_conflict()` — 测试 FailOnConflict 策略返回错误
+  - `test_conflict_resolver_find_compatible_success()` — 测试 FindCompatible 成功找到兼容版本
+  - `test_conflict_resolver_find_compatible_fallback()` — 测试 FindCompatible 回退到 LatestWins
+  - `test_conflict_resolver_empty_version_spec()` — 测试空版本规范的处理
+  - `test_conflict_resolver_multiple_conflicts()` — 测试多个冲突同时解决
+  - `test_conflict_resolver_invalid_version()` — 测试无效版本号的跳过
+  - `test_conflict_severity_levels()` — 测试不同严重级别（Minor、Major、Incompatible）
+
+### 测试结果#
+
+- `cargo test -p rez-next-solver --lib conflict`：**19 passed**，0 failed
+- Clippy warnings: 0 (rez-next-solver)
+- 编译检查：通过
+
+### 当前提交#
+
+- `44fdb00` — test(solver): add comprehensive ConflictResolver unit tests (Cycle 200) [iteration-done]#
+
+### 下一轮目标#
+
+**Cycle 201**：继续改进其他模块
+1. 为 `DependencyGraph` 添加更多测试
+2. 为 `SolverConfig` 和 `SolverRequest` 添加测试
+3. 检查是否有其他未充分测试的模块
+
+---
+
+## 上一执行 (2026-04-30) — Cycle 199#
 
 ### 执行摘要#
 
