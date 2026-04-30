@@ -94,10 +94,10 @@
 
 
 
-1 TODO comment across the codebase (cycle 20 audit, unchanged from cycle 19):
+0 TODO comments across the codebase (cycle 217 audit):
 
-- **CLI stubs** (1): `view.rs` (1, context package viewing)
-- The remaining TODO is a non-blocking stub implementation for future features.
+- All previous TODO stubs have been implemented or removed.
+- Codebase is clean of TODO/FIXME/HACK markers.
 
 ## Cycle 21+ — Code Quality Improvements (2026-04-30)
 
@@ -130,7 +130,7 @@
 | Clippy warnings (`-D warnings`) | 0 |
 | Ignored tests | 1 (doc-test in `rez_next_build`) |
 | `allow(dead_code)` attributes | 0 |
-| TODO/FIXME in code | 1 (CLI stub in `view.rs`) |
+| TODO/FIXME in code | 0 |
 | Dead code | 0 |
 
 ### Next Cycle Focus
