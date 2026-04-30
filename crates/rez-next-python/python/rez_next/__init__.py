@@ -82,3 +82,48 @@ def _add_dict_access_to_resolved_context():
 # Apply monkeypatches
 _add_dict_access_to_package()
 _add_dict_access_to_resolved_context()
+
+
+# ── Add to_dot() for dependency graph visualization ─────────────────────
+def _add_dot_visualization():
+    """Add to_dot() to ResolvedContext for dependency graph visualization."""
+    original_context_class = _native.ResolvedContext
+
+    def to_dot(self):
+        """
+        Generate a Graphviz DOT representation of the resolved context.
+
+        Returns:
+            str: DOT format graph string
+        """
+        lines = []
+        lines.append("digraph ResolvedContext {")
+        lines.append("  rankdir=LR;")
+        lines.append("  node [shape=box, style=filled, fillcolor=lightblue];")
+
+        # Add nodes
+        for pkg in self.resolved_packages:
+            lines.append(f'  "{pkg.name}-{pkg.version_str}";')
+
+        # Add edges (dependencies)
+        for pkg in self.resolved_packages:
+            if pkg.requires:
+                for req in pkg.requires:
+                    # Parse requirement to get package name
+                    req_name = req.split()[0] if " " in req else req
+                    # Find matching resolved package
+                    for other in self.resolved_packages:
+                        if other.name == req_name:
+                            lines.append(
+                                f'  "{pkg.name}-{pkg.version_str}" -> '
+                                f'"{other.name}-{other.version_str}";'
+                            )
+                            break
+
+        lines.append("}")
+        return "\n".join(lines)
+
+    original_context_class.to_dot = to_dot
+
+
+_add_dot_visualization()
