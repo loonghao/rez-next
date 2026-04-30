@@ -109,3 +109,7 @@ simple_lsp_test.ps1
 /bench_*.txt
 /t_*.txt
 
+# Log files (root-level)
+*.log
+final_clippy.txt
+
