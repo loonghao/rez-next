@@ -4,6 +4,10 @@ mod parser;
 mod satisfiability;
 mod types;
 
+#[cfg(test)]
+#[path = "tests.rs"]
+mod tests;
+
 use super::Version;
 use rez_next_common::RezCoreError;
 use serde::{Deserialize, Serialize};
