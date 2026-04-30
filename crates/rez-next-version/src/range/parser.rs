@@ -1,10 +1,10 @@
-//! Version range string parsing — converts range strings into BoundSets.
+//! Version range string parsing — converts range strings into `BoundSet`s.
 
 use super::super::Version;
 use super::types::{Bound, BoundSet};
 use rez_next_common::RezCoreError;
 
-/// Parse a range string into a vector of BoundSets (disjunction)
+/// Parse a range string into a vector of `BoundSet`s (disjunction)
 pub(super) fn parse_range_str(s: &str) -> Result<Vec<BoundSet>, RezCoreError> {
     if s.is_empty() || s == "*" {
         return Ok(vec![BoundSet::any()]);
@@ -71,10 +71,10 @@ pub(super) fn parse_conjunction(s: &str) -> Result<BoundSet, RezCoreError> {
             let suffix = &s[plus_pos + 1..];
             if suffix.is_empty() {
                 // "1.0+" -> ">=1.0"
-                format!(">={}", prefix)
+                format!(">={prefix}")
             } else {
                 // "1.0+<2.0" -> ">=1.0,<2.0"
-                format!(">={},{}", prefix, suffix)
+                format!(">={prefix},{suffix}")
             }
         } else {
             s.to_string()

@@ -103,6 +103,7 @@ impl StateMachineParser {
 
     /// Parse version string using zero-copy state machine
     #[allow(clippy::type_complexity)]
+    #[allow(clippy::missing_errors_doc)]
     pub fn parse_tokens(
         &self,
         input: &str,
@@ -198,6 +199,7 @@ impl StateMachineParser {
     }
 
     /// Finalize a token and add it to the tokens list
+    #[allow(clippy::missing_errors_doc)]
     fn finalize_token(
         &self,
         current_token: &mut String,
@@ -211,24 +213,25 @@ impl StateMachineParser {
         // Validate token format
         if current_token.starts_with('_') || current_token.ends_with('_') {
             return Err(RezCoreError::VersionParse(format!(
-                "Invalid token format: '{}'",
-                current_token
+                "Invalid token format: '{current_token}'"
             )));
         }
 
         // Check for invalid patterns
         if current_token == "not" || current_token == "version" {
             return Err(RezCoreError::VersionParse(format!(
-                "Invalid version token: '{}'",
-                current_token
+                "Invalid version token: '{current_token}'"
             )));
         }
 
         // Reject overly long alphabetic tokens
-        if current_token.chars().all(|c| c.is_alphabetic()) && current_token.len() > 10 {
+        if current_token
+            .chars()
+            .all(char::is_alphabetic)
+            && current_token.len() > 10
+        {
             return Err(RezCoreError::VersionParse(format!(
-                "Invalid version token: '{}'",
-                current_token
+                "Invalid version token: '{current_token}'"
             )));
         }
 
@@ -253,7 +256,7 @@ impl StateMachineParser {
     }
 }
 
-/// Legacy VersionParser for backward compatibility
+/// Legacy `VersionParser` for backward compatibility
 pub struct VersionParser {
     _inner: StateMachineParser,
 }
