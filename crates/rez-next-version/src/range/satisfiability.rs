@@ -1,9 +1,9 @@
-//! Satisfiability checking for version range BoundSets.
+//! Satisfiability checking for version range `BoundSet`s.
 
 use super::super::Version;
 use super::types::{Bound, BoundSet};
 
-/// Check if a single BoundSet is satisfiable (not trivially empty due to conflicting bounds)
+/// Check if a single `BoundSet` is satisfiable (not trivially empty due to conflicting bounds)
 pub(super) fn is_bound_set_satisfiable(bs: &BoundSet) -> bool {
     // Check for None bounds
     if bs.bounds.iter().any(|b| matches!(b, Bound::None)) {
@@ -15,7 +15,7 @@ pub(super) fn is_bound_set_satisfiable(bs: &BoundSet) -> bool {
 
     for bound in &bs.bounds {
         match bound {
-            Bound::Any => {}
+            Bound::Any | Bound::Ne(_) | Bound::Compatible(_) => {}
             Bound::None => return false,
             Bound::Ge(v) => match lower {
                 None => lower = Some((v, true)),
@@ -73,7 +73,6 @@ pub(super) fn is_bound_set_satisfiable(bs: &BoundSet) -> bool {
                     }
                 }
             }
-            Bound::Ne(_) | Bound::Compatible(_) => {}
         }
     }
 

@@ -182,31 +182,31 @@ pub(super) fn parse_single_constraint(s: &str) -> Result<Bound, RezCoreError> {
     // Try two-char operators first
     if let Some(rest) = s.strip_prefix(">=") {
         let v = Version::parse(rest.trim()).map_err(|e| {
-            RezCoreError::VersionRange(format!("Invalid version in range '{}': {}", s, e))
+            RezCoreError::VersionRange(format!("Invalid version in range '{s}': {e}"))
         })?;
         return Ok(Bound::Ge(v));
     }
     if let Some(rest) = s.strip_prefix("<=") {
         let v = Version::parse(rest.trim()).map_err(|e| {
-            RezCoreError::VersionRange(format!("Invalid version in range '{}': {}", s, e))
+            RezCoreError::VersionRange(format!("Invalid version in range '{s}': {e}"))
         })?;
         return Ok(Bound::Le(v));
     }
     if let Some(rest) = s.strip_prefix("==") {
         let v = Version::parse(rest.trim()).map_err(|e| {
-            RezCoreError::VersionRange(format!("Invalid version in range '{}': {}", s, e))
+            RezCoreError::VersionRange(format!("Invalid version in range '{s}': {e}"))
         })?;
         return Ok(Bound::Eq(v));
     }
     if let Some(rest) = s.strip_prefix("!=") {
         let v = Version::parse(rest.trim()).map_err(|e| {
-            RezCoreError::VersionRange(format!("Invalid version in range '{}': {}", s, e))
+            RezCoreError::VersionRange(format!("Invalid version in range '{s}': {e}"))
         })?;
         return Ok(Bound::Ne(v));
     }
     if let Some(rest) = s.strip_prefix("~=") {
         let v = Version::parse(rest.trim()).map_err(|e| {
-            RezCoreError::VersionRange(format!("Invalid version in range '{}': {}", s, e))
+            RezCoreError::VersionRange(format!("Invalid version in range '{s}': {e}"))
         })?;
         return Ok(Bound::Compatible(v));
     }
@@ -214,20 +214,20 @@ pub(super) fn parse_single_constraint(s: &str) -> Result<Bound, RezCoreError> {
     // Single-char operators
     if let Some(rest) = s.strip_prefix('>') {
         let v = Version::parse(rest.trim()).map_err(|e| {
-            RezCoreError::VersionRange(format!("Invalid version in range '{}': {}", s, e))
+            RezCoreError::VersionRange(format!("Invalid version in range '{s}': {e}"))
         })?;
         return Ok(Bound::Gt(v));
     }
     if let Some(rest) = s.strip_prefix('<') {
         let v = Version::parse(rest.trim()).map_err(|e| {
-            RezCoreError::VersionRange(format!("Invalid version in range '{}': {}", s, e))
+            RezCoreError::VersionRange(format!("Invalid version in range '{s}': {e}"))
         })?;
         return Ok(Bound::Lt(v));
     }
 
     // No operator - treat as exact version (rez: bare version = "==version")
     let v = Version::parse(s).map_err(|e| {
-        RezCoreError::VersionRange(format!("Invalid version constraint '{}': {}", s, e))
+        RezCoreError::VersionRange(format!("Invalid version constraint '{s}': {e}"))
     })?;
     Ok(Bound::Eq(v))
 }

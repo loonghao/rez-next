@@ -6,6 +6,7 @@ use std::path::PathBuf;
 
 /// Configuration for rez-core components
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(clippy::struct_excessive_bools)]
 pub struct RezCoreConfig {
     /// Enable Rust version system
     pub use_rust_version: bool,
@@ -82,6 +83,7 @@ pub struct CacheConfig {
 }
 
 impl RezCoreConfig {
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
@@ -135,6 +137,7 @@ impl Default for CacheConfig {
 
 impl RezCoreConfig {
     /// Get the list of configuration file paths that are searched
+    #[must_use]
     pub fn get_search_paths() -> Vec<PathBuf> {
         let mut paths = Vec::new();
 
@@ -188,6 +191,7 @@ impl RezCoreConfig {
     }
 
     /// Get the list of configuration files that actually exist and are sourced
+    #[must_use]
     pub fn get_sourced_paths() -> Vec<PathBuf> {
         Self::get_search_paths()
             .into_iter()
@@ -196,6 +200,7 @@ impl RezCoreConfig {
     }
 
     /// Load configuration from files (reads actual rezconfig files)
+    #[must_use]
     pub fn load() -> Self {
         let mut config = Self::default();
 
@@ -219,7 +224,10 @@ impl RezCoreConfig {
 
         // Override with environment variables
         if let Ok(packages_path) = env::var("REZ_PACKAGES_PATH") {
-            config.packages_path = packages_path.split(':').map(|s| s.to_string()).collect();
+            config.packages_path = packages_path
+                .split(':')
+                .map(ToString::to_string)
+                .collect();
         }
         if let Ok(local_path) = env::var("REZ_LOCAL_PACKAGES_PATH") {
             config.local_packages_path = local_path;
@@ -232,6 +240,7 @@ impl RezCoreConfig {
     }
 
     /// Get a configuration field by dot-separated path
+    #[must_use]
     pub fn get_field(&self, field_path: &str) -> Option<serde_json::Value> {
         let parts: Vec<&str> = field_path.split('.').collect();
 

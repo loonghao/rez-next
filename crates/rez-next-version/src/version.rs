@@ -57,16 +57,14 @@ impl Version {
         // Validate version format - reject obvious invalid patterns
         if s.starts_with('v') || s.starts_with('V') {
             return Err(RezCoreError::VersionParse(format!(
-                "Version prefixes not supported: '{}'",
-                s
+                "Version prefixes not supported: '{s}'"
             )));
         }
 
         // Check for invalid characters or patterns
         if s.contains("..") || s.starts_with('.') || s.ends_with('.') {
             return Err(RezCoreError::VersionParse(format!(
-                "Invalid version syntax: '{}'",
-                s
+                "Invalid version syntax: '{s}'"
             )));
         }
 
@@ -76,8 +74,7 @@ impl Version {
 
         if tokens.is_empty() {
             return Err(RezCoreError::VersionParse(format!(
-                "Invalid version syntax: '{}'",
-                s
+                "Invalid version syntax: '{s}'"
             )));
         }
 
@@ -88,16 +85,14 @@ impl Version {
             .collect();
         if numeric_tokens.len() > 5 {
             return Err(RezCoreError::VersionParse(format!(
-                "Version too complex: '{}'",
-                s
+                "Version too complex: '{s}'"
             )));
         }
 
         // Check for too many tokens overall
         if tokens.len() > 10 {
             return Err(RezCoreError::VersionParse(format!(
-                "Version too complex: '{}'",
-                s
+                "Version too complex: '{s}'"
             )));
         }
 
@@ -107,23 +102,20 @@ impl Version {
         // Validate separators (should be empty at start/end, single char in middle)
         if !separators[0].is_empty() || !separators[separators.len() - 1].is_empty() {
             return Err(RezCoreError::VersionParse(format!(
-                "Invalid version syntax: '{}'",
-                s
+                "Invalid version syntax: '{s}'"
             )));
         }
 
         for sep in &separators[1..separators.len() - 1] {
             if sep.len() > 1 {
                 return Err(RezCoreError::VersionParse(format!(
-                    "Invalid version syntax: '{}'",
-                    s
+                    "Invalid version syntax: '{s}'"
                 )));
             }
             // Only allow specific separators
             if !matches!(*sep, "." | "-" | "_" | "+") {
                 return Err(RezCoreError::VersionParse(format!(
-                    "Invalid separator '{}' in version: '{}'",
-                    sep, s
+                    "Invalid separator '{sep}' in version: '{s}'"
                 )));
             }
         }
@@ -133,47 +125,44 @@ impl Version {
             // Check if token contains only valid characters
             if !token_str.chars().all(|c| c.is_alphanumeric() || c == '_') {
                 return Err(RezCoreError::VersionParse(format!(
-                    "Invalid characters in token: '{}'",
-                    token_str
+                    "Invalid characters in token: '{token_str}'"
                 )));
             }
 
             // Check for invalid patterns
             if token_str.starts_with('_') || token_str.ends_with('_') {
                 return Err(RezCoreError::VersionParse(format!(
-                    "Invalid token format: '{}'",
-                    token_str
+                    "Invalid token format: '{token_str}'"
                 )));
             }
 
             // Reject tokens that are purely alphabetic and don't look like version components
             if token_str.chars().all(|c| c.is_alphabetic()) && token_str.len() > 10 {
                 return Err(RezCoreError::VersionParse(format!(
-                    "Invalid version token: '{}'",
-                    token_str
+                    "Invalid version token: '{token_str}'"
                 )));
             }
 
             // Reject common invalid patterns
             if *token_str == "not" || *token_str == "version" {
                 return Err(RezCoreError::VersionParse(format!(
-                    "Invalid version token: '{}'",
-                    token_str
+                    "Invalid version token: '{token_str}'"
                 )));
             }
         }
 
         // Convert to owned strings
-        let token_strings: Vec<String> = tokens.into_iter().map(|s| s.to_string()).collect();
+        let token_strings: Vec<String> = tokens.into_iter().map(ToString::to_string).collect();
         let sep_strings: Vec<String> = separators[1..separators.len() - 1]
             .iter()
-            .map(|s| s.to_string())
+            .map(ToString::to_string)
             .collect();
 
         Ok((token_strings, sep_strings))
     }
 
     /// Create the infinite version (largest possible version)
+    #[must_use]
     pub fn inf() -> Self {
         Self {
             tokens: vec![],
@@ -184,21 +173,24 @@ impl Version {
     }
 
     /// Check if this is the infinite version
+    #[must_use]
     pub fn is_inf(&self) -> bool {
         self.string_repr == "inf"
     }
 
     /// Create an empty version (smallest possible version)
+    #[must_use]
     pub fn empty() -> Self {
         Self {
             tokens: vec![],
             separators: vec![],
-            string_repr: "".to_string(),
+            string_repr: String::new(),
             cached_hash: None,
         }
     }
 
     /// Create the epsilon version (alias for empty, smallest possible version)
+    #[must_use]
     pub fn epsilon() -> Self {
         Self::empty()
     }

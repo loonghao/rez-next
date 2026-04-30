@@ -1,15 +1,17 @@
 //! Utility functions for rez-core
 
 /// Get the number of threads to use for parallel operations
+#[must_use]
 pub fn get_thread_count(config_threads: Option<usize>) -> usize {
     config_threads.unwrap_or_else(|| {
         std::thread::available_parallelism()
-            .map(|n| n.get())
+            .map(std::num::NonZeroUsize::get)
             .unwrap_or(4)
     })
 }
 
 /// Validate a package name
+#[must_use]
 pub fn is_valid_package_name(name: &str) -> bool {
     !name.is_empty()
         && name

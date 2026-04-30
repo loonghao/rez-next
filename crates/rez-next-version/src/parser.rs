@@ -39,6 +39,7 @@ pub struct StateMachineParser {
 
 impl StateMachineParser {
     /// Create a new high-performance parser
+    #[must_use]
     pub fn new() -> Self {
         Self {
             use_interning: true,
@@ -48,6 +49,7 @@ impl StateMachineParser {
     }
 
     /// Create parser with custom configuration
+    #[must_use]
     pub fn with_config(use_interning: bool, max_tokens: usize, max_numeric_tokens: usize) -> Self {
         Self {
             use_interning,
@@ -128,13 +130,11 @@ impl StateMachineParser {
                         state = ParseState::InToken;
                     } else if Self::is_valid_separator(c) {
                         return Err(RezCoreError::VersionParse(format!(
-                            "Version cannot start with separator '{}'",
-                            c
+                            "Version cannot start with separator '{c}'"
                         )));
                     } else {
                         return Err(RezCoreError::VersionParse(format!(
-                            "Invalid character '{}' at start of version",
-                            c
+                            "Invalid character '{c}' at start of version"
                         )));
                     }
                 }
@@ -149,8 +149,7 @@ impl StateMachineParser {
                         state = ParseState::InSeparator;
                     } else {
                         return Err(RezCoreError::VersionParse(format!(
-                            "Invalid character '{}' in token",
-                            c
+                            "Invalid character '{c}' in token"
                         )));
                     }
                 }
@@ -161,8 +160,7 @@ impl StateMachineParser {
                         state = ParseState::InToken;
                     } else {
                         return Err(RezCoreError::VersionParse(format!(
-                            "Expected token character after separator, found '{}'",
-                            c
+                            "Expected token character after separator, found '{c}'"
                         )));
                     }
                 }
@@ -262,6 +260,7 @@ pub struct VersionParser {
 
 impl VersionParser {
     /// Create a new parser
+    #[must_use]
     pub fn new() -> Self {
         Self {
             _inner: StateMachineParser::new(),
