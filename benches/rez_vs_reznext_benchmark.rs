@@ -205,14 +205,14 @@ fn bench_version_range_parse_1000(c: &mut Criterion) {
     let mut group = c.benchmark_group("version_range_parse");
 
     group.bench_function("single", |b| {
-        b.iter(|| black_box(VersionRange::new(">=1.0,<2.0".to_string()).unwrap()))
+        b.iter(|| black_box(VersionRange::new(">=1.0,<2.0").unwrap()))
     });
 
     group.throughput(Throughput::Elements(1000));
     group.bench_function("batch_1000", |b| {
         b.iter(|| {
             for s in &strings {
-                black_box(VersionRange::new(black_box(s.clone())).unwrap());
+                black_box(VersionRange::new(black_box(s.as_str())).unwrap());
             }
         })
     });
