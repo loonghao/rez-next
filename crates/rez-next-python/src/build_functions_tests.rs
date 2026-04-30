@@ -505,3 +505,67 @@ mod test_get_build_system {
         let _ = fs::remove_dir_all(&tmp);
     }
 }
+
+// ─── build_package() tests (Cycle 221) ─────────────────────────────────────
+
+mod test_build_package {
+    use crate::build_functions::build_package;
+
+    /// Helper: create a minimal package.py in a temp dir.
+    fn make_minimal_package(dir: &std::path::Path) {
+        let pkg = r#"
+name = "test_pkg"
+version = "1.0.0"
+        "#;
+        std::fs::write(dir.join("package.py"), pkg).unwrap();
+    }
+
+    #[test]
+    fn test_build_package_no_package_file_returns_error() {
+        let tmp = std::env::temp_dir().join("rez_bs_no_pkg");
+        let _ = std::fs::remove_dir_all(&tmp);
+        std::fs::create_dir_all(&tmp).unwrap();
+        // No package.py or package.yaml created
+        let result = build_package(Some(tmp.to_str().unwrap()), false, false, None);
+        assert!(
+            result.is_err(),
+            "build_package without package file must return Err"
+        );
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn test_build_package_nonexistent_dir_returns_error() {
+        let missing = std::env::temp_dir()
+            .join("rez_bs_missing_parent")
+            .join("rez_bs_nonexistent_xyz");
+        let result = build_package(Some(missing.to_str().unwrap()), false, false, None);
+        assert!(
+            result.is_err(),
+            "build_package with non-existent dir must return Err"
+        );
+    }
+
+    #[test]
+    fn test_build_package_with_package_py_loads_without_file_not_found() {
+        // This test verifies that package.py can be loaded.
+        // The actual build may fail (no build system), but the function
+        // should get past the package-loading stage without a FileNotFoundError.
+        let tmp = std::env::temp_dir().join("rez_bs_pkg_py");
+        let _ = std::fs::remove_dir_all(&tmp);
+        std::fs::create_dir_all(&tmp).unwrap();
+        make_minimal_package(&tmp);
+        // No build system present → build will fail, but not with "No package.py" error
+        let result = build_package(Some(tmp.to_str().unwrap()), false, false, None);
+        // We don't assert success (no build system), but we assert it's not a FileNotFoundError
+        if let Err(e) = &result {
+            let err_str = e.to_string();
+            assert!(
+                !err_str.contains("No package.py"),
+                "Should not be a 'No package.py' error: {}",
+                err_str
+            );
+        }
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+}
