@@ -9,33 +9,16 @@ use crate::source_bindings::detect_current_shell;
 
 /// Shell types supported for completion
 const BASH_COMPLETION: &str = r#"
-# rez-next bash completion
+# rez-next bash completion (dynamic mode)
 _rez_next_complete() {
     local cur prev
     cur="${COMP_WORDS[COMP_CWORD]}"
     prev="${COMP_WORDS[COMP_CWORD-1]}"
 
-    local commands="env solve build release status search view diff cp mv rm bundle config selftest gui context suite interpret depends pip forward benchmark complete source bind"
-
-    case "$prev" in
-        rez|rez-next)
-            COMPREPLY=( $(compgen -W "${commands}" -- "${cur}") )
-            return 0
-            ;;
-        -p|--paths)
-            COMPREPLY=( $(compgen -d -- "${cur}") )
-            return 0
-            ;;
-        env|solve)
-            # Package name completion — query rez-next search
-            local packages
-            packages=$(rez-next search --names-only 2>/dev/null)
-            COMPREPLY=( $(compgen -W "${packages}" -- "${cur}") )
-            return 0
-            ;;
-    esac
-
-    COMPREPLY=( $(compgen -W "${commands}" -- "${cur}") )
+    # Use dynamic completion (reads COMP_LINE/COMP_POINT)
+    local completions
+    completions=$(COMP_LINE="${COMP_LINE}" COMP_POINT="${COMP_POINT}" rez-next complete --dynamic 2>/dev/null)
+    COMPREPLY=( $(compgen -W "${completions}" -- "${cur}") )
     return 0
 }
 complete -F _rez_next_complete rez

@@ -113,9 +113,13 @@
 - Investigate in next cycle: run `cargo audit` and check audit.toml.
 
 ### 22. `to_dot()` test coverage
-- **Status**: OPEN
-- The `to_dot()` method (added in cycle 21, commit `ae4290c`) has no test coverage.
-- Consider adding a smoke test in next cycle.
+- **Status**: COMPLETE ✓ (auto-improve cycle 182)
+- Added `test_to_dot.py` with 13 tests covering:
+  - Basic: returns string, starts/ends correctly, contains package node
+  - Dependencies: single edge, multiple edges, version specifier stripping
+  - Graph properties: rankdir, node shape/style/color
+- Commit: `9c1ec41` - `test(python): add tests for to_dot() method [iteration-done]`
+- Follow-up: `TestToDotRealContext::test_real_context_to_dot` is skipped (needs solver); enable when solver is available in test env.
 
 ### Codebase Health Metrics (2026-04-30)
 
