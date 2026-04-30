@@ -419,5 +419,93 @@ mod tests {
         let resolutions = resolver.resolve_conflicts(vec![conflict3]).await.unwrap();
         assert_eq!(resolutions.len(), 1);
     }
+
+    #[tokio::test]
+    async fn test_conflict_resolver_no_conflicts() {
+        let resolver = ConflictResolver::new(ConflictStrategy::LatestWins);
+        
+        // Empty conflicts list
+        let resolutions = resolver.resolve_conflicts(vec![]).await.unwrap();
+        assert!(resolutions.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_conflict_resolver_single_requirement() {
+        let resolver = ConflictResolver::new(ConflictStrategy::LatestWins);
+        let conflict = make_conflict(
+            "python",
+            vec![("python", Some("3.9"))],
+            vec!["pkg_a"],
+        );
+        
+        let resolutions = resolver.resolve_conflicts(vec![conflict]).await.unwrap();
+        assert_eq!(resolutions.len(), 1);
+        assert_eq!(resolutions[0].package_name, "python");
+        assert!(resolutions[0].selected_version.is_some());
+    }
+
+    #[tokio::test]
+    async fn test_conflict_resolver_all_same_versions() {
+        let resolver = ConflictResolver::new(ConflictStrategy::LatestWins);
+        // All requirements want the same version
+        let conflict = make_conflict(
+            "python",
+            vec![
+                ("python", Some("3.9")),
+                ("python", Some("3.9")),
+            ],
+            vec!["pkg_a", "pkg_b"],
+        );
+        
+        let resolutions = resolver.resolve_conflicts(vec![conflict]).await.unwrap();
+        assert_eq!(resolutions.len(), 1);
+        let selected = resolutions[0].selected_version.as_ref().unwrap();
+        assert_eq!(selected.as_str(), "3.9");
+    }
+
+    #[test]
+    fn test_conflict_severity_equality() {
+        assert_eq!(ConflictSeverity::Minor, ConflictSeverity::Minor);
+        assert_eq!(ConflictSeverity::Major, ConflictSeverity::Major);
+        assert_eq!(ConflictSeverity::Incompatible, ConflictSeverity::Incompatible);
+        assert_ne!(ConflictSeverity::Minor, ConflictSeverity::Major);
+    }
+
+    #[test]
+    fn test_conflict_strategy_equality() {
+        assert_eq!(ConflictStrategy::LatestWins, ConflictStrategy::LatestWins);
+        assert_eq!(ConflictStrategy::EarliestWins, ConflictStrategy::EarliestWins);
+        assert_eq!(ConflictStrategy::FailOnConflict, ConflictStrategy::FailOnConflict);
+        assert_eq!(ConflictStrategy::FindCompatible, ConflictStrategy::FindCompatible);
+        assert_ne!(ConflictStrategy::LatestWins, ConflictStrategy::EarliestWins);
+    }
+
+    #[test]
+    fn test_conflict_resolution_debug() {
+        let resolution = ConflictResolution {
+            package_name: "python".to_string(),
+            selected_version: Some(rez_next_version::Version::parse("3.9").unwrap()),
+            strategy: "latest_wins".to_string(),
+            modified_packages: vec!["pkg_a".to_string()],
+        };
+        
+        let debug_output = format!("{:?}", resolution);
+        assert!(debug_output.contains("python"));
+        assert!(debug_output.contains("latest_wins"));
+    }
+
+    #[test]
+    fn test_conflict_resolution_clone() {
+        let resolution = ConflictResolution {
+            package_name: "python".to_string(),
+            selected_version: Some(rez_next_version::Version::parse("3.9").unwrap()),
+            strategy: "latest_wins".to_string(),
+            modified_packages: vec!["pkg_a".to_string()],
+        };
+        
+        let cloned = resolution.clone();
+        assert_eq!(cloned.package_name, resolution.package_name);
+        assert_eq!(cloned.strategy, resolution.strategy);
+    }
 }
 
