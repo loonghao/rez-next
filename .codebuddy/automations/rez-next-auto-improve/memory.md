@@ -1,10 +1,46 @@
 # rez-next auto-improve 执行记录#
 
-## 最新执行 (2026-04-30) — Cycle 200#
+## 最新执行 (2026-04-30) — Cycle 201#
 
 ### 执行摘要#
 
-**Cycle 200（commit `44fdb00`）**：为 `ConflictResolver` 添加全面的单元测试。
+**Cycle 201（commit `fa02ddc`）**：为 `DependencyGraph` 添加全面的单元测试。
+
+### 变更内容#
+
+- 在 `crates/rez-next-solver/src/graph.rs` 的 `graph_tests` 模块中添加 10 个新测试：
+  - `test_graph_add_package_with_dependencies()` — 测试添加带依赖的包
+  - `test_graph_get_resolved_packages_with_conflicts()` — 测试有冲突时获取已解析包
+  - `test_requirements_compatible_with_versions()` — 测试带版本的兼容性检查
+  - `test_requirements_compatible_incompatible()` — 测试不同包的兼容性
+  - `test_graph_get_stats_detailed()` — 测试获取详细统计信息
+  - `test_graph_add_multiple_versions()` — 测试添加同一包的多个版本
+  - `test_graph_dependency_edges()` — 测试依赖边创建
+  - `test_graph_clear_and_readd()` — 测试清空后重新添加
+  - `test_package_requirement_parsing()` — 测试 PackageRequirement 解析
+  - `test_graph_node_key()` — 测试 GraphNode 键生成
+  - `test_graph_node_dependency_management()` — 测试节点依赖管理
+
+### 测试结果#
+
+- `cargo test -p rez-next-solver --lib graph`：**17 passed**，0 failed
+- Clippy warnings: 0 (rez-next-solver，已修复有用比较警告)
+- 编译检查：通过
+
+### 当前提交#
+
+- `fa02ddc` — test(solver): add comprehensive DependencyGraph unit tests (Cycle 201) [iteration-done]#
+
+### 下一轮目标#
+
+**Cycle 202**：继续改进
+1. 为 `SolverConfig` 和 `SolverRequest` 添加测试
+2. 为 `DependencyResolver` 添加更多边界测试
+3. 检查其他 crates 的测试覆盖率
+
+---
+
+## 上一执行 (2026-04-30) — Cycle 200#
 
 ### 变更内容#
 
