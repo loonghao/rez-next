@@ -5,7 +5,7 @@
 use crate::cli::utils::expand_home_path;
 use clap::Args;
 use rez_next_common::{error::RezCoreResult, RezCoreError};
-use rez_next_context::{ContextSerializer, RezResolvedContext};
+use rez_next_context::{ContextSerializer, ResolvedContext};
 use rez_next_package::{Package, PackageSerializer};
 use std::path::Path;
 
@@ -71,7 +71,7 @@ fn view_current_package(args: &ViewArgs) -> RezCoreResult<()> {
     // Load the context from file
     let rt = tokio::runtime::Runtime::new()
         .map_err(|e| RezCoreError::Repository(e.to_string()))?;
-    let context: RezResolvedContext = rt
+    let context: ResolvedContext = rt
         .block_on(ContextSerializer::load_from_file(ctx_path))
         .map_err(|e| RezCoreError::Repository(e.to_string()))?;
 
@@ -79,8 +79,8 @@ fn view_current_package(args: &ViewArgs) -> RezCoreResult<()> {
     let pkg = context
         .resolved_packages
         .iter()
-        .find(|rp| rp.package.name == args.package)
-        .map(|rp| (*rp.package).clone())
+        .find(|p| p.name == args.package)
+        .cloned()
         .ok_or_else(|| {
             RezCoreError::Repository(format!(
                 "Package '{}' not found in current context",
