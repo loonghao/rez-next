@@ -51,6 +51,26 @@ pub enum BuildSystemType {
     Unknown,
 }
 
+impl BuildSystemType {
+    /// Get the name of the build system type (lowercase)
+    pub fn name(&self) -> &'static str {
+        match self {
+            BuildSystemType::CMake => "cmake",
+            BuildSystemType::Make => "make",
+            BuildSystemType::Python => "python",
+            BuildSystemType::NodeJs => "nodejs",
+            BuildSystemType::Cargo => "cargo",
+            BuildSystemType::Custom => "custom",
+            BuildSystemType::Unknown => "unknown",
+        }
+    }
+}
+
+/// Get all creatable build system types (excluding Unknown)
+pub fn get_buildsys_types() -> Vec<&'static str> {
+    vec!["cmake", "make", "python", "nodejs", "cargo", "custom"]
+}
+
 /// Build system abstraction
 #[derive(Debug)]
 pub enum BuildSystem {

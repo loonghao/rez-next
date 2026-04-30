@@ -22,3 +22,8 @@ pub use environment::*;
 pub use process::*;
 pub use sources::*;
 pub use systems::*;
+
+/// Get all available build system types
+pub fn get_buildsys_types() -> Vec<&'static str> {
+    systems::get_buildsys_types()
+}

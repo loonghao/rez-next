@@ -569,3 +569,70 @@ version = "1.0.0"
         let _ = std::fs::remove_dir_all(&tmp);
     }
 }
+
+// ── get_buildsys_types() tests (Cycle 2) ─────────────────────────────
+
+mod test_get_buildsys_types {
+    use super::*;
+    use crate::build_functions::get_buildsys_types;
+
+    #[test]
+    fn test_get_buildsys_types_returns_six_types() {
+        let types = get_buildsys_types().unwrap();
+        assert_eq!(
+            types.len(),
+            6,
+            "get_buildsys_types should return 6 types (excluding 'unknown')"
+        );
+    }
+
+    #[test]
+    fn test_get_buildsys_types_contains_all_known() {
+        let types = get_buildsys_types().unwrap();
+        let types_str: Vec<&str> = types.iter().map(|s| s.as_str()).collect();
+        assert!(types_str.contains(&"cmake"), "should contain 'cmake'");
+        assert!(types_str.contains(&"make"), "should contain 'make'");
+        assert!(types_str.contains(&"python"), "should contain 'python'");
+        assert!(types_str.contains(&"nodejs"), "should contain 'nodejs'");
+        assert!(types_str.contains(&"cargo"), "should contain 'cargo'");
+        assert!(types_str.contains(&"custom"), "should contain 'custom'");
+    }
+
+    #[test]
+    fn test_get_buildsys_types_no_unknown() {
+        let types = get_buildsys_types().unwrap();
+        // "unknown" is not a build system type that can be created,
+        // it's a fallback. The function returns creatable types.
+        let types_str: Vec<&str> = types.iter().map(|s| s.as_str()).collect();
+        assert!(
+            !types_str.contains(&"unknown"),
+            "get_buildsys_types should not contain 'unknown'"
+        );
+    }
+
+    #[test]
+    fn test_get_buildsys_types_all_lowercase() {
+        let types = get_buildsys_types().unwrap();
+        for t in &types {
+            assert_eq!(
+                t.as_str(),
+                t.as_str().to_lowercase(),
+                "build system type should be lowercase: '{}'",
+                t
+            );
+        }
+    }
+
+    #[test]
+    fn test_get_buildsys_types_no_duplicates() {
+        let types = get_buildsys_types().unwrap();
+        let mut sorted = types.clone();
+        sorted.sort();
+        sorted.dedup();
+        assert_eq!(
+            types.len(),
+            sorted.len(),
+            "get_buildsys_types should not have duplicates"
+        );
+    }
+}
