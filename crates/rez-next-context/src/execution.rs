@@ -435,20 +435,23 @@ mod tests {
     #[test]
     fn test_execution_config_custom() {
         let config = ExecutionConfig {
-            timeout_seconds: 600,
-            capture_output: false,
+            shell_type: ShellType::detect(),
             working_directory: Some(PathBuf::from("/tmp")),
+            inherit_parent_env: true,
             additional_env_vars: {
                 let mut m = std::collections::HashMap::new();
                 m.insert("CUSTOM".to_string(), "value".to_string());
                 m
             },
+            timeout_seconds: 600,
+            capture_output: false,
         };
 
         assert_eq!(config.timeout_seconds, 600);
         assert!(!config.capture_output);
         assert!(config.working_directory.is_some());
         assert_eq!(config.additional_env_vars.len(), 1);
+        assert!(config.inherit_parent_env);
     }
 
     #[test]
