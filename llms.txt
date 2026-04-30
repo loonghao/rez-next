@@ -82,15 +82,31 @@ vx just bench           # Run benchmarks
 - `crates/` → Rust source (13 crates)
 - `tests/` → Integration tests
 
-## Test Coverage (as of Cycle 208)
+## Test Coverage (as of Cycle 217)
 
-- `rez-next-version`: 161 tests (version parsing, comparison, ranges)
-- `rez-next-solver`: 53 tests (conflict resolution, graph, config)
-- `rez-next-repository`: 205 tests (SimpleRepository, RepositoryManager)
-- `rez-next-package`: 96 tests (Package, PackageRequirement, serialization)
+### Rust Library Tests
+- `rez-next-cli`: 201 tests (CLI utilities, time parsing)
+- `rez-next-bind`: 43 tests (bind system tools)
+- `rez-next-build`: 65 tests (build systems, BuildManager)
 - `rez-next-cache`: 46 tests (IntelligentCacheManager, TTL, eviction)
+- `rez-next-common`: 40 tests (error types, Result utilities)
+- `rez-next-context`: 182 tests (ResolvedContext, EnvironmentManager, ExecutionConfig, ShellType)
+- `rez-next-package`: 96 tests (Package, PackageRequirement, serialization)
+- `rez-next-repository`: 205 tests (SimpleRepository, RepositoryManager)
+- `rez-next-rex`: 155 tests (RexEnvironment, action application)
 - `rez-next-search`: 61 tests (SearchFilter, Searcher, SearchResult)
-- Full workspace: 1600+ tests, 0 clippy warnings
+- `rez-next-solver`: 110 tests (DependencySolver, DependencyGraph, ConflictResolver)
+- `rez-next-solver-cli`: 59 tests (solver CLI utilities)
+- `rez-next-version`: 161 tests (Version parsing, comparison, ranges)
+
+### Python Binding Tests
+- `rez-next-python`: 1350+ tests (PyO3 bindings, Python API compatibility)
+
+### Total
+- **Rust tests**: ~1428 tests
+- **Python tests**: 1350+ tests
+- **Grand total**: 2778+ tests
+- **Clippy warnings**: 0 (entire workspace)
 
 ## Architecture Highlights
 
