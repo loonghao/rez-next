@@ -90,13 +90,11 @@ impl StateMachineParser {
     }
 
     /// Fast character classification using lookup table
-    #[inline(always)]
     fn is_valid_separator(c: char) -> bool {
         matches!(c, '.' | '-' | '_' | '+')
     }
 
     /// Fast alphanumeric check with underscore support
-    #[inline(always)]
     fn is_token_char(c: char) -> bool {
         c.is_ascii_alphanumeric() || c == '_'
     }
