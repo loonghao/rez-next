@@ -105,9 +105,94 @@ fn test_normal_requirement_not_conflict_not_weak() {
     assert_eq!(req.version_spec.as_deref(), Some("2024"));
 }
 
+
 #[test]
 fn test_conflict_takes_priority_over_weak() {
     let req = PackageRequirement::parse("!python").unwrap();
     assert!(req.conflict);
     assert!(!req.weak);
 }
+
+#[test]
+fn test_package_with_version() {
+    let mut pkg = Package::new("test_pkg".to_string());
+    pkg.version = Some(Version::parse("1.0.0").unwrap());
+    assert!(pkg.validate().is_ok());
+    assert_eq!(pkg.version.as_ref().map(|v| v.as_str()), Some("1.0.0"));
+}
+
+#[test]
+fn test_package_with_requires() {
+    let mut pkg = Package::new("test_pkg".to_string());
+    pkg.requires.push("python-3.9".to_string());
+    pkg.requires.push("maya".to_string());
+    assert_eq!(pkg.requires.len(), 2);
+    assert!(pkg.validate().is_ok());
+}
+
+#[test]
+fn test_package_with_tools() {
+    let mut pkg = Package::new("test_pkg".to_string());
+    pkg.tools.push("mytool".to_string());
+    pkg.tools.push("another_tool".to_string());
+    assert_eq!(pkg.tools.len(), 2);
+}
+
+
+#[test]
+fn test_package_with_commands() {
+    let mut pkg = Package::new("test_pkg".to_string());
+    // commands is Option<String> - stores the commands function body
+    pkg.commands = Some("def commands():\n    return {'build': 'python build.py'}".to_string());
+    assert!(pkg.commands.is_some());
+    assert!(pkg.commands.as_ref().unwrap().contains("build"));
+}
+
+
+#[test]
+fn test_package_validate_invalid_name() {
+    let pkg = Package::new("".to_string());
+    assert!(pkg.validate().is_err());
+}
+
+#[test]
+fn test_package_requirement_parse_variants() {
+    // Test various requirement formats
+    let r1 = PackageRequirement::parse("python").unwrap();
+    assert_eq!(r1.name, "python");
+    assert!(r1.version_spec.is_none());
+
+    let r2 = PackageRequirement::parse("python-3.9").unwrap();
+    assert_eq!(r2.name, "python");
+    assert_eq!(r2.version_spec, Some("3.9".to_string()));
+
+    let r3 = PackageRequirement::parse("~python").unwrap();
+    assert_eq!(r3.name, "python");
+    assert!(r3.weak);
+    assert!(!r3.conflict);
+
+    let r4 = PackageRequirement::parse("!python-3.9").unwrap();
+    assert_eq!(r4.name, "python");
+    assert!(r4.conflict);
+    assert!(!r4.weak);
+}
+
+#[test]
+fn test_package_clone_and_eq() {
+    let pkg1 = Package::new("clone_me".to_string());
+    let pkg2 = pkg1.clone();
+    assert_eq!(pkg1.name, pkg2.name);
+}
+
+#[test]
+fn test_package_requirement_display_format() {
+    let r1 = PackageRequirement::new("python".to_string());
+    assert_eq!(r1.to_string(), "python");
+
+    let r2 = PackageRequirement::with_version("python".to_string(), "3.9".to_string());
+    assert_eq!(r2.to_string(), "python-3.9");
+
+    let r3 = PackageRequirement::parse("~python-3.9").unwrap();
+    assert_eq!(r3.to_string(), "~python-3.9");
+}
+
