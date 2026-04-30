@@ -2,11 +2,11 @@
 //!
 //! This module is split into focused sub-modules:
 //!
-//! - [`cache`]  — scan-result caching, eviction, and background refresh.
-//! - [`path`]   — path normalisation, include/exclude pattern matching.
-//! - [`scan`]   — core scanning: repository tree traversal and file parsing.
+//! - `cache`  — scan-result caching, eviction, and background refresh.
+//! - `path`   — path normalisation, include/exclude pattern matching.
+//! - `scan`   — core scanning: repository tree traversal and file parsing.
 //!
-//! The [`RepositoryScanner`] struct and its `new()` / `Default` impls live here;
+//! The `RepositoryScanner` struct and its `new()` / `Default` impls live here;
 //! all method implementations are spread across the sub-modules via `impl
 //! RepositoryScanner` blocks.
 

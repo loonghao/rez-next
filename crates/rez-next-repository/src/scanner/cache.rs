@@ -191,7 +191,7 @@ impl RepositoryScanner {
         Self::is_cache_entry_valid_static(entry)
     }
 
-    /// Static (no `&self`) version of [`is_cache_entry_valid`].
+    /// Static (no `&self`) version of `is_cache_entry_valid`.
     pub(super) fn is_cache_entry_valid_static(entry: &ScanCacheEntry) -> bool {
         if let Ok(metadata) = std::fs::metadata(&entry.result.package_file) {
             if let Ok(mtime) = metadata.modified() {
