@@ -259,15 +259,11 @@ fn complete_dynamic(comp_line: &str, comp_point: usize) -> RezCoreResult<()> {
 
     // Split into words (simple split, doesn't handle quotes)
     let words: Vec<&str> = line.split_whitespace().collect();
-    
+
     // Determine what to complete
     if words.len() <= 1 {
         // Completing the first argument (subcommand name)
-        let prefix = if words.len() == 1 {
-            words[0]
-        } else {
-            ""
-        };
+        let prefix = if words.len() == 1 { words[0] } else { "" };
         let commands = get_subcommand_names();
         for cmd in commands {
             if cmd.starts_with(prefix) {
@@ -279,7 +275,7 @@ fn complete_dynamic(comp_line: &str, comp_point: usize) -> RezCoreResult<()> {
 
     // We have at least one word (the subcommand)
     let subcommand = words[1];
-    
+
     // For subcommands that take package names, complete package names
     let package_subcommands = ["env", "solve", "search", "depends", "build", "release"];
     if package_subcommands.contains(&subcommand) {
@@ -298,11 +294,34 @@ fn complete_dynamic(comp_line: &str, comp_point: usize) -> RezCoreResult<()> {
 /// Get the list of available subcommand names.
 fn get_subcommand_names() -> Vec<&'static str> {
     vec![
-        "env", "solve", "build", "release", "status", "search", "view",
-        "diff", "cp", "mv", "rm", "bundle", "config", "selftest",
-        "gui", "context", "suites", "interpret", "depends", "pip",
-        "forward", "benchmark", "complete", "source", "bind", "test",
-        "pkg-cache", "plugins",
+        "env",
+        "solve",
+        "build",
+        "release",
+        "status",
+        "search",
+        "view",
+        "diff",
+        "cp",
+        "mv",
+        "rm",
+        "bundle",
+        "config",
+        "selftest",
+        "gui",
+        "context",
+        "suites",
+        "interpret",
+        "depends",
+        "pip",
+        "forward",
+        "benchmark",
+        "complete",
+        "source",
+        "bind",
+        "test",
+        "pkg-cache",
+        "plugins",
     ]
 }
 

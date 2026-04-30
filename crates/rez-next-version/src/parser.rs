@@ -225,11 +225,7 @@ impl StateMachineParser {
         }
 
         // Reject overly long alphabetic tokens
-        if current_token
-            .chars()
-            .all(char::is_alphabetic)
-            && current_token.len() > 10
-        {
+        if current_token.chars().all(char::is_alphabetic) && current_token.len() > 10 {
             return Err(RezCoreError::VersionParse(format!(
                 "Invalid version token: '{current_token}'"
             )));

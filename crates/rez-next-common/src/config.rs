@@ -224,10 +224,7 @@ impl RezCoreConfig {
 
         // Override with environment variables
         if let Ok(packages_path) = env::var("REZ_PACKAGES_PATH") {
-            config.packages_path = packages_path
-                .split(':')
-                .map(ToString::to_string)
-                .collect();
+            config.packages_path = packages_path.split(':').map(ToString::to_string).collect();
         }
         if let Ok(local_path) = env::var("REZ_LOCAL_PACKAGES_PATH") {
             config.local_packages_path = local_path;

@@ -71,8 +71,14 @@ fn test_unknown_shell_is_not_in_supported_list() {
 #[test]
 fn test_bash_script_lists_rez_commands() {
     let script = get_completion_script(Some("bash")).unwrap();
-    assert!(script.contains("_rez_next_complete"), "bash script should define _rez_next_complete function");
-    assert!(script.contains("--dynamic"), "bash script should use --dynamic mode");
+    assert!(
+        script.contains("_rez_next_complete"),
+        "bash script should define _rez_next_complete function"
+    );
+    assert!(
+        script.contains("--dynamic"),
+        "bash script should use --dynamic mode"
+    );
 }
 
 #[test]
@@ -147,16 +153,31 @@ fn test_get_completion_script_py_valid_shell_no_panic() {
 #[test]
 fn test_bash_script_uses_dynamic_mode() {
     let script = get_completion_script(Some("bash")).unwrap();
-    assert!(script.contains("--dynamic"), "bash script should use --dynamic flag");
-    assert!(script.contains("COMP_LINE"), "bash script should read COMP_LINE");
-    assert!(script.contains("COMP_POINT"), "bash script should read COMP_POINT");
+    assert!(
+        script.contains("--dynamic"),
+        "bash script should use --dynamic flag"
+    );
+    assert!(
+        script.contains("COMP_LINE"),
+        "bash script should read COMP_LINE"
+    );
+    assert!(
+        script.contains("COMP_POINT"),
+        "bash script should read COMP_POINT"
+    );
 }
 
 #[test]
 fn test_bash_script_defines_complete_function() {
     let script = get_completion_script(Some("bash")).unwrap();
-    assert!(script.contains("_rez_next_complete"), "bash script should define completion function");
-    assert!(script.contains("COMPREPLY"), "bash script should set COMPREPLY");
+    assert!(
+        script.contains("_rez_next_complete"),
+        "bash script should define completion function"
+    );
+    assert!(
+        script.contains("COMPREPLY"),
+        "bash script should set COMPREPLY"
+    );
 }
 
 // ── zsh script subcommand descriptions ───────────────────────────────────
@@ -238,15 +259,27 @@ fn test_zsh_script_ends_with_rez_next_call() {
 #[test]
 fn test_fish_script_uses_dynamic_mode() {
     let script = get_completion_script(Some("fish")).unwrap();
-    assert!(script.contains("--dynamic"), "fish script should use --dynamic flag");
-    assert!(script.contains("commandline"), "fish script should read commandline");
+    assert!(
+        script.contains("--dynamic"),
+        "fish script should use --dynamic flag"
+    );
+    assert!(
+        script.contains("commandline"),
+        "fish script should read commandline"
+    );
 }
 
 #[test]
 fn test_fish_script_defines_complete_function() {
     let script = get_completion_script(Some("fish")).unwrap();
-    assert!(script.contains("__rez_next_complete"), "fish script should define __rez_next_complete function");
-    assert!(script.contains("complete -c rez"), "fish script should register completions for rez");
+    assert!(
+        script.contains("__rez_next_complete"),
+        "fish script should define __rez_next_complete function"
+    );
+    assert!(
+        script.contains("complete -c rez"),
+        "fish script should register completions for rez"
+    );
 }
 
 // ── powershell script ─────────────────────────────────────────────────────

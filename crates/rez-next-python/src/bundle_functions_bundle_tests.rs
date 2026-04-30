@@ -134,8 +134,7 @@ fn test_bundle_overwrite_replaces_manifest() {
 fn test_bundle_context_dest_path_string_valid() {
     let tmp = std::env::temp_dir().join("rez_test_bundle_path_valid");
     let _ = fs::remove_dir_all(&tmp);
-    let result =
-        bundle_context(vec!["pkg-1.0".to_string()], tmp.to_str().unwrap(), false).unwrap();
+    let result = bundle_context(vec!["pkg-1.0".to_string()], tmp.to_str().unwrap(), false).unwrap();
     assert!(!result.is_empty(), "returned path must not be empty");
     assert!(
         !result.contains('\0'),

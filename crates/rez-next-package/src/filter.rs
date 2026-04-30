@@ -250,11 +250,7 @@ impl Rule for TimestampRule {
     }
 
     fn to_pod(&self) -> String {
-        let prefix = if self.before {
-            "before"
-        } else {
-            "after"
-        };
+        let prefix = if self.before { "before" } else { "after" };
         let incl = if self.inclusive { ":" } else { "" };
         format!("timestamp({}{}{})", prefix, incl, self.timestamp)
     }
@@ -268,11 +264,7 @@ impl fmt::Display for TimestampRule {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let direction = if self.before { "before" } else { "after" };
         let incl = if self.inclusive { " (inclusive)" } else { "" };
-        write!(
-            f,
-            "TimestampRule({} {}{})",
-            direction, self.timestamp, incl
-        )
+        write!(f, "TimestampRule({} {}{})", direction, self.timestamp, incl)
     }
 }
 
@@ -291,22 +283,27 @@ pub struct PackageFilter {
 
 impl Clone for PackageFilter {
     fn clone(&self) -> Self {
-        let excludes = self.excludes.iter().map(|(k, v)| {
-            let cloned_vec: Vec<Box<dyn Rule + Send + Sync>> =
-                v.iter().map(|r| r.clone_box()).collect();
-            (k.clone(), cloned_vec)
-        }).collect();
+        let excludes = self
+            .excludes
+            .iter()
+            .map(|(k, v)| {
+                let cloned_vec: Vec<Box<dyn Rule + Send + Sync>> =
+                    v.iter().map(|r| r.clone_box()).collect();
+                (k.clone(), cloned_vec)
+            })
+            .collect();
 
-        let includes = self.includes.iter().map(|(k, v)| {
-            let cloned_vec: Vec<Box<dyn Rule + Send + Sync>> =
-                v.iter().map(|r| r.clone_box()).collect();
-            (k.clone(), cloned_vec)
-        }).collect();
+        let includes = self
+            .includes
+            .iter()
+            .map(|(k, v)| {
+                let cloned_vec: Vec<Box<dyn Rule + Send + Sync>> =
+                    v.iter().map(|r| r.clone_box()).collect();
+                (k.clone(), cloned_vec)
+            })
+            .collect();
 
-        PackageFilter {
-            excludes,
-            includes,
-        }
+        PackageFilter { excludes, includes }
     }
 }
 
@@ -382,10 +379,7 @@ impl PackageFilter {
 
     /// Filter a list of packages, returning only non-excluded packages.
     pub fn filter_packages(&self, packages: Vec<Package>) -> Vec<Package> {
-        packages
-            .into_iter()
-            .filter(|p| !self.excludes(p))
-            .collect()
+        packages.into_iter().filter(|p| !self.excludes(p)).collect()
     }
 
     /// Convert the filter to POD format for serialization.
@@ -492,10 +486,7 @@ impl PackageFilterList {
 
     /// Filter a list of packages, returning only non-excluded packages.
     pub fn filter_packages(&self, packages: Vec<Package>) -> Vec<Package> {
-        packages
-            .into_iter()
-            .filter(|p| !self.excludes(p))
-            .collect()
+        packages.into_iter().filter(|p| !self.excludes(p)).collect()
     }
 }
 
@@ -545,11 +536,13 @@ pub fn parse_rule(s: &str) -> Option<Box<dyn Rule + Send + Sync>> {
         if parts.len() == 2 {
             let timestamp = parts[1].parse::<i64>().ok()?;
             if parts[0] == "before" {
-                return Some(Box::new(TimestampRule::before(timestamp))
-                    as Box<dyn Rule + Send + Sync>);
+                return Some(
+                    Box::new(TimestampRule::before(timestamp)) as Box<dyn Rule + Send + Sync>
+                );
             } else if parts[0] == "after" {
-                return Some(Box::new(TimestampRule::after(timestamp))
-                    as Box<dyn Rule + Send + Sync>);
+                return Some(
+                    Box::new(TimestampRule::after(timestamp)) as Box<dyn Rule + Send + Sync>
+                );
             }
         }
     }

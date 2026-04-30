@@ -472,7 +472,7 @@ fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
     complete_mod.add_function(wrap_pyfunction!(
         completion_bindings::get_completion_script_py,
         &complete_mod
-    )?    )?;
+    )?)?;
     complete_mod.add_function(wrap_pyfunction!(
         completion_bindings::supported_completion_shells,
         &complete_mod

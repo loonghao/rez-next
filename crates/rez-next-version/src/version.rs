@@ -689,7 +689,10 @@ mod tests {
 
         // 6 numeric tokens should fail
         let v6_result = Version::parse("1.2.3.4.5.6");
-        assert!(v6_result.is_err(), "Version with 6 numeric tokens should fail");
+        assert!(
+            v6_result.is_err(),
+            "Version with 6 numeric tokens should fail"
+        );
     }
 
     #[test]
