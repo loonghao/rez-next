@@ -398,7 +398,9 @@ impl Version {
 
         // If all compared tokens are equal, shorter version is considered greater.
         // This follows rez semantics where "2" > "2.alpha1".
-        tokens2.len().cmp(&tokens1.len())
+        // FIX: Inverted logic - shorter version should be GREATER, so we compare tokens1 vs tokens2
+        // and REVERSE the result (or compare tokens2 vs tokens1 which gives opposite result)
+        tokens1.len().cmp(&tokens2.len()).reverse()
     }
 }
 
