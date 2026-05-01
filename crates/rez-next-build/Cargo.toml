@@ -29,7 +29,7 @@ hex = "0.4"
 
 [features]
 git = ["dep:git2"]
-default-features = ["git"]
+default = ["git"]
 
 [dependencies.git2]
 version = "0.19"
