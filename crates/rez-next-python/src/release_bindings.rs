@@ -155,30 +155,65 @@ impl PyReleaseVCS {
     }
 
     pub fn get_type_name(&self) -> String {
+        if let Some(inner) = self._inner.as_ref() {
+            return inner.get_type_name().to_string();
+        }
         "stub".to_string()
     }
 
     pub fn get_repo_root(&self) -> PyResult<String> {
+        if let Some(inner) = self._inner.as_ref() {
+            return inner
+                .get_repo_root()
+                .map(|p| p.to_string_lossy().to_string())
+                .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()));
+        }
         Ok(".".to_string())
     }
 
     pub fn is_clean(&self) -> PyResult<bool> {
+        if let Some(inner) = self._inner.as_ref() {
+            return inner
+                .is_clean()
+                .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()));
+        }
         Ok(true)
     }
 
     pub fn get_current_branch(&self) -> PyResult<String> {
+        if let Some(inner) = self._inner.as_ref() {
+            return inner
+                .get_current_branch()
+                .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()));
+        }
         Ok("main".to_string())
     }
 
     pub fn get_latest_commit(&self) -> PyResult<String> {
+        if let Some(inner) = self._inner.as_ref() {
+            return inner
+                .get_latest_commit()
+                .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()));
+        }
         Ok("stub-commit".to_string())
     }
 
-    pub fn tag_exists(&self, _tag: &str) -> PyResult<bool> {
+    pub fn tag_exists(&self, tag: &str) -> PyResult<bool> {
+        if let Some(inner) = self._inner.as_ref() {
+            return inner
+                .tag_exists(tag)
+                .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()));
+        }
         Ok(false)
     }
 
     pub fn create_tag(&self, tag: &str, message: &str) -> PyResult<()> {
+        if let Some(inner) = self._inner.as_ref() {
+            return inner
+                .create_tag(tag, message)
+                .map(|_| ())
+                .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()));
+        }
         // Stub implementation - just log and return Ok
         eprintln!(
             "StubVCS: would create tag '{}' with message '{}'",
@@ -192,10 +227,21 @@ impl PyReleaseVCS {
         _from_rev: Option<&str>,
         _to_rev: Option<&str>,
     ) -> PyResult<String> {
+        if let Some(inner) = self._inner.as_ref() {
+            return inner
+                .get_changelog(_from_rev, _to_rev)
+                .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()));
+        }
         Ok("Stub changelog".to_string())
     }
 
     pub fn get_metadata(&self) -> PyResult<PyVCSMetadata> {
+        if let Some(inner) = self._inner.as_ref() {
+            return inner
+                .get_metadata()
+                .map(|m| PyVCSMetadata::from(&m))
+                .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()));
+        }
         Ok(PyVCSMetadata::from(&VCSMetadata {
             vcs_type: "stub".to_string(),
             commit_hash: "stub-commit".to_string(),
@@ -204,10 +250,21 @@ impl PyReleaseVCS {
     }
 
     pub fn validate_repo_state(&self) -> PyResult<()> {
+        if let Some(inner) = self._inner.as_ref() {
+            return inner
+                .validate_repo_state()
+                .map(|_| ())
+                .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()));
+        }
         Ok(())
     }
 
     pub fn is_releasable_branch(&self) -> PyResult<Option<bool>> {
+        if let Some(inner) = self._inner.as_ref() {
+            return inner
+                .is_releasable_branch()
+                .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()));
+        }
         Ok(None)
     }
 }
