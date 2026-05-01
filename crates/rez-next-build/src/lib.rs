@@ -7,11 +7,13 @@
 //! - Build process management and execution
 //! - Build environment setup and configuration
 //! - Build artifact management
+//! - Release workflow orchestration
 
 mod artifacts;
 mod builder;
 mod environment;
 mod process;
+pub mod release;
 mod sources;
 mod systems;
 pub mod vcs;
@@ -21,6 +23,7 @@ pub use artifacts::*;
 pub use builder::*;
 pub use environment::*;
 pub use process::*;
+pub use release::*;
 pub use sources::*;
 pub use systems::*;
 pub use vcs::*;

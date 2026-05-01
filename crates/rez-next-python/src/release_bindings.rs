@@ -11,6 +11,7 @@ use crate::runtime::get_runtime;
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use rez_next_build::vcs::{ReleaseVCS, VCSMetadata};
+use serde_json;
 use std::path::PathBuf;
 
 // ============================================================================
@@ -378,6 +379,10 @@ pub struct PyReleaseResult {
     #[pyo3(get)]
     pub install_path: String,
     #[pyo3(get)]
+    pub vcs_metadata: Option<String>,  // JSON string of VCSMetadata
+    #[pyo3(get)]
+    pub changelog: Option<String>,
+    #[pyo3(get)]
     pub errors: Vec<String>,
     #[pyo3(get)]
     pub warnings: Vec<String>,
@@ -441,10 +446,19 @@ impl PyReleaseManager {
         source_dir: Option<&str>,
         message: Option<&str>,
     ) -> PyResult<PyReleaseResult> {
-        use crate::package_functions::expand_home;
-        use rez_next_common::config::RezCoreConfig;
-        use rez_next_package::serialization::PackageSerializer;
+        use rez_next_build::release::{ReleaseManager as RustReleaseManager, ReleaseMode as RustReleaseMode};
 
+        // Convert mode
+        let mode = match self.mode {
+            ReleaseMode::Release => RustReleaseMode::Release,
+            ReleaseMode::Local => RustReleaseMode::Local,
+            ReleaseMode::DryRun => RustReleaseMode::DryRun,
+        };
+
+        // Create Rust ReleaseManager
+        let rust_manager = RustReleaseManager::new(mode, self.skip_build, self.skip_tests);
+
+        // Convert source_dir to Path
         let cwd = std::env::current_dir()
             .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
         let source = PathBuf::from(source_dir.unwrap_or("."));
@@ -454,90 +468,34 @@ impl PyReleaseManager {
             source
         };
 
-        // 1. Load package definition
-        let pkg_file = source.join("package.py");
-        let pkg_yaml = source.join("package.yaml");
-        let package = if pkg_file.exists() {
-            PackageSerializer::load_from_file(&pkg_file)
-                .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))?
-        } else if pkg_yaml.exists() {
-            PackageSerializer::load_from_file(&pkg_yaml)
-                .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))?
-        } else {
-            return Ok(PyReleaseResult {
-                success: false,
-                package_name: String::new(),
-                version: String::new(),
-                install_path: String::new(),
-                errors: vec!["No package.py or package.yaml found".to_string()],
-                warnings: vec![],
-            });
-        };
-
-        let version_str = package
-            .version
-            .as_ref()
-            .map(|v| v.as_str().to_string())
-            .unwrap_or_else(|| "unknown".to_string());
-
-        // 2. Determine install destination
-        let config = RezCoreConfig::load();
-        let install_base = match self.mode {
-            ReleaseMode::Local | ReleaseMode::DryRun => {
-                PathBuf::from(expand_home(&config.local_packages_path))
-            }
-            ReleaseMode::Release => {
-                let rp = &config.release_packages_path;
-                if !rp.is_empty() && rp != "~/.rez/packages/int" {
-                    PathBuf::from(expand_home(rp))
+        // Call Rust implementation
+        match rust_manager.release(&source, message) {
+            Ok(result) => {
+                // Convert VCSMetadata to JSON string (if present)
+                let vcs_metadata = if let Some(metadata) = result.vcs_metadata {
+                    match serde_json::to_string(&metadata) {
+                        Ok(json_str) => Some(json_str),
+                        Err(_) => None,
+                    }
                 } else {
-                    PathBuf::from(expand_home(&config.local_packages_path))
-                }
+                    None
+                };
+
+                Ok(PyReleaseResult {
+                    success: result.success,
+                    package_name: result.package_name,
+                    version: result.version,
+                    install_path: result.install_path,
+                    vcs_metadata,
+                    changelog: result.changelog,
+                    errors: result.errors,
+                    warnings: result.warnings,
+                })
             }
-        };
-
-        let install_path = install_base.join(&package.name).join(&version_str);
-        let path_str = install_path.to_string_lossy().to_string();
-
-        if self.mode == ReleaseMode::DryRun {
-            return Ok(PyReleaseResult {
-                success: true,
-                package_name: package.name.clone(),
-                version: version_str,
-                install_path: format!("[dry-run] {}", path_str),
-                errors: vec![],
-                warnings: message
-                    .map(|m| vec![format!("dry-run note: {}", m)])
-                    .unwrap_or_default(),
-            });
+            Err(e) => {
+                Err(pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
+            }
         }
-
-        // 3. Create install directory
-        std::fs::create_dir_all(&install_path)
-            .map_err(|e| pyo3::exceptions::PyIOError::new_err(e.to_string()))?;
-
-        // 4. Copy package definition file
-        let dest_pkg_file = install_path.join(if pkg_file.exists() {
-            "package.py"
-        } else {
-            "package.yaml"
-        });
-        let src_pkg_file = if pkg_file.exists() {
-            &pkg_file
-        } else {
-            &pkg_yaml
-        };
-        std::fs::copy(src_pkg_file, &dest_pkg_file)
-            .map_err(|e| pyo3::exceptions::PyIOError::new_err(e.to_string()))?;
-
-        Ok(PyReleaseResult {
-            success: true,
-            package_name: package.name,
-            version: version_str,
-            install_path: path_str,
-            errors: vec![],
-            warnings: vec![],
-        })
     }
 
     /// Validate a package before release (pre-flight checks).
