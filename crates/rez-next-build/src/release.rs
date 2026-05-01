@@ -312,6 +312,19 @@ impl ReleaseManager {
                     }
                 }
 
+                // Write variant metadata file
+                let metadata = serde_json::json!({
+                    "variant": variant,
+                    "hash": hash,
+                });
+                let metadata_path = variant_path.join("variant.json");
+                if let Err(e) = fs::write(&metadata_path, serde_json::to_string_pretty(&metadata).unwrap_or_default()) {
+                    result.warnings.push(format!(
+                        "Failed to write variant metadata for hash '{}': {}",
+                        hash, e
+                    ));
+                }
+
                 result.warnings.push(format!(
                     "Created variant directory with hash: {} for variant {:?}",
                     hash, variant
