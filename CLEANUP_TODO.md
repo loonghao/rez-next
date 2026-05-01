@@ -766,3 +766,7 @@ Clippy warnings: **0** (cycle 20, `--all-targets`)
   - `cargo audit`: 9 allowed warnings (unmaintained/unsound crates)
 - **Next cycle priority**: Evaluate if `filter.rs` (777 lines) should be split (wait for iteration agent)
 
+=== Cycle 234: PyO3 function registration issue ===
+- build_.py: get_buildsys_types, get_build_process_types, create_build_system defined in Rust (build_functions.rs) and registered in lib.rs, but NOT accessible from Python
+- import rez_next._native as n; dir(n.build_) shows only ['build_package', 'get_build_system']
+- TODO: debug why wrap_pyfunction! not adding functions to rez_next._native.build_ module
