@@ -188,8 +188,6 @@ pub fn execute(args: BuildArgs) -> RezCoreResult<()> {
         let variant_requires: Option<Vec<String>> =
             variant_idx.map(|i| package.variants.get(i).cloned().unwrap_or_default());
 
-        // For now, just use the base BuildRequest without variant
-        // TODO: properly support variants in CLI
         let build_request = BuildRequest {
             package: package.clone(),
             context: None,
