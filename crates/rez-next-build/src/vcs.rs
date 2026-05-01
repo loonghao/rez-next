@@ -208,10 +208,7 @@ impl GitVCS {
         repo: &git2::Repository,
         branch_name: Option<&str>,
     ) -> Option<String> {
-        let branch_name = match branch_name {
-            Some(name) => name,
-            None => return None,
-        };
+        let branch_name = branch_name?;
 
         // Try to get the upstream branch
         if let Ok(branch) = repo.find_branch(branch_name, git2::BranchType::Local) {
@@ -224,7 +221,7 @@ impl GitVCS {
 
         // Fallback: try using git command
         if let Ok(output) = std::process::Command::new("git")
-            .args(&["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"])
+            .args(["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"])
             .current_dir(repo.path())
             .output()
         {
@@ -259,7 +256,7 @@ impl GitVCS {
 
         // Fallback: try using git command
         if let Ok(output) = std::process::Command::new("git")
-            .args(&["remote", "get-url", "--push", remote_name])
+            .args(["remote", "get-url", "--push", remote_name])
             .current_dir(repo.path())
             .output()
         {
