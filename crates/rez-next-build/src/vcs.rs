@@ -518,7 +518,7 @@ impl ReleaseVCS for MercurialVCS {
         // Get commit info
         let info = self.run_hg(&["log", "-r", ".", "--template", "{author}\n{desc}"])?;
         let lines: Vec<&str> = info.lines().collect();
-        let author_name = lines.get(0).map(|s| s.to_string());
+        let author_name = lines.first().map(|s| s.to_string());
         let commit_message = lines.get(1).map(|s| s.to_string());
 
         // Get push URL (default push location)
@@ -673,7 +673,7 @@ impl ReleaseVCS for SvnVCS {
 
         // `svn copy <trunk> <tags/tag> -m <message>`
         let output = std::process::Command::new("svn")
-            .args(&["copy", &trunk_url, &tags_url, "-m", message])
+            .args(["copy", &trunk_url, &tags_url, "-m", message])
             .output()
             .map_err(|e| RezCoreError::BuildError(format!("Failed to run svn copy: {}", e)))?;
 
