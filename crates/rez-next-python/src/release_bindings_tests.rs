@@ -741,4 +741,74 @@ mod release_tests {
         // to_dict returns Py<PyDict>, we can check if it's not empty
         let _ = dict;
     }
+
+    // ========================================================================
+    // PyReleaseManager tests
+    // ========================================================================
+    #[test]
+    fn test_py_release_manager_new() {
+        let mgr = PyReleaseManager::new(None, false, false);
+        let _ = mgr;
+    }
+
+    #[test]
+    fn test_py_release_manager_new_with_mode() {
+        let mgr = PyReleaseManager::new(Some("local"), false, false);
+        let s = mgr.__str__();
+        assert!(s.contains("Local"), "should contain 'Local' for local mode");
+    }
+
+    #[test]
+    fn test_py_release_manager_new_with_skip_flags() {
+        let mgr = PyReleaseManager::new(None, true, true);
+        let s = mgr.__str__();
+        assert!(s.contains("skip_build=true"), "should contain 'skip_build=true'");
+        assert!(s.contains("skip_tests=true"), "should contain 'skip_tests=true'");
+    }
+
+    #[test]
+    fn test_py_release_manager_release_nonexistent() {
+        let mgr = PyReleaseManager::new(Some("dry_run"), false, false);
+        let result = mgr.release(Some("/nonexistent/path/xyz_123"), None).unwrap();
+        assert!(!result.success, "should fail for nonexistent path");
+        assert!(!result.errors.is_empty(), "should have errors");
+    }
+
+    #[test]
+    fn test_py_release_manager_validate_nonexistent() {
+        let mgr = PyReleaseManager::new(None, false, false);
+        let (valid, issues) = mgr.validate(Some("/nonexistent/path/abc_789")).unwrap();
+        assert!(!valid, "should be invalid for nonexistent path");
+        assert!(!issues.is_empty(), "should have issues");
+    }
+
+    #[test]
+    fn test_py_release_manager_validate_with_package_py() {
+        use std::io::Write;
+        let dir = tempfile::tempdir().unwrap();
+        let pkg_path = dir.path().join("package.py");
+        let mut f = std::fs::File::create(&pkg_path).unwrap();
+        writeln!(f, "name = 'testpkg'").unwrap();
+        writeln!(f, "version = '1.0.0'").unwrap();
+
+        let mgr = PyReleaseManager::new(None, false, false);
+        let (valid, issues) = mgr.validate(Some(dir.path().to_str().unwrap())).unwrap();
+        let _ = (valid, issues); // Should be valid
+    }
+
+    #[test]
+    fn test_py_release_manager_release_with_package_py_dry_run() {
+        use std::io::Write;
+        let dir = tempfile::tempdir().unwrap();
+        let pkg_path = dir.path().join("package.py");
+        let mut f = std::fs::File::create(&pkg_path).unwrap();
+        writeln!(f, "name = 'drytest'").unwrap();
+        writeln!(f, "version = '0.1.0'").unwrap();
+
+        let mgr = PyReleaseManager::new(Some("dry_run"), false, false);
+        let result = mgr.release(Some(dir.path().to_str().unwrap()), None).unwrap();
+        assert!(result.success, "dry run should succeed: {:?}", result.errors);
+        assert_eq!(result.package_name, "drytest");
+        assert_eq!(result.version, "0.1.0");
+    }
 }
