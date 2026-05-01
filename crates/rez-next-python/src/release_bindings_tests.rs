@@ -592,7 +592,7 @@ mod release_tests {
     fn test_py_release_vcs_is_clean_stub() {
         let vcs = PyReleaseVCS::new();
         let result = vcs.is_clean().unwrap();
-        assert_eq!(result, true, "stub VCS is_clean should return true");
+        assert!(result, "stub VCS is_clean should return true");
     }
 
     #[test]
@@ -619,7 +619,7 @@ mod release_tests {
     fn test_py_release_vcs_tag_exists_stub() {
         let vcs = PyReleaseVCS::new();
         let result = vcs.tag_exists("test-tag").unwrap();
-        assert_eq!(result, false, "stub VCS tag_exists should return false");
+        assert!(!result, "stub VCS tag_exists should return false");
     }
 
     #[test]

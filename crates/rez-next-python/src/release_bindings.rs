@@ -11,7 +11,6 @@ use crate::runtime::get_runtime;
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use rez_next_build::vcs::{ReleaseVCS, VCSMetadata};
-use serde_json;
 use std::path::PathBuf;
 
 // ============================================================================
@@ -60,6 +59,7 @@ impl PyVCSMetadata {
         author_email=None,
         timestamp=None,
     ))]
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         vcs_type: String,
         repository_url: Option<String>,
@@ -530,14 +530,10 @@ impl PyReleaseManager {
         match rust_manager.release(&source, message) {
             Ok(result) => {
                 // Convert VCSMetadata to JSON string (if present)
-                let vcs_metadata = if let Some(metadata) = &result.vcs_metadata {
-                    match serde_json::to_string(metadata) {
-                        Ok(json_str) => Some(json_str),
-                        Err(_) => None,
-                    }
-                } else {
-                    None
-                };
+                let vcs_metadata = result
+                    .vcs_metadata
+                    .as_ref()
+                    .and_then(|metadata| serde_json::to_string(metadata).ok());
 
                 Ok(PyReleaseResult {
                     success: result.success,
