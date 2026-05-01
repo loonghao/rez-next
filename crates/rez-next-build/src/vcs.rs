@@ -12,6 +12,7 @@ use std::path::{Path, PathBuf};
 ///
 /// This trait defines the interface for interacting with version control
 /// systems during the package release process.
+/// Compatible with original rez ReleaseVCS interface.
 pub trait ReleaseVCS: Send + Sync {
     /// Get the VCS type name
     fn get_type_name(&self) -> &str;
@@ -43,6 +44,32 @@ pub trait ReleaseVCS: Send + Sync {
 
     /// Get VCS metadata for release
     fn get_metadata(&self) -> Result<VCSMetadata, RezCoreError>;
+
+    /// Validate repository state for release
+    ///
+    /// Checks that the repository is in a valid state for releasing:
+    /// - Working directory is clean
+    /// - On a valid release branch (if applicable)
+    /// - No pending changes or conflicts
+    fn validate_repo_state(&self) -> Result<(), RezCoreError> {
+        // Default implementation: check if repo is clean
+        if !self.is_clean()? {
+            return Err(RezCoreError::BuildError(
+                "Repository is not clean".to_string(),
+            ));
+        }
+        Ok(())
+    }
+
+    /// Check if the current branch is a releasable branch
+    ///
+    /// For Git, this might check if we're on `main`, `master`, or a release branch.
+    /// For Mercurial, this might check if we're on `default` or a named branch.
+    /// Returns `None` if the concept doesn't apply to this VCS.
+    fn is_releasable_branch(&self) -> Result<Option<bool>, RezCoreError> {
+        // Default: not applicable (return None)
+        Ok(None)
+    }
 }
 
 /// VCS metadata for release
@@ -50,10 +77,16 @@ pub trait ReleaseVCS: Send + Sync {
 pub struct VCSMetadata {
     /// VCS type (git, hg, svn, etc.)
     pub vcs_type: String,
-    /// Repository URL
+    /// Repository URL (fetch URL)
     pub repository_url: Option<String>,
     /// Current branch name
     pub branch: Option<String>,
+    /// Tracking branch name (e.g., "origin/main")
+    pub tracking_branch: Option<String>,
+    /// Fetch URL (where the repo is fetched from)
+    pub fetch_url: Option<String>,
+    /// Push URL (where the repo is pushed to)
+    pub push_url: Option<String>,
     /// Latest commit hash
     pub commit_hash: String,
     /// Commit message
@@ -338,24 +371,34 @@ impl ReleaseVCS for GitVCS {
         // Get timestamp
         let timestamp = Some(commit.time().seconds());
 
-        // Try to get remote URL
-        let repository_url = repo.remotes()
-            .ok()
-            .and_then(|remotes| {
-                if !remotes.is_empty() {
-                    let remote_name = remotes.get(0)?;
-                    repo.find_remote(remote_name)
-                        .ok()
-                        .and_then(|remote| remote.url().map(|s| s.to_string()))
-                } else {
-                    None
-                }
-            });
+        // Try to get remote URL (simplified - just get the first remote's URL)
+                        let repository_url = {
+                            if let Ok(remotes) = repo.remotes() {
+                                if !remotes.is_empty() {
+                                    let remote_name = remotes.get(0).unwrap_or("origin");
+                                    if let Ok(remote) = repo.find_remote(remote_name) {
+                                        remote.url().map(|s| s.to_string())
+                                    } else {
+                                        None
+                                    }
+                                } else {
+                                    None
+                                }
+                            } else {
+                                None
+                            }
+                        };
+
+        // Clone repository_url before moving it into the struct
+        let repository_url_clone = repository_url.clone();
 
         Ok(VCSMetadata {
             vcs_type: "git".to_string(),
             repository_url,
             branch,
+            tracking_branch: None,  // TODO: implement properly
+            fetch_url: repository_url_clone,
+            push_url: None, // TODO: get pushurl properly
             commit_hash: commit.id().to_string(),
             commit_message,
             author_name,
@@ -364,10 +407,359 @@ impl ReleaseVCS for GitVCS {
             extra: HashMap::new(),
         })
     }
+
+    fn is_releasable_branch(&self) -> Result<Option<bool>, RezCoreError> {
+        let branch = self.get_current_branch()?;
+        // In Git, "main" and "master" are the main releasable branches
+        // Also allow branches starting with "release/"
+        Ok(Some(branch == "main" || branch == "master" || branch.starts_with("release/")))
+    }
+}
+
+/// Mercurial VCS implementation (uses `hg` command-line)
+#[derive(Debug)]
+pub struct MercurialVCS {
+    /// Repository root path
+    repo_root: PathBuf,
+}
+
+impl MercurialVCS {
+    /// Create a new MercurialVCS
+    pub fn new(repo_root: PathBuf) -> Result<Self, RezCoreError> {
+        // Verify this is a mercurial repository
+        if !repo_root.join(".hg").exists() {
+            return Err(RezCoreError::BuildError(
+                "Not a mercurial repository".to_string(),
+            ));
+        }
+
+        Ok(Self { repo_root })
+    }
+
+    /// Run an hg command and return stdout
+    fn run_hg(&self, args: &[&str]) -> Result<String, RezCoreError> {
+        let output = std::process::Command::new("hg")
+            .args(args)
+            .current_dir(&self.repo_root)
+            .output()
+            .map_err(|e| RezCoreError::BuildError(format!("Failed to run hg: {}", e)))?;
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            return Err(RezCoreError::BuildError(format!("hg command failed: {}", stderr)));
+        }
+
+        Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
+    }
+}
+
+impl ReleaseVCS for MercurialVCS {
+    fn get_type_name(&self) -> &str {
+        "hg"
+    }
+
+    fn get_repo_root(&self) -> Result<PathBuf, RezCoreError> {
+        // `hg root` returns the repository root
+        let root = self.run_hg(&["root"])?;
+        Ok(PathBuf::from(root))
+    }
+
+    fn is_clean(&self) -> Result<bool, RezCoreError> {
+        // `hg status --quiet` returns empty if clean
+        let status = self.run_hg(&["status"])?;
+        Ok(status.is_empty())
+    }
+
+    fn get_current_branch(&self) -> Result<String, RezCoreError> {
+        // `hg branch` returns current branch name
+        self.run_hg(&["branch"])
+    }
+
+    fn get_latest_commit(&self) -> Result<String, RezCoreError> {
+        // `hg log -r . -T "{node}"` returns current commit hash
+        self.run_hg(&["log", "-r", ".", "-T", "{node}"])
+    }
+
+    fn tag_exists(&self, tag: &str) -> Result<bool, RezCoreError> {
+        // `hg tags` lists all tags
+        let tags = self.run_hg(&["tags"])?;
+        Ok(tags.lines().any(|line| line.contains(tag)))
+    }
+
+    fn create_tag(&self, tag: &str, message: &str) -> Result<(), RezCoreError> {
+        // `hg tag -m <message> <tag>`
+        self.run_hg(&["tag", "-m", message, tag])?;
+        tracing::info!("MercurialVCS: created tag '{}' with message '{}'", tag, message);
+        Ok(())
+    }
+
+    fn get_changelog(
+        &self,
+        from_rev: Option<&str>,
+        to_rev: Option<&str>,
+    ) -> Result<String, RezCoreError> {
+        let from = from_rev.unwrap_or(".");
+        let to = to_rev.unwrap_or("tip");
+
+        // `hg log -r <from>::<to> --template "{node|short} {desc}\n"`
+        let revspec = format!("{}::{}", from, to);
+        let changelog = self.run_hg(&["log", "-r", &revspec, "--template", "{node|short} {desc}\n"])?;
+
+        Ok(format!("Changelog from {} to {}:\n{}", from, to, changelog))
+    }
+
+    fn get_metadata(&self) -> Result<VCSMetadata, RezCoreError> {
+        // Get commit hash
+        let commit_hash = self.get_latest_commit()?;
+
+        // Get branch
+        let branch = Some(self.get_current_branch()?);
+
+        // Get commit info
+        let info = self.run_hg(&["log", "-r", ".", "--template", "{author}\n{desc}"])?;
+        let lines: Vec<&str> = info.lines().collect();
+        let author_name = lines.get(0).map(|s| s.to_string());
+        let commit_message = lines.get(1).map(|s| s.to_string());
+
+        // Get push URL (default push location)
+        let push_url = self.run_hg(&["paths", "default"]).ok();
+
+        Ok(VCSMetadata {
+            vcs_type: "hg".to_string(),
+            repository_url: push_url.clone(),
+            branch,
+            tracking_branch: None,
+            fetch_url: push_url.clone(),
+            push_url,
+            commit_hash,
+            commit_message,
+            author_name,
+            author_email: None, // hg doesn't expose email separately by default
+            timestamp: None,     // TODO: parse timestamp from hg log
+            extra: HashMap::new(),
+        })
+    }
+
+    fn validate_repo_state(&self) -> Result<(), RezCoreError> {
+        // Check if repo is clean
+        if !self.is_clean()? {
+            return Err(RezCoreError::BuildError(
+                "Mercurial repository is not clean".to_string(),
+            ));
+        }
+
+        // Check for mq (Mercurial Queues) patches
+        let patches = self.run_hg(&["qseries"]).ok();
+        if let Some(ref series) = patches {
+            if !series.is_empty() {
+                return Err(RezCoreError::BuildError(
+                    "Mercurial repository has active mq patches".to_string(),
+                ));
+            }
+        }
+
+        Ok(())
+    }
+
+    fn is_releasable_branch(&self) -> Result<Option<bool>, RezCoreError> {
+        let branch = self.get_current_branch()?;
+        // In Mercurial, "default" is the main branch
+        // Releases typically happen from "default" or release-named branches
+        Ok(Some(branch == "default" || branch.starts_with("release")))
+    }
+}
+
+/// SVN VCS implementation (uses `svn` command-line)
+#[derive(Debug)]
+pub struct SvnVCS {
+    /// Repository root path
+    repo_root: PathBuf,
+}
+
+impl SvnVCS {
+    /// Create a new SvnVCS
+    pub fn new(repo_root: PathBuf) -> Result<Self, RezCoreError> {
+        // Verify this is an SVN working copy
+        if !repo_root.join(".svn").exists() {
+            return Err(RezCoreError::BuildError(
+                "Not an SVN working copy".to_string(),
+            ));
+        }
+
+        Ok(Self { repo_root })
+    }
+
+    /// Run an svn command and return stdout
+    fn run_svn(&self, args: &[&str]) -> Result<String, RezCoreError> {
+        let output = std::process::Command::new("svn")
+            .args(args)
+            .current_dir(&self.repo_root)
+            .output()
+            .map_err(|e| RezCoreError::BuildError(format!("Failed to run svn: {}", e)))?;
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            return Err(RezCoreError::BuildError(format!("svn command failed: {}", stderr)));
+        }
+
+        Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
+    }
+
+    /// Get svn info as a HashMap
+    fn get_svn_info(&self) -> Result<HashMap<String, String>, RezCoreError> {
+        let info_str = self.run_svn(&["info"])?;
+        let mut info = HashMap::new();
+
+        for line in info_str.lines() {
+            if let Some((key, value)) = line.split_once(": ") {
+                info.insert(key.to_string(), value.to_string());
+            }
+        }
+
+        Ok(info)
+    }
+}
+
+impl ReleaseVCS for SvnVCS {
+    fn get_type_name(&self) -> &str {
+        "svn"
+    }
+
+    fn get_repo_root(&self) -> Result<PathBuf, RezCoreError> {
+        // `svn info --show-item wc-root`
+        let root = self.run_svn(&["info", "--show-item", "wc-root"])?;
+        Ok(PathBuf::from(root))
+    }
+
+    fn is_clean(&self) -> Result<bool, RezCoreError> {
+        // `svn status` returns empty if clean
+        let status = self.run_svn(&["status"])?;
+        Ok(status.is_empty())
+    }
+
+    fn get_current_branch(&self) -> Result<String, RezCoreError> {
+        // SVN uses directories for branches, not branches in the same working copy
+        // Return the relative path in the repository
+        let info = self.get_svn_info()?;
+        Ok(info.get("Relative URL").cloned().unwrap_or_else(|| "unknown".to_string()))
+    }
+
+    fn get_latest_commit(&self) -> Result<String, RezCoreError> {
+        // `svn info --show-item last-changed-revision`
+        self.run_svn(&["info", "--show-item", "last-changed-revision"])
+    }
+
+    fn tag_exists(&self, tag: &str) -> Result<bool, RezCoreError> {
+        // Check if tags/<tag> exists in the repository
+        let info = self.get_svn_info()?;
+        let repo_url = info.get("Repository Root").ok_or_else(|| {
+            RezCoreError::BuildError("Could not get repository root URL".to_string())
+        })?;
+
+        let tags_url = format!("{}/tags/{}", repo_url, tag);
+        let result = self.run_svn(&["info", &tags_url]);
+
+        Ok(result.is_ok())
+    }
+
+    fn create_tag(&self, tag: &str, message: &str) -> Result<(), RezCoreError> {
+        let info = self.get_svn_info()?;
+        let repo_url = info.get("Repository Root").ok_or_else(|| {
+            RezCoreError::BuildError("Could not get repository root URL".to_string())
+        })?;
+
+        let trunk_url = format!("{}/trunk", repo_url);
+        let tags_url = format!("{}/tags/{}", repo_url, tag);
+
+        // `svn copy <trunk> <tags/tag> -m <message>`
+        let output = std::process::Command::new("svn")
+            .args(&["copy", &trunk_url, &tags_url, "-m", message])
+            .output()
+            .map_err(|e| RezCoreError::BuildError(format!("Failed to run svn copy: {}", e)))?;
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            return Err(RezCoreError::BuildError(format!("svn copy failed: {}", stderr)));
+        }
+
+        tracing::info!("SvnVCS: created tag '{}' with message '{}'", tag, message);
+        Ok(())
+    }
+
+    fn get_changelog(
+        &self,
+        from_rev: Option<&str>,
+        to_rev: Option<&str>,
+    ) -> Result<String, RezCoreError> {
+        let info = self.get_svn_info()?;
+        // Validate that URL exists (but don't store it)
+        let _repo_url = info.get("URL").ok_or_else(|| {
+            RezCoreError::BuildError("Could not get repository URL".to_string())
+        })?;
+
+        let from = from_rev.unwrap_or("BASE");
+        let to = to_rev.unwrap_or("HEAD");
+
+        // `svn log -r <from>:<to>`
+        let changelog = self.run_svn(&["log", "-r", &format!("{}:{}", from, to)])?;
+
+        Ok(format!("Changelog from {} to {}:\n{}\n", from, to, changelog))
+    }
+
+    fn get_metadata(&self) -> Result<VCSMetadata, RezCoreError> {
+        let info = self.get_svn_info()?;
+
+        let commit_hash = info.get("Last Changed Rev")
+            .cloned()
+            .unwrap_or_else(|| "unknown".to_string());
+
+        let branch = info.get("Relative URL").cloned();
+
+        let repository_url = info.get("Repository Root").cloned();
+
+        let commit_message = info.get("Last Changed Author").cloned();
+
+        Ok(VCSMetadata {
+            vcs_type: "svn".to_string(),
+            repository_url,
+            branch,
+            tracking_branch: None,
+            fetch_url: None,
+            push_url: None,
+            commit_hash,
+            commit_message,
+            author_name: info.get("Last Changed Author").cloned(),
+            author_email: None,
+            timestamp: None,
+            extra: HashMap::new(),
+        })
+    }
+
+    fn validate_repo_state(&self) -> Result<(), RezCoreError> {
+        // Check if working copy is clean
+        if !self.is_clean()? {
+            return Err(RezCoreError::BuildError(
+                "SVN working copy is not clean".to_string(),
+            ));
+        }
+
+        Ok(())
+    }
+
+    fn is_releasable_branch(&self) -> Result<Option<bool>, RezCoreError> {
+        // In SVN, releases are typically from trunk or a release branch
+        let relative_url = self.get_current_branch()?;
+        Ok(Some(relative_url.contains("/trunk") || relative_url.contains("/branches/release")))
+    }
 }
 
 /// Detect VCS type from repository path
 pub fn detect_vcs(repo_path: &Path) -> Option<Box<dyn ReleaseVCS>> {
+    // Check for Stub VCS (used for testing)
+    if repo_path.join(".stub").exists() {
+        return Some(Box::new(StubVCS::new(repo_path.to_path_buf())));
+    }
+
     // Check for Git
     if repo_path.join(".git").exists() {
         #[cfg(feature = "git")]
@@ -380,14 +772,12 @@ pub fn detect_vcs(repo_path: &Path) -> Option<Box<dyn ReleaseVCS>> {
 
     // Check for Mercurial
     if repo_path.join(".hg").exists() {
-        // TODO: Implement MercurialVCS
-        return Some(Box::new(StubVCS::new(repo_path.to_path_buf())));
+        return Some(Box::new(MercurialVCS::new(repo_path.to_path_buf()).ok()?));
     }
 
     // Check for SVN
     if repo_path.join(".svn").exists() {
-        // TODO: Implement SvnVCS
-        return Some(Box::new(StubVCS::new(repo_path.to_path_buf())));
+        return Some(Box::new(SvnVCS::new(repo_path.to_path_buf()).ok()?));
     }
 
     None
@@ -407,6 +797,7 @@ pub fn get_vcs_metadata(repo_path: &Path) -> Result<Option<VCSMetadata>, RezCore
 mod tests {
     use super::*;
     use std::fs;
+    use git2;
 
     #[test]
     fn test_stub_vcs_creation() {
@@ -623,5 +1014,151 @@ mod tests {
         let vcs_opt = detect_vcs(&repo_root);
         assert!(vcs_opt.is_some());
         assert_eq!(vcs_opt.unwrap().get_type_name(), "git");
+    }
+
+    // --- MercurialVCS tests ---
+
+    #[test]
+    fn test_mercurial_vcs_not_a_repo() {
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        let result = MercurialVCS::new(temp_dir.path().to_path_buf());
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_mercurial_vcs_creation_placeholder() {
+        // Create a temp dir with .hg directory (simulates hg repo)
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        std::fs::create_dir(temp_dir.path().join(".hg")).unwrap();
+
+        let result = MercurialVCS::new(temp_dir.path().to_path_buf());
+        // Should succeed (creation only checks for .hg directory)
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_mercurial_vcs_type_name() {
+        let vcs = MercurialVCS { repo_root: PathBuf::from("/tmp/hg-repo") };
+        assert_eq!(vcs.get_type_name(), "hg");
+    }
+
+    #[test]
+    fn test_mercurial_vcs_validate_repo_state() {
+        let vcs = MercurialVCS { repo_root: PathBuf::from("/tmp/hg-repo") };
+        // validate_repo_state will fail because /tmp/hg-repo is not a real repo
+        // This test just ensures the method exists and returns Result
+        let _result: Result<(), RezCoreError> = vcs.validate_repo_state();
+    }
+
+    #[test]
+    fn test_mercurial_vcs_is_releasable_branch() {
+        let vcs = MercurialVCS { repo_root: PathBuf::from("/tmp/hg-repo") };
+        // is_releasable_branch will fail because /tmp/hg-repo is not a real repo
+        // This test just ensures the method exists and returns Result
+        let _result: Result<Option<bool>, RezCoreError> = vcs.is_releasable_branch();
+    }
+
+    #[test]
+    fn test_detect_vcs_mercurial() {
+        // Create a temp dir with .hg directory
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        std::fs::create_dir(temp_dir.path().join(".hg")).unwrap();
+
+        let vcs_opt = detect_vcs(temp_dir.path());
+        assert!(vcs_opt.is_some());
+        assert_eq!(vcs_opt.unwrap().get_type_name(), "hg");
+    }
+
+    // --- SvnVCS tests ---
+
+    #[test]
+    fn test_svn_vcs_not_a_repo() {
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        let result = SvnVCS::new(temp_dir.path().to_path_buf());
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_svn_vcs_creation_placeholder() {
+        // Create a temp dir with .svn directory (simulates svn working copy)
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        std::fs::create_dir(temp_dir.path().join(".svn")).unwrap();
+
+        let result = SvnVCS::new(temp_dir.path().to_path_buf());
+        // Should succeed (creation only checks for .svn directory)
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_svn_vcs_type_name() {
+        let vcs = SvnVCS { repo_root: PathBuf::from("/tmp/svn-repo") };
+        assert_eq!(vcs.get_type_name(), "svn");
+    }
+
+    #[test]
+    fn test_svn_vcs_validate_repo_state() {
+        let vcs = SvnVCS { repo_root: PathBuf::from("/tmp/svn-repo") };
+        // validate_repo_state will fail because /tmp/svn-repo is not a real repo
+        // This test just ensures the method exists and returns Result
+        let _result: Result<(), RezCoreError> = vcs.validate_repo_state();
+    }
+
+    #[test]
+    fn test_svn_vcs_is_releasable_branch() {
+        let vcs = SvnVCS { repo_root: PathBuf::from("/tmp/svn-repo") };
+        // is_releasable_branch will fail because /tmp/svn-repo is not a real repo
+        // This test just ensures the method exists and returns Result
+        let _result: Result<Option<bool>, RezCoreError> = vcs.is_releasable_branch();
+    }
+
+    #[test]
+    fn test_detect_vcs_svn() {
+        // Create a temp dir with .svn directory
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        std::fs::create_dir(temp_dir.path().join(".svn")).unwrap();
+
+        let vcs_opt = detect_vcs(temp_dir.path());
+        assert!(vcs_opt.is_some());
+        assert_eq!(vcs_opt.unwrap().get_type_name(), "svn");
+    }
+
+    // --- Validate repo state and is_releasable_branch tests for all VCS ---
+
+    #[test]
+    fn test_stub_vcs_validate_repo_state() {
+        let vcs = StubVCS::new(PathBuf::from("/tmp/repo"));
+        // StubVCS should always pass validation (default implementation checks is_clean, which returns true)
+        assert!(vcs.validate_repo_state().is_ok());
+    }
+
+    #[test]
+    fn test_stub_vcs_is_releasable_branch() {
+        let vcs = StubVCS::new(PathBuf::from("/tmp/repo"));
+        // Default implementation returns Ok(None)
+        let result = vcs.is_releasable_branch().unwrap();
+        assert_eq!(result, None);
+    }
+
+    #[cfg(feature = "git")]
+    #[test]
+    fn test_git_vcs_validate_repo_state() {
+        let (_temp_dir, repo) = create_temp_git_repo();
+        let repo_root = repo.workdir().unwrap().to_path_buf();
+        let vcs = GitVCS::new(repo_root).unwrap();
+
+        // Fresh repo should pass validation
+        assert!(vcs.validate_repo_state().is_ok());
+    }
+
+    #[cfg(feature = "git")]
+    #[test]
+    fn test_git_vcs_is_releasable_branch() {
+        let (_temp_dir, repo) = create_temp_git_repo();
+        let repo_root = repo.workdir().unwrap().to_path_buf();
+        let vcs = GitVCS::new(repo_root).unwrap();
+
+        // Default branch should be releasable
+        let result = vcs.is_releasable_branch().unwrap();
+        assert_eq!(result, Some(true));
     }
 }
