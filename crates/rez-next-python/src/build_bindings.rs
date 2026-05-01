@@ -124,14 +124,6 @@ impl From<BuildSystem> for PyBuildSystem {
 }
 
 // ============================================================================
-/// Register exceptions for build module
-// ============================================================================
-pub fn register_build_exceptions(_m: &Bound<'_, PyModule>) -> PyResult<()> {
-    // Build-related exceptions can be added here if needed
-    Ok(())
-}
-
-// ============================================================================
 /// Get BuildType enum values for Python (like rez.build_process.BuildType)
 // ============================================================================
 #[pyfunction]
@@ -147,24 +139,3 @@ pub fn get_build_type_central() -> PyBuildType {
         inner: BuildType::Central,
     }
 }
-
-// ============================================================================
-/// Module definition for use in lib.rs
-// ============================================================================
-pub fn register_build_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    // Add BuildType class
-    m.add_class::<PyBuildType>()?;
-
-    // Add BuildSystem class
-    m.add_class::<PyBuildSystem>()?;
-
-    // Add convenience functions
-    m.add_function(wrap_pyfunction!(get_build_type_local, m)?)?;
-    m.add_function(wrap_pyfunction!(get_build_type_central, m)?)?;
-
-    Ok(())
-}
-
-#[cfg(test)]
-#[path = "build_bindings_tests.rs"]
-mod tests;
