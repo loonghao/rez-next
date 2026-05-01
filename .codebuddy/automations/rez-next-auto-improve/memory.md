@@ -1,5 +1,31 @@
 # rez-next-auto-improve 执行记录
 
+## Cycle 244 (2026-05-02)
+
+### 已完成
+- 修复 Python `import rez_next` 导入问题：
+  - `crates/rez-next-python/python/rez_next/__init__.py` 修复导入语句
+  - 添加 `from . import complete` 确保 `complete` 模块被加载
+  - 添加 `from .complete import get_completion_script` 使 `rez_next.get_completion_script` 可用
+- 修复 `complete` 模块缺少函数的问题：
+  - `crates/rez-next-python/python/rez_next/complete.py` 添加 `get_completion_script = get_completion_script_py` 别名
+  - 添加 `print_completion_script()` 函数
+- 创建 `crates/rez-next-python/python/pyproject.toml` 文件（用于安装 `rez_next` 包）
+
+### 测试结果
+- ✅ 所有 Python 测试通过（415 passed, 1 skipped）
+  - `TestCompletionModule` 14 个测试全部通过
+  - `test_benchmark.py` 3 个测试全部通过
+  - 其他 398 个测试全部通过
+
+### 提交
+- `5813ef2` - `fix(python): fix import rez_next and complete module (Cycle 244) [iteration-done]`
+
+### 推送
+- ✅ 已推送到 `origin auto-improve` (`5a47440..5813ef2`)
+
+---
+
 ## 合并尝试 (2026-05-02) — auto-improve → main
 
 ### 执行摘要
