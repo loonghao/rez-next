@@ -139,6 +139,7 @@ fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(selftest, m)?)?;
     m.add_function(wrap_pyfunction!(selftest_verbose, m)?)?;
     m.add_function(wrap_pyfunction!(build_package, m)?)?;
+    m.add_function(wrap_pyfunction!(get_buildsys_types, m)?)?;
     m.add_function(wrap_pyfunction!(bundle_context, m)?)?;
     m.add_function(wrap_pyfunction!(pip_bindings::pip_install, m)?)?;
     m.add_function(wrap_pyfunction!(plugins_bindings::get_plugin_manager, m)?)?;
