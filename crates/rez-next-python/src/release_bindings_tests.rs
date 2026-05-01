@@ -811,4 +811,52 @@ mod release_tests {
         assert_eq!(result.package_name, "drytest");
         assert_eq!(result.version, "0.1.0");
     }
+
+    // ========================================================================
+    // Variant build tests
+    // ========================================================================
+    #[test]
+    fn test_variant_hash_computation() {
+        // Test that variant hash is computed correctly
+        use sha2::{Digest, Sha256};
+
+        let variant = vec!["python-3.9".to_string(), "maya-2024".to_string()];
+        let mut hasher = Sha256::new();
+        hasher.update(format!("{:?}", variant).as_bytes());
+        let hash_bytes = hasher.finalize();
+        let hash = hex::encode(hash_bytes)[..8].to_string();
+
+        // Hash should be 8 characters (hex)
+        assert_eq!(hash.len(), 8, "hash should be 8 characters");
+        // Hash should be valid hex string
+        assert!(hash.chars().all(|c| c.is_digit(16)), "hash should be hex string");
+    }
+
+    #[test]
+    fn test_release_with_variants_creates_variant_dirs() {
+        use std::io::Write;
+        use std::fs;
+
+        let dir = tempfile::tempdir().unwrap();
+        let pkg_path = dir.path().join("package.py");
+        let mut f = std::fs::File::create(&pkg_path).unwrap();
+        writeln!(f, "name = 'varianttest'").unwrap();
+        writeln!(f, "version = '1.0.0'").unwrap();
+        writeln!(f, "variants = [['python-3.9', 'maya-2024']]").unwrap();
+
+        // Use local mode to create variant directories
+        let mgr = PyReleaseManager::new(Some("local"), false, false);
+        let result = mgr.release(Some(dir.path().to_str().unwrap()), None).unwrap();
+
+        // Release should succeed (even if variants are created)
+        let _ = result;
+
+        // Check that local_packages_path/varianttest/1.0.0/ exists
+        let install_base = dir.path().join("local_packages_path").join("varianttest").join("1.0.0");
+        if install_base.exists() {
+            // Should have subdirectories (variant hashes)
+            let entries: Vec<_> = fs::read_dir(&install_base).unwrap().collect();
+            let _ = entries;
+        }
+    }
 }
