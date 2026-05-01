@@ -161,6 +161,29 @@
 - **Decision**: Wait for iteration to stabilize before splitting (avoid merge conflicts)
 - **Follow-up**: Monitor file growth; split in future cycle when structure is stable
 
+## Cycle 246 — Code Quality Improvements (2026-05-02)
+
+### Summary
+- **Phase 1 (Dead Code Cleanup)**: ✅ Removed 1 stale TODO in `src/cli/commands/build.rs` (variant support already implemented)
+- **Phase 2 (Documentation Cleanup)**: ✅ Verified `docs/python-integration.md` and `README.md` are consistent with code
+- **Phase 3 (Test Cleanup)**: ✅ 0 ignored tests, 0 `todo!` macros, all tests pass
+- **Phase 4 (Code Style Governance)**: ✅ 0 clippy warnings
+- **Phase 5 (Dependency Governance)**: ⏳ Pending (cargo audit not yet run)
+- **Phase 6 (Structural Refactoring)**: ⚠️ `vcs/mod.rs` (1165L) flagged for splitting (see #50)
+
+### Codebase Health Metrics (2026-05-02, Cycle 246)
+- **Tests**: All passed, 0 failed (baseline: 1301+ passed)
+- **Clippy warnings**: 0 (workspace)
+- **cargo audit**: Not yet run (pending Phase 5)
+- **TODO/FIXME in code**: 0
+- **Large files (>500 lines)**: `vcs/mod.rs` (1165L) — #50 open, `filter.rs` (771L) — monitor
+
+### Changes Made
+- `src/cli/commands/build.rs`: Removed stale TODO comment (line 191-192)
+- `CLEANUP_TODO.md`: Updated with Cycle 246 progress
+
+---
+
 ## Cycle 21+ — Code Quality Improvements (2026-04-30)
 
 ### 20. Type hints for Python API compatibility layer
