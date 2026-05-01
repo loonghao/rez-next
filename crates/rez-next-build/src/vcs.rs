@@ -499,11 +499,21 @@ impl MercurialVCS {
             .args(args)
             .current_dir(&self.repo_root)
             .output()
-            .map_err(|e| RezCoreError::BuildError(format!("Failed to run hg: {}", e)))?;
+            .map_err(|e| RezCoreError::BuildError(format!(
+                "MercurialVCS: failed to run hg command '{:?}' in repository at '{}': {}",
+                args,
+                self.repo_root.display(),
+                e
+            )))?;
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
-            return Err(RezCoreError::BuildError(format!("hg command failed: {}", stderr)));
+            return Err(RezCoreError::BuildError(format!(
+                "MercurialVCS: hg command '{:?}' failed in repository at '{}': {}",
+                args,
+                self.repo_root.display(),
+                stderr
+            )));
         }
 
         Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
