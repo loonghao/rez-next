@@ -142,7 +142,6 @@ pub fn get_build_system(source_dir: Option<&str>) -> PyResult<String> {
 /// Get all available build system types.
 /// Equivalent to `rez.build_.get_buildsys_types()`
 #[pyfunction]
-#[allow(dead_code)]
 pub fn get_buildsys_types() -> PyResult<Vec<String>> {
     use rez_next_build::get_buildsys_types;
     let types = get_buildsys_types();
