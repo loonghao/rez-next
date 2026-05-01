@@ -199,6 +199,71 @@ impl GitVCS {
 
         Ok(Self { repo_root })
     }
+
+    /// Get the tracking branch for the current branch
+    pub(crate) fn get_tracking_branch(&self, repo: &git2::Repository, branch_name: Option<&str>) -> Option<String> {
+        let branch_name = match branch_name {
+            Some(name) => name,
+            None => return None,
+        };
+
+        // Try to get the upstream branch
+        if let Ok(branch) = repo.find_branch(branch_name, git2::BranchType::Local) {
+            if let Ok(upstream) = branch.upstream() {
+                if let Ok(upstream_name) = upstream.name() {
+                    return upstream_name.map(|s| s.to_string());
+                }
+            }
+        }
+
+        // Fallback: try using git command
+        if let Ok(output) = std::process::Command::new("git")
+            .args(&["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"])
+            .current_dir(repo.path())
+            .output()
+        {
+            if output.status.success() {
+                let stdout = String::from_utf8_lossy(&output.stdout);
+                let branch = stdout.trim();
+                if !branch.is_empty() && !branch.contains("fatal") {
+                    return Some(branch.to_string());
+                }
+            }
+        }
+
+        None
+    }
+
+    /// Get the push URL for the remote
+    pub(crate) fn get_push_url(&self, repo: &git2::Repository, remote_name: &str) -> Option<String> {
+        // Try to get the remote and its push URL
+        if let Ok(remote) = repo.find_remote(remote_name) {
+            if let Some(push_url) = remote.pushurl() {
+                return Some(push_url.to_string());
+            }
+            // Fallback to fetch URL if no push URL is set
+            if let Some(url) = remote.url() {
+                return Some(url.to_string());
+            }
+        }
+
+        // Fallback: try using git command
+        if let Ok(output) = std::process::Command::new("git")
+            .args(&["remote", "get-url", "--push", remote_name])
+            .current_dir(repo.path())
+            .output()
+        {
+            if output.status.success() {
+                let stdout = String::from_utf8_lossy(&output.stdout);
+                let url = stdout.trim();
+                if !url.is_empty() {
+                    return Some(url.to_string());
+                }
+            }
+        }
+
+        None
+    }
 }
 
 #[cfg(feature = "git")]
@@ -428,34 +493,44 @@ impl ReleaseVCS for GitVCS {
         // Get timestamp
         let timestamp = Some(commit.time().seconds());
 
-        // Try to get remote URL (simplified - just get the first remote's URL)
-                        let repository_url = {
-                            if let Ok(remotes) = repo.remotes() {
-                                if !remotes.is_empty() {
-                                    let remote_name = remotes.get(0).unwrap_or("origin");
-                                    if let Ok(remote) = repo.find_remote(remote_name) {
-                                        remote.url().map(|s| s.to_string())
-                                    } else {
-                                        None
-                                    }
-                                } else {
-                                    None
-                                }
-                            } else {
-                                None
-                            }
-                        };
+        // Get remote name and URL
+        let remote_name = {
+            if let Ok(remotes) = repo.remotes() {
+                if !remotes.is_empty() {
+                    remotes.get(0).unwrap_or("origin").to_string()
+                } else {
+                    "origin".to_string()
+                }
+            } else {
+                "origin".to_string()
+            }
+        };
+
+        // Try to get remote URL
+        let repository_url = {
+            if let Ok(remote) = repo.find_remote(&remote_name) {
+                remote.url().map(|s| s.to_string())
+            } else {
+                None
+            }
+        };
 
         // Clone repository_url before moving it into the struct
         let repository_url_clone = repository_url.clone();
+
+        // Get tracking branch (upstream)
+        let tracking_branch = self.get_tracking_branch(&repo, branch.as_deref());
+
+        // Get push URL for the remote
+        let push_url = self.get_push_url(&repo, &remote_name);
 
         Ok(VCSMetadata {
             vcs_type: "git".to_string(),
             repository_url,
             branch,
-            tracking_branch: None,  // TODO: implement properly
+            tracking_branch,
             fetch_url: repository_url_clone,
-            push_url: None, // TODO: get pushurl properly
+            push_url,
             commit_hash: commit.id().to_string(),
             commit_message,
             author_name,
@@ -1132,6 +1207,61 @@ mod tests {
         let temp_dir = tempfile::TempDir::new().unwrap();
         let result = GitVCS::new(temp_dir.path().to_path_buf());
         assert!(result.is_err());
+    }
+
+    #[cfg(feature = "git")]
+    #[test]
+    fn test_git_vcs_get_tracking_branch_none() {
+        // Create a repo with no upstream branch
+        let (_temp_dir, repo) = create_temp_git_repo();
+        let repo_root = repo.workdir().unwrap().to_path_buf();
+        let vcs = GitVCS::new(repo_root).unwrap();
+
+        // No upstream set, should return None
+        let result = vcs.get_tracking_branch(&repo, Some("main"));
+        assert!(result.is_none());
+    }
+
+    #[cfg(feature = "git")]
+    #[test]
+    fn test_git_vcs_get_tracking_branch_no_branch() {
+        let (_temp_dir, repo) = create_temp_git_repo();
+        let repo_root = repo.workdir().unwrap().to_path_buf();
+        let vcs = GitVCS::new(repo_root).unwrap();
+
+        // No branch name provided, should return None
+        let result = vcs.get_tracking_branch(&repo, None);
+        assert!(result.is_none());
+    }
+
+    #[cfg(feature = "git")]
+    #[test]
+    fn test_git_vcs_get_push_url_no_remote() {
+        // Create a repo with no remote
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        let repo = git2::Repository::init(temp_dir.path()).unwrap();
+
+        let repo_root = repo.workdir().unwrap().to_path_buf();
+        let vcs = GitVCS::new(repo_root).unwrap();
+
+        // No remote set, should return None
+        let result = vcs.get_push_url(&repo, "origin");
+        assert!(result.is_none());
+    }
+
+    #[cfg(feature = "git")]
+    #[test]
+    fn test_git_vcs_metadata_has_new_fields() {
+        let (_temp_dir, repo) = create_temp_git_repo();
+        let repo_root = repo.workdir().unwrap().to_path_buf();
+        let vcs = GitVCS::new(repo_root).unwrap();
+
+        let metadata = vcs.get_metadata().unwrap();
+        // The new fields should be present (may be None if no remote/upstream configured)
+        // Just verify the structure is correct and doesn't panic
+        assert_eq!(metadata.vcs_type, "git");
+        assert!(!metadata.commit_hash.is_empty());
+        // tracking_branch and push_url may be None (no upstream/remote configured)
     }
 
     #[cfg(feature = "git")]
