@@ -118,6 +118,17 @@
 - **TODO/FIXME in code**: 0
 - **Large files (>500 lines)**: `filter.rs` (771L) — monitor for splitting
 
+### 48. `vcs.rs` has 2 clippy warnings (Cycle 218 cleanup)
+- **Status**: OPEN (fix in Cycle 219)
+- **Warnings**:
+  1. `this impl can be derived` (line 71: `impl Default for VCSMetadata`)
+  2. `writing &PathBuf instead of &Path` (line 270: `detect_vcs(repo_path: &PathBuf)`)
+- **Fix**:
+  - Derive `Default` on `VCSMetadata` (remove manual `impl Default`, add `#[derive(Default)]`)
+  - Change `detect_vcs(repo_path: &PathBuf)` to `&Path`, update call sites to use `.to_path_buf()`
+- **Cycle 218 status**: Attempted fix but caused compilation errors. Restored `vcs.rs` and `Cargo.toml`, skip for this cycle.
+- **Follow-up**: Fix in Cycle 219 with systematic approach (or use `cargo clippy --fix`).
+
 ## Cycle 21+ — Code Quality Improvements (2026-04-30)
 
 ### 20. Type hints for Python API compatibility layer
