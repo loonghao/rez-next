@@ -1,10 +1,90 @@
 # rez-next auto-improve 执行记录#
 
-## 最新执行 (2026-05-01) — Cycle 228#
+## 最新执行 (2026-05-01) — Cycle 229#
 
 ### 执行摘要#
 
-**Cycle 228**：为 `rez_next.build.vcs` 添加 Python 绑定，实现 VCS 的 Python API。
+**Cycle 229**：实现 `ReleaseManager` 的完整发布工作流（Rust 核心实现）。
+
+### 变更内容#
+
+- **`crates/rez-next-build/src/lib.rs`**：
+  - 添加 `pub mod release;` 模块
+  - 导出的 `release::*` 类型
+
+- **`crates/rez-next-build/src/release.rs`**（新文件）：
+  - 实现 `ReleaseMode` 枚举（Release/Local/DryRun）
+  - 实现 `ReleaseResult` 结构体（包含 vcs_metadata、changelog 等字段）
+  - 实现 `ReleaseManager` 结构体和方法：
+    - `new()` — 创建发布管理器
+    - `release()` — 完整发布工作流：
+      1. 加载和验证包定义
+      2. 检测并验证 VCS 仓库状态
+      3. 构建包（占位实现，待完善）
+      4. 创建 VCS 标签
+      5. 生成变更日志
+      6. 写入发布元数据（占位实现，待完善）
+      7. 安装包定义
+  - 辅助方法：`load_package()`, `get_install_path()`, `validate_vcs()`, `build_package()`, `create_vcs_tag()`, `generate_changelog()`, `write_release_metadata()`, `install_package_definition()`
+  - 添加单元测试（4 个测试）
+
+- **`crates/rez-next-build/src/vcs.rs`**：
+  - 为 `Box<dyn ReleaseVCS + Send + Sync>` 实现 `ReleaseVCS` trait
+  - 更新 `detect_vcs()` 返回类型：`Option<Box<dyn ReleaseVCS + Send + Sync>>`
+
+- **`crates/rez-next-python/src/release_bindings.rs`**：
+  - 更新 `PyReleaseResult` 添加字段：`vcs_metadata: Option<String>`（JSON 字符串）、`changelog: Option<String>`
+  - 更新 `release()` 方法：调用 Rust 实现 (`rez_next_build::release::ReleaseManager`)
+  - 添加 `serde_json` 导入用于序列化 `VCSMetadata`
+
+### 测试结果#
+
+- `cargo test -p rez-next-build --lib`: ✓ 通过（120 passed, 0 failed）
+- `cargo check -p rez-next-python`: ✓ 通过（2 个警告）
+- `cargo test -p rez-next-python --lib`: ✓ 通过（1362 passed, 0 failed）
+
+### 警告（待修复）#
+
+1. `skip_tests` is never read (release.rs:67)
+2. `inner` is never read (release_bindings.rs:147)
+3. `detect_vcs` is never used (release_bindings.rs:314)
+
+### 未完成任务#
+
+1. **变体构建支持**：`build_package()` 是占位实现
+2. **发布元数据写入**：`write_release_metadata()` 是占位实现
+3. **release_bindings 测试**：还没有添加 Python 绑定测试
+4. **VCS 错误处理优化**：需要改进错误信息
+
+### 当前提交#
+
+- `2885a06` — `feat(build): implement complete release workflow in Rust (Cycle 229) [iteration-done]`
+
+### 下一轮目标 (Cycle 230)#
+
+1. **添加 release_bindings 测试**（目标 3）：
+   - 测试 `PyReleaseManager` 类
+   - 测试 `PyReleaseResult` 类
+   - 测试 `release()` 方法（mock VCS）
+   - 测试 `validate()` 方法
+
+2. **实现变体构建支持**（目标 1 继续）：
+   - 完善 `build_package()` 方法
+   - 支持包的变体（variants）构建
+   - 为每个变体创建安装路径
+
+3. **修复警告**：
+   - 使用 `skip_tests` 字段
+   - 使用 `PyReleaseVCS.inner` 字段（让子类方法调用内部实现）
+   - 删除或使用 `detect_vcs` 函数
+
+4. **优化 VCS 错误处理**（目标 4）：
+   - 改进 VCS 命令执行的错误信息
+   - 添加更多错误上下文
+
+---
+
+## 历史执行记录#
 
 ### 变更内容#
 

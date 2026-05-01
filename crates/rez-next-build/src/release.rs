@@ -64,7 +64,7 @@ impl Default for ReleaseResult {
 pub struct ReleaseManager {
     mode: ReleaseMode,
     skip_build: bool,
-    skip_tests: bool,
+    skip_tests: bool,  // now used in release() method
     skip_vcs_validation: bool,
 }
 
@@ -130,6 +130,14 @@ impl ReleaseManager {
         // Step 3: Build the package (if not skipped)
         if !self.skip_build {
             self.build_package(source_dir, &package, &install_path, &mut result)?;
+        }
+
+        // Step 3.5: Run tests (if not skipped)
+        if self.skip_tests {
+            result.warnings.push("Tests skipped (skip_tests=true)".to_string());
+        } else {
+            // TODO: Implement test execution
+            result.warnings.push("Test execution not yet implemented".to_string());
         }
 
         // Step 4: Create VCS tag (if VCS is available)
