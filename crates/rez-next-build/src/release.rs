@@ -7,8 +7,9 @@ use crate::vcs::{detect_vcs, VCSMetadata, ReleaseVCS};
 use rez_next_common::{RezCoreConfig, RezCoreError};
 use rez_next_package::serialization::PackageSerializer;
 use rez_next_package::Package;
-use std::path::{Path, PathBuf};
+use sha2::{Digest, Sha256};
 use std::fs;
+use std::path::{Path, PathBuf};
 
 /// Release mode for the package release process
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -281,29 +282,39 @@ impl ReleaseManager {
                 package.variants.len()
             ));
 
-            // Create a directory for each variant
-            // In a full implementation, each variant would have a unique hash
-            for (idx, variant) in package.variants.iter().enumerate() {
-                let variant_name = format!("variant_{}", idx);
-                let variant_path = install_path.join(&variant_name);
+            // Create a hashed directory for each variant
+            for variant in &package.variants {
+                // Compute variant hash (SHA256 of variant debug representation)
+                let mut hasher = Sha256::new();
+                hasher.update(format!("{:?}", variant).as_bytes());
+                let hash_bytes = hasher.finalize();
+                let hash = hex::encode(hash_bytes)[..8].to_string();
+
+                let variant_path = install_path.join(&hash);
 
                 if let Err(e) = fs::create_dir_all(&variant_path) {
                     result.errors.push(format!(
-                        "Failed to create variant directory '{}': {}",
-                        variant_name, e
+                        "Failed to create variant directory for hash '{}': {}",
+                        hash, e
                     ));
                     continue;
                 }
 
-                // TODO: In full implementation:
-                // 1. Compute variant hash
-                // 2. Create directory with hash name
-                // 3. Build package for this variant
-                // 4. Write variant metadata
+                // Copy package.py to variant directory (basic implementation)
+                let pkg_file = source_dir.join("package.py");
+                if pkg_file.exists() {
+                    let dest_file = variant_path.join("package.py");
+                    if let Err(e) = fs::copy(&pkg_file, &dest_file) {
+                        result.warnings.push(format!(
+                            "Failed to copy package.py to variant '{}': {}",
+                            hash, e
+                        ));
+                    }
+                }
 
                 result.warnings.push(format!(
-                    "Created variant directory: {:?} for variant {:?}",
-                    variant_path, variant
+                    "Created variant directory with hash: {} for variant {:?}",
+                    hash, variant
                 ));
             }
         } else {
@@ -311,17 +322,17 @@ impl ReleaseManager {
             result.warnings.push(
                 "No variants defined, using base install path".to_string(),
             );
-        }
 
-        // Copy package.py to install directory (basic implementation)
-        let pkg_file = source_dir.join("package.py");
-        if pkg_file.exists() {
-            let dest_file = install_path.join("package.py");
-            if let Err(e) = fs::copy(&pkg_file, &dest_file) {
-                result.warnings.push(format!(
-                    "Failed to copy package.py: {}",
-                    e
-                ));
+            // Copy package.py to install directory (basic implementation)
+            let pkg_file = source_dir.join("package.py");
+            if pkg_file.exists() {
+                let dest_file = install_path.join("package.py");
+                if let Err(e) = fs::copy(&pkg_file, &dest_file) {
+                    result.warnings.push(format!(
+                        "Failed to copy package.py: {}",
+                        e
+                    ));
+                }
             }
         }
 
