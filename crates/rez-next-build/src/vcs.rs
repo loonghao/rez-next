@@ -213,14 +213,22 @@ impl ReleaseVCS for GitVCS {
 
     fn is_clean(&self) -> Result<bool, RezCoreError> {
         let repo = git2::Repository::open(&self.repo_root)
-            .map_err(|e| RezCoreError::BuildError(format!("Failed to open git repository: {}", e)))?;
+            .map_err(|e| RezCoreError::BuildError(format!(
+                "GitVCS: failed to open repository at '{}': {}",
+                self.repo_root.display(),
+                e
+            )))?;
 
         let mut status_opts = git2::StatusOptions::new();
         status_opts.include_untracked(true);
         status_opts.include_ignored(false);
 
         let statuses = repo.statuses(Some(&mut status_opts))
-            .map_err(|e| RezCoreError::BuildError(format!("Failed to get git status: {}", e)))?;
+            .map_err(|e| RezCoreError::BuildError(format!(
+                "GitVCS: failed to get status for repository at '{}': {}",
+                self.repo_root.display(),
+                e
+            )))?;
 
         // Repository is clean if there are no status entries
         Ok(statuses.is_empty())
@@ -242,13 +250,21 @@ impl ReleaseVCS for GitVCS {
 
         // Detached HEAD state
         let commit = head.peel_to_commit()
-            .map_err(|e| RezCoreError::BuildError(format!("Failed to peel to commit: {}", e)))?;
+            .map_err(|e| RezCoreError::BuildError(format!(
+                "GitVCS: failed to peel to commit for repository at '{}': {}",
+                self.repo_root.display(),
+                e
+            )))?;
         Ok(format!("detached-{}", &commit.id().to_string()[..8]))
     }
 
     fn get_latest_commit(&self) -> Result<String, RezCoreError> {
         let repo = git2::Repository::open(&self.repo_root)
-            .map_err(|e| RezCoreError::BuildError(format!("Failed to open git repository: {}", e)))?;
+            .map_err(|e| RezCoreError::BuildError(format!(
+                "GitVCS: failed to open repository at '{}': {}",
+                self.repo_root.display(),
+                e
+            )))?;
 
         let head = repo.head()
             .map_err(|e| RezCoreError::BuildError(format!("Failed to get HEAD: {}", e)))?;
@@ -261,39 +277,76 @@ impl ReleaseVCS for GitVCS {
 
     fn tag_exists(&self, tag: &str) -> Result<bool, RezCoreError> {
         let repo = git2::Repository::open(&self.repo_root)
-            .map_err(|e| RezCoreError::BuildError(format!("Failed to open git repository: {}", e)))?;
+            .map_err(|e| RezCoreError::BuildError(format!(
+                "GitVCS: failed to open repository at '{}': {}",
+                self.repo_root.display(),
+                e
+            )))?;
 
         // Check if tag reference exists
         let tag_ref_name = format!("refs/tags/{}", tag);
         let result = match repo.find_reference(&tag_ref_name) {
             Ok(_) => Ok(true),
             Err(e) if e.code() == git2::ErrorCode::NotFound => Ok(false),
-            Err(e) => Err(RezCoreError::BuildError(format!("Failed to check tag: {}", e))),
+            Err(e) => Err(RezCoreError::BuildError(format!(
+                "GitVCS: failed to check tag '{}' in repository at '{}': {}",
+                tag,
+                self.repo_root.display(),
+                e
+            ))),
         };
         result
     }
 
     fn create_tag(&self, tag: &str, message: &str) -> Result<(), RezCoreError> {
         let repo = git2::Repository::open(&self.repo_root)
-            .map_err(|e| RezCoreError::BuildError(format!("Failed to open git repository: {}", e)))?;
+            .map_err(|e| RezCoreError::BuildError(format!(
+                "GitVCS: failed to open repository at '{}': {}",
+                self.repo_root.display(),
+                e
+            )))?;
 
         // Get the current HEAD commit
         let head = repo.head()
-            .map_err(|e| RezCoreError::BuildError(format!("Failed to get HEAD: {}", e)))?;
+            .map_err(|e| RezCoreError::BuildError(format!(
+                "GitVCS: failed to get HEAD for tag '{}' in repository at '{}': {}",
+                tag,
+                self.repo_root.display(),
+                e
+            )))?;
         let commit = head.peel_to_commit()
-            .map_err(|e| RezCoreError::BuildError(format!("Failed to get commit: {}", e)))?;
+            .map_err(|e| RezCoreError::BuildError(format!(
+                "GitVCS: failed to peel to commit for tag '{}' in repository at '{}': {}",
+                tag,
+                self.repo_root.display(),
+                e
+            )))?;
 
         // Create signature for tag
         let sig = git2::Signature::now("Rez Next Build", "rez-next@build")
-            .map_err(|e| RezCoreError::BuildError(format!("Failed to create signature: {}", e)))?;
+            .map_err(|e| RezCoreError::BuildError(format!(
+                "GitVCS: failed to create signature for tag '{}': {}",
+                tag,
+                e
+            )))?;
 
         // Create an annotated tag (force = false)
         let oid = commit.id();
         let obj = repo.find_object(oid, Some(git2::ObjectType::Commit))
-            .map_err(|e| RezCoreError::BuildError(format!("Failed to find commit object: {}", e)))?;
+            .map_err(|e| RezCoreError::BuildError(format!(
+                "GitVCS: failed to find commit object for tag '{}' in repository at '{}': {}",
+                tag,
+                self.repo_root.display(),
+                e
+            )))?;
 
         repo.tag(tag, &obj, &sig, message, false)
-            .map_err(|e| RezCoreError::BuildError(format!("Failed to create tag: {}", e)))?;
+            .map_err(|e| RezCoreError::BuildError(format!(
+                "GitVCS: failed to create tag '{}' in repository at '{}': {}",
+                tag,
+                self.repo_root.display(),
+                e
+            )))?;
 
         tracing::info!("GitVCS: created tag '{}' with message '{}'", tag, message);
         Ok(())
@@ -305,7 +358,11 @@ impl ReleaseVCS for GitVCS {
         to_rev: Option<&str>,
     ) -> Result<String, RezCoreError> {
         let repo = git2::Repository::open(&self.repo_root)
-            .map_err(|e| RezCoreError::BuildError(format!("Failed to open git repository: {}", e)))?;
+            .map_err(|e| RezCoreError::BuildError(format!(
+                "GitVCS: failed to open repository at '{}': {}",
+                self.repo_root.display(),
+                e
+            )))?;
 
         let from = from_rev.unwrap_or("HEAD~10");
         let to = to_rev.unwrap_or("HEAD");
