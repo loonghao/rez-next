@@ -184,7 +184,6 @@ mod release_tests {
     }
 
     #[test]
-    #[ignore = "pyo3 0.28: requires Python interpreter initialization"]
     fn test_dry_run_result_has_dry_run_prefix() {
         use std::io::Write;
         let dir = tempfile::tempdir().unwrap();
@@ -205,7 +204,6 @@ mod release_tests {
     }
 
     #[test]
-    #[ignore = "pyo3 0.28: requires Python interpreter initialization"]
     fn test_dry_run_with_message_populates_warnings() {
         use std::io::Write;
         let dir = tempfile::tempdir().unwrap();
@@ -220,10 +218,12 @@ mod release_tests {
             !result.warnings.is_empty(),
             "warnings should contain dry-run note"
         );
+        // warnings[0] = "No VCS detected in source directory" (from validate_vcs)
+        // warnings[1] = "[dry-run] note: review note" (from dry-run block)
         assert!(
-            result.warnings[0].contains("review note"),
-            "warning: {}",
-            result.warnings[0]
+            result.warnings.iter().any(|w| w.contains("review note")),
+            "warning should contain 'review note': {:?}",
+            result.warnings
         );
     }
 
@@ -725,13 +725,17 @@ mod release_tests {
     }
 
     #[test]
-    #[ignore = "pyo3 0.28: to_dict() needs Python interpreter"]
+    #[ignore = "pyo3 0.28: to_dict() needs Python interpreter (extension-module mode)"]
     fn test_py_vcs_metadata_to_dict() {
         // FIXME: to_dict() requires a Python interpreter.
         // In pyo3 0.28 with `extension-module` feature, Python is not
         // automatically initialized for Rust tests.
         // This test is ignored until pyo3 test macro is properly configured.
     }
+
+    // ========================================================================
+    // PyReleaseManager tests (no Python init needed)
+    // ========================================================================
 
     // ========================================================================
     // PyReleaseManager tests

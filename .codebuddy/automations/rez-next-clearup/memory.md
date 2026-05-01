@@ -1,12 +1,66 @@
 # rez-next-clearup 执行记录
 
-## 最新执行 (2026-05-01) — Cycle 228
+## 最新执行 (2026-05-01) — Cycle 229
 
 ### 执行摘要
 
-**Cycle 228**：修复 `vcs.rs` 中 Cycle 218 未能修复的 2 个 clippy 警告，更新清理记录。
+**Cycle 229**：修复 `release_bindings.rs` 和 `release_bindings_tests.rs` 中的 5 个 clippy 警告，更新清理记录。
 
 ### 变更内容
+
+#### 阶段 4：代码规范治理
+1. **`release_bindings.rs:14`**：移除冗余 `use serde_json;`（修复 `single_component_path_imports`）
+2. **`release_bindings.rs:62`**：添加 `#[allow(clippy::too_many_arguments)]`（Python 绑定需要多个带默认值的参数）
+3. **`release_bindings.rs:534`**：使用 `.ok()` 替代 `match Result { Ok(x) => Some(x), Err(_) => None }`（修复 `manual_ok_err`）
+4. **`release_bindings_tests.rs:595`**：使用 `assert!` 替代 `assert_eq!(bool, true/false)`（修复 `bool_assert_comparison`）
+5. **`release_bindings_tests.rs:823`**：使用 `.is_ascii_hexdigit()` 替代 `c.is_digit(16)`（修复 `is_digit_ascii_radix`）
+
+#### 阶段 1：过期代码清理
+- 扫描整个代码库：Rust 文件中 **0 个 TODO/FIXME/HACK** 标记
+- 扫描注释代码块：未找到需要清理的注释代码
+- **`#49` 已修复**：迭代 Agent 在 Cycle 238 (commit `aaebf7b`) 修复了编译错误
+
+#### 阶段 6：结构性重构评估
+- **`filter.rs`** (771 行)：结构清晰，测试占 ~210 行，暂不需要拆分
+- **`vcs.rs`** (1165 行)：超过 500 行阈值，建议按 VCS 类型拆分（`vcs/{stub,git,hg,svn}.rs`）
+- 风险：中等（文件随迭代增长），决策：记录到 `CLEANUP_TODO.md` #50，下轮评估
+
+### 测试结果
+
+- **全量测试**：1301 passed, 0 failed
+- **Clippy (全 workspace)**：0 warnings (修复 5 个警告后)
+- **`cargo audit`**：9 allowed warnings (无新增)
+
+### 代码库健康指标 (Cycle 229)
+
+| 指标 | 值 |
+|------|-----|
+| Rust tests | 1301 passed, 0 failed |
+| Python tests | 未运行 |
+| Clippy warnings (全 workspace) | 0 |
+| Ignored tests | 1 (doc-test in `cmd_builder.rs`) |
+| `allow(dead_code)` attributes | 1 (`detect_vcs` in `release_bindings.rs`) |
+| TODO/FIXME in code | 0 |
+| Dead code | 0 |
+| 大文件 (>500 行) | `filter.rs` (771L), `vcs.rs` (1165L) |
+
+### 下一轮目标
+
+**Cycle 230**：
+1. 评估 `vcs.rs` (1165L) 拆分方案并执行（如果迭代已稳定）
+2. 检查未使用依赖（安装 `cargo-udeps` 或手动检查）
+3. 评估 `filter.rs` (771L) 是否应拆分（等待迭代稳定）
+4. 运行 Python 测试（需先 `maturin develop --release`）
+
+---
+
+## 历史执行
+
+### Cycle 228 (2026-05-01)
+
+**Cycle 228**：修复 `vcs.rs` 中 Cycle 218 未能修复的 2 个 clippy 警告，更新清理记录。
+
+#### 变更内容
 
 #### 阶段 1：过期代码清理
 - 审查 `crates/rez-next-build/src/vcs.rs`（Cycle 226 新增）
@@ -53,98 +107,6 @@
 2. 评估 `vcs.rs` (1165L) 拆分方案并执行（如果迭代已稳定）
 3. 检查未使用依赖（安装 `cargo-udeps` 或手动检查）
 4. 继续监控 `filter.rs` (771L) 增长
-
----
-
-## 历史执行
-
-### Cycle 218 (2026-05-01)
-
-**Cycle 218**：修复 clippy 警告、导出缺失的 Python 函数、记录已知问题。
-
-#### 变更内容
-
-#### 阶段 1：过期代码清理
-1. **`build_functions.rs`**：移除不必要的 `#[allow(dead_code)]`（第 145 行）—— `get_buildsys_types` 有 `#[pyfunction]`，不是 dead code
-2. **`Cargo.toml` (rez-next-build)**：修复 `git2` 特性名拼写错误（`vendor-libgit2` → `vendored-libgit2`，第 29 行）
-3. **`Cargo.toml` (rez-next-build)**：修复损坏的 TOML 结构（`default-features` 被错误放在 `[package]` 节中，已移回 `[features]` 下）
-
-#### 阶段 4：代码规范治理
-1. **`lib.rs` (rez-next-python)**：添加 `get_buildsys_types` 到 Python 导出列表（`m.add_function(wrap_pyfunction!(get_buildsys_types, m)?);`）
-2. **`vcs.rs` clippy 警告（2 个）**：尝试修复但编译出错，已恢复文件，记录到 `CLEANUP_TODO.md` 留到 Cycle 219 修复：
-   - `this impl can be derived` → `VCSMetadata` 可 `derive(Default)`
-   - `writing &PathBuf instead of &Path` → `detect_vcs` 参数应为 `&Path`
-
-#### 未完成的工作
-- **`shell.rs` 注释块删除**：尝试删除 47 行注释掉的 PyO3 代码块，但 PowerShell 转义问题导致文件损坏，已恢复
-- **`vcs.rs` clippy 修复**：留到 Cycle 219 用更系统的方法修复
-
-### 测试结果
-
-- **全量测试**：通过（201 tests, 0 failed，1 ignored doc-test）
-- **Clippy (`-D warnings`)**：0 warnings（修复后）
-- **`cargo audit`**：9 allowed warnings（与 Cycle 217 基线一致，已记录在 `audit.toml`）
-
-### 代码库健康指标 (Cycle 218)
-
-| 指标 | 值 |
-|------|-----|
-| Rust tests | 201 passed, 0 failed |
-| Python tests | 未运行（需 maturin develop） |
-| Clippy warnings (`-D warnings`) | 0 |
-| Ignored tests | 1 (doc-test in `cmd_builder.rs`) |
-| `allow(dead_code)` attributes | 0 |
-| TODO/FIXME in code | 0（`vcs.rs` 中的 TODO 是活跃的，未删除） |
-| Dead code | 0 |
-
-### 下一轮目标
-
-**Cycle 219**：
-1. 修复 `vcs.rs` 中的 2 个 clippy 警告（`derive(Default)` + `&Path`）
-2. 评估是否有大型文件需要拆分（检查 >500 行的文件列表）
-3. 尝试删除 `shell.rs` 中的注释块（用 Python 脚本或其他可靠方法）
-4. 运行 Python 测试（需先 `maturin develop --release`）
-
----
-
-### Cycle 217 (2026-05-01)
-
-**Cycle 217**：全代码库 TODO/FIXME/HACK 审计，更新文档。
-
-#### 变更内容
-
-- 审计整个代码库：Rust 文件中 **0 个 TODO/FIXME/HACK** 标记
-- 审计注释代码块：未找到 >5 行的注释代码块
-- 更新 `CLEANUP_TODO.md`：
-  - TODO 计数从 1 修正为 0（之前记录不准确）
-  - 更新健康指标表：TODO/FIXME 列为 0
-- `view.rs` 中未找到 TODO（CLEANUP_TODO.md 记录已过时）
-- `filter.rs` 当前 771 行（非 777），结构清晰，暂不需要拆分
-
-#### 测试结果
-
-- 全量测试：**所有 crate 0 failed**
-- Clippy (`-D warnings`)：**0 warnings**
-- `cargo audit`：9 allowed warnings（已在 `audit.toml` 中）
-
-#### 代码库健康指标 (Cycle 217)
-
-| 指标 | 值 |
-|------|-----|
-| Rust tests | 全部通过, 0 failed |
-| Python tests | 未运行（需 maturin develop） |
-| Clippy warnings (`-D warnings`) | 0 |
-| Ignored tests | 1 (doc-test in `rez_next_build`) |
-| `allow(dead_code)` attributes | 0 |
-| TODO/FIXME in code | 0 |
-| Dead code | 0 |
-
-### 下一轮目标
-
-**Cycle 218**：
-1. 评估是否有大型文件需要拆分（检查 >500 行的文件列表）
-2. 运行 Python 测试（需先 `maturin develop --release`）
-3. 检查 `cargo audit` 是否有新的漏洞报告
 
 ---
 

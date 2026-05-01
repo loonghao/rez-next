@@ -105,11 +105,12 @@ impl ReleaseManager {
             None
         };
 
-        // For dry-run mode, return early
+        // For dry-run mode, add prefix and return early
         if self.mode == ReleaseMode::DryRun {
+            result.install_path = format!("[dry-run] {}", result.install_path);
             result.success = true;
             if let Some(msg) = message {
-                result.warnings.push(format!("dry-run note: {}", msg));
+                result.warnings.push(format!("[dry-run] note: {}", msg));
             }
             return Ok(result);
         }
