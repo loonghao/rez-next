@@ -148,15 +148,18 @@
   - `PyReleaseResult` test structs updated with `changelog` and `vcs_metadata` fields
 - **Verification**: `cargo build -p rez-next-python` succeeds (Cycle 229)
 
-### 50. `filter.rs` exceeds 500 lines (771 lines) — OPEN
-- **Status**: OPEN (evaluate for split in next cycle)
-- `crates/rez-next-package/src/filter.rs` has 771 lines
-- Structure is clear with section separators (`// ── ... ──`)
-- Contains: `Rule` trait, `GlobRule`, `RegexRule`, `RangeRule`, `TimestampRule`, `PackageFilter`, `PackageFilterList`, rule parsing, tests
-- Tests account for ~210 lines (lines 560-770)
-- **Recommendation**: Extract `tests` module to `filter/tests.rs` or split by rule type
-- **Risk**: Low (well-structured code), but file is from iteration agent (may still evolve)
-- **Follow-up**: Monitor file growth; split when it exceeds 800 lines or when iteration stabilizes
+### 50. `vcs.rs` exceeds 800 lines (1165 lines) — OPEN
+- **Status**: OPEN (evaluate for split, wait for iteration to stabilize)
+- `crates/rez-next-build/src/vcs.rs` has 1165 lines
+- Contains: `ReleaseVCS` trait, `VCSMetadata` struct, `StubVCS`, `GitVCS` (~294L), `MercurialVCS` (~163L), `SvnVCS` (~194L), `detect_vcs()`, `get_vcs_metadata()`
+- **Recommendation**: Split by VCS type:
+  - `vcs/mod.rs` — trait, `VCSMetadata`, `StubVCS`, free functions, re-exports
+  - `vcs/git.rs` — `GitVCS`
+  - `vcs/hg.rs` — `MercurialVCS`
+  - `vcs/svn.rs` — `SvnVCS`
+- **Risk**: Medium (file grows with iteration agent work)
+- **Decision**: Wait for iteration to stabilize before splitting (avoid merge conflicts)
+- **Follow-up**: Monitor file growth; split in future cycle when structure is stable
 
 ## Cycle 21+ — Code Quality Improvements (2026-04-30)
 
