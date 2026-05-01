@@ -9,7 +9,340 @@
 
 use crate::runtime::get_runtime;
 use pyo3::prelude::*;
+use pyo3::types::PyDict;
+use rez_next_build::vcs::{ReleaseVCS, VCSMetadata};
 use std::path::PathBuf;
+
+// ============================================================================
+/// VCS Metadata for release
+// ============================================================================
+#[pyclass(name = "VCSMetadata", from_py_object)]
+#[derive(Clone)]
+pub struct PyVCSMetadata {
+    #[pyo3(get)]
+    pub vcs_type: String,
+    #[pyo3(get)]
+    pub repository_url: Option<String>,
+    #[pyo3(get)]
+    pub branch: Option<String>,
+    #[pyo3(get)]
+    pub tracking_branch: Option<String>,
+    #[pyo3(get)]
+    pub fetch_url: Option<String>,
+    #[pyo3(get)]
+    pub push_url: Option<String>,
+    #[pyo3(get)]
+    pub commit_hash: String,
+    #[pyo3(get)]
+    pub commit_message: Option<String>,
+    #[pyo3(get)]
+    pub author_name: Option<String>,
+    #[pyo3(get)]
+    pub author_email: Option<String>,
+    #[pyo3(get)]
+    pub timestamp: Option<i64>,
+}
+
+#[pymethods]
+impl PyVCSMetadata {
+    #[new]
+    #[pyo3(signature = (
+        vcs_type,
+        repository_url=None,
+        branch=None,
+        tracking_branch=None,
+        fetch_url=None,
+        push_url=None,
+        commit_hash="",
+        commit_message=None,
+        author_name=None,
+        author_email=None,
+        timestamp=None,
+    ))]
+    pub fn new(
+        vcs_type: String,
+        repository_url: Option<String>,
+        branch: Option<String>,
+        tracking_branch: Option<String>,
+        fetch_url: Option<String>,
+        push_url: Option<String>,
+        commit_hash: &str,
+        commit_message: Option<String>,
+        author_name: Option<String>,
+        author_email: Option<String>,
+        timestamp: Option<i64>,
+    ) -> Self {
+        Self {
+            vcs_type,
+            repository_url,
+            branch,
+            tracking_branch,
+            fetch_url,
+            push_url,
+            commit_hash: commit_hash.to_string(),
+            commit_message,
+            author_name,
+            author_email,
+            timestamp,
+        }
+    }
+
+    pub fn __str__(&self) -> String {
+        format!(
+            "VCSMetadata(type={}, branch={:?}, commit={})",
+            self.vcs_type, self.branch, self.commit_hash
+        )
+    }
+
+    pub fn __repr__(&self) -> String {
+        self.__str__()
+    }
+
+    /// Convert to Python dict
+    pub fn to_dict<'a>(&self, py: Python<'a>) -> Bound<'a, PyDict> {
+        let d = PyDict::new(py);
+        d.set_item("vcs_type", self.vcs_type.clone()).unwrap();
+        d.set_item("repository_url", self.repository_url.clone())
+            .unwrap();
+        d.set_item("branch", self.branch.clone()).unwrap();
+        d.set_item("tracking_branch", self.tracking_branch.clone())
+            .unwrap();
+        d.set_item("fetch_url", self.fetch_url.clone()).unwrap();
+        d.set_item("push_url", self.push_url.clone()).unwrap();
+        d.set_item("commit_hash", self.commit_hash.clone()).unwrap();
+        d.set_item("commit_message", self.commit_message.clone())
+            .unwrap();
+        d.set_item("author_name", self.author_name.clone()).unwrap();
+        d.set_item("author_email", self.author_email.clone())
+            .unwrap();
+        d.set_item("timestamp", self.timestamp).unwrap();
+        d
+    }
+}
+
+impl From<&VCSMetadata> for PyVCSMetadata {
+    fn from(meta: &VCSMetadata) -> Self {
+        Self {
+            vcs_type: meta.vcs_type.clone(),
+            repository_url: meta.repository_url.clone(),
+            branch: meta.branch.clone(),
+            tracking_branch: meta.tracking_branch.clone(),
+            fetch_url: meta.fetch_url.clone(),
+            push_url: meta.push_url.clone(),
+            commit_hash: meta.commit_hash.clone(),
+            commit_message: meta.commit_message.clone(),
+            author_name: meta.author_name.clone(),
+            author_email: meta.author_email.clone(),
+            timestamp: meta.timestamp,
+        }
+    }
+}
+
+// ============================================================================
+/// Base class for VCS implementations
+// ============================================================================
+#[pyclass(name = "ReleaseVCS", subclass)]
+pub struct PyReleaseVCS {
+    inner: Option<Box<dyn ReleaseVCS + Send + Sync>>,
+}
+
+#[pymethods]
+impl PyReleaseVCS {
+    #[new]
+    pub fn new() -> Self {
+        Self { inner: None }
+    }
+
+    pub fn get_type_name(&self) -> String {
+        "stub".to_string()
+    }
+
+    pub fn get_repo_root(&self) -> PyResult<String> {
+        Ok(".".to_string())
+    }
+
+    pub fn is_clean(&self) -> PyResult<bool> {
+        Ok(true)
+    }
+
+    pub fn get_current_branch(&self) -> PyResult<String> {
+        Ok("main".to_string())
+    }
+
+    pub fn get_latest_commit(&self) -> PyResult<String> {
+        Ok("stub-commit".to_string())
+    }
+
+    pub fn tag_exists(&self, _tag: &str) -> PyResult<bool> {
+        Ok(false)
+    }
+
+    pub fn create_tag(&self, tag: &str, message: &str) -> PyResult<()> {
+        // Stub implementation - just log and return Ok
+        eprintln!(
+            "StubVCS: would create tag '{}' with message '{}'",
+            tag, message
+        );
+        Ok(())
+    }
+
+    pub fn get_changelog(
+        &self,
+        _from_rev: Option<&str>,
+        _to_rev: Option<&str>,
+    ) -> PyResult<String> {
+        Ok("Stub changelog".to_string())
+    }
+
+    pub fn get_metadata(&self) -> PyResult<PyVCSMetadata> {
+        Ok(PyVCSMetadata::from(&VCSMetadata {
+            vcs_type: "stub".to_string(),
+            commit_hash: "stub-commit".to_string(),
+            ..Default::default()
+        }))
+    }
+
+    pub fn validate_repo_state(&self) -> PyResult<()> {
+        Ok(())
+    }
+
+    pub fn is_releasable_branch(&self) -> PyResult<Option<bool>> {
+        Ok(None)
+    }
+}
+
+// ============================================================================
+/// Git VCS implementation
+// ============================================================================
+#[cfg(feature = "git")]
+#[pyclass(name = "GitVCS", extends = PyReleaseVCS)]
+pub struct PyGitVCS {}
+
+#[cfg(feature = "git")]
+#[pymethods]
+impl PyGitVCS {
+    #[new]
+    #[pyo3(signature = (repo_root))]
+    pub fn new(repo_root: &str) -> PyResult<(Self, PyReleaseVCS)> {
+        use rez_next_build::vcs::GitVCS as InnerGitVCS;
+        use std::path::PathBuf;
+
+        let inner = InnerGitVCS::new(PathBuf::from(repo_root))
+            .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))?;
+
+        Ok((
+            Self {},
+            PyReleaseVCS {
+                inner: Some(Box::new(inner)),
+            },
+        ))
+    }
+}
+
+#[cfg(not(feature = "git"))]
+#[pyclass(name = "GitVCS", extends = PyReleaseVCS)]
+pub struct PyGitVCS {}
+
+#[cfg(not(feature = "git"))]
+#[pymethods]
+impl PyGitVCS {
+    #[new]
+    pub fn new(_repo_root: &str) -> PyResult<(Self, PyReleaseVCS)> {
+        Err(pyo3::exceptions::PyRuntimeError::new_err(
+            "Git support not compiled in. Enable 'git' feature when building.",
+        ))
+    }
+}
+
+// ============================================================================
+/// Mercurial VCS implementation
+// ============================================================================
+#[pyclass(name = "MercurialVCS", extends = PyReleaseVCS)]
+pub struct PyMercurialVCS {}
+
+#[pymethods]
+impl PyMercurialVCS {
+    #[new]
+    #[pyo3(signature = (repo_root))]
+    pub fn new(repo_root: &str) -> PyResult<(Self, PyReleaseVCS)> {
+        use rez_next_build::vcs::MercurialVCS as InnerHgVCS;
+        use std::path::PathBuf;
+
+        let inner = InnerHgVCS::new(PathBuf::from(repo_root))
+            .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))?;
+
+        Ok((
+            Self {},
+            PyReleaseVCS {
+                inner: Some(Box::new(inner)),
+            },
+        ))
+    }
+}
+
+// ============================================================================
+/// SVN VCS implementation
+// ============================================================================
+#[pyclass(name = "SvnVCS", extends = PyReleaseVCS)]
+pub struct PySvnVCS {}
+
+#[pymethods]
+impl PySvnVCS {
+    #[new]
+    #[pyo3(signature = (repo_root))]
+    pub fn new(repo_root: &str) -> PyResult<(Self, PyReleaseVCS)> {
+        use rez_next_build::vcs::SvnVCS as InnerSvnVCS;
+        use std::path::PathBuf;
+
+        let inner = InnerSvnVCS::new(PathBuf::from(repo_root))
+            .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))?;
+
+        Ok((
+            Self {},
+            PyReleaseVCS {
+                inner: Some(Box::new(inner)),
+            },
+        ))
+    }
+}
+
+// ============================================================================
+/// Detect VCS for a given path
+// ============================================================================
+#[pyfunction]
+pub fn detect_vcs<'a>(py: Python<'a>, repo_root: &str) -> PyResult<Option<Bound<'a, PyAny>>> {
+    use rez_next_build::vcs::detect_vcs as inner_detect_vcs;
+    use std::path::Path;
+
+    let path = Path::new(repo_root);
+    let result = inner_detect_vcs(path); // Option<Box<dyn ReleaseVCS>>
+
+    match result {
+        Some(vcs) => {
+            let type_name = vcs.get_type_name(); // &str
+            let obj = match type_name {
+                "git" => {
+                    let git_vcs = PyGitVCS::new(repo_root)
+                        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+                    pyo3::Bound::new(py, git_vcs).unwrap().into_any()
+                }
+                "hg" => {
+                    let hg_vcs = PyMercurialVCS::new(repo_root)
+                        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+                    pyo3::Bound::new(py, hg_vcs).unwrap().into_any()
+                }
+                "svn" => {
+                    let svn_vcs = PySvnVCS::new(repo_root)
+                        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+                    pyo3::Bound::new(py, svn_vcs).unwrap().into_any()
+                }
+                _ => return Ok(None),
+            };
+            Ok(Some(obj))
+        }
+        None => Ok(None),
+    }
+}
 
 /// Release mode for a package
 #[derive(Clone, Copy, Debug, PartialEq)]

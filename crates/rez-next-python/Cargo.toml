@@ -15,6 +15,7 @@ crate-type = ["cdylib", "rlib"]
 [features]
 default = []
 extension-module = ["pyo3/extension-module"]
+git = ["rez-next-build/git"]
 
 [dependencies]
 rez-next-common = { version = "0.3.0", path = "../rez-next-common" }
