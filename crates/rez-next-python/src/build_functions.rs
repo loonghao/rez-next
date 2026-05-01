@@ -90,7 +90,10 @@ pub fn build_package(
     let result = final_result.unwrap();
 
     if result.success {
-        Ok(format!("Build succeeded: {} builds completed", build_ids.len()))
+        Ok(format!(
+            "Build succeeded: {} builds completed",
+            build_ids.len()
+        ))
     } else {
         Err(pyo3::exceptions::PyRuntimeError::new_err(format!(
             "Build failed: {}",
