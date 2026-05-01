@@ -161,13 +161,15 @@ impl ReleaseVCS for StubVCS {
     }
 }
 
-/// Git VCS implementation
+/// Git VCS implementation (requires `git` feature)
+#[cfg(feature = "git")]
 #[derive(Debug)]
 pub struct GitVCS {
     /// Repository root path
     repo_root: PathBuf,
 }
 
+#[cfg(feature = "git")]
 impl GitVCS {
     /// Create a new GitVCS
     pub fn new(repo_root: PathBuf) -> Result<Self, RezCoreError> {
@@ -182,6 +184,7 @@ impl GitVCS {
     }
 }
 
+#[cfg(feature = "git")]
 impl ReleaseVCS for GitVCS {
     fn get_type_name(&self) -> &str {
         "git"
@@ -192,28 +195,27 @@ impl ReleaseVCS for GitVCS {
     }
 
     fn is_clean(&self) -> Result<bool, RezCoreError> {
-        // TODO: Implement git status check
-        // For now, return true
+        // TODO: Implement with git2
         Ok(true)
     }
 
     fn get_current_branch(&self) -> Result<String, RezCoreError> {
-        // TODO: Implement git branch detection
+        // TODO: Implement with git2
         Ok("main".to_string())
     }
 
     fn get_latest_commit(&self) -> Result<String, RezCoreError> {
-        // TODO: Implement git log -1 --format=%H
+        // TODO: Implement with git2
         Ok("placeholder-git-commit-hash".to_string())
     }
 
     fn tag_exists(&self, _tag: &str) -> Result<bool, RezCoreError> {
-        // TODO: Implement git tag check
+        // TODO: Implement with git2
         Ok(false)
     }
 
     fn create_tag(&self, tag: &str, message: &str) -> Result<(), RezCoreError> {
-        // TODO: Implement git tag creation
+        // TODO: Implement with git2
         tracing::info!("GitVCS: would create tag '{}' with message '{}'", tag, message);
         Ok(())
     }
@@ -223,7 +225,7 @@ impl ReleaseVCS for GitVCS {
         from_rev: Option<&str>,
         to_rev: Option<&str>,
     ) -> Result<String, RezCoreError> {
-        // TODO: Implement git log for changelog
+        // TODO: Implement with git2
         let from = from_rev.unwrap_or("HEAD~10");
         let to = to_rev.unwrap_or("HEAD");
         Ok(format!(
@@ -233,11 +235,12 @@ impl ReleaseVCS for GitVCS {
     }
 
     fn get_metadata(&self) -> Result<VCSMetadata, RezCoreError> {
+        // TODO: Implement with git2
         Ok(VCSMetadata {
             vcs_type: "git".to_string(),
             repository_url: None, // TODO: get from git remote
-            branch: self.get_current_branch().ok(),
-            commit_hash: self.get_latest_commit()?,
+            branch: Some("main".to_string()), // TODO: get actual branch
+            commit_hash: "placeholder".to_string(), // TODO: get actual hash
             commit_message: None,
             author_name: None,
             author_email: None,
@@ -251,7 +254,12 @@ impl ReleaseVCS for GitVCS {
 pub fn detect_vcs(repo_path: &PathBuf) -> Option<Box<dyn ReleaseVCS>> {
     // Check for Git
     if repo_path.join(".git").exists() {
+        #[cfg(feature = "git")]
         return Some(Box::new(GitVCS::new(repo_path.clone()).ok()?));
+        
+        // Fall back to StubVCS if git feature is not enabled
+        #[cfg(not(feature = "git"))]
+        return Some(Box::new(StubVCS::new(repo_path.clone())));
     }
 
     // Check for Mercurial

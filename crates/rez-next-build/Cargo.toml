@@ -26,7 +26,14 @@ reqwest = { version = "0.13", features = ["stream"] }
 async-trait = "0.1"
 sha2 = "0.11"
 hex = "0.4"
-git2 = { version = "0.19", features = ["vendored-libgit2"] }
+
+[features]
+git = ["dep:git2"]
+
+[dependencies.git2]
+version = "0.19"
+optional = true
+features = ["vendored-libgit2"]
 
 [dev-dependencies]
 tempfile.workspace = true
