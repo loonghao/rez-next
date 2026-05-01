@@ -1,129 +1,95 @@
 # rez-next auto-improve 执行记录#
 
-## 最新执行 (2026-05-01) — Cycle 226#
+## 最新执行 (2026-05-01) — Cycle 228#
 
 ### 执行摘要#
 
-**Cycle 226**：实现 `GitVCS` 的实际 Git 操作并添加完整测试覆盖。
+**Cycle 228**：为 `rez_next.build.vcs` 添加 Python 绑定，实现 VCS 的 Python API。
 
 ### 变更内容#
 
-- **`crates/rez-next-build/Cargo.toml`**：
-  - 修复 `default-features` 为 `default`（正确的 Cargo feature 语法）
-  - `git` feature 作为默认 feature 启用
+- **`crates/rez-next-python/src/release_bindings.rs`**：
+  - 添加 `VCSMetadata` Python 类（对应 Rust 的 `VCSMetadata` 结构体）
+    - 支持 `to_dict()` 方法，将元数据转换为 Python dict
+    - 实现 `__str__` 和 `__repr__` 方法
+  - 添加 `ReleaseVCS` Python 基类（对应 Rust 的 `ReleaseVCS` trait）
+    - 提供 `get_type_name()`, `is_clean()`, `get_current_branch()`, `get_latest_commit()`, `tag_exists()`, `create_tag()`, `get_changelog()`, `get_metadata()`, `validate_repo_state()`, `is_releasable_branch()` 等方法
+  - 添加 `GitVCS` Python 类（对应 Rust 的 `GitVCS`）
+    - 使用 `#[cfg(feature = "git")]` 条件编译
+    - 当 git feature 未启用时，返回错误提示
+  - 添加 `MercurialVCS` Python 类（对应 Rust 的 `MercurialVCS`）
+  - 添加 `SvnVCS` Python 类（对应 Rust 的 `SvnVCS`）
+  - 添加 `detect_vcs()` Python 函数（对应 Rust 的 `detect_vcs`）
+    - 自动检测指定路径的 VCS 类型并返回对应的 Python 对象
+  - 修复生命周期标注问题
+  - 修复类型匹配问题（使用 `get_type_name()` 替代直接匹配）
 
-- **`crates/rez-next-build/src/vcs.rs`**：
-  - 实现所有 `GitVCS` 方法（使用 `git2` 库）：
-    - `is_clean()`: 检查工作目录是否干净
-    - `get_current_branch()`: 获取当前分支名
-    - `get_latest_commit()`: 获取最新提交 hash
-    - `tag_exists()`: 检查 tag 是否存在
-    - `create_tag()`: 创建 annotated tag
-    - `get_changelog()`: 获取提交历史
-    - `get_metadata()`: 获取完整元数据
-  - 修复生命周期问题（`tag_exists`, `create_temp_git_repo`）
-  - 添加 10 个 `GitVCS` 单元测试
-  - 修复所有 Clippy 警告：
-    - 使用 `derive(Default)` 替代手动实现
-    - 使用 `!is_empty()` 替代 `len() > 0`
-    - 函数参数使用 `&Path` 替代 `&PathBuf`
-  - 配置 `init.defaultBranch` 为 `main`
+- **`crates/rez-next-python/Cargo.toml`**：
+  - 添加 `git` feature，依赖 `rez-next-build/git`
+
+### 修复的编译错误#
+
+1. **`PyObject` 类型不存在**：使用正确的 PyO3 bound API (`Bound<'py, PyDict>`, `Bound<'py, PyAny>`)
+2. **生命周期标注错误**：为 `detect_vcs` 函数添加命名生命周期参数 `<'a>`
+3. **`as_str()` 方法不存在**：使用 `as_deref()` 将 `Option<String>` 转换为 `Option<&str>`
+4. **`as_deref()` 调用位置错误**：在 `match` 前调用 `result.as_deref()`
+5. **PyClass deprecation warning**：添加 `from_py_object` 到 `PyVCSMetadata`
+6. **未使用的 import**：删除 `use std::collections::HashMap;`
 
 ### 测试结果#
 
-- `cargo test -p rez-next-build --lib`：**100 passed**，0 failed
-- Clippy warnings: 0
-- 所有 `GitVCS` 方法测试通过
+- `cargo check -p rez-next-python`: ✓ 通过（2 个警告）
+- `cargo test -p rez-next-python --lib`: **1362 passed**, 0 failed
+- Clippy warnings: 3（不影响功能）
 
 ### 当前提交#
 
-- `32e676b` — `feat(build): implement GitVCS with git2 and add comprehensive tests (Cycle 226) [iteration-done]`
+- `7b7535d` — `feat(python-bindings): add VCS Python bindings and fix build (Cycle 228) [iteration-done]`
 
 ### 下一轮目标#
 
-**Cycle 227**：
-1. 比较原始 rez `build_process.py`，识别缺失功能
-2. 实现 Mercurial VCS 支持（`MercurialVCS`）
-3. 实现 SVN VCS 支持（`SvnVCS`）
-4. 添加变体构建的端到端测试
-5. 为 `ReleaseVCS` 添加更多集成测试
-
----
-
-## 附加修复 (2026-05-01)#
-
-由于 `git2` 依赖编译失败，进行了以下修复：
-- 将 `git2` 从必需依赖改为可选依赖
-- 添加 `git` feature 控制 `GitVCS` 的编译
-- 恢复 `vcs.rs` 中 `GitVCS` 的方法为桩实现（TODO）
-- 更新 `Cargo.toml`：`features.git = ["dep:git2"]`
-- 添加 `dependencies.git2` 可选依赖（带 `vendored-libgit2` feature）
-
-提交：`fix(build): make git2 optional dependency with git feature (Cycle 224 fix)`
-- 所有 91 个 `rez-next-build` 测试通过
-- 所有 161 个工作区测试通过
+**Cycle 229**：
+1. 实现 `ReleaseManager.release()` 的完整发布工作流
+   - 集成 VCS 验证（调用 `ReleaseVCS.validate_repo_state()`）
+   - 构建所有变体（如果包有变体）
+   - 创建 VCS 标签（`ReleaseVCS.create_tag()`）
+   - 生成变更日志（`ReleaseVCS.get_changelog()`）
+   - 将发布元数据写入包定义
+2. 添加变体构建的完整支持
+   - 确保变体安装路径正确（哈希路径）
+   - 为变体创建符号链接
+3. 添加 `release_bindings_tests.rs` 测试
+   - 测试 `VCSMetadata` 类
+   - 测试 `detect_vcs()` 函数
+   - 测试 `ReleaseManager` 类
+4. 优化 VCS 命令执行的错误处理
 
 ---
 
 ## 历史执行记录#
 
-### Cycle 224 (2026-05-01)#
+### Cycle 227 (2026-05-01)#
 
 **提交**：
-- `feat(build): add variant build support and VCS integration (Cycle 224) [iteration-done]`
-- `fix(build): make git2 optional dependency with git feature (Cycle 224 fix)`
+- `628887c` — `feat(build): add MercurialVCS and SvnVCS implementations (Cycle 227) [iteration-done]`
 
 **主要变更**：
-- 添加变体构建支持（`BuildRequest::for_variant()`、`start_build()` 返回 `Vec<String>`）
-- 添加 VCS 集成基础结构（`ReleaseVCS` trait、`StubVCS`、`GitVCS`）
-- 修复所有编译错误（6个文件）
-- 所有 161 个测试通过
+- 实现 `MercurialVCS` 和 `SvnVCS` 结构体
+- 添加 10+ 个 VCS 单元测试
+- 修复 GitVCS 中的编译错误
 
 ---
 
-### Cycle 223 (2026-05-01)#
+### Cycle 226 (2026-05-01)#
 
-**Cycle 223（commit `1e8ddf1`）**：为 `BuildEnvironment` 添加标准 REZ_BUILD_* 环境变量，并添加更多测试用例。
+**提交**：
+- `32e676b` — `feat(build): implement GitVCS with git2 and add comprehensive tests (Cycle 226) [iteration-done]`
 
-### 变更内容#
-
-- 更新 `crates/rez-next-build/src/environment.rs`：
-  - 添加标准 Rez 环境变量：
-    - `REZ_BUILD_ENV=1`（标记为 Rez 构建环境）
-    - `REZ_BUILD_TYPE=local`（构建类型）
-    - `REZ_BUILD_INSTALL=0|1`（是否安装标志）
-  - 添加 10 个新测试用例：
-    - `test_standard_env_vars_present` — 验证标准变量存在
-    - `test_install_flag_env_var` — 测试安装标志
-    - `test_package_name_version_vars` — 测试包名/版本变量
-    - `test_build_and_install_paths` — 测试构建/安装路径
-    - `test_add_and_remove_env_var` — 测试添加/删除环境变量
-    - `test_shell_script_bash` — 测试 Bash shell 脚本生成
-    - `test_shell_script_powershell` — 测试 PowerShell 脚本生成
-    - `test_normalize_build_path_absolute` — 测试绝对路径规范化
-    - `test_normalize_build_path_relative` — 测试相对路径规范化
-    - `test_get_dirs` — 测试获取目录方法
-  - 修复 Windows 路径处理问题（`PathBuf` 方法替代字符串包含检查）
-
-### 测试结果#
-
-- `cargo test -p rez-next-build --lib`：**83 passed**，0 failed
-- `cargo test --workspace --lib`：所有测试通过（~2500+ tests）
-- 编译检查：通过
-- Clippy warnings: 0
-
-### 当前提交#
-
-- `1e8ddf1` — feat(build): add standard REZ_BUILD_* env vars and tests (Cycle 223) [iteration-done]#
-
-### 下一轮目标#
-
-**Cycle 224**：继续改进
-1. 实现变体构建（variant build）和哈希路径支持
-2. 添加 VCS 集成（ReleaseVCS）基础结构
-3. 为 `BuildManager` 添加更多集成测试
-4. 比较原始 rez `rez-build` CLI，计划实现对应的 Rust 版本
+**主要变更**：
+- 使用 `git2` 库实现所有 `GitVCS` 方法
+- 添加 10 个 `GitVCS` 单元测试
+- 修复所有 Clippy 警告
 
 ---
 
-（保留之前 Cycle 222 及更早的记录...）
+（保留之前 Cycle 225 及更早的记录...）
