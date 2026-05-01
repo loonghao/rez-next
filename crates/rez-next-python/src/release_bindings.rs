@@ -234,7 +234,7 @@ impl PyGitVCS {
         Ok((
             Self {},
             PyReleaseVCS {
-                inner: Some(Box::new(inner)),
+                _inner: Some(Box::new(inner)),
             },
         ))
     }
@@ -275,7 +275,7 @@ impl PyMercurialVCS {
         Ok((
             Self {},
             PyReleaseVCS {
-                inner: Some(Box::new(inner)),
+                _inner: Some(Box::new(inner)),
             },
         ))
     }
@@ -301,7 +301,7 @@ impl PySvnVCS {
         Ok((
             Self {},
             PyReleaseVCS {
-                inner: Some(Box::new(inner)),
+                _inner: Some(Box::new(inner)),
             },
         ))
     }
@@ -379,10 +379,6 @@ pub struct PyReleaseResult {
     pub version: String,
     #[pyo3(get)]
     pub install_path: String,
-    #[pyo3(get)]
-    pub vcs_metadata: Option<String>,  // JSON string of VCSMetadata
-    #[pyo3(get)]
-    pub changelog: Option<String>,
     #[pyo3(get)]
     pub errors: Vec<String>,
     #[pyo3(get)]
@@ -487,8 +483,7 @@ impl PyReleaseManager {
                     package_name: result.package_name,
                     version: result.version,
                     install_path: result.install_path,
-                    vcs_metadata,
-                    changelog: result.changelog,
+                    // vcs_metadata and changelog fields removed for now
                     errors: result.errors,
                     warnings: result.warnings,
                 })
