@@ -575,4 +575,170 @@ mod release_tests {
         let result = release_package(Some("/nonexistent/cy126b"), false, true, None).unwrap();
         let _ = result.errors.len();
     }
+
+    // ========================================================================
+    // PyReleaseVCS tests
+    // ========================================================================
+    #[test]
+    fn test_py_release_vcs_get_type_name_stub() {
+        let vcs = PyReleaseVCS::new();
+        let result = vcs.get_type_name();
+        assert_eq!(result, "stub", "stub VCS type name should be 'stub'");
+    }
+
+    #[test]
+    fn test_py_release_vcs_is_clean_stub() {
+        let vcs = PyReleaseVCS::new();
+        let result = vcs.is_clean().unwrap();
+        assert_eq!(result, true, "stub VCS is_clean should return true");
+    }
+
+    #[test]
+    fn test_py_release_vcs_get_current_branch_stub() {
+        let vcs = PyReleaseVCS::new();
+        let result = vcs.get_current_branch().unwrap();
+        assert_eq!(
+            result, "main",
+            "stub VCS get_current_branch should return 'main'"
+        );
+    }
+
+    #[test]
+    fn test_py_release_vcs_get_latest_commit_stub() {
+        let vcs = PyReleaseVCS::new();
+        let result = vcs.get_latest_commit().unwrap();
+        assert_eq!(
+            result, "stub-commit",
+            "stub VCS get_latest_commit should return 'stub-commit'"
+        );
+    }
+
+    #[test]
+    fn test_py_release_vcs_tag_exists_stub() {
+        let vcs = PyReleaseVCS::new();
+        let result = vcs.tag_exists("test-tag").unwrap();
+        assert_eq!(result, false, "stub VCS tag_exists should return false");
+    }
+
+    #[test]
+    fn test_py_release_vcs_create_tag_stub() {
+        let vcs = PyReleaseVCS::new();
+        let result = vcs.create_tag("test-tag", "test message");
+        assert!(result.is_ok(), "stub VCS create_tag should return Ok");
+    }
+
+    #[test]
+    fn test_py_release_vcs_get_changelog_stub() {
+        let vcs = PyReleaseVCS::new();
+        let result = vcs.get_changelog(None, None).unwrap();
+        assert!(
+            result.contains("Stub"),
+            "stub VCS get_changelog should return stub message"
+        );
+    }
+
+    #[test]
+    fn test_py_release_vcs_validate_repo_state_stub() {
+        let vcs = PyReleaseVCS::new();
+        let result = vcs.validate_repo_state();
+        assert!(
+            result.is_ok(),
+            "stub VCS validate_repo_state should return Ok"
+        );
+    }
+
+    #[test]
+    fn test_py_release_vcs_is_releasable_branch_stub() {
+        let vcs = PyReleaseVCS::new();
+        let result = vcs.is_releasable_branch().unwrap();
+        assert_eq!(
+            result, None,
+            "stub VCS is_releasable_branch should return None"
+        );
+    }
+
+    // ========================================================================
+    // PyVCSMetadata tests
+    // ========================================================================
+    #[test]
+    fn test_py_vcs_metadata_new() {
+        let meta = PyVCSMetadata::new(
+            "git".to_string(),
+            Some("https://github.com/test/repo.git".to_string()),
+            Some("main".to_string()),
+            Some("origin/main".to_string()),
+            Some("https://github.com/test/repo.git".to_string()),
+            Some("git@github.com:test/repo.git".to_string()),
+            "abc123",
+            Some("Fix bug".to_string()),
+            Some("Test User".to_string()),
+            Some("test@example.com".to_string()),
+            Some(1714526400),
+        );
+        assert_eq!(meta.vcs_type, "git");
+        assert_eq!(meta.commit_hash, "abc123");
+    }
+
+    #[test]
+    fn test_py_vcs_metadata_str() {
+        let meta = PyVCSMetadata::new(
+            "git".to_string(),
+            None,
+            Some("main".to_string()),
+            None,
+            None,
+            None,
+            "def456",
+            None,
+            None,
+            None,
+            None,
+        );
+        let s = meta.__str__();
+        assert!(s.contains("git"), "VCSMetadata __str__ should contain type");
+        assert!(s.contains("main"), "VCSMetadata __str__ should contain branch");
+        assert!(
+            s.contains("def456"),
+            "VCSMetadata __str__ should contain commit hash"
+        );
+    }
+
+    #[test]
+    fn test_py_vcs_metadata_repr() {
+        let meta = PyVCSMetadata::new(
+            "hg".to_string(),
+            None,
+            None,
+            None,
+            None,
+            None,
+            "aaa111",
+            None,
+            None,
+            None,
+            None,
+        );
+        let r = meta.__repr__();
+        assert_eq!(r, meta.__str__(), "VCSMetadata __repr__ must equal __str__");
+    }
+
+    #[test]
+    fn test_py_vcs_metadata_to_dict() {
+        let meta = PyVCSMetadata::new(
+            "svn".to_string(),
+            Some("svn://svn.example.com/repo".to_string()),
+            None,
+            None,
+            None,
+            None,
+            "bbb222",
+            Some("Update code".to_string()),
+            Some("SVN User".to_string()),
+            Some("svn@example.com".to_string()),
+            Some(1714526500),
+        );
+        let dict = meta.to_dict(pyo3::Python::with_gil(|py| py));
+        // to_dict returns Py<PyDict>, we can check if it's not empty
+        let _ = dict;
+    }
 }
