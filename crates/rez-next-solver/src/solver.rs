@@ -248,13 +248,11 @@ impl DependencySolver {
     }
 }
 
-
 impl Default for DependencySolver {
     fn default() -> Self {
         Self::new()
     }
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -417,4 +415,3 @@ mod tests {
         let _ = config;
     }
 }
-

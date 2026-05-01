@@ -493,11 +493,15 @@ mod tests {
     #[test]
     fn test_shell_type_detect() {
         let detected = ShellType::detect();
-        
+
         // On Windows, should be Cmd or PowerShell
         // On Unix, should be Bash, Zsh, or Fish
         match detected {
-            ShellType::Bash | ShellType::Zsh | ShellType::Fish | ShellType::Cmd | ShellType::PowerShell => (),
+            ShellType::Bash
+            | ShellType::Zsh
+            | ShellType::Fish
+            | ShellType::Cmd
+            | ShellType::PowerShell => (),
         }
     }
 
@@ -509,7 +513,7 @@ mod tests {
             stderr: String::new(),
             execution_time_ms: 100,
         };
-        
+
         assert!(result.is_success());
     }
 
@@ -521,7 +525,7 @@ mod tests {
             stderr: "error".to_string(),
             execution_time_ms: 50,
         };
-        
+
         assert!(!result.is_success());
     }
 
@@ -533,7 +537,7 @@ mod tests {
             stderr: "warn".to_string(),
             execution_time_ms: 100,
         };
-        
+
         assert_eq!(result.combined_output(), "hello\nwarn");
     }
 
@@ -545,7 +549,7 @@ mod tests {
             stderr: String::new(),
             execution_time_ms: 100,
         };
-        
+
         assert_eq!(result.combined_output(), "hello");
     }
 
@@ -557,7 +561,7 @@ mod tests {
             stderr: "error".to_string(),
             execution_time_ms: 50,
         };
-        
+
         assert_eq!(result.combined_output(), "error");
     }
 
@@ -568,7 +572,7 @@ mod tests {
             version: "5.0".to_string(),
             executable_path: "bash".to_string(),
         };
-        
+
         assert_eq!(info.shell_type, ShellType::Bash);
         assert_eq!(info.version, "5.0");
         assert_eq!(info.executable_path, "bash");
@@ -577,7 +581,7 @@ mod tests {
     #[test]
     fn test_shell_executor_new() {
         let executor = ShellExecutor::new();
-        
+
         // Just verify it creates successfully
         let _ = executor;
     }
@@ -585,25 +589,23 @@ mod tests {
     #[test]
     fn test_shell_executor_with_shell() {
         let executor = ShellExecutor::with_shell(ShellType::PowerShell);
-        
+
         // Just verify it creates successfully
         let _ = executor;
     }
 
     #[test]
     fn test_shell_executor_with_working_directory() {
-        let executor = ShellExecutor::new()
-            .with_working_directory(PathBuf::from("/tmp"));
-        
+        let executor = ShellExecutor::new().with_working_directory(PathBuf::from("/tmp"));
+
         // Just verify it creates successfully
         let _ = executor;
     }
 
     #[test]
     fn test_shell_executor_with_timeout() {
-        let executor = ShellExecutor::new()
-            .with_timeout(600);
-        
+        let executor = ShellExecutor::new().with_timeout(600);
+
         // Just verify it creates successfully
         let _ = executor;
     }
@@ -614,7 +616,7 @@ mod tests {
             .with_working_directory(PathBuf::from("/work"))
             .with_timeout(120)
             .with_environment(HashMap::new());
-        
+
         // Just verify it creates successfully
         let _ = executor;
     }

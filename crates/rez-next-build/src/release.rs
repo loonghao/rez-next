@@ -3,7 +3,7 @@
 //! This module provides the core release workflow logic that orchestrates
 //! VCS validation, package building, tag creation, and metadata generation.
 
-use crate::vcs::{detect_vcs, VCSMetadata, ReleaseVCS};
+use crate::vcs::{detect_vcs, ReleaseVCS, VCSMetadata};
 use rez_next_common::{RezCoreConfig, RezCoreError};
 use rez_next_package::serialization::PackageSerializer;
 use rez_next_package::Package;
@@ -51,7 +51,7 @@ pub struct ReleaseResult {
 pub struct ReleaseManager {
     mode: ReleaseMode,
     skip_build: bool,
-    skip_tests: bool,  // now used in release() method
+    skip_tests: bool, // now used in release() method
     skip_vcs_validation: bool,
 }
 
@@ -122,10 +122,14 @@ impl ReleaseManager {
 
         // Step 3.5: Run tests (if not skipped)
         if self.skip_tests {
-            result.warnings.push("Tests skipped (skip_tests=true)".to_string());
+            result
+                .warnings
+                .push("Tests skipped (skip_tests=true)".to_string());
         } else {
             // TODO: Implement test execution
-            result.warnings.push("Test execution not yet implemented".to_string());
+            result
+                .warnings
+                .push("Test execution not yet implemented".to_string());
         }
 
         // Step 4: Create VCS tag (if VCS is available)
@@ -162,7 +166,9 @@ impl ReleaseManager {
         } else if pkg_yaml.exists() {
             &pkg_yaml
         } else {
-            result.errors.push("No package.py or package.yaml found".to_string());
+            result
+                .errors
+                .push("No package.py or package.yaml found".to_string());
             return Err(RezCoreError::BuildError(
                 "No package.py or package.yaml found".to_string(),
             ));
@@ -241,19 +247,18 @@ impl ReleaseManager {
                         result.vcs_metadata = Some(metadata);
                     }
                     Err(e) => {
-                        result.warnings.push(format!(
-                            "Failed to get VCS metadata: {}",
-                            e
-                        ));
+                        result
+                            .warnings
+                            .push(format!("Failed to get VCS metadata: {}", e));
                     }
                 }
 
                 Ok(Some(vcs_impl))
             }
             None => {
-                result.warnings.push(
-                    "No VCS detected in source directory".to_string(),
-                );
+                result
+                    .warnings
+                    .push("No VCS detected in source directory".to_string());
                 Ok(None)
             }
         }
@@ -269,10 +274,9 @@ impl ReleaseManager {
     ) -> Result<(), RezCoreError> {
         // Create base install directory
         if let Err(e) = fs::create_dir_all(install_path) {
-            result.errors.push(format!(
-                "Failed to create install directory: {}",
-                e
-            ));
+            result
+                .errors
+                .push(format!("Failed to create install directory: {}", e));
             return Err(RezCoreError::BuildError(e.to_string()));
         }
 
@@ -319,7 +323,10 @@ impl ReleaseManager {
                     "hash": hash,
                 });
                 let metadata_path = variant_path.join("variant.json");
-                if let Err(e) = fs::write(&metadata_path, serde_json::to_string_pretty(&metadata).unwrap_or_default()) {
+                if let Err(e) = fs::write(
+                    &metadata_path,
+                    serde_json::to_string_pretty(&metadata).unwrap_or_default(),
+                ) {
                     result.warnings.push(format!(
                         "Failed to write variant metadata for hash '{}': {}",
                         hash, e
@@ -333,19 +340,18 @@ impl ReleaseManager {
             }
         } else {
             // No variants, just create the base install directory
-            result.warnings.push(
-                "No variants defined, using base install path".to_string(),
-            );
+            result
+                .warnings
+                .push("No variants defined, using base install path".to_string());
 
             // Copy package.py to install directory (basic implementation)
             let pkg_file = source_dir.join("package.py");
             if pkg_file.exists() {
                 let dest_file = install_path.join("package.py");
                 if let Err(e) = fs::copy(&pkg_file, &dest_file) {
-                    result.warnings.push(format!(
-                        "Failed to copy package.py: {}",
-                        e
-                    ));
+                    result
+                        .warnings
+                        .push(format!("Failed to copy package.py: {}", e));
                 }
             }
         }
@@ -361,45 +367,52 @@ impl ReleaseManager {
         message: Option<&str>,
         result: &mut ReleaseResult,
     ) -> Result<(), RezCoreError> {
-        let tag_name = format!("{}-{}", package.name, 
-            package.version.as_ref().map(|v| v.as_str()).unwrap_or("unknown"));
+        let tag_name = format!(
+            "{}-{}",
+            package.name,
+            package
+                .version
+                .as_ref()
+                .map(|v| v.as_str())
+                .unwrap_or("unknown")
+        );
 
         match vcs.tag_exists(&tag_name) {
             Ok(true) => {
-                result.warnings.push(format!(
-                    "Tag '{}' already exists",
-                    tag_name
-                ));
+                result
+                    .warnings
+                    .push(format!("Tag '{}' already exists", tag_name));
                 return Ok(());
             }
             Ok(false) => {}
             Err(e) => {
-                result.warnings.push(format!(
-                    "Failed to check tag existence: {}",
-                    e
-                ));
+                result
+                    .warnings
+                    .push(format!("Failed to check tag existence: {}", e));
             }
         }
 
         let default_message = format!(
             "Release {}-{}",
             package.name,
-            package.version.as_ref().map(|v| v.as_str()).unwrap_or("unknown")
+            package
+                .version
+                .as_ref()
+                .map(|v| v.as_str())
+                .unwrap_or("unknown")
         );
         let tag_message = message.unwrap_or(&default_message);
 
         match vcs.create_tag(&tag_name, tag_message) {
             Ok(_) => {
-                result.warnings.push(format!(
-                    "Created VCS tag: {}",
-                    tag_name
-                ));
+                result
+                    .warnings
+                    .push(format!("Created VCS tag: {}", tag_name));
             }
             Err(e) => {
-                result.errors.push(format!(
-                    "Failed to create VCS tag: {}",
-                    e
-                ));
+                result
+                    .errors
+                    .push(format!("Failed to create VCS tag: {}", e));
             }
         }
 
@@ -418,10 +431,9 @@ impl ReleaseManager {
                 result.changelog = Some(changelog);
             }
             Err(e) => {
-                result.warnings.push(format!(
-                    "Failed to generate changelog: {}",
-                    e
-                ));
+                result
+                    .warnings
+                    .push(format!("Failed to generate changelog: {}", e));
             }
         }
         Ok(())
@@ -437,9 +449,9 @@ impl ReleaseManager {
     ) -> Result<(), RezCoreError> {
         // TODO: Implement writing VCS metadata to package definition
         // This could be adding a `vcs` field to package.py or creating a separate metadata file
-        result.warnings.push(
-            "Writing release metadata not yet implemented".to_string(),
-        );
+        result
+            .warnings
+            .push("Writing release metadata not yet implemented".to_string());
         Ok(())
     }
 
@@ -466,10 +478,9 @@ impl ReleaseManager {
         match fs::copy(src, &dest) {
             Ok(_) => {}
             Err(e) => {
-                result.errors.push(format!(
-                    "Failed to copy package definition: {}",
-                    e
-                ));
+                result
+                    .errors
+                    .push(format!("Failed to copy package definition: {}", e));
                 return Err(RezCoreError::BuildError(e.to_string()));
             }
         }

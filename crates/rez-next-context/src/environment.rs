@@ -489,7 +489,10 @@ mod tests {
     #[test]
     fn test_env_diff_is_empty_false_with_modified() {
         let mut modified = HashMap::new();
-        modified.insert("MOD_VAR".to_string(), ("old".to_string(), "new".to_string()));
+        modified.insert(
+            "MOD_VAR".to_string(),
+            ("old".to_string(), "new".to_string()),
+        );
 
         let diff = EnvDiff {
             added: HashMap::new(),
@@ -549,7 +552,7 @@ mod tests {
             ..Default::default()
         };
         let manager = EnvironmentManager::new(config);
-        
+
         // base_env should have some variables (since we inherit)
         // Note: this test may behave differently in different environments
         // Just verify the manager was created successfully
@@ -563,7 +566,7 @@ mod tests {
             ..Default::default()
         };
         let manager = EnvironmentManager::new(config);
-        
+
         // base_env should be empty
         // Note: we can't directly access base_env since it's private
         // This test just verifies creation doesn't panic

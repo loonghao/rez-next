@@ -185,7 +185,7 @@ impl ConflictResolver {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{ConflictStrategy, ConflictSeverity};
+    use crate::{ConflictSeverity, ConflictStrategy};
     use rez_next_package::PackageRequirement;
 
     /// Helper to create a DependencyConflict for testing
@@ -264,10 +264,7 @@ mod tests {
         let resolver = ConflictResolver::new(ConflictStrategy::FailOnConflict);
         let conflict = make_conflict(
             "python",
-            vec![
-                ("python", Some("3.7")),
-                ("python", Some("3.9")),
-            ],
+            vec![("python", Some("3.7")), ("python", Some("3.9"))],
             vec!["pkg_a", "pkg_b"],
         );
 
@@ -283,10 +280,7 @@ mod tests {
         // All requirements want the same version - should find compatible
         let conflict = make_conflict(
             "python",
-            vec![
-                ("python", Some("3.9")),
-                ("python", Some("3.9")),
-            ],
+            vec![("python", Some("3.9")), ("python", Some("3.9"))],
             vec!["pkg_a", "pkg_b"],
         );
 
@@ -304,10 +298,7 @@ mod tests {
         // Incompatible requirements - should fallback to latest_wins
         let conflict = make_conflict(
             "python",
-            vec![
-                ("python", Some("3.7")),
-                ("python", Some("3.9")),
-            ],
+            vec![("python", Some("3.7")), ("python", Some("3.9"))],
             vec!["pkg_a", "pkg_b"],
         );
 
@@ -329,10 +320,7 @@ mod tests {
         // One requirement has no version spec
         let conflict = make_conflict(
             "python",
-            vec![
-                ("python", Some("3.9")),
-                ("python", None),
-            ],
+            vec![("python", Some("3.9")), ("python", None)],
             vec!["pkg_a"],
         );
 
@@ -346,18 +334,17 @@ mod tests {
     #[tokio::test]
     async fn test_conflict_resolver_multiple_conflicts() {
         let resolver = ConflictResolver::new(ConflictStrategy::LatestWins);
-        let conflict1 = make_conflict(
-            "python",
-            vec![("python", Some("3.9"))],
-            vec!["pkg_a"],
-        );
+        let conflict1 = make_conflict("python", vec![("python", Some("3.9"))], vec!["pkg_a"]);
         let conflict2 = make_conflict(
             "maya",
             vec![("maya", Some("2024")), ("maya", Some("2023"))],
             vec!["pkg_b", "pkg_c"],
         );
 
-        let resolutions = resolver.resolve_conflicts(vec![conflict1, conflict2]).await.unwrap();
+        let resolutions = resolver
+            .resolve_conflicts(vec![conflict1, conflict2])
+            .await
+            .unwrap();
         assert_eq!(resolutions.len(), 2);
         assert_eq!(resolutions[0].package_name, "python");
         assert_eq!(resolutions[1].package_name, "maya");
@@ -369,10 +356,7 @@ mod tests {
         // Version that can't be parsed should be skipped
         let conflict = make_conflict(
             "python",
-            vec![
-                ("python", Some("3.9")),
-                ("python", Some("invalid_version")),
-            ],
+            vec![("python", Some("3.9")), ("python", Some("invalid_version"))],
             vec!["pkg_a"],
         );
 
@@ -386,36 +370,24 @@ mod tests {
     #[tokio::test]
     async fn test_conflict_severity_levels() {
         // Test that different severity levels can be set
-        let mut conflict = make_conflict(
-            "python",
-            vec![("python", Some("3.9"))],
-            vec!["pkg_a"],
-        );
+        let mut conflict = make_conflict("python", vec![("python", Some("3.9"))], vec!["pkg_a"]);
         conflict.severity = ConflictSeverity::Minor;
-        
+
         let resolver = ConflictResolver::new(ConflictStrategy::LatestWins);
         let resolutions = resolver.resolve_conflicts(vec![conflict]).await.unwrap();
         assert_eq!(resolutions.len(), 1);
-        
+
         // Test Major severity
-        let mut conflict2 = make_conflict(
-            "python",
-            vec![("python", Some("3.9"))],
-            vec!["pkg_a"],
-        );
+        let mut conflict2 = make_conflict("python", vec![("python", Some("3.9"))], vec!["pkg_a"]);
         conflict2.severity = ConflictSeverity::Major;
-        
+
         let resolutions = resolver.resolve_conflicts(vec![conflict2]).await.unwrap();
         assert_eq!(resolutions.len(), 1);
-        
+
         // Test Incompatible severity
-        let mut conflict3 = make_conflict(
-            "python",
-            vec![("python", Some("3.9"))],
-            vec!["pkg_a"],
-        );
+        let mut conflict3 = make_conflict("python", vec![("python", Some("3.9"))], vec!["pkg_a"]);
         conflict3.severity = ConflictSeverity::Incompatible;
-        
+
         let resolutions = resolver.resolve_conflicts(vec![conflict3]).await.unwrap();
         assert_eq!(resolutions.len(), 1);
     }
@@ -423,7 +395,7 @@ mod tests {
     #[tokio::test]
     async fn test_conflict_resolver_no_conflicts() {
         let resolver = ConflictResolver::new(ConflictStrategy::LatestWins);
-        
+
         // Empty conflicts list
         let resolutions = resolver.resolve_conflicts(vec![]).await.unwrap();
         assert!(resolutions.is_empty());
@@ -432,12 +404,8 @@ mod tests {
     #[tokio::test]
     async fn test_conflict_resolver_single_requirement() {
         let resolver = ConflictResolver::new(ConflictStrategy::LatestWins);
-        let conflict = make_conflict(
-            "python",
-            vec![("python", Some("3.9"))],
-            vec!["pkg_a"],
-        );
-        
+        let conflict = make_conflict("python", vec![("python", Some("3.9"))], vec!["pkg_a"]);
+
         let resolutions = resolver.resolve_conflicts(vec![conflict]).await.unwrap();
         assert_eq!(resolutions.len(), 1);
         assert_eq!(resolutions[0].package_name, "python");
@@ -450,13 +418,10 @@ mod tests {
         // All requirements want the same version
         let conflict = make_conflict(
             "python",
-            vec![
-                ("python", Some("3.9")),
-                ("python", Some("3.9")),
-            ],
+            vec![("python", Some("3.9")), ("python", Some("3.9"))],
             vec!["pkg_a", "pkg_b"],
         );
-        
+
         let resolutions = resolver.resolve_conflicts(vec![conflict]).await.unwrap();
         assert_eq!(resolutions.len(), 1);
         let selected = resolutions[0].selected_version.as_ref().unwrap();
@@ -467,16 +432,28 @@ mod tests {
     fn test_conflict_severity_equality() {
         assert_eq!(ConflictSeverity::Minor, ConflictSeverity::Minor);
         assert_eq!(ConflictSeverity::Major, ConflictSeverity::Major);
-        assert_eq!(ConflictSeverity::Incompatible, ConflictSeverity::Incompatible);
+        assert_eq!(
+            ConflictSeverity::Incompatible,
+            ConflictSeverity::Incompatible
+        );
         assert_ne!(ConflictSeverity::Minor, ConflictSeverity::Major);
     }
 
     #[test]
     fn test_conflict_strategy_equality() {
         assert_eq!(ConflictStrategy::LatestWins, ConflictStrategy::LatestWins);
-        assert_eq!(ConflictStrategy::EarliestWins, ConflictStrategy::EarliestWins);
-        assert_eq!(ConflictStrategy::FailOnConflict, ConflictStrategy::FailOnConflict);
-        assert_eq!(ConflictStrategy::FindCompatible, ConflictStrategy::FindCompatible);
+        assert_eq!(
+            ConflictStrategy::EarliestWins,
+            ConflictStrategy::EarliestWins
+        );
+        assert_eq!(
+            ConflictStrategy::FailOnConflict,
+            ConflictStrategy::FailOnConflict
+        );
+        assert_eq!(
+            ConflictStrategy::FindCompatible,
+            ConflictStrategy::FindCompatible
+        );
         assert_ne!(ConflictStrategy::LatestWins, ConflictStrategy::EarliestWins);
     }
 
@@ -488,7 +465,7 @@ mod tests {
             strategy: "latest_wins".to_string(),
             modified_packages: vec!["pkg_a".to_string()],
         };
-        
+
         let debug_output = format!("{:?}", resolution);
         assert!(debug_output.contains("python"));
         assert!(debug_output.contains("latest_wins"));
@@ -502,10 +479,9 @@ mod tests {
             strategy: "latest_wins".to_string(),
             modified_packages: vec!["pkg_a".to_string()],
         };
-        
+
         let cloned = resolution.clone();
         assert_eq!(cloned.package_name, resolution.package_name);
         assert_eq!(cloned.strategy, resolution.strategy);
     }
 }
-

@@ -424,7 +424,7 @@ mod tests {
     #[test]
     fn test_execution_config_default() {
         let config = ExecutionConfig::default();
-        
+
         assert_eq!(config.timeout_seconds, 300);
         assert!(config.inherit_parent_env);
         assert!(config.capture_output);
@@ -562,9 +562,7 @@ mod tests {
     #[test]
     fn test_context_execution_builder_with_timeout() {
         let ctx = make_test_context();
-        let executor = ContextExecutionBuilder::new(ctx)
-            .with_timeout(600)
-            .build();
+        let executor = ContextExecutionBuilder::new(ctx).with_timeout(600).build();
 
         // Just verify it creates successfully
         let _ = executor;

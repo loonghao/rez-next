@@ -511,7 +511,6 @@ async fn test_package_with_special_chars_in_name() {
     assert_eq!(pkgs.len(), 1);
 }
 
-
 #[tokio::test]
 async fn test_very_long_version_string() {
     let temp_dir = TempDir::new().unwrap();

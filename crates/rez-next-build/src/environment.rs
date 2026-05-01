@@ -97,10 +97,7 @@ impl BuildEnvironment {
         // Add variant-related environment variables (matching original Rez)
         // These will be set when building variants
         env_vars.insert("REZ_BUILD_VARIANT_INDEX".to_string(), "0".to_string());
-        env_vars.insert(
-            "REZ_BUILD_VARIANT_REQUIRES".to_string(),
-            String::new(),
-        );
+        env_vars.insert("REZ_BUILD_VARIANT_REQUIRES".to_string(), String::new());
 
         // Add context environment if available
         if let Some(context) = context {
@@ -160,11 +157,7 @@ impl BuildEnvironment {
     }
 
     /// Set variant-related environment variables
-    pub fn set_variant_env(
-        &mut self,
-        variant_index: usize,
-        variant_requires: &[String],
-    ) {
+    pub fn set_variant_env(&mut self, variant_index: usize, variant_requires: &[String]) {
         self.env_vars.insert(
             "REZ_BUILD_VARIANT_INDEX".to_string(),
             variant_index.to_string(),
@@ -381,8 +374,14 @@ mod tests {
         let env = BuildEnvironment::new(&pkg, &base, None).unwrap();
 
         let vars = env.get_env_vars();
-        assert_eq!(vars.get("REZ_BUILD_PACKAGE_NAME"), Some(&"my-package".to_string()));
-        assert_eq!(vars.get("REZ_BUILD_PACKAGE_VERSION"), Some(&"2.3.4".to_string()));
+        assert_eq!(
+            vars.get("REZ_BUILD_PACKAGE_NAME"),
+            Some(&"my-package".to_string())
+        );
+        assert_eq!(
+            vars.get("REZ_BUILD_PACKAGE_VERSION"),
+            Some(&"2.3.4".to_string())
+        );
     }
 
     #[test]
@@ -395,13 +394,24 @@ mod tests {
 
         // REZ_BUILD_PATH should point to {base}/{package_name}
         let build_path = PathBuf::from(vars.get("REZ_BUILD_PATH").unwrap());
-        assert!(build_path.ends_with("pkg"), "build path should end with 'pkg'");
-        assert!(build_path.parent().map(|p| p.ends_with("build")).unwrap_or(false),
-                "build path parent should end with 'build'");
+        assert!(
+            build_path.ends_with("pkg"),
+            "build path should end with 'pkg'"
+        );
+        assert!(
+            build_path
+                .parent()
+                .map(|p| p.ends_with("build"))
+                .unwrap_or(false),
+            "build path parent should end with 'build'"
+        );
 
         // REZ_BUILD_INSTALL_PATH should point to {base}/{package_name}/install
         let install_path = PathBuf::from(vars.get("REZ_BUILD_INSTALL_PATH").unwrap());
-        assert!(install_path.ends_with("install"), "install path should end with 'install'");
+        assert!(
+            install_path.ends_with("install"),
+            "install path should end with 'install'"
+        );
     }
 
     #[test]
@@ -411,7 +421,10 @@ mod tests {
         let mut env = BuildEnvironment::new(&pkg, &base, None).unwrap();
 
         env.add_env_var("CUSTOM_VAR".to_string(), "custom_value".to_string());
-        assert_eq!(env.get_env_vars().get("CUSTOM_VAR"), Some(&"custom_value".to_string()));
+        assert_eq!(
+            env.get_env_vars().get("CUSTOM_VAR"),
+            Some(&"custom_value".to_string())
+        );
 
         env.remove_env_var("CUSTOM_VAR");
         assert!(env.get_env_vars().get("CUSTOM_VAR").is_none());

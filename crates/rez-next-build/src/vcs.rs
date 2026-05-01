@@ -161,7 +161,11 @@ impl ReleaseVCS for StubVCS {
 
     fn create_tag(&self, tag: &str, message: &str) -> Result<(), RezCoreError> {
         // Stub VCS just logs the tag creation
-        tracing::info!("StubVCS: would create tag '{}' with message '{}'", tag, message);
+        tracing::info!(
+            "StubVCS: would create tag '{}' with message '{}'",
+            tag,
+            message
+        );
         Ok(())
     }
 
@@ -192,16 +196,18 @@ impl GitVCS {
     pub fn new(repo_root: PathBuf) -> Result<Self, RezCoreError> {
         // Verify this is a git repository
         if !repo_root.join(".git").exists() {
-            return Err(RezCoreError::BuildError(
-                "Not a git repository".to_string(),
-            ));
+            return Err(RezCoreError::BuildError("Not a git repository".to_string()));
         }
 
         Ok(Self { repo_root })
     }
 
     /// Get the tracking branch for the current branch
-    pub(crate) fn get_tracking_branch(&self, repo: &git2::Repository, branch_name: Option<&str>) -> Option<String> {
+    pub(crate) fn get_tracking_branch(
+        &self,
+        repo: &git2::Repository,
+        branch_name: Option<&str>,
+    ) -> Option<String> {
         let branch_name = match branch_name {
             Some(name) => name,
             None => return None,
@@ -235,7 +241,11 @@ impl GitVCS {
     }
 
     /// Get the push URL for the remote
-    pub(crate) fn get_push_url(&self, repo: &git2::Repository, remote_name: &str) -> Option<String> {
+    pub(crate) fn get_push_url(
+        &self,
+        repo: &git2::Repository,
+        remote_name: &str,
+    ) -> Option<String> {
         // Try to get the remote and its push URL
         if let Ok(remote) = repo.find_remote(remote_name) {
             if let Some(push_url) = remote.pushurl() {
@@ -277,33 +287,37 @@ impl ReleaseVCS for GitVCS {
     }
 
     fn is_clean(&self) -> Result<bool, RezCoreError> {
-        let repo = git2::Repository::open(&self.repo_root)
-            .map_err(|e| RezCoreError::BuildError(format!(
+        let repo = git2::Repository::open(&self.repo_root).map_err(|e| {
+            RezCoreError::BuildError(format!(
                 "GitVCS: failed to open repository at '{}': {}",
                 self.repo_root.display(),
                 e
-            )))?;
+            ))
+        })?;
 
         let mut status_opts = git2::StatusOptions::new();
         status_opts.include_untracked(true);
         status_opts.include_ignored(false);
 
-        let statuses = repo.statuses(Some(&mut status_opts))
-            .map_err(|e| RezCoreError::BuildError(format!(
+        let statuses = repo.statuses(Some(&mut status_opts)).map_err(|e| {
+            RezCoreError::BuildError(format!(
                 "GitVCS: failed to get status for repository at '{}': {}",
                 self.repo_root.display(),
                 e
-            )))?;
+            ))
+        })?;
 
         // Repository is clean if there are no status entries
         Ok(statuses.is_empty())
     }
 
     fn get_current_branch(&self) -> Result<String, RezCoreError> {
-        let repo = git2::Repository::open(&self.repo_root)
-            .map_err(|e| RezCoreError::BuildError(format!("Failed to open git repository: {}", e)))?;
+        let repo = git2::Repository::open(&self.repo_root).map_err(|e| {
+            RezCoreError::BuildError(format!("Failed to open git repository: {}", e))
+        })?;
 
-        let head = repo.head()
+        let head = repo
+            .head()
             .map_err(|e| RezCoreError::BuildError(format!("Failed to get HEAD: {}", e)))?;
 
         // Check if HEAD is a branch reference
@@ -314,39 +328,44 @@ impl ReleaseVCS for GitVCS {
         }
 
         // Detached HEAD state
-        let commit = head.peel_to_commit()
-            .map_err(|e| RezCoreError::BuildError(format!(
+        let commit = head.peel_to_commit().map_err(|e| {
+            RezCoreError::BuildError(format!(
                 "GitVCS: failed to peel to commit for repository at '{}': {}",
                 self.repo_root.display(),
                 e
-            )))?;
+            ))
+        })?;
         Ok(format!("detached-{}", &commit.id().to_string()[..8]))
     }
 
     fn get_latest_commit(&self) -> Result<String, RezCoreError> {
-        let repo = git2::Repository::open(&self.repo_root)
-            .map_err(|e| RezCoreError::BuildError(format!(
+        let repo = git2::Repository::open(&self.repo_root).map_err(|e| {
+            RezCoreError::BuildError(format!(
                 "GitVCS: failed to open repository at '{}': {}",
                 self.repo_root.display(),
                 e
-            )))?;
+            ))
+        })?;
 
-        let head = repo.head()
+        let head = repo
+            .head()
             .map_err(|e| RezCoreError::BuildError(format!("Failed to get HEAD: {}", e)))?;
 
-        let commit = head.peel_to_commit()
+        let commit = head
+            .peel_to_commit()
             .map_err(|e| RezCoreError::BuildError(format!("Failed to get commit: {}", e)))?;
 
         Ok(commit.id().to_string())
     }
 
     fn tag_exists(&self, tag: &str) -> Result<bool, RezCoreError> {
-        let repo = git2::Repository::open(&self.repo_root)
-            .map_err(|e| RezCoreError::BuildError(format!(
+        let repo = git2::Repository::open(&self.repo_root).map_err(|e| {
+            RezCoreError::BuildError(format!(
                 "GitVCS: failed to open repository at '{}': {}",
                 self.repo_root.display(),
                 e
-            )))?;
+            ))
+        })?;
 
         // Check if tag reference exists
         let tag_ref_name = format!("refs/tags/{}", tag);
@@ -364,54 +383,61 @@ impl ReleaseVCS for GitVCS {
     }
 
     fn create_tag(&self, tag: &str, message: &str) -> Result<(), RezCoreError> {
-        let repo = git2::Repository::open(&self.repo_root)
-            .map_err(|e| RezCoreError::BuildError(format!(
+        let repo = git2::Repository::open(&self.repo_root).map_err(|e| {
+            RezCoreError::BuildError(format!(
                 "GitVCS: failed to open repository at '{}': {}",
                 self.repo_root.display(),
                 e
-            )))?;
+            ))
+        })?;
 
         // Get the current HEAD commit
-        let head = repo.head()
-            .map_err(|e| RezCoreError::BuildError(format!(
+        let head = repo.head().map_err(|e| {
+            RezCoreError::BuildError(format!(
                 "GitVCS: failed to get HEAD for tag '{}' in repository at '{}': {}",
                 tag,
                 self.repo_root.display(),
                 e
-            )))?;
-        let commit = head.peel_to_commit()
-            .map_err(|e| RezCoreError::BuildError(format!(
+            ))
+        })?;
+        let commit = head.peel_to_commit().map_err(|e| {
+            RezCoreError::BuildError(format!(
                 "GitVCS: failed to peel to commit for tag '{}' in repository at '{}': {}",
                 tag,
                 self.repo_root.display(),
                 e
-            )))?;
+            ))
+        })?;
 
         // Create signature for tag
-        let sig = git2::Signature::now("Rez Next Build", "rez-next@build")
-            .map_err(|e| RezCoreError::BuildError(format!(
+        let sig = git2::Signature::now("Rez Next Build", "rez-next@build").map_err(|e| {
+            RezCoreError::BuildError(format!(
                 "GitVCS: failed to create signature for tag '{}': {}",
-                tag,
-                e
-            )))?;
+                tag, e
+            ))
+        })?;
 
         // Create an annotated tag (force = false)
         let oid = commit.id();
-        let obj = repo.find_object(oid, Some(git2::ObjectType::Commit))
-            .map_err(|e| RezCoreError::BuildError(format!(
-                "GitVCS: failed to find commit object for tag '{}' in repository at '{}': {}",
-                tag,
-                self.repo_root.display(),
-                e
-            )))?;
+        let obj = repo
+            .find_object(oid, Some(git2::ObjectType::Commit))
+            .map_err(|e| {
+                RezCoreError::BuildError(format!(
+                    "GitVCS: failed to find commit object for tag '{}' in repository at '{}': {}",
+                    tag,
+                    self.repo_root.display(),
+                    e
+                ))
+            })?;
 
-        repo.tag(tag, &obj, &sig, message, false)
-            .map_err(|e| RezCoreError::BuildError(format!(
+        repo.tag(tag, &obj, &sig, message, false).map_err(|e| {
+            RezCoreError::BuildError(format!(
                 "GitVCS: failed to create tag '{}' in repository at '{}': {}",
                 tag,
                 self.repo_root.display(),
                 e
-            )))?;
+            ))
+        })?;
 
         tracing::info!("GitVCS: created tag '{}' with message '{}'", tag, message);
         Ok(())
@@ -422,24 +448,28 @@ impl ReleaseVCS for GitVCS {
         from_rev: Option<&str>,
         to_rev: Option<&str>,
     ) -> Result<String, RezCoreError> {
-        let repo = git2::Repository::open(&self.repo_root)
-            .map_err(|e| RezCoreError::BuildError(format!(
+        let repo = git2::Repository::open(&self.repo_root).map_err(|e| {
+            RezCoreError::BuildError(format!(
                 "GitVCS: failed to open repository at '{}': {}",
                 self.repo_root.display(),
                 e
-            )))?;
+            ))
+        })?;
 
         let from = from_rev.unwrap_or("HEAD~10");
         let to = to_rev.unwrap_or("HEAD");
 
         // Resolve revisions to commits
-        let to_obj = repo.revparse_single(to)
-            .map_err(|e| RezCoreError::BuildError(format!("Failed to parse 'to' revision: {}", e)))?;
+        let to_obj = repo.revparse_single(to).map_err(|e| {
+            RezCoreError::BuildError(format!("Failed to parse 'to' revision: {}", e))
+        })?;
 
         // Walk commits from to to from
-        let mut revwalk = repo.revwalk()
+        let mut revwalk = repo
+            .revwalk()
             .map_err(|e| RezCoreError::BuildError(format!("Failed to create revwalk: {}", e)))?;
-        revwalk.push(to_obj.id())
+        revwalk
+            .push(to_obj.id())
             .map_err(|e| RezCoreError::BuildError(format!("Failed to push to revwalk: {}", e)))?;
 
         // Try to hide from_rev, but don't fail if it doesn't exist
@@ -453,26 +483,36 @@ impl ReleaseVCS for GitVCS {
         changelog.push_str(&format!("Changelog from {} to {}:\n", from, to));
 
         for id in revwalk {
-            let id = id.map_err(|e| RezCoreError::BuildError(format!("Failed to walk revisions: {}", e)))?;
-            let commit = repo.find_commit(id)
+            let id = id.map_err(|e| {
+                RezCoreError::BuildError(format!("Failed to walk revisions: {}", e))
+            })?;
+            let commit = repo
+                .find_commit(id)
                 .map_err(|e| RezCoreError::BuildError(format!("Failed to find commit: {}", e)))?;
 
             let message = commit.message().unwrap_or("(no message)");
             let short_id = &id.to_string()[..8];
-            changelog.push_str(&format!("  {} {}\n", short_id, message.lines().next().unwrap_or("")));
+            changelog.push_str(&format!(
+                "  {} {}\n",
+                short_id,
+                message.lines().next().unwrap_or("")
+            ));
         }
 
         Ok(changelog)
     }
 
     fn get_metadata(&self) -> Result<VCSMetadata, RezCoreError> {
-        let repo = git2::Repository::open(&self.repo_root)
-            .map_err(|e| RezCoreError::BuildError(format!("Failed to open git repository: {}", e)))?;
+        let repo = git2::Repository::open(&self.repo_root).map_err(|e| {
+            RezCoreError::BuildError(format!("Failed to open git repository: {}", e))
+        })?;
 
         // Get latest commit
-        let head = repo.head()
+        let head = repo
+            .head()
             .map_err(|e| RezCoreError::BuildError(format!("Failed to get HEAD: {}", e)))?;
-        let commit = head.peel_to_commit()
+        let commit = head
+            .peel_to_commit()
             .map_err(|e| RezCoreError::BuildError(format!("Failed to get commit: {}", e)))?;
 
         // Get branch name
@@ -544,7 +584,9 @@ impl ReleaseVCS for GitVCS {
         let branch = self.get_current_branch()?;
         // In Git, "main" and "master" are the main releasable branches
         // Also allow branches starting with "release/"
-        Ok(Some(branch == "main" || branch == "master" || branch.starts_with("release/")))
+        Ok(Some(
+            branch == "main" || branch == "master" || branch.starts_with("release/"),
+        ))
     }
 }
 
@@ -574,12 +616,14 @@ impl MercurialVCS {
             .args(args)
             .current_dir(&self.repo_root)
             .output()
-            .map_err(|e| RezCoreError::BuildError(format!(
-                "MercurialVCS: failed to run hg command '{:?}' in repository at '{}': {}",
-                args,
-                self.repo_root.display(),
-                e
-            )))?;
+            .map_err(|e| {
+                RezCoreError::BuildError(format!(
+                    "MercurialVCS: failed to run hg command '{:?}' in repository at '{}': {}",
+                    args,
+                    self.repo_root.display(),
+                    e
+                ))
+            })?;
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
@@ -631,7 +675,11 @@ impl ReleaseVCS for MercurialVCS {
     fn create_tag(&self, tag: &str, message: &str) -> Result<(), RezCoreError> {
         // `hg tag -m <message> <tag>`
         self.run_hg(&["tag", "-m", message, tag])?;
-        tracing::info!("MercurialVCS: created tag '{}' with message '{}'", tag, message);
+        tracing::info!(
+            "MercurialVCS: created tag '{}' with message '{}'",
+            tag,
+            message
+        );
         Ok(())
     }
 
@@ -645,7 +693,8 @@ impl ReleaseVCS for MercurialVCS {
 
         // `hg log -r <from>::<to> --template "{node|short} {desc}\n"`
         let revspec = format!("{}::{}", from, to);
-        let changelog = self.run_hg(&["log", "-r", &revspec, "--template", "{node|short} {desc}\n"])?;
+        let changelog =
+            self.run_hg(&["log", "-r", &revspec, "--template", "{node|short} {desc}\n"])?;
 
         Ok(format!("Changelog from {} to {}:\n{}", from, to, changelog))
     }
@@ -677,7 +726,7 @@ impl ReleaseVCS for MercurialVCS {
             commit_message,
             author_name,
             author_email: None, // hg doesn't expose email separately by default
-            timestamp: None,     // TODO: parse timestamp from hg log
+            timestamp: None,    // TODO: parse timestamp from hg log
             extra: HashMap::new(),
         })
     }
@@ -737,12 +786,14 @@ impl SvnVCS {
             .args(args)
             .current_dir(&self.repo_root)
             .output()
-            .map_err(|e| RezCoreError::BuildError(format!(
-                "SvnVCS: failed to run svn command '{:?}' in repository at '{}': {}",
-                args,
-                self.repo_root.display(),
-                e
-            )))?;
+            .map_err(|e| {
+                RezCoreError::BuildError(format!(
+                    "SvnVCS: failed to run svn command '{:?}' in repository at '{}': {}",
+                    args,
+                    self.repo_root.display(),
+                    e
+                ))
+            })?;
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
@@ -793,7 +844,10 @@ impl ReleaseVCS for SvnVCS {
         // SVN uses directories for branches, not branches in the same working copy
         // Return the relative path in the repository
         let info = self.get_svn_info()?;
-        Ok(info.get("Relative URL").cloned().unwrap_or_else(|| "unknown".to_string()))
+        Ok(info
+            .get("Relative URL")
+            .cloned()
+            .unwrap_or_else(|| "unknown".to_string()))
     }
 
     fn get_latest_commit(&self) -> Result<String, RezCoreError> {
@@ -831,7 +885,10 @@ impl ReleaseVCS for SvnVCS {
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
-            return Err(RezCoreError::BuildError(format!("svn copy failed: {}", stderr)));
+            return Err(RezCoreError::BuildError(format!(
+                "svn copy failed: {}",
+                stderr
+            )));
         }
 
         tracing::info!("SvnVCS: created tag '{}' with message '{}'", tag, message);
@@ -845,9 +902,9 @@ impl ReleaseVCS for SvnVCS {
     ) -> Result<String, RezCoreError> {
         let info = self.get_svn_info()?;
         // Validate that URL exists (but don't store it)
-        let _repo_url = info.get("URL").ok_or_else(|| {
-            RezCoreError::BuildError("Could not get repository URL".to_string())
-        })?;
+        let _repo_url = info
+            .get("URL")
+            .ok_or_else(|| RezCoreError::BuildError("Could not get repository URL".to_string()))?;
 
         let from = from_rev.unwrap_or("BASE");
         let to = to_rev.unwrap_or("HEAD");
@@ -855,13 +912,17 @@ impl ReleaseVCS for SvnVCS {
         // `svn log -r <from>:<to>`
         let changelog = self.run_svn(&["log", "-r", &format!("{}:{}", from, to)])?;
 
-        Ok(format!("Changelog from {} to {}:\n{}\n", from, to, changelog))
+        Ok(format!(
+            "Changelog from {} to {}:\n{}\n",
+            from, to, changelog
+        ))
     }
 
     fn get_metadata(&self) -> Result<VCSMetadata, RezCoreError> {
         let info = self.get_svn_info()?;
 
-        let commit_hash = info.get("Last Changed Rev")
+        let commit_hash = info
+            .get("Last Changed Rev")
             .cloned()
             .unwrap_or_else(|| "unknown".to_string());
 
@@ -901,7 +962,9 @@ impl ReleaseVCS for SvnVCS {
     fn is_releasable_branch(&self) -> Result<Option<bool>, RezCoreError> {
         // In SVN, releases are typically from trunk or a release branch
         let relative_url = self.get_current_branch()?;
-        Ok(Some(relative_url.contains("/trunk") || relative_url.contains("/branches/release")))
+        Ok(Some(
+            relative_url.contains("/trunk") || relative_url.contains("/branches/release"),
+        ))
     }
 }
 
@@ -968,7 +1031,7 @@ pub fn detect_vcs(repo_path: &Path) -> Option<Box<dyn ReleaseVCS + Send + Sync>>
     if repo_path.join(".git").exists() {
         #[cfg(feature = "git")]
         return Some(Box::new(GitVCS::new(repo_path.to_path_buf()).ok()?));
-        
+
         // Fall back to StubVCS if git feature is not enabled
         #[cfg(not(feature = "git"))]
         return Some(Box::new(StubVCS::new(repo_path.to_path_buf())));
@@ -1000,8 +1063,8 @@ pub fn get_vcs_metadata(repo_path: &Path) -> Result<Option<VCSMetadata>, RezCore
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::fs;
     use git2;
+    use std::fs;
 
     #[test]
     fn test_stub_vcs_creation() {
@@ -1030,10 +1093,10 @@ mod tests {
     #[test]
     fn test_stub_vcs_tag_operations() {
         let vcs = StubVCS::new(PathBuf::from("/tmp/repo"));
-        
+
         // Tag should not exist in stub
         assert!(!vcs.tag_exists("v1.0.0").unwrap());
-        
+
         // Creating tag should succeed
         assert!(vcs.create_tag("v1.0.0", "Release 1.0.0").is_ok());
     }
@@ -1070,31 +1133,34 @@ mod tests {
     #[cfg(feature = "git")]
     fn create_temp_git_repo() -> (tempfile::TempDir, git2::Repository) {
         let temp_dir = tempfile::TempDir::new().unwrap();
-        
+
         // Configure git to use "main" as default branch
         let mut config = git2::Config::open_default().unwrap();
         config.set_str("init.defaultBranch", "main").unwrap();
-        
+
         let repo = git2::Repository::init(temp_dir.path()).unwrap();
-        
+
         // Configure git user for commits
         let mut repo_config = repo.config().unwrap();
         repo_config.set_str("user.name", "Test User").unwrap();
-        repo_config.set_str("user.email", "test@example.com").unwrap();
-        
+        repo_config
+            .set_str("user.email", "test@example.com")
+            .unwrap();
+
         // Create an initial commit
         let sig = git2::Signature::now("Test User", "test@example.com").unwrap();
         let tree_id = {
             let mut index = repo.index().unwrap();
             index.write_tree().unwrap()
         };
-        
+
         // Create commit in a separate scope so tree is dropped before we return repo
         {
             let tree = repo.find_tree(tree_id).unwrap();
-            repo.commit(Some("HEAD"), &sig, &sig, "Initial commit", &tree, &[]).unwrap();
+            repo.commit(Some("HEAD"), &sig, &sig, "Initial commit", &tree, &[])
+                .unwrap();
         }
-        
+
         (temp_dir, repo)
     }
 
@@ -1103,7 +1169,7 @@ mod tests {
     fn test_git_vcs_creation() {
         let (_temp_dir, repo) = create_temp_git_repo();
         let repo_root = repo.workdir().unwrap().to_path_buf();
-        
+
         let vcs = GitVCS::new(repo_root.clone()).unwrap();
         assert_eq!(vcs.get_type_name(), "git");
         assert_eq!(vcs.get_repo_root().unwrap(), repo_root);
@@ -1114,12 +1180,12 @@ mod tests {
     fn test_git_vcs_is_clean() {
         let (_temp_dir, repo) = create_temp_git_repo();
         let repo_root = repo.workdir().unwrap().to_path_buf();
-        
+
         let vcs = GitVCS::new(repo_root.clone()).unwrap();
-        
+
         // Fresh repo should be clean
         assert!(vcs.is_clean().unwrap());
-        
+
         // Create a file - should make repo dirty
         fs::write(repo_root.join("test.txt"), "test content").unwrap();
         assert!(!vcs.is_clean().unwrap());
@@ -1130,9 +1196,9 @@ mod tests {
     fn test_git_vcs_get_current_branch() {
         let (_temp_dir, repo) = create_temp_git_repo();
         let repo_root = repo.workdir().unwrap().to_path_buf();
-        
+
         let vcs = GitVCS::new(repo_root.clone()).unwrap();
-        
+
         // Default branch should be "main"
         let branch = vcs.get_current_branch().unwrap();
         assert_eq!(branch, "main");
@@ -1143,9 +1209,9 @@ mod tests {
     fn test_git_vcs_get_latest_commit() {
         let (_temp_dir, repo) = create_temp_git_repo();
         let repo_root = repo.workdir().unwrap().to_path_buf();
-        
+
         let vcs = GitVCS::new(repo_root.clone()).unwrap();
-        
+
         let commit_hash = vcs.get_latest_commit().unwrap();
         // Should be a valid 40-char hex string
         assert_eq!(commit_hash.len(), 40);
@@ -1157,15 +1223,15 @@ mod tests {
     fn test_git_vcs_tag_operations() {
         let (_temp_dir, repo) = create_temp_git_repo();
         let repo_root = repo.workdir().unwrap().to_path_buf();
-        
+
         let vcs = GitVCS::new(repo_root.clone()).unwrap();
-        
+
         // Tag should not exist initially
         assert!(!vcs.tag_exists("v1.0.0").unwrap());
-        
+
         // Create tag
         vcs.create_tag("v1.0.0", "Release 1.0.0").unwrap();
-        
+
         // Tag should exist now
         assert!(vcs.tag_exists("v1.0.0").unwrap());
     }
@@ -1175,9 +1241,9 @@ mod tests {
     fn test_git_vcs_get_metadata() {
         let (_temp_dir, repo) = create_temp_git_repo();
         let repo_root = repo.workdir().unwrap().to_path_buf();
-        
+
         let vcs = GitVCS::new(repo_root.clone()).unwrap();
-        
+
         let metadata = vcs.get_metadata().unwrap();
         assert_eq!(metadata.vcs_type, "git");
         assert_eq!(metadata.branch, Some("main".to_string()));
@@ -1192,9 +1258,9 @@ mod tests {
     fn test_git_vcs_changelog() {
         let (_temp_dir, repo) = create_temp_git_repo();
         let repo_root = repo.workdir().unwrap().to_path_buf();
-        
+
         let vcs = GitVCS::new(repo_root.clone()).unwrap();
-        
+
         // Get changelog
         let changelog = vcs.get_changelog(None, None).unwrap();
         assert!(changelog.contains("Changelog from"));
@@ -1269,7 +1335,7 @@ mod tests {
     fn test_detect_vcs_git() {
         let (_temp_dir, repo) = create_temp_git_repo();
         let repo_root = repo.workdir().unwrap().to_path_buf();
-        
+
         let vcs_opt = detect_vcs(&repo_root);
         assert!(vcs_opt.is_some());
         assert_eq!(vcs_opt.unwrap().get_type_name(), "git");
@@ -1297,13 +1363,17 @@ mod tests {
 
     #[test]
     fn test_mercurial_vcs_type_name() {
-        let vcs = MercurialVCS { repo_root: PathBuf::from("/tmp/hg-repo") };
+        let vcs = MercurialVCS {
+            repo_root: PathBuf::from("/tmp/hg-repo"),
+        };
         assert_eq!(vcs.get_type_name(), "hg");
     }
 
     #[test]
     fn test_mercurial_vcs_validate_repo_state() {
-        let vcs = MercurialVCS { repo_root: PathBuf::from("/tmp/hg-repo") };
+        let vcs = MercurialVCS {
+            repo_root: PathBuf::from("/tmp/hg-repo"),
+        };
         // validate_repo_state will fail because /tmp/hg-repo is not a real repo
         // This test just ensures the method exists and returns Result
         let _result: Result<(), RezCoreError> = vcs.validate_repo_state();
@@ -1311,7 +1381,9 @@ mod tests {
 
     #[test]
     fn test_mercurial_vcs_is_releasable_branch() {
-        let vcs = MercurialVCS { repo_root: PathBuf::from("/tmp/hg-repo") };
+        let vcs = MercurialVCS {
+            repo_root: PathBuf::from("/tmp/hg-repo"),
+        };
         // is_releasable_branch will fail because /tmp/hg-repo is not a real repo
         // This test just ensures the method exists and returns Result
         let _result: Result<Option<bool>, RezCoreError> = vcs.is_releasable_branch();
@@ -1350,13 +1422,17 @@ mod tests {
 
     #[test]
     fn test_svn_vcs_type_name() {
-        let vcs = SvnVCS { repo_root: PathBuf::from("/tmp/svn-repo") };
+        let vcs = SvnVCS {
+            repo_root: PathBuf::from("/tmp/svn-repo"),
+        };
         assert_eq!(vcs.get_type_name(), "svn");
     }
 
     #[test]
     fn test_svn_vcs_validate_repo_state() {
-        let vcs = SvnVCS { repo_root: PathBuf::from("/tmp/svn-repo") };
+        let vcs = SvnVCS {
+            repo_root: PathBuf::from("/tmp/svn-repo"),
+        };
         // validate_repo_state will fail because /tmp/svn-repo is not a real repo
         // This test just ensures the method exists and returns Result
         let _result: Result<(), RezCoreError> = vcs.validate_repo_state();
@@ -1364,7 +1440,9 @@ mod tests {
 
     #[test]
     fn test_svn_vcs_is_releasable_branch() {
-        let vcs = SvnVCS { repo_root: PathBuf::from("/tmp/svn-repo") };
+        let vcs = SvnVCS {
+            repo_root: PathBuf::from("/tmp/svn-repo"),
+        };
         // is_releasable_branch will fail because /tmp/svn-repo is not a real repo
         // This test just ensures the method exists and returns Result
         let _result: Result<Option<bool>, RezCoreError> = vcs.is_releasable_branch();

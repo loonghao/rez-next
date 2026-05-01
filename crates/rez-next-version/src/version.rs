@@ -565,7 +565,10 @@ mod tests {
     fn test_range_contains_ge() {
         // Test if VersionRange::contains() bug is fixed
         let range = crate::VersionRange::parse(">=1.0.0").unwrap();
-        assert!(range.contains(&ver("1.0.0")), ">=1.0.0 should contain 1.0.0");
+        assert!(
+            range.contains(&ver("1.0.0")),
+            ">=1.0.0 should contain 1.0.0"
+        );
     }
 
     #[test]

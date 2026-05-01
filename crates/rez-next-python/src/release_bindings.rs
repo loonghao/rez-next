@@ -144,7 +144,7 @@ impl From<&VCSMetadata> for PyVCSMetadata {
 // ============================================================================
 #[pyclass(name = "ReleaseVCS", subclass)]
 pub struct PyReleaseVCS {
-    _inner: Option<Box<dyn ReleaseVCS + Send + Sync>>,  // prefixed with _ (methods use stub values)
+    _inner: Option<Box<dyn ReleaseVCS + Send + Sync>>, // prefixed with _ (methods use stub values)
 }
 
 #[pymethods]
@@ -368,7 +368,7 @@ impl PySvnVCS {
 /// Detect VCS for a given path
 // ============================================================================
 #[pyfunction]
-#[allow(dead_code)]  // exported to Python, may not be called from Rust
+#[allow(dead_code)] // exported to Python, may not be called from Rust
 pub fn detect_vcs<'a>(py: Python<'a>, repo_root: &str) -> PyResult<Option<Bound<'a, PyAny>>> {
     use rez_next_build::vcs::detect_vcs as inner_detect_vcs;
     use std::path::Path;
@@ -504,7 +504,9 @@ impl PyReleaseManager {
         source_dir: Option<&str>,
         message: Option<&str>,
     ) -> PyResult<PyReleaseResult> {
-        use rez_next_build::release::{ReleaseManager as RustReleaseManager, ReleaseMode as RustReleaseMode};
+        use rez_next_build::release::{
+            ReleaseManager as RustReleaseManager, ReleaseMode as RustReleaseMode,
+        };
 
         // Convert mode
         let mode = match self.mode {
@@ -546,9 +548,7 @@ impl PyReleaseManager {
                     warnings: result.warnings,
                 })
             }
-            Err(e) => {
-                Err(pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
-            }
+            Err(e) => Err(pyo3::exceptions::PyRuntimeError::new_err(e.to_string())),
         }
     }
 

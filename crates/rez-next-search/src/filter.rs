@@ -238,7 +238,6 @@ mod tests {
         assert!(!f.matches_name("my_pkg"));
     }
 
-
     #[test]
     fn test_filter_unicode_pattern() {
         let f = SearchFilter::new("测试").with_mode(FilterMode::Contains);

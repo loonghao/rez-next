@@ -257,7 +257,7 @@ mod build_tests {
         assert!(req.is_variant());
         assert_eq!(req.variant_index, Some(0));
         assert_eq!(req.variant_requires.as_ref().unwrap().len(), 2);
-        
+
         // Test variant hash computation
         let hash = req.variant_hash();
         assert!(hash.is_some());
@@ -422,7 +422,11 @@ mod build_tests {
             stats.builds_started, 1,
             "builds_started should be incremented"
         );
-        assert_eq!(ids.len(), 1, "should return one build id for non-variant build");
+        assert_eq!(
+            ids.len(),
+            1,
+            "should return one build id for non-variant build"
+        );
     }
 
     #[test]

@@ -105,7 +105,6 @@ fn test_normal_requirement_not_conflict_not_weak() {
     assert_eq!(req.version_spec.as_deref(), Some("2024"));
 }
 
-
 #[test]
 fn test_conflict_takes_priority_over_weak() {
     let req = PackageRequirement::parse("!python").unwrap();
@@ -138,7 +137,6 @@ fn test_package_with_tools() {
     assert_eq!(pkg.tools.len(), 2);
 }
 
-
 #[test]
 fn test_package_with_commands() {
     let mut pkg = Package::new("test_pkg".to_string());
@@ -147,7 +145,6 @@ fn test_package_with_commands() {
     assert!(pkg.commands.is_some());
     assert!(pkg.commands.as_ref().unwrap().contains("build"));
 }
-
 
 #[test]
 fn test_package_validate_invalid_name() {
@@ -290,4 +287,3 @@ fn test_package_validate_empty_requirement() {
     pkg.requires.push("".to_string());
     assert!(pkg.validate().is_err());
 }
-

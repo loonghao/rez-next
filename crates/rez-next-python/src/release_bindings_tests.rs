@@ -3,7 +3,8 @@
 #[cfg(test)]
 mod release_tests {
     use crate::release_bindings::{
-        release_package, PyReleaseManager, PyReleaseResult, PyReleaseVCS, PyVCSMetadata, ReleaseMode,
+        release_package, PyReleaseManager, PyReleaseResult, PyReleaseVCS, PyVCSMetadata,
+        ReleaseMode,
     };
 
     #[test]
@@ -698,7 +699,10 @@ mod release_tests {
         );
         let s = meta.__str__();
         assert!(s.contains("git"), "VCSMetadata __str__ should contain type");
-        assert!(s.contains("main"), "VCSMetadata __str__ should contain branch");
+        assert!(
+            s.contains("main"),
+            "VCSMetadata __str__ should contain branch"
+        );
         assert!(
             s.contains("def456"),
             "VCSMetadata __str__ should contain commit hash"
@@ -757,14 +761,22 @@ mod release_tests {
     fn test_py_release_manager_new_with_skip_flags() {
         let mgr = PyReleaseManager::new(None, true, true);
         let s = mgr.__str__();
-        assert!(s.contains("skip_build=true"), "should contain 'skip_build=true'");
-        assert!(s.contains("skip_tests=true"), "should contain 'skip_tests=true'");
+        assert!(
+            s.contains("skip_build=true"),
+            "should contain 'skip_build=true'"
+        );
+        assert!(
+            s.contains("skip_tests=true"),
+            "should contain 'skip_tests=true'"
+        );
     }
 
     #[test]
     fn test_py_release_manager_release_nonexistent() {
         let mgr = PyReleaseManager::new(Some("dry_run"), false, false);
-        let result = mgr.release(Some("/nonexistent/path/xyz_123"), None).unwrap();
+        let result = mgr
+            .release(Some("/nonexistent/path/xyz_123"), None)
+            .unwrap();
         assert!(!result.success, "should fail for nonexistent path");
         assert!(!result.errors.is_empty(), "should have errors");
     }
@@ -801,8 +813,14 @@ mod release_tests {
         writeln!(f, "version = '0.1.0'").unwrap();
 
         let mgr = PyReleaseManager::new(Some("dry_run"), false, false);
-        let result = mgr.release(Some(dir.path().to_str().unwrap()), None).unwrap();
-        assert!(result.success, "dry run should succeed: {:?}", result.errors);
+        let result = mgr
+            .release(Some(dir.path().to_str().unwrap()), None)
+            .unwrap();
+        assert!(
+            result.success,
+            "dry run should succeed: {:?}",
+            result.errors
+        );
         assert_eq!(result.package_name, "drytest");
         assert_eq!(result.version, "0.1.0");
     }
@@ -824,13 +842,16 @@ mod release_tests {
         // Hash should be 8 characters (hex)
         assert_eq!(hash.len(), 8, "hash should be 8 characters");
         // Hash should be valid hex string
-        assert!(hash.chars().all(|c| c.is_ascii_hexdigit()), "hash should be hex string");
+        assert!(
+            hash.chars().all(|c| c.is_ascii_hexdigit()),
+            "hash should be hex string"
+        );
     }
 
     #[test]
     fn test_release_with_variants_creates_variant_dirs() {
-        use std::io::Write;
         use std::fs;
+        use std::io::Write;
 
         let dir = tempfile::tempdir().unwrap();
         let pkg_path = dir.path().join("package.py");
@@ -841,13 +862,19 @@ mod release_tests {
 
         // Use local mode to create variant directories
         let mgr = PyReleaseManager::new(Some("local"), false, false);
-        let result = mgr.release(Some(dir.path().to_str().unwrap()), None).unwrap();
+        let result = mgr
+            .release(Some(dir.path().to_str().unwrap()), None)
+            .unwrap();
 
         // Release should succeed (even if variants are created)
         let _ = result;
 
         // Check that local_packages_path/varianttest/1.0.0/ exists
-        let install_base = dir.path().join("local_packages_path").join("varianttest").join("1.0.0");
+        let install_base = dir
+            .path()
+            .join("local_packages_path")
+            .join("varianttest")
+            .join("1.0.0");
         if install_base.exists() {
             // Should have subdirectories (variant hashes)
             let entries: Vec<_> = fs::read_dir(&install_base).unwrap().collect();

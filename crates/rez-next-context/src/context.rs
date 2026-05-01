@@ -443,7 +443,7 @@ mod tests {
     #[test]
     fn test_context_config_default() {
         let config = ContextConfig::default();
-        
+
         assert!(config.inherit_parent_env);
         assert!(config.additional_env_vars.is_empty());
         assert!(config.unset_vars.is_empty());
@@ -453,7 +453,7 @@ mod tests {
     #[test]
     fn test_context_builder_new() {
         let builder = ContextBuilder::new();
-        
+
         assert!(builder.requirements.is_empty());
         assert!(builder.name.is_none());
         assert!(builder.suite.is_none());
@@ -465,9 +465,8 @@ mod tests {
     #[test]
     fn test_context_builder_with_requirement() {
         let req = PackageRequirement::new("python".to_string());
-        let builder = ContextBuilder::new()
-            .with_requirement(req);
-        
+        let builder = ContextBuilder::new().with_requirement(req);
+
         assert_eq!(builder.requirements.len(), 1);
     }
 
@@ -477,49 +476,44 @@ mod tests {
             PackageRequirement::new("python".to_string()),
             PackageRequirement::new("maya".to_string()),
         ];
-        let builder = ContextBuilder::new()
-            .with_requirements(reqs);
-        
+        let builder = ContextBuilder::new().with_requirements(reqs);
+
         assert_eq!(builder.requirements.len(), 2);
     }
 
     #[test]
     fn test_context_builder_with_name() {
-        let builder = ContextBuilder::new()
-            .with_name("my_context".to_string());
-        
+        let builder = ContextBuilder::new().with_name("my_context".to_string());
+
         assert_eq!(builder.name, Some("my_context".to_string()));
     }
 
     #[test]
     fn test_context_builder_with_suite() {
-        let builder = ContextBuilder::new()
-            .with_suite("my_suite".to_string());
-        
+        let builder = ContextBuilder::new().with_suite("my_suite".to_string());
+
         assert_eq!(builder.suite, Some("my_suite".to_string()));
     }
 
     #[test]
     fn test_context_builder_with_platform() {
-        let builder = ContextBuilder::new()
-            .with_platform("linux".to_string());
-        
+        let builder = ContextBuilder::new().with_platform("linux".to_string());
+
         assert_eq!(builder.platform, Some("linux".to_string()));
     }
 
     #[test]
     fn test_context_builder_with_arch() {
-        let builder = ContextBuilder::new()
-            .with_arch("x86_64".to_string());
-        
+        let builder = ContextBuilder::new().with_arch("x86_64".to_string());
+
         assert_eq!(builder.arch, Some("x86_64".to_string()));
     }
 
     #[test]
     fn test_context_builder_with_metadata() {
-        let builder = ContextBuilder::new()
-            .with_metadata("project".to_string(), "my_project".to_string());
-        
+        let builder =
+            ContextBuilder::new().with_metadata("project".to_string(), "my_project".to_string());
+
         assert_eq!(builder.metadata.len(), 1);
         assert_eq!(
             builder.metadata.get("project"),
@@ -531,7 +525,7 @@ mod tests {
     fn test_context_builder_fluent_api() {
         let req1 = PackageRequirement::new("python".to_string());
         let req2 = PackageRequirement::new("maya".to_string());
-        
+
         let builder = ContextBuilder::new()
             .with_requirement(req1)
             .with_requirement(req2)
@@ -539,7 +533,7 @@ mod tests {
             .with_platform("windows".to_string())
             .with_arch("ARM64".to_string())
             .with_metadata("env".to_string(), "prod".to_string());
-        
+
         assert_eq!(builder.requirements.len(), 2);
         assert_eq!(builder.name, Some("test_context".to_string()));
         assert_eq!(builder.platform, Some("windows".to_string()));
@@ -554,7 +548,7 @@ mod tests {
             .with_requirement(req)
             .with_name("test".to_string())
             .build();
-        
+
         // Verify the context was created successfully
         // Note: we can't access private fields, but we can verify it doesn't panic
         let _ = context;

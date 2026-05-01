@@ -139,11 +139,7 @@ impl BuildRequest {
     }
 
     /// Create a new build request for a non-variant build
-    pub fn new(
-        package: Package,
-        context: Option<ResolvedContext>,
-        source_dir: PathBuf,
-    ) -> Self {
+    pub fn new(package: Package, context: Option<ResolvedContext>, source_dir: PathBuf) -> Self {
         Self {
             package,
             context,
@@ -166,7 +162,7 @@ impl BuildRequest {
             // Compute a hash from the variant requirements
             use std::collections::hash_map::DefaultHasher;
             use std::hash::{Hash, Hasher};
-            
+
             let mut hasher = DefaultHasher::new();
             for req in reqs {
                 req.hash(&mut hasher);
@@ -269,7 +265,10 @@ impl BuildManager {
     ///
     /// If the package has variants, this will iterate over each variant
     /// and create separate build processes for each.
-    pub async fn start_build(&mut self, request: BuildRequest) -> Result<Vec<String>, RezCoreError> {
+    pub async fn start_build(
+        &mut self,
+        request: BuildRequest,
+    ) -> Result<Vec<String>, RezCoreError> {
         let mut build_ids = Vec::new();
 
         // Check if package has variants
@@ -284,9 +283,10 @@ impl BuildManager {
             for (index, variant_reqs) in variants.iter().enumerate() {
                 // Check concurrent build limit
                 if self.active_builds.len() >= self.config.max_concurrent_builds {
-                    return Err(RezCoreError::BuildError(
-                        format!("Maximum concurrent builds reached. Completed: {}", build_ids.len())
-                    ));
+                    return Err(RezCoreError::BuildError(format!(
+                        "Maximum concurrent builds reached. Completed: {}",
+                        build_ids.len()
+                    )));
                 }
 
                 // Create a build request for this variant

@@ -389,9 +389,12 @@ mod tests {
     #[test]
     fn test_get_package_names_with_packages() {
         let mut ctx = RezResolvedContext::new(vec![]);
-        ctx.resolved_packages.push(make_resolved_package("python", "3.9.0"));
-        ctx.resolved_packages.push(make_resolved_package("maya", "2024.0.0"));
-        ctx.resolved_packages.push(make_resolved_package("numpy", "1.24.0"));
+        ctx.resolved_packages
+            .push(make_resolved_package("python", "3.9.0"));
+        ctx.resolved_packages
+            .push(make_resolved_package("maya", "2024.0.0"));
+        ctx.resolved_packages
+            .push(make_resolved_package("numpy", "1.24.0"));
 
         let names = ctx.get_package_names();
         assert_eq!(names.len(), 3);
@@ -417,8 +420,8 @@ mod tests {
     #[test]
     fn test_resolved_package_with_variant() {
         let pkg = make_package("test_pkg", "1.0.0");
-        let rp = ResolvedPackage::new(pkg, PathBuf::from("/packages/test_pkg"), true)
-            .with_variant(2);
+        let rp =
+            ResolvedPackage::new(pkg, PathBuf::from("/packages/test_pkg"), true).with_variant(2);
 
         assert_eq!(rp.variant_index, Some(2));
     }
@@ -447,20 +450,22 @@ mod tests {
         ctx.failure_description = Some("Dependency conflict".to_string());
 
         assert!(ctx.failed);
-        assert_eq!(ctx.failure_description, Some("Dependency conflict".to_string()));
+        assert_eq!(
+            ctx.failure_description,
+            Some("Dependency conflict".to_string())
+        );
     }
 
     #[test]
     fn test_rez_resolved_context_metadata() {
         let mut ctx = RezResolvedContext::new(vec![]);
-        ctx.metadata.insert("build_type".to_string(), "release".to_string());
-        ctx.metadata.insert("target".to_string(), "linux".to_string());
+        ctx.metadata
+            .insert("build_type".to_string(), "release".to_string());
+        ctx.metadata
+            .insert("target".to_string(), "linux".to_string());
 
         assert_eq!(ctx.metadata.len(), 2);
-        assert_eq!(
-            ctx.metadata.get("build_type"),
-            Some(&"release".to_string())
-        );
+        assert_eq!(ctx.metadata.get("build_type"), Some(&"release".to_string()));
     }
 
     #[test]
@@ -477,8 +482,10 @@ mod tests {
     #[test]
     fn test_get_summary_with_packages() {
         let mut ctx = RezResolvedContext::new(vec![]);
-        ctx.resolved_packages.push(make_resolved_package("python", "3.9.0"));
-        ctx.resolved_packages.push(make_resolved_package("maya", "2024.0.0"));
+        ctx.resolved_packages
+            .push(make_resolved_package("python", "3.9.0"));
+        ctx.resolved_packages
+            .push(make_resolved_package("maya", "2024.0.0"));
 
         let summary = ctx.get_summary();
         assert_eq!(summary.num_packages, 2);

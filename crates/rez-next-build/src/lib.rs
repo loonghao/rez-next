@@ -16,8 +16,8 @@ mod process;
 pub mod release;
 mod sources;
 mod systems;
-pub mod vcs;
 mod tests;
+pub mod vcs;
 
 pub use artifacts::*;
 pub use builder::*;

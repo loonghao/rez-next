@@ -640,7 +640,6 @@ mod tests {
         );
     }
 
-
     /// Test CacheLevelStats hit_rate calculation
     #[test]
     fn test_cache_level_stats_hit_rate_precision() {
@@ -670,7 +669,10 @@ mod tests {
         let cache = IntelligentCacheManager::<String, String>::new(config);
 
         // Empty key should be allowed (depends on implementation)
-        cache.put("".to_string(), "empty_value".to_string()).await.unwrap();
+        cache
+            .put("".to_string(), "empty_value".to_string())
+            .await
+            .unwrap();
         let result = cache.get(&"".to_string()).await;
         assert_eq!(result, Some("empty_value".to_string()));
     }
@@ -682,7 +684,10 @@ mod tests {
         let cache = IntelligentCacheManager::<String, String>::new(config);
 
         let long_key = "x".repeat(1000);
-        cache.put(long_key.clone(), "long_key_value".to_string()).await.unwrap();
+        cache
+            .put(long_key.clone(), "long_key_value".to_string())
+            .await
+            .unwrap();
         let result = cache.get(&long_key).await;
         assert_eq!(result, Some("long_key_value".to_string()));
     }
@@ -693,9 +698,15 @@ mod tests {
         let config = UnifiedCacheConfig::default();
         let cache = IntelligentCacheManager::<String, String>::new(config);
 
-        cache.put("key1".to_string(), "value1".to_string()).await.unwrap();
+        cache
+            .put("key1".to_string(), "value1".to_string())
+            .await
+            .unwrap();
         // Update the same key
-        cache.put("key1".to_string(), "value_updated".to_string()).await.unwrap();
+        cache
+            .put("key1".to_string(), "value_updated".to_string())
+            .await
+            .unwrap();
 
         let result = cache.get(&"key1".to_string()).await;
         assert_eq!(result, Some("value_updated".to_string()));
@@ -713,7 +724,10 @@ mod tests {
 
         // Add entries
         for i in 0..5 {
-            cache.put(format!("key_{}", i), format!("value_{}", i)).await.unwrap();
+            cache
+                .put(format!("key_{}", i), format!("value_{}", i))
+                .await
+                .unwrap();
         }
 
         let stats = cache.get_stats().await;
@@ -739,7 +753,10 @@ mod tests {
         };
         let cache = IntelligentCacheManager::<String, String>::new(config);
 
-        cache.put("ttl_key".to_string(), "ttl_value".to_string()).await.unwrap();
+        cache
+            .put("ttl_key".to_string(), "ttl_value".to_string())
+            .await
+            .unwrap();
         assert!(cache.contains_key(&"ttl_key".to_string()).await);
     }
 }

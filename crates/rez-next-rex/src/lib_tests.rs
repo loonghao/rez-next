@@ -398,10 +398,7 @@ mod test_apply_multiple_actions {
         let mut env = RexEnvironment::new();
         let long_value = "x".repeat(10000);
         env.apply(&[RexAction::setenv("LONG_VAR", &long_value)]);
-        assert_eq!(
-            env.vars.get("LONG_VAR"),
-            Some(&long_value)
-        );
+        assert_eq!(env.vars.get("LONG_VAR"), Some(&long_value));
     }
 
     #[test]
@@ -409,10 +406,7 @@ mod test_apply_multiple_actions {
         let mut env = RexEnvironment::new();
         env.apply(&[RexAction::setenv("测试变量", "测试值")]);
         assert!(env.vars.contains_key("测试变量"));
-        assert_eq!(
-            env.vars.get("测试变量"),
-            Some(&"测试值".to_string())
-        );
+        assert_eq!(env.vars.get("测试变量"), Some(&"测试值".to_string()));
     }
 
     #[test]

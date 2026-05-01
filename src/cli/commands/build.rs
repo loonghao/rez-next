@@ -185,13 +185,8 @@ pub fn execute(args: BuildArgs) -> RezCoreResult<()> {
 
     for variant_idx in variant_indices {
         // Convert variant index to variant_requires
-        let variant_requires: Option<Vec<String>> = variant_idx.map(|i| {
-            package
-                .variants
-                .get(i)
-                .cloned()
-                .unwrap_or_default()
-        });
+        let variant_requires: Option<Vec<String>> =
+            variant_idx.map(|i| package.variants.get(i).cloned().unwrap_or_default());
 
         // For now, just use the base BuildRequest without variant
         // TODO: properly support variants in CLI
@@ -412,7 +407,8 @@ fn execute_build(
         .map_err(|e| RezCoreError::BuildError(format!("Failed to create async runtime: {}", e)))?;
 
     // start_build() now returns Vec<String> (for variant builds)
-    let build_ids: Vec<String> = runtime.block_on(async { build_manager.start_build(request).await })?;
+    let build_ids: Vec<String> =
+        runtime.block_on(async { build_manager.start_build(request).await })?;
 
     if args.verbose {
         println!("🔧 Configuring build environment...");
@@ -424,9 +420,13 @@ fn execute_build(
     // Wait for all builds to complete
     let mut final_result = None;
     for build_id in &build_ids {
-        let build_result = runtime.block_on(async { build_manager.wait_for_build(build_id).await })?;
+        let build_result =
+            runtime.block_on(async { build_manager.wait_for_build(build_id).await })?;
         if args.verbose {
-            println!("✅ Build {} completed: success={}", build_id, build_result.success);
+            println!(
+                "✅ Build {} completed: success={}",
+                build_id, build_result.success
+            );
         }
         if final_result.is_none() {
             final_result = Some(build_result);
