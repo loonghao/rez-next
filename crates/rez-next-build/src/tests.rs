@@ -696,9 +696,9 @@ mod build_type_tests {
 
     #[test]
     fn build_type_from_str() {
-        assert_eq!(BuildType::from_str("local"), Some(BuildType::Local));
-        assert_eq!(BuildType::from_str("central"), Some(BuildType::Central));
-        assert_eq!(BuildType::from_str("invalid"), None);
+        assert_eq!(BuildType::from_str_opt("local"), Some(BuildType::Local));
+        assert_eq!(BuildType::from_str_opt("central"), Some(BuildType::Central));
+        assert_eq!(BuildType::from_str_opt("invalid"), None);
     }
 
     #[test]
