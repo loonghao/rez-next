@@ -1,5 +1,6 @@
 import rez_next._native as _native  # noqa: F401
 from rez_next._native import *  # noqa: F401,F403
+from . import complete  # noqa: F401
 
 __version__: str = _native.__version__
 __author__: str = _native.__author__
@@ -11,6 +12,9 @@ system = _native.System()
 # Aliases for API compatibility with original rez
 resolve = _native.resolve_packages
 create_context = _native.ResolvedContext
+# get_completion_script is available via complete.get_completion_script
+# For top-level access, we import it explicitly
+from .complete import get_completion_script  # noqa: F401
 
 
 # ── Monkeypatch: add dict-style access to Rust classes ─────────────────────
