@@ -130,7 +130,8 @@ mod tests {
             package: pkg,
             context: None,
             source_dir,
-            variant: None,
+            variant_index: None,
+            variant_requires: None,
             options: crate::BuildOptions::default(),
             install_path: None,
         }

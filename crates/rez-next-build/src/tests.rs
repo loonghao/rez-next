@@ -20,14 +20,7 @@ mod build_tests {
     }
 
     fn make_request(pkg: Package, source_dir: PathBuf) -> BuildRequest {
-        BuildRequest {
-            package: pkg,
-            context: None,
-            source_dir,
-            variant: None,
-            options: BuildOptions::default(),
-            install_path: None,
-        }
+        BuildRequest::new(pkg, None, source_dir)
     }
 
     // ── BuildConfig tests ────────────────────────────────────────────────────
@@ -78,14 +71,15 @@ mod build_tests {
         std::fs::write(&pkg_py, "name = 'mypkg'\nversion = '1.0.0'\n").unwrap();
 
         let request = make_request(pkg, tmp.path().to_path_buf());
-        let build_id = manager.start_build(request).await;
+        let build_ids = manager.start_build(request).await;
         assert!(
-            build_id.is_ok(),
+            build_ids.is_ok(),
             "start_build should succeed: {:?}",
-            build_id.err()
+            build_ids.err()
         );
-        let id = build_id.unwrap();
-        assert!(!id.is_empty(), "build id should not be empty");
+        let ids = build_ids.unwrap();
+        assert!(!ids.is_empty(), "build ids should not be empty");
+        assert!(!ids[0].is_empty(), "first build id should not be empty");
     }
 
     #[tokio::test]
@@ -225,32 +219,49 @@ mod build_tests {
     fn test_build_request_no_install() {
         let pkg = make_package("mypkg", "1.0.0");
         let src = PathBuf::from("/tmp/mypkg");
-        let req = BuildRequest {
-            package: pkg.clone(),
-            context: None,
-            source_dir: src.clone(),
-            variant: None,
-            options: BuildOptions::default(),
-            install_path: None,
-        };
+        let req = BuildRequest::new(pkg.clone(), None, src.clone());
         assert_eq!(req.package.name, "mypkg");
         assert_eq!(req.source_dir, src);
+        assert!(!req.is_variant());
         assert!(req.install_path.is_none());
     }
 
     #[test]
     fn test_build_request_with_install_path() {
         let pkg = make_package("mypkg", "1.0.0");
+        let install_path = Some(PathBuf::from("/packages/local"));
         let req = BuildRequest {
             package: pkg,
             context: None,
             source_dir: PathBuf::from("/tmp/mypkg"),
-            variant: None,
+            variant_index: None,
+            variant_requires: None,
             options: BuildOptions::default(),
-            install_path: Some(PathBuf::from("/packages/local")),
+            install_path,
         };
         assert!(req.install_path.is_some());
         assert_eq!(req.install_path.unwrap(), PathBuf::from("/packages/local"));
+    }
+
+    #[test]
+    fn test_build_request_for_variant() {
+        let pkg = make_package("mypkg", "1.0.0");
+        let variant_reqs = vec!["python-3.9".to_string(), "platform-linux".to_string()];
+        let req = BuildRequest::for_variant(
+            pkg.clone(),
+            None,
+            PathBuf::from("/tmp/mypkg"),
+            0,
+            variant_reqs.clone(),
+        );
+        assert!(req.is_variant());
+        assert_eq!(req.variant_index, Some(0));
+        assert_eq!(req.variant_requires.as_ref().unwrap().len(), 2);
+        
+        // Test variant hash computation
+        let hash = req.variant_hash();
+        assert!(hash.is_some());
+        assert!(!hash.unwrap().is_empty());
     }
 
     // ── BuildStats tests ─────────────────────────────────────────────────────
@@ -404,13 +415,14 @@ mod build_tests {
 
         let pkg = make_package("testpkg", "1.0.0");
         let req = make_request(pkg, tmp.path().to_path_buf());
-        let _id = manager.start_build(req).await.unwrap();
+        let ids = manager.start_build(req).await.unwrap();
 
         let stats = manager.get_stats();
         assert_eq!(
             stats.builds_started, 1,
             "builds_started should be incremented"
         );
+        assert_eq!(ids.len(), 1, "should return one build id for non-variant build");
     }
 
     #[test]
@@ -486,12 +498,13 @@ mod build_tests {
         let req = make_request(pkg, tmp.path().to_path_buf());
 
         // Start multiple builds
-        let id1 = manager.start_build(req.clone()).await.unwrap();
-        let id2 = manager.start_build(req).await.unwrap();
+        let ids1 = manager.start_build(req.clone()).await.unwrap();
+        let ids2 = manager.start_build(req).await.unwrap();
 
-        assert!(!id1.is_empty());
-        assert!(!id2.is_empty());
-        assert_ne!(id1, id2, "Build IDs should be unique");
+        // Each non-variant build returns a Vec with 1 ID
+        assert_eq!(ids1.len(), 1);
+        assert_eq!(ids2.len(), 1);
+        assert_ne!(ids1[0], ids2[0], "Build IDs should be unique");
     }
 
     // ── BuildManager additional API tests ─────────────────────────────────
@@ -512,10 +525,11 @@ mod build_tests {
         let req = make_request(pkg, tmp.path().to_path_buf());
 
         // Start a build
-        let build_id = manager.start_build(req).await.unwrap();
+        let build_ids = manager.start_build(req).await.unwrap();
+        let build_id = &build_ids[0];
 
         // Cancel the build
-        let result = manager.cancel_build(&build_id).await;
+        let result = manager.cancel_build(build_id).await;
         assert!(
             result.is_ok(),
             "cancel_build should succeed for active build"
@@ -550,10 +564,11 @@ mod build_tests {
         let req = make_request(pkg, tmp.path().to_path_buf());
 
         // Start a build
-        let build_id = manager.start_build(req).await.unwrap();
+        let build_ids = manager.start_build(req).await.unwrap();
+        let build_id = &build_ids[0];
 
         // Get build status
-        let status = manager.get_build_status(&build_id);
+        let status = manager.get_build_status(build_id);
         // Status should be Some (either Running or Completed)
         assert!(status.is_some(), "active build should have a status");
     }
@@ -581,20 +596,27 @@ mod build_tests {
         let req = make_request(pkg, tmp.path().to_path_buf());
 
         // Start a build
-        let build_id = manager.start_build(req).await.unwrap();
+        let build_ids = manager.start_build(req).await.unwrap();
+        let build_id = &build_ids[0];
 
         // Should have one active build
         let active = manager.get_active_builds();
         assert_eq!(active.len(), 1, "should have one active build");
-        assert_eq!(active[0], build_id, "active build ID should match");
+        assert_eq!(&active[0], build_id, "active build ID should match");
     }
 
     #[tokio::test]
     async fn test_clean_build_dir() {
-        let manager = BuildManager::new();
+        let manager = BuildManager::with_config({
+            let mut config = BuildConfig::default();
+            let temp_dir = TempDir::new().unwrap();
+            config.build_dir = temp_dir.path().to_path_buf();
+            config
+        });
+
+        let build_dir = &manager.get_config().build_dir;
 
         // Create a build directory with some content
-        let build_dir = &manager.get_config().build_dir;
         std::fs::create_dir_all(build_dir).unwrap();
         std::fs::write(build_dir.join("test_file.txt"), "test").unwrap();
 
@@ -643,10 +665,11 @@ mod build_tests {
         let req = make_request(pkg, tmp.path().to_path_buf());
 
         // Start a build
-        let build_id = manager.start_build(req).await.unwrap();
+        let build_ids = manager.start_build(req).await.unwrap();
+        let build_id = &build_ids[0];
 
         // Wait for build to complete
-        let result = manager.wait_for_build(&build_id).await;
+        let result = manager.wait_for_build(build_id).await;
         assert!(result.is_ok(), "wait_for_build should succeed");
 
         let build_result = result.unwrap();

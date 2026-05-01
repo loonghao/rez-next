@@ -94,6 +94,14 @@ impl BuildEnvironment {
             package_build_dir.to_string_lossy().to_string(),
         );
 
+        // Add variant-related environment variables (matching original Rez)
+        // These will be set when building variants
+        env_vars.insert("REZ_BUILD_VARIANT_INDEX".to_string(), "0".to_string());
+        env_vars.insert(
+            "REZ_BUILD_VARIANT_REQUIRES".to_string(),
+            String::new(),
+        );
+
         // Add context environment if available
         if let Some(context) = context {
             for (key, value) in &context.environment_vars {
@@ -149,6 +157,34 @@ impl BuildEnvironment {
     /// Remove environment variable
     pub fn remove_env_var(&mut self, name: &str) {
         self.env_vars.remove(name);
+    }
+
+    /// Set variant-related environment variables
+    pub fn set_variant_env(
+        &mut self,
+        variant_index: usize,
+        variant_requires: &[String],
+    ) {
+        self.env_vars.insert(
+            "REZ_BUILD_VARIANT_INDEX".to_string(),
+            variant_index.to_string(),
+        );
+        self.env_vars.insert(
+            "REZ_BUILD_VARIANT_REQUIRES".to_string(),
+            variant_requires.join(" "),
+        );
+    }
+
+    /// Get the variant install path (for hash variants)
+    pub fn get_variant_install_path(&self, variant_hash: Option<&str>) -> PathBuf {
+        match variant_hash {
+            Some(hash) => self.install_dir.join(hash),
+            None => {
+                // Non-hash variant: use index-based path
+                // This will be set by the caller based on variant_index
+                self.install_dir.clone()
+            }
+        }
     }
 
     /// Set up build environment directories

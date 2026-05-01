@@ -14,6 +14,7 @@ mod environment;
 mod process;
 mod sources;
 mod systems;
+pub mod vcs;
 mod tests;
 
 pub use artifacts::*;
@@ -22,6 +23,7 @@ pub use environment::*;
 pub use process::*;
 pub use sources::*;
 pub use systems::*;
+pub use vcs::*;
 
 /// Get all available build system types
 pub fn get_buildsys_types() -> Vec<&'static str> {

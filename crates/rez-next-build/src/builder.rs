@@ -108,12 +108,72 @@ pub struct BuildRequest {
     pub context: Option<ResolvedContext>,
     /// Source directory
     pub source_dir: PathBuf,
-    /// Build variant (if any)
-    pub variant: Option<String>,
+    /// Build variant index (0-based, None for non-variant builds)
+    pub variant_index: Option<usize>,
+    /// Build variant requirements (the specific variant's requirements)
+    pub variant_requires: Option<Vec<String>>,
     /// Build options
     pub options: BuildOptions,
     /// Installation path (if installing)
     pub install_path: Option<PathBuf>,
+}
+
+impl BuildRequest {
+    /// Create a new build request for a specific variant
+    pub fn for_variant(
+        package: Package,
+        context: Option<ResolvedContext>,
+        source_dir: PathBuf,
+        variant_index: usize,
+        variant_requires: Vec<String>,
+    ) -> Self {
+        Self {
+            package,
+            context,
+            source_dir,
+            variant_index: Some(variant_index),
+            variant_requires: Some(variant_requires),
+            options: BuildOptions::default(),
+            install_path: None,
+        }
+    }
+
+    /// Create a new build request for a non-variant build
+    pub fn new(
+        package: Package,
+        context: Option<ResolvedContext>,
+        source_dir: PathBuf,
+    ) -> Self {
+        Self {
+            package,
+            context,
+            source_dir,
+            variant_index: None,
+            variant_requires: None,
+            options: BuildOptions::default(),
+            install_path: None,
+        }
+    }
+
+    /// Check if this is a variant build
+    pub fn is_variant(&self) -> bool {
+        self.variant_index.is_some()
+    }
+
+    /// Get the variant hash for hash-based variant paths
+    pub fn variant_hash(&self) -> Option<String> {
+        self.variant_requires.as_ref().map(|reqs| {
+            // Compute a hash from the variant requirements
+            use std::collections::hash_map::DefaultHasher;
+            use std::hash::{Hash, Hasher};
+            
+            let mut hasher = DefaultHasher::new();
+            for req in reqs {
+                req.hash(&mut hasher);
+            }
+            format!("{:x}", hasher.finish())
+        })
+    }
 }
 
 /// Build options
@@ -206,7 +266,49 @@ impl BuildManager {
     }
 
     /// Start a build process
-    pub async fn start_build(&mut self, request: BuildRequest) -> Result<String, RezCoreError> {
+    ///
+    /// If the package has variants, this will iterate over each variant
+    /// and create separate build processes for each.
+    pub async fn start_build(&mut self, request: BuildRequest) -> Result<Vec<String>, RezCoreError> {
+        let mut build_ids = Vec::new();
+
+        // Check if package has variants
+        let variants = &request.package.variants;
+
+        if variants.is_empty() {
+            // Non-variant build
+            let build_id = self.start_single_build(request).await?;
+            build_ids.push(build_id);
+        } else {
+            // Variant build - iterate over each variant
+            for (index, variant_reqs) in variants.iter().enumerate() {
+                // Check concurrent build limit
+                if self.active_builds.len() >= self.config.max_concurrent_builds {
+                    return Err(RezCoreError::BuildError(
+                        format!("Maximum concurrent builds reached. Completed: {}", build_ids.len())
+                    ));
+                }
+
+                // Create a build request for this variant
+                let variant_request = BuildRequest::for_variant(
+                    request.package.clone(),
+                    request.context.clone(),
+                    request.source_dir.clone(),
+                    index,
+                    variant_reqs.clone(),
+                );
+
+                // Start build for this variant
+                let build_id = self.start_single_build(variant_request).await?;
+                build_ids.push(build_id);
+            }
+        }
+
+        Ok(build_ids)
+    }
+
+    /// Start a single build (internal helper)
+    async fn start_single_build(&mut self, request: BuildRequest) -> Result<String, RezCoreError> {
         // Check concurrent build limit
         if self.active_builds.len() >= self.config.max_concurrent_builds {
             return Err(RezCoreError::BuildError(
@@ -218,12 +320,31 @@ impl BuildManager {
         let build_id = Uuid::new_v4().to_string();
 
         // Create build environment
-        let build_env = BuildEnvironment::with_install_path(
+        let mut build_env = BuildEnvironment::with_install_path(
             &request.package,
             &self.config.build_dir,
             request.context.as_ref(),
             request.install_path.as_ref(),
         )?;
+
+        // Set variant-related environment variables if this is a variant build
+        if let Some(variant_index) = request.variant_index {
+            let variant_requires = request.variant_requires.clone().unwrap_or_default();
+            build_env.set_variant_env(variant_index, &variant_requires);
+
+            // Update install path for hash variants if needed
+            if let Some(variant_hash) = request.variant_hash() {
+                let variant_install_path = build_env.get_variant_install_path(Some(&variant_hash));
+                build_env = BuildEnvironment::with_install_path(
+                    &request.package,
+                    &variant_install_path,
+                    request.context.as_ref(),
+                    request.install_path.as_ref(),
+                )?;
+                // Re-set variant env after recreating environment
+                build_env.set_variant_env(variant_index, &variant_requires);
+            }
+        }
 
         // Create build process
         let mut build_process =

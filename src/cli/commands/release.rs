@@ -131,7 +131,8 @@ pub fn execute(args: ReleaseArgs) -> RezCoreResult<()> {
         package: package.clone(),
         context: None,
         source_dir: working_dir.clone(),
-        variant: None,
+        variant_index: None,
+        variant_requires: None,
         options: build_options,
         install_path: Some(install_path),
     };
@@ -140,8 +141,9 @@ pub fn execute(args: ReleaseArgs) -> RezCoreResult<()> {
         .map_err(|e| RezCoreError::BuildError(format!("Failed to create runtime: {}", e)))?;
 
     let mut build_manager = BuildManager::new();
-    let build_id = rt.block_on(build_manager.start_build(build_request))?;
-    let result = rt.block_on(build_manager.wait_for_build(&build_id))?;
+    let build_ids = rt.block_on(build_manager.start_build(build_request))?;
+    // Wait for the first build to complete (or all builds)
+    let result = rt.block_on(build_manager.wait_for_build(&build_ids[0]))?;
 
     if !result.success {
         return Err(RezCoreError::BuildError(format!(

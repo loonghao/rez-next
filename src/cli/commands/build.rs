@@ -184,23 +184,23 @@ pub fn execute(args: BuildArgs) -> RezCoreResult<()> {
     }
 
     for variant_idx in variant_indices {
-        // Convert variant index to a descriptive string name
-        let variant_name: Option<String> = variant_idx.map(|i| {
+        // Convert variant index to variant_requires
+        let variant_requires: Option<Vec<String>> = variant_idx.map(|i| {
             package
                 .variants
                 .get(i)
-                .map(|reqs| {
-                    let req_strs: Vec<String> = reqs.iter().map(|r| r.to_string()).collect();
-                    format!("variant_{}: [{}]", i, req_strs.join(", "))
-                })
-                .unwrap_or_else(|| format!("variant_{}", i))
+                .cloned()
+                .unwrap_or_default()
         });
 
+        // For now, just use the base BuildRequest without variant
+        // TODO: properly support variants in CLI
         let build_request = BuildRequest {
             package: package.clone(),
             context: None,
             source_dir: source_dir.clone(),
-            variant: variant_name,
+            variant_index: variant_idx,
+            variant_requires,
             options: build_options.clone(),
             install_path: install_path.clone(),
         };
@@ -411,14 +411,28 @@ fn execute_build(
     let runtime = tokio::runtime::Runtime::new()
         .map_err(|e| RezCoreError::BuildError(format!("Failed to create async runtime: {}", e)))?;
 
-    let build_id: String = runtime.block_on(async { build_manager.start_build(request).await })?;
+    // start_build() now returns Vec<String> (for variant builds)
+    let build_ids: Vec<String> = runtime.block_on(async { build_manager.start_build(request).await })?;
 
     if args.verbose {
-        println!("🚀 Build started with ID: {}", build_id);
+        println!("🔧 Configuring build environment...");
+        for (i, id) in build_ids.iter().enumerate() {
+            println!("🚀 Build {} started with ID: {}", i, id);
+        }
     }
 
-    // Wait for build completion
-    let build_result = runtime.block_on(async { build_manager.wait_for_build(&build_id).await })?;
+    // Wait for all builds to complete
+    let mut final_result = None;
+    for build_id in &build_ids {
+        let build_result = runtime.block_on(async { build_manager.wait_for_build(build_id).await })?;
+        if args.verbose {
+            println!("✅ Build {} completed: success={}", build_id, build_result.success);
+        }
+        if final_result.is_none() {
+            final_result = Some(build_result);
+        }
+    }
+    let build_result = final_result.unwrap();
 
     if !build_result.success {
         return Err(RezCoreError::BuildError(format!(
