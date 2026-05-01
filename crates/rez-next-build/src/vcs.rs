@@ -662,11 +662,21 @@ impl SvnVCS {
             .args(args)
             .current_dir(&self.repo_root)
             .output()
-            .map_err(|e| RezCoreError::BuildError(format!("Failed to run svn: {}", e)))?;
+            .map_err(|e| RezCoreError::BuildError(format!(
+                "SvnVCS: failed to run svn command '{:?}' in repository at '{}': {}",
+                args,
+                self.repo_root.display(),
+                e
+            )))?;
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
-            return Err(RezCoreError::BuildError(format!("svn command failed: {}", stderr)));
+            return Err(RezCoreError::BuildError(format!(
+                "SvnVCS: svn command '{:?}' failed in repository at '{}': {}",
+                args,
+                self.repo_root.display(),
+                stderr
+            )));
         }
 
         Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
