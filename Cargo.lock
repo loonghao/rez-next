@@ -2243,6 +2243,7 @@ dependencies = [
 name = "rez-next-python"
 version = "0.3.0"
 dependencies = [
+ "hex",
  "pyo3",
  "rez-next-bind",
  "rez-next-build",
@@ -2257,6 +2258,7 @@ dependencies = [
  "rez-next-version",
  "serde",
  "serde_json",
+ "sha2",
  "tempfile",
  "tokio",
 ]
