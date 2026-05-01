@@ -1,12 +1,68 @@
 # rez-next-clearup 执行记录
 
-## 最新执行 (2026-05-01) — Cycle 218
+## 最新执行 (2026-05-01) — Cycle 228
 
 ### 执行摘要
 
-**Cycle 218**：修复 clippy 警告、导出缺失的 Python 函数、记录已知问题。
+**Cycle 228**：修复 `vcs.rs` 中 Cycle 218 未能修复的 2 个 clippy 警告，更新清理记录。
 
 ### 变更内容
+
+#### 阶段 1：过期代码清理
+- 审查 `crates/rez-next-build/src/vcs.rs`（Cycle 226 新增）
+- 发现 3 个 TODO 标记（Line 399, 401, 538）
+- TODO 来自 Cycle 226，未超过生命周期，保留
+- 无注释代码块 > 5 行
+- 无明显的 dead code
+
+#### 阶段 4：代码规范治理
+1. **`vcs.rs:521`**：`lines.get(0)` → `lines.first()`（修复 clippy::get_first）
+2. **`vcs.rs:676`**：移除 `args(&[...])` 中不必要的引用（修复 clippy::needless_borrows）
+- Commit: `2d7c9d1` - `chore(cleanup): stage4: fix clippy warnings in vcs.rs (get_first, needless_borrows) [cleanup-cycle-228]`
+- 全 workspace clippy 检查：0 warnings
+
+#### 阶段 6：结构性重构评估
+- **`vcs.rs` 1165 行**，超过 500 行阈值
+- 建议：按 VCS 类型拆分（`vcs/{stub,git,hg,svn}.rs`）
+- 风险：中等（文件随迭代增长）
+- 决策：记录到 `CLEANUP_TODO.md` #49，下轮评估
+
+### 测试结果
+
+- **全量测试**：315 passed, 1 failed（`test_git_vcs_is_releasable_branch` - 功能性 bug，非清理导致）
+- **Clippy (全 workspace)**：0 warnings
+- **`cargo audit`**：9 allowed warnings（无新增）
+
+### 代码库健康指标 (Cycle 228)
+
+| 指标 | 值 |
+|------|-----|
+| Rust tests | 315 passed, 1 failed (功能性 bug) |
+| Python tests | 未运行 |
+| Clippy warnings (全 workspace) | 0 |
+| Ignored tests | 1 (doc-test) |
+| `allow(dead_code)` attributes | 0 |
+| TODO/FIXME in code | 3（`vcs.rs`，未过期） |
+| Dead code | 0 |
+| 大文件 (>500 行) | `filter.rs` (771L), `vcs.rs` (1165L) |
+
+### 下一轮目标
+
+**Cycle 229**：
+1. 修复 `test_git_vcs_is_releasable_branch` 功能性 bug
+2. 评估 `vcs.rs` (1165L) 拆分方案并执行（如果迭代已稳定）
+3. 检查未使用依赖（安装 `cargo-udeps` 或手动检查）
+4. 继续监控 `filter.rs` (771L) 增长
+
+---
+
+## 历史执行
+
+### Cycle 218 (2026-05-01)
+
+**Cycle 218**：修复 clippy 警告、导出缺失的 Python 函数、记录已知问题。
+
+#### 变更内容
 
 #### 阶段 1：过期代码清理
 1. **`build_functions.rs`**：移除不必要的 `#[allow(dead_code)]`（第 145 行）—— `get_buildsys_types` 有 `#[pyfunction]`，不是 dead code
@@ -38,7 +94,7 @@
 | Clippy warnings (`-D warnings`) | 0 |
 | Ignored tests | 1 (doc-test in `cmd_builder.rs`) |
 | `allow(dead_code)` attributes | 0 |
-| TODO/FIXME in code | 0 (`vcs.rs` 中的 TODO 是活跃的，未删除) |
+| TODO/FIXME in code | 0（`vcs.rs` 中的 TODO 是活跃的，未删除） |
 | Dead code | 0 |
 
 ### 下一轮目标
@@ -50,8 +106,6 @@
 4. 运行 Python 测试（需先 `maturin develop --release`）
 
 ---
-
-## 历史执行
 
 ### Cycle 217 (2026-05-01)
 
@@ -85,7 +139,7 @@
 | TODO/FIXME in code | 0 |
 | Dead code | 0 |
 
-#### 下一轮目标
+### 下一轮目标
 
 **Cycle 218**：
 1. 评估是否有大型文件需要拆分（检查 >500 行的文件列表）
