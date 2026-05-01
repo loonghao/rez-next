@@ -820,7 +820,7 @@ mod release_tests {
         // Hash should be 8 characters (hex)
         assert_eq!(hash.len(), 8, "hash should be 8 characters");
         // Hash should be valid hex string
-        assert!(hash.chars().all(|c| c.is_digit(16)), "hash should be hex string");
+        assert!(hash.chars().all(|c| c.is_ascii_hexdigit()), "hash should be hex string");
     }
 
     #[test]
