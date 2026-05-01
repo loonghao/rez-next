@@ -85,6 +85,8 @@ mod release_tests {
             package_name: "mypkg".to_string(),
             version: "1.0.0".to_string(),
             install_path: "/packages/mypkg/1.0.0".to_string(),
+            vcs_metadata: None,
+            changelog: None,
             errors: vec![],
             warnings: vec![],
         };
@@ -100,6 +102,8 @@ mod release_tests {
             package_name: "badpkg".to_string(),
             version: "0.0.0".to_string(),
             install_path: String::new(),
+            vcs_metadata: None,
+            changelog: None,
             errors: vec!["Missing version".to_string()],
             warnings: vec![],
         };
@@ -114,6 +118,8 @@ mod release_tests {
             package_name: "pkgx".to_string(),
             version: "3.2.1".to_string(),
             install_path: "/pkgs/pkgx/3.2.1".to_string(),
+            vcs_metadata: None,
+            changelog: None,
             errors: vec![],
             warnings: vec![],
         };
@@ -127,6 +133,8 @@ mod release_tests {
             package_name: "mypkg".to_string(),
             version: "2.5.0".to_string(),
             install_path: "/dest/mypkg/2.5.0".to_string(),
+            vcs_metadata: None,
+            changelog: None,
             errors: vec![],
             warnings: vec![],
         };
@@ -141,6 +149,8 @@ mod release_tests {
             package_name: "mypkg".to_string(),
             version: "1.0.0".to_string(),
             install_path: "/custom/install/path".to_string(),
+            vcs_metadata: None,
+            changelog: None,
             errors: vec![],
             warnings: vec![],
         };
@@ -251,6 +261,8 @@ mod release_tests {
             package_name: "pkg".to_string(),
             version: "1.0.0".to_string(),
             install_path: "/pkgs/pkg/1.0.0".to_string(),
+            vcs_metadata: None,
+            changelog: None,
             errors: vec![],
             warnings: vec![],
         };
@@ -265,6 +277,8 @@ mod release_tests {
             package_name: "pkg".to_string(),
             version: "1.0.0".to_string(),
             install_path: String::new(),
+            vcs_metadata: None,
+            changelog: None,
             errors: vec!["err1".to_string()],
             warnings: vec![],
         };
@@ -279,6 +293,8 @@ mod release_tests {
             package_name: "pkg".to_string(),
             version: "1.0.0".to_string(),
             install_path: "/pkgs/pkg/1.0.0".to_string(),
+            vcs_metadata: None,
+            changelog: None,
             errors: vec![],
             warnings: vec!["warn1".to_string(), "warn2".to_string()],
         };
@@ -308,6 +324,8 @@ mod release_tests {
             package_name: "brokenpkg".to_string(),
             version: "0.1.0".to_string(),
             install_path: String::new(),
+            vcs_metadata: None,
+            changelog: None,
             errors: vec!["compilation failed".to_string()],
             warnings: vec![],
         };
@@ -322,6 +340,8 @@ mod release_tests {
             package_name: "mypkg".to_string(),
             version: "2.0.0".to_string(),
             install_path: "/pkgs/mypkg/2.0.0".to_string(),
+            vcs_metadata: None,
+            changelog: None,
             errors: vec![],
             warnings: vec![],
         };
@@ -375,6 +395,8 @@ mod release_tests {
             package_name: "pkg".to_string(),
             version: "1.0.0".to_string(),
             install_path: "/dest/pkg/1.0.0".to_string(),
+            vcs_metadata: None,
+            changelog: None,
             errors: vec![],
             warnings: vec![],
         };
@@ -389,6 +411,8 @@ mod release_tests {
             package_name: "multi_err_pkg".to_string(),
             version: "0.1.0".to_string(),
             install_path: String::new(),
+            vcs_metadata: None,
+            changelog: None,
             errors: vec![
                 "error1".to_string(),
                 "error2".to_string(),
@@ -407,6 +431,8 @@ mod release_tests {
             package_name: "specific_pkg_name".to_string(),
             version: "5.0.0".to_string(),
             install_path: "/p/specific_pkg_name/5.0.0".to_string(),
+            vcs_metadata: None,
+            changelog: None,
             errors: vec![],
             warnings: vec![],
         };
@@ -420,6 +446,8 @@ mod release_tests {
             package_name: "vpkg".to_string(),
             version: "10.20.30".to_string(),
             install_path: "/pkgs/vpkg/10.20.30".to_string(),
+            vcs_metadata: None,
+            changelog: None,
             errors: vec![],
             warnings: vec![],
         };
@@ -450,6 +478,8 @@ mod release_tests {
             package_name: "pathtestpkg".to_string(),
             version: "1.0.0".to_string(),
             install_path: "/pkgs/pathtestpkg/1.0.0".to_string(),
+            vcs_metadata: None,
+            changelog: None,
             errors: vec![],
             warnings: vec![],
         };
@@ -463,6 +493,8 @@ mod release_tests {
             package_name: "cleanpkg".to_string(),
             version: "0.1.0".to_string(),
             install_path: "/dest/cleanpkg/0.1.0".to_string(),
+            vcs_metadata: None,
+            changelog: None,
             errors: vec![],
             warnings: vec![],
         };
@@ -495,6 +527,8 @@ mod release_tests {
             package_name: "distinctname_xyz".to_string(),
             version: "1.0.0".to_string(),
             install_path: "/pkgs/distinctname_xyz/1.0.0".to_string(),
+            vcs_metadata: None,
+            changelog: None,
             errors: vec![],
             warnings: vec![],
         };

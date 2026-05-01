@@ -151,7 +151,7 @@ pub struct PyReleaseVCS {
 impl PyReleaseVCS {
     #[new]
     pub fn new() -> Self {
-        Self { inner: None }
+        Self { _inner: None }
     }
 
     pub fn get_type_name(&self) -> String {
@@ -380,6 +380,10 @@ pub struct PyReleaseResult {
     #[pyo3(get)]
     pub install_path: String,
     #[pyo3(get)]
+    pub vcs_metadata: Option<String>,
+    #[pyo3(get)]
+    pub changelog: Option<String>,
+    #[pyo3(get)]
     pub errors: Vec<String>,
     #[pyo3(get)]
     pub warnings: Vec<String>,
@@ -469,8 +473,8 @@ impl PyReleaseManager {
         match rust_manager.release(&source, message) {
             Ok(result) => {
                 // Convert VCSMetadata to JSON string (if present)
-                let vcs_metadata = if let Some(metadata) = result.vcs_metadata {
-                    match serde_json::to_string(&metadata) {
+                let vcs_metadata = if let Some(metadata) = &result.vcs_metadata {
+                    match serde_json::to_string(metadata) {
                         Ok(json_str) => Some(json_str),
                         Err(_) => None,
                     }
@@ -483,7 +487,8 @@ impl PyReleaseManager {
                     package_name: result.package_name,
                     version: result.version,
                     install_path: result.install_path,
-                    // vcs_metadata and changelog fields removed for now
+                    vcs_metadata,
+                    changelog: result.changelog,
                     errors: result.errors,
                     warnings: result.warnings,
                 })
