@@ -37,6 +37,28 @@ pub enum BuildType {
     Central,
 }
 
+/// Error type for BuildType parsing
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BuildTypeParseError;
+
+impl std::fmt::Display for BuildTypeParseError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "invalid build type: expected 'local' or 'central'")
+    }
+}
+
+impl std::str::FromStr for BuildType {
+    type Err = BuildTypeParseError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "local" => Ok(BuildType::Local),
+            "central" => Ok(BuildType::Central),
+            _ => Err(BuildTypeParseError),
+        }
+    }
+}
+
 impl BuildType {
     /// Get the name of the build type
     pub fn name(&self) -> &'static str {
@@ -46,13 +68,9 @@ impl BuildType {
         }
     }
 
-    /// Create from string
-    pub fn from_str(s: &str) -> Option<Self> {
-        match s {
-            "local" => Some(BuildType::Local),
-            "central" => Some(BuildType::Central),
-            _ => None,
-        }
+    /// Create from string (returns Option for convenience)
+    pub fn from_str_opt(s: &str) -> Option<Self> {
+        s.parse::<BuildType>().ok()
     }
 }
 
