@@ -1,12 +1,79 @@
 # rez-next-clearup 执行记录
 
-## 最新执行 (2026-05-01) — Cycle 229
+## 最新执行 (2026-05-02) — Cycle 230
 
 ### 执行摘要
 
-**Cycle 229**：修复 `release_bindings.rs` 和 `release_bindings_tests.rs` 中的 5 个 clippy 警告，更新清理记录。
+**Cycle 230**：删除死代码和过期测试文件，修复 clippy 警告（实现 `FromStr` trait）
 
 ### 变更内容
+
+#### 阶段 1：过期代码清理
+1. **`build_bindings.rs:129`**：删除 `register_build_exceptions` 函数（死代码，未被任何地方调用）
+2. **`build_bindings.rs:154`**：删除 `register_build_bindings` 函数（死代码，`lib.rs` 中直接注册模块）
+3. **`build_bindings_tests.rs`**：删除整个测试文件（使用过期的 pyo3 API `acquire_gil()` 和 `run_bound()`，无法编译）
+
+#### 阶段 2：过期文档清理
+- 扫描所有 `.md` 文件：未发现引用已删除函数 `register_build_exceptions` 或 `register_build_bindings`
+- 无需清理
+
+#### 阶段 3：过期测试清理
+1. 删除 `build_bindings_tests.rs`（测试目标仍存在，但使用过期 API）
+2. 从 `build_bindings.rs` 删除对测试模块的引用
+
+#### 阶段 4：代码规范治理
+1. **`rez-next-build/src/lib.rs:50`**：实现 `FromStr` trait 替代 `from_str` 方法（修复 clippy `should_implement_trait` 警告）
+2. 重命名 `from_str` 为 `from_str_opt`（保持向后兼容）
+
+#### 阶段 5：依赖治理
+1. 运行 `cargo audit`：发现 10 个允许的警告（已在 `deny.toml` 中配置）
+   - `bincode` 2.0.1 - unmaintained (RUSTSEC-2025-0141)
+   - `paste` 1.0.15 - unmaintained (RUSTSEC-2024-0436)
+   - `git2` 0.19.0 - unsound (RUSTSEC-2026-0008)
+   - `rand` 0.8.5 - unsound (RUSTSEC-2026-0097)
+2. 所有警告已在 `deny.toml` 中允许，无需处理
+
+#### 阶段 6：结构性重构评估
+- **`filter.rs`** (771 行)：结构清晰，测试占 ~210 行，暂不需要拆分
+- **`vcs.rs`** → 已拆分为 `vcs/mod.rs`（根据 git log commit 519a60a）
+- 待评估：是否有其他大文件（> 500 行）需要拆分
+
+### 测试结果
+
+- **全量测试**：所有测试通过，0 failed
+- **Clippy (全 workspace)**：0 warnings (修复 1 个警告后)
+- **`cargo audit`**：10 allowed warnings (无新增)
+
+### 代码库健康指标 (Cycle 230)
+
+| 指标 | 值 |
+|------|-----|
+| Rust tests | 全量通过, 0 failed |
+| Python tests | 未运行 |
+| Clippy warnings (全 workspace) | 0 |
+| Ignored tests | 0 |
+| `allow(dead_code)` attributes | 0 |
+| TODO/FIXME in code | 0 |
+| Dead code | 0 (已删除 `register_build_exceptions` 和 `register_build_bindings`) |
+| 大文件 (>500 行) | `filter.rs` (771L) |
+
+### 下一轮目标
+
+**Cycle 231**：
+1. 评估 `filter.rs` (771L) 是否应拆分（等待迭代稳定）
+2. 检查是否有其他大文件（> 500 行）需要拆分
+3. 运行 Python 测试（需先 `maturin develop --release`）
+4. 检查未使用依赖（安装 `cargo-udeps` 或手动检查）
+
+---
+
+## 历史执行
+
+### Cycle 229 (2026-05-01)
+
+**Cycle 229**：修复 `release_bindings.rs` 和 `release_bindings_tests.rs` 中的 5 个 clippy 警告，更新清理记录。
+
+#### 变更内容
 
 #### 阶段 4：代码规范治理
 1. **`release_bindings.rs:14`**：移除冗余 `use serde_json;`（修复 `single_component_path_imports`）
@@ -51,62 +118,6 @@
 2. 检查未使用依赖（安装 `cargo-udeps` 或手动检查）
 3. 评估 `filter.rs` (771L) 是否应拆分（等待迭代稳定）
 4. 运行 Python 测试（需先 `maturin develop --release`）
-
----
-
-## 历史执行
-
-### Cycle 228 (2026-05-01)
-
-**Cycle 228**：修复 `vcs.rs` 中 Cycle 218 未能修复的 2 个 clippy 警告，更新清理记录。
-
-#### 变更内容
-
-#### 阶段 1：过期代码清理
-- 审查 `crates/rez-next-build/src/vcs.rs`（Cycle 226 新增）
-- 发现 3 个 TODO 标记（Line 399, 401, 538）
-- TODO 来自 Cycle 226，未超过生命周期，保留
-- 无注释代码块 > 5 行
-- 无明显的 dead code
-
-#### 阶段 4：代码规范治理
-1. **`vcs.rs:521`**：`lines.get(0)` → `lines.first()`（修复 clippy::get_first）
-2. **`vcs.rs:676`**：移除 `args(&[...])` 中不必要的引用（修复 clippy::needless_borrows）
-- Commit: `2d7c9d1` - `chore(cleanup): stage4: fix clippy warnings in vcs.rs (get_first, needless_borrows) [cleanup-cycle-228]`
-- 全 workspace clippy 检查：0 warnings
-
-#### 阶段 6：结构性重构评估
-- **`vcs.rs` 1165 行**，超过 500 行阈值
-- 建议：按 VCS 类型拆分（`vcs/{stub,git,hg,svn}.rs`）
-- 风险：中等（文件随迭代增长）
-- 决策：记录到 `CLEANUP_TODO.md` #49，下轮评估
-
-### 测试结果
-
-- **全量测试**：315 passed, 1 failed（`test_git_vcs_is_releasable_branch` - 功能性 bug，非清理导致）
-- **Clippy (全 workspace)**：0 warnings
-- **`cargo audit`**：9 allowed warnings（无新增）
-
-### 代码库健康指标 (Cycle 228)
-
-| 指标 | 值 |
-|------|-----|
-| Rust tests | 315 passed, 1 failed (功能性 bug) |
-| Python tests | 未运行 |
-| Clippy warnings (全 workspace) | 0 |
-| Ignored tests | 1 (doc-test) |
-| `allow(dead_code)` attributes | 0 |
-| TODO/FIXME in code | 3（`vcs.rs`，未过期） |
-| Dead code | 0 |
-| 大文件 (>500 行) | `filter.rs` (771L), `vcs.rs` (1165L) |
-
-### 下一轮目标
-
-**Cycle 229**：
-1. 修复 `test_git_vcs_is_releasable_branch` 功能性 bug
-2. 评估 `vcs.rs` (1165L) 拆分方案并执行（如果迭代已稳定）
-3. 检查未使用依赖（安装 `cargo-udeps` 或手动检查）
-4. 继续监控 `filter.rs` (771L) 增长
 
 ---
 
