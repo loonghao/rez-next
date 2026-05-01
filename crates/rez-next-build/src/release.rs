@@ -260,12 +260,12 @@ impl ReleaseManager {
     /// Build the package (including variants)
     fn build_package(
         &self,
-        _source_dir: &Path,
-        _package: &Package,
+        source_dir: &Path,
+        package: &Package,
         install_path: &Path,
         result: &mut ReleaseResult,
     ) -> Result<(), RezCoreError> {
-        // Create install directory
+        // Create base install directory
         if let Err(e) = fs::create_dir_all(install_path) {
             result.errors.push(format!(
                 "Failed to create install directory: {}",
@@ -274,11 +274,56 @@ impl ReleaseManager {
             return Err(RezCoreError::BuildError(e.to_string()));
         }
 
-        // TODO: Implement actual package building with variant support
-        // For now, just create a placeholder
-        result.warnings.push(
-            "Package building not yet fully implemented".to_string(),
-        );
+        // Check if package has variants
+        if !package.variants.is_empty() {
+            result.warnings.push(format!(
+                "Package has {} variant(s), creating variant directories",
+                package.variants.len()
+            ));
+
+            // Create a directory for each variant
+            // In a full implementation, each variant would have a unique hash
+            for (idx, variant) in package.variants.iter().enumerate() {
+                let variant_name = format!("variant_{}", idx);
+                let variant_path = install_path.join(&variant_name);
+
+                if let Err(e) = fs::create_dir_all(&variant_path) {
+                    result.errors.push(format!(
+                        "Failed to create variant directory '{}': {}",
+                        variant_name, e
+                    ));
+                    continue;
+                }
+
+                // TODO: In full implementation:
+                // 1. Compute variant hash
+                // 2. Create directory with hash name
+                // 3. Build package for this variant
+                // 4. Write variant metadata
+
+                result.warnings.push(format!(
+                    "Created variant directory: {:?} for variant {:?}",
+                    variant_path, variant
+                ));
+            }
+        } else {
+            // No variants, just create the base install directory
+            result.warnings.push(
+                "No variants defined, using base install path".to_string(),
+            );
+        }
+
+        // Copy package.py to install directory (basic implementation)
+        let pkg_file = source_dir.join("package.py");
+        if pkg_file.exists() {
+            let dest_file = install_path.join("package.py");
+            if let Err(e) = fs::copy(&pkg_file, &dest_file) {
+                result.warnings.push(format!(
+                    "Failed to copy package.py: {}",
+                    e
+                ));
+            }
+        }
 
         Ok(())
     }
