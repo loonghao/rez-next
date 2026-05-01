@@ -9,7 +9,7 @@ use tokio::process::Child;
 use tokio::sync::Mutex;
 
 /// Custom build system — handles build scripts and copy-only installs
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct CustomBuildSystem {
     pub(crate) script_name: String,
 }

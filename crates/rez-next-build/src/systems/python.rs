@@ -10,7 +10,7 @@ use tokio::process::Child;
 use tokio::sync::Mutex;
 
 /// Python setuptools / rezbuild.py build system
-#[derive(Debug, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct PythonBuildSystem;
 
 impl PythonBuildSystem {

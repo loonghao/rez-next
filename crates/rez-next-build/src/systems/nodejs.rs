@@ -10,7 +10,7 @@ use tokio::process::Child;
 use tokio::sync::Mutex;
 
 /// Node.js npm build system
-#[derive(Debug, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct NodeJsBuildSystem;
 
 impl NodeJsBuildSystem {

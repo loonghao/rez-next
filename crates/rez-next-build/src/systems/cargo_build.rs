@@ -9,7 +9,7 @@ use tokio::process::Child;
 use tokio::sync::Mutex;
 
 /// Rust Cargo build system
-#[derive(Debug, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct CargoBuildSystem;
 
 impl CargoBuildSystem {

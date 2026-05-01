@@ -151,6 +151,29 @@ pub fn get_buildsys_types() -> PyResult<Vec<String>> {
     Ok(types.iter().map(|&s| s.to_string()).collect())
 }
 
+/// Get all available build process types (local, central).
+/// Equivalent to `rez.build_.get_build_process_types()`
+#[pyfunction]
+pub fn get_build_process_types() -> PyResult<Vec<String>> {
+    use rez_next_build::get_build_process_types;
+    let types = get_build_process_types();
+    Ok(types.iter().map(|&s| s.to_string()).collect())
+}
+
+/// Create a build system by type name.
+/// Equivalent to `rez.build_.create_build_system()`
+#[pyfunction(signature = (system_type))]
+pub fn create_build_system(system_type: &str) -> PyResult<String> {
+    use rez_next_build::create_build_system;
+    match create_build_system(system_type) {
+        Some(_bs) => Ok(format!("BuildSystem({})", system_type)),
+        None => Err(pyo3::exceptions::PyValueError::new_err(format!(
+            "Unknown build system type: '{}'",
+            system_type
+        ))),
+    }
+}
+
 #[cfg(test)]
 #[path = "build_functions_tests.rs"]
 mod tests;

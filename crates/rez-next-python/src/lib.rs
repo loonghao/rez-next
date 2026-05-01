@@ -11,6 +11,7 @@ pub(crate) mod shell_utils;
 
 // ── Domain-specific binding modules ──────────────────────────────────────────
 mod bind_bindings;
+mod build_bindings;
 mod completion_bindings;
 mod config_bindings;
 mod context_bindings;
@@ -43,6 +44,7 @@ mod rex_functions;
 mod selftest_functions;
 
 use bind_bindings::{PyBindManager, PyBindResult};
+use build_functions::{build_package, create_build_system, get_build_process_types, get_build_system, get_buildsys_types};
 use config_bindings::PyConfig;
 use context_bindings::PyResolvedContext;
 use data_bindings::PyRezData;
@@ -62,7 +64,6 @@ use system_bindings::PySystem;
 use version_bindings::{PyVersion, PyVersionRange};
 
 // Re-export top-level functions for use in submodule registration below
-use build_functions::{build_package, get_build_system};
 use bundle_functions::{bundle_context, list_bundles, unbundle_context};
 use cli_functions::{cli_main, cli_run};
 use package_functions::{
@@ -258,8 +259,17 @@ fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
     // ── Submodule: rez.build_ ─────────────────────────────────────────────────
     let build_mod = PyModule::new(m.py(), "build_")?;
+    // Functions
     build_mod.add_function(wrap_pyfunction!(build_package, &build_mod)?)?;
     build_mod.add_function(wrap_pyfunction!(get_build_system, &build_mod)?)?;
+    build_mod.add_function(wrap_pyfunction!(get_buildsys_types, &build_mod)?)?;
+    build_mod.add_function(wrap_pyfunction!(get_build_process_types, &build_mod)?)?;
+    build_mod.add_function(wrap_pyfunction!(create_build_system, &build_mod)?)?;
+    // Classes
+    build_mod.add_class::<build_bindings::PyBuildType>()?;
+    build_mod.add_class::<build_bindings::PyBuildSystem>()?;
+    build_mod.add_function(wrap_pyfunction!(build_bindings::get_build_type_local, &build_mod)?)?;
+    build_mod.add_function(wrap_pyfunction!(build_bindings::get_build_type_central, &build_mod)?)?;
     register_submodule(m, "build_", &build_mod)?;
 
     // ── Submodule: rez.rex ────────────────────────────────────────────────────

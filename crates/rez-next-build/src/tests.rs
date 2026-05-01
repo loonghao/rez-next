@@ -682,3 +682,64 @@ mod build_tests {
         assert!(!build_result.build_id.is_empty());
     }
 }
+
+// ── New tests for BuildType, get_build_process_types, create_build_system ─────
+#[cfg(test)]
+mod build_type_tests {
+    use crate::{BuildType, create_build_system, get_build_process_types};
+
+    #[test]
+    fn build_type_name() {
+        assert_eq!(BuildType::Local.name(), "local");
+        assert_eq!(BuildType::Central.name(), "central");
+    }
+
+    #[test]
+    fn build_type_from_str() {
+        assert_eq!(BuildType::from_str("local"), Some(BuildType::Local));
+        assert_eq!(BuildType::from_str("central"), Some(BuildType::Central));
+        assert_eq!(BuildType::from_str("invalid"), None);
+    }
+
+    #[test]
+    fn build_type_clone() {
+        let bt = BuildType::Local;
+        let bt2 = bt.clone();
+        assert_eq!(bt, bt2);
+    }
+
+    #[test]
+    fn build_type_eq() {
+        assert_eq!(BuildType::Local, BuildType::Local);
+        assert_ne!(BuildType::Local, BuildType::Central);
+    }
+
+    #[test]
+    fn get_build_process_types_returns_local_and_central() {
+        let types = get_build_process_types();
+        assert!(types.contains(&"local"));
+        assert!(types.contains(&"central"));
+        assert_eq!(types.len(), 2);
+    }
+
+    #[test]
+    fn create_build_system_valid_types() {
+        assert!(create_build_system("cmake").is_some());
+        assert!(create_build_system("make").is_some());
+        assert!(create_build_system("python").is_some());
+        assert!(create_build_system("nodejs").is_some());
+        assert!(create_build_system("cargo").is_some());
+        assert!(create_build_system("custom").is_some());
+    }
+
+    #[test]
+    fn create_build_system_invalid_type() {
+        assert!(create_build_system("invalid").is_none());
+    }
+
+    #[test]
+    fn build_system_clone() {
+        let bs = create_build_system("cmake").unwrap();
+        let _bs2 = bs.clone(); // Should compile if Clone is derived
+    }
+}

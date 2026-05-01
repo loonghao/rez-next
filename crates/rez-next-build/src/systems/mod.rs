@@ -72,7 +72,7 @@ pub fn get_buildsys_types() -> Vec<&'static str> {
 }
 
 /// Build system abstraction
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum BuildSystem {
     /// CMake build system
     CMake(CMakeBuildSystem),
