@@ -101,15 +101,16 @@
 
 ## Cycle 218 — Code Quality Improvements (2026-05-01)
 
-### 47. `filter.rs` exceeds 500 lines (771 lines)
-- **Status**: OPEN (evaluate for split in next cycle)
-- `crates/rez-next-package/src/filter.rs` has 771 lines
+### 47. `filter.rs` exceeds 500 lines (771 lines) — EVALUATED
+- **Status**: EVALUATED (no split needed)
+- `crates/rez-next-package/src/filter.rs` has 771 lines (under 1000 line limit)
 - Structure is clear with section separators (`// ── ... ──`)
 - Contains: `Rule` trait, `GlobRule`, `RegexRule`, `RangeRule`, `TimestampRule`, `PackageFilter`, `PackageFilterList`, rule parsing, tests
-- Tests account for ~210 lines (lines 560-770)
-- **Recommendation**: Extract `tests` module to `filter/tests.rs` or split by rule type
-- **Risk**: Low (well-structured code), but file is new from iteration agent (may still evolve)
-- **Follow-up**: Monitor file growth; split when it exceeds 800 lines or when iteration stabilizes
+- **Decision**: Not splitting because:
+  - 771 lines < 1000 line limit (user's instructions)
+  - Well-structured with clear section separators
+  - Splitting would add complexity with more files
+- **Follow-up**: Monitor file growth; split if it exceeds 1000 lines
 
 ### Codebase Health Metrics (2026-05-01, Cycle 229)
 - **Tests**: 1301 passed, 0 failed
