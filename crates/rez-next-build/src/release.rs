@@ -22,6 +22,7 @@ pub enum ReleaseMode {
 }
 
 impl ReleaseMode {
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Self {
         match s {
             "local" => ReleaseMode::Local,
@@ -32,7 +33,7 @@ impl ReleaseMode {
 }
 
 /// Result of a release operation
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct ReleaseResult {
     pub success: bool,
     pub package_name: String,
@@ -42,21 +43,6 @@ pub struct ReleaseResult {
     pub changelog: Option<String>,
     pub errors: Vec<String>,
     pub warnings: Vec<String>,
-}
-
-impl Default for ReleaseResult {
-    fn default() -> Self {
-        Self {
-            success: false,
-            package_name: String::new(),
-            version: String::new(),
-            install_path: String::new(),
-            vcs_metadata: None,
-            changelog: None,
-            errors: vec![],
-            warnings: vec![],
-        }
-    }
 }
 
 /// Release manager that orchestrates the complete release workflow
@@ -467,7 +453,7 @@ version = "{}"
 
     #[test]
     fn test_release_manager_new() {
-        let manager = ReleaseManager::new(ReleaseMode::Release, false, false);
+        let _manager = ReleaseManager::new(ReleaseMode::Release, false, false);
         // Just verify it creates without error
     }
 

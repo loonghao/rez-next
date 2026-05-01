@@ -118,16 +118,35 @@
 - **TODO/FIXME in code**: 0
 - **Large files (>500 lines)**: `filter.rs` (771L) — monitor for splitting
 
-### 48. `vcs.rs` has 2 clippy warnings (Cycle 218 cleanup)
-- **Status**: OPEN (fix in Cycle 219)
-- **Warnings**:
-  1. `this impl can be derived` (line 71: `impl Default for VCSMetadata`)
-  2. `writing &PathBuf instead of &Path` (line 270: `detect_vcs(repo_path: &PathBuf)`)
-- **Fix**:
-  - Derive `Default` on `VCSMetadata` (remove manual `impl Default`, add `#[derive(Default)]`)
-  - Change `detect_vcs(repo_path: &PathBuf)` to `&Path`, update call sites to use `.to_path_buf()`
-- **Cycle 218 status**: Attempted fix but caused compilation errors. Restored `vcs.rs` and `Cargo.toml`, skip for this cycle.
-- **Follow-up**: Fix in Cycle 219 with systematic approach (or use `cargo clippy --fix`).
+### 48. `vcs.rs` clippy warnings — COMPLETE ✓ (Cycle 229)
+- **Status**: COMPLETE ✓ (Cycle 229)
+- **Warnings fixed in Cycle 228**:
+  1. `get_first` (line 521: `lines.get(0)` → `lines.first()`)
+  2. `needless_borrows` (line 676: remove unnecessary reference in `args(&[...])`)
+- **Status**: 0 clippy warnings in `vcs.rs` (verified in Cycle 229)
+- **Note**: Previous cycles mentioned 2 other warnings (`impl can be derived` for `VCSMetadata`, `writing &PathBuf`), but these were either fixed in earlier cycles or were stale observations.
+
+### 49. `rez-next-python` compilation broken by work-in-progress
+- **Status**: OPEN (iteration agent work-in-progress)
+- **Issue**: `release_bindings.rs` and `release_bindings_tests.rs` have uncommitted changes that cause compilation errors
+- **Errors**:
+  - `PyReleaseVCS` has no field named `inner` (line 154 - should be `_inner`)
+  - `PyReleaseResult` missing fields `changelog` and `vcs_metadata` in test structs
+- **Root cause**: Iteration agent added `vcs_metadata` and `changelog` fields to `PyReleaseResult` but:
+  1. Made a typo in `PyReleaseVCS` constructor (`inner` vs `_inner`)
+  2. Did not update all test structs to include the new fields
+- **Action**: Wait for iteration agent to complete the work and commit
+- **Follow-up**: Once the iteration agent commits the completed work, verify it compiles and tests pass
+
+### 50. `filter.rs` exceeds 500 lines (771 lines) — OPEN
+- **Status**: OPEN (evaluate for split in next cycle)
+- `crates/rez-next-package/src/filter.rs` has 771 lines
+- Structure is clear with section separators (`// ── ... ──`)
+- Contains: `Rule` trait, `GlobRule`, `RegexRule`, `RangeRule`, `TimestampRule`, `PackageFilter`, `PackageFilterList`, rule parsing, tests
+- Tests account for ~210 lines (lines 560-770)
+- **Recommendation**: Extract `tests` module to `filter/tests.rs` or split by rule type
+- **Risk**: Low (well-structured code), but file is from iteration agent (may still evolve)
+- **Follow-up**: Monitor file growth; split when it exceeds 800 lines or when iteration stabilizes
 
 ## Cycle 21+ — Code Quality Improvements (2026-04-30)
 
