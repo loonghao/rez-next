@@ -9,7 +9,7 @@ use rez_next_build::BuildType;
 // ============================================================================
 /// BuildType enumeration (local or central build)
 // ============================================================================
-#[pyclass(name = "BuildType", from_py_object)]
+#[pyclass(name = "BuildType")]
 #[derive(Clone)]
 pub struct PyBuildType {
     inner: BuildType,
@@ -28,7 +28,7 @@ impl PyBuildType {
     }
 
     pub fn __str__(&self) -> String {
-        self.inner.name().to_string()
+        format!("BuildType.{}", self.inner.name())
     }
 
     pub fn __repr__(&self) -> String {
@@ -72,7 +72,7 @@ impl From<BuildType> for PyBuildType {
 // ============================================================================
 /// BuildSystem abstraction (detect and wrap build systems)
 // ============================================================================
-#[pyclass(name = "BuildSystem", from_py_object)]
+#[pyclass(name = "BuildSystem")]
 #[derive(Clone)]
 pub struct PyBuildSystem {
     inner: BuildSystem,
