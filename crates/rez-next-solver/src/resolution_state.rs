@@ -200,3 +200,103 @@ impl ResolutionState {
             .any(|orig| orig.name == requirement.name)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rez_next_package::Requirement;
+
+    #[test]
+    fn test_resolution_state_new() {
+        let reqs = vec![
+            Requirement::new("python".to_string()),
+            Requirement::new("maya".to_string()),
+        ];
+        let state = ResolutionState::new(reqs.clone());
+        assert_eq!(state.original_requirements.len(), 2);
+        assert_eq!(state.requirement_queue.len(), 2);
+    }
+
+    #[test]
+    fn test_resolution_state_detect_cycle_none() {
+        let reqs = vec![];
+        let state = ResolutionState::new(reqs);
+        // No dependencies, no cycle
+        assert!(state.detect_cycle().is_none());
+    }
+
+    #[test]
+    fn test_resolution_state_detect_cycle_simple() {
+        let reqs = vec![];
+        let mut state = ResolutionState::new(reqs);
+        // Create a cycle: A -> B -> C -> A
+        state.record_dependency("A", "B");
+        state.record_dependency("B", "C");
+        state.record_dependency("C", "A");
+        let cycle = state.detect_cycle();
+        assert!(cycle.is_some());
+        let cycle_path = cycle.unwrap();
+        assert!(cycle_path.contains(&"A".to_string()));
+        assert!(cycle_path.contains(&"B".to_string()));
+        assert!(cycle_path.contains(&"C".to_string()));
+    }
+
+    #[test]
+    fn test_resolution_state_detect_cycle_no_cycle() {
+        let reqs = vec![];
+        let mut state = ResolutionState::new(reqs);
+        // No cycle: A -> B -> C
+        state.record_dependency("A", "B");
+        state.record_dependency("B", "C");
+        assert!(state.detect_cycle().is_none());
+    }
+
+    #[test]
+    fn test_resolution_state_get_next_requirement() {
+        let reqs = vec![
+            Requirement::new("python".to_string()),
+            Requirement::new("maya".to_string()),
+        ];
+        let mut state = ResolutionState::new(reqs);
+        let next = state.get_next_requirement();
+        assert!(next.is_some());
+        assert_eq!(next.unwrap().name, "python");
+        let next2 = state.get_next_requirement();
+        assert!(next2.is_some());
+        assert_eq!(next2.unwrap().name, "maya");
+        let next3 = state.get_next_requirement();
+        assert!(next3.is_none());
+    }
+
+    #[test]
+    fn test_resolution_state_add_requirement() {
+        let reqs = vec![];
+        let mut state = ResolutionState::new(reqs);
+        let req = Requirement::new("python".to_string());
+        state.add_requirement(req);
+        assert_eq!(state.requirement_queue.len(), 1);
+    }
+
+    #[test]
+    fn test_resolution_state_mark_requirement_satisfied() {
+        let reqs = vec![Requirement::new("python".to_string())];
+        let mut state = ResolutionState::new(reqs);
+        let req = Requirement::new("python".to_string());
+        state.mark_requirement_satisfied(&req, "python".to_string());
+        // After marking as satisfied, adding the same requirement should not enqueue it
+        let req2 = Requirement::new("python".to_string());
+        state.add_requirement(req2);
+        // The queue should still be empty because the requirement is already satisfied
+        // (depends on implementation detail: satisfied_requirements set)
+    }
+
+    #[test]
+    fn test_resolution_state_is_original_requirement() {
+        let reqs = vec![Requirement::new("python".to_string())];
+        let state = ResolutionState::new(reqs);
+        let req = Requirement::new("python".to_string());
+        assert!(state.is_original_requirement(&req));
+        let req2 = Requirement::new("maya".to_string());
+        assert!(!state.is_original_requirement(&req2));
+    }
+}

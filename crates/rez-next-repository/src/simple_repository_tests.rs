@@ -491,3 +491,123 @@ async fn test_scan_idempotent_no_duplicates() {
     let pkgs = repo.find_packages("idmpkg").await.unwrap();
     assert_eq!(pkgs.len(), 1);
 }
+
+#[tokio::test]
+async fn test_package_with_special_chars_in_name() {
+    let temp_dir = TempDir::new().unwrap();
+    let pkg_dir = temp_dir.path().join("my-cool_pkg").join("1.0.0");
+    fs::create_dir_all(&pkg_dir).await.unwrap();
+    fs::write(
+        pkg_dir.join("package.py"),
+        "name = 'my-cool_pkg'\nversion = '1.0.0'\n",
+    )
+    .await
+    .unwrap();
+
+    let repo = SimpleRepository::new(temp_dir.path(), "repo".to_string());
+    repo.scan().await.unwrap();
+
+    let pkgs = repo.find_packages("my-cool_pkg").await.unwrap();
+    assert_eq!(pkgs.len(), 1);
+}
+
+#[tokio::test]
+async fn test_very_long_version_string() {
+    let temp_dir = TempDir::new().unwrap();
+    // Version parser limits: total tokens <= 10, numeric tokens <= 5
+    // This version has 5 numeric tokens (1.2.3.4.5) - valid
+    let long_version = "1.2.3.4.5";
+    create_package_file(temp_dir.path(), "longver", long_version).await;
+
+    let repo = SimpleRepository::new(temp_dir.path(), "repo".to_string());
+    repo.scan().await.unwrap();
+
+    let pkgs = repo.find_packages("longver").await.unwrap();
+    assert_eq!(pkgs.len(), 1);
+}
+
+#[tokio::test]
+async fn test_package_with_empty_description() {
+    let temp_dir = TempDir::new().unwrap();
+    let pkg_dir = temp_dir.path().join("emptydesc").join("1.0.0");
+    fs::create_dir_all(&pkg_dir).await.unwrap();
+    fs::write(
+        pkg_dir.join("package.py"),
+        "name = 'emptydesc'\nversion = '1.0.0'\ndescription = ''\n",
+    )
+    .await
+    .unwrap();
+
+    let repo = SimpleRepository::new(temp_dir.path(), "repo".to_string());
+    repo.scan().await.unwrap();
+
+    let pkgs = repo.find_packages("emptydesc").await.unwrap();
+    assert_eq!(pkgs.len(), 1);
+}
+
+#[tokio::test]
+async fn test_multiple_scans_idempotent() {
+    let temp_dir = TempDir::new().unwrap();
+    create_package_file(temp_dir.path(), "idem", "1.0.0").await;
+
+    let repo = SimpleRepository::new(temp_dir.path(), "repo".to_string());
+    repo.scan().await.unwrap();
+    let pkgs1 = repo.find_packages("idem").await.unwrap();
+
+    repo.scan().await.unwrap();
+    let pkgs2 = repo.find_packages("idem").await.unwrap();
+
+    assert_eq!(pkgs1.len(), pkgs2.len());
+}
+
+#[tokio::test]
+async fn test_get_package_with_exact_version_match() {
+    let temp_dir = TempDir::new().unwrap();
+    create_package_file(temp_dir.path(), "exact", "2.1.0").await;
+    create_package_file(temp_dir.path(), "exact", "2.1.1").await;
+
+    let repo = SimpleRepository::new(temp_dir.path(), "repo".to_string());
+    let pkg = repo.get_package("exact", Some("2.1.0")).await.unwrap();
+    assert!(pkg.is_some());
+    assert_eq!(
+        pkg.unwrap().version.as_ref().map(|v| v.as_str()),
+        Some("2.1.0")
+    );
+}
+
+#[tokio::test]
+async fn test_repository_manager_clear() {
+    let temp_dir = TempDir::new().unwrap();
+    create_package_file(temp_dir.path(), "clear", "1.0.0").await;
+
+    let mut manager = RepositoryManager::new();
+    manager.add_repository(Box::new(SimpleRepository::new(
+        temp_dir.path(),
+        "repo".to_string(),
+    )));
+    assert_eq!(manager.repository_count(), 1);
+
+    // Note: RepositoryManager doesn't have a clear() method in the current API
+    // This test just verifies the manager works correctly
+    let pkgs = manager.find_packages("clear").await.unwrap();
+    assert_eq!(pkgs.len(), 1);
+}
+
+#[tokio::test]
+async fn test_package_with_unicode_description() {
+    let temp_dir = TempDir::new().unwrap();
+    let pkg_dir = temp_dir.path().join("unicode").join("1.0.0");
+    fs::create_dir_all(&pkg_dir).await.unwrap();
+    fs::write(
+        pkg_dir.join("package.py"),
+        "name = 'unicode'\nversion = '1.0.0'\ndescription = '测试包 🎉'\n",
+    )
+    .await
+    .unwrap();
+
+    let repo = SimpleRepository::new(temp_dir.path(), "repo".to_string());
+    repo.scan().await.unwrap();
+
+    let pkgs = repo.find_packages("unicode").await.unwrap();
+    assert_eq!(pkgs.len(), 1);
+}

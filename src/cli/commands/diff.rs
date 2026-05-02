@@ -251,7 +251,11 @@ async fn find_package(
     }
 
     // Return latest version (first in list)
-    Ok((*packages.into_iter().next().unwrap()).clone())
+    let latest = packages
+        .into_iter()
+        .next()
+        .ok_or_else(|| RezCoreError::PackageNotFound("No package found".to_string()))?;
+    Ok(latest.clone())
 }
 
 /// Find previous version of a package

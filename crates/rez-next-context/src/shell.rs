@@ -458,3 +458,166 @@ impl Default for ShellExecutor {
         Self::new()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_shell_type_executable() {
+        assert_eq!(ShellType::Bash.executable(), "bash");
+        assert_eq!(ShellType::Zsh.executable(), "zsh");
+        assert_eq!(ShellType::Fish.executable(), "fish");
+        assert_eq!(ShellType::Cmd.executable(), "cmd");
+        assert_eq!(ShellType::PowerShell.executable(), "powershell");
+    }
+
+    #[test]
+    fn test_shell_type_script_extension() {
+        assert_eq!(ShellType::Bash.script_extension(), "sh");
+        assert_eq!(ShellType::Zsh.script_extension(), "sh");
+        assert_eq!(ShellType::Fish.script_extension(), "fish");
+        assert_eq!(ShellType::Cmd.script_extension(), "bat");
+        assert_eq!(ShellType::PowerShell.script_extension(), "ps1");
+    }
+
+    #[test]
+    fn test_shell_type_command_flag() {
+        assert_eq!(ShellType::Bash.command_flag(), "-c");
+        assert_eq!(ShellType::Zsh.command_flag(), "-c");
+        assert_eq!(ShellType::Fish.command_flag(), "-c");
+        assert_eq!(ShellType::Cmd.command_flag(), "/c");
+        assert_eq!(ShellType::PowerShell.command_flag(), "-Command");
+    }
+
+    #[test]
+    fn test_shell_type_detect() {
+        let detected = ShellType::detect();
+
+        // On Windows, should be Cmd or PowerShell
+        // On Unix, should be Bash, Zsh, or Fish
+        match detected {
+            ShellType::Bash
+            | ShellType::Zsh
+            | ShellType::Fish
+            | ShellType::Cmd
+            | ShellType::PowerShell => (),
+        }
+    }
+
+    #[test]
+    fn test_command_result_is_success() {
+        let result = CommandResult {
+            exit_code: 0,
+            stdout: "output".to_string(),
+            stderr: String::new(),
+            execution_time_ms: 100,
+        };
+
+        assert!(result.is_success());
+    }
+
+    #[test]
+    fn test_command_result_is_failure() {
+        let result = CommandResult {
+            exit_code: 1,
+            stdout: String::new(),
+            stderr: "error".to_string(),
+            execution_time_ms: 50,
+        };
+
+        assert!(!result.is_success());
+    }
+
+    #[test]
+    fn test_command_result_combined_output() {
+        let result = CommandResult {
+            exit_code: 0,
+            stdout: "hello".to_string(),
+            stderr: "warn".to_string(),
+            execution_time_ms: 100,
+        };
+
+        assert_eq!(result.combined_output(), "hello\nwarn");
+    }
+
+    #[test]
+    fn test_command_result_combined_output_no_stderr() {
+        let result = CommandResult {
+            exit_code: 0,
+            stdout: "hello".to_string(),
+            stderr: String::new(),
+            execution_time_ms: 100,
+        };
+
+        assert_eq!(result.combined_output(), "hello");
+    }
+
+    #[test]
+    fn test_command_result_combined_output_no_stdout() {
+        let result = CommandResult {
+            exit_code: 1,
+            stdout: String::new(),
+            stderr: "error".to_string(),
+            execution_time_ms: 50,
+        };
+
+        assert_eq!(result.combined_output(), "error");
+    }
+
+    #[test]
+    fn test_shell_info_creation() {
+        let info = ShellInfo {
+            shell_type: ShellType::Bash,
+            version: "5.0".to_string(),
+            executable_path: "bash".to_string(),
+        };
+
+        assert_eq!(info.shell_type, ShellType::Bash);
+        assert_eq!(info.version, "5.0");
+        assert_eq!(info.executable_path, "bash");
+    }
+
+    #[test]
+    fn test_shell_executor_new() {
+        let executor = ShellExecutor::new();
+
+        // Just verify it creates successfully
+        let _ = executor;
+    }
+
+    #[test]
+    fn test_shell_executor_with_shell() {
+        let executor = ShellExecutor::with_shell(ShellType::PowerShell);
+
+        // Just verify it creates successfully
+        let _ = executor;
+    }
+
+    #[test]
+    fn test_shell_executor_with_working_directory() {
+        let executor = ShellExecutor::new().with_working_directory(PathBuf::from("/tmp"));
+
+        // Just verify it creates successfully
+        let _ = executor;
+    }
+
+    #[test]
+    fn test_shell_executor_with_timeout() {
+        let executor = ShellExecutor::new().with_timeout(600);
+
+        // Just verify it creates successfully
+        let _ = executor;
+    }
+
+    #[test]
+    fn test_shell_executor_fluent_api() {
+        let executor = ShellExecutor::with_shell(ShellType::Bash)
+            .with_working_directory(PathBuf::from("/work"))
+            .with_timeout(120)
+            .with_environment(HashMap::new());
+
+        // Just verify it creates successfully
+        let _ = executor;
+    }
+}

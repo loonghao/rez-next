@@ -39,6 +39,7 @@ pub struct StateMachineParser {
 
 impl StateMachineParser {
     /// Create a new high-performance parser
+    #[must_use]
     pub fn new() -> Self {
         Self {
             use_interning: true,
@@ -48,6 +49,7 @@ impl StateMachineParser {
     }
 
     /// Create parser with custom configuration
+    #[must_use]
     pub fn with_config(use_interning: bool, max_tokens: usize, max_numeric_tokens: usize) -> Self {
         Self {
             use_interning,
@@ -90,19 +92,18 @@ impl StateMachineParser {
     }
 
     /// Fast character classification using lookup table
-    #[inline(always)]
     fn is_valid_separator(c: char) -> bool {
         matches!(c, '.' | '-' | '_' | '+')
     }
 
     /// Fast alphanumeric check with underscore support
-    #[inline(always)]
     fn is_token_char(c: char) -> bool {
         c.is_ascii_alphanumeric() || c == '_'
     }
 
     /// Parse version string using zero-copy state machine
     #[allow(clippy::type_complexity)]
+    #[allow(clippy::missing_errors_doc)]
     pub fn parse_tokens(
         &self,
         input: &str,
@@ -130,13 +131,11 @@ impl StateMachineParser {
                         state = ParseState::InToken;
                     } else if Self::is_valid_separator(c) {
                         return Err(RezCoreError::VersionParse(format!(
-                            "Version cannot start with separator '{}'",
-                            c
+                            "Version cannot start with separator '{c}'"
                         )));
                     } else {
                         return Err(RezCoreError::VersionParse(format!(
-                            "Invalid character '{}' at start of version",
-                            c
+                            "Invalid character '{c}' at start of version"
                         )));
                     }
                 }
@@ -151,8 +150,7 @@ impl StateMachineParser {
                         state = ParseState::InSeparator;
                     } else {
                         return Err(RezCoreError::VersionParse(format!(
-                            "Invalid character '{}' in token",
-                            c
+                            "Invalid character '{c}' in token"
                         )));
                     }
                 }
@@ -163,8 +161,7 @@ impl StateMachineParser {
                         state = ParseState::InToken;
                     } else {
                         return Err(RezCoreError::VersionParse(format!(
-                            "Expected token character after separator, found '{}'",
-                            c
+                            "Expected token character after separator, found '{c}'"
                         )));
                     }
                 }
@@ -202,6 +199,7 @@ impl StateMachineParser {
     }
 
     /// Finalize a token and add it to the tokens list
+    #[allow(clippy::missing_errors_doc)]
     fn finalize_token(
         &self,
         current_token: &mut String,
@@ -215,24 +213,21 @@ impl StateMachineParser {
         // Validate token format
         if current_token.starts_with('_') || current_token.ends_with('_') {
             return Err(RezCoreError::VersionParse(format!(
-                "Invalid token format: '{}'",
-                current_token
+                "Invalid token format: '{current_token}'"
             )));
         }
 
         // Check for invalid patterns
         if current_token == "not" || current_token == "version" {
             return Err(RezCoreError::VersionParse(format!(
-                "Invalid version token: '{}'",
-                current_token
+                "Invalid version token: '{current_token}'"
             )));
         }
 
         // Reject overly long alphabetic tokens
-        if current_token.chars().all(|c| c.is_alphabetic()) && current_token.len() > 10 {
+        if current_token.chars().all(char::is_alphabetic) && current_token.len() > 10 {
             return Err(RezCoreError::VersionParse(format!(
-                "Invalid version token: '{}'",
-                current_token
+                "Invalid version token: '{current_token}'"
             )));
         }
 
@@ -257,13 +252,14 @@ impl StateMachineParser {
     }
 }
 
-/// Legacy VersionParser for backward compatibility
+/// Legacy `VersionParser` for backward compatibility
 pub struct VersionParser {
     _inner: StateMachineParser,
 }
 
 impl VersionParser {
     /// Create a new parser
+    #[must_use]
     pub fn new() -> Self {
         Self {
             _inner: StateMachineParser::new(),
@@ -271,6 +267,7 @@ impl VersionParser {
     }
 
     /// Parse a complete version string
+    #[allow(clippy::missing_errors_doc)]
     pub fn parse_version(&self, input: &str) -> Result<Version, RezCoreError> {
         // Use the new state machine parser for better performance
         // but fall back to the original implementation for now

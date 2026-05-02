@@ -376,4 +376,76 @@ mod test_apply_multiple_actions {
         assert!(env.vars.contains_key("PATH"));
         assert!(env.aliases.contains_key("ll"));
     }
+
+    #[test]
+    fn test_apply_empty_actions() {
+        let mut env = RexEnvironment::new();
+        env.apply(&[]); // No-op
+        assert!(env.vars.is_empty());
+        assert!(!env.stopped);
+    }
+
+    #[test]
+    fn test_very_long_var_name() {
+        let mut env = RexEnvironment::new();
+        let long_name = "X".repeat(1000);
+        env.apply(&[RexAction::setenv(&long_name, "value")]);
+        assert!(env.vars.contains_key(&long_name));
+    }
+
+    #[test]
+    fn test_very_long_var_value() {
+        let mut env = RexEnvironment::new();
+        let long_value = "x".repeat(10000);
+        env.apply(&[RexAction::setenv("LONG_VAR", &long_value)]);
+        assert_eq!(env.vars.get("LONG_VAR"), Some(&long_value));
+    }
+
+    #[test]
+    fn test_unicode_var_name() {
+        let mut env = RexEnvironment::new();
+        env.apply(&[RexAction::setenv("测试变量", "测试值")]);
+        assert!(env.vars.contains_key("测试变量"));
+        assert_eq!(env.vars.get("测试变量"), Some(&"测试值".to_string()));
+    }
+
+    #[test]
+    fn test_multiple_stops_first_takes_effect() {
+        let mut env = RexEnvironment::new();
+        let actions = vec![
+            RexAction::setenv("BEFORE", "yes"),
+            RexAction {
+                action_type: RexActionType::Stop { message: None },
+                source_package: None,
+            },
+            RexAction::setenv("AFTER", "no"),
+        ];
+        env.apply(&actions);
+        assert!(env.stopped);
+        assert!(env.vars.contains_key("BEFORE"));
+        assert!(!env.vars.contains_key("AFTER")); // Not applied due to stop
+    }
+
+    #[test]
+    fn test_info_message_collected() {
+        let mut env = RexEnvironment::new();
+        let actions = vec![
+            RexAction {
+                action_type: RexActionType::Info {
+                    message: "Loading package".to_string(),
+                },
+                source_package: None,
+            },
+            RexAction {
+                action_type: RexActionType::Info {
+                    message: "Package loaded".to_string(),
+                },
+                source_package: None,
+            },
+        ];
+        env.apply(&actions);
+        assert_eq!(env.info_messages.len(), 2);
+        assert!(env.info_messages[0].contains("Loading"));
+        assert!(env.info_messages[1].contains("loaded"));
+    }
 }

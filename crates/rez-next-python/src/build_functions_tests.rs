@@ -505,3 +505,203 @@ mod test_get_build_system {
         let _ = fs::remove_dir_all(&tmp);
     }
 }
+
+// ─── build_package() tests (Cycle 221) ─────────────────────────────────────
+
+mod test_build_package {
+    use crate::build_functions::build_package;
+
+    /// Helper: create a minimal package.py in a temp dir.
+    fn make_minimal_package(dir: &std::path::Path) {
+        let pkg = r#"
+name = "test_pkg"
+version = "1.0.0"
+        "#;
+        std::fs::write(dir.join("package.py"), pkg).unwrap();
+    }
+
+    #[test]
+    fn test_build_package_no_package_file_returns_error() {
+        let tmp = std::env::temp_dir().join("rez_bs_no_pkg");
+        let _ = std::fs::remove_dir_all(&tmp);
+        std::fs::create_dir_all(&tmp).unwrap();
+        // No package.py or package.yaml created
+        let result = build_package(Some(tmp.to_str().unwrap()), false, false, None);
+        assert!(
+            result.is_err(),
+            "build_package without package file must return Err"
+        );
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn test_build_package_nonexistent_dir_returns_error() {
+        let missing = std::env::temp_dir()
+            .join("rez_bs_missing_parent")
+            .join("rez_bs_nonexistent_xyz");
+        let result = build_package(Some(missing.to_str().unwrap()), false, false, None);
+        assert!(
+            result.is_err(),
+            "build_package with non-existent dir must return Err"
+        );
+    }
+
+    #[test]
+    fn test_build_package_with_package_py_loads_without_file_not_found() {
+        // This test verifies that package.py can be loaded.
+        // The actual build may fail (no build system), but the function
+        // should get past the package-loading stage without a FileNotFoundError.
+        let tmp = std::env::temp_dir().join("rez_bs_pkg_py");
+        let _ = std::fs::remove_dir_all(&tmp);
+        std::fs::create_dir_all(&tmp).unwrap();
+        make_minimal_package(&tmp);
+        // No build system present → build will fail, but not with "No package.py" error
+        let result = build_package(Some(tmp.to_str().unwrap()), false, false, None);
+        // We don't assert success (no build system), but we assert it's not a FileNotFoundError
+        if let Err(e) = &result {
+            let err_str = e.to_string();
+            assert!(
+                !err_str.contains("No package.py"),
+                "Should not be a 'No package.py' error: {}",
+                err_str
+            );
+        }
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn test_build_package_with_yaml_loads_without_file_not_found() {
+        // Test that package.yaml can also be loaded
+        let tmp = std::env::temp_dir().join("rez_bs_pkg_yaml");
+        let _ = std::fs::remove_dir_all(&tmp);
+        std::fs::create_dir_all(&tmp).unwrap();
+        let pkg = r#"
+name: test_pkg
+version: "1.0.0"
+        "#;
+        std::fs::write(tmp.join("package.yaml"), pkg).unwrap();
+        let result = build_package(Some(tmp.to_str().unwrap()), false, false, None);
+        // Should not be a "No package.py or package.yaml" error
+        if let Err(e) = &result {
+            let err_str = e.to_string();
+            assert!(
+                !err_str.contains("No package.py"),
+                "Should not be a 'No package.py' error: {}",
+                err_str
+            );
+        }
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn test_build_package_install_flag() {
+        // Test that install=true doesn't cause panic
+        let tmp = std::env::temp_dir().join("rez_bs_install");
+        let _ = std::fs::remove_dir_all(&tmp);
+        std::fs::create_dir_all(&tmp).unwrap();
+        make_minimal_package(&tmp);
+        let result = build_package(Some(tmp.to_str().unwrap()), true, false, None);
+        // Should complete without panic (build may fail, but that's expected)
+        let _ = result;
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn test_build_package_clean_flag() {
+        // Test that clean=true doesn't cause panic
+        let tmp = std::env::temp_dir().join("rez_bs_clean");
+        let _ = std::fs::remove_dir_all(&tmp);
+        std::fs::create_dir_all(&tmp).unwrap();
+        make_minimal_package(&tmp);
+        let result = build_package(Some(tmp.to_str().unwrap()), false, true, None);
+        // Should complete without panic
+        let _ = result;
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn test_build_package_with_install_path() {
+        // Test that custom install_path doesn't cause panic
+        let tmp = std::env::temp_dir().join("rez_bs_inst_path");
+        let _ = std::fs::remove_dir_all(&tmp);
+        std::fs::create_dir_all(&tmp).unwrap();
+        make_minimal_package(&tmp);
+        let install_path = std::env::temp_dir().join("rez_bs_inst_dest");
+        let result = build_package(
+            Some(tmp.to_str().unwrap()),
+            false,
+            false,
+            Some(install_path.to_str().unwrap()),
+        );
+        // Should complete without panic
+        let _ = result;
+        let _ = std::fs::remove_dir_all(&tmp);
+        let _ = std::fs::remove_dir_all(&install_path);
+    }
+}
+
+// ── get_buildsys_types() tests (Cycle 2) ─────────────────────────────
+
+mod test_get_buildsys_types {
+    use crate::build_functions::get_buildsys_types;
+
+    #[test]
+    fn test_get_buildsys_types_returns_six_types() {
+        let types = get_buildsys_types().unwrap();
+        assert_eq!(
+            types.len(),
+            6,
+            "get_buildsys_types should return 6 types (excluding 'unknown')"
+        );
+    }
+
+    #[test]
+    fn test_get_buildsys_types_contains_all_known() {
+        let types = get_buildsys_types().unwrap();
+        let types_str: Vec<&str> = types.iter().map(|s| s.as_str()).collect();
+        assert!(types_str.contains(&"cmake"), "should contain 'cmake'");
+        assert!(types_str.contains(&"make"), "should contain 'make'");
+        assert!(types_str.contains(&"python"), "should contain 'python'");
+        assert!(types_str.contains(&"nodejs"), "should contain 'nodejs'");
+        assert!(types_str.contains(&"cargo"), "should contain 'cargo'");
+        assert!(types_str.contains(&"custom"), "should contain 'custom'");
+    }
+
+    #[test]
+    fn test_get_buildsys_types_no_unknown() {
+        let types = get_buildsys_types().unwrap();
+        // "unknown" is not a build system type that can be created,
+        // it's a fallback. The function returns creatable types.
+        let types_str: Vec<&str> = types.iter().map(|s| s.as_str()).collect();
+        assert!(
+            !types_str.contains(&"unknown"),
+            "get_buildsys_types should not contain 'unknown'"
+        );
+    }
+
+    #[test]
+    fn test_get_buildsys_types_all_lowercase() {
+        let types = get_buildsys_types().unwrap();
+        for t in &types {
+            assert_eq!(
+                t.as_str(),
+                t.as_str().to_lowercase(),
+                "build system type should be lowercase: '{}'",
+                t
+            );
+        }
+    }
+
+    #[test]
+    fn test_get_buildsys_types_no_duplicates() {
+        let types = get_buildsys_types().unwrap();
+        let mut sorted = types.clone();
+        sorted.sort();
+        sorted.dedup();
+        assert_eq!(
+            types.len(),
+            sorted.len(),
+            "get_buildsys_types should not have duplicates"
+        );
+    }
+}

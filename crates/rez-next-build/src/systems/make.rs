@@ -9,7 +9,7 @@ use tokio::process::Child;
 use tokio::sync::Mutex;
 
 /// Make build system (simplified implementation)
-#[derive(Debug, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct MakeBuildSystem;
 
 impl MakeBuildSystem {

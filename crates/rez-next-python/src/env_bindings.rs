@@ -230,12 +230,10 @@ impl PyRezEnv {
         Ok(())
     }
 
-    /// Print the activation script to stdout.
+    /// Get the activation script for a given shell.
     /// Equivalent to `rez env --output-shell bash`.
-    fn print_script(&self, shell: &str) {
-        if let Some(script) = self.scripts.get(shell) {
-            print!("{}", script);
-        }
+    fn get_script(&self, shell: &str) -> Option<&String> {
+        self.scripts.get(shell)
     }
 
     /// Get available shell scripts.

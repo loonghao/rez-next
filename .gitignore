@@ -44,6 +44,10 @@ MANIFEST
 # Benchmark results
 /target/criterion/
 
+# Benchmark output
+.benchmarks/
+crates/rez-next-python/.benchmarks/
+
 # Performance profiling
 flamegraph.svg
 perf.data*

@@ -9,33 +9,16 @@ use crate::source_bindings::detect_current_shell;
 
 /// Shell types supported for completion
 const BASH_COMPLETION: &str = r#"
-# rez-next bash completion
+# rez-next bash completion (dynamic mode)
 _rez_next_complete() {
     local cur prev
     cur="${COMP_WORDS[COMP_CWORD]}"
     prev="${COMP_WORDS[COMP_CWORD-1]}"
 
-    local commands="env solve build release status search view diff cp mv rm bundle config selftest gui context suite interpret depends pip forward benchmark complete source bind"
-
-    case "$prev" in
-        rez|rez-next)
-            COMPREPLY=( $(compgen -W "${commands}" -- "${cur}") )
-            return 0
-            ;;
-        -p|--paths)
-            COMPREPLY=( $(compgen -d -- "${cur}") )
-            return 0
-            ;;
-        env|solve)
-            # Package name completion — query rez-next search
-            local packages
-            packages=$(rez-next search --names-only 2>/dev/null)
-            COMPREPLY=( $(compgen -W "${packages}" -- "${cur}") )
-            return 0
-            ;;
-    esac
-
-    COMPREPLY=( $(compgen -W "${commands}" -- "${cur}") )
+    # Use dynamic completion (reads COMP_LINE/COMP_POINT)
+    local completions
+    completions=$(COMP_LINE="${COMP_LINE}" COMP_POINT="${COMP_POINT}" rez-next complete --dynamic 2>/dev/null)
+    COMPREPLY=( $(compgen -W "${completions}" -- "${cur}") )
     return 0
 }
 complete -F _rez_next_complete rez
@@ -44,37 +27,14 @@ complete -F _rez_next_complete rez-next
 
 const ZSH_COMPLETION: &str = r#"
 #compdef rez rez-next
-# rez-next zsh completion
+# rez-next zsh completion (dynamic mode)
 
 _rez_next() {
     local -a commands
-    commands=(
-        'env:create a resolved environment'
-        'solve:solve a set of package requirements'
-        'build:build the current package from source'
-        'release:release the current package'
-        'status:show status of current context'
-        'search:search for packages'
-        'view:view a package definition'
-        'diff:show differences between two contexts'
-        'cp:copy a package'
-        'mv:move a package'
-        'rm:remove a package'
-        'bundle:bundle a context for offline use'
-        'config:show/edit rez configuration'
-        'selftest:run rez self-tests'
-        'gui:open the rez GUI'
-        'context:show context information'
-        'suite:manage tool suites'
-        'interpret:interpret a rex command file'
-        'depends:show package dependencies'
-        'pip:install a pip package'
-        'forward:forward a tool call'
-        'benchmark:run rez benchmarks'
-        'complete:print shell completion script'
-        'source:activate a context'
-        'bind:bind a system tool as a rez package'
-    )
+    local completions
+
+    # Use dynamic completion (reads COMP_LINE/COMP_POINT)
+    completions=($(COMP_LINE="${(j: :)words}" COMP_POINT="$((CURRENT - 1))" rez-next complete --dynamic 2>/dev/null))
 
     _arguments \
         '(-h --help)'{-h,--help}'[show help]' \
@@ -85,14 +45,14 @@ _rez_next() {
 
     case $state in
         command)
-            _describe 'command' commands
+            _values 'commands' "${completions[@]}"
             ;;
         args)
             case $words[2] in
-                env|solve)
-                    local packages
-                    packages=($(rez-next search --names-only 2>/dev/null))
-                    _describe 'package' packages
+                env|solve|search|depends)
+                    local pkg_completions
+                    pkg_completions=($(COMP_LINE="${(j: :)words}" COMP_POINT="$((CURRENT - 1))" rez-next complete --dynamic 2>/dev/null))
+                    _values 'packages' "${pkg_completions[@]}"
                     ;;
                 *)
                     _default
@@ -106,71 +66,30 @@ _rez_next
 "#;
 
 const FISH_COMPLETION: &str = r#"
-# rez-next fish completion
+# rez-next fish completion (dynamic mode)
 
-set -l rez_commands env solve build release status search view diff cp mv rm bundle config selftest gui context suite interpret depends pip forward benchmark complete source bind
-
-function __rez_needs_command
-    set cmd (commandline -opc)
-    if [ (count $cmd) -eq 1 ]
-        return 0
+function __rez_next_complete
+    set -l completions (commandline -c)[-1]
+    set -l cursor (commandline -C)
+    set -l output (COMP_LINE=(commandline) COMP_POINT=$cursor rez-next complete --dynamic 2>/dev/null)
+    for c in $output
+        echo $c
     end
-    return 1
 end
 
-function __rez_packages
-    rez-next search --names-only 2>/dev/null
-end
-
-complete -c rez -f
-complete -c rez-next -f
-
-complete -c rez -n '__rez_needs_command' -a "$rez_commands"
-complete -c rez-next -n '__rez_needs_command' -a "$rez_commands"
-
-complete -c rez -n '__fish_seen_subcommand_from env solve' -a '(__rez_packages)'
-complete -c rez-next -n '__fish_seen_subcommand_from env solve' -a '(__rez_packages)'
-
-complete -c rez -s p -l paths -d 'Package search paths' -r -F
-complete -c rez-next -s p -l paths -d 'Package search paths' -r -F
-complete -c rez -s h -l help -d 'Show help'
-complete -c rez-next -s h -l help -d 'Show help'
-complete -c rez -s V -l version -d 'Show version'
-complete -c rez-next -s V -l version -d 'Show version'
+complete -c rez -f -a '(__rez_next_complete)'
+complete -c rez-next -f -a '(__rez_next_complete)'
 "#;
 
 const POWERSHELL_COMPLETION: &str = r#"
-# rez-next PowerShell completion
+# rez-next PowerShell completion (dynamic mode)
 Register-ArgumentCompleter -Native -CommandName @('rez', 'rez-next') -ScriptBlock {
     param($wordToComplete, $commandAst, $cursorPosition)
 
-    $commands = @(
-        'env', 'solve', 'build', 'release', 'status', 'search', 'view',
-        'diff', 'cp', 'mv', 'rm', 'bundle', 'config', 'selftest', 'gui',
-        'context', 'suite', 'interpret', 'depends', 'pip', 'forward',
-        'benchmark', 'complete', 'source', 'bind'
-    )
-
-    $tokens = $commandAst.CommandElements
-    $tokenStrings = $tokens | ForEach-Object { $_.ToString() }
-
-    # First argument: complete commands
-    if ($tokens.Count -le 2) {
-        $commands | Where-Object { $_ -like "$wordToComplete*" } |
-            ForEach-Object { [System.Management.Automation.CompletionResult]::new($_, $_, 'ParameterValue', $_) }
-        return
-    }
-
-    # Second argument for env/solve: complete package names
-    $subCommand = $tokenStrings[1]
-    if ($subCommand -in @('env', 'solve')) {
-        try {
-            $packages = & rez-next search --names-only 2>$null
-            $packages | Where-Object { $_ -like "$wordToComplete*" } |
-                ForEach-Object { [System.Management.Automation.CompletionResult]::new($_, $_, 'ParameterValue', $_) }
-        } catch {}
-        return
-    }
+    # Use dynamic completion (reads COMP_LINE/COMP_POINT)
+    $completions = COMP_LINE=$commandAst.ToString() COMP_POINT=$cursorPosition rez-next complete --dynamic 2>$null
+    $completions | Where-Object { $_ -like "$wordToComplete*" } |
+        ForEach-Object { [System.Management.Automation.CompletionResult]::new($_, $_, 'ParameterValue', $_) }
 }
 "#;
 
@@ -200,13 +119,11 @@ pub fn get_completion_script(shell: Option<&str>) -> PyResult<String> {
     }
 }
 
-/// Write the completion script to stdout (mimics `rez complete`).
+/// Get the completion script as a string (mimics `rez complete`).
 #[pyfunction]
 #[pyo3(signature = (shell=None))]
-pub fn print_completion_script(shell: Option<&str>) -> PyResult<()> {
-    let script = get_completion_script(shell)?;
-    print!("{}", script);
-    Ok(())
+pub fn get_completion_script_py(shell: Option<&str>) -> PyResult<String> {
+    get_completion_script(shell)
 }
 
 /// List all supported shells for completion.

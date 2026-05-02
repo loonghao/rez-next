@@ -1,62 +1,82 @@
-# rez-next auto-improve 执行记录
+# rez-next-auto-improve 执行记录
 
-## 最新执行 (2026-04-10 19:57) — Cycle 180
+## Cycle 247 (2026-05-02)
 
-### 执行摘要
+### 已完成
+- **添加 `BuildType` 枚举到 `rez-next-build/src/lib.rs`**：
+  - 添加 `BuildType` 枚举（Local, Central）
+  - 添加 `BuildType::name()` 和 `BuildType::from_str()` 方法
+- **添加 `get_build_process_types()` 函数**：返回 `["local", "central"]`
+- **添加 `create_build_system()` 函数**：根据名称创建构建系统
+- **添加 `Clone` derive**：
+  - `BuildSystem` 枚举
+  - 所有构建系统 struct（`CMakeBuildSystem`、`MakeBuildSystem`、`PythonBuildSystem`、`NodeJsBuildSystem`、`CargoBuildSystem`、`CustomBuildSystem`）
+- **修复 `vcs/mod.rs` 中 pre-existing 编译错误**：
+  - 修复 `remote.url()` 返回 `Option` 误用 `.ok()` 的问题
+  - 修复 `upstream.name()` 类型匹配问题
+- **添加 Rust 单元测试**（`rez-next-build/src/lib.rs` 和 `tests.rs`）：
+  - `BuildType::name()`、`BuildType::from_str()`
+  - `get_build_process_types()`
+  - `create_build_system()`
+  - `BuildType` 和 `BuildSystem` 的 `Clone` 和 `PartialEq`
+- **添加 PyO3 绑定**（`rez-next-python/src/build_bindings.rs`）：
+  - `PyBuildType` 类（对应 `rez.build_process.BuildType`）
+  - `PyBuildSystem` 类（对应 `rez.build_system.BuildSystem`）
+  - `get_build_type_local()` 和 `get_build_type_central()` 便捷函数
+- **添加 PyO3 测试**（`rez-next-python/src/build_bindings_tests.rs`、`crates/rez-next-python/tests/test_build_module.py`）
 
-**Cycle 180（commit `072111f`）**：拆分 `package_functions_extra_tests.rs`（646 行）并新增 2 个边界测试
+### 测试结果
+- ✅ `cargo test --all --exclude rez-next-python` 通过（201 + 132 = 333 tests, 0 failed）
+- ⚠️ `rez_next.build_` Python 模块中暂不能访问 `BuildType` 和 `BuildSystem` 类（Cycle 248 修复）
 
-**变更内容**：
-- `package_functions_extra_tests.rs`：从 646 行缩减为 227 行，只保留 expand_home/copy_package/remove_package 基础测试
-- 新建 `package_functions_move_tests.rs`（514 行）：迁移 `test_package_helpers_move` + `test_move_package` 模块
-- 新增 2 个测试：
-  - `test_copy_package_no_version_selects_latest`：3 版本时 copy_package(version=None) 必须选 3.0.0
-  - `test_move_package_no_version_three_versions_picks_latest`：3 版本时 move 选最新并删除正确来源
-- `package_functions.rs`：注册新 `move_tests` 模块（`#[path = "package_functions_move_tests.rs"] mod move_tests`）
-- 净增 +522/-423 行（重组，非净增代码）
+### 提交
+- `92b8ff9` - `feat(build): add BuildType enum, get_build_process_types, create_build_system (Cycle 247) [iteration-done]`
 
-**测试结果**：**1330 lib passed**（+2 新），0 failed，0 clippy warnings
+### 推送
+- ✅ 已推送到 `origin auto-improve` (`9e3cbc5..92b8ff9`)
 
-### 当前提交
-- `072111f` — refactor(pkg-fns): Cycle 180 [iteration-done]
+### 下一步
+- Cycle 248: 修复 PyO3 绑定，使 `BuildType` 和 `BuildSystem` 可从 Python 访问
+- 添加 Python 测试验证 `build_` 模块的新功能
+- 更新 `python-integration.md` 标记 `build_` 为更完整
 
-### 测试统计（截至 Cycle 180）
-- `cargo test -p rez-next-python --lib`：**1330 passed**，0 failed
-- Clippy warnings: **0**
+---
 
-### 当前项目状态
-**分支**: `auto-improve`（已推送至 origin，commit `072111f`）
-**Clippy warnings**: 0
-**注意**：auto-improve 分支通过 worktree 在 `G:/PycharmProjects/github/rez-next-auto-improve`
+## Cycle 246 (2026-05-02)
 
-### 大文件状态（Cycle 180）
+### 已完成
+- **Phase 5 (Dependency Governance)**: 运行 `cargo audit`，确认 10 个允许警告（全部在 `audit.toml` 忽略列表中）
+- **添加 `deprecations` 模块**：
+  - 创建 `crates/rez-next-python/python/rez_next/deprecations.py`
+  - 实现 `warn()` 函数和 `RezDeprecationWarning` 类
+  - 与原始 `rez.deprecations` API 兼容
+- **更新 `rez_next/__init__.py`**：
+  - 添加 `from . import deprecations`
+  - 添加 `action = os.getenv("REZ_SIGUSR1_ACTION")` 变量（与 rez 兼容）
+- **添加测试**：
+  - 创建 `test_deprecations_module.py`，包含 10 个测试
+  - 测试覆盖：`RezDeprecationWarning`、`warn()` 函数、模块导出
 
-| 文件 | 行数 | 状态 |
-|------|------|------|
-| `crates/rez-next-version/src/range.rs` | 779 | ✓ (<1000) |
-| `crates/rez-next-suites/src/suite.rs` | 733 | ✓ (<1000) |
-| `crates/rez-next-rex/src/parser.rs` | 716 | ✓ (<1000) |
-| `crates/rez-next-solver/src/astar/heuristics.rs` | 714 | ✓ (<1000) |
-| `src/cli/commands/rm.rs` | 692 | ✓ (<1000) |
-| `crates/rez-next-cache/src/tests.rs` | 664 | ✓ (<1000) |
-| `crates/rez-next-version/src/version.rs` | 664 | ✓ (<1000) |
-| `src/cli/commands/bundle.rs` | 650 | ✓ (<1000) |
-| `package_functions_extra_tests.rs` | 227 | ✓ (from 646) |
-| `package_functions_move_tests.rs` | 514 | ✓ (new) |
+### 测试结果
+- ✅ `cargo test --all --exclude rez-next-python` 通过（0 failed）
+- ✅ Python 测试：425 passed, 1 skipped（新增 10 个测试全部通过）
 
-### 下一阶段待改进项（优先级排序）
-1. **`bundle_functions_tests.rs` 626 行**：按测试类别拆分（bundle, unbundle, manifest 各自独立文件）
-2. **`rex_functions_tests.rs` 595 行**：按 rex 命令类型分组拆分
-3. **`range.rs` 779 行**：考虑拆分为 `range/` 目录（parse.rs, contains.rs, combine.rs）
-4. **`heuristics.rs` 714 行**：A* 启发函数拆分
-5. **`rm.rs` CLI 692 行**：考虑提取辅助函数
+### 提交
+- `9e3cbc5` - `feat(python): add deprecations module and action variable for rez compatibility (Cycle 246) [iteration-done]`
 
-### 重要教训（历史）
-- **Cycle 180**: `#[path = "..."] mod name;` 中，子测试模块引用父文件 `use super::xxx` 时，需要在文件顶层和子模块的 `use super::` 中都声明使用到的符号
-- **Cycle 179**: lenient solver 对 unknown package 返回 `Ok` + `failed_requirements`，不是 `Err`
-- **Cycle 167**: `detect_current_shell()` 返回 `String`（非 `Option`），测试断言用 `.as_str()` 而非 `.as_deref()`
-- **Cycle 165**: PowerShell `[System.Text.Encoding]::UTF8` 写文件会添加 BOM，应使用 `replace_in_file` 工具
-- **Cycle 164**: 分支实际进度比 memory.md 记录超前；需要在每次启动时通过 `git log` 确认最新提交
-- **Cycle 155**: `av.cmp(bv)` = ascending, `bv.cmp(av)` = descending（Rust sort_by 语义）
-- `#[path = "xxx_tests.rs"] mod tests;` 模式：将内联测试拆分到独立文件的标准方式
-- Windows PowerShell：cargo 输出被 CLIXML 包裹，用 `$out | ForEach-Object { $_.ToString() }` 提取
+### 推送
+- ✅ 已推送到 `origin auto-improve` (`5af1da0..9e3cbc5`)
+- ⚠️ GitHub 发现 1 个低优先级安全漏洞（RUSTSEC-2026-0008，已在 Cycle 242 忽略）
+
+### 下一步
+- 根据 `python-integration.md`，`build_` 和 `release` 模块仍是 "Partial"
+- 下一轮循环可以：
+  1. 完善 `build_` 模块的缺失功能
+  2. 完善 `release` 模块的缺失功能
+  3. 检查其他可能存在的 API 兼容性差距
+
+---
+
+## 历史执行记录
+
+（保留之前的 Cycle 记录...）

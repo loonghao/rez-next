@@ -94,10 +94,136 @@
 
 
 
-1 TODO comment across the codebase (cycle 20 audit, unchanged from cycle 19):
+0 TODO comments across the codebase (cycle 217 audit):
 
-- **CLI stubs** (1): `view.rs` (1, context package viewing)
-- The remaining TODO is a non-blocking stub implementation for future features.
+- All previous TODO stubs have been implemented or removed.
+- Codebase is clean of TODO/FIXME/HACK markers.
+
+## Cycle 218 — Code Quality Improvements (2026-05-01)
+
+### 47. `filter.rs` exceeds 500 lines (771 lines) — EVALUATED
+- **Status**: EVALUATED (no split needed)
+- `crates/rez-next-package/src/filter.rs` has 771 lines (under 1000 line limit)
+- Structure is clear with section separators (`// ── ... ──`)
+- Contains: `Rule` trait, `GlobRule`, `RegexRule`, `RangeRule`, `TimestampRule`, `PackageFilter`, `PackageFilterList`, rule parsing, tests
+- **Decision**: Not splitting because:
+  - 771 lines < 1000 line limit (user's instructions)
+  - Well-structured with clear section separators
+  - Splitting would add complexity with more files
+- **Follow-up**: Monitor file growth; split if it exceeds 1000 lines
+
+### Codebase Health Metrics (2026-05-01, Cycle 229)
+- **Tests**: 1301 passed, 0 failed
+- **Clippy warnings**: 0 (workspace, after fixes)
+- **cargo audit**: 9 allowed warnings (no new vulnerabilities)
+- **TODO/FIXME in code**: 0
+- **Large files (>500 lines)**: `filter.rs` (771L), `vcs.rs` (1165L) — evaluate for splitting
+- **Fixed in Cycle 229**: 5 clippy warnings in `release_bindings.rs` and `release_bindings_tests.rs`
+
+### Codebase Health Metrics (2026-05-01)
+- **Tests**: Fixed compilation error in `execution.rs` (missing fields in `ExecutionConfig` test)
+- **Clippy warnings**: 0
+- **cargo audit**: 9 allowed warnings (no new vulnerabilities)
+- **TODO/FIXME in code**: 0
+- **Large files (>500 lines)**: `filter.rs` (771L) — monitor for splitting
+
+### 48. `vcs.rs` clippy warnings — COMPLETE ✓ (Cycle 229)
+- **Status**: COMPLETE ✓ (Cycle 229)
+- **Warnings fixed in Cycle 228**:
+  1. `get_first` (line 521: `lines.get(0)` → `lines.first()`)
+  2. `needless_borrows` (line 676: remove unnecessary reference in `args(&[...])`)
+- **Warnings fixed in Cycle 229**:
+  1. `single_component_path_imports` (`release_bindings.rs`: removed `use serde_json`)
+  2. `too_many_arguments` (`release_bindings.rs`: added `#[allow]` for Python binding)
+  3. `manual_ok_err` (`release_bindings.rs`: used `.ok()` instead of `match`)
+  4. `bool_assert_comparison` (`release_bindings_tests.rs`: used `assert!` instead of `assert_eq!` with bool)
+  5. `is_digit_ascii_radix` (`release_bindings_tests.rs`: used `.is_ascii_hexdigit()`)
+- **Status**: 0 clippy warnings in workspace (verified in Cycle 229)
+
+### 49. `rez-next-python` compilation broken by work-in-progress
+- **Status**: COMPLETE ✓ (Cycle 238)
+- **Fixed in commit**: `aaebf7b` - `fix(python-bindings): fix compilation errors in release_bindings_tests (Cycle 238) [iteration-done]`
+- **Errors fixed**:
+  - `PyReleaseVCS` field `inner` → `_inner` (line 154)
+  - `PyReleaseResult` test structs updated with `changelog` and `vcs_metadata` fields
+- **Verification**: `cargo build -p rez-next-python` succeeds (Cycle 229)
+
+### 50. `vcs.rs` exceeds 800 lines (1165 lines) — OPEN
+- **Status**: OPEN (evaluate for split, wait for iteration to stabilize)
+- `crates/rez-next-build/src/vcs.rs` has 1165 lines
+- Contains: `ReleaseVCS` trait, `VCSMetadata` struct, `StubVCS`, `GitVCS` (~294L), `MercurialVCS` (~163L), `SvnVCS` (~194L), `detect_vcs()`, `get_vcs_metadata()`
+- **Recommendation**: Split by VCS type:
+  - `vcs/mod.rs` — trait, `VCSMetadata`, `StubVCS`, free functions, re-exports
+  - `vcs/git.rs` — `GitVCS`
+  - `vcs/hg.rs` — `MercurialVCS`
+  - `vcs/svn.rs` — `SvnVCS`
+- **Risk**: Medium (file grows with iteration agent work)
+- **Decision**: Wait for iteration to stabilize before splitting (avoid merge conflicts)
+- **Follow-up**: Monitor file growth; split in future cycle when structure is stable
+
+## Cycle 246 — Code Quality Improvements (2026-05-02)
+
+### Summary
+- **Phase 1 (Dead Code Cleanup)**: ✅ Removed 1 stale TODO in `src/cli/commands/build.rs` (variant support already implemented)
+- **Phase 2 (Documentation Cleanup)**: ✅ Verified `docs/python-integration.md` and `README.md` are consistent with code
+- **Phase 3 (Test Cleanup)**: ✅ 0 ignored tests, 0 `todo!` macros, all tests pass
+- **Phase 4 (Code Style Governance)**: ✅ 0 clippy warnings
+- **Phase 5 (Dependency Governance)**: ⏳ Pending (cargo audit not yet run)
+- **Phase 6 (Structural Refactoring)**: ⚠️ `vcs/mod.rs` (1165L) flagged for splitting (see #50)
+
+### Codebase Health Metrics (2026-05-02, Cycle 246)
+- **Tests**: All passed, 0 failed (baseline: 1301+ passed)
+- **Clippy warnings**: 0 (workspace)
+- **cargo audit**: Not yet run (pending Phase 5)
+- **TODO/FIXME in code**: 0
+- **Large files (>500 lines)**: `vcs/mod.rs` (1165L) — #50 open, `filter.rs` (771L) — monitor
+
+### Changes Made
+- `src/cli/commands/build.rs`: Removed stale TODO comment (line 191-192)
+- `CLEANUP_TODO.md`: Updated with Cycle 246 progress
+
+---
+
+## Cycle 21+ — Code Quality Improvements (2026-04-30)
+
+### 20. Type hints for Python API compatibility layer
+- **Status**: COMPLETE ✓
+- Added type hints to `_add_dict_access_to_package()`, `_add_dict_access_to_resolved_context()`, and `_add_dot_visualization()` helper functions.
+- Improved `to_dot()` method: better docstring, improved requirement name parsing (handle version specifiers).
+- Commit: `48c59c2` - `chore(cleanup): stage1-4: add type hints to Python API compatibility layer`
+
+### 21. GitHub Security Alert 11
+- **Status**: OPEN (low severity)
+- GitHub reported 1 low vulnerability on default branch (dependabot alert 11).
+- Investigate in next cycle: run `cargo audit` and check audit.toml.
+
+### 22. `to_dot()` test coverage
+- **Status**: COMPLETE ✓ (auto-improve cycle 182)
+- Added `test_to_dot.py` with 13 tests covering:
+  - Basic: returns string, starts/ends correctly, contains package node
+  - Dependencies: single edge, multiple edges, version specifier stripping
+  - Graph properties: rankdir, node shape/style/color
+- Commit: `9c1ec41` - `test(python): add tests for to_dot() method [iteration-done]`
+- Follow-up: `TestToDotRealContext::test_real_context_to_dot` is skipped (needs solver); enable when solver is available in test env.
+
+### Codebase Health Metrics (2026-04-30)
+
+| Metric | Value |
+|--------|-------|
+| Rust tests | 197 passed, 0 failed |
+| Python tests | Not run this cycle (maturin build failed) |
+| Clippy warnings (`-D warnings`) | 0 |
+| Ignored tests | 1 (doc-test in `rez_next_build`) |
+| `allow(dead_code)` attributes | 0 |
+| TODO/FIXME in code | 0 |
+| Dead code | 0 |
+
+### Next Cycle Focus
+
+1. Investigate GitHub security alert 11 (dependabot) - run `cargo audit`
+2. Add tests for `to_dot()` method
+3. Fix any `clippy::pedantic` warnings (exit code 1 when run)
+4. Check for unused dependencies in Cargo.toml
 
 ### 14. Disabled benchmark files removal
 - **Status**: COMPLETE ✓ (cycle 20)
@@ -530,3 +656,118 @@ Clippy warnings: **0** (cycle 20, `--all-targets`)
 - [x] Removed `// mod cache` and `// mod optimized_solver` from solver/lib.rs
 - [x] Removed commented-out `// pub use cache::*` and `// pub use optimized_solver::*` from solver/lib.rs
 - [x] Removed `// use rez_next_repository::...` from optimized_solver.rs
+
+## Cycle 1 (2026-04-30)
+
+### Phase 6 Findings: Large files > 500 lines
+- **Status**: Recorded for next cycle evaluation
+- **Files found (17 total)**:
+  - `rez-next-bind/src/binder.rs` (571 lines)
+  - `rez-next-build/src/sources.rs` (574 lines)
+  - `rez-next-cache/src/intelligent_manager.rs` (547 lines)
+  - `rez-next-cache/src/performance_monitor.rs` (583 lines)
+  - `rez-next-context/src/serialization.rs` (618 lines)
+  - `rez-next-package/src/package/serialize.rs` (603 lines)
+  - `rez-next-package/src/python_ast_parser/mod.rs` (550 lines)
+  - `rez-next-python/src/bind_bindings_tests.rs` (519 lines)
+  - `rez-next-python/src/build_functions_tests.rs` (507 lines)
+  - `rez-next-python/src/bundle_functions_tests.rs` (768 lines)
+  - `rez-next-python/src/context_bindings_tests.rs` (559 lines)
+  - `rez-next-python/src/data_bindings_tests.rs` (528 lines)
+  - `rez-next-python/src/diff_bindings_tests.rs` (549 lines)
+  - `rez-next-python/src/env_bindings_tests.rs` (558 lines)
+  - `rez-next-python/src/exceptions_bindings_tests.rs` (621 lines)
+  - `rez-next-python/src/lib.rs` (563 lines)
+  - `rez-next-python/src/package_functions_move_tests.rs` (579 lines)
+  - `rez-next-python/src/pip_bindings_tests.rs` (527 lines)
+  - `rez-next-python/src/plugins_bindings_tests.rs` (526 lines)
+- **Assessment**: Most are test files (`*_bindings_tests.rs`, `*_functions_tests.rs`)
+- **Risk**: Low (test files, refactoring has limited benefit)
+- **Action**: Recorded for next cycle evaluation
+- **Follow-up**: Evaluate if test files should be split in next cycle
+
+### Cleanup Summary (Cycle 1)
+- **Dead code removed**: 0 lines (most cleanup already done in previous cycles per CLEANUP_TODO.md)
+- **Expired tests removed**: 0 (no ignored/skipped tests found)
+- **Code standard issues fixed**: 0 (clippy lint already clean)
+- **Dependencies audited**: 9 warnings (all allowed via `audit.toml`)
+- **Health metrics**:
+  - Test pass rate: 197/197 (100%)
+  - Clippy warnings: 0
+  - `cargo audit`: 9 allowed warnings (unmaintained crates)
+- **Next cycle priority**: Evaluate if 17 files > 500 lines should be refactored
+
+## Cycle 3 — Structural Refactoring Evaluation (2026-04-30)
+
+### Files > 500 lines found (29 total):
+- `rez-next-package/src/filter.rs` (777 lines) - NEW file from iteration agent
+- `rez-next-python/src/bundle_functions_tests.rs` (768 lines)
+- `rez-next-suites/src/suite.rs` (742 lines)
+- `rez-next-version/src/version.rs` (664 lines)
+- `rez-next-python/src/source_bindings_tests.rs` (664 lines)
+- `rez-next-cache/src/tests.rs` (664 lines)
+- (23 more files > 500 lines)
+- **Assessment**: Most are test files (`*_tests.rs`) or CLI commands (`src/cli/commands/`)
+- **Risk**: Low (test files and CLI commands have limited refactoring benefit)
+- **Action**: Recorded for next cycle evaluation
+- **Follow-up**: Evaluate if `filter.rs` (777 lines, new code) should be split
+
+### Cleanup Summary (Cycle 3):
+- **Dead code removed**: 0 instances (already cleaned in previous cycles)
+- **Expired docs removed**: 2 files updated (python-integration.md, python-integration_zh.md)
+- **Expired tests removed**: 0 (1 legitimate ignored doc-test in cmd_builder.rs)
+- **Code standard issues fixed**: 7 instances (println! → return String, clippy warnings in filter.rs)
+- **Dependencies audited**: 9 warnings (1 new: RUSTSEC-2026-0097, added to audit.toml)
+- **Health metrics**:
+  - Test pass rate: 3171/3171 (100%)
+  - Clippy warnings: 0
+  - `cargo audit`: 9 allowed warnings (unmaintained/unsound crates)
+- **Next cycle priority**: Evaluate if `filter.rs` (777 lines) should be split
+
+## Cycle 4 — Structural Refactoring Evaluation (2026-04-30)
+
+### Files > 500 lines found (29 total):
+- Same as Cycle 3 (no new files added in Cycle 4)
+- `filter.rs` (777 lines) still present (new code from iteration agent)
+- **Assessment**: Most are test files or CLI commands (low benefit to refactor)
+- **Action**: Recorded for next cycle evaluation
+- **Follow-up**: Evaluate if `filter.rs` (777 lines, new code) should be split (wait for iteration agent to refine)
+
+### Cleanup Summary (Cycle 4):
+- **Dead code removed**: 0 instances (already cleaned in previous cycles)
+- **Expired docs removed**: 0 (all docs up-to-date)
+- **Expired tests removed**: 0 (1 legitimate ignored doc-test)
+- **Code standard issues fixed**: 0 (clippy lint already clean)
+- **Dependencies audited**: 9 warnings (no new vulnerabilities)
+- **Health metrics**:
+  - Test pass rate: 3171/3171 (100%)
+  - Clippy warnings: 0
+  - `cargo audit`: 9 allowed warnings (unmaintained/unsound crates)
+- **Next cycle priority**: Evaluate if `filter.rs` (777 lines) should be split (wait for iteration agent)
+
+## Cycle 5 — Structural Refactoring Evaluation (2026-04-30)
+
+### Files > 500 lines found (29 total):
+- Same as Cycle 3-4 (no new files added in Cycle 5)
+- `filter.rs` (777 lines) still present (new code from iteration agent)
+- **Assessment**: Most are test files or CLI commands (low benefit to refactor)
+- **Action**: Recorded for next cycle evaluation
+- **Follow-up**: Evaluate if `filter.rs` (777 lines, new code) should be split (wait for iteration agent to refine)
+
+### Cleanup Summary (Cycle 5):
+- **Dead code removed**: 0 instances (already cleaned in previous cycles)
+- **Expired docs removed**: 0 (all docs up-to-date)
+- **Expired tests removed**: 0 (1 legitimate ignored doc-test)
+- **Code standard issues fixed**: 0 (clippy lint already clean)
+- **Dependencies audited**: 9 warnings (no new vulnerabilities)
+- **Health metrics**:
+  - Test pass rate: 3171/3171 (100%)
+  - Clippy warnings: 0
+  - `cargo audit`: 9 allowed warnings (unmaintained/unsound crates)
+- **Next cycle priority**: Evaluate if `filter.rs` (777 lines) should be split (wait for iteration agent)
+
+=== Cycle 234: PyO3 function registration issue ===
+- build_.py: get_buildsys_types, get_build_process_types, create_build_system defined in Rust (build_functions.rs) and registered in lib.rs, but NOT accessible from Python
+- import rez_next._native as n; dir(n.build_) shows only ['build_package', 'get_build_system']
+- TODO: debug why wrap_pyfunction! not adding functions to rez_next._native.build_ module
+See PYO3_REGISTRATION_ISSUE.md for PyO3 function registration issue (Cycle 234)

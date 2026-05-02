@@ -364,19 +364,19 @@ fn test_package_family_str_matches_name_field() {
 // ── Cycle 115 additions ──────────────────────────────────────────────────
 
 #[test]
-fn test_rez_env_print_script_missing_shell_does_not_panic() {
+fn test_rez_env_get_script_missing_shell_returns_none() {
     let env = empty_rez_env(vec![]);
-    // Should not panic even when shell not registered
-    env.print_script("nonexistent_shell");
+    // Should return None when shell not registered
+    assert!(env.get_script("nonexistent_shell").is_none());
 }
 
 #[test]
-fn test_rez_env_print_script_with_registered_shell_does_not_panic() {
+fn test_rez_env_get_script_with_registered_shell_returns_some() {
     let mut env = empty_rez_env(vec![]);
     env.scripts
         .insert("bash".to_string(), "export X=1\n".to_string());
-    // Should not panic when shell is present
-    env.print_script("bash");
+    // Should return Some when shell is present
+    assert!(env.get_script("bash").is_some());
 }
 
 #[test]

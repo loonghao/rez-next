@@ -62,6 +62,19 @@ impl BuildEnvironment {
         // Set up environment variables
         let mut env_vars = HashMap::new();
 
+        // Standard Rez build environment variables (matching original Rez)
+        // REZ_BUILD_ENV: marks this as a Rez build environment
+        env_vars.insert("REZ_BUILD_ENV".to_string(), "1".to_string());
+
+        // REZ_BUILD_TYPE: build type (local or central)
+        // Default to "local" for now; can be configured via BuildConfig later
+        env_vars.insert("REZ_BUILD_TYPE".to_string(), "local".to_string());
+
+        // REZ_BUILD_INSTALL: whether to install (1 or 0)
+        // Default to "0"; set to "1" when install_path is provided
+        let install_flag = if install_path.is_some() { "1" } else { "0" };
+        env_vars.insert("REZ_BUILD_INSTALL".to_string(), install_flag.to_string());
+
         // Add package-specific variables
         env_vars.insert("REZ_BUILD_PACKAGE_NAME".to_string(), package.name.clone());
 
@@ -80,6 +93,11 @@ impl BuildEnvironment {
             "REZ_BUILD_PATH".to_string(),
             package_build_dir.to_string_lossy().to_string(),
         );
+
+        // Add variant-related environment variables (matching original Rez)
+        // These will be set when building variants
+        env_vars.insert("REZ_BUILD_VARIANT_INDEX".to_string(), "0".to_string());
+        env_vars.insert("REZ_BUILD_VARIANT_REQUIRES".to_string(), String::new());
 
         // Add context environment if available
         if let Some(context) = context {
@@ -136,6 +154,30 @@ impl BuildEnvironment {
     /// Remove environment variable
     pub fn remove_env_var(&mut self, name: &str) {
         self.env_vars.remove(name);
+    }
+
+    /// Set variant-related environment variables
+    pub fn set_variant_env(&mut self, variant_index: usize, variant_requires: &[String]) {
+        self.env_vars.insert(
+            "REZ_BUILD_VARIANT_INDEX".to_string(),
+            variant_index.to_string(),
+        );
+        self.env_vars.insert(
+            "REZ_BUILD_VARIANT_REQUIRES".to_string(),
+            variant_requires.join(" "),
+        );
+    }
+
+    /// Get the variant install path (for hash variants)
+    pub fn get_variant_install_path(&self, variant_hash: Option<&str>) -> PathBuf {
+        match variant_hash {
+            Some(hash) => self.install_dir.join(hash),
+            None => {
+                // Non-hash variant: use index-based path
+                // This will be set by the caller based on variant_index
+                self.install_dir.clone()
+            }
+        }
     }
 
     /// Set up build environment directories
@@ -285,5 +327,161 @@ impl BuildEnvironment {
         }
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rez_next_package::Package;
+    use std::path::PathBuf;
+
+    fn make_test_package(name: &str, version: &str) -> Package {
+        let mut pkg = Package::new(name.to_string());
+        pkg.version = rez_next_version::Version::new(Some(version)).ok();
+        pkg
+    }
+
+    #[test]
+    fn test_standard_env_vars_present() {
+        // REZ_BUILD_ENV, REZ_BUILD_TYPE, REZ_BUILD_INSTALL must be set
+        let pkg = make_test_package("test-pkg", "1.0.0");
+        let base = PathBuf::from("/tmp/build");
+        let env = BuildEnvironment::new(&pkg, &base, None).unwrap();
+
+        let vars = env.get_env_vars();
+        assert_eq!(vars.get("REZ_BUILD_ENV"), Some(&"1".to_string()));
+        assert_eq!(vars.get("REZ_BUILD_TYPE"), Some(&"local".to_string()));
+        assert_eq!(vars.get("REZ_BUILD_INSTALL"), Some(&"0".to_string()));
+    }
+
+    #[test]
+    fn test_install_flag_env_var() {
+        // When install_path is provided, REZ_BUILD_INSTALL should be "1"
+        let pkg = make_test_package("test-pkg", "1.0.0");
+        let base = PathBuf::from("/tmp/build");
+        let install = PathBuf::from("/tmp/install");
+        let env = BuildEnvironment::with_install_path(&pkg, &base, None, Some(&install)).unwrap();
+
+        let vars = env.get_env_vars();
+        assert_eq!(vars.get("REZ_BUILD_INSTALL"), Some(&"1".to_string()));
+    }
+
+    #[test]
+    fn test_package_name_version_vars() {
+        let pkg = make_test_package("my-package", "2.3.4");
+        let base = PathBuf::from("/workspace/build");
+        let env = BuildEnvironment::new(&pkg, &base, None).unwrap();
+
+        let vars = env.get_env_vars();
+        assert_eq!(
+            vars.get("REZ_BUILD_PACKAGE_NAME"),
+            Some(&"my-package".to_string())
+        );
+        assert_eq!(
+            vars.get("REZ_BUILD_PACKAGE_VERSION"),
+            Some(&"2.3.4".to_string())
+        );
+    }
+
+    #[test]
+    fn test_build_and_install_paths() {
+        let pkg = make_test_package("pkg", "1.0.0");
+        let base = PathBuf::from("/data/build");
+        let env = BuildEnvironment::new(&pkg, &base, None).unwrap();
+
+        let vars = env.get_env_vars();
+
+        // REZ_BUILD_PATH should point to {base}/{package_name}
+        let build_path = PathBuf::from(vars.get("REZ_BUILD_PATH").unwrap());
+        assert!(
+            build_path.ends_with("pkg"),
+            "build path should end with 'pkg'"
+        );
+        assert!(
+            build_path
+                .parent()
+                .map(|p| p.ends_with("build"))
+                .unwrap_or(false),
+            "build path parent should end with 'build'"
+        );
+
+        // REZ_BUILD_INSTALL_PATH should point to {base}/{package_name}/install
+        let install_path = PathBuf::from(vars.get("REZ_BUILD_INSTALL_PATH").unwrap());
+        assert!(
+            install_path.ends_with("install"),
+            "install path should end with 'install'"
+        );
+    }
+
+    #[test]
+    fn test_add_and_remove_env_var() {
+        let pkg = make_test_package("pkg", "1.0.0");
+        let base = PathBuf::from("/tmp/build");
+        let mut env = BuildEnvironment::new(&pkg, &base, None).unwrap();
+
+        env.add_env_var("CUSTOM_VAR".to_string(), "custom_value".to_string());
+        assert_eq!(
+            env.get_env_vars().get("CUSTOM_VAR"),
+            Some(&"custom_value".to_string())
+        );
+
+        env.remove_env_var("CUSTOM_VAR");
+        assert!(env.get_env_vars().get("CUSTOM_VAR").is_none());
+    }
+
+    #[test]
+    fn test_shell_script_bash() {
+        let pkg = make_test_package("pkg", "1.0.0");
+        let base = PathBuf::from("/tmp/build");
+        let env = BuildEnvironment::new(&pkg, &base, None).unwrap();
+
+        let script = env.to_shell_script(&rez_next_context::ShellType::Bash);
+        assert!(script.contains("export REZ_BUILD_ENV=\"1\""));
+        assert!(script.contains("#!/bin/bash"));
+    }
+
+    #[test]
+    fn test_shell_script_powershell() {
+        let pkg = make_test_package("pkg", "1.0.0");
+        let base = PathBuf::from("/tmp/build");
+        let env = BuildEnvironment::new(&pkg, &base, None).unwrap();
+
+        let script = env.to_shell_script(&rez_next_context::ShellType::PowerShell);
+        assert!(script.contains("$env:REZ_BUILD_ENV = \"1\""));
+    }
+
+    #[test]
+    fn test_normalize_build_path_absolute() {
+        // Use a path that is absolute on both Unix and Windows
+        // On Windows, "C:\..." is absolute; on Unix, "/..." is absolute
+        #[cfg(unix)]
+        let path = PathBuf::from("/absolute/path/to/build");
+        #[cfg(windows)]
+        let path = PathBuf::from("C:\\absolute\\path\\to\\build");
+
+        let normalized = BuildEnvironment::normalize_build_path(&path).unwrap();
+        assert_eq!(normalized, path);
+    }
+
+    #[test]
+    fn test_normalize_build_path_relative() {
+        // Relative path should be converted to absolute
+        let path = PathBuf::from("relative/build");
+        let result = BuildEnvironment::normalize_build_path(&path);
+        assert!(result.is_ok());
+        let normalized = result.unwrap();
+        assert!(normalized.is_absolute());
+    }
+
+    #[test]
+    fn test_get_dirs() {
+        let pkg = make_test_package("pkg", "1.0.0");
+        let base = PathBuf::from("/tmp/build");
+        let env = BuildEnvironment::new(&pkg, &base, None).unwrap();
+
+        assert!(env.get_build_dir().ends_with("pkg"));
+        assert!(env.get_install_dir().ends_with("install"));
+        assert!(env.get_temp_dir().ends_with("tmp"));
     }
 }

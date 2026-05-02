@@ -8,7 +8,7 @@ use tokio::process::Child;
 use tokio::sync::Mutex;
 
 /// CMake build system
-#[derive(Debug, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct CMakeBuildSystem;
 
 impl CMakeBuildSystem {

@@ -57,16 +57,14 @@ impl Version {
         // Validate version format - reject obvious invalid patterns
         if s.starts_with('v') || s.starts_with('V') {
             return Err(RezCoreError::VersionParse(format!(
-                "Version prefixes not supported: '{}'",
-                s
+                "Version prefixes not supported: '{s}'"
             )));
         }
 
         // Check for invalid characters or patterns
         if s.contains("..") || s.starts_with('.') || s.ends_with('.') {
             return Err(RezCoreError::VersionParse(format!(
-                "Invalid version syntax: '{}'",
-                s
+                "Invalid version syntax: '{s}'"
             )));
         }
 
@@ -76,8 +74,7 @@ impl Version {
 
         if tokens.is_empty() {
             return Err(RezCoreError::VersionParse(format!(
-                "Invalid version syntax: '{}'",
-                s
+                "Invalid version syntax: '{s}'"
             )));
         }
 
@@ -88,16 +85,14 @@ impl Version {
             .collect();
         if numeric_tokens.len() > 5 {
             return Err(RezCoreError::VersionParse(format!(
-                "Version too complex: '{}'",
-                s
+                "Version too complex: '{s}'"
             )));
         }
 
         // Check for too many tokens overall
         if tokens.len() > 10 {
             return Err(RezCoreError::VersionParse(format!(
-                "Version too complex: '{}'",
-                s
+                "Version too complex: '{s}'"
             )));
         }
 
@@ -107,23 +102,20 @@ impl Version {
         // Validate separators (should be empty at start/end, single char in middle)
         if !separators[0].is_empty() || !separators[separators.len() - 1].is_empty() {
             return Err(RezCoreError::VersionParse(format!(
-                "Invalid version syntax: '{}'",
-                s
+                "Invalid version syntax: '{s}'"
             )));
         }
 
         for sep in &separators[1..separators.len() - 1] {
             if sep.len() > 1 {
                 return Err(RezCoreError::VersionParse(format!(
-                    "Invalid version syntax: '{}'",
-                    s
+                    "Invalid version syntax: '{s}'"
                 )));
             }
             // Only allow specific separators
             if !matches!(*sep, "." | "-" | "_" | "+") {
                 return Err(RezCoreError::VersionParse(format!(
-                    "Invalid separator '{}' in version: '{}'",
-                    sep, s
+                    "Invalid separator '{sep}' in version: '{s}'"
                 )));
             }
         }
@@ -133,47 +125,44 @@ impl Version {
             // Check if token contains only valid characters
             if !token_str.chars().all(|c| c.is_alphanumeric() || c == '_') {
                 return Err(RezCoreError::VersionParse(format!(
-                    "Invalid characters in token: '{}'",
-                    token_str
+                    "Invalid characters in token: '{token_str}'"
                 )));
             }
 
             // Check for invalid patterns
             if token_str.starts_with('_') || token_str.ends_with('_') {
                 return Err(RezCoreError::VersionParse(format!(
-                    "Invalid token format: '{}'",
-                    token_str
+                    "Invalid token format: '{token_str}'"
                 )));
             }
 
             // Reject tokens that are purely alphabetic and don't look like version components
             if token_str.chars().all(|c| c.is_alphabetic()) && token_str.len() > 10 {
                 return Err(RezCoreError::VersionParse(format!(
-                    "Invalid version token: '{}'",
-                    token_str
+                    "Invalid version token: '{token_str}'"
                 )));
             }
 
             // Reject common invalid patterns
             if *token_str == "not" || *token_str == "version" {
                 return Err(RezCoreError::VersionParse(format!(
-                    "Invalid version token: '{}'",
-                    token_str
+                    "Invalid version token: '{token_str}'"
                 )));
             }
         }
 
         // Convert to owned strings
-        let token_strings: Vec<String> = tokens.into_iter().map(|s| s.to_string()).collect();
+        let token_strings: Vec<String> = tokens.into_iter().map(ToString::to_string).collect();
         let sep_strings: Vec<String> = separators[1..separators.len() - 1]
             .iter()
-            .map(|s| s.to_string())
+            .map(ToString::to_string)
             .collect();
 
         Ok((token_strings, sep_strings))
     }
 
     /// Create the infinite version (largest possible version)
+    #[must_use]
     pub fn inf() -> Self {
         Self {
             tokens: vec![],
@@ -184,21 +173,24 @@ impl Version {
     }
 
     /// Check if this is the infinite version
+    #[must_use]
     pub fn is_inf(&self) -> bool {
         self.string_repr == "inf"
     }
 
     /// Create an empty version (smallest possible version)
+    #[must_use]
     pub fn empty() -> Self {
         Self {
             tokens: vec![],
             separators: vec![],
-            string_repr: "".to_string(),
+            string_repr: String::new(),
             cached_hash: None,
         }
     }
 
     /// Create the epsilon version (alias for empty, smallest possible version)
+    #[must_use]
     pub fn epsilon() -> Self {
         Self::empty()
     }
@@ -451,6 +443,10 @@ impl Clone for Version {
 mod tests {
     use super::*;
 
+    fn ver(s: &str) -> Version {
+        Version::parse(s).unwrap()
+    }
+
     #[test]
     fn test_version_creation() {
         let version = Version::parse("1.2.3").unwrap();
@@ -547,6 +543,32 @@ mod tests {
         let copied = version.clone();
         assert_eq!(version.as_str(), copied.as_str());
         assert_eq!(version.tokens.len(), copied.tokens.len());
+    }
+
+    #[test]
+    fn test_version_ord_basic() {
+        let v1 = ver("1.0.0");
+        let v2 = ver("1.0.0");
+        assert!(v1 >= v2, "1.0.0 >= 1.0.0 should be true");
+        assert!(v1 <= v2, "1.0.0 <= 1.0.0 should be true");
+    }
+
+    #[test]
+    fn test_version_ord_greater() {
+        let v1 = ver("2.0.0");
+        let v2 = ver("1.0.0");
+        assert!(v1 > v2, "2.0.0 > 1.0.0 should be true");
+        assert!(v2 < v1, "1.0.0 < 2.0.0 should be true");
+    }
+
+    #[test]
+    fn test_range_contains_ge() {
+        // Test if VersionRange::contains() bug is fixed
+        let range = crate::VersionRange::parse(">=1.0.0").unwrap();
+        assert!(
+            range.contains(&ver("1.0.0")),
+            ">=1.0.0 should contain 1.0.0"
+        );
     }
 
     #[test]
@@ -660,5 +682,128 @@ mod tests {
         // Edge cases: empty/inf are not prerelease
         assert!(!Version::empty().is_prerelease());
         assert!(!Version::inf().is_prerelease());
+    }
+
+    // ─── Edge Case Tests (Cycle 190) ─────────────────────────────
+
+    #[test]
+    fn test_version_very_large_numbers() {
+        // Test parsing version with large numbers
+        let v1 = Version::parse("999999999.1").unwrap();
+        assert_eq!(v1.as_str(), "999999999.1");
+
+        let v2 = Version::parse("1.999999999").unwrap();
+        assert_eq!(v2.as_str(), "1.999999999");
+
+        // Compare large numbers
+        let v_small = Version::parse("1.0").unwrap();
+        assert!(v_small < v1);
+    }
+
+    #[test]
+    fn test_version_borderline_token_count() {
+        // 10 tokens should pass (boundary) - use non-numeric to avoid numeric token limit
+        let v10 = Version::parse("a.b.c.d.e.f.g.h.i.j").unwrap();
+        assert_eq!(v10.tokens.len(), 10);
+
+        // 11 tokens should fail
+        let v11_result = Version::parse("a.b.c.d.e.f.g.h.i.j.k");
+        assert!(v11_result.is_err(), "Version with 11 tokens should fail");
+    }
+
+    #[test]
+    fn test_version_borderline_numeric_token_count() {
+        // 5 numeric tokens should pass (boundary)
+        let v5 = Version::parse("1.2.3.4.5").unwrap();
+        assert_eq!(v5.as_str(), "1.2.3.4.5");
+
+        // 6 numeric tokens should fail
+        let v6_result = Version::parse("1.2.3.4.5.6");
+        assert!(
+            v6_result.is_err(),
+            "Version with 6 numeric tokens should fail"
+        );
+    }
+
+    #[test]
+    fn test_version_underscore_in_tokens() {
+        // Test underscores in tokens (valid per regex [a-zA-Z0-9_]+)
+        let v = Version::parse("1_0.2_0").unwrap();
+        assert_eq!(v.as_str(), "1_0.2_0");
+        assert_eq!(v.tokens.len(), 2);
+    }
+
+    #[test]
+    fn test_version_single_token() {
+        // Single token version
+        let v = Version::parse("123").unwrap();
+        assert_eq!(v.as_str(), "123");
+        assert_eq!(v.tokens.len(), 1);
+    }
+
+    #[test]
+    fn test_version_hash_consistency() {
+        // Same version string should produce same hash
+        let v1 = Version::parse("1.2.3").unwrap();
+        let v2 = Version::parse("1.2.3").unwrap();
+
+        let mut hasher1 = std::collections::hash_map::DefaultHasher::new();
+        let mut hasher2 = std::collections::hash_map::DefaultHasher::new();
+        v1.hash(&mut hasher1);
+        v2.hash(&mut hasher2);
+
+        assert_eq!(hasher1.finish(), hasher2.finish());
+    }
+
+    #[test]
+    fn test_version_equality_different_instances() {
+        // Different instances with same version string should be equal
+        let v1 = Version::parse("1.0").unwrap();
+        let v2 = Version::parse("1.0").unwrap();
+        assert_eq!(v1, v2);
+    }
+
+    #[test]
+    fn test_version_ordering_transitivity() {
+        // If a < b and b < c, then a < c
+        let a = Version::parse("1.0").unwrap();
+        let b = Version::parse("2.0").unwrap();
+        let c = Version::parse("3.0").unwrap();
+
+        assert!(a < b);
+        assert!(b < c);
+        assert!(a < c);
+    }
+
+    #[test]
+    fn test_version_invalid_prefix() {
+        // Versions starting with 'v' or 'V' should fail
+        assert!(Version::parse("v1.0").is_err());
+        assert!(Version::parse("V1.0").is_err());
+    }
+
+    #[test]
+    fn test_version_invalid_syntax() {
+        // Versions with ".." should fail
+        assert!(Version::parse("1..2").is_err());
+
+        // Versions starting/ending with '.' should fail
+        assert!(Version::parse(".1.2").is_err());
+        assert!(Version::parse("1.2.").is_err());
+    }
+
+    #[test]
+    fn test_version_no_tokens() {
+        // String with no valid tokens should fail
+        assert!(Version::parse("...").is_err());
+        assert!(Version::parse("---").is_err());
+    }
+
+    #[test]
+    fn test_version_alphanumeric_mixed() {
+        // Mixed alphanumeric tokens
+        let v = Version::parse("1a.2b.3c").unwrap();
+        assert_eq!(v.as_str(), "1a.2b.3c");
+        assert_eq!(v.tokens.len(), 3);
     }
 }

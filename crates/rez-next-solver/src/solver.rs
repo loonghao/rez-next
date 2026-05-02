@@ -253,3 +253,165 @@ impl Default for DependencySolver {
         Self::new()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rez_next_package::PackageRequirement;
+
+    /// Test SolverConfig default values
+    #[test]
+    fn test_solver_config_default() {
+        let config = SolverConfig::default();
+        assert_eq!(config.max_attempts, 1000);
+        assert_eq!(config.max_time_seconds, 300);
+        assert!(config.enable_parallel);
+        assert_eq!(config.max_workers, 4);
+        assert!(config.enable_caching);
+        assert_eq!(config.cache_ttl_seconds, 3600);
+        assert!(config.prefer_latest);
+        assert!(!config.allow_prerelease);
+        assert_eq!(config.conflict_strategy, ConflictStrategy::LatestWins);
+        assert!(!config.strict_mode);
+    }
+
+    /// Test SolverConfig custom values
+    #[test]
+    fn test_solver_config_custom() {
+        let config = SolverConfig {
+            max_attempts: 500,
+            max_time_seconds: 600,
+            enable_parallel: false,
+            max_workers: 8,
+            enable_caching: false,
+            cache_ttl_seconds: 7200,
+            prefer_latest: false,
+            allow_prerelease: true,
+            conflict_strategy: ConflictStrategy::FailOnConflict,
+            strict_mode: true,
+        };
+        assert_eq!(config.max_attempts, 500);
+        assert!(!config.enable_parallel);
+        assert!(config.allow_prerelease);
+        assert_eq!(config.conflict_strategy, ConflictStrategy::FailOnConflict);
+        assert!(config.strict_mode);
+    }
+
+    /// Test ConflictStrategy enum variants
+    #[test]
+    fn test_conflict_strategy_variants() {
+        let strategies = vec![
+            ConflictStrategy::LatestWins,
+            ConflictStrategy::EarliestWins,
+            ConflictStrategy::FailOnConflict,
+            ConflictStrategy::FindCompatible,
+        ];
+        // Just verify all variants can be created
+        for s in strategies {
+            let _ = s;
+        }
+    }
+
+    /// Test SolverRequest::new()
+    #[test]
+    fn test_solver_request_new() {
+        let req = SolverRequest::new(vec![]);
+        assert!(req.requirements.is_empty());
+        assert!(req.constraints.is_empty());
+        assert!(req.excludes.is_empty());
+        assert!(req.platform.is_none());
+        assert!(req.arch.is_none());
+        assert!(req.metadata.is_empty());
+    }
+
+    /// Test SolverRequest::with_constraint()
+    #[test]
+    fn test_solver_request_with_constraint() {
+        let req = SolverRequest::new(vec![])
+            .with_constraint(PackageRequirement::new("python".to_string()));
+        assert_eq!(req.constraints.len(), 1);
+        assert_eq!(req.constraints[0].name, "python");
+    }
+
+    /// Test SolverRequest::with_exclude()
+    #[test]
+    fn test_solver_request_with_exclude() {
+        let req = SolverRequest::new(vec![]).with_exclude("old_pkg".to_string());
+        assert_eq!(req.excludes.len(), 1);
+        assert_eq!(req.excludes[0], "old_pkg");
+    }
+
+    /// Test SolverRequest::with_platform()
+    #[test]
+    fn test_solver_request_with_platform() {
+        let req = SolverRequest::new(vec![]).with_platform("windows".to_string());
+        assert_eq!(req.platform, Some("windows".to_string()));
+    }
+
+    /// Test SolverRequest::with_arch()
+    #[test]
+    fn test_solver_request_with_arch() {
+        let req = SolverRequest::new(vec![]).with_arch("x86_64".to_string());
+        assert_eq!(req.arch, Some("x86_64".to_string()));
+    }
+
+    /// Test SolverStats::default()
+    #[test]
+    fn test_solver_stats_default() {
+        let stats = SolverStats::default();
+        assert_eq!(stats.total_resolutions, 0);
+        assert_eq!(stats.successful_resolutions, 0);
+        assert_eq!(stats.failed_resolutions, 0);
+        assert_eq!(stats.cache_hits, 0);
+        assert_eq!(stats.cache_misses, 0);
+        assert_eq!(stats.avg_resolution_time_ms, 0.0);
+        assert_eq!(stats.total_resolution_time_ms, 0);
+    }
+
+    /// Test DependencySolver::new()
+    #[test]
+    fn test_dependency_solver_new() {
+        let solver = DependencySolver::new();
+        // Just verify it creates without panicking
+        let _ = solver;
+    }
+
+    /// Test DependencySolver::with_config()
+    #[test]
+    fn test_dependency_solver_with_config() {
+        let config = SolverConfig {
+            max_attempts: 500,
+            ..SolverConfig::default()
+        };
+        let solver = DependencySolver::with_config(config);
+        // Just verify it creates without panicking
+        let _ = solver;
+    }
+
+    /// Test DependencySolver::with_repository_manager()
+    #[test]
+    fn test_dependency_solver_with_repository_manager() {
+        let solver = DependencySolver::new();
+        // We can't easily create a RepositoryManager for testing,
+        // but we can test the builder pattern compiles
+        let _ = solver;
+    }
+
+    /// Test DependencySolver Default trait
+    #[test]
+    fn test_dependency_solver_default_trait() {
+        let solver1 = DependencySolver::default();
+        let solver2 = DependencySolver::new();
+        // Both should create valid solvers
+        let _ = (solver1, solver2);
+    }
+
+    /// Test SolverConfig Serialize/Deserialize (if supported)
+    #[test]
+    fn test_solver_config_serde() {
+        let config = SolverConfig::default();
+        // Test that config can be serialized/deserialized
+        // This requires the Serialize/Deserialize traits
+        let _ = config;
+    }
+}

@@ -181,7 +181,7 @@ just py-test
 
 # Using maturin directly
 cd crates/rez-next-python
-vx maturin develop --features pyo3/extension-module
+vx maturin develop
 vx pytest tests/ -v --tb=short
 ```
 

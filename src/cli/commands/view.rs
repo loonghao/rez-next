@@ -186,7 +186,10 @@ fn load_package_from_repos(spec: &str) -> RezCoreResult<Package> {
             .unwrap_or(std::cmp::Ordering::Equal)
     });
 
-    Ok((*sorted.into_iter().next().unwrap()).clone())
+    let first_pkg = sorted.into_iter().next().ok_or_else(|| {
+        RezCoreError::PackageNotFound("No package matched the given specification".to_string())
+    })?;
+    Ok(first_pkg)
 }
 
 /// Display package information in the requested format

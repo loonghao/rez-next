@@ -15,6 +15,7 @@ crate-type = ["cdylib", "rlib"]
 [features]
 default = []
 extension-module = ["pyo3/extension-module"]
+git = ["rez-next-build/git"]
 
 [dependencies]
 rez-next-common = { version = "0.3.0", path = "../rez-next-common" }
@@ -33,6 +34,11 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 tokio = { workspace = true }
 tempfile = { workspace = true }
+
+[dev-dependencies]
+sha2 = "0.11"
+hex = "0.4"
+ctor = "0.2"
 
 [lints]
 workspace = true

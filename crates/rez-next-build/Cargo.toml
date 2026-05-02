@@ -18,6 +18,7 @@ serde.workspace = true
 serde_json.workspace = true
 tokio.workspace = true
 thiserror.workspace = true
+tracing = "0.1"
 
 uuid = { version = "1.17", features = ["v4", "serde"] }
 url = "2.5"
@@ -25,6 +26,15 @@ reqwest = { version = "0.13", features = ["stream"] }
 async-trait = "0.1"
 sha2 = "0.11"
 hex = "0.4"
+
+[features]
+git = ["dep:git2"]
+default = ["git"]
+
+[dependencies.git2]
+version = "0.19"
+optional = true
+features = ["vendored-libgit2"]
 
 [dev-dependencies]
 tempfile.workspace = true

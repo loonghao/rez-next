@@ -63,7 +63,8 @@ pub fn build_package(
         package: package.clone(),
         context: None,
         source_dir: source,
-        variant: None,
+        variant_index: None,
+        variant_requires: None,
         options,
         install_path: if install { dest } else { None },
     };
@@ -71,16 +72,28 @@ pub fn build_package(
     let rt = get_runtime();
 
     let mut build_manager = BuildManager::new();
-    let build_id = rt
+    // start_build() now returns Vec<String> (for variant builds)
+    let build_ids = rt
         .block_on(build_manager.start_build(request))
         .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
 
-    let result = rt
-        .block_on(build_manager.wait_for_build(&build_id))
-        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+    // Wait for all builds to complete, use the first result
+    let mut final_result = None;
+    for build_id in &build_ids {
+        let result = rt
+            .block_on(build_manager.wait_for_build(build_id))
+            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+        if final_result.is_none() {
+            final_result = Some(result);
+        }
+    }
+    let result = final_result.unwrap();
 
     if result.success {
-        Ok(format!("Build succeeded: {}", build_id))
+        Ok(format!(
+            "Build succeeded: {} builds completed",
+            build_ids.len()
+        ))
     } else {
         Err(pyo3::exceptions::PyRuntimeError::new_err(format!(
             "Build failed: {}",
@@ -127,6 +140,38 @@ pub fn get_build_system(source_dir: Option<&str>) -> PyResult<String> {
         return Ok("custom_script".to_string());
     }
     Ok("unknown".to_string())
+}
+
+/// Get all available build system types.
+/// Equivalent to `rez.build_.get_buildsys_types()`
+#[pyfunction]
+pub fn get_buildsys_types() -> PyResult<Vec<String>> {
+    use rez_next_build::get_buildsys_types;
+    let types = get_buildsys_types();
+    Ok(types.iter().map(|&s| s.to_string()).collect())
+}
+
+/// Get all available build process types (local, central).
+/// Equivalent to `rez.build_.get_build_process_types()`
+#[pyfunction]
+pub fn get_build_process_types() -> PyResult<Vec<String>> {
+    use rez_next_build::get_build_process_types;
+    let types = get_build_process_types();
+    Ok(types.iter().map(|&s| s.to_string()).collect())
+}
+
+/// Create a build system by type name.
+/// Equivalent to `rez.build_.create_build_system()`
+#[pyfunction(signature = (system_type))]
+pub fn create_build_system(system_type: &str) -> PyResult<String> {
+    use rez_next_build::create_build_system;
+    match create_build_system(system_type) {
+        Some(_bs) => Ok(format!("BuildSystem({})", system_type)),
+        None => Err(pyo3::exceptions::PyValueError::new_err(format!(
+            "Unknown build system type: '{}'",
+            system_type
+        ))),
+    }
 }
 
 #[cfg(test)]

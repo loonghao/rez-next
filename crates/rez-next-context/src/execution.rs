@@ -408,3 +408,189 @@ impl ContextExecutionBuilder {
         ContextExecutor::with_config(self.context, self.config)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{ResolvedContext, ShellType};
+    use std::path::PathBuf;
+
+    // Helper to create a test resolved context
+    fn make_test_context() -> ResolvedContext {
+        let reqs = vec![];
+        ResolvedContext::from_requirements(reqs)
+    }
+
+    #[test]
+    fn test_execution_config_default() {
+        let config = ExecutionConfig::default();
+
+        assert_eq!(config.timeout_seconds, 300);
+        assert!(config.inherit_parent_env);
+        assert!(config.capture_output);
+        assert!(config.working_directory.is_none());
+        assert_eq!(config.additional_env_vars.len(), 0);
+    }
+
+    #[test]
+    fn test_execution_config_custom() {
+        let config = ExecutionConfig {
+            shell_type: ShellType::detect(),
+            working_directory: Some(PathBuf::from("/tmp")),
+            inherit_parent_env: true,
+            additional_env_vars: {
+                let mut m = std::collections::HashMap::new();
+                m.insert("CUSTOM".to_string(), "value".to_string());
+                m
+            },
+            timeout_seconds: 600,
+            capture_output: false,
+        };
+
+        assert_eq!(config.timeout_seconds, 600);
+        assert!(!config.capture_output);
+        assert!(config.working_directory.is_some());
+        assert_eq!(config.additional_env_vars.len(), 1);
+        assert!(config.inherit_parent_env);
+    }
+
+    #[test]
+    fn test_command_result_is_success() {
+        let result = CommandResult {
+            stdout: "hello\n".to_string(),
+            stderr: String::new(),
+            exit_code: 0,
+            execution_time_ms: 100,
+        };
+
+        assert!(result.is_success());
+    }
+
+    #[test]
+    fn test_command_result_is_failure() {
+        let result = CommandResult {
+            stdout: String::new(),
+            stderr: String::new(),
+            exit_code: 1,
+            execution_time_ms: 50,
+        };
+
+        assert!(!result.is_success());
+    }
+
+    #[test]
+    fn test_command_result_combined_output_stdout() {
+        let result = CommandResult {
+            stdout: "hello".to_string(),
+            stderr: String::new(),
+            exit_code: 0,
+            execution_time_ms: 100,
+        };
+
+        assert_eq!(result.combined_output(), "hello");
+    }
+
+    #[test]
+    fn test_command_result_combined_output_stderr() {
+        let result = CommandResult {
+            stdout: String::new(),
+            stderr: "error".to_string(),
+            exit_code: 1,
+            execution_time_ms: 50,
+        };
+
+        assert_eq!(result.combined_output(), "error");
+    }
+
+    #[test]
+    fn test_command_result_combined_output_both() {
+        let result = CommandResult {
+            stdout: "output".to_string(),
+            stderr: "error".to_string(),
+            exit_code: 1,
+            execution_time_ms: 50,
+        };
+
+        assert_eq!(result.combined_output(), "output\nerror");
+    }
+
+    #[test]
+    fn test_execution_stats_creation() {
+        let stats = ExecutionStats {
+            context_id: "ctx123".to_string(),
+            package_count: 5,
+            env_var_count: 10,
+            tool_count: 3,
+            shell_type: ShellType::Bash,
+            working_directory: Some(PathBuf::from("/work")),
+        };
+
+        assert_eq!(stats.context_id, "ctx123");
+        assert_eq!(stats.package_count, 5);
+        assert_eq!(stats.env_var_count, 10);
+    }
+
+    #[test]
+    fn test_context_executor_new() {
+        let ctx = make_test_context();
+        let executor = ContextExecutor::new(ctx);
+
+        // Just verify it creates successfully
+        let _ = executor;
+    }
+
+    #[test]
+    fn test_context_execution_builder_new() {
+        let ctx = make_test_context();
+        let builder = ContextExecutionBuilder::new(ctx);
+
+        // Just verify it creates successfully
+        let _ = builder;
+    }
+
+    #[test]
+    fn test_context_execution_builder_with_shell() {
+        let ctx = make_test_context();
+        let executor = ContextExecutionBuilder::new(ctx)
+            .with_shell(ShellType::PowerShell)
+            .build();
+
+        // Just verify it creates successfully
+        let _ = executor;
+    }
+
+    #[test]
+    fn test_context_execution_builder_with_timeout() {
+        let ctx = make_test_context();
+        let executor = ContextExecutionBuilder::new(ctx).with_timeout(600).build();
+
+        // Just verify it creates successfully
+        let _ = executor;
+    }
+
+    #[test]
+    fn test_context_execution_builder_with_env_var() {
+        let ctx = make_test_context();
+        let executor = ContextExecutionBuilder::new(ctx)
+            .with_env_var("CUSTOM".to_string(), "value".to_string())
+            .build();
+
+        // Just verify it creates successfully
+        let _ = executor;
+    }
+
+    #[test]
+    fn test_context_execution_builder_fluent_api() {
+        let ctx = make_test_context();
+        let executor = ContextExecutionBuilder::new(ctx)
+            .with_shell(ShellType::Bash)
+            .with_working_directory(PathBuf::from("/tmp"))
+            .with_timeout(120)
+            .with_env_var("VAR1".to_string(), "val1".to_string())
+            .with_capture_output(false)
+            .build();
+
+        // Just verify it creates successfully
+        let _ = executor;
+    }
+}

@@ -4,6 +4,10 @@ mod parser;
 mod satisfiability;
 mod types;
 
+#[cfg(test)]
+#[path = "tests.rs"]
+mod tests;
+
 use super::Version;
 use rez_next_common::RezCoreError;
 use serde::{Deserialize, Serialize};
@@ -13,7 +17,7 @@ use parser::parse_range_str;
 use satisfiability::{bound_sets_intersect, is_bound_set_satisfiable};
 use types::Bound;
 
-/// Version range representation - a disjunction of BoundSets (union of intersections)
+/// `VersionRange` representation - a disjunction of `BoundSet`s (union of intersections)
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct VersionRange {
     /// Cached string representation
@@ -31,8 +35,9 @@ pub struct VersionRange {
 
 impl VersionRange {
     /// Create a new version range from a string
-    pub fn new(range_str: String) -> Result<Self, RezCoreError> {
-        Self::parse(&range_str)
+    #[allow(clippy::missing_errors_doc)]
+    pub fn new(range_str: &str) -> Result<Self, RezCoreError> {
+        Self::parse(range_str)
     }
 
     /// Create a version range that matches any version (equivalent to `""` or `"*"`)

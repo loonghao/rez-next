@@ -11,6 +11,7 @@ pub(crate) mod shell_utils;
 
 // ── Domain-specific binding modules ──────────────────────────────────────────
 mod bind_bindings;
+mod build_bindings;
 mod completion_bindings;
 mod config_bindings;
 mod context_bindings;
@@ -43,6 +44,7 @@ mod rex_functions;
 mod selftest_functions;
 
 use bind_bindings::{PyBindManager, PyBindResult};
+use build_functions::{build_package, create_build_system, get_build_process_types, get_build_system, get_buildsys_types};
 use config_bindings::PyConfig;
 use context_bindings::PyResolvedContext;
 use data_bindings::PyRezData;
@@ -62,7 +64,6 @@ use system_bindings::PySystem;
 use version_bindings::{PyVersion, PyVersionRange};
 
 // Re-export top-level functions for use in submodule registration below
-use build_functions::{build_package, get_build_system};
 use bundle_functions::{bundle_context, list_bundles, unbundle_context};
 use cli_functions::{cli_main, cli_run};
 use package_functions::{
@@ -139,6 +140,7 @@ fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(selftest, m)?)?;
     m.add_function(wrap_pyfunction!(selftest_verbose, m)?)?;
     m.add_function(wrap_pyfunction!(build_package, m)?)?;
+    m.add_function(wrap_pyfunction!(build_functions::get_buildsys_types, m)?)?;
     m.add_function(wrap_pyfunction!(bundle_context, m)?)?;
     m.add_function(wrap_pyfunction!(pip_bindings::pip_install, m)?)?;
     m.add_function(wrap_pyfunction!(plugins_bindings::get_plugin_manager, m)?)?;
@@ -157,7 +159,7 @@ fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(search_bindings::search_packages, m)?)?;
     m.add_function(wrap_pyfunction!(search_bindings::search_package_names, m)?)?;
     m.add_function(wrap_pyfunction!(
-        completion_bindings::get_completion_script,
+        completion_bindings::get_completion_script_py,
         m
     )?)?;
     m.add_function(wrap_pyfunction!(diff_bindings::diff_contexts, m)?)?;
@@ -257,8 +259,17 @@ fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
     // ── Submodule: rez.build_ ─────────────────────────────────────────────────
     let build_mod = PyModule::new(m.py(), "build_")?;
+    // Functions
     build_mod.add_function(wrap_pyfunction!(build_package, &build_mod)?)?;
     build_mod.add_function(wrap_pyfunction!(get_build_system, &build_mod)?)?;
+    build_mod.add_function(wrap_pyfunction!(get_buildsys_types, &build_mod)?)?;
+    build_mod.add_function(wrap_pyfunction!(get_build_process_types, &build_mod)?)?;
+    build_mod.add_function(wrap_pyfunction!(create_build_system, &build_mod)?)?;
+    // Classes
+    build_mod.add_class::<build_bindings::PyBuildType>()?;
+    build_mod.add_class::<build_bindings::PyBuildSystem>()?;
+    build_mod.add_function(wrap_pyfunction!(build_bindings::get_build_type_local, &build_mod)?)?;
+    build_mod.add_function(wrap_pyfunction!(build_bindings::get_build_type_central, &build_mod)?)?;
     register_submodule(m, "build_", &build_mod)?;
 
     // ── Submodule: rez.rex ────────────────────────────────────────────────────
@@ -470,11 +481,7 @@ fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // ── Submodule: rez.complete ───────────────────────────────────────────────
     let complete_mod = PyModule::new(m.py(), "complete")?;
     complete_mod.add_function(wrap_pyfunction!(
-        completion_bindings::get_completion_script,
-        &complete_mod
-    )?)?;
-    complete_mod.add_function(wrap_pyfunction!(
-        completion_bindings::print_completion_script,
+        completion_bindings::get_completion_script_py,
         &complete_mod
     )?)?;
     complete_mod.add_function(wrap_pyfunction!(
