@@ -430,7 +430,9 @@ fn execute_build(
             final_result = Some(build_result);
         }
     }
-    let build_result = final_result.unwrap();
+    let build_result = final_result.ok_or_else(|| {
+        RezCoreError::BuildError("No build occurred - no package specifications provided".to_string())
+    })?;
 
     if !build_result.success {
         return Err(RezCoreError::BuildError(format!(
