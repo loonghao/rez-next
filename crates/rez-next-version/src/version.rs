@@ -1,10 +1,14 @@
 //! Version implementation
 
+use once_cell::sync::Lazy;
 use regex::Regex;
 use rez_next_common::RezCoreError;
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::hash::{Hash, Hasher};
+
+/// Pre-compiled regex for token extraction (compiled once, reused across all parse calls)
+static TOKEN_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"[a-zA-Z0-9_]+").unwrap());
 
 /// High-performance version representation compatible with rez
 #[derive(Debug)]
@@ -26,6 +30,12 @@ impl Serialize for Version {
     {
         // Serialize as string representation for simplicity
         self.string_repr.serialize(serializer)
+    }
+}
+
+impl std::fmt::Display for Version {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.as_str())
     }
 }
 
@@ -68,9 +78,8 @@ impl Version {
             )));
         }
 
-        // Use regex to find tokens (alphanumeric + underscore)
-        let token_regex = Regex::new(r"[a-zA-Z0-9_]+").unwrap();
-        let tokens: Vec<&str> = token_regex.find_iter(s).map(|m| m.as_str()).collect();
+        // Use pre-compiled regex to find tokens (alphanumeric + underscore)
+        let tokens: Vec<&str> = TOKEN_REGEX.find_iter(s).map(|m| m.as_str()).collect();
 
         if tokens.is_empty() {
             return Err(RezCoreError::VersionParse(format!(
@@ -97,7 +106,7 @@ impl Version {
         }
 
         // Extract separators
-        let separators: Vec<&str> = token_regex.split(s).collect();
+        let separators: Vec<&str> = TOKEN_REGEX.split(s).collect();
 
         // Validate separators (should be empty at start/end, single char in middle)
         if !separators[0].is_empty() || !separators[separators.len() - 1].is_empty() {
@@ -388,6 +397,11 @@ impl Version {
     }
 
     /// Compare token arrays using rez-compatible rules.
+    /// In rez, trailing zeros are implicit: 1.0 == 1.0.0 == 1.0.0.0
+    /// Rez epoch semantics: shorter version = higher epoch
+    /// - If extra tokens are all zeros → equal (trailing zeros implicit)
+    /// - If extra tokens start with non-zero numeric → shorter is greater (higher epoch)
+    /// - If extra tokens start with alpha → shorter is LESS (pre-release, so longer is greater)
     fn compare_token_strings(tokens1: &[String], tokens2: &[String]) -> Ordering {
         for (t1, t2) in tokens1.iter().zip(tokens2.iter()) {
             let cmp = Self::compare_single_token(t1, t2);
@@ -396,9 +410,19 @@ impl Version {
             }
         }
 
-        // If all compared tokens are equal, shorter version is considered greater.
-        // This follows rez semantics where "2" > "2.alpha1".
-        tokens2.len().cmp(&tokens1.len())
+        // If all compared tokens are equal, check extra tokens
+        // Rez semantics: SHORTER is greater (implicit Z+ is greater than any digit)
+        // - 1.0 > 1.0.0 (shorter with implicit Z+ is greater)
+        // - 1.0 > 1.0.alpha (release > pre-release)
+        if tokens1.len() < tokens2.len() {
+            // tokens1 is SHORTER → tokens1 is GREATER
+            Ordering::Greater
+        } else if tokens2.len() < tokens1.len() {
+            // tokens2 is SHORTER → tokens1 is LESS
+            Ordering::Less
+        } else {
+            Ordering::Equal
+        }
     }
 }
 

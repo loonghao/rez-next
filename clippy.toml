@@ -22,9 +22,14 @@ pass-by-value-size-limit = 256
 # Minimum supported Rust version
 msrv = "1.70.0"
 
-# Allow some lints that are not critical during development
-# These can be addressed in future iterations
+# Allow some lints in tests (tests can use unwrap/print for simplicity)
 allow-unwrap-in-tests = true
 allow-expect-in-tests = true
 allow-panic-in-tests = true
 allow-print-in-tests = true
+
+# Note: To deny unwrap_used in production code, add to each crate's lib.rs or main.rs:
+#   #![deny(clippy::unwrap_used)]
+# For print statements in production code, use:
+#   #![warn(clippy::print_stdout)]
+# These are not clippy.toml fields but code attributes.

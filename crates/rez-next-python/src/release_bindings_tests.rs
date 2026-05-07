@@ -728,15 +728,6 @@ mod release_tests {
         assert_eq!(r, meta.__str__(), "VCSMetadata __repr__ must equal __str__");
     }
 
-    #[test]
-    #[ignore = "pyo3 0.28: to_dict() needs Python interpreter (extension-module mode)"]
-    fn test_py_vcs_metadata_to_dict() {
-        // FIXME: to_dict() requires a Python interpreter.
-        // In pyo3 0.28 with `extension-module` feature, Python is not
-        // automatically initialized for Rust tests.
-        // This test is ignored until pyo3 test macro is properly configured.
-    }
-
     // ========================================================================
     // PyReleaseManager tests (no Python init needed)
     // ========================================================================

@@ -60,8 +60,13 @@ mod tests {
 
     #[test]
     fn test_rez_shorter_is_greater() {
-        // In rez, "1.0" > "1.0.0" (epoch semantics: fewer tokens = higher precedence)
+        // In rez, trailing zeros are implicit: 1.0 == 1.0.0 == 1.0.0.0
+        // BUT: shorter version (implicit Z+) is GREATER than longer version with numeric suffix
         assert!(v("1.0") > v("1.0.0"));
+        assert!(v("2.0") > v("2.0.0"));
+        // Shorter is greater when longer version has alpha suffix (pre-release)
+        assert!(v("1.0") > v("1.0.alpha"));
+        assert!(v("1.0") > v("1.0.beta1"));
     }
 
     #[test]

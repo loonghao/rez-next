@@ -13,7 +13,6 @@ categories.workspace = true
 rez-next-common = { version = "0.3.0", path = "../rez-next-common" }
 rez-next-version = { version = "0.3.0", path = "../rez-next-version" }
 rez-next-package = { version = "0.3.0", path = "../rez-next-package" }
-rez-next-solver = { version = "0.3.0", path = "../rez-next-solver" }
 rez-next-rex = { version = "0.3.0", path = "../rez-next-rex" }
 serde.workspace = true
 serde_json.workspace = true
@@ -22,7 +21,6 @@ thiserror.workspace = true
 uuid = { version = "1.17", features = ["v4", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }
 regex = "1.11"
-shellexpand = "3.1"
 serde_yaml = "0.9"
 base64 = "0.22"
 whoami = "2.0"

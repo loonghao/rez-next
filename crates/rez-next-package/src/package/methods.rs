@@ -46,6 +46,7 @@ impl Package {
             plugin_for: Vec::new(),
             hashed_variants: None,
             preprocess: None,
+            is_dev_package: None,
         }
     }
 
@@ -192,5 +193,323 @@ impl Package {
         }
 
         Ok(())
+    }
+
+    /// Serialize the package to package.py format string.
+    /// Compatible with rez package.py format.
+    pub fn to_package_py(&self) -> String {
+        let mut lines = Vec::new();
+
+        // name (required)
+        lines.push(format!("name = \"{}\"", self.name));
+
+        // version (optional)
+        if let Some(ref version) = self.version {
+            lines.push(format!("version = \"{}\"", version.as_str()));
+        }
+
+        // description (optional)
+        if let Some(ref desc) = self.description {
+            // Escape quotes in description
+            let desc_escaped = desc.replace("\"", "\\\"");
+            lines.push(format!("description = \"{}\"", desc_escaped));
+        }
+
+        // authors (optional)
+        if !self.authors.is_empty() {
+            let authors_str = self
+                .authors
+                .iter()
+                .map(|a| format!("\"{}\"", a.replace("\"", "\\\"")))
+                .collect::<Vec<_>>()
+                .join(", ");
+            lines.push(format!("authors = [{}]", authors_str));
+        }
+
+        // requires (optional)
+        if !self.requires.is_empty() {
+            let req_str = self
+                .requires
+                .iter()
+                .map(|r| format!("    \"{}\"", r))
+                .collect::<Vec<_>>()
+                .join(",\n");
+            lines.push(format!("requires = [\n{}\n]", req_str));
+        }
+
+        // build_requires (optional)
+        if !self.build_requires.is_empty() {
+            let req_str = self
+                .build_requires
+                .iter()
+                .map(|r| format!("    \"{}\"", r))
+                .collect::<Vec<_>>()
+                .join(",\n");
+            lines.push(format!("build_requires = [\n{}\n]", req_str));
+        }
+
+        // private_build_requires (optional)
+        if !self.private_build_requires.is_empty() {
+            let req_str = self
+                .private_build_requires
+                .iter()
+                .map(|r| format!("    \"{}\"", r))
+                .collect::<Vec<_>>()
+                .join(",\n");
+            lines.push(format!("private_build_requires = [\n{}\n]", req_str));
+        }
+
+        // variants (optional)
+        if !self.variants.is_empty() {
+            let mut variant_lines = Vec::new();
+            for variant in &self.variants {
+                let var_str = variant
+                    .iter()
+                    .map(|r| format!("\"{}\"", r))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                variant_lines.push(format!("    [{}]", var_str));
+            }
+            lines.push(format!("variants = [\n{}\n]", variant_lines.join(",\n")));
+        }
+
+        // tools (optional)
+        if !self.tools.is_empty() {
+            let tools_str = self
+                .tools
+                .iter()
+                .map(|t| format!("\"{}\"", t))
+                .collect::<Vec<_>>()
+                .join(", ");
+            lines.push(format!("tools = [{}]", tools_str));
+        }
+
+        // uuid (optional)
+        if let Some(ref uuid) = self.uuid {
+            lines.push(format!("uuid = \"{}\"", uuid));
+        }
+
+        // relocatable (optional)
+        if let Some(ref relocatable) = self.relocatable {
+            lines.push(format!("relocatable = {}", relocatable));
+        }
+
+        // cachable (optional)
+        if let Some(ref cachable) = self.cachable {
+            lines.push(format!("cachable = {}", cachable));
+        }
+
+        // commands function (optional)
+        if let Some(ref commands) = self.commands {
+            lines.push("\ndef commands():".to_string());
+            // Add commands function body with proper indentation
+            for line in commands.lines() {
+                if line.trim().is_empty() {
+                    lines.push("".to_string());
+                } else {
+                    lines.push(format!("    {}", line));
+                }
+            }
+        }
+
+        // pre_commands (optional)
+        if let Some(ref pre_commands) = self.pre_commands {
+            lines.push("\ndef pre_commands():".to_string());
+            for line in pre_commands.lines() {
+                if line.trim().is_empty() {
+                    lines.push("".to_string());
+                } else {
+                    lines.push(format!("    {}", line));
+                }
+            }
+        }
+
+        // post_commands (optional)
+        if let Some(ref post_commands) = self.post_commands {
+            lines.push("\ndef post_commands():".to_string());
+            for line in post_commands.lines() {
+                if line.trim().is_empty() {
+                    lines.push("".to_string());
+                } else {
+                    lines.push(format!("    {}", line));
+                }
+            }
+        }
+
+        // tests (optional) - simplified serialization
+        if !self.tests.is_empty() {
+            lines.push("\ntests = {".to_string());
+            for test_name in self.tests.keys() {
+                // Simplified: just add a comment, full serialization is complex
+                lines.push(format!("    \"{}\": {{", test_name));
+                lines.push("        # test definition".to_string());
+                lines.push("    },".to_string());
+            }
+            lines.push("}".to_string());
+        }
+
+        lines.join("\n")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rez_next_version::Version;
+
+    #[test]
+    fn test_to_package_py_basic() {
+        let pkg = Package::new("test_pkg".to_string());
+        let result = pkg.to_package_py();
+        assert!(result.contains("name = \"test_pkg\""));
+        assert!(!result.contains("version = "));
+    }
+
+    #[test]
+    fn test_to_package_py_with_version() {
+        let mut pkg = Package::new("test_pkg".to_string());
+        pkg.version = Some(Version::parse("1.0.0").unwrap());
+        let result = pkg.to_package_py();
+        assert!(result.contains("name = \"test_pkg\""));
+        assert!(result.contains("version = \"1.0.0\""));
+    }
+
+    #[test]
+    fn test_to_package_py_with_description() {
+        let mut pkg = Package::new("test_pkg".to_string());
+        pkg.description = Some("A test package".to_string());
+        let result = pkg.to_package_py();
+        assert!(result.contains("description = \"A test package\""));
+    }
+
+    #[test]
+    fn test_to_package_py_with_authors() {
+        let mut pkg = Package::new("test_pkg".to_string());
+        pkg.authors = vec!["Author One".to_string(), "Author Two".to_string()];
+        let result = pkg.to_package_py();
+        assert!(result.contains("authors = ["));
+        assert!(result.contains("\"Author One\""));
+        assert!(result.contains("\"Author Two\""));
+    }
+
+    #[test]
+    fn test_to_package_py_with_requires() {
+        let mut pkg = Package::new("test_pkg".to_string());
+        pkg.requires = vec!["python-3.9".to_string(), "maya-2024".to_string()];
+        let result = pkg.to_package_py();
+        assert!(result.contains("requires = ["));
+        assert!(result.contains("\"python-3.9\""));
+        assert!(result.contains("\"maya-2024\""));
+    }
+
+    #[test]
+    fn test_to_package_py_with_variants() {
+        let mut pkg = Package::new("test_pkg".to_string());
+        pkg.variants = vec![
+            vec!["python-3.9".to_string()],
+            vec!["python-3.10".to_string()],
+        ];
+        let result = pkg.to_package_py();
+        assert!(result.contains("variants = ["));
+        assert!(result.contains("[\"python-3.9\"]"));
+        assert!(result.contains("[\"python-3.10\"]"));
+    }
+
+    #[test]
+    fn test_to_package_py_with_tools() {
+        let mut pkg = Package::new("test_pkg".to_string());
+        pkg.tools = vec!["mytool".to_string(), "another_tool".to_string()];
+        let result = pkg.to_package_py();
+        assert!(result.contains("tools = ["));
+        assert!(result.contains("\"mytool\""));
+        assert!(result.contains("\"another_tool\""));
+    }
+
+    #[test]
+    fn test_to_package_py_with_commands() {
+        let mut pkg = Package::new("test_pkg".to_string());
+        pkg.commands = Some("    env.PATH.prepend(\"{root}/bin\")\n".to_string());
+        let result = pkg.to_package_py();
+        assert!(result.contains("def commands():"));
+        assert!(result.contains("env.PATH.prepend"));
+    }
+
+    #[test]
+    fn test_to_package_py_with_uuid() {
+        let mut pkg = Package::new("test_pkg".to_string());
+        pkg.uuid = Some("12345678-1234-1234-1234-123456789012".to_string());
+        let result = pkg.to_package_py();
+        assert!(result.contains("uuid = \"12345678-1234-1234-1234-123456789012\""));
+    }
+
+    #[test]
+    fn test_to_package_py_with_relocatable() {
+        let mut pkg = Package::new("test_pkg".to_string());
+        pkg.relocatable = Some(true);
+        let result = pkg.to_package_py();
+        assert!(result.contains("relocatable = true"));
+    }
+
+    #[test]
+    fn test_to_package_py_with_cachable() {
+        let mut pkg = Package::new("test_pkg".to_string());
+        pkg.cachable = Some(false);
+        let result = pkg.to_package_py();
+        assert!(result.contains("cachable = false"));
+    }
+
+    #[test]
+    fn test_to_package_py_complete() {
+        let mut pkg = Package::new("complete_pkg".to_string());
+        pkg.version = Some(Version::parse("2.1.0").unwrap());
+        pkg.description = Some("A complete test package".to_string());
+        pkg.authors = vec!["Test Author".to_string()];
+        pkg.requires = vec!["python-3.9".to_string()];
+        pkg.build_requires = vec!["cmake-3.20".to_string()];
+        pkg.variants = vec![vec!["python-3.9".to_string()], vec!["python-3.10".to_string()]];
+        pkg.tools = vec!["mytool".to_string()];
+        pkg.commands = Some("    env.PATH.prepend(\"{root}/bin\")\n".to_string());
+        pkg.uuid = Some("12345678-1234-1234-1234-123456789012".to_string());
+        pkg.relocatable = Some(true);
+        pkg.cachable = Some(true);
+
+        let result = pkg.to_package_py();
+
+        // Verify all fields are present
+        assert!(result.contains("name = \"complete_pkg\""));
+        assert!(result.contains("version = \"2.1.0\""));
+        assert!(result.contains("description = \"A complete test package\""));
+        assert!(result.contains("authors = ["));
+        assert!(result.contains("requires = ["));
+        assert!(result.contains("build_requires = ["));
+        assert!(result.contains("variants = ["));
+        assert!(result.contains("tools = ["));
+        assert!(result.contains("def commands():"));
+        assert!(result.contains("uuid = "));
+        assert!(result.contains("relocatable = true"));
+        assert!(result.contains("cachable = true"));
+    }
+
+    #[test]
+    fn test_to_package_py_output_format_valid() {
+        let mut pkg = Package::new("format_test".to_string());
+        pkg.version = Some(Version::parse("1.0.0").unwrap());
+        pkg.requires = vec!["python-3.9".to_string()];
+        pkg.commands = Some("    env.PATH.prepend(\"{root}/bin\")\n".to_string());
+
+        let result = pkg.to_package_py();
+
+        // Verify output can be parsed as valid Python (basic check)
+        assert!(result.starts_with("name = "));
+        assert!(result.contains("def commands():"));
+        assert!(result.contains("    env.PATH.prepend"));
+    }
+
+    #[test]
+    fn test_to_package_py_escapes_description() {
+        let mut pkg = Package::new("escape_test".to_string());
+        pkg.description = Some("Description with \"quotes\"".to_string());
+        let result = pkg.to_package_py();
+        assert!(result.contains("Description with \\\"quotes\\\""));
     }
 }

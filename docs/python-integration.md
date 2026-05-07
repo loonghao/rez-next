@@ -44,8 +44,8 @@ rez_next/
 | `rez_next.system` | `rez.system` | System info (platform, Python version, etc.) | ✅ Stable |
 | `rez_next.shell` | `rez.shells` | Shell script generation (bash/zsh/fish/PowerShell/cmd) | ✅ Stable |
 | `rez_next.rex` | `rez.rex` | Rex command-language interpreter | ✅ Stable |
-| `rez_next.build_` | `rez.build_` | Package build system integration | ⚠️ Partial |
-| `rez_next.release` | `rez.release` | Package release workflow | ⚠️ Partial |
+| `rez_next.build_` | `rez.build_` | Package build system integration | ✅ Stable |
+| `rez_next.release` | `rez.release` | Package release workflow | ✅ Stable |
 | `rez_next.bind` | `rez.bind` | Bind system tools as rez packages | ✅ Stable |
 | `rez_next.pip` | `rez.pip` | Convert pip packages to rez packages | ✅ Stable |
 | `rez_next.plugins` | `rez.plugins` | Plugin management | ✅ Stable |

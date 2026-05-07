@@ -320,7 +320,12 @@ just bench           # 基准测试
 运行全量测试：
 
 ```bash
-cargo test --exclude rez-next-python --workspace
+# 仅运行 Rust 测试
+cargo test --workspace
+
+# 运行 Rust + Python 绑定测试（需要先运行 maturin develop --release）
+maturin develop --release
+pytest
 ```
 
 各类测试覆盖：

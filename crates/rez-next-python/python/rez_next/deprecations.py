@@ -14,7 +14,7 @@ class RezDeprecationWarning(DeprecationWarning):
 
 def warn(
     message: str,
-    category: type = DeprecationWarning,
+    category: type = RezDeprecationWarning,
     pre_formatted: bool = False,
     stacklevel: int = 1,
     filename: str | None = None,
@@ -36,22 +36,21 @@ def warn(
         return
 
     original_formatwarning = warnings.formatwarning
-    if pre_formatted:
 
-        def formatwarning(  # type: ignore
-            message: str,
-            category: type,
-            filename: str,
-            lineno: int,
-            line: str | None = None,
-        ) -> str:
-            return "{0}{1}: {2}\n".format(
-                "{0}: ".format(filename) if filename else "",
-                category.__name__,
-                message,
-            )
+    def formatwarning(  # type: ignore
+        msg: str,
+        category: type,
+        filename: str,
+        lineno: int,
+        line: str | None = None,
+    ) -> str:
+        return "{0}{1}: {2}\n".format(
+            "{0}: ".format(filename) if filename else "",
+            category.__name__,
+            msg,
+        )
 
-        warnings.formatwarning = formatwarning
+    warnings.formatwarning = formatwarning
 
     warnings.warn(message, category=category, stacklevel=stacklevel + 1, **kwargs)
     warnings.formatwarning = original_formatwarning

@@ -96,6 +96,13 @@ pub struct ConflictResolution {
     pub modified_packages: Vec<String>,
 }
 
+/// DFS color for cycle detection
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Color {
+    Gray,    // In progress (in recursion stack)
+    Black,   // Completely processed
+}
+
 /// High-performance dependency graph
 #[derive(Debug, Clone)]
 pub struct DependencyGraph {
@@ -412,6 +419,119 @@ impl DependencyGraph {
         }
     }
 
+    /// Compute accessibility matrix (transitive closure).
+    ///
+    /// For each node in the graph, find all nodes reachable from that node
+    /// by following dependency edges. Returns a mapping from each node key
+    /// to a list of accessible node keys.
+    ///
+    /// # Returns
+    /// A `HashMap` where each key is a node key and the value is a list of
+    /// node keys accessible from that node (including the node itself).
+    ///
+    /// # Example
+    /// ```
+    /// use rez_next_solver::DependencyGraph;
+    /// use rez_next_package::Package;
+    /// use rez_next_version::Version;
+    ///
+    /// let mut graph = DependencyGraph::new();
+    /// // Add packages and dependencies...
+    /// let accessibility = graph.accessibility();
+    /// ```
+    pub fn accessibility(&self) -> HashMap<String, Vec<String>> {
+        let mut result: HashMap<String, Vec<String>> = HashMap::new();
+
+        for node_key in self.nodes.keys() {
+            let mut accessible = HashSet::new();
+            self.dfs_reachable(node_key, &mut accessible);
+            // Include the node itself
+            accessible.insert(node_key.clone());
+            // Convert to sorted vec for deterministic output
+            let mut accessible_vec: Vec<String> = accessible.into_iter().collect();
+            accessible_vec.sort();
+            result.insert(node_key.clone(), accessible_vec);
+        }
+
+        result
+    }
+
+    /// DFS helper to find all nodes reachable from a given node.
+    fn dfs_reachable(&self, node_key: &str, visited: &mut HashSet<String>) {
+        if let Some(node) = self.nodes.get(node_key) {
+            for dep_key in &node.dependencies {
+                if visited.insert(dep_key.clone()) {
+                    self.dfs_reachable(dep_key, visited);
+                }
+            }
+        }
+    }
+
+    /// Find a cycle in the dependency graph.
+    ///
+    /// Uses DFS with three-color marking (white/gray/black) to detect
+    /// if there is a cycle in the dependency graph.
+    ///
+    /// # Returns
+    /// - `Some(Vec<String>)` containing the nodes in the cycle (in order)
+    /// - `None` if no cycle exists
+    pub fn find_cycle(&self) -> Option<Vec<String>> {
+        let mut color: HashMap<String, Color> = HashMap::new();
+        let mut parent: HashMap<String, String> = HashMap::new();
+
+        for node_key in self.nodes.keys() {
+            if !color.contains_key(node_key) {
+                if let Some(cycle) = self.dfs_find_cycle(node_key, &mut color, &mut parent) {
+                    return Some(cycle);
+                }
+            }
+        }
+
+        None
+    }
+
+    /// DFS helper to find cycle using three-color algorithm.
+    /// Returns the cycle path if found.
+    fn dfs_find_cycle(
+        &self,
+        node_key: &str,
+        color: &mut HashMap<String, Color>,
+        parent: &mut HashMap<String, String>,
+    ) -> Option<Vec<String>> {
+        color.insert(node_key.to_string(), Color::Gray);
+
+        if let Some(node) = self.nodes.get(node_key) {
+            for dep_key in &node.dependencies {
+                let dep_color = color.get(dep_key).copied();
+                if dep_color == Some(Color::Gray) {
+                    // Found a back edge - cycle detected
+                    // Reconstruct the cycle: dep_key -> ... -> node_key
+                    let mut cycle = vec![];
+                    let mut current = node_key.to_string();
+                    loop {
+                        cycle.push(current.clone());
+                        if current == *dep_key {
+                            break;
+                        }
+                        current = parent.get(&current).cloned().unwrap();
+                    }
+                    cycle.reverse();
+                    return Some(cycle);
+                } else if dep_color.is_none() {
+                    // Unvisited, recurse
+                    parent.insert(dep_key.clone(), node_key.to_string());
+                    if let Some(cycle) = self.dfs_find_cycle(dep_key, color, parent) {
+                        return Some(cycle);
+                    }
+                }
+                // else: Some(Color::Black) - skip (already processed)
+            }
+        }
+
+        color.insert(node_key.to_string(), Color::Black);
+        None
+    }
+
     /// Calculate the depth of a node in the graph
     fn calculate_node_depth(&self, node_key: &str) -> usize {
         let mut visited = HashSet::new();
@@ -717,5 +837,211 @@ mod graph_tests {
 
         node.remove_dependent("parent_a");
         assert_eq!(node.dependents.len(), 0);
+    }
+
+    /// Test accessibility - empty graph
+    #[test]
+    fn test_accessibility_empty_graph() {
+        let g = DependencyGraph::new();
+        let accessibility = g.accessibility();
+        assert!(accessibility.is_empty());
+    }
+
+    /// Test accessibility - single node with no dependencies
+    #[test]
+    fn test_accessibility_single_node_no_deps() {
+        let mut g = DependencyGraph::new();
+        g.add_package(make_pkg("A", "1.0.0")).unwrap();
+
+        let accessibility = g.accessibility();
+        assert_eq!(accessibility.len(), 1);
+        assert_eq!(accessibility.get("A-1.0.0").unwrap(), &vec!["A-1.0.0"]);
+    }
+
+    /// Test accessibility - linear chain: A -> B -> C
+    #[test]
+    fn test_accessibility_linear_chain() {
+        let mut g = DependencyGraph::new();
+        g.add_package(make_pkg("A", "1.0.0")).unwrap();
+        g.add_package(make_pkg("B", "1.0.0")).unwrap();
+        g.add_package(make_pkg("C", "1.0.0")).unwrap();
+
+        // Add dependency edges: A -> B -> C
+        g.add_dependency_edge("A-1.0.0", "B-1.0.0").unwrap();
+        g.add_dependency_edge("B-1.0.0", "C-1.0.0").unwrap();
+
+        let accessibility = g.accessibility();
+
+        // A can reach A, B, C
+        let a_accessible = accessibility.get("A-1.0.0").unwrap();
+        assert!(a_accessible.contains(&"A-1.0.0".to_string()));
+        assert!(a_accessible.contains(&"B-1.0.0".to_string()));
+        assert!(a_accessible.contains(&"C-1.0.0".to_string()));
+        assert_eq!(a_accessible.len(), 3);
+
+        // B can reach B, C
+        let b_accessible = accessibility.get("B-1.0.0").unwrap();
+        assert!(b_accessible.contains(&"B-1.0.0".to_string()));
+        assert!(b_accessible.contains(&"C-1.0.0".to_string()));
+        assert_eq!(b_accessible.len(), 2);
+
+        // C can reach only C
+        let c_accessible = accessibility.get("C-1.0.0").unwrap();
+        assert_eq!(c_accessible, &vec!["C-1.0.0"]);
+    }
+
+    /// Test accessibility - DAG with multiple paths
+    #[test]
+    fn test_accessibility_dag_multiple_paths() {
+        let mut g = DependencyGraph::new();
+        g.add_package(make_pkg("A", "1.0.0")).unwrap();
+        g.add_package(make_pkg("B", "1.0.0")).unwrap();
+        g.add_package(make_pkg("C", "1.0.0")).unwrap();
+        g.add_package(make_pkg("D", "1.0.0")).unwrap();
+
+        // A -> B -> D
+        // A -> C -> D
+        g.add_dependency_edge("A-1.0.0", "B-1.0.0").unwrap();
+        g.add_dependency_edge("A-1.0.0", "C-1.0.0").unwrap();
+        g.add_dependency_edge("B-1.0.0", "D-1.0.0").unwrap();
+        g.add_dependency_edge("C-1.0.0", "D-1.0.0").unwrap();
+
+        let accessibility = g.accessibility();
+
+        // A can reach A, B, C, D
+        let a_accessible = accessibility.get("A-1.0.0").unwrap();
+        assert_eq!(a_accessible.len(), 4);
+        assert!(a_accessible.contains(&"A-1.0.0".to_string()));
+        assert!(a_accessible.contains(&"B-1.0.0".to_string()));
+        assert!(a_accessible.contains(&"C-1.0.0".to_string()));
+        assert!(a_accessible.contains(&"D-1.0.0".to_string()));
+
+        // D can reach only D
+        let d_accessible = accessibility.get("D-1.0.0").unwrap();
+        assert_eq!(d_accessible, &vec!["D-1.0.0"]);
+    }
+
+    /// Test accessibility - graph with cycle (should not infinite loop)
+    #[test]
+    fn test_accessibility_with_cycle() {
+        let mut g = DependencyGraph::new();
+        g.add_package(make_pkg("A", "1.0.0")).unwrap();
+        g.add_package(make_pkg("B", "1.0.0")).unwrap();
+        g.add_package(make_pkg("C", "1.0.0")).unwrap();
+
+        // Create a cycle: A -> B -> C -> A
+        g.add_dependency_edge("A-1.0.0", "B-1.0.0").unwrap();
+        g.add_dependency_edge("B-1.0.0", "C-1.0.0").unwrap();
+        g.add_dependency_edge("C-1.0.0", "A-1.0.0").unwrap();
+
+        let accessibility = g.accessibility();
+
+        // All nodes can reach all nodes (including themselves)
+        for node_key in &["A-1.0.0", "B-1.0.0", "C-1.0.0"] {
+            let accessible = accessibility.get(*node_key).unwrap();
+            assert_eq!(accessible.len(), 3, "Node {} should reach all 3 nodes", node_key);
+        }
+    }
+
+    /// Test accessibility - disconnected graph
+    #[test]
+    fn test_accessibility_disconnected() {
+        let mut g = DependencyGraph::new();
+        g.add_package(make_pkg("A", "1.0.0")).unwrap();
+        g.add_package(make_pkg("B", "1.0.0")).unwrap();
+        g.add_package(make_pkg("C", "1.0.0")).unwrap();
+        // No edges - all nodes disconnected
+
+        let accessibility = g.accessibility();
+
+        // Each node can only reach itself
+        for node_key in &["A-1.0.0", "B-1.0.0", "C-1.0.0"] {
+            let accessible = accessibility.get(*node_key).unwrap();
+            assert_eq!(accessible.len(), 1, "Node {} should only reach itself", node_key);
+            assert!(accessible.contains(&node_key.to_string()));
+        }
+    }
+
+    /// Test find_cycle returns None for graph without cycles (DAG)
+    #[test]
+    fn test_find_cycle_none_for_dag() {
+        let mut g = DependencyGraph::new();
+        g.add_package(make_pkg("A", "1.0.0")).unwrap();
+        g.add_package(make_pkg("B", "1.0.0")).unwrap();
+        g.add_package(make_pkg("C", "1.0.0")).unwrap();
+
+        // A -> B -> C (linear chain, no cycle)
+        g.add_dependency_edge("A-1.0.0", "B-1.0.0").unwrap();
+        g.add_dependency_edge("B-1.0.0", "C-1.0.0").unwrap();
+
+        assert!(g.find_cycle().is_none(), "DAG should have no cycles");
+    }
+
+    /// Test find_cycle detects a simple two-node cycle
+    #[test]
+    fn test_find_cycle_detects_simple_cycle() {
+        let mut g = DependencyGraph::new();
+        g.add_package(make_pkg("A", "1.0.0")).unwrap();
+        g.add_package(make_pkg("B", "1.0.0")).unwrap();
+
+        // A -> B -> A (cycle)
+        g.add_dependency_edge("A-1.0.0", "B-1.0.0").unwrap();
+        g.add_dependency_edge("B-1.0.0", "A-1.0.0").unwrap();
+
+        let cycle = g.find_cycle();
+        assert!(cycle.is_some(), "Should detect cycle A -> B -> A");
+    }
+
+    /// Test find_cycle detects three-node cycle
+    #[test]
+    fn test_find_cycle_detects_three_node_cycle() {
+        let mut g = DependencyGraph::new();
+        g.add_package(make_pkg("A", "1.0.0")).unwrap();
+        g.add_package(make_pkg("B", "1.0.0")).unwrap();
+        g.add_package(make_pkg("C", "1.0.0")).unwrap();
+
+        // A -> B -> C -> A (cycle)
+        g.add_dependency_edge("A-1.0.0", "B-1.0.0").unwrap();
+        g.add_dependency_edge("B-1.0.0", "C-1.0.0").unwrap();
+        g.add_dependency_edge("C-1.0.0", "A-1.0.0").unwrap();
+
+        let cycle = g.find_cycle();
+        assert!(cycle.is_some(), "Should detect cycle A -> B -> C -> A");
+        let cycle_nodes = cycle.unwrap();
+        assert_eq!(cycle_nodes.len(), 3);
+    }
+
+    /// Test find_cycle returns None for empty graph
+    #[test]
+    fn test_find_cycle_empty_graph() {
+        let g = DependencyGraph::new();
+        assert!(g.find_cycle().is_none(), "Empty graph has no cycles");
+    }
+
+    /// Test find_cycle returns None for single node
+    #[test]
+    fn test_find_cycle_single_node_no_cycle() {
+        let mut g = DependencyGraph::new();
+        g.add_package(make_pkg("A", "1.0.0")).unwrap();
+        assert!(g.find_cycle().is_none(), "Single node has no cycle");
+    }
+
+    /// Test find_cycle detects cycle in graph with multiple components
+    #[test]
+    fn test_find_cycle_multiple_components() {
+        let mut g = DependencyGraph::new();
+        // Component 1: A -> B -> A (has cycle)
+        g.add_package(make_pkg("A", "1.0.0")).unwrap();
+        g.add_package(make_pkg("B", "1.0.0")).unwrap();
+        g.add_dependency_edge("A-1.0.0", "B-1.0.0").unwrap();
+        g.add_dependency_edge("B-1.0.0", "A-1.0.0").unwrap();
+
+        // Component 2: C -> D (no cycle)
+        g.add_package(make_pkg("C", "1.0.0")).unwrap();
+        g.add_package(make_pkg("D", "1.0.0")).unwrap();
+        g.add_dependency_edge("C-1.0.0", "D-1.0.0").unwrap();
+
+        let cycle = g.find_cycle();
+        assert!(cycle.is_some(), "Should detect cycle in component 1");
     }
 }

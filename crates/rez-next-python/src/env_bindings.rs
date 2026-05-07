@@ -322,7 +322,7 @@ pub struct PyPackageFamily {
 #[pymethods]
 impl PyPackageFamily {
     #[new]
-    fn new(name: String) -> Self {
+    pub fn new(name: String) -> Self {
         PyPackageFamily {
             name,
             packages: Vec::new(),
@@ -370,7 +370,7 @@ impl PyPackageFamily {
     }
 
     /// Add a package version to this family
-    fn add_package(&mut self, pkg: PyPackage) {
+    pub fn add_package(&mut self, pkg: PyPackage) {
         self.packages.push(pkg);
     }
 

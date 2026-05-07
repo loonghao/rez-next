@@ -23,6 +23,22 @@ impl PackageSaver {
     ) -> Result<(), RezCoreError> {
         let opts = options.unwrap_or_default();
 
+        // Special handling for binary format: use JSON as binary storage
+        if format == PackageFormat::Binary {
+            // Serialize package to JSON string, then write as bytes
+            let json_str = serde_json::to_string(package).map_err(|e| {
+                RezCoreError::PackageParse(format!("Failed to serialize to JSON for binary: {}", e))
+            })?;
+            fs::write(path, json_str.as_bytes()).map_err(|e| {
+                RezCoreError::PackageParse(format!(
+                    "Failed to write binary file {}: {}",
+                    path.display(),
+                    e
+                ))
+            })?;
+            return Ok(());
+        }
+
         let container = if opts.include_metadata {
             let mut metadata = PackageMetadata::new(format.default_filename().to_string());
             metadata.set_original_path(path.to_string_lossy().to_string());

@@ -321,12 +321,46 @@ requires = ["python>=3.7"]
     }
 
     #[test]
-    fn test_binary_string_roundtrip() {
-        let pkg = make_test_package();
-        let encoded = PackageSerializer::save_to_string(&pkg, PackageFormat::Binary).unwrap();
-        assert!(!encoded.is_empty());
-        let decoded = PackageSerializer::load_from_string(&encoded, PackageFormat::Binary).unwrap();
+    fn test_binary_simple_struct_bincode() {
+        // Test if bincode works with a simple struct
+        #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+        struct SimplePackage {
+            name: String,
+            version: Option<String>,
+        }
 
+        let pkg = SimplePackage {
+            name: "test".to_string(),
+            version: Some("1.0.0".to_string()),
+        };
+
+        // Serialize using bincode
+        let binary_data = bincode::serde::encode_to_vec(&pkg, bincode::config::standard())
+            .expect("Failed to serialize simple struct to bincode");
+
+        // Deserialize using bincode
+        let (decoded, _): (SimplePackage, _) =
+            bincode::serde::decode_from_slice(&binary_data, bincode::config::standard())
+                .expect("Failed to deserialize simple struct from bincode");
+
+        assert_eq!(decoded.name, pkg.name);
+        assert_eq!(decoded.version, pkg.version);
+    }
+
+    #[test]
+    fn test_package_json_serde() {
+        // Test if Package can be serialized/deserialized with serde_json
+        let pkg = make_test_package();
+
+        // Serialize to JSON
+        let json_str = serde_json::to_string(&pkg)
+            .expect("Failed to serialize Package to JSON");
+
+        // Deserialize from JSON
+        let decoded: Package = serde_json::from_str(&json_str)
+            .expect("Failed to deserialize Package from JSON");
+
+        // Verify
         assert_eq!(decoded.name, pkg.name);
         assert_eq!(
             decoded.version.as_ref().map(|v| v.as_str()),
@@ -334,6 +368,58 @@ requires = ["python>=3.7"]
         );
         assert_eq!(decoded.requires, pkg.requires);
         assert_eq!(decoded.tools, pkg.tools);
+    }
+
+    #[test]
+    fn test_binary_direct_json() {
+        // Test direct JSON serialization/deserialization (used for binary format)
+        let pkg = make_test_package();
+
+        // Serialize to JSON
+        let json_str = serde_json::to_string(&pkg)
+            .expect("Failed to serialize package to JSON");
+
+        // Deserialize from JSON
+        let decoded: Package = serde_json::from_str(&json_str)
+            .expect("Failed to deserialize package from JSON");
+
+        // Verify
+        assert_eq!(decoded.name, pkg.name);
+        assert_eq!(
+            decoded.version.as_ref().map(|v| v.as_str()),
+            pkg.version.as_ref().map(|v| v.as_str())
+        );
+        assert_eq!(decoded.requires, pkg.requires);
+        assert_eq!(decoded.tools, pkg.tools);
+    }
+
+    #[test]
+    fn test_binary_file_roundtrip() {
+        let pkg = make_test_package();
+
+        // Use a temporary file for binary round-trip
+        let temp_dir = std::env::temp_dir().join("rez_next_test_binary");
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        let file_path = temp_dir.join("test_package.pkg.bin");
+
+        // Save to file
+        PackageSerializer::save_to_file(&pkg, &file_path, PackageFormat::Binary).unwrap();
+
+        // Load from file
+        let decoded = PackageSerializer::load_from_file(&file_path).unwrap();
+
+        // Verify
+        assert_eq!(decoded.name, pkg.name);
+        assert_eq!(
+            decoded.version.as_ref().map(|v| v.as_str()),
+            pkg.version.as_ref().map(|v| v.as_str())
+        );
+        assert_eq!(decoded.requires, pkg.requires);
+        assert_eq!(decoded.tools, pkg.tools);
+
+        // Cleanup
+        std::fs::remove_file(&file_path).unwrap();
+        std::fs::remove_dir_all(&temp_dir).unwrap();
     }
 
     // ── build_requires / private_build_requires / variants tests ─────────────

@@ -523,3 +523,189 @@ mod test_solver_cy126 {
         );
     }
 }
+
+mod test_conflict_severity {
+    use super::*;
+
+    #[test]
+    fn test_conflict_severity_minor() {
+        let sev = PyConflictSeverity { inner: ConflictSeverity::Minor };
+        assert_eq!(sev.name(), "Minor");
+        assert!(sev.__repr__().contains("Minor"));
+    }
+
+    #[test]
+    fn test_conflict_severity_major() {
+        let sev = PyConflictSeverity { inner: ConflictSeverity::Major };
+        assert_eq!(sev.name(), "Major");
+    }
+
+    #[test]
+    fn test_conflict_severity_incompatible() {
+        let sev = PyConflictSeverity { inner: ConflictSeverity::Incompatible };
+        assert_eq!(sev.name(), "Incompatible");
+    }
+
+    #[test]
+    fn test_conflict_severity_repr() {
+        let sev = PyConflictSeverity { inner: ConflictSeverity::Major };
+        let repr = sev.__repr__();
+        assert!(repr.contains("ConflictSeverity"));
+        assert!(repr.contains("Major"));
+    }
+
+    #[test]
+    fn test_conflict_severity_equality() {
+        let a = PyConflictSeverity { inner: ConflictSeverity::Minor };
+        let b = PyConflictSeverity { inner: ConflictSeverity::Minor };
+        let c = PyConflictSeverity { inner: ConflictSeverity::Major };
+        // Note: __eq__ needs Python GIL, so we just test name() for now
+        assert_eq!(a.name(), b.name());
+        assert_ne!(a.name(), c.name());
+    }
+}
+
+mod test_dependency_conflict {
+    use super::*;
+
+    #[test]
+    fn test_dependency_conflict_new() {
+        let conflict = PyDependencyConflict::new(
+            "python".to_string(),
+            None,
+            None,
+            "Major",
+        ).unwrap();
+        assert_eq!(conflict.package_name(), "python");
+    }
+
+    #[test]
+    fn test_dependency_conflict_with_source_packages() {
+        let conflict = PyDependencyConflict::new(
+            "maya".to_string(),
+            None,
+            Some(vec!["pkg_a".to_string(), "pkg_b".to_string()]),
+            "Minor",
+        ).unwrap();
+        assert_eq!(conflict.package_name(), "maya");
+        assert_eq!(conflict.source_packages().len(), 2);
+    }
+
+    #[test]
+    fn test_dependency_conflict_repr() {
+        let conflict = PyDependencyConflict::new(
+            "python".to_string(),
+            None,
+            Some(vec!["src1".to_string()]),
+            "Major",
+        ).unwrap();
+        let repr = conflict.__repr__();
+        assert!(repr.contains("python"));
+        assert!(repr.contains("src1"));
+    }
+
+    #[test]
+    fn test_dependency_conflict_severity() {
+        let conflict = PyDependencyConflict::new(
+            "test".to_string(),
+            None,
+            None,
+            "Incompatible",
+        ).unwrap();
+        let sev = conflict.severity();
+        assert_eq!(sev.name(), "Incompatible");
+    }
+}
+
+mod test_conflict_resolution {
+    use super::*;
+
+    #[test]
+    fn test_conflict_resolution_new() {
+        let resolution = PyConflictResolution::new(
+            "python".to_string(),
+            None,
+            None,
+            None,
+        ).unwrap();
+        assert_eq!(resolution.package_name(), "python");
+        assert_eq!(resolution.strategy(), "");
+    }
+
+    #[test]
+    fn test_conflict_resolution_with_version() {
+        let resolution = PyConflictResolution::new(
+            "python".to_string(),
+            Some("3.9".to_string()),
+            Some("latest_wins".to_string()),
+            Some(vec!["pkg_a".to_string()]),
+        ).unwrap();
+        assert_eq!(resolution.package_name(), "python");
+        assert!(resolution.selected_version().is_some());
+        assert_eq!(resolution.strategy(), "latest_wins");
+        assert_eq!(resolution.modified_packages().len(), 1);
+    }
+
+    #[test]
+    fn test_conflict_resolution_repr() {
+        let resolution = PyConflictResolution::new(
+            "maya".to_string(),
+            Some("2024".to_string()),
+            Some("earliest_wins".to_string()),
+            None,
+        ).unwrap();
+        let repr = resolution.__repr__();
+        assert!(repr.contains("maya"));
+        assert!(repr.contains("2024"));
+    }
+
+    #[test]
+    fn test_conflict_resolution_empty_modified_packages() {
+        let resolution = PyConflictResolution::new(
+            "test".to_string(),
+            None,
+            Some("find_compatible".to_string()),
+            None,
+        ).unwrap();
+        assert!(resolution.modified_packages().is_empty());
+    }
+}
+
+mod test_failure_reason {
+    use super::*;
+
+    #[test]
+    fn test_failure_reason_new() {
+        let reason = PyFailureReason::new("Package not found");
+        assert_eq!(reason.description(), "Package not found");
+        assert!(reason.involved_requirements().is_empty());
+    }
+
+    #[test]
+    fn test_failure_reason_description() {
+        let reason = PyFailureReason::new("Version conflict");
+        assert_eq!(reason.description(), "Version conflict");
+    }
+
+    #[test]
+    fn test_failure_reason_involved_requirements_empty() {
+        let reason = PyFailureReason::new("test");
+        let reqs = reason.involved_requirements();
+        assert!(reqs.is_empty());
+    }
+
+    #[test]
+    fn test_failure_reason_repr() {
+        let reason = PyFailureReason::new("test failure");
+        let repr = reason.__repr__();
+        assert!(repr.contains("FailureReason"));
+        assert!(repr.contains("test failure"));
+    }
+
+    #[test]
+    fn test_failure_reason_clone() {
+        let reason = PyFailureReason::new("clone test");
+        let cloned = reason.clone();
+        assert_eq!(reason.description(), cloned.description());
+    }
+}

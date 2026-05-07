@@ -187,9 +187,9 @@ fn load_package_from_repos(spec: &str) -> RezCoreResult<Package> {
     });
 
     let first_pkg = sorted.into_iter().next().ok_or_else(|| {
-        RezCoreError::PackageNotFound("No package matched the given specification".to_string())
+        RezCoreError::Repository("No package matched the given specification".to_string())
     })?;
-    Ok(first_pkg)
+    Ok((*first_pkg).clone())
 }
 
 /// Display package information in the requested format

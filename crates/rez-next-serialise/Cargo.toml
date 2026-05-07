@@ -1,0 +1,22 @@
+[package]
+name = "rez-next-serialise"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Package serialisation for rez-next"
+
+[dependencies]
+# Workspace dependencies
+serde.workspace = true
+serde_json.workspace = true
+serde_yaml.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+
+# External dependencies
+indexmap = "2.7"
+toml = "0.8"
+
+[dev-dependencies]
+criterion.workspace = true

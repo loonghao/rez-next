@@ -373,6 +373,7 @@ fn bind_single_package(
         hashed_variants: None,
         vcs: None,
         preprocess: None,
+        is_dev_package: None,
     };
 
     let pkg_dir = install_path.join(name).join(&version_str);

@@ -12,7 +12,13 @@ members = [
     "crates/rez-next-suites",
     "crates/rez-next-bind",
     "crates/rez-next-search",
+    "crates/rez-next-package-cache",
+    "crates/rez-next-package-filter",
+    "crates/rez-next-release-hook",
+    "crates/rez-next-serialise",
+    "crates/rez-next-explicit",
     "crates/rez-next-python",
+    "crates/rez-next-util", "crates/rez-next-config",
 ]
 exclude = [
     "examples/rez-lsp-integration",
@@ -210,3 +216,7 @@ panic = "abort"
 inherits = "release"
 debug = true
 lto = false
+
+# [profile.test]
+# stack-size is managed per-test via RUST_MIN_STACK=8388608 environment variable
+# The "stack-size" key in Cargo.toml is not recognized in this Cargo version
