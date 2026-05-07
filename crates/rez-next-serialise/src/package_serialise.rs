@@ -124,6 +124,47 @@ pub fn dump_package_data<T: Serialize>(
     Ok(())
 }
 
+/// Deserialise package data from a file.
+///
+/// # Arguments
+///
+/// * `path` - The file path to read from
+/// * `format` - The file format to use
+///
+/// # Returns
+///
+/// The deserialised data.
+///
+/// # Errors
+///
+/// Returns `PackageSerialiseError` if deserialisation or file reading fails.
+pub fn read_package_data<T: serde::de::DeserialiseOwned>(path: &Path, format: FileFormat) -> Result<T> {
+    let content = std::fs::read_to_string(path)?;
+
+    let deserialised: T = match format {
+        FileFormat::Yaml | FileFormat::YamlCompressed => {
+            serde_yaml::from_str(&content)
+                .map_err(|e| PackageSerialiseError::Serialisation(e.to_string()))?
+        }
+        FileFormat::Json | FileFormat::JsonCompressed => {
+            serde_json::from_str(&content)
+                .map_err(|e| PackageSerialiseError::Serialisation(e.to_string()))?
+        }
+        FileFormat::Python => {
+            // Python format: execute the Python file and get the dict
+            // For now, treat it as YAML (package.py is YAML-like)
+            serde_yaml::from_str(&content)
+                .map_err(|e| PackageSerialiseError::Serialisation(e.to_string()))?
+        }
+        FileFormat::Toml => {
+            toml::from_str(&content)
+                .map_err(|e| PackageSerialiseError::Serialisation(e.to_string()))?
+        }
+    };
+
+    Ok(deserialised)
+}
+
 /// Serialise data to a YAML string.
 ///
 /// # Arguments
