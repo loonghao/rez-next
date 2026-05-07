@@ -47,6 +47,40 @@ fn py_dump_package_data(
     Ok(())
 }
 
+/// Read package data from a file.
+///
+/// Args:
+///     path: File path to read from
+///     format: File format string ("yaml", "json", "python", "toml")
+///
+/// Returns:
+///     Package data (dict)
+#[pyfunction]
+#[pyo3(signature = (path, format))]
+fn py_read_package_data(
+    py: Python<'_>,
+    path: String,
+    format: String,
+) -> PyResult<Bound<'_, PyAny>> {
+    let file_format = parse_format(&format)
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(e.to_string()))?;
+
+    let path_obj = std::path::Path::new(&path);
+
+    let json_value: serde_json::Value = read_package_data(path_obj, file_format)
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyIOError, _>(e.to_string()))?;
+
+    // Convert JSON value to Python object
+    let json_str = serde_json::to_string(&json_value)
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(e.to_string()))?;
+
+    let json_module = PyModule::import(py, "json")?;
+    let loads_fn = json_module.getattr("loads")?;
+    let py_obj = loads_fn.call1((json_str,))?;
+
+    Ok(py_obj)
+}
+
 /// Dump data to a YAML string.
 ///
 /// Args:
@@ -102,11 +136,12 @@ fn py_package_key_order() -> Vec<&'static str> {
     package_key_order()
 }
 
-/// Register the `serialise_` submodule.
+/    // Register the `serialise_` submodule.
 pub fn register_serialise_module(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     let m = PyModule::new(parent.py(), "serialise_")?;
 
     m.add_function(wrap_pyfunction!(py_dump_package_data, &m)?)?;
+    m.add_function(wrap_pyfunction!(py_read_package_data, &m)?)?;
     m.add_function(wrap_pyfunction!(py_dump_yaml, &m)?)?;
     m.add_function(wrap_pyfunction!(py_as_block_string, &m)?)?;
     m.add_function(wrap_pyfunction!(py_dict_to_attributes_code, &m)?)?;
