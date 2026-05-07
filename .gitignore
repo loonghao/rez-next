@@ -117,3 +117,16 @@ simple_lsp_test.ps1
 *.log
 final_clippy.txt
 
+# Cleanup cycle reports (local only)
+CLEANUP_CYCLE_*_REPORT.md
+CLEANUP_BOUNDARY_TESTS.md
+
+# CodeBuddy automation memories (local only)
+.codebuddy/automations/
+
+# Additional cleanup and temp files
+CLEANUP_TODO.md
+CLEANUP_REPORT.md
+PYO3_REGISTRATION_ISSUE.md
+
+

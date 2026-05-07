@@ -1,0 +1,17 @@
+[package]
+name = "rez-next-util"
+version = "0.1.0"
+edition = "2021"
+description = "Utility functions for rez-next"
+authors = ["rez-next contributors"]
+license = "Apache-2.0"
+
+[dependencies]
+rez-next-common = { path = "../rez-next-common" }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+chrono = "0.4"
+dirs = "5.0"
+
+[dev-dependencies]
+tempfile = "3.0"

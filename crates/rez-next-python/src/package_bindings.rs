@@ -1,8 +1,10 @@
-//! Python bindings for Package and PackageRequirement
+//! Python bindings for Package, PackageRequirement, and PackageFormat
 
 use crate::version_bindings::PyVersion;
 use pyo3::prelude::*;
+use pyo3::types::PyDict;
 use rez_next_package::{Package, PackageRequirement};
+use rez_next_package::serialization::PackageFormat;
 
 /// Python-accessible Package class, compatible with rez.packages.Package
 #[pyclass(name = "Package", from_py_object)]
@@ -146,6 +148,18 @@ impl PyPackage {
         self.0.relocatable
     }
 
+    /// Whether this is a developer package (loaded from a working directory)
+    #[getter]
+    fn is_dev_package(&self) -> Option<bool> {
+        self.0.is_dev_package
+    }
+
+    /// Set whether this is a developer package
+    #[setter]
+    fn set_is_dev_package(&mut self, value: Option<bool>) {
+        self.0.is_dev_package = value;
+    }
+
     /// Set the version string (rez compat helper)
     fn set_version(&mut self, version_str: &str) -> PyResult<()> {
         use rez_next_version::Version;
@@ -166,6 +180,171 @@ impl PyPackage {
             .map_err(|e| pyo3::exceptions::PyIOError::new_err(e.to_string()))
     }
 
+    /// Create a Package from a Python dictionary.
+    /// Equivalent to `rez.packages.create_package(data)`.
+    ///
+    /// The dict must contain at least a "name" key.
+    /// Optional keys: version, description, authors, requires,
+    /// build_requires, variants, tools, commands, uuid, timestamp, etc.
+    #[staticmethod]
+    pub fn from_dict(_py: Python<'_>, data: Bound<'_, PyDict>) -> PyResult<PyPackage> {
+        use rez_next_package::Package;
+        use rez_next_version::Version;
+
+        // Extract required field: name
+        let name = match data.get_item("name")? {
+            Some(val) => val.extract::<String>()
+                .map_err(|e| pyo3::exceptions::PyValueError::new_err(
+                    format!("Invalid 'name' field: {}", e)
+                ))?,
+            None => {
+                return Err(pyo3::exceptions::PyValueError::new_err(
+                    "Package dict must contain 'name' field"
+                ))
+            }
+        };
+
+        let mut pkg = Package::new(name);
+
+        // Extract optional fields
+        if let Some(val) = data.get_item("version")? {
+            let version_str: String = val.extract()
+                .map_err(|e| pyo3::exceptions::PyValueError::new_err(
+                    format!("Invalid 'version' field: {}", e)
+                ))?;
+            pkg.version = Some(
+                Version::parse(&version_str)
+                    .map_err(|e| pyo3::exceptions::PyValueError::new_err(
+                        format!("Failed to parse version '{}': {}", version_str, e)
+                    ))?
+            );
+        }
+
+        if let Some(val) = data.get_item("description")? {
+            pkg.description = Some(val.extract()?);
+        }
+
+        if let Some(val) = data.get_item("authors")? {
+            pkg.authors = val.extract()?;
+        }
+
+        if let Some(val) = data.get_item("requires")? {
+            pkg.requires = val.extract()?;
+        }
+
+        if let Some(val) = data.get_item("build_requires")? {
+            pkg.build_requires = val.extract()?;
+        }
+
+        if let Some(val) = data.get_item("private_build_requires")? {
+            pkg.private_build_requires = val.extract()?;
+        }
+
+        if let Some(val) = data.get_item("variants")? {
+            pkg.variants = val.extract()?;
+        }
+
+        if let Some(val) = data.get_item("tools")? {
+            pkg.tools = val.extract()?;
+        }
+
+        if let Some(val) = data.get_item("commands")? {
+            pkg.commands = Some(val.extract()?);
+        }
+
+        if let Some(val) = data.get_item("uuid")? {
+            pkg.uuid = Some(val.extract()?);
+        }
+
+        if let Some(val) = data.get_item("timestamp")? {
+            pkg.timestamp = Some(val.extract()?);
+        }
+
+        if let Some(val) = data.get_item("cachable")? {
+            pkg.cachable = Some(val.extract()?);
+        }
+
+        if let Some(val) = data.get_item("relocatable")? {
+            pkg.relocatable = Some(val.extract()?);
+        }
+
+        if let Some(val) = data.get_item("format_version")? {
+            pkg.format_version = Some(val.extract()?);
+        }
+
+        if let Some(val) = data.get_item("vcs")? {
+            pkg.vcs = Some(val.extract()?);
+        }
+
+        if let Some(val) = data.get_item("changelog")? {
+            pkg.changelog = Some(val.extract()?);
+        }
+
+        if let Some(val) = data.get_item("release_message")? {
+            pkg.release_message = Some(val.extract()?);
+        }
+
+        if let Some(val) = data.get_item("revision")? {
+            pkg.revision = Some(val.extract()?);
+        }
+
+        if let Some(val) = data.get_item("hashed_variants")? {
+            pkg.hashed_variants = Some(val.extract()?);
+        }
+
+        if let Some(val) = data.get_item("preprocess")? {
+            pkg.preprocess = Some(val.extract()?);
+        }
+
+        if let Some(val) = data.get_item("is_dev_package")? {
+            pkg.is_dev_package = Some(val.extract()?);
+        }
+
+        if let Some(val) = data.get_item("plugin_for")? {
+            pkg.plugin_for = val.extract()?;
+        }
+
+        if let Some(val) = data.get_item("build_command")? {
+            pkg.build_command = Some(val.extract()?);
+        }
+
+        if let Some(val) = data.get_item("build_system")? {
+            pkg.build_system = Some(val.extract()?);
+        }
+
+        if let Some(val) = data.get_item("pre_commands")? {
+            pkg.pre_commands = Some(val.extract()?);
+        }
+
+        if let Some(val) = data.get_item("post_commands")? {
+            pkg.post_commands = Some(val.extract()?);
+        }
+
+        if let Some(val) = data.get_item("pre_test_commands")? {
+            pkg.pre_test_commands = Some(val.extract()?);
+        }
+
+        if let Some(val) = data.get_item("pre_build_commands")? {
+            pkg.pre_build_commands = Some(val.extract()?);
+        }
+
+        if let Some(val) = data.get_item("requires_rez_version")? {
+            pkg.requires_rez_version = Some(val.extract()?);
+        }
+
+        // Extract tests dict
+        if let Some(val) = data.get_item("tests")? {
+            pkg.tests = val.extract()?;
+        }
+
+        // Extract config dict
+        if let Some(val) = data.get_item("config")? {
+            pkg.config = val.extract()?;
+        }
+
+        Ok(PyPackage(pkg))
+    }
+
     /// Validate the package definition
     fn validate(&self) -> PyResult<bool> {
         self.0
@@ -184,6 +363,115 @@ impl PyPackage {
     fn format_version(&self) -> Option<i32> {
         self.0.format_version
     }
+
+    /// Save the package to a file (auto-detects format from extension)
+    fn save(&self, path: &str) -> PyResult<()> {
+        use rez_next_package::serialization::{PackageFormat, PackageSerializer};
+        use std::path::PathBuf;
+
+        let path_buf = PathBuf::from(path);
+        let format = PackageFormat::from_extension(&path_buf)
+            .ok_or_else(|| {
+                pyo3::exceptions::PyValueError::new_err(format!(
+                    "Cannot detect format from path: {}",
+                    path
+                ))
+            })?;
+
+        PackageSerializer::save_to_file(&self.0, &path_buf, format)
+            .map_err(|e| pyo3::exceptions::PyIOError::new_err(e.to_string()))
+    }
+
+    /// Save the package to a file with explicit format
+    fn save_as(&self, path: &str, format: &PyPackageFormat) -> PyResult<()> {
+        use rez_next_package::serialization::PackageSerializer;
+        use std::path::PathBuf;
+
+        PackageSerializer::save_to_file(&self.0, &PathBuf::from(path), format.0)
+            .map_err(|e| pyo3::exceptions::PyIOError::new_err(e.to_string()))
+    }
+}
+
+/// PackageFormat enum for Python
+#[pyclass(name = "PackageFormat", from_py_object)]
+#[derive(Clone)]
+pub struct PyPackageFormat(pub PackageFormat);
+
+#[pymethods]
+impl PyPackageFormat {
+    #[classattr]
+    fn yaml() -> Self {
+        PyPackageFormat(PackageFormat::Yaml)
+    }
+
+    #[classattr]
+    fn json() -> Self {
+        PyPackageFormat(PackageFormat::Json)
+    }
+
+    #[classattr]
+    fn python() -> Self {
+        PyPackageFormat(PackageFormat::Python)
+    }
+
+    #[classattr]
+    fn yaml_compressed() -> Self {
+        PyPackageFormat(PackageFormat::YamlCompressed)
+    }
+
+    #[classattr]
+    fn json_compressed() -> Self {
+        PyPackageFormat(PackageFormat::JsonCompressed)
+    }
+
+    #[classattr]
+    fn binary() -> Self {
+        PyPackageFormat(PackageFormat::Binary)
+    }
+
+    #[classattr]
+    fn toml() -> Self {
+        PyPackageFormat(PackageFormat::Toml)
+    }
+
+    #[classattr]
+    fn xml() -> Self {
+        PyPackageFormat(PackageFormat::Xml)
+    }
+
+    fn __str__(&self) -> String {
+        format!("{:?}", self.0)
+    }
+}
+
+/// Load a package from file (package.py or package.yaml)
+#[pyfunction]
+pub fn load_package_from_file(path: &str) -> PyResult<PyPackage> {
+    use rez_next_package::serialization::PackageSerializer;
+    use std::path::PathBuf;
+
+    PackageSerializer::load_from_file(&PathBuf::from(path))
+        .map(PyPackage)
+        .map_err(|e| pyo3::exceptions::PyIOError::new_err(e.to_string()))
+}
+
+/// Save a package to file (auto-detects format from extension)
+#[pyfunction]
+pub fn save_package_to_file(package: &PyPackage, path: &str) -> PyResult<()> {
+    use rez_next_package::serialization::{PackageFormat, PackageSerializer};
+    use std::path::PathBuf;
+
+    let path_buf = PathBuf::from(path);
+    let format = PackageFormat::from_extension(&path_buf)
+        .ok_or_else(|| {
+            pyo3::exceptions::PyValueError::new_err(format!(
+                "Cannot detect format from path: {}",
+                path
+            ))
+        })?;
+
+    PackageSerializer::save_to_file(&package.0, &path_buf, format)
+        .map_err(|e| pyo3::exceptions::PyIOError::new_err(e.to_string()))
 }
 
 /// Python-accessible PackageRequirement class, compatible with rez.packages.PackageRequirement

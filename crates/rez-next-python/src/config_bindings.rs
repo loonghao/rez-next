@@ -1,97 +1,105 @@
-//! Python bindings for rez configuration
+//! Python bindings for rez-next-config.
+//!
+//! This module provides Python access to the configuration management
+//! functionality of rez-next.
 
+use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
-use rez_next_common::config::RezCoreConfig;
+use pyo3::types::PyType;
+use rez_next_config::Config;
 
-/// Python-accessible Config class, compatible with rez.config
-#[pyclass(name = "Config")]
+/// Python wrapper for Config.
+#[pyclass(name = "Config", from_py_object)]
+#[derive(Clone)]
 pub struct PyConfig {
-    pub(crate) inner: RezCoreConfig,
-}
-
-impl Default for PyConfig {
-    fn default() -> Self {
-        Self::new()
-    }
+    inner: Config,
 }
 
 #[pymethods]
 impl PyConfig {
-    /// Create a new Config (loads from files if available)
+    /// Create a new empty configuration.
     #[new]
     pub fn new() -> Self {
-        PyConfig {
-            inner: RezCoreConfig::load(),
+        Self {
+            inner: Config::new(),
         }
     }
 
-    fn __repr__(&self) -> String {
-        "Config()".to_string()
-    }
-
-    /// Package search paths
-    #[getter]
-    fn packages_path(&self) -> Vec<String> {
-        self.inner.packages_path.clone()
-    }
-
-    /// Local packages path
-    #[getter]
-    fn local_packages_path(&self) -> String {
-        self.inner.local_packages_path.clone()
-    }
-
-    /// Release packages path
-    #[getter]
-    fn release_packages_path(&self) -> String {
-        self.inner.release_packages_path.clone()
-    }
-
-    /// Default shell
-    #[getter]
-    fn default_shell(&self) -> String {
-        self.inner.default_shell.clone()
-    }
-
-    /// rez-next version
-    #[getter]
-    fn rez_version(&self) -> String {
-        self.inner.version.clone()
-    }
-
-    /// Get a config field by name
-    fn get(&self, field: &str, default: Option<Py<PyAny>>, py: Python) -> PyResult<Py<PyAny>> {
-        if let Some(value) = self.inner.get_field(field) {
-            match value {
-                serde_json::Value::String(s) => Ok(s.into_pyobject(py)?.into_any().unbind()),
-                serde_json::Value::Bool(b) => Ok(pyo3::types::PyBool::new(py, b)
-                    .to_owned()
-                    .into_any()
-                    .unbind()),
-                serde_json::Value::Number(n) => {
-                    if let Some(i) = n.as_i64() {
-                        Ok(i.into_pyobject(py)?.into_any().unbind())
-                    } else if let Some(f) = n.as_f64() {
-                        Ok(f.into_pyobject(py)?.into_any().unbind())
-                    } else {
-                        Ok(py.None().into_any())
-                    }
-                }
-                serde_json::Value::Array(arr) => {
-                    let list: Vec<String> = arr
-                        .iter()
-                        .filter_map(|v| v.as_str().map(|s| s.to_string()))
-                        .collect();
-                    Ok(list.into_pyobject(py)?.into_any().unbind())
-                }
-                _ => Ok(py.None().into_any()),
-            }
-        } else {
-            Ok(default.unwrap_or_else(|| py.None().into_any()))
+    /// Load configuration from all standard sources.
+    #[classmethod]
+    pub fn load(_cls: &Bound<'_, PyType>) -> PyResult<Self> {
+        match Config::load() {
+            Ok(config) => Ok(Self { inner: config }),
+            Err(e) => Err(PyValueError::new_err(format!(
+                "Failed to load configuration: {}",
+                e
+            ))),
         }
+    }
+
+    /// Get a string value by key (dot-separated path).
+    pub fn get_string(&self, key: &str) -> PyResult<Option<String>> {
+        Ok(self.inner.get_string(key))
+    }
+
+    /// Get a boolean value by key (dot-separated path).
+    pub fn get_bool(&self, key: &str) -> PyResult<Option<bool>> {
+        Ok(self.inner.get_bool(key))
+    }
+
+    /// Get an integer value by key (dot-separated path).
+    pub fn get_int(&self, key: &str) -> PyResult<Option<i64>> {
+        Ok(self.inner.get_i64(key))
+    }
+
+    /// Get a float value by key (dot-separated path).
+    pub fn get_float(&self, key: &str) -> PyResult<Option<f64>> {
+        Ok(self.inner.get_f64(key))
+    }
+
+    /// Check if a configuration key exists.
+    pub fn contains_key(&self, key: &str) -> bool {
+        self.inner.contains_key(key)
+    }
+
+    /// String representation.
+    pub fn __repr__(&self) -> String {
+        format!("Config(sources={:?})", self.inner.sources())
     }
 }
 
+/// Load configuration from all standard sources.
+#[pyfunction]
+pub fn load_config(py: Python<'_>) -> PyResult<Py<PyConfig>> {
+    let config = PyConfig::load(&PyType::new::<PyConfig>(py))?;
+    Py::new(py, config)
+}
+
+/// Register the config module
+pub fn register_config_module(parent_module: &Bound<'_, PyModule>) -> PyResult<()> {
+    let m = PyModule::new(parent_module.py(), "config")?;
+
+    m.add_class::<PyConfig>()?;
+    m.add_function(wrap_pyfunction!(load_config, &m)?)?;
+
+    // Register as submodule
+    parent_module.add_submodule(&m)?;
+
+    // Register in sys.modules
+    let sys = parent_module.py().import("sys")?;
+    let modules = sys.getattr("modules")?;
+    modules.set_item("rez_next._native.config", &m)?;
+
+    Ok(())
+}
+
 #[cfg(test)]
-#[path = "config_bindings_tests.rs"]
-mod tests;
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_pyconfig_creation() {
+        let config = PyConfig::new();
+        assert!(!config.inner.is_locked());
+    }
+}

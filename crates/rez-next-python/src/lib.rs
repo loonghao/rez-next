@@ -22,42 +22,65 @@ mod env_bindings;
 mod exceptions_bindings;
 mod forward_bindings;
 mod package_bindings;
+mod package_cache_bindings;
+mod package_filter_bindings;
+mod package_help_bindings;
+mod package_repository_bindings;
 mod pip_bindings;
 mod plugins_bindings;
+
+// ── Import PyO3 wrapper types ──────────────────────────────────────────────
+use package_help_bindings::{PyHelpSection, PyPackageHelp};
 mod release_bindings;
+mod release_hook_bindings;
 mod repository_bindings;
 mod search_bindings;
+mod serialise_bindings;
 mod shell_bindings;
 mod solver_bindings;
+pub(crate) mod solver_state_bindings;
+pub(crate) mod dependency_conflicts_bindings;
+pub(crate) mod reduction_bindings;
+pub(crate) mod requirement_list_bindings;
+pub(crate) mod package_variant_bindings;
 mod source_bindings;
 mod status_bindings;
 mod suite_bindings;
 mod system_bindings;
+mod test_bindings;
 mod version_bindings;
+mod util_bindings;
 
 // ── Top-level function modules ────────────────────────────────────────────────
 mod build_functions;
 mod bundle_functions;
 mod cli_functions;
+mod explicit_bindings;
 mod package_functions;
+mod package_uri_functions;
 mod rex_functions;
 mod selftest_functions;
 
+
 use bind_bindings::{PyBindManager, PyBindResult};
 use build_functions::{build_package, create_build_system, get_build_process_types, get_build_system, get_buildsys_types};
-use config_bindings::PyConfig;
+use config_bindings::{register_config_module, PyConfig};
 use context_bindings::PyResolvedContext;
 use data_bindings::PyRezData;
 use env_bindings::{PyPackageFamily, PyRezEnv};
+use explicit_bindings::register_explicit_module;
 use forward_bindings::PyRezForward;
-use package_bindings::{PyPackage, PyPackageRequirement};
+use package_bindings::{load_package_from_file, save_package_to_file};
+use package_bindings::{PyPackage, PyPackageFormat, PyPackageRequirement};
 use pip_bindings::PyPipPackage;
 use plugins_bindings::{PyPlugin, PyPluginType, PyRezPluginManager};
 use release_bindings::{PyReleaseManager, PyReleaseResult};
+use release_hook_bindings::register_release_hook_module;
 use repository_bindings::PyRepositoryManager;
 use search_bindings::PySearchResult;
+use serialise_bindings::register_serialise_module;
 use shell_bindings::PyShell;
-use solver_bindings::PySolver;
+use solver_bindings::{register_solver_status, register_solver_types, PySolver, accessibility, find_cycle, package_repo_stats};
 use source_bindings::PySourceManager;
 use suite_bindings::{PySuite, PySuiteManager};
 use system_bindings::PySystem;
@@ -67,8 +90,17 @@ use version_bindings::{PyVersion, PyVersionRange};
 use bundle_functions::{bundle_context, list_bundles, unbundle_context};
 use cli_functions::{cli_main, cli_run};
 use package_functions::{
-    copy_package, get_latest_package, get_package, get_package_family_names, iter_packages,
-    move_package, remove_package, resolve_packages, walk_packages,
+    copy_package, create_package, dump_package_data, get_completions,
+    get_developer_package, get_last_release_time, get_latest_package,
+    get_latest_package_from_string, get_package, get_package_family_names,
+    get_package_from_string, iter_packages, iter_package_families, move_package,
+    package_family_schema, package_release_keys, package_schema, remove_package,
+    resolve_packages, schema_keys, test_function, variant_schema, walk_packages,
+};
+use package_uri_functions::{
+    get_package_from_uri, get_variant, get_variant_from_uri,
+    get_package_from_handle, get_package_from_repository,
+    get_package_family_from_repository,
 };
 use rex_functions::rex_interpret;
 use selftest_functions::{selftest, selftest_verbose};
@@ -105,6 +137,7 @@ fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyVersionRange>()?;
     m.add_class::<PyPackage>()?;
     m.add_class::<PyPackageRequirement>()?;
+    m.add_class::<PyPackageFormat>()?;
     m.add_class::<PySolver>()?;
     m.add_class::<PyResolvedContext>()?;
     m.add_class::<PyConfig>()?;
@@ -137,6 +170,8 @@ fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(move_package, m)?)?;
     m.add_function(wrap_pyfunction!(remove_package, m)?)?;
     m.add_function(wrap_pyfunction!(walk_packages, m)?)?;
+    m.add_function(wrap_pyfunction!(iter_package_families, m)?)?;
+    m.add_function(wrap_pyfunction!(get_package_from_string, m)?)?;
     m.add_function(wrap_pyfunction!(selftest, m)?)?;
     m.add_function(wrap_pyfunction!(selftest_verbose, m)?)?;
     m.add_function(wrap_pyfunction!(build_package, m)?)?;
@@ -176,6 +211,14 @@ fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(bind_bindings::bind_tool, m)?)?;
     m.add_function(wrap_pyfunction!(bind_bindings::list_binders, m)?)?;
 
+    // ── URI functions (get_package_from_uri, etc.) ─────────────────────────
+    m.add_function(wrap_pyfunction!(get_package_from_uri, m)?)?;
+    m.add_function(wrap_pyfunction!(get_variant_from_uri, m)?)?;
+    m.add_function(wrap_pyfunction!(get_variant, m)?)?;
+    m.add_function(wrap_pyfunction!(get_package_from_handle, m)?)?;
+    m.add_function(wrap_pyfunction!(get_package_from_repository, m)?)?;
+    m.add_function(wrap_pyfunction!(get_package_family_from_repository, m)?)?;
+
     // ── Module metadata & singletons ──────────────────────────────────────────
     m.add("__version__", env!("CARGO_PKG_VERSION"))?;
     m.add("__author__", "rez-next contributors")?;
@@ -214,10 +257,64 @@ fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
     packages_.add_function(wrap_pyfunction!(get_package, &packages_)?)?;
     packages_.add_function(wrap_pyfunction!(get_package_family_names, &packages_)?)?;
     packages_.add_function(wrap_pyfunction!(walk_packages, &packages_)?)?;
+    packages_.add_function(wrap_pyfunction!(iter_package_families, &packages_)?)?;
+    packages_.add_function(wrap_pyfunction!(create_package, &packages_)?)?;
     packages_.add_function(wrap_pyfunction!(copy_package, &packages_)?)?;
     packages_.add_function(wrap_pyfunction!(move_package, &packages_)?)?;
     packages_.add_function(wrap_pyfunction!(remove_package, &packages_)?)?;
-    register_submodule(m, "packages_", &packages_)?;
+    packages_.add_function(wrap_pyfunction!(get_package_from_string, &packages_)?)?;
+    packages_.add_function(wrap_pyfunction!(get_latest_package_from_string, &packages_)?)?;
+    packages_.add_function(wrap_pyfunction!(test_function, &packages_)?)?;
+    packages_.add_function(wrap_pyfunction!(load_package_from_file, &packages_)?)?;
+    packages_.add_function(wrap_pyfunction!(save_package_to_file, &packages_)?)?;
+    packages_.add_function(wrap_pyfunction!(dump_package_data, &packages_)?)?;
+    packages_.add_function(wrap_pyfunction!(get_completions, &packages_)?)?;
+    packages_.add_function(wrap_pyfunction!(get_developer_package, &packages_)?)?;
+    packages_.add_function(wrap_pyfunction!(package_schema, &packages_)?)?;
+    packages_.add_function(wrap_pyfunction!(variant_schema, &packages_)?)?;
+    packages_.add_function(wrap_pyfunction!(package_family_schema, &packages_)?)?;
+    packages_.add_function(wrap_pyfunction!(schema_keys, &packages_)?)?;
+    packages_.add_function(wrap_pyfunction!(package_release_keys, &packages_)?)?;
+    packages_.add_function(wrap_pyfunction!(get_last_release_time, &packages_)?)?;
+    packages_.add_function(wrap_pyfunction!(get_package_from_handle, &packages_)?)?;
+    packages_.add_function(wrap_pyfunction!(get_package_from_uri, &packages_)?)?;
+    packages_.add_function(wrap_pyfunction!(get_variant_from_uri, &packages_)?)?;
+    packages_.add_function(wrap_pyfunction!(get_variant, &packages_)?)?;
+    packages_.add_function(wrap_pyfunction!(get_package_from_repository, &packages_)?)?;
+    packages_.add_function(wrap_pyfunction!(get_package_family_from_repository, &packages_)?)?;
+
+    // Register as submodule (same pattern as config module)
+    m.add_submodule(&packages_)?;
+    
+    // Register in sys.modules with full dotted name
+    let sys = m.py().import("sys")?;
+    let modules = sys.getattr("modules")?;
+    let parent_name = m.name()?;
+    let full_name = format!("{}.{}", parent_name, "packages_");
+    modules.set_item(full_name.as_str(), &packages_)?;
+
+    // ── Submodule: rez.package_help ─────────────────────────────────────────
+    let package_help_mod = PyModule::new(m.py(), "package_help")?;
+    package_help_mod.add_class::<PyHelpSection>()?;
+    package_help_mod.add_class::<PyPackageHelp>()?;
+    
+    // Debug: print package_help_mod
+    let py = m.py();
+    let sys = py.import("sys")?;
+    let modules = sys.getattr("modules")?;
+    let parent_name = m.name()?;
+    let full_name = format!("{}.{}", parent_name, "package_help");
+    
+    m.add_submodule(&package_help_mod)?;
+    modules.set_item(full_name.clone(), &package_help_mod)?;
+    
+    // Debug: check if registered
+    let registered = modules.get_item(full_name.clone())?;
+    if registered.is_none() {
+        eprintln!("WARNING: package_help not registered in sys.modules");
+    }
+    
+    register_submodule(m, "package_help", &package_help_mod)?;
 
     // ── Submodule: rez.resolved_context ───────────────────────────────────────
     let resolved_context = PyModule::new(m.py(), "resolved_context")?;
@@ -230,11 +327,13 @@ fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
     suite_mod.add_class::<PySuiteManager>()?;
     register_submodule(m, "suite", &suite_mod)?;
 
+    // ── Submodule: rez.explicit ──────────────────────────────────────────────
+    let explicit_mod = PyModule::new(m.py(), "explicit")?;
+    register_explicit_module(&explicit_mod)?;
+    register_submodule(m, "explicit", &explicit_mod)?;
+
     // ── Submodule: rez.config ─────────────────────────────────────────────────
-    let config_mod = PyModule::new(m.py(), "config")?;
-    config_mod.add_class::<PyConfig>()?;
-    config_mod.add("config", PyConfig::new())?;
-    register_submodule(m, "config", &config_mod)?;
+    register_config_module(m)?;
 
     // ── Submodule: rez.system ─────────────────────────────────────────────────
     let system_mod = PyModule::new(m.py(), "system")?;
@@ -409,6 +508,11 @@ fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
     )?)?;
     register_submodule(m, "release", &release_mod)?;
 
+    // ── Submodule: rez.release_hook ─────────────────────
+    let release_hook_mod = PyModule::new(m.py(), "release_hook")?;
+    register_release_hook_module(m.py(), &release_hook_mod)?;
+    register_submodule(m, "release_hook", &release_hook_mod)?;
+
     // ── Submodule: rez.source ─────────────────────────────────────────────────
     let source_mod = PyModule::new(m.py(), "source")?;
     source_mod.add_class::<PySourceManager>()?;
@@ -548,6 +652,39 @@ fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
         &depends_mod
     )?)?;
     register_submodule(m, "depends", &depends_mod)?;
+
+    // ── Submodule: rez.package_cache ───────────────────────────────────
+    package_cache_bindings::register_package_cache_submodule(m.py(), m)?;
+
+    // ── Submodule: rez.solver_ ────────────────────────────────────────
+    let solver_mod = PyModule::new(m.py(), "solver_")?;
+    solver_mod.add_class::<PySolver>()?;
+    register_solver_status(&solver_mod)?;
+    register_solver_types(&solver_mod)?;
+    // Register standalone functions
+    solver_mod.add_function(wrap_pyfunction!(accessibility, &solver_mod)?)?;
+    solver_mod.add_function(wrap_pyfunction!(find_cycle, &solver_mod)?)?;
+    solver_mod.add_function(wrap_pyfunction!(package_repo_stats, &solver_mod)?)?;
+    register_submodule(m, "solver_", &solver_mod)?;
+
+    // ── Submodule: rez.serialise_ ──────────────────────────────────────
+    register_serialise_module(m)?;
+
+    // ── Submodule: rez.package_filter ─────────────────────────────
+    let package_filter_mod = PyModule::new(m.py(), "package_filter")?;
+    package_filter_bindings::register_module(&package_filter_mod)?;
+    register_submodule(m, "package_filter", &package_filter_mod)?;
+
+    // ── Submodule: rez.explicit ───────────────────────────────────
+    let explicit_mod = PyModule::new(m.py(), "explicit")?;
+    explicit_bindings::register_explicit_module(&explicit_mod)?;
+    register_submodule(m, "explicit", &explicit_mod)?;
+
+    // ── Submodule: rez.package_test ─────────────────────────────────
+    test_bindings::register_test_submodule(m.py(), m)?;
+
+    // ── Submodule: rez.util ──────────────────────────────────────
+    util_bindings::register_util_submodule(m.py(), m)?;
 
     Ok(())
 }

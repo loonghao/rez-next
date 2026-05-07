@@ -320,7 +320,12 @@ just bench           # Benchmarks
 Run the full test suite:
 
 ```bash
+# For Rust tests only
 cargo test --workspace
+
+# For Rust + Python binding tests (requires maturin develop --release first)
+maturin develop --release
+pytest
 ```
 
 Test coverage includes:

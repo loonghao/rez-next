@@ -547,6 +547,7 @@ version = "1.0.0"
     }
 
     #[test]
+    #[ignore = "Requires Python interpreter (run with maturin develop + pytest)"]
     fn test_build_package_with_package_py_loads_without_file_not_found() {
         // This test verifies that package.py can be loaded.
         // The actual build may fail (no build system), but the function

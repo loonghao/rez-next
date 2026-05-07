@@ -4,7 +4,7 @@ use rez_next_version::Version;
 use std::collections::HashMap;
 
 /// High-performance package representation compatible with rez
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct Package {
     /// Package name
     pub name: String,
@@ -80,4 +80,6 @@ pub struct Package {
     pub hashed_variants: Option<bool>,
     /// Package preprocess function
     pub preprocess: Option<String>,
+    /// Whether this is a developer package (loaded from a working directory)
+    pub is_dev_package: Option<bool>,
 }

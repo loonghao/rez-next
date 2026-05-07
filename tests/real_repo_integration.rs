@@ -9,7 +9,7 @@
 //!   real_repo_context_tests.rs  — context, env-var, multi-repo, E2E tests
 use rez_next_package::Requirement;
 use rez_next_repository::simple_repository::SimpleRepository;
-use rez_next_repository::PackageRepository;
+use rez_next_repository::simple_repository::PackageRepository;
 use rez_next_version::Version;
 use tempfile::TempDir;
 

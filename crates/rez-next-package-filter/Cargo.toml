@@ -1,0 +1,25 @@
+[package]
+name = "rez-next-package-filter"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Package filtering for rez-next"
+
+[dependencies]
+# Workspace dependencies
+rez-next-common = { path = "../rez-next-common" }
+rez-next-package = { path = "../rez-next-package" }
+rez-next-version = { path = "../rez-next-version" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+
+# External dependencies
+regex = "1.11"
+time = { version = "0.3", features = ["formatting", "parsing", "macros"] }
+sha1 = "0.10"
+
+[dev-dependencies]
+criterion = { workspace = true }

@@ -12,6 +12,7 @@ use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use rez_next_build::vcs::{ReleaseVCS, VCSMetadata};
 use std::path::PathBuf;
+use tracing::info;
 
 // ============================================================================
 /// VCS Metadata for release
@@ -215,7 +216,7 @@ impl PyReleaseVCS {
                 .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()));
         }
         // Stub implementation - just log and return Ok
-        eprintln!(
+        info!(
             "StubVCS: would create tag '{}' with message '{}'",
             tag, message
         );

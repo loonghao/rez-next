@@ -1,0 +1,20 @@
+[package]
+name = "rez-next-release-hook"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Release hook system for rez-next"
+
+[dependencies]
+# Workspace dependencies
+rez-next-common = { path = "../rez-next-common" }
+rez-next-package = { path = "../rez-next-package" }
+
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+
+[dev-dependencies]
+criterion = { workspace = true }

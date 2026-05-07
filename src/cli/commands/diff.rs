@@ -254,8 +254,8 @@ async fn find_package(
     let latest = packages
         .into_iter()
         .next()
-        .ok_or_else(|| RezCoreError::PackageNotFound("No package found".to_string()))?;
-    Ok(latest.clone())
+        .ok_or_else(|| RezCoreError::Repository("No package found".to_string()))?;
+    Ok((*latest).clone())
 }
 
 /// Find previous version of a package

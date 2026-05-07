@@ -1,0 +1,25 @@
+[package]
+name = "rez-next-config"
+version = "0.3.0"
+edition = "2021"
+authors = ["LongHao <hal.long@outlook.com>"]
+license = "Apache-2.0"
+description = "Configuration management for Rez package manager"
+repository = "https://github.com/loonghao/rez-next"
+
+[dependencies]
+# Workspace dependencies
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+
+# External dependencies
+toml = "0.8"
+json5 = "0.4"
+dirs = "5.0"
+once_cell = "1.19"
+
+[dev-dependencies]
+tempfile = { workspace = true }

@@ -2,6 +2,23 @@
 //!
 //! This module provides the `ReleaseVCS` trait and implementations for
 //! different version control systems (Git, Mercurial, SVN, etc.)
+//!
+//! The implementations are split into separate files:
+//! - `git.rs` — `GitVCS` implementation (requires feature "git")
+//! - `hg.rs` — `MercurialVCS` implementation
+//! - `svn.rs` — `SvnVCS` implementation
+
+#[cfg(feature = "git")]
+mod git;
+
+mod hg;
+mod svn;
+
+// Re-export VCS implementations for Python bindings
+#[cfg(feature = "git")]
+pub use git::GitVCS;
+pub use hg::MercurialVCS;
+pub use svn::SvnVCS;
 
 use rez_next_common::RezCoreError;
 use serde::{Deserialize, Serialize};
@@ -50,7 +67,7 @@ pub trait ReleaseVCS: Send + Sync {
     /// Checks that the repository is in a valid state for releasing:
     /// - Working directory is clean
     /// - On a valid release branch (if applicable)
-    /// - No pending changes or conflicts
+    /// - No pending changes or conflicts.
     fn validate_repo_state(&self) -> Result<(), RezCoreError> {
         // Default implementation: check if repo is clean
         if !self.is_clean()? {
@@ -98,16 +115,20 @@ pub struct VCSMetadata {
     /// Timestamp of the commit
     pub timestamp: Option<i64>,
     /// Additional metadata
+    #[serde(default)]
     pub extra: HashMap<String, String>,
 }
 
-/// Stub VCS implementation for testing or when no VCS is available
-#[derive(Debug, Default)]
+/// Stub VCS implementation for testing
+///
+/// This is a no-op implementation that returns dummy data.
+/// Used when VCS is not available or for testing.
+#[derive(Debug)]
 pub struct StubVCS {
-    /// Simulated repository root
+    /// Repository root path
     repo_root: PathBuf,
-    /// Simulated metadata
-    metadata: VCSMetadata,
+    /// Optional metadata override for testing
+    metadata: Option<VCSMetadata>,
 }
 
 impl StubVCS {
@@ -115,11 +136,7 @@ impl StubVCS {
     pub fn new(repo_root: PathBuf) -> Self {
         Self {
             repo_root,
-            metadata: VCSMetadata {
-                vcs_type: "stub".to_string(),
-                commit_hash: "stub-commit-hash".to_string(),
-                ..Default::default()
-            },
+            metadata: None,
         }
     }
 
@@ -127,7 +144,7 @@ impl StubVCS {
     pub fn with_metadata(repo_root: PathBuf, metadata: VCSMetadata) -> Self {
         Self {
             repo_root,
-            metadata,
+            metadata: Some(metadata),
         }
     }
 }
@@ -142,8 +159,7 @@ impl ReleaseVCS for StubVCS {
     }
 
     fn is_clean(&self) -> Result<bool, RezCoreError> {
-        // Stub VCS always reports clean
-        Ok(true)
+        Ok(true) // Stub is always clean
     }
 
     fn get_current_branch(&self) -> Result<String, RezCoreError> {
@@ -151,22 +167,15 @@ impl ReleaseVCS for StubVCS {
     }
 
     fn get_latest_commit(&self) -> Result<String, RezCoreError> {
-        Ok(self.metadata.commit_hash.clone())
+        Ok("stub-commit-hash".to_string())
     }
 
     fn tag_exists(&self, _tag: &str) -> Result<bool, RezCoreError> {
-        // Stub VCS never has tags
-        Ok(false)
+        Ok(false) // Stub never has tags
     }
 
-    fn create_tag(&self, tag: &str, message: &str) -> Result<(), RezCoreError> {
-        // Stub VCS just logs the tag creation
-        tracing::info!(
-            "StubVCS: would create tag '{}' with message '{}'",
-            tag,
-            message
-        );
-        Ok(())
+    fn create_tag(&self, _tag: &str, _message: &str) -> Result<(), RezCoreError> {
+        Ok(()) // Stub always succeeds
     }
 
     fn get_changelog(
@@ -174,798 +183,25 @@ impl ReleaseVCS for StubVCS {
         _from_rev: Option<&str>,
         _to_rev: Option<&str>,
     ) -> Result<String, RezCoreError> {
-        Ok("Stub changelog: no VCS available".to_string())
+        Ok("Stub changelog".to_string())
     }
 
     fn get_metadata(&self) -> Result<VCSMetadata, RezCoreError> {
-        Ok(self.metadata.clone())
-    }
-}
-
-/// Git VCS implementation (requires `git` feature)
-#[cfg(feature = "git")]
-#[derive(Debug)]
-pub struct GitVCS {
-    /// Repository root path
-    repo_root: PathBuf,
-}
-
-#[cfg(feature = "git")]
-impl GitVCS {
-    /// Create a new GitVCS
-    pub fn new(repo_root: PathBuf) -> Result<Self, RezCoreError> {
-        // Verify this is a git repository
-        if !repo_root.join(".git").exists() {
-            return Err(RezCoreError::BuildError("Not a git repository".to_string()));
+        if let Some(ref metadata) = self.metadata {
+            return Ok(metadata.clone());
         }
-
-        Ok(Self { repo_root })
-    }
-
-    /// Get the tracking branch for the current branch
-    pub(crate) fn get_tracking_branch(
-        &self,
-        repo: &git2::Repository,
-        branch_name: Option<&str>,
-    ) -> Option<String> {
-        let branch_name = branch_name?;
-
-        // Try to get the upstream branch
-        if let Ok(branch) = repo.find_branch(branch_name, git2::BranchType::Local) {
-            if let Ok(upstream) = branch.upstream() {
-                if let Ok(upstream_name) = upstream.name() {
-                    return upstream_name.map(|s| s.to_string());
-                }
-            }
-        }
-
-        // Fallback: try using git command
-        if let Ok(output) = std::process::Command::new("git")
-            .args(["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"])
-            .current_dir(repo.path())
-            .output()
-        {
-            if output.status.success() {
-                let stdout = String::from_utf8_lossy(&output.stdout);
-                let branch = stdout.trim();
-                if !branch.is_empty() && !branch.contains("fatal") {
-                    return Some(branch.to_string());
-                }
-            }
-        }
-
-        None
-    }
-
-    /// Get the push URL for the remote
-    pub(crate) fn get_push_url(
-        &self,
-        repo: &git2::Repository,
-        remote_name: &str,
-    ) -> Option<String> {
-        // Try to get the remote and its push URL
-        if let Ok(remote) = repo.find_remote(remote_name) {
-            if let Some(push_url) = remote.pushurl() {
-                return Some(push_url.to_string());
-            }
-            // Fallback to fetch URL if no push URL is set
-            if let Some(url) = remote.url() {
-                return Some(url.to_string());
-            }
-        }
-
-        // Fallback: try using git command
-        if let Ok(output) = std::process::Command::new("git")
-            .args(["remote", "get-url", "--push", remote_name])
-            .current_dir(repo.path())
-            .output()
-        {
-            if output.status.success() {
-                let stdout = String::from_utf8_lossy(&output.stdout);
-                let url = stdout.trim();
-                if !url.is_empty() {
-                    return Some(url.to_string());
-                }
-            }
-        }
-
-        None
-    }
-}
-
-#[cfg(feature = "git")]
-impl ReleaseVCS for GitVCS {
-    fn get_type_name(&self) -> &str {
-        "git"
-    }
-
-    fn get_repo_root(&self) -> Result<PathBuf, RezCoreError> {
-        Ok(self.repo_root.clone())
-    }
-
-    fn is_clean(&self) -> Result<bool, RezCoreError> {
-        let repo = git2::Repository::open(&self.repo_root).map_err(|e| {
-            RezCoreError::BuildError(format!(
-                "GitVCS: failed to open repository at '{}': {}",
-                self.repo_root.display(),
-                e
-            ))
-        })?;
-
-        let mut status_opts = git2::StatusOptions::new();
-        status_opts.include_untracked(true);
-        status_opts.include_ignored(false);
-
-        let statuses = repo.statuses(Some(&mut status_opts)).map_err(|e| {
-            RezCoreError::BuildError(format!(
-                "GitVCS: failed to get status for repository at '{}': {}",
-                self.repo_root.display(),
-                e
-            ))
-        })?;
-
-        // Repository is clean if there are no status entries
-        Ok(statuses.is_empty())
-    }
-
-    fn get_current_branch(&self) -> Result<String, RezCoreError> {
-        let repo = git2::Repository::open(&self.repo_root).map_err(|e| {
-            RezCoreError::BuildError(format!("Failed to open git repository: {}", e))
-        })?;
-
-        let head = repo
-            .head()
-            .map_err(|e| RezCoreError::BuildError(format!("Failed to get HEAD: {}", e)))?;
-
-        // Check if HEAD is a branch reference
-        if head.is_branch() {
-            if let Some(branch_name) = head.shorthand() {
-                return Ok(branch_name.to_string());
-            }
-        }
-
-        // Detached HEAD state
-        let commit = head.peel_to_commit().map_err(|e| {
-            RezCoreError::BuildError(format!(
-                "GitVCS: failed to peel to commit for repository at '{}': {}",
-                self.repo_root.display(),
-                e
-            ))
-        })?;
-        Ok(format!("detached-{}", &commit.id().to_string()[..8]))
-    }
-
-    fn get_latest_commit(&self) -> Result<String, RezCoreError> {
-        let repo = git2::Repository::open(&self.repo_root).map_err(|e| {
-            RezCoreError::BuildError(format!(
-                "GitVCS: failed to open repository at '{}': {}",
-                self.repo_root.display(),
-                e
-            ))
-        })?;
-
-        let head = repo
-            .head()
-            .map_err(|e| RezCoreError::BuildError(format!("Failed to get HEAD: {}", e)))?;
-
-        let commit = head
-            .peel_to_commit()
-            .map_err(|e| RezCoreError::BuildError(format!("Failed to get commit: {}", e)))?;
-
-        Ok(commit.id().to_string())
-    }
-
-    fn tag_exists(&self, tag: &str) -> Result<bool, RezCoreError> {
-        let repo = git2::Repository::open(&self.repo_root).map_err(|e| {
-            RezCoreError::BuildError(format!(
-                "GitVCS: failed to open repository at '{}': {}",
-                self.repo_root.display(),
-                e
-            ))
-        })?;
-
-        // Check if tag reference exists
-        let tag_ref_name = format!("refs/tags/{}", tag);
-        let result = match repo.find_reference(&tag_ref_name) {
-            Ok(_) => Ok(true),
-            Err(e) if e.code() == git2::ErrorCode::NotFound => Ok(false),
-            Err(e) => Err(RezCoreError::BuildError(format!(
-                "GitVCS: failed to check tag '{}' in repository at '{}': {}",
-                tag,
-                self.repo_root.display(),
-                e
-            ))),
-        };
-        result
-    }
-
-    fn create_tag(&self, tag: &str, message: &str) -> Result<(), RezCoreError> {
-        let repo = git2::Repository::open(&self.repo_root).map_err(|e| {
-            RezCoreError::BuildError(format!(
-                "GitVCS: failed to open repository at '{}': {}",
-                self.repo_root.display(),
-                e
-            ))
-        })?;
-
-        // Get the current HEAD commit
-        let head = repo.head().map_err(|e| {
-            RezCoreError::BuildError(format!(
-                "GitVCS: failed to get HEAD for tag '{}' in repository at '{}': {}",
-                tag,
-                self.repo_root.display(),
-                e
-            ))
-        })?;
-        let commit = head.peel_to_commit().map_err(|e| {
-            RezCoreError::BuildError(format!(
-                "GitVCS: failed to peel to commit for tag '{}' in repository at '{}': {}",
-                tag,
-                self.repo_root.display(),
-                e
-            ))
-        })?;
-
-        // Create signature for tag
-        let sig = git2::Signature::now("Rez Next Build", "rez-next@build").map_err(|e| {
-            RezCoreError::BuildError(format!(
-                "GitVCS: failed to create signature for tag '{}': {}",
-                tag, e
-            ))
-        })?;
-
-        // Create an annotated tag (force = false)
-        let oid = commit.id();
-        let obj = repo
-            .find_object(oid, Some(git2::ObjectType::Commit))
-            .map_err(|e| {
-                RezCoreError::BuildError(format!(
-                    "GitVCS: failed to find commit object for tag '{}' in repository at '{}': {}",
-                    tag,
-                    self.repo_root.display(),
-                    e
-                ))
-            })?;
-
-        repo.tag(tag, &obj, &sig, message, false).map_err(|e| {
-            RezCoreError::BuildError(format!(
-                "GitVCS: failed to create tag '{}' in repository at '{}': {}",
-                tag,
-                self.repo_root.display(),
-                e
-            ))
-        })?;
-
-        tracing::info!("GitVCS: created tag '{}' with message '{}'", tag, message);
-        Ok(())
-    }
-
-    fn get_changelog(
-        &self,
-        from_rev: Option<&str>,
-        to_rev: Option<&str>,
-    ) -> Result<String, RezCoreError> {
-        let repo = git2::Repository::open(&self.repo_root).map_err(|e| {
-            RezCoreError::BuildError(format!(
-                "GitVCS: failed to open repository at '{}': {}",
-                self.repo_root.display(),
-                e
-            ))
-        })?;
-
-        let from = from_rev.unwrap_or("HEAD~10");
-        let to = to_rev.unwrap_or("HEAD");
-
-        // Resolve revisions to commits
-        let to_obj = repo.revparse_single(to).map_err(|e| {
-            RezCoreError::BuildError(format!("Failed to parse 'to' revision: {}", e))
-        })?;
-
-        // Walk commits from to to from
-        let mut revwalk = repo
-            .revwalk()
-            .map_err(|e| RezCoreError::BuildError(format!("Failed to create revwalk: {}", e)))?;
-        revwalk
-            .push(to_obj.id())
-            .map_err(|e| RezCoreError::BuildError(format!("Failed to push to revwalk: {}", e)))?;
-
-        // Try to hide from_rev, but don't fail if it doesn't exist
-        if let Ok(from_obj) = repo.revparse_single(from) {
-            if let Ok(from_commit) = from_obj.peel_to_commit() {
-                let _ = revwalk.hide(from_commit.id());
-            }
-        }
-
-        let mut changelog = String::new();
-        changelog.push_str(&format!("Changelog from {} to {}:\n", from, to));
-
-        for id in revwalk {
-            let id = id.map_err(|e| {
-                RezCoreError::BuildError(format!("Failed to walk revisions: {}", e))
-            })?;
-            let commit = repo
-                .find_commit(id)
-                .map_err(|e| RezCoreError::BuildError(format!("Failed to find commit: {}", e)))?;
-
-            let message = commit.message().unwrap_or("(no message)");
-            let short_id = &id.to_string()[..8];
-            changelog.push_str(&format!(
-                "  {} {}\n",
-                short_id,
-                message.lines().next().unwrap_or("")
-            ));
-        }
-
-        Ok(changelog)
-    }
-
-    fn get_metadata(&self) -> Result<VCSMetadata, RezCoreError> {
-        let repo = git2::Repository::open(&self.repo_root).map_err(|e| {
-            RezCoreError::BuildError(format!("Failed to open git repository: {}", e))
-        })?;
-
-        // Get latest commit
-        let head = repo
-            .head()
-            .map_err(|e| RezCoreError::BuildError(format!("Failed to get HEAD: {}", e)))?;
-        let commit = head
-            .peel_to_commit()
-            .map_err(|e| RezCoreError::BuildError(format!("Failed to get commit: {}", e)))?;
-
-        // Get branch name
-        let branch = if head.is_branch() {
-            head.shorthand().map(|s| s.to_string())
-        } else {
-            None
-        };
-
-        // Get author info
-        let author = commit.author();
-        let author_name = author.name().map(|s| s.to_string());
-        let author_email = author.email().map(|s| s.to_string());
-
-        // Get commit message
-        let commit_message = commit.message().map(|s| s.to_string());
-
-        // Get timestamp
-        let timestamp = Some(commit.time().seconds());
-
-        // Get remote name and URL
-        let remote_name = {
-            if let Ok(remotes) = repo.remotes() {
-                if !remotes.is_empty() {
-                    remotes.get(0).unwrap_or("origin").to_string()
-                } else {
-                    "origin".to_string()
-                }
-            } else {
-                "origin".to_string()
-            }
-        };
-
-        // Try to get remote URL
-        let repository_url = {
-            if let Ok(remote) = repo.find_remote(&remote_name) {
-                remote.url().map(|s| s.to_string())
-            } else {
-                None
-            }
-        };
-
-        // Clone repository_url before moving it into the struct
-        let repository_url_clone = repository_url.clone();
-
-        // Get tracking branch (upstream)
-        let tracking_branch = self.get_tracking_branch(&repo, branch.as_deref());
-
-        // Get push URL for the remote
-        let push_url = self.get_push_url(&repo, &remote_name);
 
         Ok(VCSMetadata {
-            vcs_type: "git".to_string(),
-            repository_url,
-            branch,
-            tracking_branch,
-            fetch_url: repository_url_clone,
-            push_url,
-            commit_hash: commit.id().to_string(),
-            commit_message,
-            author_name,
-            author_email,
-            timestamp,
-            extra: HashMap::new(),
+            vcs_type: "stub".to_string(),
+            commit_hash: "stub-commit-hash".to_string(),
+            branch: Some("main".to_string()),
+            ..Default::default()
         })
-    }
-
-    fn is_releasable_branch(&self) -> Result<Option<bool>, RezCoreError> {
-        let branch = self.get_current_branch()?;
-        // In Git, "main" and "master" are the main releasable branches
-        // Also allow branches starting with "release/"
-        Ok(Some(
-            branch == "main" || branch == "master" || branch.starts_with("release/"),
-        ))
-    }
-}
-
-/// Mercurial VCS implementation (uses `hg` command-line)
-#[derive(Debug)]
-pub struct MercurialVCS {
-    /// Repository root path
-    repo_root: PathBuf,
-}
-
-impl MercurialVCS {
-    /// Create a new MercurialVCS
-    pub fn new(repo_root: PathBuf) -> Result<Self, RezCoreError> {
-        // Verify this is a mercurial repository
-        if !repo_root.join(".hg").exists() {
-            return Err(RezCoreError::BuildError(
-                "Not a mercurial repository".to_string(),
-            ));
-        }
-
-        Ok(Self { repo_root })
-    }
-
-    /// Run an hg command and return stdout
-    fn run_hg(&self, args: &[&str]) -> Result<String, RezCoreError> {
-        let output = std::process::Command::new("hg")
-            .args(args)
-            .current_dir(&self.repo_root)
-            .output()
-            .map_err(|e| {
-                RezCoreError::BuildError(format!(
-                    "MercurialVCS: failed to run hg command '{:?}' in repository at '{}': {}",
-                    args,
-                    self.repo_root.display(),
-                    e
-                ))
-            })?;
-
-        if !output.status.success() {
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            return Err(RezCoreError::BuildError(format!(
-                "MercurialVCS: hg command '{:?}' failed in repository at '{}': {}",
-                args,
-                self.repo_root.display(),
-                stderr
-            )));
-        }
-
-        Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
-    }
-}
-
-impl ReleaseVCS for MercurialVCS {
-    fn get_type_name(&self) -> &str {
-        "hg"
-    }
-
-    fn get_repo_root(&self) -> Result<PathBuf, RezCoreError> {
-        // `hg root` returns the repository root
-        let root = self.run_hg(&["root"])?;
-        Ok(PathBuf::from(root))
-    }
-
-    fn is_clean(&self) -> Result<bool, RezCoreError> {
-        // `hg status --quiet` returns empty if clean
-        let status = self.run_hg(&["status"])?;
-        Ok(status.is_empty())
-    }
-
-    fn get_current_branch(&self) -> Result<String, RezCoreError> {
-        // `hg branch` returns current branch name
-        self.run_hg(&["branch"])
-    }
-
-    fn get_latest_commit(&self) -> Result<String, RezCoreError> {
-        // `hg log -r . -T "{node}"` returns current commit hash
-        self.run_hg(&["log", "-r", ".", "-T", "{node}"])
-    }
-
-    fn tag_exists(&self, tag: &str) -> Result<bool, RezCoreError> {
-        // `hg tags` lists all tags
-        let tags = self.run_hg(&["tags"])?;
-        Ok(tags.lines().any(|line| line.contains(tag)))
-    }
-
-    fn create_tag(&self, tag: &str, message: &str) -> Result<(), RezCoreError> {
-        // `hg tag -m <message> <tag>`
-        self.run_hg(&["tag", "-m", message, tag])?;
-        tracing::info!(
-            "MercurialVCS: created tag '{}' with message '{}'",
-            tag,
-            message
-        );
-        Ok(())
-    }
-
-    fn get_changelog(
-        &self,
-        from_rev: Option<&str>,
-        to_rev: Option<&str>,
-    ) -> Result<String, RezCoreError> {
-        let from = from_rev.unwrap_or(".");
-        let to = to_rev.unwrap_or("tip");
-
-        // `hg log -r <from>::<to> --template "{node|short} {desc}\n"`
-        let revspec = format!("{}::{}", from, to);
-        let changelog =
-            self.run_hg(&["log", "-r", &revspec, "--template", "{node|short} {desc}\n"])?;
-
-        Ok(format!("Changelog from {} to {}:\n{}", from, to, changelog))
-    }
-
-    fn get_metadata(&self) -> Result<VCSMetadata, RezCoreError> {
-        // Get commit hash
-        let commit_hash = self.get_latest_commit()?;
-
-        // Get branch
-        let branch = Some(self.get_current_branch()?);
-
-        // Get commit info
-        let info = self.run_hg(&["log", "-r", ".", "--template", "{author}\n{desc}"])?;
-        let lines: Vec<&str> = info.lines().collect();
-        let author_name = lines.first().map(|s| s.to_string());
-        let commit_message = lines.get(1).map(|s| s.to_string());
-
-        // Get push URL (default push location)
-        let push_url = self.run_hg(&["paths", "default"]).ok();
-
-        Ok(VCSMetadata {
-            vcs_type: "hg".to_string(),
-            repository_url: push_url.clone(),
-            branch,
-            tracking_branch: None,
-            fetch_url: push_url.clone(),
-            push_url,
-            commit_hash,
-            commit_message,
-            author_name,
-            author_email: None, // hg doesn't expose email separately by default
-            timestamp: None,    // TODO: parse timestamp from hg log
-            extra: HashMap::new(),
-        })
-    }
-
-    fn validate_repo_state(&self) -> Result<(), RezCoreError> {
-        // Check if repo is clean
-        if !self.is_clean()? {
-            return Err(RezCoreError::BuildError(
-                "Mercurial repository is not clean".to_string(),
-            ));
-        }
-
-        // Check for mq (Mercurial Queues) patches
-        let patches = self.run_hg(&["qseries"]).ok();
-        if let Some(ref series) = patches {
-            if !series.is_empty() {
-                return Err(RezCoreError::BuildError(
-                    "Mercurial repository has active mq patches".to_string(),
-                ));
-            }
-        }
-
-        Ok(())
-    }
-
-    fn is_releasable_branch(&self) -> Result<Option<bool>, RezCoreError> {
-        let branch = self.get_current_branch()?;
-        // In Mercurial, "default" is the main branch
-        // Releases typically happen from "default" or release-named branches
-        Ok(Some(branch == "default" || branch.starts_with("release")))
-    }
-}
-
-/// SVN VCS implementation (uses `svn` command-line)
-#[derive(Debug)]
-pub struct SvnVCS {
-    /// Repository root path
-    repo_root: PathBuf,
-}
-
-impl SvnVCS {
-    /// Create a new SvnVCS
-    pub fn new(repo_root: PathBuf) -> Result<Self, RezCoreError> {
-        // Verify this is an SVN working copy
-        if !repo_root.join(".svn").exists() {
-            return Err(RezCoreError::BuildError(
-                "Not an SVN working copy".to_string(),
-            ));
-        }
-
-        Ok(Self { repo_root })
-    }
-
-    /// Run an svn command and return stdout
-    fn run_svn(&self, args: &[&str]) -> Result<String, RezCoreError> {
-        let output = std::process::Command::new("svn")
-            .args(args)
-            .current_dir(&self.repo_root)
-            .output()
-            .map_err(|e| {
-                RezCoreError::BuildError(format!(
-                    "SvnVCS: failed to run svn command '{:?}' in repository at '{}': {}",
-                    args,
-                    self.repo_root.display(),
-                    e
-                ))
-            })?;
-
-        if !output.status.success() {
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            return Err(RezCoreError::BuildError(format!(
-                "SvnVCS: svn command '{:?}' failed in repository at '{}': {}",
-                args,
-                self.repo_root.display(),
-                stderr
-            )));
-        }
-
-        Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
-    }
-
-    /// Get svn info as a HashMap
-    fn get_svn_info(&self) -> Result<HashMap<String, String>, RezCoreError> {
-        let info_str = self.run_svn(&["info"])?;
-        let mut info = HashMap::new();
-
-        for line in info_str.lines() {
-            if let Some((key, value)) = line.split_once(": ") {
-                info.insert(key.to_string(), value.to_string());
-            }
-        }
-
-        Ok(info)
-    }
-}
-
-impl ReleaseVCS for SvnVCS {
-    fn get_type_name(&self) -> &str {
-        "svn"
-    }
-
-    fn get_repo_root(&self) -> Result<PathBuf, RezCoreError> {
-        // `svn info --show-item wc-root`
-        let root = self.run_svn(&["info", "--show-item", "wc-root"])?;
-        Ok(PathBuf::from(root))
-    }
-
-    fn is_clean(&self) -> Result<bool, RezCoreError> {
-        // `svn status` returns empty if clean
-        let status = self.run_svn(&["status"])?;
-        Ok(status.is_empty())
-    }
-
-    fn get_current_branch(&self) -> Result<String, RezCoreError> {
-        // SVN uses directories for branches, not branches in the same working copy
-        // Return the relative path in the repository
-        let info = self.get_svn_info()?;
-        Ok(info
-            .get("Relative URL")
-            .cloned()
-            .unwrap_or_else(|| "unknown".to_string()))
-    }
-
-    fn get_latest_commit(&self) -> Result<String, RezCoreError> {
-        // `svn info --show-item last-changed-revision`
-        self.run_svn(&["info", "--show-item", "last-changed-revision"])
-    }
-
-    fn tag_exists(&self, tag: &str) -> Result<bool, RezCoreError> {
-        // Check if tags/<tag> exists in the repository
-        let info = self.get_svn_info()?;
-        let repo_url = info.get("Repository Root").ok_or_else(|| {
-            RezCoreError::BuildError("Could not get repository root URL".to_string())
-        })?;
-
-        let tags_url = format!("{}/tags/{}", repo_url, tag);
-        let result = self.run_svn(&["info", &tags_url]);
-
-        Ok(result.is_ok())
-    }
-
-    fn create_tag(&self, tag: &str, message: &str) -> Result<(), RezCoreError> {
-        let info = self.get_svn_info()?;
-        let repo_url = info.get("Repository Root").ok_or_else(|| {
-            RezCoreError::BuildError("Could not get repository root URL".to_string())
-        })?;
-
-        let trunk_url = format!("{}/trunk", repo_url);
-        let tags_url = format!("{}/tags/{}", repo_url, tag);
-
-        // `svn copy <trunk> <tags/tag> -m <message>`
-        let output = std::process::Command::new("svn")
-            .args(["copy", &trunk_url, &tags_url, "-m", message])
-            .output()
-            .map_err(|e| RezCoreError::BuildError(format!("Failed to run svn copy: {}", e)))?;
-
-        if !output.status.success() {
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            return Err(RezCoreError::BuildError(format!(
-                "svn copy failed: {}",
-                stderr
-            )));
-        }
-
-        tracing::info!("SvnVCS: created tag '{}' with message '{}'", tag, message);
-        Ok(())
-    }
-
-    fn get_changelog(
-        &self,
-        from_rev: Option<&str>,
-        to_rev: Option<&str>,
-    ) -> Result<String, RezCoreError> {
-        let info = self.get_svn_info()?;
-        // Validate that URL exists (but don't store it)
-        let _repo_url = info
-            .get("URL")
-            .ok_or_else(|| RezCoreError::BuildError("Could not get repository URL".to_string()))?;
-
-        let from = from_rev.unwrap_or("BASE");
-        let to = to_rev.unwrap_or("HEAD");
-
-        // `svn log -r <from>:<to>`
-        let changelog = self.run_svn(&["log", "-r", &format!("{}:{}", from, to)])?;
-
-        Ok(format!(
-            "Changelog from {} to {}:\n{}\n",
-            from, to, changelog
-        ))
-    }
-
-    fn get_metadata(&self) -> Result<VCSMetadata, RezCoreError> {
-        let info = self.get_svn_info()?;
-
-        let commit_hash = info
-            .get("Last Changed Rev")
-            .cloned()
-            .unwrap_or_else(|| "unknown".to_string());
-
-        let branch = info.get("Relative URL").cloned();
-
-        let repository_url = info.get("Repository Root").cloned();
-
-        let commit_message = info.get("Last Changed Author").cloned();
-
-        Ok(VCSMetadata {
-            vcs_type: "svn".to_string(),
-            repository_url,
-            branch,
-            tracking_branch: None,
-            fetch_url: None,
-            push_url: None,
-            commit_hash,
-            commit_message,
-            author_name: info.get("Last Changed Author").cloned(),
-            author_email: None,
-            timestamp: None,
-            extra: HashMap::new(),
-        })
-    }
-
-    fn validate_repo_state(&self) -> Result<(), RezCoreError> {
-        // Check if working copy is clean
-        if !self.is_clean()? {
-            return Err(RezCoreError::BuildError(
-                "SVN working copy is not clean".to_string(),
-            ));
-        }
-
-        Ok(())
-    }
-
-    fn is_releasable_branch(&self) -> Result<Option<bool>, RezCoreError> {
-        // In SVN, releases are typically from trunk or a release branch
-        let relative_url = self.get_current_branch()?;
-        Ok(Some(
-            relative_url.contains("/trunk") || relative_url.contains("/branches/release"),
-        ))
     }
 }
 
 /// Implement ReleaseVCS for Box<dyn ReleaseVCS + Send + Sync>
+///
 /// This allows using Box<dyn ReleaseVCS + Send + Sync> as a ReleaseVCS trait object.
 impl ReleaseVCS for Box<dyn ReleaseVCS + Send + Sync> {
     fn get_type_name(&self) -> &str {
@@ -1027,7 +263,7 @@ pub fn detect_vcs(repo_path: &Path) -> Option<Box<dyn ReleaseVCS + Send + Sync>>
     // Check for Git
     if repo_path.join(".git").exists() {
         #[cfg(feature = "git")]
-        return Some(Box::new(GitVCS::new(repo_path.to_path_buf()).ok()?));
+        return Some(Box::new(git::GitVCS::new(repo_path.to_path_buf()).ok()?));
 
         // Fall back to StubVCS if git feature is not enabled
         #[cfg(not(feature = "git"))]
@@ -1036,12 +272,12 @@ pub fn detect_vcs(repo_path: &Path) -> Option<Box<dyn ReleaseVCS + Send + Sync>>
 
     // Check for Mercurial
     if repo_path.join(".hg").exists() {
-        return Some(Box::new(MercurialVCS::new(repo_path.to_path_buf()).ok()?));
+        return Some(Box::new(hg::MercurialVCS::new(repo_path.to_path_buf()).ok()?));
     }
 
     // Check for SVN
     if repo_path.join(".svn").exists() {
-        return Some(Box::new(SvnVCS::new(repo_path.to_path_buf()).ok()?));
+        return Some(Box::new(svn::SvnVCS::new(repo_path.to_path_buf()).ok()?));
     }
 
     None
@@ -1060,6 +296,7 @@ pub fn get_vcs_metadata(repo_path: &Path) -> Result<Option<VCSMetadata>, RezCore
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(feature = "git")]
     use git2;
     use std::fs;
 
@@ -1167,7 +404,7 @@ mod tests {
         let (_temp_dir, repo) = create_temp_git_repo();
         let repo_root = repo.workdir().unwrap().to_path_buf();
 
-        let vcs = GitVCS::new(repo_root.clone()).unwrap();
+        let vcs = git::GitVCS::new(repo_root.clone()).unwrap();
         assert_eq!(vcs.get_type_name(), "git");
         assert_eq!(vcs.get_repo_root().unwrap(), repo_root);
     }
@@ -1178,7 +415,7 @@ mod tests {
         let (_temp_dir, repo) = create_temp_git_repo();
         let repo_root = repo.workdir().unwrap().to_path_buf();
 
-        let vcs = GitVCS::new(repo_root.clone()).unwrap();
+        let vcs = git::GitVCS::new(repo_root.clone()).unwrap();
 
         // Fresh repo should be clean
         assert!(vcs.is_clean().unwrap());
@@ -1194,7 +431,7 @@ mod tests {
         let (_temp_dir, repo) = create_temp_git_repo();
         let repo_root = repo.workdir().unwrap().to_path_buf();
 
-        let vcs = GitVCS::new(repo_root.clone()).unwrap();
+        let vcs = git::GitVCS::new(repo_root.clone()).unwrap();
 
         // Default branch should be "main"
         let branch = vcs.get_current_branch().unwrap();
@@ -1207,7 +444,7 @@ mod tests {
         let (_temp_dir, repo) = create_temp_git_repo();
         let repo_root = repo.workdir().unwrap().to_path_buf();
 
-        let vcs = GitVCS::new(repo_root.clone()).unwrap();
+        let vcs = git::GitVCS::new(repo_root.clone()).unwrap();
 
         let commit_hash = vcs.get_latest_commit().unwrap();
         // Should be a valid 40-char hex string
@@ -1221,7 +458,7 @@ mod tests {
         let (_temp_dir, repo) = create_temp_git_repo();
         let repo_root = repo.workdir().unwrap().to_path_buf();
 
-        let vcs = GitVCS::new(repo_root.clone()).unwrap();
+        let vcs = git::GitVCS::new(repo_root.clone()).unwrap();
 
         // Tag should not exist initially
         assert!(!vcs.tag_exists("v1.0.0").unwrap());
@@ -1239,7 +476,7 @@ mod tests {
         let (_temp_dir, repo) = create_temp_git_repo();
         let repo_root = repo.workdir().unwrap().to_path_buf();
 
-        let vcs = GitVCS::new(repo_root.clone()).unwrap();
+        let vcs = git::GitVCS::new(repo_root.clone()).unwrap();
 
         let metadata = vcs.get_metadata().unwrap();
         assert_eq!(metadata.vcs_type, "git");
@@ -1256,7 +493,7 @@ mod tests {
         let (_temp_dir, repo) = create_temp_git_repo();
         let repo_root = repo.workdir().unwrap().to_path_buf();
 
-        let vcs = GitVCS::new(repo_root.clone()).unwrap();
+        let vcs = git::GitVCS::new(repo_root.clone()).unwrap();
 
         // Get changelog
         let changelog = vcs.get_changelog(None, None).unwrap();
@@ -1268,7 +505,7 @@ mod tests {
     #[test]
     fn test_git_vcs_not_a_repo() {
         let temp_dir = tempfile::TempDir::new().unwrap();
-        let result = GitVCS::new(temp_dir.path().to_path_buf());
+        let result = git::GitVCS::new(temp_dir.path().to_path_buf());
         assert!(result.is_err());
     }
 
@@ -1278,7 +515,7 @@ mod tests {
         // Create a repo with no upstream branch
         let (_temp_dir, repo) = create_temp_git_repo();
         let repo_root = repo.workdir().unwrap().to_path_buf();
-        let vcs = GitVCS::new(repo_root).unwrap();
+        let vcs = git::GitVCS::new(repo_root).unwrap();
 
         // No upstream set, should return None
         let result = vcs.get_tracking_branch(&repo, Some("main"));
@@ -1290,7 +527,7 @@ mod tests {
     fn test_git_vcs_get_tracking_branch_no_branch() {
         let (_temp_dir, repo) = create_temp_git_repo();
         let repo_root = repo.workdir().unwrap().to_path_buf();
-        let vcs = GitVCS::new(repo_root).unwrap();
+        let vcs = git::GitVCS::new(repo_root).unwrap();
 
         // No branch name provided, should return None
         let result = vcs.get_tracking_branch(&repo, None);
@@ -1305,7 +542,7 @@ mod tests {
         let repo = git2::Repository::init(temp_dir.path()).unwrap();
 
         let repo_root = repo.workdir().unwrap().to_path_buf();
-        let vcs = GitVCS::new(repo_root).unwrap();
+        let vcs = git::GitVCS::new(repo_root).unwrap();
 
         // No remote set, should return None
         let result = vcs.get_push_url(&repo, "origin");
@@ -1317,7 +554,7 @@ mod tests {
     fn test_git_vcs_metadata_has_new_fields() {
         let (_temp_dir, repo) = create_temp_git_repo();
         let repo_root = repo.workdir().unwrap().to_path_buf();
-        let vcs = GitVCS::new(repo_root).unwrap();
+        let vcs = git::GitVCS::new(repo_root).unwrap();
 
         let metadata = vcs.get_metadata().unwrap();
         // The new fields should be present (may be None if no remote/upstream configured)
@@ -1343,7 +580,7 @@ mod tests {
     #[test]
     fn test_mercurial_vcs_not_a_repo() {
         let temp_dir = tempfile::TempDir::new().unwrap();
-        let result = MercurialVCS::new(temp_dir.path().to_path_buf());
+        let result = hg::MercurialVCS::new(temp_dir.path().to_path_buf());
         assert!(result.is_err());
     }
 
@@ -1353,35 +590,40 @@ mod tests {
         let temp_dir = tempfile::TempDir::new().unwrap();
         std::fs::create_dir(temp_dir.path().join(".hg")).unwrap();
 
-        let result = MercurialVCS::new(temp_dir.path().to_path_buf());
+        let result = hg::MercurialVCS::new(temp_dir.path().to_path_buf());
         // Should succeed (creation only checks for .hg directory)
         assert!(result.is_ok());
     }
 
     #[test]
     fn test_mercurial_vcs_type_name() {
-        let vcs = MercurialVCS {
-            repo_root: PathBuf::from("/tmp/hg-repo"),
-        };
+        // Create a temp dir with .hg directory (simulates hg repo)
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        std::fs::create_dir(temp_dir.path().join(".hg")).unwrap();
+
+        let vcs = hg::MercurialVCS::new(temp_dir.path().to_path_buf()).unwrap();
         assert_eq!(vcs.get_type_name(), "hg");
     }
 
     #[test]
     fn test_mercurial_vcs_validate_repo_state() {
-        let vcs = MercurialVCS {
-            repo_root: PathBuf::from("/tmp/hg-repo"),
-        };
-        // validate_repo_state will fail because /tmp/hg-repo is not a real repo
+        // Create a temp dir with .hg directory (simulates hg repo)
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        std::fs::create_dir(temp_dir.path().join(".hg")).unwrap();
+
+        let vcs = hg::MercurialVCS::new(temp_dir.path().to_path_buf()).unwrap();
+        // validate_repo_state will check if repo is clean
         // This test just ensures the method exists and returns Result
         let _result: Result<(), RezCoreError> = vcs.validate_repo_state();
     }
 
     #[test]
     fn test_mercurial_vcs_is_releasable_branch() {
-        let vcs = MercurialVCS {
-            repo_root: PathBuf::from("/tmp/hg-repo"),
-        };
-        // is_releasable_branch will fail because /tmp/hg-repo is not a real repo
+        // Create a temp dir with .hg directory (simulates hg repo)
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        std::fs::create_dir(temp_dir.path().join(".hg")).unwrap();
+
+        let vcs = hg::MercurialVCS::new(temp_dir.path().to_path_buf()).unwrap();
         // This test just ensures the method exists and returns Result
         let _result: Result<Option<bool>, RezCoreError> = vcs.is_releasable_branch();
     }
@@ -1402,7 +644,7 @@ mod tests {
     #[test]
     fn test_svn_vcs_not_a_repo() {
         let temp_dir = tempfile::TempDir::new().unwrap();
-        let result = SvnVCS::new(temp_dir.path().to_path_buf());
+        let result = svn::SvnVCS::new(temp_dir.path().to_path_buf());
         assert!(result.is_err());
     }
 
@@ -1412,35 +654,40 @@ mod tests {
         let temp_dir = tempfile::TempDir::new().unwrap();
         std::fs::create_dir(temp_dir.path().join(".svn")).unwrap();
 
-        let result = SvnVCS::new(temp_dir.path().to_path_buf());
+        let result = svn::SvnVCS::new(temp_dir.path().to_path_buf());
         // Should succeed (creation only checks for .svn directory)
         assert!(result.is_ok());
     }
 
     #[test]
     fn test_svn_vcs_type_name() {
-        let vcs = SvnVCS {
-            repo_root: PathBuf::from("/tmp/svn-repo"),
-        };
+        // Create a temp dir with .svn directory (simulates svn working copy)
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        std::fs::create_dir(temp_dir.path().join(".svn")).unwrap();
+
+        let vcs = svn::SvnVCS::new(temp_dir.path().to_path_buf()).unwrap();
         assert_eq!(vcs.get_type_name(), "svn");
     }
 
     #[test]
     fn test_svn_vcs_validate_repo_state() {
-        let vcs = SvnVCS {
-            repo_root: PathBuf::from("/tmp/svn-repo"),
-        };
-        // validate_repo_state will fail because /tmp/svn-repo is not a real repo
+        // Create a temp dir with .svn directory (simulates svn working copy)
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        std::fs::create_dir(temp_dir.path().join(".svn")).unwrap();
+
+        let vcs = svn::SvnVCS::new(temp_dir.path().to_path_buf()).unwrap();
+        // validate_repo_state will check if working copy is clean
         // This test just ensures the method exists and returns Result
         let _result: Result<(), RezCoreError> = vcs.validate_repo_state();
     }
 
     #[test]
     fn test_svn_vcs_is_releasable_branch() {
-        let vcs = SvnVCS {
-            repo_root: PathBuf::from("/tmp/svn-repo"),
-        };
-        // is_releasable_branch will fail because /tmp/svn-repo is not a real repo
+        // Create a temp dir with .svn directory (simulates svn working copy)
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        std::fs::create_dir(temp_dir.path().join(".svn")).unwrap();
+
+        let vcs = svn::SvnVCS::new(temp_dir.path().to_path_buf()).unwrap();
         // This test just ensures the method exists and returns Result
         let _result: Result<Option<bool>, RezCoreError> = vcs.is_releasable_branch();
     }
@@ -1478,7 +725,7 @@ mod tests {
     fn test_git_vcs_validate_repo_state() {
         let (_temp_dir, repo) = create_temp_git_repo();
         let repo_root = repo.workdir().unwrap().to_path_buf();
-        let vcs = GitVCS::new(repo_root).unwrap();
+        let vcs = git::GitVCS::new(repo_root).unwrap();
 
         // Fresh repo should pass validation
         assert!(vcs.validate_repo_state().is_ok());
@@ -1489,7 +736,7 @@ mod tests {
     fn test_git_vcs_is_releasable_branch() {
         let (_temp_dir, repo) = create_temp_git_repo();
         let repo_root = repo.workdir().unwrap().to_path_buf();
-        let vcs = GitVCS::new(repo_root).unwrap();
+        let vcs = git::GitVCS::new(repo_root).unwrap();
 
         // Default branch should be releasable
         let result = vcs.is_releasable_branch().unwrap();

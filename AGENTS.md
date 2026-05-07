@@ -28,9 +28,7 @@ pkg = rez.get_latest_package("python")
 
 ## Documentation Map
 
-### For AI Agents (this file references these)
-- **llms.txt** → Concise AI-friendly usage index
-- **llms-full.txt** → Complete API reference for AI consumption
+### For AI Agents (this file is the primary entry point)
 - **CLAUDE.md** → Anthropic Claude-specific guidance (references this file)
 - **GEMINI.md** → Google Gemini-specific guidance (references this file)
 

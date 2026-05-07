@@ -123,55 +123,6 @@ pub struct ShellExecutor {
     timeout_seconds: u64,
 }
 
-// Python methods temporarily disabled due to DLL issues
-/*
-#[pymethods]
-impl ShellExecutor {
-    #[new]
-    pub fn new() -> Self {
-        Self::with_shell(ShellType::detect())
-    }
-
-    /// Execute a command and return the result
-    pub fn execute_py(&self, command: &str) -> PyResult<CommandResult> {
-        let result = tokio::runtime::Runtime::new()
-            .unwrap()
-            .block_on(self.execute(command));
-
-        result.map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))
-    }
-
-    /// Execute a command in the background
-    pub fn execute_background_py(&self, command: &str) -> PyResult<u32> {
-        let result = tokio::runtime::Runtime::new()
-            .unwrap()
-            .block_on(self.execute_background(command));
-
-        result.map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))
-    }
-
-    /// Get the shell type
-    #[getter]
-    pub fn shell_type_str(&self) -> String {
-        format!("{:?}", self.shell_type)
-    }
-
-    /// Set working directory
-    pub fn set_working_directory(&mut self, path: String) {
-        self.working_directory = Some(PathBuf::from(path));
-    }
-
-    /// Set environment variable
-    pub fn set_env_var(&mut self, name: String, value: String) {
-        self.environment.insert(name, value);
-    }
-
-    /// Set timeout
-    pub fn set_timeout(&mut self, seconds: u64) {
-        self.timeout_seconds = seconds;
-    }
-}
-*/
 
 impl ShellExecutor {
     /// Create a new shell executor with default shell type

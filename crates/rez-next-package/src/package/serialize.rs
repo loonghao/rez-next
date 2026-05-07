@@ -101,6 +101,7 @@ impl<'de> Deserialize<'de> for Package {
             PluginFor,
             HashedVariants,
             Preprocess,
+            IsDevPackage,
         }
 
         struct PackageVisitor;
@@ -221,6 +222,9 @@ impl<'de> Deserialize<'de> for Package {
                 let preprocess = seq
                     .next_element()?
                     .ok_or_else(|| de::Error::invalid_length(34, &self))?;
+                let is_dev_package = seq
+                    .next_element()?
+                    .ok_or_else(|| de::Error::invalid_length(35, &self))?;
 
                 Ok(Package {
                     name,
@@ -260,6 +264,7 @@ impl<'de> Deserialize<'de> for Package {
                     plugin_for,
                     hashed_variants,
                     preprocess,
+                    is_dev_package,
                 })
             }
 
@@ -302,6 +307,7 @@ impl<'de> Deserialize<'de> for Package {
                 let mut plugin_for = None;
                 let mut hashed_variants = None;
                 let mut preprocess = None;
+                let mut is_dev_package = None;
 
                 while let Some(key) = map.next_key()? {
                     match key {
@@ -515,6 +521,12 @@ impl<'de> Deserialize<'de> for Package {
                             }
                             preprocess = Some(map.next_value()?);
                         }
+                        Field::IsDevPackage => {
+                            if is_dev_package.is_some() {
+                                return Err(de::Error::duplicate_field("is_dev_package"));
+                            }
+                            is_dev_package = Some(map.next_value()?);
+                        }
                     }
                 }
 
@@ -557,6 +569,7 @@ impl<'de> Deserialize<'de> for Package {
                     plugin_for: plugin_for.unwrap_or_default(),
                     hashed_variants: hashed_variants.unwrap_or(None),
                     preprocess: preprocess.unwrap_or(None),
+                    is_dev_package: is_dev_package.unwrap_or(None),
                 })
             }
         }
@@ -597,6 +610,7 @@ impl<'de> Deserialize<'de> for Package {
             "plugin_for",
             "hashed_variants",
             "preprocess",
+            "is_dev_package",
         ];
         deserializer.deserialize_struct("Package", FIELDS, PackageVisitor)
     }
