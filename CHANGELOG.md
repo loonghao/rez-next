@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.2](https://github.com/loonghao/rez-next/compare/v0.3.1...v0.3.2) (2026-05-07)
+
+
+### 🚀 Features
+
+* merge auto-improve branch ([0e767fb](https://github.com/loonghao/rez-next/commit/0e767fbcc2309b74fb6b9d085e50f9ae380d3adf))
+
+
+### 🐛 Bug Fixes
+
+* **ci:** correct maturin build and add comprehensive e2e tests ([#140](https://github.com/loonghao/rez-next/issues/140)) ([6e91278](https://github.com/loonghao/rez-next/commit/6e9127871763b7bdfca6de8703ed57e7a1846eea))
+* **python:** fix import rez_next and complete module (Cycle 244) ([#141](https://github.com/loonghao/rez-next/issues/141)) ([39da1c0](https://github.com/loonghao/rez-next/commit/39da1c01e6f028b295604d2f1888201989014836))
+
+
+### 📚 Documentation
+
+* add AI agent documentation (AGENTS.md, llms.txt, etc.) ([3daf193](https://github.com/loonghao/rez-next/commit/3daf1932340d184ce0e3c324fc4d35dadb738398))
+
 ## [0.3.1](https://github.com/loonghao/rez-next/compare/v0.3.0...v0.3.1) (2026-04-29)
 
 
