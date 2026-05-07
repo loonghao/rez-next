@@ -10,7 +10,9 @@
 [![PyPI - Downloads](https://img.shields.io/pypi/dm/rez-next)](https://pypi.org/project/rez-next/)
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/rez-next)](https://pypi.org/project/rez-next/)
 
-用 Rust 重写的 [Rez](https://github.com/AcademySoftwareFoundation/rez) 包管理器，提供完整的 Python 绑定，只需将 `import rez` 替换为 `import rez_next` 即可无缝切换。
+> ⚠️ **实验性项目。** rez-next 是一个 Rust 实验项目，探索完整重写 [Rez](https://github.com/AcademySoftwareFoundation/rez) 包管理器的可能性。它**不是**生产就绪的，**不是** AcademySoftwareFoundation 官方项目，API 可能随时变更。请将其用于评估、基准测试与研究，**不要**用于工作室关键管线。
+
+一个用 Rust 实现的 [Rez](https://github.com/AcademySoftwareFoundation/rez) 包管理器实验项目，提供 Python 绑定且兼容覆盖度持续增长。许多常用工作流已经可以通过 `import rez_next` 使用，但目前尚不能在所有 API 层面实现无缝切换。
 
 [English](README.md) | [中文](README_zh.md)
 

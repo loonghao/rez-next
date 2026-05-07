@@ -10,7 +10,9 @@
 [![PyPI - Downloads](https://img.shields.io/pypi/dm/rez-next)](https://pypi.org/project/rez-next/)
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/rez-next)](https://pypi.org/project/rez-next/)
 
-An in-progress Rust rewrite of the [Rez](https://github.com/AcademySoftwareFoundation/rez) package manager with Python bindings and growing compatibility coverage. Many common workflows already work with `import rez_next`, but it is not yet a seamless drop-in switch for every API surface.
+> ⚠️ **Experimental project.** rez-next is a Rust experiment exploring what a full rewrite of the [Rez](https://github.com/AcademySoftwareFoundation/rez) package manager could look like. It is **not** production-ready, **not** an official AcademySoftwareFoundation project, and APIs may change without notice. Use it for evaluation, benchmarking, and research — not for studio-critical pipelines.
+
+An experimental Rust implementation of the [Rez](https://github.com/AcademySoftwareFoundation/rez) package manager with Python bindings and growing compatibility coverage. Many common workflows already work with `import rez_next`, but it is not yet a seamless drop-in switch for every API surface.
 
 [English](README.md) | [中文](README_zh.md)
 
