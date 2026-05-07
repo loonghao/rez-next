@@ -41,6 +41,9 @@ python-source = "python"
 # Disable strip to avoid conflict with pyo3 abi3 --include-debuginfo
 strip = false
 
+[project.optional-dependencies]
+test = ["pytest", "pytest-benchmark"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-v --tb=short"

@@ -9,6 +9,7 @@
 [![PyPI - Version](https://img.shields.io/pypi/v/rez-next)](https://pypi.org/project/rez-next/)
 [![PyPI - Downloads](https://img.shields.io/pypi/dm/rez-next)](https://pypi.org/project/rez-next/)
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/rez-next)](https://pypi.org/project/rez-next/)
+[![Coverage](https://img.shields.io/codecov/c/gh/loonghao/rez-next/main)](https://codecov.io/gh/loonghao/rez-next)
 
 > ⚠️ **Experimental project.** rez-next is a Rust experiment exploring what a full rewrite of the [Rez](https://github.com/AcademySoftwareFoundation/rez) package manager could look like. It is **not** production-ready, **not** an official AcademySoftwareFoundation project, and APIs may change without notice. Use it for evaluation, benchmarking, and research — not for studio-critical pipelines.
 
