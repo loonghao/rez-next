@@ -186,7 +186,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: "3.12"
+          python-version: "3.14"
 
       - name: Build wheels (abi3 — compatible with Python 3.8+)
         working-directory: crates/rez-next-python
