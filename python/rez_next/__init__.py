@@ -1,7 +1,7 @@
 # Rez-Next: High-performance Rust rewrite of Rez
 # Compatible with rez API - users can `import rez_next as rez`
 
-from rez_next_bindings import *
+from _native import *
 import os
 
 # Version info (matches rez.__version__ API)

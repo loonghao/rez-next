@@ -50,6 +50,7 @@ mod system_bindings;
 mod test_bindings;
 mod version_bindings;
 mod util_bindings;
+mod command_bindings;
 
 // ── Top-level function modules ────────────────────────────────────────────────
 mod build_functions;
@@ -65,6 +66,7 @@ mod selftest_functions;
 use bind_bindings::{PyBindManager, PyBindResult};
 use build_functions::{build_package, create_build_system, get_build_process_types, get_build_system, get_buildsys_types};
 use config_bindings::{register_config_module, PyConfig};
+use command_bindings::register_command_module;
 use context_bindings::PyResolvedContext;
 use data_bindings::PyRezData;
 use env_bindings::{PyPackageFamily, PyRezEnv};
@@ -685,6 +687,9 @@ fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
     // ── Submodule: rez.util ──────────────────────────────────────
     util_bindings::register_util_submodule(m.py(), m)?;
+
+    // ── Submodule: rez.command ──────────────────
+    register_command_module(m.py(), m)?;
 
     Ok(())
 }
