@@ -132,6 +132,15 @@ pyo3::create_exception!(
     "Raised for internal rez-next errors.\n\nEquivalent to rez.exceptions.RezSystemError."
 );
 
+// ─── Package Test exceptions ───────────────────────────────────────────────────
+
+pyo3::create_exception!(
+    rez_next,
+    PackageTestError,
+    RezError,
+    "Raised when a package test fails.\n\nEquivalent to rez.exceptions.PackageTestError."
+);
+
 // ─── Exception name constants (for documentation / mapping) ───────────────────
 
 /// Map of exception class name -> parent class name (for hierarchy validation).
@@ -154,6 +163,7 @@ pub(crate) const EXCEPTION_HIERARCHY: &[(&str, &str)] = &[
     ("RexError", "RezError"),
     ("RexUndefinedVariableError", "RexError"),
     ("RezSystemError", "RezError"),
+    ("PackageTestError", "RezError"),
 ];
 
 // ─── Registration ─────────────────────────────────────────────────────────────
@@ -212,6 +222,9 @@ pub fn register_all_exceptions(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
     // System
     m.add("RezSystemError", m.py().get_type::<RezSystemError>())?;
+
+    // Package Test
+    m.add("PackageTestError", m.py().get_type::<PackageTestError>())?;
 
     Ok(())
 }

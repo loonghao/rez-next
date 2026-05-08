@@ -27,6 +27,16 @@ class TestGetReleaseHookTypes:
         """Should include the built-in 'logging' hook."""
         types = native.release_hook.py_get_release_hook_types()
         assert "logging" in types
+    
+    def test_includes_email_hook(self):
+        """Should include the built-in 'email' hook."""
+        types = native.release_hook.py_get_release_hook_types()
+        assert "email" in types
+    
+    def test_includes_webhook_hook(self):
+        """Should include the built-in 'webhook' hook."""
+        types = native.release_hook.py_get_release_hook_types()
+        assert "webhook" in types
 
 
 class TestCreateReleaseHook:
@@ -46,7 +56,19 @@ class TestCreateReleaseHook:
         )
         assert hook is not None
     
-    def test_create_invalid_hook_raises(self):
+    def test_create_email_hook(self):
+        """Should be able to create an email hook."""
+        hook = native.release_hook.py_create_release_hook(
+            "email", "/tmp/source"
+        )
+        assert hook is not None
+    
+    def test_create_webhook_hook_without_url_fails(self):
+        """WebHook requires URL in config, should fail without it."""
+        with pytest.raises(Exception):
+            native.release_hook.py_create_release_hook(
+                "webhook", "/tmp/source"
+            )
         """Should raise an error for invalid hook name."""
         with pytest.raises(Exception):
             native.release_hook.py_create_release_hook(

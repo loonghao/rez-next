@@ -247,9 +247,8 @@ jobs:
         run: |
           echo "=== Listing dist/ ==="
           ls -la dist/ || echo "(dist is empty or missing)"
-          echo "=== Installing wheel ==="
-          python -m pip install dist/*.whl
-          python -m pip install pytest
+          echo "=== Installing wheel with test extras ==="
+          python -m pip install dist/*.whl[test]
           echo "=== Installed packages ==="
           python -m pip show rez-next || true
 

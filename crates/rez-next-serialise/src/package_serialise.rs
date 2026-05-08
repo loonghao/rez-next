@@ -138,7 +138,7 @@ pub fn dump_package_data<T: Serialize>(
 /// # Errors
 ///
 /// Returns `PackageSerialiseError` if deserialisation or file reading fails.
-pub fn read_package_data<T: serde::de::DeserialiseOwned>(path: &Path, format: FileFormat) -> Result<T> {
+pub fn read_package_data<T: serde::de::DeserializeOwned>(path: &Path, format: FileFormat) -> Result<T> {
     let content = std::fs::read_to_string(path)?;
 
     let deserialised: T = match format {

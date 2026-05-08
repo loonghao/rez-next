@@ -1,27 +1,29 @@
 //! Utility functions for rez-next
 //!
 //! This crate provides common utility functions used across the rez-next project,
-//! including file system utilities, string utilities, time utilities, and platform
-//! detection.
+//! including file system utilities, string utilities, time utilities, command
+//! execution, and platform detection.
 
 use std::env;
 
 use rez_next_common::RezCoreError;
 
-// ── Module declarations ──────────────────────────────────────────────────
+// ── Module declarations ──────────────────────────────────────────
+mod command;
 mod filesystem;
 mod platform;
 mod string;
 mod time;
 pub mod which;
 
+pub use command::*;
 pub use filesystem::*;
 pub use platform::*;
 pub use string::*;
 pub use time::*;
 pub use which::*;
 
-// ── Re-exports ─────────────────────────────────────────────────────────
+// ── Re-exports ─────────────────────────────────────────────────
 // Common types used by other crates
 pub use rez_next_common::RezCoreResult;
 pub type RezResult<T> = RezCoreResult<T>;

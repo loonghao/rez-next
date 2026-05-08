@@ -9,6 +9,7 @@
 [![PyPI - Version](https://img.shields.io/pypi/v/rez-next)](https://pypi.org/project/rez-next/)
 [![PyPI - Downloads](https://img.shields.io/pypi/dm/rez-next)](https://pypi.org/project/rez-next/)
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/rez-next)](https://pypi.org/project/rez-next/)
+[![Coverage](https://img.shields.io/codecov/c/gh/loonghao/rez-next/main)](https://codecov.io/gh/loonghao/rez-next)
 
 > ⚠️ **实验性项目。** rez-next 是一个 Rust 实验项目，探索完整重写 [Rez](https://github.com/AcademySoftwareFoundation/rez) 包管理器的可能性。它**不是**生产就绪的，**不是** AcademySoftwareFoundation 官方项目，API 可能随时变更。请将其用于评估、基准测试与研究，**不要**用于工作室关键管线。
 
