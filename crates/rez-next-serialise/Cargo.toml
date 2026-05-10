@@ -15,7 +15,7 @@ thiserror.workspace = true
 tracing.workspace = true
 
 # External dependencies
-indexmap = "2.7"
+indexmap = "2.14"
 toml = "0.8"
 
 [dev-dependencies]
