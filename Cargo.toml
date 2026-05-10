@@ -48,7 +48,7 @@ regex = "1.11"
 thiserror = "2.0"
 rand = "0.9"
 tracing = "0.1"
-clap = { version = "4.5", features = ["derive", "env"] }
+clap = { version = "4.6", features = ["derive", "env"] }
 
 # Dev dependencies
 criterion = { version = "0.8", features = ["html_reports"] }
