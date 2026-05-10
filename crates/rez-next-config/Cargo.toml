@@ -17,7 +17,7 @@ tracing = { workspace = true }
 
 # External dependencies
 toml = "0.8"
-json5 = "0.4"
+json5 = "1.3"
 dirs = "5.0"
 once_cell = "1.19"
 
