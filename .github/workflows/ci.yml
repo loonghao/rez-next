@@ -71,6 +71,7 @@ jobs:
     name: Test - Rust 1.95.0
 
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v6
       - uses: loonghao/vx@main
@@ -80,7 +81,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - uses: dtolnay/rust-toolchain@1.95.0
       - uses: Swatinem/rust-cache@v2
-      - run: vx cargo test --workspace --exclude rez-next-python
+      - run: vx cargo test --workspace --exclude rez-next-python -- --test-threads=1
 
   cli-e2e:
     name: CLI E2E Tests
@@ -101,33 +102,36 @@ jobs:
   test-macos:
     name: Test - macOS
     runs-on: macos-15
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@1.95.0
       - uses: Swatinem/rust-cache@v2
-      - run: cargo test --workspace --exclude rez-next-python
+      - run: cargo test --workspace --exclude rez-next-python -- --test-threads=1
 
   test-win-msvc:
     name: Test - win-msvc
     runs-on: windows-2025
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@1.95.0
         with:
           targets: x86_64-pc-windows-msvc
       - uses: Swatinem/rust-cache@v2
-      - run: cargo test --workspace --exclude rez-next-python
+      - run: cargo test --workspace --exclude rez-next-python -- --test-threads=1
 
   test-win-gnu:
     name: Test - win-gnu
     runs-on: windows-2025
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@1.95.0
         with:
           targets: x86_64-pc-windows-gnu
       - uses: Swatinem/rust-cache@v2
-      - run: cargo test --workspace --exclude rez-next-python --target x86_64-pc-windows-gnu
+      - run: cargo test --workspace --exclude rez-next-python --target x86_64-pc-windows-gnu -- --test-threads=1
 
   security-audit:
     name: Security Audit
@@ -144,6 +148,7 @@ jobs:
   coverage:
     name: Code Coverage
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@1.95.0
@@ -153,7 +158,7 @@ jobs:
       - uses: taiki-e/install-action@cargo-llvm-cov
       - name: Build rez-next binary (required for e2e tests)
         run: cargo build --bin rez-next
-      - run: cargo llvm-cov --workspace --exclude rez-next-python --lcov --output-path lcov.info
+      - run: cargo llvm-cov --workspace --exclude rez-next-python --lcov --output-path lcov.info -- --test-threads=1
       - uses: codecov/codecov-action@v6
         with:
           files: lcov.info
