@@ -216,11 +216,10 @@ pub fn get_reverse_dependency_tree(
             }
         }
 
+        current_layer = next_layer.clone();
         if !next_layer.is_empty() {
             layers.push(next_layer);
         }
-
-        current_layer = layers.last().cloned().unwrap_or_default();
         current_depth += 1;
     }
 
