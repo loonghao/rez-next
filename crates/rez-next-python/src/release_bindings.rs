@@ -10,7 +10,8 @@
 use crate::runtime::get_runtime;
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
-use rez_next_build::vcs::{ReleaseVCS, VCSMetadata};
+use rez_next_build::vcs::{ReleaseVCS, VCSMetadata, VCSRevision};
+use std::collections::HashMap;
 use std::path::PathBuf;
 use tracing::info;
 
@@ -136,6 +137,120 @@ impl From<&VCSMetadata> for PyVCSMetadata {
             author_name: meta.author_name.clone(),
             author_email: meta.author_email.clone(),
             timestamp: meta.timestamp,
+        }
+    }
+}
+
+// ============================================================================
+/// VCS Revision for release
+// ============================================================================
+#[pyclass(name = "VCSRevision", from_py_object)]
+#[derive(Clone)]
+pub struct PyVCSRevision {
+    #[pyo3(get)]
+    pub revision_type: String,
+    #[pyo3(get)]
+    pub revision_id: String,
+    pub data: String,  // JSON string for flexibility
+    pub metadata: HashMap<String, String>,
+}
+
+#[pymethods]
+impl PyVCSRevision {
+    #[new]
+    #[pyo3(signature = (revision_type, revision_id, data=None, metadata=None))]
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(
+        revision_type: String,
+        revision_id: String,
+        data: Option<&Bound<'_, PyAny>>,
+        metadata: Option<HashMap<String, String>>,
+    ) -> PyResult<Self> {
+        let data_str = if let Some(d) = data {
+            if let Ok(s) = d.extract::<String>() {
+                s
+            } else {
+                // Convert PyAny to JSON string
+                let py = d.py();
+                let json_mod = py.import("json")?;
+                let json_str = json_mod.call_method("dumps", (d,), None)?;
+                json_str.extract::<String>()?
+            }
+        } else {
+            format!("\"{}\"", revision_id)  // Default: just the revision ID as JSON string
+        };
+
+        let metadata = metadata.unwrap_or_default();
+
+        Ok(Self {
+            revision_type,
+            revision_id,
+            data: data_str,
+            metadata,
+        })
+    }
+
+    pub fn __str__(&self) -> String {
+        format!(
+            "VCSRevision(type={}, id={})",
+            self.revision_type, self.revision_id
+        )
+    }
+
+    pub fn __repr__(&self) -> String {
+        self.__str__()
+    }
+
+    /// Get the data as a Python object (parsed from JSON)
+    pub fn get_data<'a>(&self, py: Python<'a>) -> PyResult<Bound<'a, PyAny>> {
+        let json_mod = py.import("json")?;
+        let result = json_mod.call_method("loads", (&self.data,), None)?;
+        Ok(result)
+    }
+
+    /// Convert to Python dict
+    pub fn to_dict<'a>(&self, py: Python<'a>) -> PyResult<Bound<'a, PyDict>> {
+        let d = PyDict::new(py);
+        d.set_item("revision_type", self.revision_type.clone())?;
+        d.set_item("revision_id", self.revision_id.clone())?;
+        d.set_item("data", self.get_data(py)?)?;
+
+        let meta_dict = PyDict::new(py);
+        for (k, v) in &self.metadata {
+            meta_dict.set_item(k, v)?;
+        }
+        d.set_item("metadata", meta_dict)?;
+
+        Ok(d)
+    }
+}
+
+impl From<VCSRevision> for PyVCSRevision {
+    fn from(rev: VCSRevision) -> Self {
+        let data_str = serde_json::to_string(&rev.data).unwrap_or_else(|_| {
+            format!("\"{}\"", rev.revision_id)
+        });
+
+        Self {
+            revision_type: rev.revision_type.clone(),
+            revision_id: rev.revision_id.clone(),
+            data: data_str,
+            metadata: rev.metadata.clone(),
+        }
+    }
+}
+
+impl From<PyVCSRevision> for VCSRevision {
+    fn from(rev: PyVCSRevision) -> Self {
+        let data: serde_json::Value = serde_json::from_str(&rev.data).unwrap_or_else(|_| {
+            serde_json::json!(rev.revision_id)
+        });
+
+        Self {
+            revision_type: rev.revision_type.clone(),
+            revision_id: rev.revision_id.clone(),
+            data,
+            metadata: rev.metadata.clone(),
         }
     }
 }
@@ -267,6 +382,45 @@ impl PyReleaseVCS {
                 .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()));
         }
         Ok(None)
+    }
+
+    /// Get the current revision as a VCSRevision object.
+    ///
+    /// This aligns with rez's `ReleaseVCS.get_current_revision()`.
+    pub fn get_current_revision(&self) -> PyResult<PyVCSRevision> {
+        if let Some(inner) = self._inner.as_ref() {
+            return inner
+                .get_current_revision()
+                .map(PyVCSRevision::from)
+                .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()));
+        }
+
+        // Stub implementation
+        Ok(PyVCSRevision::from(VCSRevision::new("stub", "stub-revision")))
+    }
+
+    /// Export the repository at the given revision to the given path.
+    ///
+    /// This aligns with rez's `ReleaseVCS.export()`.
+    #[pyo3(signature = (revision, path))]
+    pub fn export(&self, revision: &PyVCSRevision, path: &str) -> PyResult<()> {
+        let rev: VCSRevision = VCSRevision::from(revision.clone());
+        let path = std::path::Path::new(path);
+
+        if let Some(inner) = self._inner.as_ref() {
+            return inner
+                .export(&rev, path)
+                .map(|_| ())
+                .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()));
+        }
+
+        // Stub implementation - just log and return Ok
+        tracing::info!(
+            "StubVCS: would export revision '{}' to '{}'",
+            rev.revision_id,
+            path.display()
+        );
+        Ok(())
     }
 }
 

@@ -22,8 +22,53 @@ pub use svn::SvnVCS;
 
 use rez_next_common::RezCoreError;
 use serde::{Deserialize, Serialize};
+use serde_json::Value as JsonValue;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+
+// ============================================================================
+// VCS Revision
+// ============================================================================
+
+/// A type-erased VCS revision that can be serialized/deserialized.
+///
+/// This aligns with Rez's `get_current_revision()` which can return
+/// "any type (str, dict etc.)". We use a structured representation
+/// that preserves the revision data in a JSON-compatible format.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct VCSRevision {
+    /// VCS type (git, hg, svn, etc.)
+    pub revision_type: String,
+    /// The revision identifier (commit hash, changeset hash, revision number, etc.)
+    pub revision_id: String,
+    /// Full revision data (can be a string, dict, etc.)
+    pub data: JsonValue,
+    /// Additional metadata (branch, tags, etc.)
+    #[serde(default)]
+    pub metadata: HashMap<String, String>,
+}
+
+impl VCSRevision {
+    /// Create a new VCSRevision
+    pub fn new(revision_type: &str, revision_id: &str) -> Self {
+        Self {
+            revision_type: revision_type.to_string(),
+            revision_id: revision_id.to_string(),
+            data: JsonValue::String(revision_id.to_string()),
+            metadata: HashMap::new(),
+        }
+    }
+
+    /// Create a VCSRevision with custom data
+    pub fn with_data(revision_type: &str, revision_id: &str, data: JsonValue) -> Self {
+        Self {
+            revision_type: revision_type.to_string(),
+            revision_id: revision_id.to_string(),
+            data,
+            metadata: HashMap::new(),
+        }
+    }
+}
 
 /// Trait for VCS integration in release workflow
 ///
@@ -86,6 +131,42 @@ pub trait ReleaseVCS: Send + Sync {
     fn is_releasable_branch(&self) -> Result<Option<bool>, RezCoreError> {
         // Default: not applicable (return None)
         Ok(None)
+    }
+
+    /// Get the current revision object.
+    ///
+    /// This aligns with Rez's `ReleaseVCS.get_current_revision()` which can return
+    /// "any type (str, dict etc.)". We return a `VCSRevision` struct that
+    /// encapsulates the revision data in a type-safe way.
+    ///
+    /// The returned `VCSRevision` contains:
+    /// - `revision_type`: VCS type (git, hg, svn, etc.)
+    /// - `revision_id`: The revision identifier (commit hash, changset hash, etc.)
+    /// - `data`: Full revision data (JSON-compatible for flexibility)
+    /// - `metadata`: Additional metadata (branch, tags, etc.)
+    fn get_current_revision(&self) -> Result<VCSRevision, RezCoreError> {
+        // Default: return the latest commit hash as the revision
+        let commit_hash = self.get_latest_commit()?;
+        Ok(VCSRevision::new(self.get_type_name(), &commit_hash))
+    }
+
+    /// Export the repository at the given revision to the given path.
+    ///
+    /// This aligns with Rez's `ReleaseVCS.export()` classmethod.
+    /// Exports the repository to the given path at the given revision.
+    ///
+    /// # Arguments
+    ///
+    /// * `revision` - The revision to export (as `VCSRevision`)
+    /// * `path` - The path to export to (must not exist, parent must exist)
+    ///
+    /// # Returns
+    ///
+    /// `Ok(())` on success, or `RezCoreError` on failure.
+    fn export(&self, _revision: &VCSRevision, _path: &Path) -> Result<(), RezCoreError> {
+        Err(RezCoreError::BuildError(
+            "export() not implemented for this VCS".to_string(),
+        ))
     }
 }
 

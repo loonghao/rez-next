@@ -184,6 +184,117 @@ impl super::ReleaseVCS for MercurialVCS {
         })
     }
 
+    /// Get the current revision as a VCSRevision object.
+    ///
+    /// For Mercurial, the revision is identified by the changeset hash (40-char hex).
+    /// We also include the revision number (integer) in metadata.
+    fn get_current_revision(&self) -> Result<super::VCSRevision, RezCoreError> {
+        // Get changeset hash (40-char hex)
+        let revision_id = self.run_hg(&["identify", "--id"])?;
+        let revision_id = revision_id.trim();
+
+        // Get revision number
+        let rev_num = self.run_hg(&["identify", "--num"]).ok();
+
+        // Get branch name
+        let branch = self.get_current_branch().ok();
+
+        // Get tags (if any)
+        let tags = self.run_hg(&["identify", "--tags"]).ok();
+        let tags = tags.and_then(|t| {
+            let t = t.trim();
+            if t.is_empty() || t == "tip" {
+                None
+            } else {
+                Some(t.to_string())
+            }
+        });
+
+        // Build metadata
+        let mut metadata = HashMap::new();
+        if let Some(ref rev) = rev_num {
+            metadata.insert("rev".to_string(), rev.trim().to_string());
+        }
+        if let Some(ref branch_name) = branch {
+            metadata.insert("branch".to_string(), branch_name.clone());
+        }
+        if let Some(ref tag_list) = tags {
+            metadata.insert("tags".to_string(), tag_list.clone());
+        }
+
+        // Build data JSON
+        let data = serde_json::json!({
+            "revision_id": revision_id,
+            "rev": rev_num.as_deref().map(|s| s.trim()),
+            "branch": branch,
+            "tags": tags,
+        });
+
+        let mut revision = super::VCSRevision::with_data(
+            "hg",
+            revision_id,
+            data,
+        );
+        revision.metadata = metadata;
+
+        Ok(revision)
+    }
+
+    /// Export the repository at the given revision to the given path.
+    ///
+    /// Uses `hg archive -r <rev> <path>` to export.
+    fn export(&self, revision: &super::VCSRevision, path: &std::path::Path) -> Result<(), RezCoreError> {
+        use std::fs;
+
+        // Validate target path
+        if path.exists() {
+            return Err(RezCoreError::BuildError(
+                format!("Export path '{}' already exists", path.display())
+            ));
+        }
+
+        // Create target directory
+        fs::create_dir_all(path).map_err(|e| {
+            RezCoreError::BuildError(format!(
+                "Failed to create export directory '{}': {}",
+                path.display(),
+                e
+            ))
+        })?;
+
+        // Use `hg archive` to export
+        let revision_spec = &revision.revision_id;
+        let output = std::process::Command::new("hg")
+            .args(["archive", "-r", revision_spec, &path.to_string_lossy()])
+            .current_dir(&self.repo_root)
+            .output()
+            .map_err(|e| {
+                RezCoreError::BuildError(format!(
+                    "Failed to run `hg archive` for repository at '{}': {}",
+                    self.repo_root.display(),
+                    e
+                ))
+            })?;
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            return Err(RezCoreError::BuildError(format!(
+                "Failed to export Mercurial repository at '{}' to '{}': {}",
+                self.repo_root.display(),
+                path.display(),
+                stderr
+            )));
+        }
+
+        tracing::info!(
+            "MercurialVCS: exported revision '{}' to '{}'",
+            revision_spec,
+            path.display()
+        );
+
+        Ok(())
+    }
+
     fn validate_repo_state(&self) -> Result<(), RezCoreError> {
         // Check if repo is clean
         if !self.is_clean()? {

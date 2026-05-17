@@ -80,7 +80,7 @@ use package_bindings::{load_package_from_file, save_package_to_file};
 use package_bindings::{PyPackage, PyPackageFormat, PyPackageRequirement};
 use pip_bindings::PyPipPackage;
 use plugins_bindings::{PyPlugin, PyPluginType, PyRezPluginManager};
-use release_bindings::{PyReleaseManager, PyReleaseResult};
+use release_bindings::{PyReleaseManager, PyReleaseResult, PyVCSMetadata, PyVCSRevision};
 use release_hook_bindings::register_release_hook_module;
 use repository_bindings::PyRepositoryManager;
 use search_bindings::PySearchResult;
@@ -162,6 +162,8 @@ fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyRezForward>()?;
     m.add_class::<PyReleaseManager>()?;
     m.add_class::<PyReleaseResult>()?;
+    m.add_class::<PyVCSMetadata>()?;
+    m.add_class::<PyVCSRevision>()?;
     m.add_class::<PySourceManager>()?;
     m.add_class::<PyRezData>()?;
     m.add_class::<PyBindManager>()?;
