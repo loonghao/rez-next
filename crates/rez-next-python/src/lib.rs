@@ -238,26 +238,6 @@ fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
     let exceptions = PyModule::new(m.py(), "exceptions")?;
     exceptions_bindings::register_all_exceptions(&exceptions)?;
     register_submodule(m, "exceptions", &exceptions)?;
-    m.add(
-        "RezError",
-        m.py().get_type::<exceptions_bindings::RezError>(),
-    )?;
-    m.add(
-        "PackageNotFound",
-        m.py().get_type::<exceptions_bindings::PackageNotFound>(),
-    )?;
-    m.add(
-        "ResolveError",
-        m.py().get_type::<exceptions_bindings::ResolveError>(),
-    )?;
-    m.add(
-        "RezBuildError",
-        m.py().get_type::<exceptions_bindings::RezBuildError>(),
-    )?;
-    m.add(
-        "ConfigurationError",
-        m.py().get_type::<exceptions_bindings::ConfigurationError>(),
-    )?;
 
     // ── Submodule: rez.packages_ ──────────────────────────────────────────────
     let packages_ = PyModule::new(m.py(), "packages_")?;
