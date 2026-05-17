@@ -9,6 +9,13 @@ with the same class names.
 from __future__ import annotations
 from contextlib import contextmanager
 
+# Import exception classes from _native module
+try:
+    from _native.exceptions import *
+except ImportError:
+    # If _native is not available, define exception classes here
+    pass
+
 
 class RezError(Exception):
     """Base-class Rez error."""
