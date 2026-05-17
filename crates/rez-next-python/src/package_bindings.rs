@@ -78,8 +78,8 @@ impl PyPackage {
     }
 
     #[setter]
-    fn set_description(&mut self, desc: Option<String>) {
-        self.0.description = desc;
+    fn set_description(&mut self, value: Option<String>) {
+        self.0.description = value;
     }
 
     /// Authors
@@ -88,10 +88,20 @@ impl PyPackage {
         self.0.authors.clone()
     }
 
+    #[setter]
+    fn set_authors(&mut self, authors: Vec<String>) {
+        self.0.authors = authors;
+    }
+
     /// Runtime requires
     #[getter]
     fn requires(&self) -> Vec<String> {
         self.0.requires.clone()
+    }
+
+    #[setter]
+    fn set_requires(&mut self, requires: Vec<String>) {
+        self.0.requires = requires;
     }
 
     /// Build requires
@@ -100,10 +110,20 @@ impl PyPackage {
         self.0.build_requires.clone()
     }
 
+    #[setter]
+    fn set_build_requires(&mut self, requires: Vec<String>) {
+        self.0.build_requires = requires;
+    }
+
     /// Private build requires
     #[getter]
     fn private_build_requires(&self) -> Vec<String> {
         self.0.private_build_requires.clone()
+    }
+
+    #[setter]
+    fn set_private_build_requires(&mut self, requires: Vec<String>) {
+        self.0.private_build_requires = requires;
     }
 
     /// Variants
@@ -112,16 +132,31 @@ impl PyPackage {
         self.0.variants.clone()
     }
 
+    #[setter]
+    fn set_variants(&mut self, variants: Vec<Vec<String>>) {
+        self.0.variants = variants;
+    }
+
     /// Tools
     #[getter]
     fn tools(&self) -> Vec<String> {
         self.0.tools.clone()
     }
 
+    #[setter]
+    fn set_tools(&mut self, tools: Vec<String>) {
+        self.0.tools = tools;
+    }
+
     /// Commands string
     #[getter]
     fn commands(&self) -> Option<String> {
         self.0.commands.clone()
+    }
+
+    #[setter]
+    fn set_commands(&mut self, commands: Option<String>) {
+        self.0.commands = commands;
     }
 
     /// Timestamp (Unix)
@@ -136,16 +171,31 @@ impl PyPackage {
         self.0.uuid.clone()
     }
 
+    #[setter]
+    fn set_uuid(&mut self, uuid: Option<String>) {
+        self.0.uuid = uuid;
+    }
+
     /// Whether package is cachable
     #[getter]
     fn cachable(&self) -> Option<bool> {
         self.0.cachable
     }
 
+    #[setter]
+    fn set_cachable(&mut self, cachable: Option<bool>) {
+        self.0.cachable = cachable;
+    }
+
     /// Whether package is relocatable
     #[getter]
     fn relocatable(&self) -> Option<bool> {
         self.0.relocatable
+    }
+
+    #[setter]
+    fn set_relocatable(&mut self, relocatable: Option<bool>) {
+        self.0.relocatable = relocatable;
     }
 
     /// Whether this is a developer package (loaded from a working directory)
@@ -389,6 +439,174 @@ impl PyPackage {
 
         PackageSerializer::save_to_file(&self.0, &PathBuf::from(path), format.0)
             .map_err(|e| pyo3::exceptions::PyIOError::new_err(e.to_string()))
+    }
+
+    /// Convert the package to a Python dictionary.
+    /// Equivalent to `dict(package)` in Rez.
+    fn to_dict<'a>(&self, py: Python<'a>) -> PyResult<Bound<'a, PyDict>> {
+        use pyo3::types::PyDict;
+
+        let dict = PyDict::new(py);
+
+        // Add all non-None fields
+        dict.set_item("name", self.0.name.clone())?;
+
+        if let Some(ref v) = self.0.version {
+            dict.set_item("version", v.as_str())?;
+        }
+        if let Some(ref d) = self.0.description {
+            dict.set_item("description", d.clone())?;
+        }
+        if !self.0.authors.is_empty() {
+            dict.set_item("authors", self.0.authors.clone())?;
+        }
+        if !self.0.requires.is_empty() {
+            dict.set_item("requires", self.0.requires.clone())?;
+        }
+        if !self.0.build_requires.is_empty() {
+            dict.set_item("build_requires", self.0.build_requires.clone())?;
+        }
+        if !self.0.private_build_requires.is_empty() {
+            dict.set_item("private_build_requires", self.0.private_build_requires.clone())?;
+        }
+        if !self.0.variants.is_empty() {
+            dict.set_item("variants", self.0.variants.clone())?;
+        }
+        if !self.0.tools.is_empty() {
+            dict.set_item("tools", self.0.tools.clone())?;
+        }
+        if let Some(ref c) = self.0.commands {
+            dict.set_item("commands", c.clone())?;
+        }
+        if let Some(ref u) = self.0.uuid {
+            dict.set_item("uuid", u.clone())?;
+        }
+        if let Some(t) = self.0.timestamp {
+            dict.set_item("timestamp", t)?;
+        }
+        if let Some(c) = self.0.cachable {
+            dict.set_item("cachable", c)?;
+        }
+        if let Some(r) = self.0.relocatable {
+            dict.set_item("relocatable", r)?;
+        }
+        if let Some(ref v) = self.0.format_version {
+            dict.set_item("format_version", *v)?;
+        }
+
+        Ok(dict.into())
+    }
+
+    /// Convert the package to a Python-formatted string (package.py format).
+    /// This generates a string that can be written to a package.py file.
+    fn to_package_py(&self) -> PyResult<String> {
+        let mut lines = Vec::new();
+
+        // Add encoding declaration
+        lines.push("# -*- coding: utf-8 -*-".to_string());
+        lines.push("".to_string());
+
+        // Add name (required)
+        lines.push(format!("name = \"{}\"", self.0.name));
+
+        // Add version
+        if let Some(ref v) = self.0.version {
+            lines.push(format!("version = \"{}\"", v.as_str()));
+        }
+
+        // Add description
+        if let Some(ref d) = self.0.description {
+            if d.len() > 40 {
+                lines.push("".to_string());
+                lines.push("description = \"\"\"".to_string());
+                lines.push(d.clone());
+                lines.push("\"\"\"".to_string());
+            } else {
+                lines.push(format!("description = \"{}\"", d));
+            }
+        }
+
+        // Add authors
+        if !self.0.authors.is_empty() {
+            lines.push("".to_string());
+            if self.0.authors.len() == 1 {
+                lines.push(format!("authors = [\"{}\"]", self.0.authors[0]));
+            } else {
+                lines.push("authors = [".to_string());
+                for author in &self.0.authors {
+                    lines.push(format!("    \"{}\",", author));
+                }
+                lines.push("]".to_string());
+            }
+        }
+
+        // Add requires
+        if !self.0.requires.is_empty() {
+            lines.push("".to_string());
+            if self.0.requires.len() == 1 {
+                lines.push(format!("requires = [\"{}\"]", self.0.requires[0]));
+            } else {
+                lines.push("requires = [".to_string());
+                for req in &self.0.requires {
+                    lines.push(format!("    \"{}\",", req));
+                }
+                lines.push("]".to_string());
+            }
+        }
+
+        // Add build_requires
+        if !self.0.build_requires.is_empty() {
+            lines.push("".to_string());
+            if self.0.build_requires.len() == 1 {
+                lines.push(format!("build_requires = [\"{}\"]", self.0.build_requires[0]));
+            } else {
+                lines.push("build_requires = [".to_string());
+                for req in &self.0.build_requires {
+                    lines.push(format!("    \"{}\",", req));
+                }
+                lines.push("]".to_string());
+            }
+        }
+
+        // Add variants
+        if !self.0.variants.is_empty() {
+            lines.push("".to_string());
+            lines.push("variants = [".to_string());
+            for variant in &self.0.variants {
+                if variant.len() == 1 {
+                    lines.push(format!("    [\"{}\"],", variant[0]));
+                } else {
+                    lines.push("    [".to_string());
+                    for item in variant {
+                        lines.push(format!("        \"{}\",", item));
+                    }
+                    lines.push("    ],".to_string());
+                }
+            }
+            lines.push("]".to_string());
+        }
+
+        // Add tools
+        if !self.0.tools.is_empty() {
+            lines.push("".to_string());
+            if self.0.tools.len() == 1 {
+                lines.push(format!("tools = [\"{}\"]", self.0.tools[0]));
+            } else {
+                lines.push("tools = [".to_string());
+                for tool in &self.0.tools {
+                    lines.push(format!("    \"{}\",", tool));
+                }
+                lines.push("]".to_string());
+            }
+        }
+
+        // Add uuid
+        if let Some(ref u) = self.0.uuid {
+            lines.push("".to_string());
+            lines.push(format!("uuid = \"{}\"", u));
+        }
+
+        Ok(lines.join("\n"))
     }
 }
 
