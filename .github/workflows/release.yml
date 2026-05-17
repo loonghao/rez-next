@@ -85,31 +85,38 @@ jobs:
 
       - name: Build binary
         shell: bash
+        env:
+          TARGET: ${{ matrix.target }}
+          USE_CROSS: ${{ matrix.use-cross == true }}
         run: |
-          if [ "${{ matrix.use-cross }}" = "true" ]; then
-            cross build --release --target ${{ matrix.target }}
+          if [ "$USE_CROSS" = "true" ]; then
+            cross build --release --target "$TARGET"
           else
-            cargo build --release --target ${{ matrix.target }}
+            cargo build --release --target "$TARGET"
           fi
 
       - name: Prepare archive (Unix)
         if: matrix.archive == 'tar.gz'
         shell: bash
+        env:
+          TARGET: ${{ matrix.target }}
         run: |
-          BINARY="target/${{ matrix.target }}/release/${BINARY_NAME}"
-          ARCHIVE="${BINARY_NAME}-${{ matrix.target }}.tar.gz"
+          BINARY="target/${TARGET}/release/${BINARY_NAME}"
+          ARCHIVE="${BINARY_NAME}-${TARGET}.tar.gz"
           chmod +x "$BINARY"
-          tar czf "$ARCHIVE" -C "target/${{ matrix.target }}/release" "${BINARY_NAME}"
-          echo "ASSET=$ARCHIVE" >> $GITHUB_ENV
+          tar czf "$ARCHIVE" -C "target/${TARGET}/release" "${BINARY_NAME}"
+          echo "ASSET=$ARCHIVE" >> "$GITHUB_ENV"
 
       - name: Prepare archive (Windows)
         if: matrix.archive == 'zip'
         shell: bash
+        env:
+          TARGET: ${{ matrix.target }}
         run: |
-          BINARY="target/${{ matrix.target }}/release/${BINARY_NAME}.exe"
-          ARCHIVE="${BINARY_NAME}-${{ matrix.target }}.zip"
+          BINARY="target/${TARGET}/release/${BINARY_NAME}.exe"
+          ARCHIVE="${BINARY_NAME}-${TARGET}.zip"
           7z a "$ARCHIVE" "$BINARY"
-          echo "ASSET=$ARCHIVE" >> $GITHUB_ENV
+          echo "ASSET=$ARCHIVE" >> "$GITHUB_ENV"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v7
@@ -177,7 +184,9 @@ jobs:
       - uses: loonghao/vx@main
         with:
           tools: "maturin"
-          cache: "true"
+          # The Windows post-job cache save can fail after a successful wheel build
+          # while archiving ~/.vx, which marks the whole release as failed.
+          cache: ${{ matrix.name != 'windows' }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install Rust toolchain
@@ -248,7 +257,8 @@ jobs:
           echo "=== Listing dist/ ==="
           ls -la dist/ || echo "(dist is empty or missing)"
           echo "=== Installing wheel with test extras ==="
-          python -m pip install dist/*.whl[test]
+          wheels=(dist/*.whl)
+          python -m pip install "${wheels[0]}[test]"
           echo "=== Installed packages ==="
           python -m pip show rez-next || true
 

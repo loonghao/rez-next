@@ -29,6 +29,10 @@ lint:
 lint-ci:
     vx cargo clippy --workspace --all-targets --all-features --exclude rez-next-python -- -A warnings -D clippy::correctness
 
+# Check GitHub Actions workflows
+actionlint:
+    vx actionlint
+
 # Format code
 fmt:
     vx cargo fmt --all
@@ -45,7 +49,7 @@ run *ARGS:
 check: fmt-check lint test
 
 # Run all CI checks locally (mirrors GitHub Actions)
-ci: fmt-check lint-ci doc-check test
+ci: actionlint fmt-check lint-ci doc-check test
 
 # Check documentation builds without warnings
 doc:

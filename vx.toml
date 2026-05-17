@@ -1,4 +1,5 @@
 [tools]
+actionlint = "latest"
 cargo-llvm-cov = "latest"
 just = "latest"
 maturin = "latest"
@@ -13,6 +14,7 @@ auto_install = true
 cache_duration = "7d"
 
 [scripts]
+actionlint = "just actionlint"
 bench = "cargo bench"
 build = "just build"
 build-bin = "just build-bin"
