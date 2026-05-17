@@ -107,6 +107,13 @@ pub fn register_util_submodule(py: Python<'_>, parent: &Bound<'_, PyModule>) -> 
     util_module.add_function(wrap_pyfunction!(safe_remove_py, &util_module)?)?;
     util_module.add_function(wrap_pyfunction!(copy_file_py, &util_module)?)?;
 
+    // Add system functions
+    util_module.add_function(wrap_pyfunction!(get_hostname_py, &util_module)?)?;
+    util_module.add_function(wrap_pyfunction!(get_username_py, &util_module)?)?;
+    util_module.add_function(wrap_pyfunction!(get_home_directory_py, &util_module)?)?;
+    util_module.add_function(wrap_pyfunction!(get_fqdn_py, &util_module)?)?;
+    util_module.add_function(wrap_pyfunction!(get_domain_py, &util_module)?)?;
+
     // Add base26 functions
     util_module.add_function(wrap_pyfunction!(get_next_base26_py, &util_module)?)?;
     util_module.add_function(wrap_pyfunction!(
@@ -246,6 +253,38 @@ fn safe_remove_py(path: &str) -> PyResult<()> {
 fn copy_file_py(from: &str, to: &str) -> PyResult<u64> {
     rez_next_util::copy_file(from, to)
         .map_err(|e| pyo3::exceptions::PyIOError::new_err(e.to_string()))
+}
+
+// ─── System Utilities ─────────────────────────────────────────────
+
+/// Get the current machine's hostname
+#[pyfunction(name = "get_hostname")]
+fn get_hostname_py() -> String {
+    rez_next_util::get_hostname()
+}
+
+/// Get the current username
+#[pyfunction(name = "get_username")]
+fn get_username_py() -> String {
+    rez_next_util::get_username()
+}
+
+/// Get the current user's home directory
+#[pyfunction(name = "get_home_directory")]
+fn get_home_directory_py() -> Option<String> {
+    rez_next_util::get_home_directory().and_then(|p| Some(p.to_string_lossy().to_string()))
+}
+
+/// Get the current machine's fully qualified domain name (FQDN)
+#[pyfunction(name = "get_fqdn")]
+fn get_fqdn_py() -> String {
+    rez_next_util::get_fqdn()
+}
+
+/// Get the current machine's domain
+#[pyfunction(name = "get_domain")]
+fn get_domain_py() -> String {
+    rez_next_util::get_domain()
 }
 
 // ─── Base26 Utilities ─────────────────────────────────────────────

@@ -14,6 +14,7 @@ mod command;
 mod filesystem;
 mod platform;
 mod string;
+mod system;
 mod time;
 pub mod which;
 
@@ -22,6 +23,7 @@ pub use command::*;
 pub use filesystem::*;
 pub use platform::*;
 pub use string::*;
+pub use system::*;
 pub use time::*;
 pub use which::*;
 
