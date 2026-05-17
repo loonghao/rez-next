@@ -27,6 +27,7 @@ mod package_filter_bindings;
 mod package_help_bindings;
 mod package_py_utils_bindings;
 mod package_repository_bindings;
+mod package_resources_bindings;
 mod pip_bindings;
 mod plugins_bindings;
 
@@ -680,6 +681,9 @@ fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
     let package_filter_mod = PyModule::new(m.py(), "package_filter")?;
     package_filter_bindings::register_module(&package_filter_mod)?;
     register_submodule(m, "package_filter", &package_filter_mod)?;
+
+    // ── Submodule: rez.package_resources ─────────────────────
+    package_resources_bindings::register_package_resources_submodule(m)?;
 
     // ── Submodule: rez.explicit ───────────────────────────────────
     let explicit_mod = PyModule::new(m.py(), "explicit")?;

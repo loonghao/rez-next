@@ -47,6 +47,8 @@ impl Package {
             hashed_variants: None,
             preprocess: None,
             is_dev_package: None,
+            filepath: None,
+            includes: None,
         }
     }
 
