@@ -3,6 +3,8 @@
 This module provides compatibility with rez.deprecations.
 """
 
+from __future__ import annotations
+
 import warnings
 import os
 
