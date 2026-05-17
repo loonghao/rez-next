@@ -20,7 +20,7 @@ tracing = { workspace = true }
 # External dependencies
 regex = "1.11"
 time = { version = "0.3", features = ["formatting", "parsing", "macros"] }
-sha1 = "0.10"
+sha1 = "0.11"
 
 [dev-dependencies]
 criterion = { workspace = true }

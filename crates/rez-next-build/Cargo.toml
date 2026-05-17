@@ -33,7 +33,7 @@ git = ["dep:git2"]
 default = ["git"]
 
 [dependencies.git2]
-version = "0.19"
+version = "0.20"
 optional = true
 features = ["vendored-libgit2"]
 

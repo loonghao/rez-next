@@ -180,7 +180,12 @@ impl VariantHandle {
         use sha1::{Digest, Sha1};
         let mut hasher = Sha1::new();
         hasher.update(self.hashable_repr().as_bytes());
-        format!("{:x}", hasher.finalize())
+        hasher
+            .finalize()
+            .iter()
+            .map(|byte| format!("{byte:02x}"))
+            .collect::<Vec<_>>()
+            .join("")
     }
 }
 
