@@ -20,6 +20,18 @@ env:
   CARGO_INCREMENTAL: 0
 
 jobs:
+  actionlint:
+    name: Actionlint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: loonghao/vx@main
+        with:
+          tools: "actionlint"
+          cache: "true"
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - run: vx actionlint
+
   rustfmt:
     name: Rustfmt
     runs-on: ubuntu-latest
@@ -194,8 +206,8 @@ jobs:
           python -m venv .venv
           source .venv/bin/activate
           pip install maturin pytest pytest-benchmark
-          echo "VIRTUAL_ENV=$VIRTUAL_ENV" >> $GITHUB_ENV
-          echo "$VIRTUAL_ENV/bin" >> $GITHUB_PATH
+          echo "VIRTUAL_ENV=$VIRTUAL_ENV" >> "$GITHUB_ENV"
+          echo "$VIRTUAL_ENV/bin" >> "$GITHUB_PATH"
       - name: Build and install Python binding (dev mode)
         working-directory: crates/rez-next-python
         run: maturin develop --release
