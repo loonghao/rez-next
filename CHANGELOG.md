@@ -5,6 +5,59 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.2](https://github.com/loonghao/rez-next/compare/v0.3.1...v0.3.2) (2026-05-17)
+
+
+### 🚀 Features
+
+* **core:** expose package metadata constants ([eee9964](https://github.com/loonghao/rez-next/commit/eee99641ab53922a55d307279d87eb40b661dbc6))
+* **deprecations:** add RezDeprecationWarning and warn helper ([7ca7669](https://github.com/loonghao/rez-next/commit/7ca76692e3bcbdf5309acef2c13097912d58b403))
+* **deprecations:** expose deprecation bindings ([dd46dd5](https://github.com/loonghao/rez-next/commit/dd46dd5c10e464b287bfcab72322f8050e7387be))
+* merge auto-improve branch ([22c9ba8](https://github.com/loonghao/rez-next/commit/22c9ba8954265f1c0efe70352e9d98fbe9e07539))
+* **package_cache:** add cache capacity helpers ([3ea2d48](https://github.com/loonghao/rez-next/commit/3ea2d485fda92a74adb2e6476c0c5833260f71c9))
+* **package_cache:** add PackageCache and VariantHandle ([3cc2471](https://github.com/loonghao/rez-next/commit/3cc2471184ff7d9d34d2ebc48550d4aa1a5cc335))
+* **package_order:** add package order bindings ([e63e2d4](https://github.com/loonghao/rez-next/commit/e63e2d42bb08f601e8cd53f7fbb4d94212d8b519))
+* **package_py_utils:** add requirement expansion helpers ([bf3a552](https://github.com/loonghao/rez-next/commit/bf3a5529bd58b2ff1734f58b1fba5057e7234603))
+* **package_remove:** expose package removal bindings ([0c9bdb2](https://github.com/loonghao/rez-next/commit/0c9bdb265078bf61b937e2dcb2739cd65d4460ff))
+* **package_resources:** expose package resources bindings ([18ee330](https://github.com/loonghao/rez-next/commit/18ee330552ad15f7c61a34b4b8098d8b9fc44d38))
+* **package_search:** expose package search bindings ([8988743](https://github.com/loonghao/rez-next/commit/898874356f2c8d2fc6430566e367d1510278344b))
+* **package:** add DeveloperPackage path support ([fb66233](https://github.com/loonghao/rez-next/commit/fb662332c32fb5a814d988c1ff879f40683bf79d))
+* **package:** add package serialization helpers and mutators ([26a2e93](https://github.com/loonghao/rez-next/commit/26a2e9357759abdb4c739772014eb4565ee38307))
+* **python:** add command module Python bindings (Cycle 328) ([3f154a0](https://github.com/loonghao/rez-next/commit/3f154a0874b84d3a287ea758a13075f38187ac65))
+* **python:** add py_read_package_data() binding to serialise module ([8a9e0ab](https://github.com/loonghao/rez-next/commit/8a9e0ab2496714d06bbbbcaef18c0f6988726bc8))
+* **python:** enhance test module with PackageTestRunner and PackageTestResults ([99eb614](https://github.com/loonghao/rez-next/commit/99eb614b1a70994bf5729fc4e30f298b61865df6))
+* **release-hook:** add EmailHook and WebHook built-in implementations (Cycle 303) ([7d2560e](https://github.com/loonghao/rez-next/commit/7d2560e7a9d968e2f8e8b97fe5adbf447f6c1f34))
+* **serialise:** add read_package_data() function to deserialise from file ([340c55f](https://github.com/loonghao/rez-next/commit/340c55f524378a2ec2764caf0cd910ea9d07cfae))
+* **serialise:** align package serialisation with Rez ([1b08046](https://github.com/loonghao/rez-next/commit/1b080469b863e08155c0b533758e49adb145de7f))
+* **types:** mark package as typed ([5f0c714](https://github.com/loonghao/rez-next/commit/5f0c7149ba0552835ac1e1ba9a7e726815eb8e3c))
+* **util:** add command module with execute_command and tests (Cycle 328) ([a52084c](https://github.com/loonghao/rez-next/commit/a52084c0e925dbf673dad60a1658fb43a1f8c390))
+* **util:** expose base26 helpers ([cbc29fb](https://github.com/loonghao/rez-next/commit/cbc29fb6c276d557fe46325e5d1e9e527ab0ec22))
+* **util:** expose system helpers ([3aebf60](https://github.com/loonghao/rez-next/commit/3aebf6036357b58560c3bda3016ed329106d64bc))
+* **utils:** add filesystem utilities and Python bindings (Cycle 304) ([c7595ac](https://github.com/loonghao/rez-next/commit/c7595ace1034ed27c0fb21950fb5e0af8e1fa491))
+* **vcs:** add VCS release bindings ([1ad9362](https://github.com/loonghao/rez-next/commit/1ad936266a301af6e6002874b2a27996ac45ec9d))
+
+
+### 🐛 Bug Fixes
+
+* **ci:** correct maturin build and add comprehensive e2e tests ([#140](https://github.com/loonghao/rez-next/issues/140)) ([6e91278](https://github.com/loonghao/rez-next/commit/6e9127871763b7bdfca6de8703ed57e7a1846eea))
+* **ci:** stabilize cross-platform test compatibility ([e5bcbca](https://github.com/loonghao/rez-next/commit/e5bcbcaa2890e539a4e93ae638696eca4516b60e))
+* **ci:** support python 3.9 and platform paths ([2b8ef02](https://github.com/loonghao/rez-next/commit/2b8ef025acfcdcfcb580b6ecf4a00d24b30dd681))
+* **exceptions:** align exception classes with Rez ([d1a7b35](https://github.com/loonghao/rez-next/commit/d1a7b35c67e92eafa3c811adb7d2b92e083ee2e7))
+* **exceptions:** import native exception bindings ([ecf1101](https://github.com/loonghao/rez-next/commit/ecf11015da4e37df8aa38843b684150bd5855b9b))
+* **init:** load native module and add module entrypoint ([983e9d4](https://github.com/loonghao/rez-next/commit/983e9d40fd4865e66c2dccf584ea2883162b55f6))
+* **package_search:** terminate reverse dependency traversal ([99302e5](https://github.com/loonghao/rez-next/commit/99302e584f6fe3a47792dcc6a8191d135247fac1))
+* **package:** include missing fields in package.py output ([e38953f](https://github.com/loonghao/rez-next/commit/e38953fb2a623f3bd672e036ab639c92024bf85a))
+* **python:** fix import rez_next and complete module (Cycle 244) ([#141](https://github.com/loonghao/rez-next/issues/141)) ([39da1c0](https://github.com/loonghao/rez-next/commit/39da1c01e6f028b295604d2f1888201989014836))
+* **repository:** count versioned package stats ([c28ed99](https://github.com/loonghao/rez-next/commit/c28ed9958dc4f088a3bfeaffd0dda28c487a3f57))
+* **serialise:** fix typo and add Python tests for serialise_ module (Cycle 302) ([4929df7](https://github.com/loonghao/rez-next/commit/4929df7b2970a21878abe3d1d8481bebbbc20541))
+* **util:** gate Windows-only test import ([21f27de](https://github.com/loonghao/rez-next/commit/21f27dedc8e8d591cc3d85b61952baa1a2b1b6a7))
+
+
+### 📚 Documentation
+
+* add AI agent documentation (AGENTS.md, llms.txt, etc.) ([3daf193](https://github.com/loonghao/rez-next/commit/3daf1932340d184ce0e3c324fc4d35dadb738398))
+* **readme:** mark project as experimental Rust rewrite ([5afcc2e](https://github.com/loonghao/rez-next/commit/5afcc2eca5003f0ef50840dff03bbc96847d4860))
+
 ## [0.3.1](https://github.com/loonghao/rez-next/compare/v0.3.0...v0.3.1) (2026-04-29)
 
 
