@@ -62,6 +62,24 @@ rez_next/
 | `rez_next.cli` | `rez.cli` | CLI entry-points (programmatic invocation) | ✅ Stable |
 | `rez_next.exceptions` | `rez.exceptions` | Exception hierarchy | ✅ Stable |
 | `rez_next.utils.resources` | `rez.utils.resources` | Resource loading utilities | ✅ Stable |
+| `rez_next.package_cache` | `rez.package_cache` | Package payload caching | ✅ Stable |
+| `rez_next.solver_` | `rez.solver` | Dependency solver (partial) | ✅ Stable |
+| `rez_next.package_filter` | `rez.package_filter` | Package filtering | ✅ Stable |
+| `rez_next.package_test` | `rez.package_test` | Package testing | ✅ Stable |
+| `rez_next.command` | `rez.command` | Command utilities | ✅ Stable |
+| `rez_next.env` | `rez.env` | Environment creation and activation | ✅ Stable |
+| `rez_next.source` | `rez.source` | Context activation script generation | ✅ Stable |
+| `rez_next.bundles` | `rez.bundles` | Context bundling (offline use) | ✅ Stable |
+| `rez_next.forward` | `rez.forward` | Shell forward-compatibility scripts | ✅ Stable |
+| `rez_next.search` | `rez.cli.search` | Package search (exact / contains / regex) | ✅ Stable |
+| `rez_next.complete` | `rez.cli.complete` | Shell tab-completion script generation | ✅ Stable |
+| `rez_next.diff` | `rez.cli.diff` | Diff two resolved contexts | ✅ Stable |
+| `rez_next.status` | `rez.cli.status` | Query the currently active context | ✅ Stable |
+| `rez_next.depends` | `rez.cli.depends` | Reverse-dependency queries | ✅ Stable |
+| `rez_next.data` | `rez.data` | Built-in data resources | ✅ Stable |
+| `rez_next.cli` | `rez.cli` | CLI entry-points (programmatic invocation) | ✅ Stable |
+| `rez_next.exceptions` | `rez.exceptions` | Exception hierarchy | ✅ Stable |
+| `rez_next.utils.resources` | `rez.utils.resources` | Resource loading utilities | ✅ Stable |
 
 ## Quick Start
 

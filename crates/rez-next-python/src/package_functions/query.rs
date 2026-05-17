@@ -232,9 +232,7 @@ pub fn walk_packages(py: Python, paths: Option<Vec<String>>) -> PyResult<Py<PyAn
 /// Returns a list of `PackageFamily` objects.
 #[pyfunction]
 #[pyo3(signature = (paths=None))]
-pub fn iter_package_families(
-    paths: Option<Vec<String>>,
-) -> PyResult<Vec<PyPackageFamily>> {
+pub fn iter_package_families(paths: Option<Vec<String>>) -> PyResult<Vec<PyPackageFamily>> {
     use std::collections::HashMap;
 
     let rt = get_runtime();
@@ -253,10 +251,8 @@ pub fn iter_package_families(
             .block_on(repo_manager.find_packages(name))
             .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
 
-        let py_packages: Vec<PyPackage> = packages
-            .iter()
-            .map(|p| PyPackage((**p).clone()))
-            .collect();
+        let py_packages: Vec<PyPackage> =
+            packages.iter().map(|p| PyPackage((**p).clone())).collect();
 
         families.insert(name.clone(), py_packages);
     }

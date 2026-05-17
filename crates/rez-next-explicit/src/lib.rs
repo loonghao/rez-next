@@ -83,10 +83,12 @@ impl ExplicitPackages {
     /// Load from a JSON file.
     pub fn from_path<P: Into<PathBuf>>(path: P) -> RezCoreResult<Self> {
         let path = path.into();
-        let content = std::fs::read_to_string(&path)
-            .map_err(|e| RezCoreError::PackageParse(format!("Failed to read {}: {}", path.display(), e)))?;
-        serde_json::from_str(&content)
-            .map_err(|e| RezCoreError::PackageParse(format!("Failed to parse {}: {}", path.display(), e)))
+        let content = std::fs::read_to_string(&path).map_err(|e| {
+            RezCoreError::PackageParse(format!("Failed to read {}: {}", path.display(), e))
+        })?;
+        serde_json::from_str(&content).map_err(|e| {
+            RezCoreError::PackageParse(format!("Failed to parse {}: {}", path.display(), e))
+        })
     }
 
     /// Save to a JSON file.
@@ -94,8 +96,9 @@ impl ExplicitPackages {
         let path = path.into();
         let content = serde_json::to_string_pretty(self)
             .map_err(|e| RezCoreError::PackageParse(format!("Failed to serialize: {}", e)))?;
-        std::fs::write(&path, content)
-            .map_err(|e| RezCoreError::PackageParse(format!("Failed to write {}: {}", path.display(), e)))?;
+        std::fs::write(&path, content).map_err(|e| {
+            RezCoreError::PackageParse(format!("Failed to write {}: {}", path.display(), e))
+        })?;
         Ok(())
     }
 }

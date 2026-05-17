@@ -194,6 +194,115 @@ impl super::ReleaseVCS for SvnVCS {
         })
     }
 
+    /// Get the current revision as a VCSRevision object.
+    ///
+    /// For SVN, the revision is identified by the revision number (integer).
+    fn get_current_revision(&self) -> Result<super::VCSRevision, RezCoreError> {
+        // Get last changed revision
+        let revision_id = self.run_svn(&["info", "--show-item", "last-changed-revision"])?;
+        let revision_id = revision_id.trim();
+
+        // Get URL (repository URL)
+        let url = self.run_svn(&["info", "--show-item", "url"]).ok();
+
+        // Get relative URL (branch/tag path)
+        let relative_url = self.get_current_branch().ok();
+
+        // Build metadata
+        let mut metadata = HashMap::new();
+        if let Some(ref url) = url {
+            metadata.insert("url".to_string(), url.clone());
+        }
+        if let Some(ref rel_url) = relative_url {
+            metadata.insert("relative_url".to_string(), rel_url.clone());
+        }
+
+        // Get last changed author
+        let author = self
+            .run_svn(&["info", "--show-item", "last-changed-author"])
+            .ok();
+        if let Some(ref a) = author {
+            metadata.insert("author".to_string(), a.clone());
+        }
+
+        // Build data JSON
+        let data = serde_json::json!({
+            "revision_id": revision_id,
+            "url": url,
+            "relative_url": relative_url,
+            "author": author,
+        });
+
+        let mut revision = super::VCSRevision::with_data("svn", revision_id, data);
+        revision.metadata = metadata;
+
+        Ok(revision)
+    }
+
+    /// Export the repository at the given revision to the given path.
+    ///
+    /// Uses `svn export -r <rev> <url> <path>`.
+    fn export(
+        &self,
+        revision: &super::VCSRevision,
+        path: &std::path::Path,
+    ) -> Result<(), RezCoreError> {
+        // Validate target path
+        if path.exists() {
+            return Err(RezCoreError::BuildError(format!(
+                "Export path '{}' already exists",
+                path.display()
+            )));
+        }
+
+        // Ensure parent directory exists (required by rez interface)
+        if let Some(parent) = path.parent() {
+            if !parent.exists() {
+                return Err(RezCoreError::BuildError(format!(
+                    "Parent directory '{}' does not exist",
+                    parent.display()
+                )));
+            }
+        }
+
+        // Get the repository URL
+        let info = self.get_svn_info()?;
+        let repo_url = info.get("Repository Root").ok_or_else(|| {
+            RezCoreError::BuildError("Could not get repository root URL".to_string())
+        })?;
+
+        // Use `svn export -r <rev> <url> <path>`
+        let revision_spec = format!("-r{}", revision.revision_id);
+        let output = std::process::Command::new("svn")
+            .args(["export", &revision_spec, repo_url, &path.to_string_lossy()])
+            .output()
+            .map_err(|e| {
+                RezCoreError::BuildError(format!(
+                    "Failed to run `svn export` for repository at '{}': {}",
+                    self.repo_root.display(),
+                    e
+                ))
+            })?;
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            return Err(RezCoreError::BuildError(format!(
+                "Failed to export SVN repository at '{}' to '{}': {}",
+                self.repo_root.display(),
+                path.display(),
+                stderr
+            )));
+        }
+
+        tracing::info!(
+            "SvnVCS: exported revision '{}' to '{}'",
+            revision.revision_id,
+            path.display()
+        );
+
+        Ok(())
+    }
+
     fn validate_repo_state(&self) -> Result<(), RezCoreError> {
         // Check if working copy is clean
         if !self.is_clean()? {

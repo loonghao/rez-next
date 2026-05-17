@@ -1,20 +1,18 @@
 //! Python bindings for the dependency Solver
 
 use crate::context_bindings::PyResolvedContext;
+use crate::package_functions::expand_home;
 use crate::{
     dependency_conflicts_bindings, package_variant_bindings, reduction_bindings,
     requirement_list_bindings, solver_state_bindings,
 };
-use crate::package_functions::expand_home;
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList};
-use rez_next_solver::{SolverConfig, SolverStatus};
 use rez_next_solver::{
-    ConflictResolution as RustConflictResolution,
-    ConflictSeverity,
-    DependencyConflict as RustDependencyConflict,
-    FailureReason,
+    ConflictResolution as RustConflictResolution, ConflictSeverity,
+    DependencyConflict as RustDependencyConflict, FailureReason,
 };
+use rez_next_solver::{SolverConfig, SolverStatus};
 use std::path::PathBuf;
 
 // ── SolverStatus Python bindings ─────────────────────────────────────────────
@@ -272,10 +270,7 @@ impl PyFailureReason {
     }
 
     fn __repr__(&self) -> String {
-        format!(
-            "<FailureReason: {}>",
-            self.inner.description()
-        )
+        format!("<FailureReason: {}>", self.inner.description())
     }
 
     fn __eq__(&self, other: &Bound<'_, PyAny>) -> PyResult<bool> {
@@ -300,15 +295,14 @@ pub struct PyConflictResolution {
 impl PyConflictResolution {
     /// Create a new ConflictResolution.
     #[new]
-	#[pyo3(signature = (package_name, selected_version=None, strategy=None, modified_packages=None))]
-	fn new(
-	    package_name: String,
-	    selected_version: Option<String>,
-	    strategy: Option<String>,
+    #[pyo3(signature = (package_name, selected_version=None, strategy=None, modified_packages=None))]
+    fn new(
+        package_name: String,
+        selected_version: Option<String>,
+        strategy: Option<String>,
         modified_packages: Option<Vec<String>>,
     ) -> PyResult<Self> {
-        let version = selected_version
-            .and_then(|v| rez_next_version::Version::parse(&v).ok());
+        let version = selected_version.and_then(|v| rez_next_version::Version::parse(&v).ok());
 
         Ok(PyConflictResolution {
             inner: RustConflictResolution {
@@ -329,7 +323,10 @@ impl PyConflictResolution {
     /// Returns the selected version (as string or None).
     #[getter]
     fn selected_version(&self) -> Option<String> {
-        self.inner.selected_version.as_ref().map(|v| v.as_str().to_string())
+        self.inner
+            .selected_version
+            .as_ref()
+            .map(|v| v.as_str().to_string())
     }
 
     /// Returns the strategy used.
@@ -348,7 +345,11 @@ impl PyConflictResolution {
         format!(
             "<ConflictResolution '{}' -> {}>",
             self.inner.package_name,
-            self.inner.selected_version.as_ref().map(|v| v.as_str()).unwrap_or("None")
+            self.inner
+                .selected_version
+                .as_ref()
+                .map(|v| v.as_str())
+                .unwrap_or("None")
         )
     }
 }

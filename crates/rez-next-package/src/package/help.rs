@@ -36,7 +36,11 @@ impl PackageHelp {
     ///
     /// # Returns
     /// A new PackageHelp object
-    pub fn new(package_name: &str, version_range: Option<&VersionRange>, packages: &[Package]) -> Self {
+    pub fn new(
+        package_name: &str,
+        version_range: Option<&VersionRange>,
+        packages: &[Package],
+    ) -> Self {
         // Find latest package with a help entry
         let mut sorted_packages = packages.to_vec();
         sorted_packages.sort_by(|a, b| {
@@ -82,10 +86,7 @@ impl PackageHelp {
             }
         }
 
-        Self {
-            package,
-            sections,
-        }
+        Self { package, sections }
     }
 
     /// Check if help was found.
@@ -105,16 +106,20 @@ impl PackageHelp {
         if let Some(ref pkg) = self.package {
             let base = pkg.base.clone().unwrap_or_default();
             let root = base.clone(); // Simplified: root == base for non-variant packages
-            let version = pkg.version.as_ref().map(|v| v.as_str().to_string()).unwrap_or_default();
+            let version = pkg
+                .version
+                .as_ref()
+                .map(|v| v.as_str().to_string())
+                .unwrap_or_default();
 
             for section in &mut self.sections {
                 let mut uri = section.uri.clone();
-                
+
                 // Replace placeholders
                 uri = uri.replace("$BASE", &base);
                 uri = uri.replace("$ROOT", &root);
                 uri = uri.replace("$VERSION", &version);
-                
+
                 // Remove $BROWSER prefix if present
                 if uri.starts_with("$BROWSER") {
                     uri = uri.trim_start_matches("$BROWSER").trim().to_string();
@@ -141,9 +146,7 @@ mod tests {
 
     #[test]
     fn test_package_help_no_help() {
-        let packages = vec![
-            create_test_package("mypackage", "1.0.0", None),
-        ];
+        let packages = vec![create_test_package("mypackage", "1.0.0", None)];
 
         let ph = PackageHelp::new("mypackage", None, &packages);
         assert!(!ph.success());
@@ -152,9 +155,11 @@ mod tests {
 
     #[test]
     fn test_package_help_found() {
-        let packages = vec![
-            create_test_package("mypackage", "1.0.0", Some("https://example.com/docs")),
-        ];
+        let packages = vec![create_test_package(
+            "mypackage",
+            "1.0.0",
+            Some("https://example.com/docs"),
+        )];
 
         let ph = PackageHelp::new("mypackage", None, &packages);
         assert!(ph.success());
@@ -178,14 +183,19 @@ mod tests {
 
     #[test]
     fn test_package_help_format_uris() {
-        let packages = vec![
-            create_test_package("mypackage", "1.0.0", Some("$BASE/docs/index.html")),
-        ];
+        let packages = vec![create_test_package(
+            "mypackage",
+            "1.0.0",
+            Some("$BASE/docs/index.html"),
+        )];
 
         let mut ph = PackageHelp::new("mypackage", None, &packages);
         ph.format_uris();
 
-        assert_eq!(ph.sections()[0].uri, "/packages/mypackage/1.0.0/docs/index.html");
+        assert_eq!(
+            ph.sections()[0].uri,
+            "/packages/mypackage/1.0.0/docs/index.html"
+        );
     }
 
     #[test]

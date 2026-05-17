@@ -4,7 +4,7 @@
 
 use crate::cli::utils::expand_home_path;
 use clap::Args;
-use rez_next_common::{error::RezCoreResult, RezCoreError};
+use rez_next_common::{RezCoreError, error::RezCoreResult};
 use rez_next_context::{ContextSerializer, ResolvedContext};
 use rez_next_package::{Package, PackageSerializer};
 use std::path::Path;

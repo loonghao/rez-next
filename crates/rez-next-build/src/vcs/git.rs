@@ -20,9 +20,7 @@ impl GitVCS {
     pub fn new(repo_root: PathBuf) -> Result<Self, RezCoreError> {
         // Verify this is a git repository
         if !repo_root.join(".git").exists() {
-            return Err(RezCoreError::BuildError(
-                "Not a git repository".to_string(),
-            ));
+            return Err(RezCoreError::BuildError("Not a git repository".to_string()));
         }
 
         Ok(Self { repo_root })
@@ -139,9 +137,9 @@ impl super::ReleaseVCS for GitVCS {
             RezCoreError::BuildError(format!("Failed to open git repository: {}", e))
         })?;
 
-        let head = repo.head().map_err(|e| {
-            RezCoreError::BuildError(format!("Failed to get HEAD: {}", e))
-        })?;
+        let head = repo
+            .head()
+            .map_err(|e| RezCoreError::BuildError(format!("Failed to get HEAD: {}", e)))?;
 
         // Check if HEAD is a branch reference
         if head.is_branch() {
@@ -170,13 +168,13 @@ impl super::ReleaseVCS for GitVCS {
             ))
         })?;
 
-        let head = repo.head().map_err(|e| {
-            RezCoreError::BuildError(format!("Failed to get HEAD: {}", e))
-        })?;
+        let head = repo
+            .head()
+            .map_err(|e| RezCoreError::BuildError(format!("Failed to get HEAD: {}", e)))?;
 
-        let commit = head.peel_to_commit().map_err(|e| {
-            RezCoreError::BuildError(format!("Failed to get commit: {}", e))
-        })?;
+        let commit = head
+            .peel_to_commit()
+            .map_err(|e| RezCoreError::BuildError(format!("Failed to get commit: {}", e)))?;
 
         Ok(commit.id().to_string())
     }
@@ -288,12 +286,12 @@ impl super::ReleaseVCS for GitVCS {
         })?;
 
         // Walk commits from to to from
-        let mut revwalk = repo.revwalk().map_err(|e| {
-            RezCoreError::BuildError(format!("Failed to create revwalk: {}", e))
-        })?;
-        revwalk.push(to_obj.id()).map_err(|e| {
-            RezCoreError::BuildError(format!("Failed to push to revwalk: {}", e))
-        })?;
+        let mut revwalk = repo
+            .revwalk()
+            .map_err(|e| RezCoreError::BuildError(format!("Failed to create revwalk: {}", e)))?;
+        revwalk
+            .push(to_obj.id())
+            .map_err(|e| RezCoreError::BuildError(format!("Failed to push to revwalk: {}", e)))?;
 
         // Try to hide from_rev, but don't fail if it doesn't exist
         if let Ok(from_obj) = repo.revparse_single(from) {
@@ -309,9 +307,9 @@ impl super::ReleaseVCS for GitVCS {
             let id = id.map_err(|e| {
                 RezCoreError::BuildError(format!("Failed to walk revisions: {}", e))
             })?;
-            let commit = repo.find_commit(id).map_err(|e| {
-                RezCoreError::BuildError(format!("Failed to find commit: {}", e))
-            })?;
+            let commit = repo
+                .find_commit(id)
+                .map_err(|e| RezCoreError::BuildError(format!("Failed to find commit: {}", e)))?;
 
             let message = commit.message().unwrap_or("(no message)");
             let short_id = &id.to_string()[..8];
@@ -331,12 +329,12 @@ impl super::ReleaseVCS for GitVCS {
         })?;
 
         // Get latest commit
-        let head = repo.head().map_err(|e| {
-            RezCoreError::BuildError(format!("Failed to get HEAD: {}", e))
-        })?;
-        let commit = head.peel_to_commit().map_err(|e| {
-            RezCoreError::BuildError(format!("Failed to get commit: {}", e))
-        })?;
+        let head = repo
+            .head()
+            .map_err(|e| RezCoreError::BuildError(format!("Failed to get HEAD: {}", e)))?;
+        let commit = head
+            .peel_to_commit()
+            .map_err(|e| RezCoreError::BuildError(format!("Failed to get commit: {}", e)))?;
 
         // Get branch name
         let branch = if head.is_branch() {
@@ -401,6 +399,176 @@ impl super::ReleaseVCS for GitVCS {
             timestamp,
             extra: std::collections::HashMap::new(),
         })
+    }
+
+    /// Get the current revision as a VCSRevision object.
+    ///
+    /// This aligns with Rez's `ReleaseVCS.get_current_revision()` which can return
+    /// "any type (str, dict etc.)". We return a `VCSRevision` with:
+    /// - `revision_type`: "git"
+    /// - `revision_id`: commit hash (full 40-char hex string)
+    /// - `data`: JSON object with commit details (message, author, timestamp, etc.)
+    /// - `metadata`: branch name, tags, etc.
+    fn get_current_revision(&self) -> Result<super::VCSRevision, RezCoreError> {
+        let repo = git2::Repository::open(&self.repo_root).map_err(|e| {
+            RezCoreError::BuildError(format!(
+                "GitVCS: failed to open repository at '{}': {}",
+                self.repo_root.display(),
+                e
+            ))
+        })?;
+
+        let head = repo
+            .head()
+            .map_err(|e| RezCoreError::BuildError(format!("GitVCS: failed to get HEAD: {}", e)))?;
+
+        let commit = head.peel_to_commit().map_err(|e| {
+            RezCoreError::BuildError(format!("GitVCS: failed to get commit: {}", e))
+        })?;
+
+        let commit_hash = commit.id().to_string();
+
+        // Build metadata: branch name, tags pointing to this commit
+        let mut metadata = std::collections::HashMap::new();
+
+        // Add branch name
+        if head.is_branch() {
+            if let Some(branch_name) = head.shorthand() {
+                metadata.insert("branch".to_string(), branch_name.to_string());
+            }
+        }
+
+        // Add tags pointing to this commit
+        let mut tags = Vec::new();
+        repo.tag_foreach(|oid, name| {
+            if oid == commit.id() {
+                // `name` is &[u8], convert to &str first
+                if let Ok(name_str) = std::str::from_utf8(name) {
+                    let tag_name = name_str.trim_start_matches("refs/tags/");
+                    tags.push(tag_name.to_string());
+                }
+            }
+            true
+        })
+        .ok();
+
+        if !tags.is_empty() {
+            metadata.insert("tags".to_string(), tags.join(","));
+        }
+
+        // Build data JSON with commit details
+        let data = serde_json::json!({
+            "commit_hash": commit_hash,
+            "message": commit.message().unwrap_or(""),
+            "author_name": commit.author().name().unwrap_or(""),
+            "author_email": commit.author().email().unwrap_or(""),
+            "timestamp": commit.time().seconds(),
+            "parent_ids": commit.parent_ids().map(|id| id.to_string()).collect::<Vec<_>>(),
+        });
+
+        let mut revision = super::VCSRevision::with_data("git", &commit_hash, data);
+        revision.metadata = metadata;
+
+        Ok(revision)
+    }
+
+    /// Export the repository at the given revision to the given path.
+    ///
+    /// This aligns with Rez's `ReleaseVCS.export()` classmethod.
+    /// Uses `git archive` to create an archive of the repository at the given revision,
+    /// then extracts it to the target path.
+    ///
+    /// # Arguments
+    ///
+    /// * `revision` - The revision to export (as `&VCSRevision`)
+    /// * `path` - The path to export to (must not exist, parent must exist)
+    ///
+    /// # Returns
+    ///
+    /// `Ok(())` on success, or `RezCoreError` on failure.
+    fn export(
+        &self,
+        revision: &super::VCSRevision,
+        path: &std::path::Path,
+    ) -> Result<(), RezCoreError> {
+        use std::fs;
+        use std::process::Command;
+
+        // Validate target path
+        if path.exists() {
+            return Err(RezCoreError::BuildError(format!(
+                "Export path '{}' already exists",
+                path.display()
+            )));
+        }
+
+        // Ensure parent directory exists
+        if let Some(parent) = path.parent() {
+            if !parent.exists() {
+                return Err(RezCoreError::BuildError(format!(
+                    "Parent directory '{}' does not exist",
+                    parent.display()
+                )));
+            }
+        }
+
+        // Create target directory
+        fs::create_dir_all(path).map_err(|e| {
+            RezCoreError::BuildError(format!(
+                "Failed to create export directory '{}': {}",
+                path.display(),
+                e
+            ))
+        })?;
+
+        // Use `git archive` to export the repository at the given revision
+        // Format: git archive --format=tar <revision> | tar -xf - -C <path>
+        let revision_spec = &revision.revision_id;
+
+        let git_archive = Command::new("git")
+            .args(["archive", "--format=tar", revision_spec])
+            .current_dir(&self.repo_root)
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped())
+            .spawn()
+            .map_err(|e| {
+                RezCoreError::BuildError(format!(
+                    "Failed to start `git archive` for repository at '{}': {}",
+                    self.repo_root.display(),
+                    e
+                ))
+            })?;
+
+        // Pipe to `tar -xf - -C <path>`
+        let tar_output = Command::new("tar")
+            .args(["-xf", "-", "-C", &path.to_string_lossy()])
+            .stdin(git_archive.stdout.unwrap())
+            .stderr(std::process::Stdio::piped())
+            .output()
+            .map_err(|e| {
+                RezCoreError::BuildError(format!(
+                    "Failed to run `tar` for export to '{}': {}",
+                    path.display(),
+                    e
+                ))
+            })?;
+
+        if !tar_output.status.success() {
+            let stderr = String::from_utf8_lossy(&tar_output.stderr);
+            return Err(RezCoreError::BuildError(format!(
+                "Failed to extract archive for export to '{}': {}",
+                path.display(),
+                stderr
+            )));
+        }
+
+        tracing::info!(
+            "GitVCS: exported revision '{}' to '{}'",
+            revision_spec,
+            path.display()
+        );
+
+        Ok(())
     }
 
     fn is_releasable_branch(&self) -> Result<Option<bool>, RezCoreError> {

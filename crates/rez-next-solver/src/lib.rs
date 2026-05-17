@@ -19,8 +19,8 @@ pub mod reduction;
 pub mod requirement_list;
 pub mod resolution;
 pub(crate) mod resolution_state;
-pub mod solver_state;
 mod solver;
+pub mod solver_state;
 pub mod solver_status;
 
 #[cfg(test)]
@@ -39,13 +39,13 @@ pub use astar::search_state::{
     ConflictType as AStarConflictType, DependencyConflict as AStarDependencyConflict, SearchState,
 };
 pub use conflict::*;
+pub use dependency_conflicts::DependencyConflicts;
 pub use dependency_resolver::*;
 pub use failure_reason::*;
 pub use graph::*;
-pub use resolution::*;
-pub use dependency_conflicts::DependencyConflicts;
 pub use reduction::{Reduction, TotalReduction};
 pub use requirement_list::RequirementList;
+pub use resolution::*;
 pub use solver::*;
 pub use solver_state::SolverState;
 pub use solver_status::SolverStatus;

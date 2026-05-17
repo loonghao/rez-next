@@ -234,7 +234,10 @@ fn test_rez_version_single_token() {
     let v5 = Version::parse("5").unwrap();
     let v50 = Version::parse("5.0").unwrap();
     // In Rez: longer with trailing zeros is greater
-    assert!(v50 > v5, "Version '5.0' should be > '5' (longer is greater)");
+    assert!(
+        v50 > v5,
+        "Version '5.0' should be > '5' (longer is greater)"
+    );
     assert!(v50 >= v5, "Version '5.0' should be >= '5'");
     assert!(v5 < v50, "Version '5' should be < '5.0'");
 }
@@ -316,7 +319,7 @@ fn test_rez_package_build_requires_separate() {
 /// rez rex: prependenv should prepend with OS-correct separator
 #[test]
 fn test_rez_rex_prependenv_generates_prepend_syntax() {
-    use rez_next_rex::{generate_shell_script, RexEnvironment, ShellType};
+    use rez_next_rex::{RexEnvironment, ShellType, generate_shell_script};
     let mut env = RexEnvironment::new();
     env.vars.insert("PATH".to_string(), "/new/bin".to_string());
     let script = generate_shell_script(&env, &ShellType::Bash);
@@ -327,7 +330,7 @@ fn test_rez_rex_prependenv_generates_prepend_syntax() {
 /// rez rex: setenv with empty value is valid (clears the variable)
 #[test]
 fn test_rez_rex_setenv_empty_value() {
-    use rez_next_rex::{generate_shell_script, RexEnvironment, ShellType};
+    use rez_next_rex::{RexEnvironment, ShellType, generate_shell_script};
     let mut env = RexEnvironment::new();
     env.vars.insert("MY_VAR".to_string(), "".to_string());
     let script = generate_shell_script(&env, &ShellType::Bash);
@@ -337,7 +340,7 @@ fn test_rez_rex_setenv_empty_value() {
 /// rez rex: fish shell output uses set syntax
 #[test]
 fn test_rez_rex_fish_shell_syntax() {
-    use rez_next_rex::{generate_shell_script, RexEnvironment, ShellType};
+    use rez_next_rex::{RexEnvironment, ShellType, generate_shell_script};
     let mut env = RexEnvironment::new();
     env.vars
         .insert("REZ_RESOLVE".to_string(), "python-3.9".to_string());
@@ -351,7 +354,7 @@ fn test_rez_rex_fish_shell_syntax() {
 /// rez rex: cmd shell output uses set syntax
 #[test]
 fn test_rez_rex_cmd_shell_syntax() {
-    use rez_next_rex::{generate_shell_script, RexEnvironment, ShellType};
+    use rez_next_rex::{RexEnvironment, ShellType, generate_shell_script};
     let mut env = RexEnvironment::new();
     env.vars
         .insert("REZ_TEST".to_string(), "value_123".to_string());
@@ -365,7 +368,7 @@ fn test_rez_rex_cmd_shell_syntax() {
 /// rez rex: PowerShell output uses $env: syntax
 #[test]
 fn test_rez_rex_powershell_env_syntax() {
-    use rez_next_rex::{generate_shell_script, RexEnvironment, ShellType};
+    use rez_next_rex::{RexEnvironment, ShellType, generate_shell_script};
     let mut env = RexEnvironment::new();
     env.vars.insert(
         "REZ_PACKAGES_PATH".to_string(),
@@ -389,11 +392,12 @@ fn test_package_commands_function_set_and_get() {
     let script = "env.setenv('MY_PKG_ROOT', '{root}')\nenv.PATH.prepend('{root}/bin')";
     pkg.commands_function = Some(script.to_string());
     assert!(pkg.commands_function.is_some());
-    assert!(pkg
-        .commands_function
-        .as_ref()
-        .unwrap()
-        .contains("MY_PKG_ROOT"));
+    assert!(
+        pkg.commands_function
+            .as_ref()
+            .unwrap()
+            .contains("MY_PKG_ROOT")
+    );
 }
 
 /// rez package: commands and commands_function are both populated after parsing package.py

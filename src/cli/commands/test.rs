@@ -9,7 +9,7 @@
 
 use crate::cli::utils::expand_home_path;
 use clap::Args;
-use rez_next_common::{config::RezCoreConfig, error::RezCoreResult, RezCoreError};
+use rez_next_common::{RezCoreError, config::RezCoreConfig, error::RezCoreResult};
 use rez_next_package::serialization::PackageSerializer;
 use std::collections::HashMap;
 use std::path::PathBuf;

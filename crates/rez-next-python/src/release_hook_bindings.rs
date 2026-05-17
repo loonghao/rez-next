@@ -3,11 +3,8 @@
 //! Exposes the release hook registry and base hook class to Python.
 
 use pyo3::prelude::*;
+use rez_next_release_hook::{ReleaseHook, create_release_hook, get_release_hook_types};
 use std::path::PathBuf;
-use rez_next_release_hook::{
-    create_release_hook, get_release_hook_types,
-    ReleaseHook,
-};
 
 /// Get available release hook types.
 #[pyfunction]
@@ -29,14 +26,14 @@ pub fn py_create_release_hook(name: &str, source_path: &str) -> PyResult<PyRelea
 pub fn register_release_hook_module(_py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Initialize built-in hooks
     rez_next_release_hook::init();
-    
+
     // Add classes
     m.add_class::<PyReleaseHook>()?;
-    
+
     // Add module-level functions
     m.add_function(wrap_pyfunction!(py_get_release_hook_types, m)?)?;
     m.add_function(wrap_pyfunction!(py_create_release_hook, m)?)?;
-    
+
     Ok(())
 }
 

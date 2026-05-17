@@ -1,7 +1,7 @@
 //! Extraction helpers: convert AST expressions to typed Rust values.
 
-use super::types::PythonValue;
 use super::PythonAstParser;
+use super::types::PythonValue;
 use rez_next_common::RezCoreError;
 use rustpython_ast::{Constant, Expr};
 use std::collections::HashMap;
@@ -91,7 +91,7 @@ impl PythonAstParser {
                         _ => {
                             return Err(RezCoreError::PackageParse(
                                 "List contains non-string values".to_string(),
-                            ))
+                            ));
                         }
                     }
                 }

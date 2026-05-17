@@ -24,8 +24,8 @@ pub(super) mod scan;
 use dashmap::DashMap;
 use std::collections::HashSet;
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicU64, AtomicUsize};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, AtomicUsize};
 use tokio::sync::{RwLock, Semaphore};
 
 /// High-performance repository scanner with advanced optimisations.

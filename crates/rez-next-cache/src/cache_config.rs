@@ -5,8 +5,8 @@
 //! intelligent caching features.
 
 use crate::{
-    EvictionStrategy, DEFAULT_L1_CAPACITY, DEFAULT_L2_CAPACITY, DEFAULT_MEMORY_LIMIT_MB,
-    DEFAULT_TTL_SECONDS,
+    DEFAULT_L1_CAPACITY, DEFAULT_L2_CAPACITY, DEFAULT_MEMORY_LIMIT_MB, DEFAULT_TTL_SECONDS,
+    EvictionStrategy,
 };
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;

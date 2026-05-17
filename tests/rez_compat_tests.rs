@@ -9,7 +9,7 @@
 
 use rez_core::version::{Version, VersionRange};
 use rez_next_package::{Package, PackageRequirement};
-use rez_next_rex::{generate_shell_script, RexExecutor, ShellType};
+use rez_next_rex::{RexExecutor, ShellType, generate_shell_script};
 use rez_next_suites::{Suite, ToolConflictMode};
 
 // ─── Version compatibility tests ───────────────────────────────────────────
@@ -268,11 +268,12 @@ alias('mayapy', '{root}/bin/mayapy')
         env.vars.get("MAYA_LOCATION"),
         Some(&"/opt/autodesk/maya/2024".to_string())
     );
-    assert!(env
-        .vars
-        .get("PATH")
-        .map(|v| v.contains("/opt/autodesk/maya/2024/bin"))
-        .unwrap_or(false));
+    assert!(
+        env.vars
+            .get("PATH")
+            .map(|v| v.contains("/opt/autodesk/maya/2024/bin"))
+            .unwrap_or(false)
+    );
     assert_eq!(
         env.aliases.get("maya"),
         Some(&"/opt/autodesk/maya/2024/bin/maya".to_string())
@@ -291,16 +292,18 @@ env.prepend_path('PYTHONPATH', '{root}/lib/python3.11/site-packages')
         .unwrap();
 
     assert_eq!(env.vars.get("PYTHONHOME"), Some(&"/usr/local".to_string()));
-    assert!(env
-        .vars
-        .get("PATH")
-        .map(|v| v.contains("/usr/local/bin"))
-        .unwrap_or(false));
-    assert!(env
-        .vars
-        .get("PYTHONPATH")
-        .map(|v| v.contains("site-packages"))
-        .unwrap_or(false));
+    assert!(
+        env.vars
+            .get("PATH")
+            .map(|v| v.contains("/usr/local/bin"))
+            .unwrap_or(false)
+    );
+    assert!(
+        env.vars
+            .get("PYTHONPATH")
+            .map(|v| v.contains("site-packages"))
+            .unwrap_or(false)
+    );
 }
 
 #[test]
@@ -475,7 +478,9 @@ fn test_config_env_override() {
     use rez_next_common::config::RezCoreConfig;
 
     // Set custom packages path via env var
-    std::env::set_var("REZ_PACKAGES_PATH", "/custom/packages:/another/path");
+    unsafe {
+        std::env::set_var("REZ_PACKAGES_PATH", "/custom/packages:/another/path");
+    };
     let config = RezCoreConfig::load();
     // On POSIX the split is ':', on Windows it might be ';'
     // Just ensure it's non-empty and contains our paths
@@ -484,5 +489,7 @@ fn test_config_env_override() {
         joined.contains("/custom/packages"),
         "Env override should set packages path"
     );
-    std::env::remove_var("REZ_PACKAGES_PATH");
+    unsafe {
+        std::env::remove_var("REZ_PACKAGES_PATH");
+    };
 }

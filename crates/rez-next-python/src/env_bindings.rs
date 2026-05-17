@@ -12,7 +12,7 @@ use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use rez_next_package::{PackageRequirement, Requirement};
 use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
-use rez_next_rex::{generate_shell_script, RexExecutor, ShellType};
+use rez_next_rex::{RexExecutor, ShellType, generate_shell_script};
 use rez_next_solver::{DependencyResolver, SolverConfig};
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -225,7 +225,9 @@ impl PyRezEnv {
     /// Equivalent to `context.apply_to_os_environ()`.
     fn apply_to_os_environ(&self) -> PyResult<()> {
         for (k, v) in &self.env_vars {
-            std::env::set_var(k, v);
+            unsafe {
+                std::env::set_var(k, v);
+            };
         }
         Ok(())
     }
@@ -303,7 +305,9 @@ pub fn apply_env(
     let env = PyRezEnv::new(packages, None, paths)?;
     if env.success {
         for (k, v) in &env.env_vars {
-            std::env::set_var(k, v);
+            unsafe {
+                std::env::set_var(k, v);
+            };
         }
     }
     Ok(env.env_vars)

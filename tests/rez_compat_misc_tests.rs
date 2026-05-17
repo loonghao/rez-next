@@ -51,7 +51,7 @@ env.prepend_path('MYPATH', '/second')
 /// Rex: shell script generation for bash contains expected variable export
 #[test]
 fn test_rex_bash_script_contains_export() {
-    use rez_next_rex::{generate_shell_script, RexExecutor, ShellType};
+    use rez_next_rex::{RexExecutor, ShellType, generate_shell_script};
 
     let mut exec = RexExecutor::new();
     let env = exec
@@ -350,7 +350,7 @@ fn test_rex_alias_name_path_mapping() {
 /// rez.source: SourceMode::Inline returns script content without writing a file
 #[test]
 fn test_source_mode_inline_returns_content() {
-    use rez_next_rex::{generate_shell_script, RexEnvironment, ShellType};
+    use rez_next_rex::{RexEnvironment, ShellType, generate_shell_script};
 
     // Simulate SourceMode::Inline: build script in memory
     let mut env = RexEnvironment::new();
@@ -370,7 +370,7 @@ fn test_source_mode_inline_returns_content() {
 /// rez.source: SourceMode::File writes script to specified path
 #[test]
 fn test_source_mode_file_writes_to_disk() {
-    use rez_next_rex::{generate_shell_script, RexEnvironment, ShellType};
+    use rez_next_rex::{RexEnvironment, ShellType, generate_shell_script};
 
     let dir = tempfile::tempdir().unwrap();
     let dest = dir.path().join("activate.sh");
@@ -391,7 +391,7 @@ fn test_source_mode_file_writes_to_disk() {
 /// rez.source: SourceMode::TempFile produces a non-empty file path string
 #[test]
 fn test_source_mode_temp_file_nonempty_path() {
-    use rez_next_rex::{generate_shell_script, RexEnvironment, ShellType};
+    use rez_next_rex::{RexEnvironment, ShellType, generate_shell_script};
 
     let mut env = RexEnvironment::new();
     env.vars

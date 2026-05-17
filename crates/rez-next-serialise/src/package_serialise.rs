@@ -93,28 +93,16 @@ pub const PACKAGE_KEY_ORDER: &[&str] = &[
 /// # Errors
 ///
 /// Returns `PackageSerialiseError` if serialisation or file writing fails.
-pub fn dump_package_data<T: Serialize>(
-    data: &T,
-    path: &Path,
-    format: FileFormat,
-) -> Result<()> {
+pub fn dump_package_data<T: Serialize>(data: &T, path: &Path, format: FileFormat) -> Result<()> {
     let serialized = match format {
-        FileFormat::Yaml | FileFormat::YamlCompressed => {
-            serde_yaml::to_string(data)
-                .map_err(|e| PackageSerialiseError::Serialisation(e.to_string()))?
-        }
-        FileFormat::Json | FileFormat::JsonCompressed => {
-            serde_json::to_string_pretty(data)
-                .map_err(|e| PackageSerialiseError::Serialisation(e.to_string()))?
-        }
-        FileFormat::Python => {
-            dict_to_attributes_code(data)
-                .map_err(|e| PackageSerialiseError::Serialisation(e.to_string()))?
-        }
-        FileFormat::Toml => {
-            toml::to_string(data)
-                .map_err(|e| PackageSerialiseError::Serialisation(e.to_string()))?
-        }
+        FileFormat::Yaml | FileFormat::YamlCompressed => serde_yaml::to_string(data)
+            .map_err(|e| PackageSerialiseError::Serialisation(e.to_string()))?,
+        FileFormat::Json | FileFormat::JsonCompressed => serde_json::to_string_pretty(data)
+            .map_err(|e| PackageSerialiseError::Serialisation(e.to_string()))?,
+        FileFormat::Python => dict_to_attributes_code(data)
+            .map_err(|e| PackageSerialiseError::Serialisation(e.to_string()))?,
+        FileFormat::Toml => toml::to_string(data)
+            .map_err(|e| PackageSerialiseError::Serialisation(e.to_string()))?,
     };
 
     let mut file = File::create(path)?;
@@ -138,28 +126,25 @@ pub fn dump_package_data<T: Serialize>(
 /// # Errors
 ///
 /// Returns `PackageSerialiseError` if deserialisation or file reading fails.
-pub fn read_package_data<T: serde::de::DeserializeOwned>(path: &Path, format: FileFormat) -> Result<T> {
+pub fn read_package_data<T: serde::de::DeserializeOwned>(
+    path: &Path,
+    format: FileFormat,
+) -> Result<T> {
     let content = std::fs::read_to_string(path)?;
 
     let deserialised: T = match format {
-        FileFormat::Yaml | FileFormat::YamlCompressed => {
-            serde_yaml::from_str(&content)
-                .map_err(|e| PackageSerialiseError::Serialisation(e.to_string()))?
-        }
-        FileFormat::Json | FileFormat::JsonCompressed => {
-            serde_json::from_str(&content)
-                .map_err(|e| PackageSerialiseError::Serialisation(e.to_string()))?
-        }
+        FileFormat::Yaml | FileFormat::YamlCompressed => serde_yaml::from_str(&content)
+            .map_err(|e| PackageSerialiseError::Serialisation(e.to_string()))?,
+        FileFormat::Json | FileFormat::JsonCompressed => serde_json::from_str(&content)
+            .map_err(|e| PackageSerialiseError::Serialisation(e.to_string()))?,
         FileFormat::Python => {
             // Python format: execute the Python file and get the dict
             // For now, treat it as YAML (package.py is YAML-like)
             serde_yaml::from_str(&content)
                 .map_err(|e| PackageSerialiseError::Serialisation(e.to_string()))?
         }
-        FileFormat::Toml => {
-            toml::from_str(&content)
-                .map_err(|e| PackageSerialiseError::Serialisation(e.to_string()))?
-        }
+        FileFormat::Toml => toml::from_str(&content)
+            .map_err(|e| PackageSerialiseError::Serialisation(e.to_string()))?,
     };
 
     Ok(deserialised)
@@ -179,8 +164,7 @@ pub fn read_package_data<T: serde::de::DeserializeOwned>(path: &Path, format: Fi
 ///
 /// Returns `PackageSerialiseError` if serialisation fails.
 pub fn dump_yaml<T: Serialize>(data: &T) -> Result<String> {
-    serde_yaml::to_string(data)
-        .map_err(|e| PackageSerialiseError::Serialisation(e.to_string()))
+    serde_yaml::to_string(data).map_err(|e| PackageSerialiseError::Serialisation(e.to_string()))
 }
 
 /// Format a string as a YAML block string (literal block style).
@@ -263,7 +247,11 @@ pub fn package_key_order() -> Vec<&'static str> {
 // ── Internal Helpers ───────────────────────────────────────────────────────────
 
 /// Recursively convert a JSON value to Python code.
-fn dict_to_python_code(value: &serde_json::Value, output: &mut String, indent: usize) -> Result<()> {
+fn dict_to_python_code(
+    value: &serde_json::Value,
+    output: &mut String,
+    indent: usize,
+) -> Result<()> {
     let indent_str = " ".repeat(indent);
 
     match value {
@@ -298,8 +286,8 @@ fn dict_to_python_code(value: &serde_json::Value, output: &mut String, indent: u
             output.push(']');
         }
         serde_json::Value::Object(map) => {
+            // Generate Python attribute code (key = value) for package.py format
             // Use IndexMap to preserve key order
-            output.push_str("{\n");
             let mut keys: Vec<&String> = map.keys().collect();
 
             // Sort keys according to PACKAGE_KEY_ORDER if possible
@@ -315,18 +303,17 @@ fn dict_to_python_code(value: &serde_json::Value, output: &mut String, indent: u
             });
 
             for (i, key) in keys.iter().enumerate() {
+                if i > 0 {
+                    output.push('\n');
+                }
                 output.push_str(&indent_str);
-                output.push_str("    ");
-                output.push_str(&format_python_string(key));
-                output.push_str(": ");
-                dict_to_python_code(&map[*key], output, indent + 4)?;
+                output.push_str(key);
+                output.push_str(" = ");
+                dict_to_python_code(&map[*key], output, indent)?;
                 if i < keys.len() - 1 {
                     output.push(',');
                 }
-                output.push('\n');
             }
-            output.push_str(&indent_str);
-            output.push('}');
         }
     }
 
@@ -335,7 +322,10 @@ fn dict_to_python_code(value: &serde_json::Value, output: &mut String, indent: u
 
 /// Format a string as a Python string literal.
 fn format_python_string(s: &str) -> String {
-    if s.contains('\'') && s.contains('"') {
+    if s.contains('\n') {
+        // Multiline string - use triple quotes (align with Rez's package.py format)
+        format!("'''{}'''", s.replace("'''", "\\'\\'\\'"))
+    } else if s.contains('\'') && s.contains('"') {
         // Use triple quotes
         format!("'''{}'''", s.replace("'''", "\\'\\'\\'"))
     } else if s.contains('\'') {

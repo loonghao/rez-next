@@ -57,7 +57,11 @@ impl PyPackageVariantCache {
         }
     }
 
-    fn get_variants<'a>(&mut self, py: Python<'a>, package_name: &str) -> PyResult<Bound<'a, PyAny>> {
+    fn get_variants<'a>(
+        &mut self,
+        py: Python<'a>,
+        package_name: &str,
+    ) -> PyResult<Bound<'a, PyAny>> {
         if let Some(variants) = self.inner.get_variants(package_name) {
             let py_list = PyList::empty(py);
             for variant in variants {

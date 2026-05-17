@@ -45,9 +45,7 @@ impl PyReduction {
     fn __repr__(&self) -> String {
         format!(
             "<Reduction package={} version={:?} reason={}>",
-            self.inner.package_name,
-            self.inner.version,
-            self.inner.reason
+            self.inner.package_name, self.inner.version, self.inner.reason
         )
     }
 }
@@ -75,9 +73,7 @@ impl PyTotalReduction {
     fn reductions<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
         let py_list = PyList::empty(py);
         for r in &self.inner.reductions {
-            let py_r = PyReduction {
-                inner: r.clone(),
-            };
+            let py_r = PyReduction { inner: r.clone() };
             py_list.append(py_r)?;
         }
         Ok(py_list.into_any())
@@ -97,10 +93,7 @@ impl PyTotalReduction {
     }
 
     fn __repr__(&self) -> String {
-        format!(
-            "<TotalReduction count={}>",
-            self.inner.total_count
-        )
+        format!("<TotalReduction count={}>", self.inner.total_count)
     }
 }
 

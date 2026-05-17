@@ -3,8 +3,8 @@
 mod context_load_behavior_tests {
 
     use crate::{
-        serialization::{ContextFormat, ContextSerializer},
         ContextStatus, ResolvedContext,
+        serialization::{ContextFormat, ContextSerializer},
     };
     use rez_next_package::Package;
     use rez_next_version::Version;

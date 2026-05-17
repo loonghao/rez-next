@@ -4,11 +4,11 @@
 //! This command resolves package requirements and spawns a shell with the resolved environment.
 
 use clap::Args;
-use rez_next_common::{config::RezCoreConfig, error::RezCoreResult, RezCoreError};
+use rez_next_common::{RezCoreError, config::RezCoreConfig, error::RezCoreResult};
 use rez_next_context::{ContextConfig, EnvironmentManager, ResolvedContext, ShellType};
 use rez_next_package::{PackageRequirement, Requirement};
 use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
-use rez_next_rex::{generate_shell_script, RexEnvironment, ShellType as RexShellType};
+use rez_next_rex::{RexEnvironment, ShellType as RexShellType, generate_shell_script};
 use rez_next_solver::{DependencyResolver, SolverConfig};
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
@@ -147,7 +147,9 @@ pub fn execute_with_extra_args(mut args: EnvArgs, extra_args: Vec<String>) -> Re
     // and set REZ_CONTEXT_FILE so subprocesses can access it
     let rxt_path = save_context_to_rxt(&context)?;
     if let Some(ref path) = rxt_path {
-        std::env::set_var("REZ_CONTEXT_FILE", path);
+        unsafe {
+            std::env::set_var("REZ_CONTEXT_FILE", path);
+        };
     }
 
     // Execute shell or command
@@ -328,13 +330,10 @@ fn print_shell_script(context: &ResolvedContext, args: &EnvArgs) -> RezCoreResul
         .block_on(env_manager.generate_environment(&context.resolved_packages))?;
 
     // Determine shell type
-    let shell_str = args.shell.as_deref().unwrap_or({
-        if cfg!(windows) {
-            "powershell"
-        } else {
-            "bash"
-        }
-    });
+    let shell_str =
+        args.shell
+            .as_deref()
+            .unwrap_or(if cfg!(windows) { "powershell" } else { "bash" });
 
     let rex_shell = match shell_str {
         "bash" | "sh" => RexShellType::Bash,

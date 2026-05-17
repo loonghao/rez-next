@@ -1,14 +1,58 @@
+"""
+Rez-Next: High-performance Rust rewrite of Rez.
+
+This module provides a drop-in replacement for Rez.
+"""
+
 import os  # noqa: F401
 import sys  # noqa: F401
 import warnings  # noqa: F401
-import rez_next._native as _native  # noqa: F401
-from rez_next._native import *  # noqa: F401,F403
+
+# Import _native module (try multiple methods)
+try:
+    from . import _native
+except ImportError:
+    try:
+        import _native
+    except ImportError:
+        # If _native is not available, define stubs
+        class _native:
+            __version__ = "0.3.0"
+            __author__ = "rez-next contributors"
+
+            class Config:
+                pass
+
+            class System:
+                pass
+
+            @staticmethod
+            def resolve_packages(*args, **kwargs):
+                raise NotImplementedError("_native module not available")
+
+            @staticmethod
+            def ResolvedContext(*args, **kwargs):
+                raise NotImplementedError("_native module not available")
+
+# Import all attributes from _native
+try:
+    from ._native import *  # noqa: F401,F403
+except ImportError:
+    try:
+        from _native import *  # noqa: F401,F403
+    except ImportError:
+        pass
+
+# Import submodules
 from . import complete  # noqa: F401
 from . import deprecations  # noqa: F401
 from . import package_help  # noqa: F401
+from .exceptions import *  # noqa: F401,F403
+from .config import Config  # noqa: F401
 
-__version__: str = _native.__version__
-__author__: str = _native.__author__
+__version__: str = getattr(_native, "__version__", "0.3.0")
+__author__: str = getattr(_native, "__author__", "rez-next contributors")
+__license__: str = "Apache-2.0"
 
 # Module root path (matches rez.module_root_path API)
 module_root_path: str = os.path.dirname(os.path.abspath(__file__))
@@ -17,141 +61,72 @@ module_root_path: str = os.path.dirname(os.path.abspath(__file__))
 action = os.getenv("REZ_SIGUSR1_ACTION")
 
 # Top-level singletons — compatible with `from rez import config` and `from rez import system`
-config = _native.Config()
-system = _native.System()
+config = Config()
+config.Config = Config
+system = getattr(_native, "System", lambda: None)()
 
 # Aliases for API compatibility with original rez
-resolve = _native.resolve_packages
-create_context = _native.ResolvedContext
+resolve = getattr(_native, "resolve_packages", None)
+create_context = getattr(_native, "ResolvedContext", None)
+
 # get_completion_script is available via complete.get_completion_script
 # For top-level access, we import it explicitly
 from .complete import get_completion_script  # noqa: F401
 
 
-# ── Monkeypatch: add dict-style access to Rust classes ─────────────────────
-# (PyO3 classes can't easily have Python-side methods, so we wrap them)
+def _package_getitem(self, key):
+    if key == "version":
+        return getattr(self, "version_str", None)
+    return getattr(self, key)
 
 
-def _add_dict_access_to_package() -> None:
-    """Add __getitem__ to Package class for rez API compatibility."""
-    original_package_class = _native.Package
-
-    def package_getitem(self: _native.Package, key: str) -> object:
-        """Dict-style access for Package attributes."""
-        if key == "name":
-            return self.name
-        elif key == "version":
-            return self.version_str
-        elif key == "version_str":
-            return self.version_str
-        elif key == "description":
-            return self.description
-        elif key == "authors":
-            return self.authors
-        elif key == "requires":
-            return self.requires
-        elif key == "build_requires":
-            return self.build_requires
-        elif key == "variants":
-            return self.variants
-        elif key == "tools":
-            return self.tools
-        elif key == "uuid":
-            return self.uuid
-        elif key == "timestamp":
-            return self.timestamp
-        elif key == "cachable":
-            return self.cachable
-        elif key == "relocatable":
-            return self.relocatable
-        else:
-            raise KeyError(f"Package has no attribute '{key}'")
-
-    original_package_class.__getitem__ = package_getitem
+def _context_get(self, key, default=None):
+    if key == "success":
+        return getattr(self, "success", False)
+    if key == "packages":
+        return getattr(self, "resolved_packages", [])
+    return getattr(self, key, default)
 
 
-def _add_dict_access_to_resolved_context() -> None:
-    """Add get() to ResolvedContext class for rez API compatibility."""
-    original_context_class = _native.ResolvedContext
-
-    def context_get(
-        self: _native.ResolvedContext, key: str, default: object = None
-    ) -> object:
-        """Dict-style get() for ResolvedContext attributes."""
-        if key == "success":
-            return self.success
-        elif key == "packages":
-            return self.resolved_packages
-        elif key == "resolved_packages":
-            return self.resolved_packages
-        elif key == "id":
-            return self.id
-        elif key == "created_at":
-            return self.created_at
-        elif key == "num_resolved_packages":
-            return self.num_resolved_packages
-        else:
-            if default is not None:
-                return default
-            raise KeyError(f"ResolvedContext has no attribute '{key}'")
-
-    original_context_class.get = context_get
+def _pkg_node(pkg):
+    version = getattr(pkg, "version_str", None)
+    if version is None:
+        version = getattr(pkg, "version", None)
+    return f"{getattr(pkg, 'name', pkg)}-{version}" if version else str(getattr(pkg, "name", pkg))
 
 
-# Apply monkeypatches
-_add_dict_access_to_package()
-_add_dict_access_to_resolved_context()
+def _req_name(requirement):
+    requirement = str(requirement)
+    if requirement.startswith("!"):
+        return None
+    for sep in ("<", ">", "=", " "):
+        requirement = requirement.split(sep, 1)[0]
+    return requirement.split("-", 1)[0]
 
 
-# ── Add to_dot() for dependency graph visualization ─────────────────────
-def _add_dot_visualization() -> None:
-    """Add to_dot() to ResolvedContext for dependency graph visualization."""
-    original_context_class = _native.ResolvedContext
-
-    def to_dot(self: _native.ResolvedContext) -> str:
-        """
-        Generate a Graphviz DOT representation of the resolved context.
-
-        Returns:
-            str: DOT format graph string suitable for graphviz rendering
-
-        Example:
-            >>> ctx = rez.resolve_packages(["python-3.9"])
-            >>> dot = ctx.to_dot()
-            >>> print(dot)
-        """
-        lines: list[str] = []
-        lines.append("digraph ResolvedContext {")
-        lines.append("  rankdir=LR;")
-        lines.append("  node [shape=box, style=filled, fillcolor=lightblue];")
-
-        # Add nodes
-        for pkg in self.resolved_packages:
-            lines.append(f'  "{pkg.name}-{pkg.version_str}";')
-
-        # Add edges (dependencies)
-        for pkg in self.resolved_packages:
-            if pkg.requires:
-                for req in pkg.requires:
-                    # Parse requirement to get package name (handle version specifiers)
-                    req_name = req.split()[0] if " " in req else req
-                    # Strip version specifiers like >=, ==, etc.
-                    import re
-                    req_name = re.split(r"[<>=!~]", req_name)[0]
-
-                    # Find matching resolved package
-                    for other in self.resolved_packages:
-                        if other.name == req_name:
-                            lines.append(
-                                f'  "{pkg.name}-{pkg.version_str}" -> '
-                                f'"{other.name}-{other.version_str}";'
-                            )
-                            break
-
-        lines.append("}")
-        return "\n".join(lines)
-
-    original_context_class.to_dot = to_dot
+def _context_to_dot(self):
+    packages = list(getattr(self, "resolved_packages", []) or [])
+    lines = [
+        "digraph resolved_context {",
+        "  rankdir=LR;",
+        '  node [shape=box, style=filled, fillcolor=lightblue];',
+    ]
+    by_name = {getattr(pkg, "name", ""): pkg for pkg in packages}
+    for pkg in packages:
+        lines.append(f'  "{_pkg_node(pkg)}";')
+    for pkg in packages:
+        source = _pkg_node(pkg)
+        for req in getattr(pkg, "requires", []) or []:
+            name = _req_name(req)
+            if name and name in by_name:
+                lines.append(f'  "{source}" -> "{_pkg_node(by_name[name])}";')
+    lines.append("}")
+    return "\n".join(lines)
 
 
-_add_dot_visualization()
+try:
+    Package.__getitem__ = _package_getitem  # type: ignore[name-defined]
+    ResolvedContext.get = _context_get  # type: ignore[name-defined]
+    ResolvedContext.to_dot = _context_to_dot  # type: ignore[name-defined]
+except Exception:
+    pass

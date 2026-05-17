@@ -1,7 +1,7 @@
 //! Python bindings for shell script generation (rez.shell)
 
 use pyo3::prelude::*;
-use rez_next_rex::{generate_shell_script, RexEnvironment, ShellType};
+use rez_next_rex::{RexEnvironment, ShellType, generate_shell_script};
 use std::collections::HashMap;
 
 use crate::source_bindings::detect_current_shell;

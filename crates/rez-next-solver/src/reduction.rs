@@ -89,7 +89,11 @@ mod tests {
 
     #[test]
     fn test_reduction_new() {
-        let r = Reduction::new("python".to_string(), Some("3.9".to_string()), "conflict".to_string());
+        let r = Reduction::new(
+            "python".to_string(),
+            Some("3.9".to_string()),
+            "conflict".to_string(),
+        );
         assert_eq!(r.package_name, "python");
         assert_eq!(r.version, Some("3.9".to_string()));
         assert_eq!(r.reason, "conflict");
@@ -106,7 +110,11 @@ mod tests {
     #[test]
     fn test_total_reduction_add() {
         let mut tr = TotalReduction::new();
-        let r = Reduction::new("python".to_string(), Some("3.9".to_string()), "conflict".to_string());
+        let r = Reduction::new(
+            "python".to_string(),
+            Some("3.9".to_string()),
+            "conflict".to_string(),
+        );
         tr.add_reduction(r);
         assert!(!tr.is_empty());
         assert_eq!(tr.len(), 1);

@@ -47,6 +47,8 @@ impl Package {
             hashed_variants: None,
             preprocess: None,
             is_dev_package: None,
+            filepath: None,
+            includes: None,
         }
     }
 
@@ -193,6 +195,82 @@ impl Package {
         }
 
         Ok(())
+    }
+
+    /// Load a developer package from a path.
+    ///
+    /// This aligns with Rez's `DeveloperPackage.from_path()` interface.
+    /// Supports both file path (package.py/package.yaml) and directory path.
+    ///
+    /// # Arguments
+    /// * `path` - Directory containing package definition, or path to the file itself
+    ///
+    /// # Returns
+    /// * `Result<Package, RezCoreError>` - The loaded package
+    ///
+    /// # Example
+    /// ```
+    /// # use rez_next_package::package::types::Package;
+    /// # use std::path::PathBuf;
+    /// # use tempfile::TempDir;
+    /// # let dir = TempDir::new().unwrap();
+    /// # let pkg_path = dir.path().join("package.py");
+    /// # std::fs::write(&pkg_path, r#"name = "mypackage""#).unwrap();
+    /// let pkg = Package::from_path(pkg_path).unwrap();
+    /// assert_eq!(pkg.name, "mypackage");
+    /// ```
+    pub fn from_path<P: AsRef<std::path::Path>>(path: P) -> Result<Self, RezCoreError> {
+        let path = path.as_ref();
+
+        // Determine if path is a directory or file
+        let file_path = if path.is_dir() {
+            // Look for package.py or package.yaml in directory
+            let package_py = path.join("package.py");
+            let package_yaml = path.join("package.yaml");
+            let package_yml = path.join("package.yml");
+
+            if package_py.exists() {
+                package_py
+            } else if package_yaml.exists() {
+                package_yaml
+            } else if package_yml.exists() {
+                package_yml
+            } else {
+                return Err(RezCoreError::PackageParse(format!(
+                    "No package definition file found in {}",
+                    path.display()
+                )));
+            }
+        } else {
+            path.to_path_buf()
+        };
+
+        // Load package from file
+        let mut pkg = crate::serialization::PackageSerializer::load_from_file(&file_path)
+            .map_err(|e| RezCoreError::PackageParse(format!("Failed to load package: {}", e)))?;
+
+        // Set filepath
+        pkg.filepath = Some(file_path.to_string_lossy().to_string());
+
+        // Set is_dev_package flag
+        pkg.is_dev_package = Some(true);
+
+        // TODO: Collect includes from SourceCode objects
+        // This requires parsing the package data to find all @include decorators
+        // For now, we leave includes as None
+
+        Ok(pkg)
+    }
+
+    /// Get the root directory of the package (parent of filepath).
+    ///
+    /// Aligns with Rez's `DeveloperPackage.root` property.
+    pub fn root(&self) -> Option<String> {
+        self.filepath.as_ref().and_then(|fp| {
+            std::path::Path::new(fp)
+                .parent()
+                .map(|p| p.to_string_lossy().to_string())
+        })
     }
 
     /// Serialize the package to package.py format string.
@@ -466,7 +544,10 @@ mod tests {
         pkg.authors = vec!["Test Author".to_string()];
         pkg.requires = vec!["python-3.9".to_string()];
         pkg.build_requires = vec!["cmake-3.20".to_string()];
-        pkg.variants = vec![vec!["python-3.9".to_string()], vec!["python-3.10".to_string()]];
+        pkg.variants = vec![
+            vec!["python-3.9".to_string()],
+            vec!["python-3.10".to_string()],
+        ];
         pkg.tools = vec!["mytool".to_string()];
         pkg.commands = Some("    env.PATH.prepend(\"{root}/bin\")\n".to_string());
         pkg.uuid = Some("12345678-1234-1234-1234-123456789012".to_string());
@@ -511,5 +592,71 @@ mod tests {
         pkg.description = Some("Description with \"quotes\"".to_string());
         let result = pkg.to_package_py();
         assert!(result.contains("Description with \\\"quotes\\\""));
+    }
+
+    // ── Phase N: from_path() and root() tests ─────────────────────────────
+
+    #[test]
+    fn test_from_path_with_package_py() {
+        use std::fs::File;
+        use std::io::Write;
+        use tempfile::TempDir;
+
+        let tmp = TempDir::new().unwrap();
+        let pkg_path = tmp.path().join("package.py");
+        let mut file = File::create(&pkg_path).unwrap();
+        writeln!(file, "name = 'mypackage'").unwrap();
+        writeln!(file, "version = '1.0.0'").unwrap();
+        file.flush().unwrap();
+
+        let pkg = Package::from_path(pkg_path.to_str().unwrap()).unwrap();
+        assert_eq!(pkg.name, "mypackage");
+        assert_eq!(pkg.version.as_ref().unwrap().as_str(), "1.0.0");
+        assert_eq!(pkg.filepath, Some(pkg_path.to_string_lossy().to_string()));
+        assert_eq!(pkg.is_dev_package, Some(true));
+    }
+
+    #[test]
+    fn test_from_path_with_directory() {
+        use std::fs::File;
+        use std::io::Write;
+        use tempfile::TempDir;
+
+        let tmp = TempDir::new().unwrap();
+        let pkg_path = tmp.path().join("package.py");
+        let mut file = File::create(&pkg_path).unwrap();
+        writeln!(file, "name = 'dirpkg'").unwrap();
+        writeln!(file, "version = '2.0.0'").unwrap();
+        file.flush().unwrap();
+
+        // Pass directory path
+        let pkg = Package::from_path(tmp.path().to_str().unwrap()).unwrap();
+        assert_eq!(pkg.name, "dirpkg");
+        assert_eq!(pkg.filepath, Some(pkg_path.to_string_lossy().to_string()));
+    }
+
+    #[test]
+    fn test_root() {
+        use std::fs::File;
+        use std::io::Write;
+        use tempfile::TempDir;
+
+        let tmp = TempDir::new().unwrap();
+        let pkg_path = tmp.path().join("package.py");
+        let mut file = File::create(&pkg_path).unwrap();
+        writeln!(file, "name = 'rootpkg'").unwrap();
+        file.flush().unwrap();
+
+        let pkg = Package::from_path(pkg_path.to_str().unwrap()).unwrap();
+        let root = pkg.root();
+        assert_eq!(root, Some(tmp.path().to_string_lossy().to_string()));
+    }
+
+    #[test]
+    fn test_from_path_no_package_file() {
+        use tempfile::TempDir;
+        let tmp = TempDir::new().unwrap();
+        let result = Package::from_path(tmp.path().to_str().unwrap());
+        assert!(result.is_err());
     }
 }

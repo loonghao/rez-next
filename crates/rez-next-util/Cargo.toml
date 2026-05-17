@@ -1,7 +1,8 @@
 [package]
 name = "rez-next-util"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
+rust-version = "1.95.0"
 description = "Utility functions for rez-next"
 authors = ["rez-next contributors"]
 license = "Apache-2.0"

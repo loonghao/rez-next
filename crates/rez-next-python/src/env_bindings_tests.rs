@@ -418,7 +418,7 @@ fn test_package_family_add_same_version_twice_increments_count() {
     let mut family = PyPackageFamily::new("dup_pkg".to_string());
     family.add_package(make_pkg("dup_pkg", "1.0.0"));
     family.add_package(make_pkg("dup_pkg", "1.0.0")); // duplicate
-                                                      // num_versions counts raw list length, duplicates allowed
+    // num_versions counts raw list length, duplicates allowed
     assert_eq!(family.num_versions(), 2);
 }
 

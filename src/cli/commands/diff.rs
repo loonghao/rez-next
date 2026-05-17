@@ -3,7 +3,7 @@
 //! Implements the `rez diff` command for comparing packages.
 
 use clap::Args;
-use rez_next_common::{error::RezCoreResult, RezCoreError};
+use rez_next_common::{RezCoreError, error::RezCoreResult};
 use rez_next_package::Package;
 use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
 use std::path::PathBuf;
@@ -275,8 +275,7 @@ async fn find_previous_version(
     // Find the package with the version just before the current one
     // This is a simplified implementation - in reality we'd need proper version comparison
     for package in packages {
-        if let (Some(ref pkg_version), Some(ref current_version)) = (&package.version, &pkg.version)
-        {
+        if let (Some(pkg_version), Some(current_version)) = (&package.version, &pkg.version) {
             if pkg_version.as_str() != current_version.as_str() {
                 return Ok((*package).clone());
             }

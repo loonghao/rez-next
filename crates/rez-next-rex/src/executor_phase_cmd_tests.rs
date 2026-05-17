@@ -220,11 +220,12 @@ env.prepend_path("PATH", "{root}/bin")
     );
     assert!(!env.startup_commands.is_empty());
     assert!(env.startup_commands[0].contains("/opt/mypkg/2.0/bin/init.sh"));
-    assert!(env
-        .vars
-        .get("PATH")
-        .map(|v| v.contains("/opt/mypkg/2.0/bin"))
-        .unwrap_or(false));
+    assert!(
+        env.vars
+            .get("PATH")
+            .map(|v| v.contains("/opt/mypkg/2.0/bin"))
+            .unwrap_or(false)
+    );
 }
 
 /// command() with custom context variable

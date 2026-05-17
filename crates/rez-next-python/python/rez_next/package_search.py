@@ -21,6 +21,13 @@ from rez_next.packages import (  # noqa: F401
     iter_package_families,
 )
 
+# Import from native package_search submodule
+from rez_next._native.package_search import (  # noqa: F401
+    ResourceSearchResult,
+    get_plugins,
+    get_reverse_dependency_tree,
+)
+
 # Expose ResourceSearcher as an alias for PackageSearcher for compatibility
 ResourceSearcher = PackageSearcher
-ResourceSearchResult = SearchResult
+# ResourceSearchResult is imported from native package_search submodule above

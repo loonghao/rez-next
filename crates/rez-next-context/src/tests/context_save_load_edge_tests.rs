@@ -12,8 +12,8 @@
 mod save_load_edge_cases {
 
     use crate::{
-        serialization::{ContextFormat, ContextSerializer},
         ContextStatus, ResolvedContext,
+        serialization::{ContextFormat, ContextSerializer},
     };
     use rez_next_package::Package;
     use rez_next_version::Version;

@@ -7,8 +7,8 @@
 pub mod package_serialise;
 
 pub use package_serialise::{
-    dump_package_data, dump_yaml, as_block_string, dict_to_attributes_code,
-    package_key_order, FileFormat, PackageSerialiseError, Result,
+    FileFormat, PackageSerialiseError, Result, as_block_string, dict_to_attributes_code,
+    dump_package_data, dump_yaml, package_key_order, read_package_data,
 };
 
 #[cfg(test)]
@@ -24,7 +24,10 @@ mod tests {
             FileFormat::Toml,
         ];
         for fmt in formats {
-            assert!(matches!(fmt, FileFormat::Yaml | FileFormat::Json | FileFormat::Python | FileFormat::Toml));
+            assert!(matches!(
+                fmt,
+                FileFormat::Yaml | FileFormat::Json | FileFormat::Python | FileFormat::Toml
+            ));
         }
     }
 }

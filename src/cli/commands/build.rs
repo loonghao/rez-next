@@ -4,7 +4,7 @@
 
 use clap::Args;
 use rez_next_build::{BuildManager, BuildOptions, BuildRequest};
-use rez_next_common::{error::RezCoreResult, RezCoreError};
+use rez_next_common::{RezCoreError, error::RezCoreResult};
 use rez_next_package::Package;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -431,7 +431,9 @@ fn execute_build(
         }
     }
     let build_result = final_result.ok_or_else(|| {
-        RezCoreError::BuildError("No build occurred - no package specifications provided".to_string())
+        RezCoreError::BuildError(
+            "No build occurred - no package specifications provided".to_string(),
+        )
     })?;
 
     if !build_result.success {

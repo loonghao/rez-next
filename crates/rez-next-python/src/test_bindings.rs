@@ -13,13 +13,10 @@
 
 use pyo3::prelude::*;
 use rez_next_package::package::test_runner::{
-    PackageTestResults as RustTestResults, PackageTestRunner as RustTestRunner,
-    TestStatus,
+    PackageTestResults as RustTestResults, PackageTestRunner as RustTestRunner, TestStatus,
 };
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
-
-use super::exceptions_bindings::PackageTestError;
 
 // ── PyPackageTestRunner ─────────────────────────────────────────────
 
@@ -35,9 +32,8 @@ impl PyPackageTestRunner {
     /// Create a new PackageTestRunner for the given package.
     #[new]
     pub fn new(package_spec: String) -> PyResult<Self> {
-        let runner = RustTestRunner::new(package_spec).map_err(|e| {
-            pyo3::exceptions::PyRuntimeError::new_err(e.to_string())
-        })?;
+        let runner = RustTestRunner::new(package_spec)
+            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
         Ok(Self {
             inner: Arc::new(Mutex::new(runner)),
         })
@@ -47,7 +43,7 @@ impl PyPackageTestRunner {
     #[pyo3(name = "with_working_dir")]
     pub fn py_with_working_dir(&self, dir: String) -> PyResult<Self> {
         let runner = self.inner.lock().unwrap();
-        let runner_clone = runner.clone();  // Dereference MutexGuard, then clone
+        let runner_clone = runner.clone(); // Dereference MutexGuard, then clone
         let new_runner = runner_clone.with_working_dir(PathBuf::from(dir));
         Ok(Self {
             inner: Arc::new(Mutex::new(new_runner)),
@@ -90,16 +86,13 @@ impl PyPackageTestRunner {
     /// Get available test names from the package definition.
     pub fn get_test_names(&self) -> PyResult<Vec<String>> {
         let runner = self.inner.lock().unwrap();
-        runner.get_test_names().map_err(|e| {
-            pyo3::exceptions::PyRuntimeError::new_err(e.to_string())
-        })
+        runner
+            .get_test_names()
+            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
     }
 
     /// Find requested test names (supports wildcards).
-    pub fn find_requested_test_names(
-        &self,
-        requested: Vec<String>,
-    ) -> PyResult<Vec<String>> {
+    pub fn find_requested_test_names(&self, requested: Vec<String>) -> PyResult<Vec<String>> {
         let runner = self.inner.lock().unwrap();
         runner
             .find_requested_test_names(&requested)
@@ -109,9 +102,9 @@ impl PyPackageTestRunner {
     /// Run a specific test by name.
     pub fn run_test(&self, test_name: String) -> PyResult<i32> {
         let mut runner = self.inner.lock().unwrap();
-        runner.run_test(&test_name).map_err(|e| {
-            pyo3::exceptions::PyRuntimeError::new_err(e.to_string())
-        })
+        runner
+            .run_test(&test_name)
+            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
     }
 
     /// Print test summary.

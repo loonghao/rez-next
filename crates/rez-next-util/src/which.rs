@@ -196,9 +196,16 @@ mod tests {
     use std::env;
     use std::fs;
     use std::io::Write;
+    #[cfg(windows)]
     use std::os::windows::fs::OpenOptionsExt;
     use std::path::PathBuf;
     use tempfile::TempDir;
+
+    fn prepend_path_dirs(dirs: &[&Path], original_path: &str) -> std::ffi::OsString {
+        let mut paths: Vec<PathBuf> = dirs.iter().map(|dir| dir.to_path_buf()).collect();
+        paths.extend(env::split_paths(original_path));
+        env::join_paths(paths).unwrap()
+    }
 
     fn create_executable(dir: &Path, name: &str) -> PathBuf {
         let filename = if cfg!(windows) {
@@ -279,15 +286,19 @@ mod tests {
 
         // Add temp_dir to PATH
         let original_path = env::var("PATH").unwrap_or_default();
-        let new_path = format!("{};{}", temp_dir.path().display(), original_path);
-        env::set_var("PATH", new_path);
+        let new_path = prepend_path_dirs(&[temp_dir.path()], &original_path);
+        unsafe {
+            env::set_var("PATH", new_path);
+        };
 
         let result = which("test_cmd");
         assert!(result.is_some());
         assert_eq!(result.unwrap(), exe_path);
 
         // Restore PATH
-        env::set_var("PATH", original_path);
+        unsafe {
+            env::set_var("PATH", original_path);
+        };
     }
 
     #[test]
@@ -299,20 +310,19 @@ mod tests {
         let exe2 = create_executable(temp_dir2.path(), "multi_cmd");
 
         let original_path = env::var("PATH").unwrap_or_default();
-        let new_path = format!(
-            "{};{};{}",
-            temp_dir1.path().display(),
-            temp_dir2.path().display(),
-            original_path
-        );
-        env::set_var("PATH", new_path);
+        let new_path = prepend_path_dirs(&[temp_dir1.path(), temp_dir2.path()], &original_path);
+        unsafe {
+            env::set_var("PATH", new_path);
+        };
 
         let results = which_all("multi_cmd");
         assert_eq!(results.len(), 2);
         assert!(results.contains(&exe1));
         assert!(results.contains(&exe2));
 
-        env::set_var("PATH", original_path);
+        unsafe {
+            env::set_var("PATH", original_path);
+        };
     }
 
     #[test]
@@ -321,12 +331,16 @@ mod tests {
         create_nonexecutable(temp_dir.path(), "not_exec");
 
         let original_path = env::var("PATH").unwrap_or_default();
-        let new_path = format!("{};{}", temp_dir.path().display(), original_path);
-        env::set_var("PATH", new_path);
+        let new_path = prepend_path_dirs(&[temp_dir.path()], &original_path);
+        unsafe {
+            env::set_var("PATH", new_path);
+        };
 
         let result = which("not_exec");
         assert!(result.is_none());
 
-        env::set_var("PATH", original_path);
+        unsafe {
+            env::set_var("PATH", original_path);
+        };
     }
 }

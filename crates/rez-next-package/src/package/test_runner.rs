@@ -9,7 +9,7 @@
 
 use crate::serialization::PackageSerializer;
 use crate::types::Package;
-use rez_next_common::{error::RezCoreError, RezCoreResult};
+use rez_next_common::{RezCoreResult, error::RezCoreError};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
@@ -112,9 +112,7 @@ impl PackageTestRunner {
     ///
     /// Returns an error if the package cannot be found or loaded.
     pub fn new(package_spec: String) -> RezCoreResult<Self> {
-        let working_dir = std::env::current_dir().map_err(|e| {
-            RezCoreError::from(e)
-        })?;
+        let working_dir = std::env::current_dir().map_err(|e| RezCoreError::from(e))?;
 
         let mut runner = Self {
             package_name: package_spec.clone(),
@@ -241,10 +239,7 @@ impl PackageTestRunner {
     /// # Errors
     ///
     /// Returns an error if a pattern is invalid.
-    pub fn find_requested_test_names(
-        &self,
-        requested: &[String],
-    ) -> RezCoreResult<Vec<String>> {
+    pub fn find_requested_test_names(&self, requested: &[String]) -> RezCoreResult<Vec<String>> {
         let available_tests = self.get_test_names()?;
 
         if requested.is_empty() {
@@ -395,11 +390,7 @@ impl PackageTestRunner {
         };
 
         if self.verbose > 0 {
-            tracing::debug!(
-                "Executing: {} {}",
-                program,
-                args.join(" ")
-            );
+            tracing::debug!("Executing: {} {}", program, args.join(" "));
         }
 
         let result = Command::new(&program)
@@ -507,7 +498,9 @@ impl PackageTestResults {
     /// Create a new empty test results collector.
     #[must_use]
     pub fn new() -> Self {
-        Self { results: Vec::new() }
+        Self {
+            results: Vec::new(),
+        }
     }
 
     /// Add a test result.
@@ -595,10 +588,7 @@ impl PackageTestResults {
                     TestStatus::Skipped => "SKIPPED",
                     TestStatus::Error => "ERROR",
                 };
-                let variant_str = result
-                    .variant
-                    .as_deref()
-                    .unwrap_or("(no variant)");
+                let variant_str = result.variant.as_deref().unwrap_or("(no variant)");
                 summary.push_str(&format!(
                     "   [{}] {} on {} - {}\n",
                     status_str, result.name, variant_str, result.output
@@ -730,7 +720,9 @@ mod tests {
         );
 
         // Test wildcard matching
-        let result = runner.find_requested_test_names(&["*test".to_string()]).unwrap();
+        let result = runner
+            .find_requested_test_names(&["*test".to_string()])
+            .unwrap();
         assert_eq!(result.len(), 2);
         assert!(result.contains(&"unit_test".to_string()));
         assert!(result.contains(&"integration_test".to_string()));

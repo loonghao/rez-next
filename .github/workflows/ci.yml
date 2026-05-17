@@ -30,7 +30,7 @@ jobs:
           tools: "just"
           cache: "true"
           github-token: ${{ secrets.GITHUB_TOKEN }}
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@1.95.0
         with:
           components: rustfmt
       - run: vx just fmt-check
@@ -45,7 +45,7 @@ jobs:
           tools: "just"
           cache: "true"
           github-token: ${{ secrets.GITHUB_TOKEN }}
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@1.95.0
         with:
           components: clippy
       - uses: Swatinem/rust-cache@v2
@@ -61,16 +61,17 @@ jobs:
           tools: "just"
           cache: "true"
           github-token: ${{ secrets.GITHUB_TOKEN }}
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@1.95.0
       - uses: Swatinem/rust-cache@v2
       - run: vx just doc-check
         env:
           RUSTDOCFLAGS: "-D warnings"
 
-  test-stable:
-    name: Test - stable
+  test-rust-1-95:
+    name: Test - Rust 1.95.0
 
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v6
       - uses: loonghao/vx@main
@@ -78,9 +79,11 @@ jobs:
           tools: "just"
           cache: "true"
           github-token: ${{ secrets.GITHUB_TOKEN }}
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@1.95.0
       - uses: Swatinem/rust-cache@v2
-      - run: vx cargo test --workspace --exclude rez-next-python
+      - run: vx cargo check --workspace --exclude rez-next-python --all-targets
+      - run: vx cargo test -p rez-next-util which::tests --lib -- --test-threads=1
+      - run: vx cargo test -p rez-next-build vcs::tests::test_git_vcs_get --lib -- --test-threads=1
 
   cli-e2e:
     name: CLI E2E Tests
@@ -92,7 +95,7 @@ jobs:
           tools: "just"
           cache: "true"
           github-token: ${{ secrets.GITHUB_TOKEN }}
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@1.95.0
       - uses: Swatinem/rust-cache@v2
         with:
           key: cli-e2e-v4
@@ -101,33 +104,41 @@ jobs:
   test-macos:
     name: Test - macOS
     runs-on: macos-15
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v6
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@1.95.0
       - uses: Swatinem/rust-cache@v2
-      - run: cargo test --workspace --exclude rez-next-python
+      - run: cargo check --workspace --exclude rez-next-python --all-targets
+      - run: cargo test -p rez-next-util which::tests --lib -- --test-threads=1
+      - run: cargo test -p rez-next-build vcs::tests::test_git_vcs_get --lib -- --test-threads=1
 
   test-win-msvc:
     name: Test - win-msvc
     runs-on: windows-2025
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v6
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@1.95.0
         with:
           targets: x86_64-pc-windows-msvc
       - uses: Swatinem/rust-cache@v2
-      - run: cargo test --workspace --exclude rez-next-python
+      - run: cargo check --workspace --exclude rez-next-python --all-targets
+      - run: cargo test -p rez-next-util which::tests --lib -- --test-threads=1
+      - run: cargo test -p rez-next-build vcs::tests::test_git_vcs_get --lib -- --test-threads=1
 
   test-win-gnu:
     name: Test - win-gnu
     runs-on: windows-2025
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v6
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@1.95.0
         with:
           targets: x86_64-pc-windows-gnu
       - uses: Swatinem/rust-cache@v2
-      - run: cargo test --workspace --exclude rez-next-python --target x86_64-pc-windows-gnu
+      - run: cargo check --workspace --exclude rez-next-python --all-targets --target x86_64-pc-windows-gnu
+      - run: cargo test -p rez-next-util which::tests --lib --target x86_64-pc-windows-gnu -- --test-threads=1
 
   security-audit:
     name: Security Audit
@@ -143,17 +154,19 @@ jobs:
 
   coverage:
     name: Code Coverage
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v6
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@1.95.0
         with:
           components: llvm-tools-preview
       - uses: Swatinem/rust-cache@v2
       - uses: taiki-e/install-action@cargo-llvm-cov
       - name: Build rez-next binary (required for e2e tests)
         run: cargo build --bin rez-next
-      - run: cargo llvm-cov --workspace --exclude rez-next-python --lcov --output-path lcov.info
+      - run: cargo llvm-cov --workspace --exclude rez-next-python --lib --bins --lcov --output-path lcov.info -- --test-threads=1
       - uses: codecov/codecov-action@v6
         with:
           files: lcov.info
@@ -169,7 +182,7 @@ jobs:
         python-version: ["3.9", "3.11", "3.12"]
     steps:
       - uses: actions/checkout@v6
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@1.95.0
       - uses: Swatinem/rust-cache@v2
         with:
           key: python-binding-${{ matrix.python-version }}

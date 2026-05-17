@@ -123,7 +123,6 @@ pub struct ShellExecutor {
     timeout_seconds: u64,
 }
 
-
 impl ShellExecutor {
     /// Create a new shell executor with default shell type
     pub fn new() -> Self {

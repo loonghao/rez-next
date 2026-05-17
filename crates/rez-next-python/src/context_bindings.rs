@@ -171,7 +171,9 @@ impl PyResolvedContext {
             .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
 
         for (k, v) in env_vars {
-            std::env::set_var(k, v);
+            unsafe {
+                std::env::set_var(k, v);
+            };
         }
         Ok(())
     }

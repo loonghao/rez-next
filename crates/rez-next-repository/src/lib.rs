@@ -13,6 +13,7 @@ pub mod cache;
 pub mod filesystem;
 pub mod high_performance_scanner;
 pub mod package_repository;
+pub mod package_search;
 pub mod repository;
 pub mod resources;
 pub mod scanner;
@@ -22,20 +23,19 @@ pub mod simple_repository;
 pub use cache::*;
 pub use filesystem::*;
 pub use high_performance_scanner::*;
+pub use package_repository::{FilesystemPackageRepository, PackageRepository};
+pub use package_search::{ResourceSearchResult, get_plugins, get_reverse_dependency_tree};
 pub use repository::{
-    deduplicate_packages, PackageSearchCriteria, Repository, RepositoryMetadata, RepositoryStats,
-    RepositoryType,
-};
-pub use package_repository::{
-    FilesystemPackageRepository, PackageRepository,
+    PackageSearchCriteria, Repository, RepositoryMetadata, RepositoryStats, RepositoryType,
+    deduplicate_packages,
 };
 pub use resources::{
     PackageFamilyResource, PackageResource, ResourceHandle, ResourcePool, VariantResource,
 };
 pub use scanner::*;
 pub use scanner_types::{
-    CacheStatistics, PackageScanResult, ScanError, ScanErrorType, ScanPerformanceMetrics,
-    ScanResult, ScannerConfig, REZ_PACKAGE_FILENAMES,
+    CacheStatistics, PackageScanResult, REZ_PACKAGE_FILENAMES, ScanError, ScanErrorType,
+    ScanPerformanceMetrics, ScanResult, ScannerConfig,
 };
 pub use simple_repository::*;
 
@@ -100,7 +100,6 @@ mod lib_tests {
     }
 }
 
-
 /// Get statistics about packages in the given repository paths.
 ///
 /// This is compatible with `rez.solver.package_repo_stats()`.
@@ -124,11 +123,13 @@ pub fn package_repo_stats(paths: Vec<String>) -> RepositoryStats {
             for entry in entries.flatten() {
                 let entry_path = entry.path();
                 if entry_path.is_dir() {
-                    // Count packages (directories with package.py or package.yaml)
-                    if entry_path.join("package.py").exists()
-                        || entry_path.join("package.yaml").exists()
-                        || entry_path.join("package.yml").exists()
-                    {
+                    let has_package_file = |dir: &std::path::Path| {
+                        dir.join("package.py").exists()
+                            || dir.join("package.yaml").exists()
+                            || dir.join("package.yml").exists()
+                    };
+
+                    if has_package_file(&entry_path) {
                         combined_stats.package_count += 1;
 
                         // Count versions (subdirectories)
@@ -139,6 +140,17 @@ pub fn package_repo_stats(paths: Vec<String>) -> RepositoryStats {
                                 .count();
                             combined_stats.version_count += version_count;
                             // For now, assume each version has at least one variant
+                            combined_stats.variant_count += version_count;
+                        }
+                    } else if let Ok(version_entries) = std::fs::read_dir(&entry_path) {
+                        let version_count = version_entries
+                            .flatten()
+                            .filter(|e| e.path().is_dir() && has_package_file(&e.path()))
+                            .count();
+
+                        if version_count > 0 {
+                            combined_stats.package_count += 1;
+                            combined_stats.version_count += version_count;
                             combined_stats.variant_count += version_count;
                         }
                     }
@@ -156,4 +168,3 @@ pub fn package_repo_stats(paths: Vec<String>) -> RepositoryStats {
 
     combined_stats
 }
-

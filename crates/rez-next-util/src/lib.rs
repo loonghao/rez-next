@@ -9,17 +9,21 @@ use std::env;
 use rez_next_common::RezCoreError;
 
 // ── Module declarations ──────────────────────────────────────────
+mod base26;
 mod command;
 mod filesystem;
 mod platform;
 mod string;
+mod system;
 mod time;
 pub mod which;
 
+pub use base26::*;
 pub use command::*;
 pub use filesystem::*;
 pub use platform::*;
 pub use string::*;
+pub use system::*;
 pub use time::*;
 pub use which::*;
 

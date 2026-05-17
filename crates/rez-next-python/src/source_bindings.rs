@@ -6,7 +6,7 @@
 
 use crate::shell_utils::shell_type_from_str;
 use pyo3::prelude::*;
-use rez_next_rex::{generate_shell_script, RexEnvironment};
+use rez_next_rex::{RexEnvironment, generate_shell_script};
 use std::path::PathBuf;
 
 /// Supported activation modes matching rez's `rez source` command.

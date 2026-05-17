@@ -236,8 +236,7 @@ impl FileCache {
         path.hash(&mut hasher);
         let hash = hasher.finish();
 
-        self.cache_dir
-            .join(format!("{:016x}.json", hash))
+        self.cache_dir.join(format!("{:016x}.json", hash))
     }
 }
 

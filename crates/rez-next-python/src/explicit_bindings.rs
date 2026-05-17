@@ -49,7 +49,10 @@ impl PyExplicitPackage {
     /// Get the path.
     #[getter]
     fn path(&self) -> Option<String> {
-        self.inner.path.clone().map(|p| p.to_string_lossy().to_string())
+        self.inner
+            .path
+            .clone()
+            .map(|p| p.to_string_lossy().to_string())
     }
 
     /// Set the path.
@@ -62,8 +65,7 @@ impl PyExplicitPackage {
     fn __repr__(&self) -> String {
         format!(
             "ExplicitPackage(name={:?}, version={:?})",
-            self.inner.name,
-            self.inner.version
+            self.inner.name, self.inner.version
         )
     }
 }

@@ -3,8 +3,8 @@
 
 use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyDict, PyList, PyString, PyType};
-use rez_next_package_filter::PackageFilter;
 use rez_next_package::Package;
+use rez_next_package_filter::PackageFilter;
 
 /// Python-accessible PackageFilter class
 #[pyclass(name = "PackageFilter", from_py_object)]
@@ -21,13 +21,15 @@ impl PyPackageFilter {
 
     /// Check if the filter excludes the given package
     /// Returns the matching exclusion rule (as string), or None
-    pub fn excludes(slf: &Bound<'_, Self>, _py: Python<'_>, pkg_dict: Bound<'_, PyDict>) -> Option<String> {
+    pub fn excludes(
+        slf: &Bound<'_, Self>,
+        _py: Python<'_>,
+        pkg_dict: Bound<'_, PyDict>,
+    ) -> Option<String> {
         let pkg = dict_to_package(&pkg_dict).ok()?;
         let filter = slf.borrow();
         let result = filter.0.excludes(&pkg);
-        result.map(|rule_pod| {
-            format!("{}:{}", rule_pod.rule_type, rule_pod.pattern)
-        })
+        result.map(|rule_pod| format!("{}:{}", rule_pod.rule_type, rule_pod.pattern))
     }
 
     /// Check if the filter includes the given package
@@ -41,16 +43,18 @@ impl PyPackageFilter {
 
     /// Add an exclusion rule from string
     pub fn add_exclusion(slf: &Bound<'_, Self>, txt: String) -> PyResult<()> {
-        slf.borrow_mut().0.add_exclusion_from_str(&txt).map_err(|e| {
-            PyErr::new::<pyo3::exceptions::PyValueError, String>(e.to_string())
-        })
+        slf.borrow_mut()
+            .0
+            .add_exclusion_from_str(&txt)
+            .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, String>(e.to_string()))
     }
 
     /// Add an inclusion rule from string
     pub fn add_inclusion(slf: &Bound<'_, Self>, txt: String) -> PyResult<()> {
-        slf.borrow_mut().0.add_inclusion_from_str(&txt).map_err(|e| {
-            PyErr::new::<pyo3::exceptions::PyValueError, String>(e.to_string())
-        })
+        slf.borrow_mut()
+            .0
+            .add_inclusion_from_str(&txt)
+            .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, String>(e.to_string()))
     }
 
     /// Convert to POD (Plain Old Data) for serialization
@@ -69,11 +73,14 @@ impl PyPackageFilter {
 
     /// Create a PackageFilter from POD
     #[classmethod]
-    pub fn from_pod<'py>(_cls: &Bound<'py, PyType>, _py: Python<'py>, pod: Bound<'py, PyAny>) -> PyResult<Self> {
+    pub fn from_pod<'py>(
+        _cls: &Bound<'py, PyType>,
+        _py: Python<'py>,
+        pod: Bound<'py, PyAny>,
+    ) -> PyResult<Self> {
         let dict: std::collections::HashMap<String, Vec<String>> = pod.extract()?;
-        let filter = PackageFilter::from_pod(&dict).map_err(|e| {
-            PyErr::new::<pyo3::exceptions::PyValueError, String>(e.to_string())
-        })?;
+        let filter = PackageFilter::from_pod(&dict)
+            .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, String>(e.to_string()))?;
         Ok(PyPackageFilter(filter))
     }
 
@@ -85,15 +92,17 @@ impl PyPackageFilter {
 
 /// Convert Python dict to Package struct
 fn dict_to_package(pkg_dict: &Bound<'_, PyDict>) -> PyResult<Package> {
-    let name: String = pkg_dict.get_item("name")?
+    let name: String = pkg_dict
+        .get_item("name")?
         .ok_or_else(|| PyErr::new::<pyo3::exceptions::PyKeyError, &str>("name is required"))?
         .extract()?;
 
     let version = if let Some(v) = pkg_dict.get_item("version")? {
         let v_str: String = v.extract()?;
-        Some(rez_next_version::Version::parse(&v_str).map_err(|e| {
-            PyErr::new::<pyo3::exceptions::PyValueError, String>(e.to_string())
-        })?)
+        Some(
+            rez_next_version::Version::parse(&v_str)
+                .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, String>(e.to_string()))?,
+        )
     } else {
         None
     };

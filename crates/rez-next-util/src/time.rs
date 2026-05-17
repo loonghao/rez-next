@@ -11,20 +11,19 @@ pub fn current_timestamp() -> u64 {
         .as_secs()
 }
 
-/// Get the current time as a DateTime<Utc>
+/// Get the current time as a `DateTime<Utc>`
 pub fn current_time_utc() -> DateTime<Utc> {
     Utc::now()
 }
 
-/// Get the current time as a DateTime<Local>
+/// Get the current time as a `DateTime<Local>`
 pub fn current_time_local() -> DateTime<Local> {
     Local::now()
 }
 
 /// Format a Unix timestamp as an ISO 8601 string
 pub fn format_timestamp_iso(timestamp: u64) -> String {
-    let datetime = DateTime::<Utc>::from_timestamp(timestamp as i64, 0)
-        .unwrap_or_default();
+    let datetime = DateTime::<Utc>::from_timestamp(timestamp as i64, 0).unwrap_or_default();
     datetime.to_rfc3339()
 }
 
@@ -36,7 +35,7 @@ pub fn format_current_time_iso() -> String {
 /// Parse a duration string (e.g., "1h", "30m", "45s") to a Duration
 pub fn parse_duration(s: &str) -> Result<Duration, String> {
     let s = s.trim().to_lowercase();
-    
+
     if let Some(num_str) = s.strip_suffix('s') {
         let secs: u64 = num_str
             .trim()
@@ -63,9 +62,7 @@ pub fn parse_duration(s: &str) -> Result<Duration, String> {
         Ok(Duration::from_secs(days * 86400))
     } else {
         // Try to parse as pure number (seconds)
-        let secs: u64 = s
-            .parse()
-            .map_err(|_| format!("Invalid duration: {}", s))?;
+        let secs: u64 = s.parse().map_err(|_| format!("Invalid duration: {}", s))?;
         Ok(Duration::from_secs(secs))
     }
 }
@@ -73,13 +70,13 @@ pub fn parse_duration(s: &str) -> Result<Duration, String> {
 /// Get a human-readable time difference (e.g., "5 minutes ago")
 pub fn human_time_diff(timestamp: u64) -> String {
     let now = current_timestamp();
-    
+
     if now < timestamp {
         return "in the future".to_string();
     }
-    
+
     let diff = now - timestamp;
-    
+
     if diff < 60 {
         format!("{} seconds ago", diff)
     } else if diff < 3600 {
@@ -137,13 +134,13 @@ mod tests {
     #[test]
     fn test_human_time_diff() {
         let now = current_timestamp();
-        
+
         // 30 seconds ago
         assert!(human_time_diff(now - 30).contains("seconds"));
-        
+
         // 5 minutes ago
         assert!(human_time_diff(now - 300).contains("minutes"));
-        
+
         // 2 hours ago
         assert!(human_time_diff(now - 7200).contains("hours"));
     }

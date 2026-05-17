@@ -347,10 +347,14 @@ mod tests {
     fn test_env_override_packages_path() {
         // Only safe to test if env var is not already set
         if std::env::var("REZ_PACKAGES_PATH").is_err() {
-            std::env::set_var("REZ_PACKAGES_PATH", "/tmp/test_pkgs:/tmp/other_pkgs");
+            unsafe {
+                std::env::set_var("REZ_PACKAGES_PATH", "/tmp/test_pkgs:/tmp/other_pkgs");
+            };
             let cfg = RezCoreConfig::load();
             assert!(cfg.packages_path.contains(&"/tmp/test_pkgs".to_string()));
-            std::env::remove_var("REZ_PACKAGES_PATH");
+            unsafe {
+                std::env::remove_var("REZ_PACKAGES_PATH");
+            };
         }
     }
 

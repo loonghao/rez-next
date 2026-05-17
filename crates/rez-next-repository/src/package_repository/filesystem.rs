@@ -371,16 +371,19 @@ impl PackageRepository for FilesystemPackageRepository {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rez_next_package::Package;
     use std::fs;
     use tempfile::TempDir;
-    use rez_next_package::Package;
 
     #[test]
     fn test_filesystem_repository_create() {
         let temp_dir = TempDir::new().unwrap();
         let repo = FilesystemPackageRepository::new(temp_dir.path());
 
-        assert_eq!(repo.name(), temp_dir.path().file_name().unwrap().to_str().unwrap());
+        assert_eq!(
+            repo.name(),
+            temp_dir.path().file_name().unwrap().to_str().unwrap()
+        );
         assert_eq!(repo.repository_type(), "filesystem");
         assert!(!repo.is_initialized());
     }
@@ -399,7 +402,10 @@ mod tests {
         let repo = FilesystemPackageRepository::new(temp_dir.path()).with_priority(10);
 
         // Need to add a way to get priority, or test via metadata
-        assert_eq!(repo.name(), temp_dir.path().file_name().unwrap().to_str().unwrap());
+        assert_eq!(
+            repo.name(),
+            temp_dir.path().file_name().unwrap().to_str().unwrap()
+        );
     }
 
     #[test]

@@ -82,4 +82,8 @@ pub struct Package {
     pub preprocess: Option<String>,
     /// Whether this is a developer package (loaded from a working directory)
     pub is_dev_package: Option<bool>,
+    /// File path to the package definition file (package.py or package.yaml)
+    pub filepath: Option<String>,
+    /// Set of included Python modules (from @include decorators)
+    pub includes: Option<std::collections::HashSet<String>>,
 }

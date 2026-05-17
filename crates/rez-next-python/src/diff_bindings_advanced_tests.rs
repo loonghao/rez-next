@@ -1,7 +1,7 @@
 //! Advanced unit tests for `diff_bindings` — Cycle 117, 127 additions.
 //! Split from diff_bindings_tests.rs (Cycle 146) to keep file size ≤500 lines.
 
-use super::{compute_diff, format_diff, PyContextDiff, PyPackageDiff};
+use super::{PyContextDiff, PyPackageDiff, compute_diff, format_diff};
 use rez_next_package::Package;
 use rez_next_version::Version;
 

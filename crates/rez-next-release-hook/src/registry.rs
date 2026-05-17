@@ -2,10 +2,10 @@
 //!
 //! Manages registration and creation of release hooks.
 
+use crate::{ReleaseHook, ReleaseHookError, Result};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Mutex;
-use crate::{ReleaseHook, ReleaseHookError, Result};
 
 type HookFactory = Box<dyn Fn(PathBuf) -> Result<Box<dyn ReleaseHook>> + Send + Sync>;
 
@@ -91,9 +91,7 @@ static GLOBAL_REGISTRY: std::sync::OnceLock<ReleaseHookRegistry> = std::sync::On
 
 /// Get the global release hook registry.
 pub fn get_registry() -> &'static ReleaseHookRegistry {
-    GLOBAL_REGISTRY.get_or_init(|| {
-        ReleaseHookRegistry::new()
-    })
+    GLOBAL_REGISTRY.get_or_init(|| ReleaseHookRegistry::new())
 }
 
 /// Get a mutable reference to the global registry.
@@ -185,12 +183,8 @@ mod tests {
     fn test_registry_create_hooks() {
         let registry = ReleaseHookRegistry::new();
 
-        registry.register("hook1", |path| {
-            Ok(Box::new(MockHook { source_path: path }))
-        });
-        registry.register("hook2", |path| {
-            Ok(Box::new(MockHook { source_path: path }))
-        });
+        registry.register("hook1", |path| Ok(Box::new(MockHook { source_path: path })));
+        registry.register("hook2", |path| Ok(Box::new(MockHook { source_path: path })));
 
         let hooks = registry.create_hooks(
             &["hook1", "hook2", "non_existent"],
@@ -207,13 +201,13 @@ mod tests {
         let types = get_release_hook_types();
         // Just verify it returns a Vec<String>
         let _: Vec<String> = types;
-        
+
         // Test that we can register a hook and it appears in the list
         let registry = GLOBAL_REGISTRY.get_or_init(ReleaseHookRegistry::new);
         registry.register("test_hook_type_for_test", |path| {
             NoopHook::new(path).map(|h| Box::new(h) as Box<dyn ReleaseHook>)
         });
-        
+
         let types_after = get_release_hook_types();
         assert!(types_after.contains(&"test_hook_type_for_test".to_string()));
     }

@@ -65,13 +65,9 @@ fn truncate_string_py(s: &str, max_len: usize) -> String {
 /// Get the current executable name
 #[pyfunction(name = "get_executable_name")]
 fn get_executable_name_py() -> PyResult<String> {
-    rez_next_util::get_executable_name()
-        .map_err(|e| {
-            pyo3::exceptions::PyRuntimeError::new_err(format!(
-                "Failed to get executable name: {:?}",
-                e
-            ))
-        })
+    rez_next_util::get_executable_name().map_err(|e| {
+        pyo3::exceptions::PyRuntimeError::new_err(format!("Failed to get executable name: {:?}", e))
+    })
 }
 
 /// Register the util module
@@ -106,6 +102,20 @@ pub fn register_util_submodule(py: Python<'_>, parent: &Bound<'_, PyModule>) -> 
     util_module.add_function(wrap_pyfunction!(is_writable_py, &util_module)?)?;
     util_module.add_function(wrap_pyfunction!(safe_remove_py, &util_module)?)?;
     util_module.add_function(wrap_pyfunction!(copy_file_py, &util_module)?)?;
+
+    // Add system functions
+    util_module.add_function(wrap_pyfunction!(get_hostname_py, &util_module)?)?;
+    util_module.add_function(wrap_pyfunction!(get_username_py, &util_module)?)?;
+    util_module.add_function(wrap_pyfunction!(get_home_directory_py, &util_module)?)?;
+    util_module.add_function(wrap_pyfunction!(get_fqdn_py, &util_module)?)?;
+    util_module.add_function(wrap_pyfunction!(get_domain_py, &util_module)?)?;
+
+    // Add base26 functions
+    util_module.add_function(wrap_pyfunction!(get_next_base26_py, &util_module)?)?;
+    util_module.add_function(wrap_pyfunction!(
+        create_unique_base26_symlink_py,
+        &util_module
+    )?)?;
 
     // Register in parent module
     parent.add_submodule(&util_module)?;
@@ -239,4 +249,89 @@ fn safe_remove_py(path: &str) -> PyResult<()> {
 fn copy_file_py(from: &str, to: &str) -> PyResult<u64> {
     rez_next_util::copy_file(from, to)
         .map_err(|e| pyo3::exceptions::PyIOError::new_err(e.to_string()))
+}
+
+// ─── System Utilities ─────────────────────────────────────────────
+
+/// Get the current machine's hostname
+#[pyfunction(name = "get_hostname")]
+fn get_hostname_py() -> String {
+    rez_next_util::get_hostname()
+}
+
+/// Get the current username
+#[pyfunction(name = "get_username")]
+fn get_username_py() -> String {
+    rez_next_util::get_username()
+}
+
+/// Get the current user's home directory
+#[pyfunction(name = "get_home_directory")]
+fn get_home_directory_py() -> Option<String> {
+    rez_next_util::get_home_directory().and_then(|p| Some(p.to_string_lossy().to_string()))
+}
+
+/// Get the current machine's fully qualified domain name (FQDN)
+#[pyfunction(name = "get_fqdn")]
+fn get_fqdn_py() -> String {
+    rez_next_util::get_fqdn()
+}
+
+/// Get the current machine's domain
+#[pyfunction(name = "get_domain")]
+fn get_domain_py() -> String {
+    rez_next_util::get_domain()
+}
+
+// ─── Base26 Utilities ─────────────────────────────────────────────
+
+use rez_next_util::Base26Error;
+
+/// Get the next Base26 string in sequence.
+///
+/// Sequence: a -> b -> ... -> z -> aa -> ab -> ...
+///
+/// Args:
+///     prev: Optional previous Base26 string. If None, returns "a".
+///
+/// Returns:
+///     Next Base26 string in sequence.
+///
+/// Raises:
+///     ValueError: If prev is not a valid Base26 string (must be lowercase a-z only).
+#[pyfunction(name = "get_next_base26", signature = (prev = None))]
+fn get_next_base26_py(prev: Option<&str>) -> PyResult<String> {
+    rez_next_util::get_next_base26(prev).map_err(|e| {
+        let err_str = e.to_string();
+        match e {
+            Base26Error::InvalidBase26(_) => pyo3::exceptions::PyValueError::new_err(err_str),
+            _ => pyo3::exceptions::PyRuntimeError::new_err(err_str),
+        }
+    })
+}
+
+/// Create a unique Base26-named symlink in the given directory (Unix-only).
+#[cfg(unix)]
+#[pyfunction(name = "create_unique_base26_symlink")]
+fn create_unique_base26_symlink_py(path: &str, source: &str) -> PyResult<String> {
+    rez_next_util::create_unique_base26_symlink(path, source)
+        .map(|p| p.to_string_lossy().to_string())
+        .map_err(|e| {
+            let err_str = e.to_string();
+            match e {
+                Base26Error::RetryExhausted(_) => {
+                    pyo3::exceptions::PyRuntimeError::new_err(err_str)
+                }
+                _ => pyo3::exceptions::PyIOError::new_err(err_str),
+            }
+        })
+}
+
+/// Stub for non-Unix platforms.
+#[cfg(not(unix))]
+#[pyfunction(name = "create_unique_base26_symlink")]
+fn create_unique_base26_symlink_py(_path: &str, _source: &str) -> PyResult<String> {
+    Err(pyo3::exceptions::PyNotImplementedError::new_err(
+        "create_unique_base26_symlink is only supported on Unix-like systems",
+    ))
 }

@@ -265,6 +265,8 @@ impl<'de> Deserialize<'de> for Package {
                     hashed_variants,
                     preprocess,
                     is_dev_package,
+                    filepath: None,
+                    includes: None,
                 })
             }
 
@@ -570,6 +572,8 @@ impl<'de> Deserialize<'de> for Package {
                     hashed_variants: hashed_variants.unwrap_or(None),
                     preprocess: preprocess.unwrap_or(None),
                     is_dev_package: is_dev_package.unwrap_or(None),
+                    filepath: None,
+                    includes: None,
                 })
             }
         }

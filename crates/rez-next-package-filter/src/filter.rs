@@ -192,10 +192,7 @@ impl PackageFilter {
     /// Convert a rule to POD representation.
     fn rule_to_pod(&self, rule: &dyn Rule) -> RulePod {
         let (rule_type, pattern) = rule.to_pod();
-        RulePod {
-            rule_type,
-            pattern,
-        }
+        RulePod { rule_type, pattern }
     }
 
     /// Convert POD to a rule.
@@ -263,9 +260,7 @@ mod tests {
     #[test]
     fn test_excludes_with_exclusion() {
         let mut filter = PackageFilter::new();
-        filter
-            .add_exclusion_from_str("glob(*.beta)")
-            .unwrap();
+        filter.add_exclusion_from_str("glob(*.beta)").unwrap();
 
         let pkg_beta = create_test_package("maya.beta", "2024.0.0");
         let pkg_release = create_test_package("maya", "2024.0.0");
@@ -277,13 +272,9 @@ mod tests {
     #[test]
     fn test_excludes_with_inclusion_override() {
         let mut filter = PackageFilter::new();
-        filter
-            .add_exclusion_from_str("glob(*.beta)")
-            .unwrap();
+        filter.add_exclusion_from_str("glob(*.beta)").unwrap();
         // Use glob(maya.beta) for exact match (no glob chars = exact match)
-        filter
-            .add_inclusion_from_str("glob(maya.beta)")
-            .unwrap();
+        filter.add_inclusion_from_str("glob(maya.beta)").unwrap();
 
         let pkg = create_test_package("maya.beta", "2024.0.0");
 
@@ -296,12 +287,8 @@ mod tests {
     #[test]
     fn test_to_pod_and_from_pod() {
         let mut filter = PackageFilter::new();
-        filter
-            .add_exclusion_from_str("glob(*.beta)")
-            .unwrap();
-        filter
-            .add_inclusion_from_str("range(>=2024)")
-            .unwrap();
+        filter.add_exclusion_from_str("glob(*.beta)").unwrap();
+        filter.add_inclusion_from_str("range(>=2024)").unwrap();
 
         let pod = filter.to_pod();
         let restored = PackageFilter::from_pod(&pod).unwrap();
@@ -317,9 +304,7 @@ mod tests {
     #[test]
     fn test_sha1() {
         let mut filter = PackageFilter::new();
-        filter
-            .add_exclusion_from_str("glob(*.beta)")
-            .unwrap();
+        filter.add_exclusion_from_str("glob(*.beta)").unwrap();
 
         let sha1 = filter.sha1();
         assert!(!sha1.is_empty());
@@ -329,9 +314,7 @@ mod tests {
     #[test]
     fn test_includes() {
         let mut filter = PackageFilter::new();
-        filter
-            .add_exclusion_from_str("glob(*.beta)")
-            .unwrap();
+        filter.add_exclusion_from_str("glob(*.beta)").unwrap();
 
         let pkg_beta = create_test_package("maya.beta", "2024.0.0");
         let pkg_release = create_test_package("maya", "2024.0.0");

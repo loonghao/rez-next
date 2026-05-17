@@ -7,7 +7,7 @@
 //! using clap for argument parsing and integrating with all rez-core modules.
 
 use clap::{CommandFactory, Parser, Subcommand};
-use rez_next_common::{error::RezCoreResult, RezCoreError};
+use rez_next_common::{RezCoreError, error::RezCoreResult};
 
 pub mod commands;
 pub mod utils;

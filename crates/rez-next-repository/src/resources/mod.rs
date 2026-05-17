@@ -59,7 +59,6 @@ impl ResourceHandle {
             variables,
         }
     }
-
 }
 
 /// Display trait implementation for ResourceHandle
@@ -111,18 +110,12 @@ mod tests {
         variables.insert("name".to_string(), "python".to_string());
         variables.insert("version".to_string(), "3.9.0".to_string());
 
-        let handle = ResourceHandle::new(
-            "filesystem".to_string(),
-            "/packages".to_string(),
-            variables,
-        );
+        let handle =
+            ResourceHandle::new("filesystem".to_string(), "/packages".to_string(), variables);
 
         assert_eq!(handle.repository_type, "filesystem");
         assert_eq!(handle.repository_location, "/packages");
-        assert_eq!(
-            handle.variables.get("name"),
-            Some(&"python".to_string())
-        );
+        assert_eq!(handle.variables.get("name"), Some(&"python".to_string()));
     }
 
     #[test]
@@ -130,11 +123,8 @@ mod tests {
         let mut variables = std::collections::HashMap::new();
         variables.insert("name".to_string(), "python".to_string());
 
-        let handle = ResourceHandle::new(
-            "filesystem".to_string(),
-            "/packages".to_string(),
-            variables,
-        );
+        let handle =
+            ResourceHandle::new("filesystem".to_string(), "/packages".to_string(), variables);
 
         assert_eq!(handle.to_string(), "filesystem@/packages/python");
     }

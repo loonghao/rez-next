@@ -13,7 +13,7 @@ use std::collections::HashMap;
 /// methods to add, remove, and query conflicts.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DependencyConflicts {
-    /// Internal storage: package_name -> Vec<DependencyConflict>
+    /// Internal storage: package_name -> `Vec<DependencyConflict>`
     conflicts: HashMap<String, Vec<DependencyConflict>>,
 }
 

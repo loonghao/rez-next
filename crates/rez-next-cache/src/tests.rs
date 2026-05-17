@@ -4,9 +4,9 @@
 #[allow(clippy::module_inception)]
 mod tests {
     use crate::{
-        IntelligentCacheManager, L1CacheConfig, MonitoringConfig, PreheatingConfig, TuningConfig,
-        UnifiedCache, UnifiedCacheConfig, CACHE_VERSION, DEFAULT_L1_CAPACITY, DEFAULT_L2_CAPACITY,
-        DEFAULT_MEMORY_LIMIT_MB, DEFAULT_TTL_SECONDS,
+        CACHE_VERSION, DEFAULT_L1_CAPACITY, DEFAULT_L2_CAPACITY, DEFAULT_MEMORY_LIMIT_MB,
+        DEFAULT_TTL_SECONDS, IntelligentCacheManager, L1CacheConfig, MonitoringConfig,
+        PreheatingConfig, TuningConfig, UnifiedCache, UnifiedCacheConfig,
     };
     use std::time::Duration;
     use tokio::time::sleep;

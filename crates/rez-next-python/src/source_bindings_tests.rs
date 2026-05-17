@@ -3,8 +3,8 @@
 #[cfg(test)]
 mod tests {
     use crate::source_bindings::{
-        build_activation_script, detect_current_shell, detect_shell, get_source_script,
-        resolve_source_mode, write_source_script, PySourceManager, SourceMode,
+        PySourceManager, SourceMode, build_activation_script, detect_current_shell, detect_shell,
+        get_source_script, resolve_source_mode, write_source_script,
     };
     use std::path::PathBuf;
 
@@ -644,12 +644,16 @@ mod tests {
     #[test]
     fn test_build_activation_script_contains_rez_packages_path_if_set() {
         // Set REZ_PACKAGES_PATH and verify it appears in script env vars
-        std::env::set_var("REZ_PACKAGES_PATH", "/packages:/more_packages");
+        unsafe {
+            std::env::set_var("REZ_PACKAGES_PATH", "/packages:/more_packages");
+        };
         let script = build_activation_script(&["python-3.9".to_string()], "bash");
         // The script should reference REZ_PACKAGES_PATH in the env block
         // (exact format depends on rex implementation; at minimum it should not panic)
         let _ = script;
-        std::env::remove_var("REZ_PACKAGES_PATH");
+        unsafe {
+            std::env::remove_var("REZ_PACKAGES_PATH");
+        };
     }
 
     #[test]

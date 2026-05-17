@@ -2,6 +2,7 @@
 name = "rez-next-rex"
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 authors.workspace = true
 description = "Rex command language implementation for rez-next"
 license.workspace = true

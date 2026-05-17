@@ -3,7 +3,7 @@
 //! This module provides support for building packages from various network sources
 //! including Git repositories, HTTP/HTTPS URLs, and other remote locations.
 
-use rez_next_common::{error::RezCoreResult, RezCoreError};
+use rez_next_common::{RezCoreError, error::RezCoreResult};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};

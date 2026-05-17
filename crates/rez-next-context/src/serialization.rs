@@ -1,7 +1,7 @@
 //! Context serialization and deserialization
 
 use crate::ResolvedContext;
-use base64::{engine::general_purpose, Engine as _};
+use base64::{Engine as _, engine::general_purpose};
 use rez_next_common::RezCoreError;
 use std::path::Path;
 

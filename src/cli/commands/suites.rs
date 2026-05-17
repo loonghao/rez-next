@@ -4,7 +4,7 @@
 //! A suite bundles multiple resolved contexts and exposes their combined tools.
 
 use clap::{Args, Subcommand};
-use rez_next_common::{error::RezCoreResult, RezCoreError};
+use rez_next_common::{RezCoreError, error::RezCoreResult};
 use rez_next_suites::{Suite, SuiteManager, ToolConflictMode};
 use std::path::PathBuf;
 

@@ -9,8 +9,8 @@
 pub mod filesystem;
 
 // ── Re-exports ──────────────────────────────────────────────────────────────────
-pub use filesystem::FilesystemPackageRepository;
 pub use filesystem::FILESYSTEM_REPO_TYPE;
+pub use filesystem::FilesystemPackageRepository;
 
 // ── Imports ─────────────────────────────────────────────────────────────────────
 use crate::resources::{PackageFamilyResource, PackageResource, ResourceHandle, VariantResource};
@@ -71,7 +71,8 @@ pub trait PackageRepository: Send + Sync {
         Self: Sized;
 
     /// Get a package family by name
-    fn get_package_family(&self, name: &str) -> Result<Option<PackageFamilyResource>, RezCoreError>;
+    fn get_package_family(&self, name: &str)
+    -> Result<Option<PackageFamilyResource>, RezCoreError>;
 
     /// Iterate over all package families in this repository
     fn iter_package_families(&self) -> Result<Vec<PackageFamilyResource>, RezCoreError>;
@@ -111,11 +112,7 @@ pub trait PackageRepository: Send + Sync {
     ) -> Result<bool, RezCoreError>;
 
     /// Remove a package family (force=true to remove even if family has packages)
-    fn remove_package_family(
-        &mut self,
-        pkg_name: &str,
-        force: bool,
-    ) -> Result<bool, RezCoreError>;
+    fn remove_package_family(&mut self, pkg_name: &str, force: bool) -> Result<bool, RezCoreError>;
 
     /// Remove ignored packages older than specified days
     fn remove_ignored_since(
@@ -161,7 +158,10 @@ pub trait PackageRepository: Send + Sync {
     ///
     /// Default: (repository_type, location)
     fn uid(&self) -> (String, String) {
-        (self.repository_type().to_string(), self.location().to_string())
+        (
+            self.repository_type().to_string(),
+            self.location().to_string(),
+        )
     }
 
     /// Check if the repository is empty
@@ -230,10 +230,7 @@ pub trait PackageRepository: Send + Sync {
     /// Get variant state handle for caching
     ///
     /// Default: returns None (no caching)
-    fn get_variant_state_handle(
-        &self,
-        _variant: &VariantResource,
-    ) -> Option<String> {
+    fn get_variant_state_handle(&self, _variant: &VariantResource) -> Option<String> {
         None
     }
 
@@ -437,11 +434,8 @@ mod tests {
         let mut variables = HashMap::new();
         variables.insert("name".to_string(), "python".to_string());
 
-        let handle = ResourceHandle::new(
-            "mock".to_string(),
-            "/tmp/packages".to_string(),
-            variables,
-        );
+        let handle =
+            ResourceHandle::new("mock".to_string(), "/tmp/packages".to_string(), variables);
 
         assert_eq!(handle.repository_type, "mock");
         assert_eq!(handle.repository_location, "/tmp/packages");

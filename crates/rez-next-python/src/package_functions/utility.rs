@@ -16,7 +16,10 @@ use super::make_repo_manager;
 /// Equivalent to `rez.packages.dump_package_data(package)`.
 #[pyfunction]
 #[pyo3(signature = (package))]
-pub fn dump_package_data<'py>(py: Python<'py>, package: &PyPackage) -> PyResult<Bound<'py, PyDict>> {
+pub fn dump_package_data<'py>(
+    py: Python<'py>,
+    package: &PyPackage,
+) -> PyResult<Bound<'py, PyDict>> {
     let dict = PyDict::new(py);
     let pkg = &package.0;
 
@@ -150,10 +153,7 @@ pub fn dump_package_data<'py>(py: Python<'py>, package: &PyPackage) -> PyResult<
 /// loads the package, and marks it as a developer package.
 #[pyfunction]
 #[pyo3(signature = (path, _paths=None))]
-pub fn get_developer_package(
-    path: &str,
-    _paths: Option<Vec<String>>,
-) -> PyResult<PyPackage> {
+pub fn get_developer_package(path: &str, _paths: Option<Vec<String>>) -> PyResult<PyPackage> {
     use rez_next_package::serialization::PackageSerializer;
     use std::path::Path;
 
@@ -370,17 +370,16 @@ pub fn get_last_release_time<'py>(
         .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
 
     // Find the package with the latest timestamp
-    let latest: Option<i64> = packages
-        .iter()
-        .filter_map(|p| p.timestamp)
-        .max();
+    let latest: Option<i64> = packages.iter().filter_map(|p| p.timestamp).max();
 
     match latest {
         Some(ts) => {
             // Convert Unix timestamp to Python datetime
-            let datetime = py.import("datetime")?
-                .getattr("datetime")?
-                .call_method("fromtimestamp", (ts,), None)?;
+            let datetime = py.import("datetime")?.getattr("datetime")?.call_method(
+                "fromtimestamp",
+                (ts,),
+                None,
+            )?;
             // Convert Bound<'py, PyDateTime> to Py<PyAny>
             let obj: Py<PyAny> = datetime.unbind();
             Ok(obj)

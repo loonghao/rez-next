@@ -2,6 +2,7 @@
 name = "rez-next-build"
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 authors.workspace = true
 description = "Build system for Rez Core"
 license.workspace = true

@@ -62,11 +62,23 @@ mod tests {
     fn test_rez_shorter_is_greater() {
         // In rez, trailing zeros are implicit: 1.0 == 1.0.0 == 1.0.0.0
         // Shorter is greater only when longer version has non-zero suffix
-        assert!(v("1.0") == v("1.0.0"), "1.0 should equal 1.0.0 (trailing zeros implicit)");
-        assert!(v("2.0") == v("2.0.0"), "2.0 should equal 2.0.0 (trailing zeros implicit)");
+        assert!(
+            v("1.0") == v("1.0.0"),
+            "1.0 should equal 1.0.0 (trailing zeros implicit)"
+        );
+        assert!(
+            v("2.0") == v("2.0.0"),
+            "2.0 should equal 2.0.0 (trailing zeros implicit)"
+        );
         // Shorter is greater when longer version has alpha suffix (pre-release)
-        assert!(v("1.0") > v("1.0.alpha"), "1.0 should be greater than 1.0.alpha (release > pre-release)");
-        assert!(v("1.0") > v("1.0.beta1"), "1.0 should be greater than 1.0.beta1 (release > pre-release)");
+        assert!(
+            v("1.0") > v("1.0.alpha"),
+            "1.0 should be greater than 1.0.alpha (release > pre-release)"
+        );
+        assert!(
+            v("1.0") > v("1.0.beta1"),
+            "1.0 should be greater than 1.0.beta1 (release > pre-release)"
+        );
     }
 
     #[test]

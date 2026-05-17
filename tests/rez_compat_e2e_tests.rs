@@ -4,7 +4,7 @@
 
 use rez_core::version::{Version, VersionRange};
 use rez_next_package::Package;
-use rez_next_rex::{generate_shell_script, RexExecutor, ShellType};
+use rez_next_rex::{RexExecutor, ShellType, generate_shell_script};
 
 // ─── End-to-end workflow tests ──────────────────────────────────────────────
 

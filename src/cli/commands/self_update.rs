@@ -4,7 +4,7 @@
 //! to the latest (or a specified) release from GitHub.
 
 use clap::Args;
-use rez_next_common::{error::RezCoreResult, RezCoreError};
+use rez_next_common::{RezCoreError, error::RezCoreResult};
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -59,7 +59,7 @@ fn detect_target() -> RezCoreResult<String> {
             return Err(RezCoreError::Python(format!(
                 "Unsupported architecture: {}",
                 other
-            )))
+            )));
         }
     };
 
@@ -165,7 +165,7 @@ fn parse_tag_name(json: &str) -> Option<String> {
         .find(|l| l.contains("\"tag_name\""))
         .and_then(|l| {
             let _start = l.find('"')? + 1; // first quote in value
-                                           // tag_name": "v0.2.0"  →  find the value quotes
+            // tag_name": "v0.2.0"  →  find the value quotes
             let after_colon = l[l.find(':')? + 1..].trim();
             let inner = after_colon.trim_matches(|c| c == '"' || c == ',' || c == ' ');
             Some(inner.trim_start_matches('v').to_string())

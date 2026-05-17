@@ -1,5 +1,5 @@
 use super::*;
-use rez_next_rex::{generate_shell_script, RexEnvironment, ShellType};
+use rez_next_rex::{RexEnvironment, ShellType, generate_shell_script};
 
 mod test_shell_type_parse {
     use super::*;

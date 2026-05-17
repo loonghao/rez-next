@@ -2,6 +2,7 @@
 name = "rez-next-search"
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 authors.workspace = true
 description = "Package search functionality for rez-next"
 license.workspace = true

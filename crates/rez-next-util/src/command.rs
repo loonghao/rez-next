@@ -52,7 +52,9 @@ pub fn execute_command(command: &str, args: &[&str]) -> RezCoreResult<CommandRes
     let output = std::process::Command::new(command)
         .args(args)
         .output()
-        .map_err(|e| RezCoreError::ExecutionError(format!("Failed to execute command '{}': {}", command, e)))?;
+        .map_err(|e| {
+            RezCoreError::ExecutionError(format!("Failed to execute command '{}': {}", command, e))
+        })?;
 
     Ok(CommandResult::from_output(output))
 }
@@ -122,14 +124,14 @@ pub fn get_command_path(command: &str) -> Option<PathBuf> {
 /// * `RezCoreResult<String>` - Stdout as string, or error
 pub fn get_command_output(command: &str, args: &[&str]) -> RezCoreResult<String> {
     let result = execute_command(command, args)?;
-    
+
     if !result.success {
         return Err(RezCoreError::ExecutionError(format!(
             "Command '{}' failed with exit code {}: {}",
             command, result.exit_code, result.stderr
         )));
     }
-    
+
     Ok(result.stdout)
 }
 
@@ -142,26 +144,26 @@ mod tests {
         if cfg!(unix) {
             ("echo", vec!["test output".to_string()])
         } else {
-            ("cmd", vec!["/c".to_string(), "echo test output".to_string()])
+            (
+                "cmd",
+                vec!["/c".to_string(), "echo test output".to_string()],
+            )
         }
     }
 
     #[test]
     fn test_command_result_from_output() {
         use std::process::Command;
-        
+
         // Create a simple command that outputs "test output"
         let (cmd, args) = if cfg!(unix) {
             ("echo", vec!["test output"])
         } else {
             ("cmd", vec!["/c", "echo test output"])
         };
-        
-        let output = Command::new(cmd)
-            .args(&args)
-            .output()
-            .unwrap();
-        
+
+        let output = Command::new(cmd).args(&args).output().unwrap();
+
         let cmd_result = CommandResult::from_output(output);
         assert!(cmd_result.success);
         assert!(cmd_result.stdout.contains("test output"));
@@ -184,10 +186,10 @@ mod tests {
         } else {
             ("cmd", vec!["/c", "echo test"])
         };
-        
+
         let result = execute_command(cmd, &args);
         assert!(result.is_ok());
-        
+
         let cmd_result = result.unwrap();
         assert!(cmd_result.success);
         assert!(cmd_result.stdout.contains("test"));
@@ -208,7 +210,7 @@ mod tests {
         } else {
             ("cmd", vec!["/c", "echo Hello, World!"])
         };
-        
+
         let result = get_command_output(cmd, &args);
         assert!(result.is_ok());
         let output = result.unwrap();

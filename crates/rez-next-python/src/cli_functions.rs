@@ -67,7 +67,7 @@ pub fn cli_main(args: Option<Vec<String>>) -> PyResult<i32> {
 mod tests {
     use std::collections::HashSet;
 
-    use super::{cli_main, cli_run, KNOWN_COMMANDS};
+    use super::{KNOWN_COMMANDS, cli_main, cli_run};
 
     #[test]
     fn test_all_known_commands_return_zero() {

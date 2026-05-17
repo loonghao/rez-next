@@ -57,10 +57,7 @@ impl PyDependencyConflicts {
 
     /// String representation.
     fn __repr__(&self) -> String {
-        format!(
-            "<DependencyConflicts packages={}>",
-            self.inner.len()
-        )
+        format!("<DependencyConflicts packages={}>", self.inner.len())
     }
 }
 

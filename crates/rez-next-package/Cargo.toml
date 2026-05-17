@@ -2,6 +2,7 @@
 name = "rez-next-package"
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 authors.workspace = true
 description = "Advanced package management with complete package.py parsing and 100% Rez compatibility"
 license.workspace = true
@@ -32,6 +33,9 @@ bincode = { version = "2.0", features = ["serde"] }
 base64 = "0.22"
 toml = "1.0"
 tracing.workspace = true
+sha1 = "0.10"
+fs2 = "0.4"
+uuid = { version = "1.7", features = ["v4", "serde"] }
 
 [lib]
 name = "rez_next_package"

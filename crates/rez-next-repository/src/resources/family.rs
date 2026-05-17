@@ -55,7 +55,6 @@ impl PackageFamilyResource {
             }
         }
     }
-
 }
 
 /// Display trait implementation for PackageFamilyResource
@@ -119,11 +118,8 @@ mod tests {
         let mut variables = std::collections::HashMap::new();
         variables.insert("name".to_string(), "python".to_string());
 
-        let handle = ResourceHandle::new(
-            "filesystem".to_string(),
-            "/packages".to_string(),
-            variables,
-        );
+        let handle =
+            ResourceHandle::new("filesystem".to_string(), "/packages".to_string(), variables);
 
         let family = PackageFamilyResource::new(
             "python".to_string(),

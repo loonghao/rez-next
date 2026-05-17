@@ -5,7 +5,7 @@
 
 use crate::cli::utils::expand_home_path as expand_home;
 use clap::Args;
-use rez_next_common::{error::RezCoreResult, RezCoreConfig};
+use rez_next_common::{RezCoreConfig, error::RezCoreResult};
 use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
 
 /// Arguments for the complete command

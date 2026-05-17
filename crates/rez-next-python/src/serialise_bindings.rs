@@ -1,14 +1,19 @@
 //! Python bindings for package serialisation.
 //!
 //! Exposes `rez_next.serialise_` submodule with package serialisation functions.
+//!
+//! This module aligns with Rez's `package_serialise.py` interface:
+//! - `dump_package_data(data, buf, format_, skip_attributes)`
+//! - Supports file-like objects (SupportsWrite protocol)
+//! - Validates data against package_serialise_schema
 
 use pyo3::prelude::*;
-use pyo3::types::{PyAny, PyModule};
+use pyo3::types::{PyAny, PyBytes, PyModule};
 use serde_json::Value;
 
 use rez_next_serialise::{
-    as_block_string, dict_to_attributes_code, dump_package_data, dump_yaml,
-    package_key_order, FileFormat, PackageSerialiseError,
+    FileFormat, PackageSerialiseError, as_block_string, dict_to_attributes_code, dump_yaml,
+    package_key_order, read_package_data,
 };
 
 /// Convert a Python object to serde_json::Value using Python's json module.
@@ -20,31 +25,106 @@ fn python_to_json(py: Python<'_>, data: &Bound<'_, PyAny>) -> PyResult<Value> {
         .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(e.to_string()))
 }
 
-/// Dump package data to a file.
+/// Dump package data to a file-like object (SupportsWrite protocol).
+///
+/// This function aligns with Rez's `package_serialise.dump_package_data` interface.
 ///
 /// Args:
-///     data: Package data (dict)
-///     path: File path to write to
-///     format: File format string ("yaml", "json", "python", "toml")
+///     data: Package data (dict) - must conform to package_serialise_schema
+///     buf: File-like object with write() method (SupportsWrite protocol)
+///     format_: File format ("py", "yaml") - "txt" is not supported
+///     skip_attributes: Optional list of attribute names to skip
 #[pyfunction]
-#[pyo3(signature = (data, path, format))]
+#[pyo3(signature = (data, buf, format_, skip_attributes=None))]
 fn py_dump_package_data(
     py: Python<'_>,
     data: Bound<'_, PyAny>,
-    path: String,
-    format: String,
+    buf: Bound<'_, PyAny>,
+    format_: String,
+    skip_attributes: Option<Vec<String>>,
 ) -> PyResult<()> {
-    let json_value = python_to_json(py, &data)?;
+    // Check if format_ is "txt" (not supported, align with Rez)
+    if format_.to_lowercase() == "txt" {
+        return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
+            "'txt' format is not supported for package definition export".to_string(),
+        ));
+    }
 
-    let file_format = parse_format(&format)
+    // Convert data to JSON Value
+    let mut json_value = python_to_json(py, &data)?;
+
+    // Apply skip_attributes filter
+    if let Some(ref skip) = skip_attributes {
+        if let Value::Object(ref mut map) = json_value {
+            for key in skip {
+                map.remove(key.as_str());
+            }
+        }
+    }
+
+    // Validate against schema (align with Rez's package_serialise_schema)
+    validate_package_data(&json_value)
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(e))?;
+
+    // Serialise data to string
+    let serialised = serialise_to_string(&json_value, &format_)
         .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(e.to_string()))?;
 
-    let path_obj = std::path::Path::new(&path);
-
-    dump_package_data(&json_value, path_obj, file_format)
-        .map_err(|e| PyErr::new::<pyo3::exceptions::PyIOError, _>(e.to_string()))?;
+    // Write to buffer (SupportsWrite protocol)
+    let write_method = buf.getattr("write")?;
+    let py_bytes = PyBytes::new(py, serialised.as_bytes());
+    write_method.call1((py_bytes,))?;
 
     Ok(())
+}
+
+/// Validate package data against schema.
+///
+/// This aligns with Rez's package_serialise_schema validation.
+fn validate_package_data(data: &Value) -> std::result::Result<(), String> {
+    // Basic validation: 'name' is required (align with Rez's package_serialise_schema)
+    if let Value::Object(map) = data {
+        if !map.contains_key("name") {
+            return Err("Missing required field: 'name'".to_string());
+        }
+
+        // Validate name is a string
+        if let Some(name) = map.get("name") {
+            if !name.is_string() {
+                return Err("Field 'name' must be a string".to_string());
+            }
+        }
+
+        // TODO: Add more validation to fully align with Rez's package_serialise_schema
+        // - version should be a string or Version object
+        // - requires should be a list of strings
+        // - tests should conform to tests_schema
+        // - etc.
+    }
+
+    Ok(())
+}
+
+/// Serialise data to string based on format.
+fn serialise_to_string(
+    data: &Value,
+    format_: &str,
+) -> std::result::Result<String, PackageSerialiseError> {
+    match format_.to_lowercase().as_str() {
+        "py" | "python" => dict_to_attributes_code(data),
+        "yaml" | "yml" => dump_yaml(data),
+        "json" => serde_json::to_string_pretty(data)
+            .map_err(|e| PackageSerialiseError::Serialisation(e.to_string())),
+        _ => Err(PackageSerialiseError::UnsupportedFormat(
+            // Convert format_ string to FileFormat enum
+            match format_.to_lowercase().as_str() {
+                "py" | "python" => FileFormat::Python,
+                "yaml" | "yml" => FileFormat::Yaml,
+                "json" => FileFormat::Json,
+                _ => FileFormat::Yaml, // Default fallback
+            },
+        )),
+    }
 }
 
 /// Read package data from a file.
@@ -131,12 +211,14 @@ fn py_dict_to_attributes_code(py: Python<'_>, data: Bound<'_, PyAny>) -> PyResul
 ///
 /// Returns:
 ///     List of key names in standard order
+///
+/// This aligns with Rez's `package_key_order` constant.
 #[pyfunction]
 fn py_package_key_order() -> Vec<&'static str> {
     package_key_order()
 }
 
-/    // Register the `serialise_` submodule.
+/// Register the `serialise_` submodule.
 pub fn register_serialise_module(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     let m = PyModule::new(parent.py(), "serialise_")?;
 
@@ -190,9 +272,8 @@ fn parse_format(s: &str) -> std::result::Result<FileFormat, PackageSerialiseErro
         "json" => Ok(FileFormat::Json),
         "python" | "py" => Ok(FileFormat::Python),
         "toml" => Ok(FileFormat::Toml),
-        _ => Err(PackageSerialiseError::UnsupportedFormat(
-            FileFormat::Yaml, // Placeholder
-        )),
+        "txt" => Err(PackageSerialiseError::UnsupportedFormat(FileFormat::Yaml)), // Align with Rez: txt not supported
+        _ => Err(PackageSerialiseError::UnsupportedFormat(FileFormat::Yaml)),
     }
 }
 
@@ -206,5 +287,6 @@ mod tests {
         assert!(parse_format("json").is_ok());
         assert!(parse_format("python").is_ok());
         assert!(parse_format("toml").is_ok());
+        assert!(parse_format("txt").is_err()); // Align with Rez: txt not supported
     }
 }

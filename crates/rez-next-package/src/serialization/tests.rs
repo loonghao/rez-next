@@ -353,12 +353,11 @@ requires = ["python>=3.7"]
         let pkg = make_test_package();
 
         // Serialize to JSON
-        let json_str = serde_json::to_string(&pkg)
-            .expect("Failed to serialize Package to JSON");
+        let json_str = serde_json::to_string(&pkg).expect("Failed to serialize Package to JSON");
 
         // Deserialize from JSON
-        let decoded: Package = serde_json::from_str(&json_str)
-            .expect("Failed to deserialize Package from JSON");
+        let decoded: Package =
+            serde_json::from_str(&json_str).expect("Failed to deserialize Package from JSON");
 
         // Verify
         assert_eq!(decoded.name, pkg.name);
@@ -376,12 +375,11 @@ requires = ["python>=3.7"]
         let pkg = make_test_package();
 
         // Serialize to JSON
-        let json_str = serde_json::to_string(&pkg)
-            .expect("Failed to serialize package to JSON");
+        let json_str = serde_json::to_string(&pkg).expect("Failed to serialize package to JSON");
 
         // Deserialize from JSON
-        let decoded: Package = serde_json::from_str(&json_str)
-            .expect("Failed to deserialize package from JSON");
+        let decoded: Package =
+            serde_json::from_str(&json_str).expect("Failed to deserialize package from JSON");
 
         // Verify
         assert_eq!(decoded.name, pkg.name);
@@ -461,9 +459,11 @@ requires = ["python>=3.7"]
         let json = PackageSerializer::save_to_json(&pkg).unwrap();
         let loaded = PackageSerializer::load_from_json(&json).unwrap();
         assert_eq!(loaded.private_build_requires.len(), 1);
-        assert!(loaded
-            .private_build_requires
-            .contains(&"internal_lib-1.0".to_string()));
+        assert!(
+            loaded
+                .private_build_requires
+                .contains(&"internal_lib-1.0".to_string())
+        );
     }
 
     #[test]

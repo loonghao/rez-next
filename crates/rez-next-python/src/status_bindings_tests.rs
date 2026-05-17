@@ -53,7 +53,9 @@ fn test_rez_status_resolved_packages_from_env() {
     let _lock = ENV_MUTEX.lock().unwrap();
     // Simulate REZ_USED_PACKAGES_NAMES
     unsafe {
-        std::env::set_var("REZ_USED_PACKAGES_TEST_TEMP", "python-3.9 maya-2024.1");
+        unsafe {
+            std::env::set_var("REZ_USED_PACKAGES_TEST_TEMP", "python-3.9 maya-2024.1");
+        };
     }
     // Parse logic
     let raw = std::env::var("REZ_USED_PACKAGES_TEST_TEMP").unwrap();
@@ -61,7 +63,9 @@ fn test_rez_status_resolved_packages_from_env() {
     assert_eq!(pkgs.len(), 2);
     assert_eq!(pkgs[0], "python-3.9");
     unsafe {
-        std::env::remove_var("REZ_USED_PACKAGES_TEST_TEMP");
+        unsafe {
+            std::env::remove_var("REZ_USED_PACKAGES_TEST_TEMP");
+        };
     }
 }
 
@@ -90,11 +94,15 @@ fn test_detect_current_shell_maps_bash_posix() {
     let _lock = ENV_MUTEX.lock().unwrap();
     // Only run on POSIX where PSModulePath does not interfere
     unsafe {
-        std::env::set_var("SHELL", "/bin/bash");
+        unsafe {
+            std::env::set_var("SHELL", "/bin/bash");
+        };
     }
     assert_eq!(detect_current_shell().as_str(), "bash");
     unsafe {
-        std::env::remove_var("SHELL");
+        unsafe {
+            std::env::remove_var("SHELL");
+        };
     }
 }
 
@@ -102,14 +110,18 @@ fn test_detect_current_shell_maps_bash_posix() {
 fn test_get_rez_env_var_with_prefix() {
     let _lock = ENV_MUTEX.lock().unwrap();
     unsafe {
-        std::env::set_var("REZ_STATUS_BINDINGS_WITH_PREFIX", "active");
+        unsafe {
+            std::env::set_var("REZ_STATUS_BINDINGS_WITH_PREFIX", "active");
+        };
     }
     assert_eq!(
         get_rez_env_var("REZ_STATUS_BINDINGS_WITH_PREFIX").as_deref(),
         Some("active")
     );
     unsafe {
-        std::env::remove_var("REZ_STATUS_BINDINGS_WITH_PREFIX");
+        unsafe {
+            std::env::remove_var("REZ_STATUS_BINDINGS_WITH_PREFIX");
+        };
     }
 }
 
@@ -117,14 +129,18 @@ fn test_get_rez_env_var_with_prefix() {
 fn test_get_rez_env_var_without_prefix() {
     let _lock = ENV_MUTEX.lock().unwrap();
     unsafe {
-        std::env::set_var("REZ_STATUS_BINDINGS_NO_PREFIX", "present");
+        unsafe {
+            std::env::set_var("REZ_STATUS_BINDINGS_NO_PREFIX", "present");
+        };
     }
     assert_eq!(
         get_rez_env_var("STATUS_BINDINGS_NO_PREFIX").as_deref(),
         Some("present")
     );
     unsafe {
-        std::env::remove_var("REZ_STATUS_BINDINGS_NO_PREFIX");
+        unsafe {
+            std::env::remove_var("REZ_STATUS_BINDINGS_NO_PREFIX");
+        };
     }
 }
 
@@ -145,13 +161,17 @@ fn test_inactive_context_empty_packages() {
 fn test_detect_active_via_context_file_env() {
     let _lock = ENV_MUTEX.lock().unwrap();
     unsafe {
-        std::env::set_var("REZ_CONTEXT_FILE", "/tmp/test_ctx90.rxt");
+        unsafe {
+            std::env::set_var("REZ_CONTEXT_FILE", "/tmp/test_ctx90.rxt");
+        };
     }
     let s = detect_current_status();
     assert!(s.is_active, "REZ_CONTEXT_FILE should make is_active=true");
     assert_eq!(s.context_file.as_deref(), Some("/tmp/test_ctx90.rxt"));
     unsafe {
-        std::env::remove_var("REZ_CONTEXT_FILE");
+        unsafe {
+            std::env::remove_var("REZ_CONTEXT_FILE");
+        };
     }
 }
 
@@ -159,7 +179,9 @@ fn test_detect_active_via_context_file_env() {
 fn test_detect_active_via_used_packages_env() {
     let _lock = ENV_MUTEX.lock().unwrap();
     unsafe {
-        std::env::set_var("REZ_USED_PACKAGES_NAMES", "python-3.9 cmake-3.21");
+        unsafe {
+            std::env::set_var("REZ_USED_PACKAGES_NAMES", "python-3.9 cmake-3.21");
+        };
     }
     let s = detect_current_status();
     assert!(
@@ -178,7 +200,9 @@ fn test_detect_active_via_used_packages_env() {
         s.resolved_packages
     );
     unsafe {
-        std::env::remove_var("REZ_USED_PACKAGES_NAMES");
+        unsafe {
+            std::env::remove_var("REZ_USED_PACKAGES_NAMES");
+        };
     }
 }
 
@@ -186,7 +210,9 @@ fn test_detect_active_via_used_packages_env() {
 fn test_detect_request_field() {
     let _lock = ENV_MUTEX.lock().unwrap();
     unsafe {
-        std::env::set_var("REZ_REQUEST", "python-3 maya-2024");
+        unsafe {
+            std::env::set_var("REZ_REQUEST", "python-3 maya-2024");
+        };
     }
     let s = detect_current_status();
     assert!(
@@ -195,7 +221,9 @@ fn test_detect_request_field() {
         s.requested_packages
     );
     unsafe {
-        std::env::remove_var("REZ_REQUEST");
+        unsafe {
+            std::env::remove_var("REZ_REQUEST");
+        };
     }
 }
 
@@ -203,7 +231,9 @@ fn test_detect_request_field() {
 fn test_detect_implicit_packages_field() {
     let _lock = ENV_MUTEX.lock().unwrap();
     unsafe {
-        std::env::set_var("REZ_IMPLICIT_PACKAGES", "platform-linux arch-x86_64");
+        unsafe {
+            std::env::set_var("REZ_IMPLICIT_PACKAGES", "platform-linux arch-x86_64");
+        };
     }
     let s = detect_current_status();
     assert!(
@@ -212,7 +242,9 @@ fn test_detect_implicit_packages_field() {
         s.implicit_packages
     );
     unsafe {
-        std::env::remove_var("REZ_IMPLICIT_PACKAGES");
+        unsafe {
+            std::env::remove_var("REZ_IMPLICIT_PACKAGES");
+        };
     }
 }
 
@@ -220,15 +252,23 @@ fn test_detect_implicit_packages_field() {
 fn test_detect_context_cwd_and_version() {
     let _lock = ENV_MUTEX.lock().unwrap();
     unsafe {
-        std::env::set_var("REZ_ORIG_CWD", "/home/user/project");
-        std::env::set_var("REZ_VERSION", "3.2.1");
+        unsafe {
+            std::env::set_var("REZ_ORIG_CWD", "/home/user/project");
+        };
+        unsafe {
+            std::env::set_var("REZ_VERSION", "3.2.1");
+        };
     }
     let s = detect_current_status();
     assert_eq!(s.context_cwd.as_deref(), Some("/home/user/project"));
     assert_eq!(s.rez_version.as_deref(), Some("3.2.1"));
     unsafe {
-        std::env::remove_var("REZ_ORIG_CWD");
-        std::env::remove_var("REZ_VERSION");
+        unsafe {
+            std::env::remove_var("REZ_ORIG_CWD");
+        };
+        unsafe {
+            std::env::remove_var("REZ_VERSION");
+        };
     }
 }
 
@@ -236,7 +276,9 @@ fn test_detect_context_cwd_and_version() {
 fn test_active_repr_includes_package_count() {
     let _lock = ENV_MUTEX.lock().unwrap();
     unsafe {
-        std::env::set_var("REZ_USED_PACKAGES_NAMES", "alpha-1 beta-2 gamma-3");
+        unsafe {
+            std::env::set_var("REZ_USED_PACKAGES_NAMES", "alpha-1 beta-2 gamma-3");
+        };
     }
     let s = detect_current_status();
     if s.is_active {
@@ -249,7 +291,9 @@ fn test_active_repr_includes_package_count() {
         assert!(r.contains("active"), "repr should contain 'active': {}", r);
     }
     unsafe {
-        std::env::remove_var("REZ_USED_PACKAGES_NAMES");
+        unsafe {
+            std::env::remove_var("REZ_USED_PACKAGES_NAMES");
+        };
     }
 }
 
@@ -270,11 +314,15 @@ fn test_get_rez_env_var_missing_returns_none() {
 fn test_detect_current_shell_maps_zsh() {
     let _lock = ENV_MUTEX.lock().unwrap();
     unsafe {
-        std::env::set_var("SHELL", "/usr/bin/zsh");
+        unsafe {
+            std::env::set_var("SHELL", "/usr/bin/zsh");
+        };
     }
     assert_eq!(detect_current_shell().as_str(), "zsh");
     unsafe {
-        std::env::remove_var("SHELL");
+        unsafe {
+            std::env::remove_var("SHELL");
+        };
     }
 }
 
@@ -283,11 +331,15 @@ fn test_detect_current_shell_maps_zsh() {
 fn test_detect_current_shell_maps_fish() {
     let _lock = ENV_MUTEX.lock().unwrap();
     unsafe {
-        std::env::set_var("SHELL", "/usr/local/bin/fish");
+        unsafe {
+            std::env::set_var("SHELL", "/usr/local/bin/fish");
+        };
     }
     assert_eq!(detect_current_shell().as_str(), "fish");
     unsafe {
-        std::env::remove_var("SHELL");
+        unsafe {
+            std::env::remove_var("SHELL");
+        };
     }
 }
 
@@ -308,14 +360,18 @@ fn test_get_rez_env_var_empty_key_returns_none() {
 fn test_is_in_rez_context_true_after_env_set() {
     let _lock = ENV_MUTEX.lock().unwrap();
     unsafe {
-        std::env::set_var("REZ_CONTEXT_FILE", "/tmp/cycle97_test.rxt");
+        unsafe {
+            std::env::set_var("REZ_CONTEXT_FILE", "/tmp/cycle97_test.rxt");
+        };
     }
     assert!(
         is_in_rez_context(),
         "is_in_rez_context should be true when REZ_CONTEXT_FILE is set"
     );
     unsafe {
-        std::env::remove_var("REZ_CONTEXT_FILE");
+        unsafe {
+            std::env::remove_var("REZ_CONTEXT_FILE");
+        };
     }
 }
 
@@ -325,7 +381,9 @@ fn test_is_in_rez_context_true_after_env_set() {
 fn test_rez_env_vars_includes_set_key() {
     let _lock = ENV_MUTEX.lock().unwrap();
     unsafe {
-        std::env::set_var("REZ_CYCLE97_MARKER", "cycle97");
+        unsafe {
+            std::env::set_var("REZ_CYCLE97_MARKER", "cycle97");
+        };
     }
     let s = detect_current_status();
     assert!(
@@ -334,7 +392,9 @@ fn test_rez_env_vars_includes_set_key() {
     );
     assert_eq!(s.rez_env_vars["REZ_CYCLE97_MARKER"], "cycle97");
     unsafe {
-        std::env::remove_var("REZ_CYCLE97_MARKER");
+        unsafe {
+            std::env::remove_var("REZ_CYCLE97_MARKER");
+        };
     }
 }
 
@@ -344,7 +404,9 @@ fn test_rez_env_vars_includes_set_key() {
 fn test_get_context_file_returns_some_when_set() {
     let _lock = ENV_MUTEX.lock().unwrap();
     unsafe {
-        std::env::set_var("REZ_CONTEXT_FILE", "/tmp/some_ctx97.rxt");
+        unsafe {
+            std::env::set_var("REZ_CONTEXT_FILE", "/tmp/some_ctx97.rxt");
+        };
     }
     assert_eq!(
         get_context_file().as_deref(),
@@ -352,7 +414,9 @@ fn test_get_context_file_returns_some_when_set() {
         "get_context_file should return the env var value"
     );
     unsafe {
-        std::env::remove_var("REZ_CONTEXT_FILE");
+        unsafe {
+            std::env::remove_var("REZ_CONTEXT_FILE");
+        };
     }
 }
 
@@ -362,14 +426,18 @@ fn test_get_context_file_returns_some_when_set() {
 fn test_get_resolved_package_names_parses_list() {
     let _lock = ENV_MUTEX.lock().unwrap();
     unsafe {
-        std::env::set_var("REZ_USED_PACKAGES_NAMES", "pkgA-1.0 pkgB-2.0 pkgC-3.0");
+        unsafe {
+            std::env::set_var("REZ_USED_PACKAGES_NAMES", "pkgA-1.0 pkgB-2.0 pkgC-3.0");
+        };
     }
     let names = get_resolved_package_names();
     assert_eq!(names.len(), 3);
     assert!(names.contains(&"pkgA-1.0".to_string()));
     assert!(names.contains(&"pkgC-3.0".to_string()));
     unsafe {
-        std::env::remove_var("REZ_USED_PACKAGES_NAMES");
+        unsafe {
+            std::env::remove_var("REZ_USED_PACKAGES_NAMES");
+        };
     }
 }
 
@@ -420,7 +488,9 @@ fn test_inactive_status_repr_contains_inactive() {
 fn test_active_status_repr_contains_active() {
     let _lock = ENV_MUTEX.lock().unwrap();
     unsafe {
-        std::env::set_var("REZ_USED_PACKAGES_NAMES", "pkg1-1.0 pkg2-2.0");
+        unsafe {
+            std::env::set_var("REZ_USED_PACKAGES_NAMES", "pkg1-1.0 pkg2-2.0");
+        };
     }
     let s = detect_current_status();
     if s.is_active {
@@ -436,7 +506,9 @@ fn test_active_status_repr_contains_active() {
         );
     }
     unsafe {
-        std::env::remove_var("REZ_USED_PACKAGES_NAMES");
+        unsafe {
+            std::env::remove_var("REZ_USED_PACKAGES_NAMES");
+        };
     }
 }
 
@@ -444,7 +516,9 @@ fn test_active_status_repr_contains_active() {
 fn test_detect_rez_platform_env_captured_in_rez_env_vars() {
     let _lock = ENV_MUTEX.lock().unwrap();
     unsafe {
-        std::env::set_var("REZ_PLATFORM", "linux");
+        unsafe {
+            std::env::set_var("REZ_PLATFORM", "linux");
+        };
     }
     let s = detect_current_status();
     assert!(
@@ -453,7 +527,9 @@ fn test_detect_rez_platform_env_captured_in_rez_env_vars() {
     );
     assert_eq!(s.rez_env_vars["REZ_PLATFORM"], "linux");
     unsafe {
-        std::env::remove_var("REZ_PLATFORM");
+        unsafe {
+            std::env::remove_var("REZ_PLATFORM");
+        };
     }
 }
 
@@ -461,7 +537,9 @@ fn test_detect_rez_platform_env_captured_in_rez_env_vars() {
 fn test_detect_rez_arch_env_captured_in_rez_env_vars() {
     let _lock = ENV_MUTEX.lock().unwrap();
     unsafe {
-        std::env::set_var("REZ_ARCH", "x86_64");
+        unsafe {
+            std::env::set_var("REZ_ARCH", "x86_64");
+        };
     }
     let s = detect_current_status();
     assert!(
@@ -470,7 +548,9 @@ fn test_detect_rez_arch_env_captured_in_rez_env_vars() {
     );
     assert_eq!(s.rez_env_vars["REZ_ARCH"], "x86_64");
     unsafe {
-        std::env::remove_var("REZ_ARCH");
+        unsafe {
+            std::env::remove_var("REZ_ARCH");
+        };
     }
 }
 
@@ -478,7 +558,9 @@ fn test_detect_rez_arch_env_captured_in_rez_env_vars() {
 fn test_multiple_requests_all_parsed() {
     let _lock = ENV_MUTEX.lock().unwrap();
     unsafe {
-        std::env::set_var("REZ_REQUEST", "python-3 cmake-3.21 boost-1.82");
+        unsafe {
+            std::env::set_var("REZ_REQUEST", "python-3 cmake-3.21 boost-1.82");
+        };
     }
     let s = detect_current_status();
     assert!(
@@ -497,6 +579,8 @@ fn test_multiple_requests_all_parsed() {
         s.requested_packages
     );
     unsafe {
-        std::env::remove_var("REZ_REQUEST");
+        unsafe {
+            std::env::remove_var("REZ_REQUEST");
+        };
     }
 }

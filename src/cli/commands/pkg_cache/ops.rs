@@ -5,7 +5,7 @@
 use super::types::{CacheEntry, CacheStatus, PkgCacheArgs};
 use crate::cli::utils::expand_home_path;
 use rez_next_cache::{IntelligentCacheManager, UnifiedCache, UnifiedCacheConfig};
-use rez_next_common::{error::RezCoreResult, RezCoreError};
+use rez_next_common::{RezCoreError, error::RezCoreResult};
 use std::path::{Path, PathBuf};
 
 /// Determine the cache directory to use

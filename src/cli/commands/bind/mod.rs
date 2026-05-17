@@ -17,7 +17,7 @@ mod tests;
 
 use crate::cli::utils::expand_home_path;
 use clap::Args;
-use rez_next_common::{config::RezCoreConfig, error::RezCoreResult, RezCoreError};
+use rez_next_common::{RezCoreError, config::RezCoreConfig, error::RezCoreResult};
 use rez_next_package::Package;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -374,6 +374,8 @@ fn bind_single_package(
         vcs: None,
         preprocess: None,
         is_dev_package: None,
+        filepath: None,
+        includes: None,
     };
 
     let pkg_dir = install_path.join(name).join(&version_str);

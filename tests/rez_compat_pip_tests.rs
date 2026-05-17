@@ -438,7 +438,7 @@ fn test_requirement_exact_version_satisfied_by() {
 /// rez source: activation script contains required env vars
 #[test]
 fn test_source_activation_bash_contains_rez_resolve() {
-    use rez_next_rex::{generate_shell_script, RexEnvironment, ShellType};
+    use rez_next_rex::{RexEnvironment, ShellType, generate_shell_script};
 
     let mut env = RexEnvironment::new();
     env.vars.insert(
@@ -462,7 +462,7 @@ fn test_source_activation_bash_contains_rez_resolve() {
 /// rez source: PowerShell activation script uses $env: syntax
 #[test]
 fn test_source_activation_powershell_env_syntax() {
-    use rez_next_rex::{generate_shell_script, RexEnvironment, ShellType};
+    use rez_next_rex::{RexEnvironment, ShellType, generate_shell_script};
 
     let mut env = RexEnvironment::new();
     env.vars
@@ -479,7 +479,7 @@ fn test_source_activation_powershell_env_syntax() {
 /// rez source: fish activation script uses set -gx syntax
 #[test]
 fn test_source_activation_fish_set_gx_syntax() {
-    use rez_next_rex::{generate_shell_script, RexEnvironment, ShellType};
+    use rez_next_rex::{RexEnvironment, ShellType, generate_shell_script};
 
     let mut env = RexEnvironment::new();
     env.vars
@@ -495,7 +495,7 @@ fn test_source_activation_fish_set_gx_syntax() {
 /// rez source: activation script write to tempfile and verify content
 #[test]
 fn test_source_write_tempfile_roundtrip() {
-    use rez_next_rex::{generate_shell_script, RexEnvironment, ShellType};
+    use rez_next_rex::{RexEnvironment, ShellType, generate_shell_script};
 
     let mut env = RexEnvironment::new();
     env.vars.insert(

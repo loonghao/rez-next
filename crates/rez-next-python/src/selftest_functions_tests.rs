@@ -6,8 +6,8 @@
 use std::collections::HashSet;
 
 use crate::selftest_functions::{
-    collect_selftest_results, selftest, selftest_verbose, summarize_selftest_results,
-    SelftestCheckResult,
+    SelftestCheckResult, collect_selftest_results, selftest, selftest_verbose,
+    summarize_selftest_results,
 };
 
 #[test]

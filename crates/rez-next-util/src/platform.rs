@@ -71,7 +71,12 @@ mod tests {
     fn test_get_platform() {
         let platform = get_platform();
         assert!(!platform.is_empty());
-        assert!(platform == "windows" || platform == "linux" || platform == "macos" || platform == "unknown");
+        assert!(
+            platform == "windows"
+                || platform == "linux"
+                || platform == "macos"
+                || platform == "unknown"
+        );
     }
 
     #[test]

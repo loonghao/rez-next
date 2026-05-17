@@ -10,9 +10,9 @@ mod filter;
 pub use filter::*;
 
 pub mod prelude {
+    pub use super::rule::{GlobRule, RangeRule, RegexRule, TimestampRule};
     pub use super::{PackageFilter, Rule, RuleMatch};
-    pub use super::rule::{GlobRule, RegexRule, RangeRule, TimestampRule};
 }
 
 /// Re-exports for convenience.
-pub use rule::{GlobRule, RegexRule, RangeRule, TimestampRule};
+pub use rule::{GlobRule, RangeRule, RegexRule, TimestampRule};

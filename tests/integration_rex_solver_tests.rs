@@ -6,7 +6,7 @@
 
 mod solve_context_env_integration {
     use rez_next_package::Package;
-    use rez_next_rex::{generate_shell_script, RexExecutor, ShellType};
+    use rez_next_rex::{RexExecutor, ShellType, generate_shell_script};
     use rez_next_version::Version;
 
     fn make_package(name: &str, version: &str, commands: Option<&str>) -> Package {
@@ -175,11 +175,12 @@ mod solve_context_env_integration {
         let env2 = exec
             .execute_commands(cmds2, "pkg2", Some("/opt/pkg2"), None)
             .unwrap();
-        assert!(env2
-            .vars
-            .get("PATH")
-            .map(|p| p.contains("/opt/pkg2/bin"))
-            .unwrap_or(false));
+        assert!(
+            env2.vars
+                .get("PATH")
+                .map(|p| p.contains("/opt/pkg2/bin"))
+                .unwrap_or(false)
+        );
     }
 
     #[test]

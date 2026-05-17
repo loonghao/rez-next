@@ -57,8 +57,8 @@ impl VariantResource {
 
     /// Create from a Package's variant
     ///
-    /// Note: In rez_next_package, variants are stored as Vec<Vec<String>>
-    /// where each inner Vec<String> represents the requirements for that variant.
+    /// Note: In rez_next_package, variants are stored as `Vec<Vec<String>>`
+    /// where each inner `Vec<String>` represents the requirements for that variant.
     pub fn from_package(
         package: &Package,
         variant_index: usize,
@@ -131,7 +131,6 @@ impl VariantResource {
     pub fn index(&self) -> usize {
         self.index
     }
-
 }
 
 /// Display trait implementation for VariantResource
@@ -143,11 +142,7 @@ impl std::fmt::Display for VariantResource {
         write!(
             f,
             "{}@{}/{}-{}(variant {})",
-            self.repository_type,
-            self.repository_location,
-            self.name,
-            version_str,
-            self.index
+            self.repository_type, self.repository_location, self.name, version_str, self.index
         )
     }
 }
@@ -238,11 +233,8 @@ mod tests {
         variables.insert("name".to_string(), "python".to_string());
         variables.insert("index".to_string(), "0".to_string());
 
-        let handle = ResourceHandle::new(
-            "filesystem".to_string(),
-            "/packages".to_string(),
-            variables,
-        );
+        let handle =
+            ResourceHandle::new("filesystem".to_string(), "/packages".to_string(), variables);
 
         let variant = VariantResource::new(
             "python".to_string(),

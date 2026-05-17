@@ -495,7 +495,10 @@ fn test_package_save_method_exists() {
 fn test_load_package_from_file_returns_pyresult() {
     // Test that load_package_from_file function exists and has correct signature
     let result = load_package_from_file("/nonexistent/path/package.py");
-    assert!(result.is_err(), "loading nonexistent file should return Err");
+    assert!(
+        result.is_err(),
+        "loading nonexistent file should return Err"
+    );
 }
 
 #[test]

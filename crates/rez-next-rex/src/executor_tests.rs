@@ -3,7 +3,7 @@
 //! stop()/error() behaviour tests → executor_stop_error_tests.rs
 
 use super::RexExecutor;
-use crate::{generate_shell_script, ShellType};
+use crate::{ShellType, generate_shell_script};
 
 #[test]
 fn test_execute_setenv() {
@@ -40,11 +40,12 @@ fn test_execute_append_path() {
             None,
         )
         .unwrap();
-    assert!(env
-        .vars
-        .get("PYTHONPATH")
-        .map(|v| v.contains("/opt/lib"))
-        .unwrap_or(false));
+    assert!(
+        env.vars
+            .get("PYTHONPATH")
+            .map(|v| v.contains("/opt/lib"))
+            .unwrap_or(false)
+    );
 }
 
 #[test]
@@ -173,16 +174,18 @@ alias('maya', '{root}/bin/maya')
         env.vars.get("MAYA_ROOT"),
         Some(&"/opt/maya/2024.1".to_string())
     );
-    assert!(env
-        .vars
-        .get("PATH")
-        .map(|v| v.contains("/opt/maya/2024.1/bin"))
-        .unwrap_or(false));
-    assert!(env
-        .vars
-        .get("LD_LIBRARY_PATH")
-        .map(|v| v.contains("/opt/maya/2024.1/lib"))
-        .unwrap_or(false));
+    assert!(
+        env.vars
+            .get("PATH")
+            .map(|v| v.contains("/opt/maya/2024.1/bin"))
+            .unwrap_or(false)
+    );
+    assert!(
+        env.vars
+            .get("LD_LIBRARY_PATH")
+            .map(|v| v.contains("/opt/maya/2024.1/lib"))
+            .unwrap_or(false)
+    );
     assert_eq!(
         env.aliases.get("maya"),
         Some(&"/opt/maya/2024.1/bin/maya".to_string())
@@ -204,11 +207,12 @@ env.setenv_if_empty('PYTHON_VERSION', '{version}')
         .unwrap();
 
     assert_eq!(env.vars.get("PYTHONHOME"), Some(&"/usr/local".to_string()));
-    assert!(env
-        .vars
-        .get("PYTHONPATH")
-        .map(|v| v.contains("site-packages"))
-        .unwrap_or(false));
+    assert!(
+        env.vars
+            .get("PYTHONPATH")
+            .map(|v| v.contains("site-packages"))
+            .unwrap_or(false)
+    );
     assert_eq!(env.vars.get("PYTHON_VERSION"), Some(&"3.11.0".to_string()));
 }
 
@@ -293,11 +297,12 @@ alias('hython', '{root}/bin/hython')
         env.vars.get("HOUDINI_PATH"),
         Some(&"/opt/houdini/20.0".to_string())
     );
-    assert!(env
-        .vars
-        .get("PATH")
-        .map(|v| v.contains("/opt/houdini/20.0/bin"))
-        .unwrap_or(false));
+    assert!(
+        env.vars
+            .get("PATH")
+            .map(|v| v.contains("/opt/houdini/20.0/bin"))
+            .unwrap_or(false)
+    );
     assert_eq!(
         env.aliases.get("houdini"),
         Some(&"/opt/houdini/20.0/bin/houdini".to_string())
