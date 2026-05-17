@@ -13,6 +13,18 @@ pub fn rez_next_bin() -> PathBuf {
     if let Ok(path) = std::env::var("REZ_NEXT_E2E_BINARY") {
         return PathBuf::from(path);
     }
+    if let Ok(current_exe) = std::env::current_exe() {
+        if let Some(debug_dir) = current_exe.parent().and_then(|deps_dir| deps_dir.parent()) {
+            let candidate = debug_dir.join(if cfg!(windows) {
+                "rez-next.exe"
+            } else {
+                "rez-next"
+            });
+            if candidate.exists() {
+                return candidate;
+            }
+        }
+    }
     let manifest = env!("CARGO_MANIFEST_DIR");
     PathBuf::from(manifest)
         .join("target")

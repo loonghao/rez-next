@@ -60,6 +60,13 @@ class PackageNotFoundError(RezError):
     """A package could not be found on disk."""
     pass
 
+PackageNotFound = PackageNotFoundError
+
+
+class PackageVersionConflict(ResolveError):
+    """A package version conflict occurred during resolution."""
+    pass
+
 
 class ResourceError(RezError):
     """Resource-related exception base class."""
@@ -89,6 +96,11 @@ class ResourceContentError(ResourceError):
 class PackageMetadataError(ResourceContentError):
     """There is an error in a package's definition file."""
     type_name = "package definition file"
+
+
+class PackageParseError(PackageMetadataError):
+    """A package definition could not be parsed."""
+    pass
 
 
 class PackageCommandError(RezError):
@@ -154,6 +166,9 @@ class RexStopError(RexError):
 class BuildError(RezError):
     """Base class for any build-related error."""
     pass
+
+
+RezBuildError = BuildError
 
 
 class BuildSystemError(BuildError):

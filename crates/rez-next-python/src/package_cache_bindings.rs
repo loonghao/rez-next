@@ -256,12 +256,14 @@ impl PyCacheConfig {
 
 /// High-performance package payload cache.
 ///
-/// Usage::
+/// Usage:
 ///
+/// ```python
 ///     from rez_next.package_cache import PackageCache, VariantHandle
 ///     cache = PackageCache("/path/to/cache")
 ///     handle = VariantHandle("python", "3.9.0", None)
 ///     path, status = cache.add_variant(handle, "/path/to/payload")
+/// ```
 #[pyclass(name = "PackageCache")]
 pub struct PyPackageCache {
     inner: PackageCache,

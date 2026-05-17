@@ -451,11 +451,12 @@ mod tests {
     fn create_temp_git_repo() -> (tempfile::TempDir, git2::Repository) {
         let temp_dir = tempfile::TempDir::new().unwrap();
 
-        let repo = git2::Repository::init(temp_dir.path()).unwrap();
+        let mut opts = git2::RepositoryInitOptions::new();
+        opts.initial_head("main");
+        let repo = git2::Repository::init_opts(temp_dir.path(), &opts).unwrap();
 
         // Configure this temporary repository only; CI runs tests in parallel.
         let mut repo_config = repo.config().unwrap();
-        repo_config.set_str("init.defaultBranch", "main").unwrap();
         repo_config.set_str("user.name", "Test User").unwrap();
         repo_config
             .set_str("user.email", "test@example.com")

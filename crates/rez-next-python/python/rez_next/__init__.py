@@ -47,6 +47,8 @@ except ImportError:
 from . import complete  # noqa: F401
 from . import deprecations  # noqa: F401
 from . import package_help  # noqa: F401
+from .exceptions import *  # noqa: F401,F403
+from .config import Config  # noqa: F401
 
 __version__: str = getattr(_native, "__version__", "0.3.0")
 __author__: str = getattr(_native, "__author__", "rez-next contributors")
@@ -59,7 +61,8 @@ module_root_path: str = os.path.dirname(os.path.abspath(__file__))
 action = os.getenv("REZ_SIGUSR1_ACTION")
 
 # Top-level singletons — compatible with `from rez import config` and `from rez import system`
-config = getattr(_native, "Config", lambda: None)()
+config = Config()
+config.Config = Config
 system = getattr(_native, "System", lambda: None)()
 
 # Aliases for API compatibility with original rez
@@ -69,3 +72,61 @@ create_context = getattr(_native, "ResolvedContext", None)
 # get_completion_script is available via complete.get_completion_script
 # For top-level access, we import it explicitly
 from .complete import get_completion_script  # noqa: F401
+
+
+def _package_getitem(self, key):
+    if key == "version":
+        return getattr(self, "version_str", None)
+    return getattr(self, key)
+
+
+def _context_get(self, key, default=None):
+    if key == "success":
+        return getattr(self, "success", False)
+    if key == "packages":
+        return getattr(self, "resolved_packages", [])
+    return getattr(self, key, default)
+
+
+def _pkg_node(pkg):
+    version = getattr(pkg, "version_str", None)
+    if version is None:
+        version = getattr(pkg, "version", None)
+    return f"{getattr(pkg, 'name', pkg)}-{version}" if version else str(getattr(pkg, "name", pkg))
+
+
+def _req_name(requirement):
+    requirement = str(requirement)
+    if requirement.startswith("!"):
+        return None
+    for sep in ("<", ">", "=", " "):
+        requirement = requirement.split(sep, 1)[0]
+    return requirement.split("-", 1)[0]
+
+
+def _context_to_dot(self):
+    packages = list(getattr(self, "resolved_packages", []) or [])
+    lines = [
+        "digraph resolved_context {",
+        "  rankdir=LR;",
+        '  node [shape=box, style=filled, fillcolor=lightblue];',
+    ]
+    by_name = {getattr(pkg, "name", ""): pkg for pkg in packages}
+    for pkg in packages:
+        lines.append(f'  "{_pkg_node(pkg)}";')
+    for pkg in packages:
+        source = _pkg_node(pkg)
+        for req in getattr(pkg, "requires", []) or []:
+            name = _req_name(req)
+            if name and name in by_name:
+                lines.append(f'  "{source}" -> "{_pkg_node(by_name[name])}";')
+    lines.append("}")
+    return "\n".join(lines)
+
+
+try:
+    Package.__getitem__ = _package_getitem  # type: ignore[name-defined]
+    ResolvedContext.get = _context_get  # type: ignore[name-defined]
+    ResolvedContext.to_dot = _context_to_dot  # type: ignore[name-defined]
+except Exception:
+    pass

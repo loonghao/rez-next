@@ -227,10 +227,11 @@ impl PyPackage {
     /// Aligns with Rez's DeveloperPackage.includes attribute.
     #[getter]
     fn includes(&self) -> Option<Vec<String>> {
-        self.0
-            .includes
-            .as_ref()
-            .map(|set| set.iter().cloned().collect())
+        self.0.includes.as_ref().map(|set| {
+            let mut includes: Vec<String> = set.iter().cloned().collect();
+            includes.sort();
+            includes
+        })
     }
 
     /// Set the includes set
