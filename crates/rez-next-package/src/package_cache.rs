@@ -300,13 +300,20 @@ impl PackageCache {
     // ── Internal path helpers ───────────────────────────────────────────────
 
     /// Get the hash path for a variant: `<root>/<name>/<version>/<hash_prefix>`
+    ///
+    /// Note: Package name and version are lowercased in the path to avoid
+    /// case-sensitivity issues on Windows (see issue #2101).
+    /// The original case is preserved in the metadata (`CachedVariantInfo.handle`).
     fn hash_path(&self, handle: &VariantHandle) -> PathBuf {
         let version_str = handle.version.as_deref().unwrap_or("_NO_VERSION");
         let hash = handle.sha1_hash();
         let hash_prefix = &hash[..HASH_PREFIX_LEN.min(hash.len())];
+        // Normalize to lowercase to avoid Windows case-sensitivity issues (#2101)
+        let name_lower = handle.name.to_lowercase();
+        let version_lower = version_str.to_lowercase();
         self.root
-            .join(&handle.name)
-            .join(version_str)
+            .join(&name_lower)
+            .join(&version_lower)
             .join(hash_prefix)
     }
 
@@ -767,6 +774,39 @@ impl PackageCache {
     fn check_disk_space(&self, needed: u64) -> Result<bool, PackageCacheError> {
         let available = fs2::available_space(&self.root)?;
         Ok(available - needed > self.config.min_free_space_bytes)
+    }
+
+    /// Check if the cache disk is near full.
+    ///
+    /// Returns `true` if available space is below `min_free_space_bytes`.
+    /// Aligns with rez.package_cache.PackageCache.cache_near_full().
+    pub fn cache_near_full(&self) -> bool {
+        fs2::available_space(&self.root)
+            .map(|available| available < self.config.min_free_space_bytes)
+            .unwrap_or(false) // Cannot determine, assume not full
+    }
+
+    /// Check if adding a variant would leave enough free space.
+    ///
+    /// Aligns with rez.package_cache.PackageCache.variant_meets_space_requirements().
+    ///
+    /// # Arguments
+    ///
+    /// * `variant_root` - Path to the variant's payload
+    ///
+    /// # Returns
+    ///
+    /// `true` if there's enough space to cache this variant.
+    pub fn variant_meets_space_requirements(&self, variant_root: &Path) -> bool {
+        let available = match fs2::available_space(&self.root) {
+            Ok(space) => space,
+            Err(_) => return false, // Cannot determine
+        };
+
+        let variant_size = Self::directory_size(variant_root).unwrap_or(0);
+
+        // Check: available - variant_size > min_free_space
+        available > variant_size + self.config.min_free_space_bytes
     }
 
     /// Remove empty parent directories.

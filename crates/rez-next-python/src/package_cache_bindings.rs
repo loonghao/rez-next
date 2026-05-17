@@ -99,6 +99,7 @@ pub struct PyCacheStatus {
 }
 
 #[pymethods]
+#[allow(non_snake_case)]
 impl PyCacheStatus {
     /// Not found (0)
     #[classattr]
@@ -163,6 +164,22 @@ impl PyCacheStatus {
             _ => CacheStatus::NotFound,
         };
         status.description().to_string()
+    }
+
+    /// STATUS_DESCRIPTIONS: Dictionary mapping status codes to descriptions.
+    /// Aligns with rez.package_cache.STATUS_DESCRIPTIONS.
+    #[classattr]
+    fn STATUS_DESCRIPTIONS(_py: Python<'_>) -> Py<PyDict> {
+        let dict = PyDict::new(_py);
+        dict.set_item(0, "was not found").unwrap();
+        dict.set_item(1, "was found").unwrap();
+        dict.set_item(2, "was created").unwrap();
+        dict.set_item(3, "payload is still being copied to cache").unwrap();
+        dict.set_item(4, "payload copy has stalled (see docs for cleaning instructions)").unwrap();
+        dict.set_item(5, "is pending caching").unwrap();
+        dict.set_item(6, "was deleted").unwrap();
+        dict.set_item(7, "is not being cached due to cache size limit").unwrap();
+        dict.into()
     }
 }
 
@@ -381,6 +398,25 @@ impl PyPackageCache {
     fn clean(&self, time_limit_secs: Option<u64>) -> PyResult<(u64, u64)> {
         let stats: CleanStats = self.inner.clean(time_limit_secs);
         Ok((stats.entries_deleted, stats.deleted_bytes))
+    }
+
+    /// Check if the cache disk is near full.
+    ///
+    /// Returns:
+    ///     bool: True if available space is below minimum threshold
+    fn cache_near_full(&self) -> bool {
+        self.inner.cache_near_full()
+    }
+
+    /// Check if a variant meets space requirements for caching.
+    ///
+    /// Args:
+    ///     variant_root: Path to the variant's payload
+    ///
+    /// Returns:
+    ///     bool: True if there's enough space to cache this variant
+    fn variant_meets_space_requirements(&self, variant_root: String) -> bool {
+        self.inner.variant_meets_space_requirements(std::path::Path::new(&variant_root))
     }
 }
 
