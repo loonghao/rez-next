@@ -19,7 +19,7 @@ use rez_next_repository::package_repository::{
 ///
 /// This corresponds to the FilesystemPackageRepository class in rez's
 /// package_repository.py. It reads packages from a filesystem path.
-#[pyclass(name = "FilesystemPackageRepository")]
+#[pyclass(name = "FilesystemPackageRepository", from_py_object)]
 #[derive(Clone)]
 pub struct PyFilesystemPackageRepository {
     inner: RustFilesystemPackageRepository,
@@ -88,6 +88,49 @@ impl PyFilesystemPackageRepository {
             self.inner.repository_type(),
             self.inner.location().display()
         )
+    }
+
+    /// Remove a package (can remove ignored packages)
+    ///
+    /// Args:
+    ///     name: Package name
+    ///     version: Optional version string (None to remove all versions)
+    ///
+    /// Returns:
+    ///     True if package was removed, False if not found
+    #[pyo3(signature = (name, version = None))]
+    pub fn remove_package(&mut self, name: &str, version: Option<&str>) -> PyResult<bool> {
+        self.inner.remove_package(name, version)
+            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
+    }
+
+    /// Remove a package family
+    ///
+    /// Args:
+    ///     name: Package family name
+    ///     force: If True, remove even if family has packages
+    ///
+    /// Returns:
+    ///     True if family was removed, False if not found
+    #[pyo3(signature = (name, force = false))]
+    pub fn remove_package_family(&mut self, name: &str, force: bool) -> PyResult<bool> {
+        self.inner.remove_package_family(name, force)
+            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
+    }
+
+    /// Remove ignored packages older than specified days
+    ///
+    /// Args:
+    ///     days: Remove packages ignored for more than this many days
+    ///     dry_run: If True, only count without removing
+    ///     verbose: If True, print verbose output
+    ///
+    /// Returns:
+    ///     Number of packages removed (or would be removed if dry_run)
+    #[pyo3(signature = (days, dry_run = false, verbose = false))]
+    pub fn remove_ignored_since(&mut self, days: i32, dry_run: bool, verbose: bool) -> PyResult<i32> {
+        self.inner.remove_ignored_since(days, dry_run, verbose)
+            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
     }
 }
 
