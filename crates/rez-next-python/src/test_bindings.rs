@@ -19,8 +19,6 @@ use rez_next_package::package::test_runner::{
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
-use super::exceptions_bindings::PackageTestError;
-
 // ── PyPackageTestRunner ─────────────────────────────────────────────
 
 /// Python-accessible PackageTestRunner.

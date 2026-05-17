@@ -54,6 +54,7 @@ mod test_bindings;
 mod version_bindings;
 mod util_bindings;
 mod command_bindings;
+mod deprecations_bindings;
 
 // ── Top-level function modules ────────────────────────────────────────────────
 mod build_functions;
@@ -102,6 +103,7 @@ use package_functions::{
     package_family_schema, package_release_keys, package_schema, remove_package,
     resolve_packages, schema_keys, test_function, variant_schema, walk_packages,
 };
+use package_repository_bindings::register_package_repository_submodule;
 use package_uri_functions::{
     get_package_from_uri, get_variant, get_variant_from_uri,
     get_package_from_handle, get_package_from_repository,
@@ -688,6 +690,9 @@ fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
     package_filter_bindings::register_module(&package_filter_mod)?;
     register_submodule(m, "package_filter", &package_filter_mod)?;
 
+    // ── Submodule: rez.package_repository ─────────────────────
+    register_package_repository_submodule(m)?;
+
     // ── Submodule: rez.package_resources ─────────────────────
     package_resources_bindings::register_package_resources_submodule(m)?;
 
@@ -704,6 +709,9 @@ fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
     // ── Submodule: rez.command ──────────────────
     register_command_module(m.py(), m)?;
+
+    // ── Submodule: rez.deprecations ──────────────────
+    deprecations_bindings::register_deprecations_submodule(m)?;
 
     Ok(())
 }

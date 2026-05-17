@@ -2,6 +2,8 @@
 //!
 //! This module provides Python bindings for the PackageRepository trait
 //! and FilesystemPackageRepository implementation.
+//!
+//! Corresponds to rez's package_repository.py.
 
 use pyo3::prelude::*;
 use pyo3::types::PyType;
@@ -17,7 +19,7 @@ use rez_next_repository::package_repository::{
 ///
 /// This corresponds to the FilesystemPackageRepository class in rez's
 /// package_repository.py. It reads packages from a filesystem path.
-#[pyclass(name = "FilesystemPackageRepository", from_py_object)]
+#[pyclass(name = "FilesystemPackageRepository")]
 #[derive(Clone)]
 pub struct PyFilesystemPackageRepository {
     inner: RustFilesystemPackageRepository,
@@ -64,6 +66,12 @@ impl PyFilesystemPackageRepository {
         self.inner.repository_type().to_string()
     }
 
+    /// Check if the repository is empty
+    pub fn is_empty(&self) -> PyResult<bool> {
+        self.inner.is_empty()
+            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
+    }
+
     /// String representation
     pub fn __str__(&self) -> String {
         format!(
@@ -81,6 +89,44 @@ impl PyFilesystemPackageRepository {
             self.inner.location().display()
         )
     }
+}
+
+/// Register the package_repository submodule with all its classes and functions.
+///
+/// This function creates the `rez_next._native.package_repository` submodule
+/// and registers it in `sys.modules` for proper dotted-path imports.
+pub fn register_package_repository_submodule(
+    parent_module: &Bound<'_, PyModule>,
+) -> PyResult<()> {
+    let m = PyModule::new(parent_module.py(), "package_repository")?;
+
+    // Add FilesystemPackageRepository class
+    m.add_class::<PyFilesystemPackageRepository>()?;
+
+    // Add module-level functions
+    // Get the list of available package repository types
+    m.add_function(wrap_pyfunction!(get_package_repository_types, &m)?)?;
+
+    // Register in sys.modules for `from rez_next.package_repository import ...`
+    let sys = parent_module.py().import("sys")?;
+    let modules = sys.getattr("modules")?;
+    let parent_name = parent_module.name()?;
+    let full_name = format!("{}.{}", parent_name, "package_repository");
+    modules.set_item(full_name.as_str(), &m)?;
+
+    // Also register as submodule
+    parent_module.add_submodule(&m)?;
+
+    Ok(())
+}
+
+/// Get the list of available package repository types.
+///
+/// Returns:
+///     List of registered repository type names (e.g., ["filesystem"]).
+#[pyfunction]
+pub fn get_package_repository_types() -> Vec<&'static str> {
+    vec!["filesystem"]
 }
 
 #[cfg(test)]
@@ -113,5 +159,12 @@ mod tests {
         let repo = PyFilesystemPackageRepository::new("/tmp/packages");
         let repo = repo.unwrap();
         assert_eq!(repo.get_type(), "filesystem");
+    }
+
+    #[test]
+    fn test_get_package_repository_types() {
+        let types = get_package_repository_types();
+        assert_eq!(types.len(), 1);
+        assert_eq!(types[0], "filesystem");
     }
 }
