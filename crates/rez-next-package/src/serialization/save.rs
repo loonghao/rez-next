@@ -2,8 +2,8 @@
 
 use crate::Package;
 use chrono::Utc;
-use flate2::write::GzEncoder;
 use flate2::Compression;
+use flate2::write::GzEncoder;
 use rez_next_common::RezCoreError;
 use std::fs;
 use std::io::Write;

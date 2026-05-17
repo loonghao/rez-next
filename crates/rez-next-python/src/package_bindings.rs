@@ -290,7 +290,7 @@ impl PyPackage {
             None => {
                 return Err(pyo3::exceptions::PyValueError::new_err(
                     "Package dict must contain 'name' field",
-                ))
+                ));
             }
         };
 

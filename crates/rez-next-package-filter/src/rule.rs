@@ -126,7 +126,7 @@ impl GlobRule {
                     return Err(FilterError::ParseError(format!(
                         "Invalid glob field: {}",
                         field_str
-                    )))
+                    )));
                 }
             };
             (field, pattern_str)
@@ -279,7 +279,7 @@ impl RegexRule {
                     return Err(FilterError::ParseError(format!(
                         "Invalid regex field: {}",
                         field_str
-                    )))
+                    )));
                 }
             };
             (field, pattern_str)

@@ -4,7 +4,7 @@
 
 use crate::cli::utils::{expand_home_path, expand_home_str};
 use clap::Args;
-use rez_next_common::{config::RezCoreConfig, error::RezCoreResult, RezCoreError};
+use rez_next_common::{RezCoreError, config::RezCoreConfig, error::RezCoreResult};
 use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
 use std::collections::HashMap;
 use std::path::PathBuf;

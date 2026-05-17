@@ -686,7 +686,7 @@ mod build_tests {
 // ── New tests for BuildType, get_build_process_types, create_build_system ─────
 #[cfg(test)]
 mod build_type_tests {
-    use crate::{create_build_system, get_build_process_types, BuildType};
+    use crate::{BuildType, create_build_system, get_build_process_types};
 
     #[test]
     fn build_type_name() {

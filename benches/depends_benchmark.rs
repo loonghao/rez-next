@@ -3,7 +3,7 @@
 //! Measures the cost of scanning a synthetic package set to find
 //! all packages that depend on a given target package name.
 
-use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
 use rez_next_package::Package;
 use std::hint::black_box;
 

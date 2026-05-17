@@ -3,8 +3,8 @@
 #[cfg(test)]
 mod release_tests {
     use crate::release_bindings::{
-        release_package, PyReleaseManager, PyReleaseResult, PyReleaseVCS, PyVCSMetadata,
-        ReleaseMode,
+        PyReleaseManager, PyReleaseResult, PyReleaseVCS, PyVCSMetadata, ReleaseMode,
+        release_package,
     };
 
     #[test]

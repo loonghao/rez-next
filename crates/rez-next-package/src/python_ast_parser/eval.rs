@@ -1,7 +1,7 @@
 //! Expression evaluation logic for the Python AST parser.
 
-use super::types::PythonValue;
 use super::PythonAstParser;
+use super::types::PythonValue;
 use rez_next_common::RezCoreError;
 use rustpython_ast::{BoolOp, CmpOp, Constant, Expr, Operator, UnaryOp};
 use std::collections::HashMap;
@@ -142,7 +142,7 @@ impl PythonAstParser {
                     return Ok(PythonValue::Expression(format!(
                         "{:?} {:?} {:?}",
                         left, op, right
-                    )))
+                    )));
                 }
             };
 

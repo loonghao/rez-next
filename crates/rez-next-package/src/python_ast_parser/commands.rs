@@ -1,8 +1,8 @@
 //! Processing logic for `commands`, `pre_commands`, and `post_commands` function bodies.
 //! Supports the full Rex DSL used by rez package commands.
 
-use super::types::PackageData;
 use super::PythonAstParser;
+use super::types::PackageData;
 use rez_next_common::RezCoreError;
 use rustpython_ast::{Expr, Stmt};
 

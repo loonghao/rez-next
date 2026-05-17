@@ -281,14 +281,18 @@ mod tests {
         // Add temp_dir to PATH
         let original_path = env::var("PATH").unwrap_or_default();
         let new_path = format!("{};{}", temp_dir.path().display(), original_path);
-        env::set_var("PATH", new_path);
+        unsafe {
+            env::set_var("PATH", new_path);
+        };
 
         let result = which("test_cmd");
         assert!(result.is_some());
         assert_eq!(result.unwrap(), exe_path);
 
         // Restore PATH
-        env::set_var("PATH", original_path);
+        unsafe {
+            env::set_var("PATH", original_path);
+        };
     }
 
     #[test]
@@ -306,14 +310,18 @@ mod tests {
             temp_dir2.path().display(),
             original_path
         );
-        env::set_var("PATH", new_path);
+        unsafe {
+            env::set_var("PATH", new_path);
+        };
 
         let results = which_all("multi_cmd");
         assert_eq!(results.len(), 2);
         assert!(results.contains(&exe1));
         assert!(results.contains(&exe2));
 
-        env::set_var("PATH", original_path);
+        unsafe {
+            env::set_var("PATH", original_path);
+        };
     }
 
     #[test]
@@ -323,11 +331,15 @@ mod tests {
 
         let original_path = env::var("PATH").unwrap_or_default();
         let new_path = format!("{};{}", temp_dir.path().display(), original_path);
-        env::set_var("PATH", new_path);
+        unsafe {
+            env::set_var("PATH", new_path);
+        };
 
         let result = which("not_exec");
         assert!(result.is_none());
 
-        env::set_var("PATH", original_path);
+        unsafe {
+            env::set_var("PATH", original_path);
+        };
     }
 }

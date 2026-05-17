@@ -4,7 +4,7 @@
 
 use clap::Args;
 use rez_next_build::{BuildManager, BuildOptions, BuildRequest};
-use rez_next_common::{error::RezCoreResult, RezCoreError};
+use rez_next_common::{RezCoreError, error::RezCoreResult};
 use rez_next_package::Package;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};

@@ -5,7 +5,7 @@
 //! seamlessly use rez_next under the hood.
 
 use clap::Args;
-use rez_next_common::{error::RezCoreResult, RezCoreError};
+use rez_next_common::{RezCoreError, error::RezCoreResult};
 use std::process::Command;
 
 /// Arguments for the forward command

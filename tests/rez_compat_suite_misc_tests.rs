@@ -165,7 +165,7 @@ fn test_shell_type_all_supported() {
 /// rez: generate shell scripts for all supported shells
 #[test]
 fn test_shell_scripts_all_shells() {
-    use rez_next_rex::{generate_shell_script, RexEnvironment, ShellType};
+    use rez_next_rex::{RexEnvironment, ShellType, generate_shell_script};
 
     let mut env = RexEnvironment::new();
     env.vars

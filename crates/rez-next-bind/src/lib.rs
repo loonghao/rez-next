@@ -10,6 +10,6 @@ mod binder;
 mod builtin_binders;
 mod detect;
 
-pub use binder::{list_bound_packages_in, BindError, BindOptions, BindResult, PackageBinder};
-pub use builtin_binders::{get_builtin_binder, list_builtin_binders, BuiltinBinder};
+pub use binder::{BindError, BindOptions, BindResult, PackageBinder, list_bound_packages_in};
+pub use builtin_binders::{BuiltinBinder, get_builtin_binder, list_builtin_binders};
 pub use detect::{detect_tool_version, extract_version_from_output, find_tool_executable};

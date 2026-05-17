@@ -200,11 +200,7 @@ impl VersionRange {
         // Quick sanity: at least one probe version must be in the result
         let probes = self.collect_probe_versions_with_other(other);
         let has_any = probes.iter().any(|v| range.contains(v));
-        if has_any {
-            Some(range)
-        } else {
-            None
-        }
+        if has_any { Some(range) } else { None }
     }
 
     /// Check if this range is the "any" range (matches all versions)

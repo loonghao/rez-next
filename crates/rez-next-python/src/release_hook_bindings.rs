@@ -3,7 +3,7 @@
 //! Exposes the release hook registry and base hook class to Python.
 
 use pyo3::prelude::*;
-use rez_next_release_hook::{create_release_hook, get_release_hook_types, ReleaseHook};
+use rez_next_release_hook::{ReleaseHook, create_release_hook, get_release_hook_types};
 use std::path::PathBuf;
 
 /// Get available release hook types.

@@ -153,7 +153,7 @@ impl BuildSystem {
                 _ => {
                     return Ok(BuildSystem::Custom(CustomBuildSystem::new(
                         build_system.clone(),
-                    )))
+                    )));
                 }
             }
         }

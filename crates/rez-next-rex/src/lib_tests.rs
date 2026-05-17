@@ -219,9 +219,10 @@ mod test_apply_misc {
             },
             source_package: None,
         }]);
-        assert!(env
-            .info_messages
-            .contains(&"Package python loaded".to_string()));
+        assert!(
+            env.info_messages
+                .contains(&"Package python loaded".to_string())
+        );
     }
 
     #[test]
@@ -233,10 +234,11 @@ mod test_apply_misc {
             },
             source_package: None,
         }]);
-        assert!(env
-            .info_messages
-            .iter()
-            .any(|m| m.contains("[error]") && m.contains("Version mismatch")));
+        assert!(
+            env.info_messages
+                .iter()
+                .any(|m| m.contains("[error]") && m.contains("Version mismatch"))
+        );
     }
 
     #[test]

@@ -73,14 +73,14 @@ use build_functions::{
     get_buildsys_types,
 };
 use command_bindings::register_command_module;
-use config_bindings::{register_config_module, PyConfig};
+use config_bindings::{PyConfig, register_config_module};
 use context_bindings::PyResolvedContext;
 use data_bindings::PyRezData;
 use env_bindings::{PyPackageFamily, PyRezEnv};
 use explicit_bindings::register_explicit_module;
 use forward_bindings::PyRezForward;
-use package_bindings::{load_package_from_file, save_package_to_file};
 use package_bindings::{PyPackage, PyPackageFormat, PyPackageRequirement};
+use package_bindings::{load_package_from_file, save_package_to_file};
 use pip_bindings::PyPipPackage;
 use plugins_bindings::{PyPlugin, PyPluginType, PyRezPluginManager};
 use release_bindings::{PyReleaseManager, PyReleaseResult, PyVCSMetadata, PyVCSRevision};
@@ -90,8 +90,8 @@ use search_bindings::PySearchResult;
 use serialise_bindings::register_serialise_module;
 use shell_bindings::PyShell;
 use solver_bindings::{
-    accessibility, find_cycle, package_repo_stats, register_solver_status, register_solver_types,
-    PySolver,
+    PySolver, accessibility, find_cycle, package_repo_stats, register_solver_status,
+    register_solver_types,
 };
 use source_bindings::PySourceManager;
 use suite_bindings::{PySuite, PySuiteManager};
@@ -496,6 +496,7 @@ fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
     packages_mod.add_class::<PyPackageFamily>()?;
     packages_mod.add_class::<PyPackage>()?;
     packages_mod.add_class::<PyPackageRequirement>()?;
+    packages_mod.add_class::<PyPackageFormat>()?;
     register_submodule(m, "packages", &packages_mod)?;
 
     // ── Submodule: rez.forward ────────────────────────────────────────────────

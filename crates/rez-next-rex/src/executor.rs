@@ -1,7 +1,7 @@
 //! Rex executor: runs package commands and builds environment
 
-use crate::actions::{RexAction, RexActionType};
 use crate::RexEnvironment;
+use crate::actions::{RexAction, RexActionType};
 use rez_next_common::RezCoreError;
 use std::collections::HashMap;
 

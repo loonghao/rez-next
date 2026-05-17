@@ -9,7 +9,7 @@
 
 use crate::serialization::PackageSerializer;
 use crate::types::Package;
-use rez_next_common::{error::RezCoreError, RezCoreResult};
+use rez_next_common::{RezCoreResult, error::RezCoreError};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};

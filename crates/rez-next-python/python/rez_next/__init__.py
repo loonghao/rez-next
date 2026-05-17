@@ -36,9 +36,12 @@ except ImportError:
 
 # Import all attributes from _native
 try:
-    from _native import *  # noqa: F401,F403
+    from ._native import *  # noqa: F401,F403
 except ImportError:
-    pass
+    try:
+        from _native import *  # noqa: F401,F403
+    except ImportError:
+        pass
 
 # Import submodules
 from . import complete  # noqa: F401

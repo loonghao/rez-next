@@ -7,7 +7,7 @@ use pyo3::prelude::*;
 use std::collections::HashMap;
 
 use rez_next_repository::package_search::{
-    get_plugins, get_reverse_dependency_tree, ResourceSearchResult,
+    ResourceSearchResult, get_plugins, get_reverse_dependency_tree,
 };
 
 /// Python wrapper for ResourceSearchResult.

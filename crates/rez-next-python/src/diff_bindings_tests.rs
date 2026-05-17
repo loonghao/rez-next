@@ -3,7 +3,7 @@
 //! Extracted from `diff_bindings.rs` to keep each file under 1000 lines.
 //! Advanced repr/format/count tests → diff_bindings_advanced_tests.rs (Cycle 146)
 
-use super::{compute_diff, format_diff, PyContextDiff, PyPackageDiff};
+use super::{PyContextDiff, PyPackageDiff, compute_diff, format_diff};
 use rez_next_package::Package;
 use rez_next_version::Version;
 

@@ -7,8 +7,8 @@
 //! - Performance monitoring
 
 use rez_next_cache::{
-    benchmarks::{BenchmarkConfig, CacheBenchmarkSuite},
     IntelligentCacheManager, UnifiedCache, UnifiedCacheConfig,
+    benchmarks::{BenchmarkConfig, CacheBenchmarkSuite},
 };
 use std::time::Duration;
 use tokio::time::sleep;

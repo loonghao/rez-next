@@ -24,18 +24,18 @@ pub use cache::*;
 pub use filesystem::*;
 pub use high_performance_scanner::*;
 pub use package_repository::{FilesystemPackageRepository, PackageRepository};
-pub use package_search::{get_plugins, get_reverse_dependency_tree, ResourceSearchResult};
+pub use package_search::{ResourceSearchResult, get_plugins, get_reverse_dependency_tree};
 pub use repository::{
-    deduplicate_packages, PackageSearchCriteria, Repository, RepositoryMetadata, RepositoryStats,
-    RepositoryType,
+    PackageSearchCriteria, Repository, RepositoryMetadata, RepositoryStats, RepositoryType,
+    deduplicate_packages,
 };
 pub use resources::{
     PackageFamilyResource, PackageResource, ResourceHandle, ResourcePool, VariantResource,
 };
 pub use scanner::*;
 pub use scanner_types::{
-    CacheStatistics, PackageScanResult, ScanError, ScanErrorType, ScanPerformanceMetrics,
-    ScanResult, ScannerConfig, REZ_PACKAGE_FILENAMES,
+    CacheStatistics, PackageScanResult, REZ_PACKAGE_FILENAMES, ScanError, ScanErrorType,
+    ScanPerformanceMetrics, ScanResult, ScannerConfig,
 };
 pub use simple_repository::*;
 

@@ -204,7 +204,7 @@ pub(crate) fn check_rex_resetenv_info_stop() -> bool {
 }
 
 pub(crate) fn check_shell_bash_generation() -> bool {
-    use rez_next_rex::{generate_shell_script, RexEnvironment, ShellType};
+    use rez_next_rex::{RexEnvironment, ShellType, generate_shell_script};
 
     let mut env = RexEnvironment::new();
     env.vars
@@ -217,7 +217,7 @@ pub(crate) fn check_shell_bash_generation() -> bool {
 }
 
 pub(crate) fn check_shell_powershell_generation() -> bool {
-    use rez_next_rex::{generate_shell_script, RexEnvironment, ShellType};
+    use rez_next_rex::{RexEnvironment, ShellType, generate_shell_script};
 
     let mut env = RexEnvironment::new();
     env.vars

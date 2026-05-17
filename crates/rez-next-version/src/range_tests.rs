@@ -2,8 +2,8 @@
 
 #[cfg(test)]
 mod tests {
-    use crate::range::VersionRange;
     use crate::Version;
+    use crate::range::VersionRange;
 
     fn v(s: &str) -> Version {
         Version::parse(s).unwrap()

@@ -9,7 +9,7 @@
 //! These benchmarks establish a baseline for future rez vs rez-next
 //! performance comparisons once the Python layer is wired up.
 
-use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
 use rez_next_context::{ContextFormat, ContextSerializer, ContextStatus, ResolvedContext};
 use rez_next_package::{Package, PackageRequirement};
 use rez_next_version::Version;

@@ -4,8 +4,8 @@
 
 use pyo3::prelude::*;
 use rez_next_bind::{
-    detect_tool_version, extract_version_from_output, find_tool_executable, get_builtin_binder,
-    list_builtin_binders, BindOptions, PackageBinder,
+    BindOptions, PackageBinder, detect_tool_version, extract_version_from_output,
+    find_tool_executable, get_builtin_binder, list_builtin_binders,
 };
 use std::path::PathBuf;
 

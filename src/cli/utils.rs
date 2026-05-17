@@ -2,7 +2,7 @@
 //!
 //! Common utilities and helper functions for CLI commands.
 
-use rez_next_common::{error::RezCoreResult, RezCoreError};
+use rez_next_common::{RezCoreError, error::RezCoreResult};
 use std::io::{self, Write};
 use std::path::PathBuf;
 
@@ -242,7 +242,7 @@ fn get_terminal_width_inner(columns_env: Option<&str>) -> usize {
     #[cfg(windows)]
     {
         use windows_sys::Win32::System::Console::{
-            GetConsoleScreenBufferInfo, GetStdHandle, CONSOLE_SCREEN_BUFFER_INFO, STD_OUTPUT_HANDLE,
+            CONSOLE_SCREEN_BUFFER_INFO, GetConsoleScreenBufferInfo, GetStdHandle, STD_OUTPUT_HANDLE,
         };
         // SAFETY: Windows API call; handle validity checked before use.
         let handle = unsafe { GetStdHandle(STD_OUTPUT_HANDLE) };

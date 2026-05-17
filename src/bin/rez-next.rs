@@ -50,7 +50,7 @@ fn handle_grouped_command(args: Vec<String>) {
             // Handle extra arguments for specific commands
             if let Some(ref mut command) = cli.command {
                 match command {
-                    RezCommand::Env(ref mut env_args)
+                    RezCommand::Env(env_args)
                         if arg_groups.len() > 1 && !arg_groups[1].is_empty() =>
                     {
                         if let Err(e) = rez_core::cli::commands::env::execute_with_extra_args(
@@ -62,7 +62,7 @@ fn handle_grouped_command(args: Vec<String>) {
                         }
                         return;
                     }
-                    RezCommand::Build(ref mut build_args)
+                    RezCommand::Build(build_args)
                         if arg_groups.len() > 1 && !arg_groups[1].is_empty() =>
                     {
                         // Pass extra args as build-args string

@@ -27,7 +27,7 @@ pub mod shell;
 pub use actions::{RexAction, RexActionType};
 pub use executor::RexExecutor;
 pub use parser::RexParser;
-pub use shell::{generate_shell_script, ShellType};
+pub use shell::{ShellType, generate_shell_script};
 
 /// Environment state after applying Rex commands
 #[derive(Debug, Clone, Default)]
@@ -147,11 +147,7 @@ impl RexEnvironment {
 }
 
 fn get_path_sep() -> &'static str {
-    if cfg!(windows) {
-        ";"
-    } else {
-        ":"
-    }
+    if cfg!(windows) { ";" } else { ":" }
 }
 
 #[cfg(test)]

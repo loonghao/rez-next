@@ -3,8 +3,8 @@
 
 #[cfg(test)]
 mod tests {
-    use crate::dependency_resolver::DependencyResolver;
     use crate::SolverConfig;
+    use crate::dependency_resolver::DependencyResolver;
     use rez_next_package::Requirement;
     use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
     use std::sync::Arc;

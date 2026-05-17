@@ -1,7 +1,7 @@
 //! Dependency resolution implementation - equivalent to Python's solver
 
-use crate::resolution_state::ResolutionState;
 use crate::SolverConfig;
+use crate::resolution_state::ResolutionState;
 use rez_next_common::RezCoreError;
 use rez_next_package::{Package, Requirement};
 use rez_next_repository::simple_repository::RepositoryManager;

@@ -3,7 +3,7 @@
 //! Implements the `rez plugins` command for listing and managing package plugins.
 
 use clap::Args;
-use rez_next_common::{config::RezCoreConfig, error::RezCoreResult, RezCoreError};
+use rez_next_common::{RezCoreError, config::RezCoreConfig, error::RezCoreResult};
 use rez_next_package::Package;
 use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
 use std::collections::HashMap;

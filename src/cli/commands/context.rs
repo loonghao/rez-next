@@ -4,7 +4,7 @@
 //! This command provides complete compatibility with the original rez-context command.
 
 use clap::Args;
-use rez_next_common::{error::RezCoreResult, RezCoreError};
+use rez_next_common::{RezCoreError, error::RezCoreResult};
 use rez_next_context::RezResolvedContext;
 use std::path::PathBuf;
 

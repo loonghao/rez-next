@@ -9,8 +9,8 @@
 pub mod filesystem;
 
 // ── Re-exports ──────────────────────────────────────────────────────────────────
-pub use filesystem::FilesystemPackageRepository;
 pub use filesystem::FILESYSTEM_REPO_TYPE;
+pub use filesystem::FilesystemPackageRepository;
 
 // ── Imports ─────────────────────────────────────────────────────────────────────
 use crate::resources::{PackageFamilyResource, PackageResource, ResourceHandle, VariantResource};
@@ -72,7 +72,7 @@ pub trait PackageRepository: Send + Sync {
 
     /// Get a package family by name
     fn get_package_family(&self, name: &str)
-        -> Result<Option<PackageFamilyResource>, RezCoreError>;
+    -> Result<Option<PackageFamilyResource>, RezCoreError>;
 
     /// Iterate over all package families in this repository
     fn iter_package_families(&self) -> Result<Vec<PackageFamilyResource>, RezCoreError>;

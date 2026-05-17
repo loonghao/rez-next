@@ -6,7 +6,7 @@
 //! - Cache eviction cost (capacity-constrained inserts)
 //! - Batch insert throughput at various sizes
 
-use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 use rez_next_cache::{IntelligentCacheManager, L1CacheConfig, UnifiedCache, UnifiedCacheConfig};
 
 /// Build a runtime + cache pair for async benchmarks

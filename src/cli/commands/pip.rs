@@ -6,7 +6,7 @@
 
 use crate::cli::utils::expand_home_str as expand_home;
 use clap::Args;
-use rez_next_common::{config::RezCoreConfig, error::RezCoreResult, RezCoreError};
+use rez_next_common::{RezCoreError, config::RezCoreConfig, error::RezCoreResult};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 

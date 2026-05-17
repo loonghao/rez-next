@@ -459,9 +459,11 @@ requires = ["python>=3.7"]
         let json = PackageSerializer::save_to_json(&pkg).unwrap();
         let loaded = PackageSerializer::load_from_json(&json).unwrap();
         assert_eq!(loaded.private_build_requires.len(), 1);
-        assert!(loaded
-            .private_build_requires
-            .contains(&"internal_lib-1.0".to_string()));
+        assert!(
+            loaded
+                .private_build_requires
+                .contains(&"internal_lib-1.0".to_string())
+        );
     }
 
     #[test]

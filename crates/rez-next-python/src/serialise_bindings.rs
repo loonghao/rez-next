@@ -12,8 +12,8 @@ use pyo3::types::{PyAny, PyBytes, PyModule};
 use serde_json::Value;
 
 use rez_next_serialise::{
-    as_block_string, dict_to_attributes_code, dump_yaml, package_key_order, read_package_data,
-    FileFormat, PackageSerialiseError,
+    FileFormat, PackageSerialiseError, as_block_string, dict_to_attributes_code, dump_yaml,
+    package_key_order, read_package_data,
 };
 
 /// Convert a Python object to serde_json::Value using Python's json module.

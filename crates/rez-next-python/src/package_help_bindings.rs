@@ -85,7 +85,7 @@ impl PyPackageHelp {
                     return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
                         "Invalid version range: {}",
                         e
-                    )))
+                    )));
                 }
             }
         } else {

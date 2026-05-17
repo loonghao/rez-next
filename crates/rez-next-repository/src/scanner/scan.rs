@@ -18,8 +18,8 @@ use rez_next_common::RezCoreError;
 use rez_next_package::Package;
 use smallvec::SmallVec;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::SystemTime;
 use tokio::fs;
 

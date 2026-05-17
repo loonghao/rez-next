@@ -362,7 +362,7 @@ fn test_context_export_env_file() {
 /// rez forward: generate shell wrapper scripts
 #[test]
 fn test_forward_script_bash_contains_exec() {
-    use rez_next_rex::{generate_shell_script, RexEnvironment, ShellType};
+    use rez_next_rex::{RexEnvironment, ShellType, generate_shell_script};
 
     // Simulate what a forward wrapper does: map a tool to a context env
     let mut env = RexEnvironment::new();
@@ -379,7 +379,7 @@ fn test_forward_script_bash_contains_exec() {
 
 #[test]
 fn test_forward_script_powershell_contains_alias() {
-    use rez_next_rex::{generate_shell_script, RexEnvironment, ShellType};
+    use rez_next_rex::{RexEnvironment, ShellType, generate_shell_script};
 
     let mut env = RexEnvironment::new();
     env.aliases.insert(

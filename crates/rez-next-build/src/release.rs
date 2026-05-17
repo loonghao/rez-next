@@ -3,10 +3,10 @@
 //! This module provides the core release workflow logic that orchestrates
 //! VCS validation, package building, tag creation, and metadata generation.
 
-use crate::vcs::{detect_vcs, ReleaseVCS, VCSMetadata};
+use crate::vcs::{ReleaseVCS, VCSMetadata, detect_vcs};
 use rez_next_common::{RezCoreConfig, RezCoreError};
-use rez_next_package::serialization::PackageSerializer;
 use rez_next_package::Package;
+use rez_next_package::serialization::PackageSerializer;
 use sha2::{Digest, Sha256};
 use std::fs;
 use std::path::{Path, PathBuf};

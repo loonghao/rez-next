@@ -23,7 +23,7 @@
 //!     --bench-json /tmp/bench.json \
 //!     --out metrics/benchmarking/RESULTS.md
 
-use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 use rez_next_package::{PackageSerializer, Requirement};
 use rez_next_rex::{RexExecutor, RexParser};
 use rez_next_version::{Version, VersionRange};

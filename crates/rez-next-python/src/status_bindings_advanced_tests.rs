@@ -10,8 +10,12 @@ static ENV_MUTEX: Mutex<()> = Mutex::new(());
 fn test_context_file_and_used_packages_both_active() {
     let _lock = ENV_MUTEX.lock().unwrap();
     unsafe {
-        std::env::set_var("REZ_CONTEXT_FILE", "/tmp/cy103_both.rxt");
-        std::env::set_var("REZ_USED_PACKAGES_NAMES", "toolA-1.0");
+        unsafe {
+            std::env::set_var("REZ_CONTEXT_FILE", "/tmp/cy103_both.rxt");
+        };
+        unsafe {
+            std::env::set_var("REZ_USED_PACKAGES_NAMES", "toolA-1.0");
+        };
     }
     let s = detect_current_status();
     assert!(s.is_active, "should be active when both env vars set");
@@ -22,8 +26,12 @@ fn test_context_file_and_used_packages_both_active() {
         s.resolved_packages
     );
     unsafe {
-        std::env::remove_var("REZ_CONTEXT_FILE");
-        std::env::remove_var("REZ_USED_PACKAGES_NAMES");
+        unsafe {
+            std::env::remove_var("REZ_CONTEXT_FILE");
+        };
+        unsafe {
+            std::env::remove_var("REZ_USED_PACKAGES_NAMES");
+        };
     }
 }
 
@@ -69,13 +77,17 @@ fn test_detect_current_status_returns_rez_status_type() {
 fn test_get_resolved_package_names_single_package() {
     let _lock = ENV_MUTEX.lock().unwrap();
     unsafe {
-        std::env::set_var("REZ_USED_PACKAGES_NAMES", "only_one_pkg-1.2.3");
+        unsafe {
+            std::env::set_var("REZ_USED_PACKAGES_NAMES", "only_one_pkg-1.2.3");
+        };
     }
     let names = get_resolved_package_names();
     assert_eq!(names.len(), 1);
     assert_eq!(names[0], "only_one_pkg-1.2.3");
     unsafe {
-        std::env::remove_var("REZ_USED_PACKAGES_NAMES");
+        unsafe {
+            std::env::remove_var("REZ_USED_PACKAGES_NAMES");
+        };
     }
 }
 
@@ -83,7 +95,9 @@ fn test_get_resolved_package_names_single_package() {
 fn test_get_rez_env_var_already_has_rez_prefix() {
     let _lock = ENV_MUTEX.lock().unwrap();
     unsafe {
-        std::env::set_var("REZ_CYCLE115_PREFIX_TEST", "hello");
+        unsafe {
+            std::env::set_var("REZ_CYCLE115_PREFIX_TEST", "hello");
+        };
     }
     let val = get_rez_env_var("REZ_CYCLE115_PREFIX_TEST");
     assert_eq!(
@@ -92,7 +106,9 @@ fn test_get_rez_env_var_already_has_rez_prefix() {
         "key with REZ_ prefix must be found as-is"
     );
     unsafe {
-        std::env::remove_var("REZ_CYCLE115_PREFIX_TEST");
+        unsafe {
+            std::env::remove_var("REZ_CYCLE115_PREFIX_TEST");
+        };
     }
 }
 
@@ -100,7 +116,9 @@ fn test_get_rez_env_var_already_has_rez_prefix() {
 fn test_rez_env_vars_not_contains_non_rez_key() {
     let _lock = ENV_MUTEX.lock().unwrap();
     unsafe {
-        std::env::set_var("CYCLE115_NON_REZ_KEY", "should_not_appear");
+        unsafe {
+            std::env::set_var("CYCLE115_NON_REZ_KEY", "should_not_appear");
+        };
     }
     let s = detect_current_status();
     assert!(
@@ -108,7 +126,9 @@ fn test_rez_env_vars_not_contains_non_rez_key() {
         "non-REZ_ key must not appear in rez_env_vars"
     );
     unsafe {
-        std::env::remove_var("CYCLE115_NON_REZ_KEY");
+        unsafe {
+            std::env::remove_var("CYCLE115_NON_REZ_KEY");
+        };
     }
 }
 
@@ -118,8 +138,12 @@ fn test_is_in_rez_context_false_when_both_vars_absent() {
     let ctx = std::env::var("REZ_CONTEXT_FILE").ok();
     let pkg = std::env::var("REZ_USED_PACKAGES_NAMES").ok();
     unsafe {
-        std::env::remove_var("REZ_CONTEXT_FILE");
-        std::env::remove_var("REZ_USED_PACKAGES_NAMES");
+        unsafe {
+            std::env::remove_var("REZ_CONTEXT_FILE");
+        };
+        unsafe {
+            std::env::remove_var("REZ_USED_PACKAGES_NAMES");
+        };
     }
     assert!(
         !is_in_rez_context(),
@@ -127,12 +151,16 @@ fn test_is_in_rez_context_false_when_both_vars_absent() {
     );
     if let Some(v) = ctx {
         unsafe {
-            std::env::set_var("REZ_CONTEXT_FILE", v);
+            unsafe {
+                std::env::set_var("REZ_CONTEXT_FILE", v);
+            };
         }
     }
     if let Some(v) = pkg {
         unsafe {
-            std::env::set_var("REZ_USED_PACKAGES_NAMES", v);
+            unsafe {
+                std::env::set_var("REZ_USED_PACKAGES_NAMES", v);
+            };
         }
     }
 }
@@ -171,7 +199,9 @@ fn test_get_resolved_package_names_empty_when_var_absent() {
     let _lock = ENV_MUTEX.lock().unwrap();
     let saved = std::env::var("REZ_USED_PACKAGES_NAMES").ok();
     unsafe {
-        std::env::remove_var("REZ_USED_PACKAGES_NAMES");
+        unsafe {
+            std::env::remove_var("REZ_USED_PACKAGES_NAMES");
+        };
     }
     let names = get_resolved_package_names();
     assert!(
@@ -180,7 +210,9 @@ fn test_get_resolved_package_names_empty_when_var_absent() {
     );
     if let Some(v) = saved {
         unsafe {
-            std::env::set_var("REZ_USED_PACKAGES_NAMES", v);
+            unsafe {
+                std::env::set_var("REZ_USED_PACKAGES_NAMES", v);
+            };
         }
     }
 }
@@ -189,7 +221,9 @@ fn test_get_resolved_package_names_empty_when_var_absent() {
 fn test_detect_current_status_rez_version_some_when_set() {
     let _lock = ENV_MUTEX.lock().unwrap();
     unsafe {
-        std::env::set_var("REZ_VERSION", "4.0.0");
+        unsafe {
+            std::env::set_var("REZ_VERSION", "4.0.0");
+        };
     }
     let s = detect_current_status();
     assert_eq!(
@@ -198,7 +232,9 @@ fn test_detect_current_status_rez_version_some_when_set() {
         "rez_version should be 4.0.0"
     );
     unsafe {
-        std::env::remove_var("REZ_VERSION");
+        unsafe {
+            std::env::remove_var("REZ_VERSION");
+        };
     }
 }
 
