@@ -210,6 +210,38 @@ impl PyPackage {
         self.0.is_dev_package = value;
     }
 
+    /// File path to the package definition file (package.py or package.yaml)
+    /// Aligns with Rez's DeveloperPackage.filepath attribute.
+    #[getter]
+    fn filepath(&self) -> Option<String> {
+        self.0.filepath.clone()
+    }
+
+    /// Set the file path
+    #[setter]
+    fn set_filepath(&mut self, path: Option<String>) {
+        self.0.filepath = path;
+    }
+
+    /// Set of included Python modules (from @include decorators)
+    /// Aligns with Rez's DeveloperPackage.includes attribute.
+    #[getter]
+    fn includes(&self) -> Option<Vec<String>> {
+        self.0.includes.as_ref().map(|set| set.iter().cloned().collect())
+    }
+
+    /// Set the includes set
+    #[setter]
+    fn set_includes(&mut self, includes: Option<Vec<String>>) {
+        self.0.includes = includes.map(|v| v.into_iter().collect());
+    }
+
+    /// Get the root directory of the package (parent of filepath).
+    /// Aligns with Rez's DeveloperPackage.root property.
+    fn root(&self) -> Option<String> {
+        self.0.root()
+    }
+
     /// Set the version string (rez compat helper)
     fn set_version(&mut self, version_str: &str) -> PyResult<()> {
         use rez_next_version::Version;
@@ -225,9 +257,15 @@ impl PyPackage {
         use rez_next_package::serialization::PackageSerializer;
         use std::path::PathBuf;
 
-        PackageSerializer::load_from_file(&PathBuf::from(path))
+        let path_buf = PathBuf::from(path);
+        let mut pkg = PackageSerializer::load_from_file(&path_buf)
             .map(PyPackage)
-            .map_err(|e| pyo3::exceptions::PyIOError::new_err(e.to_string()))
+            .map_err(|e| pyo3::exceptions::PyIOError::new_err(e.to_string()))?;
+
+        // Set filepath to track where the package was loaded from
+        pkg.0.filepath = Some(path_buf.to_string_lossy().to_string());
+
+        Ok(pkg)
     }
 
     /// Create a Package from a Python dictionary.

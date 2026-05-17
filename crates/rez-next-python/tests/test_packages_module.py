@@ -529,5 +529,75 @@ class TestGetLastReleaseTime:
     # For now, we just verify the function can be called and returns the right type
 
 
+class TestPackageLoadAndProperties:
+    """Tests for Package.load() and new properties."""
+
+    def test_load_sets_filepath(self, tmp_path):
+        """Test that Package.load() sets filepath attribute."""
+        pkg_file = tmp_path / "package.py"
+        pkg_file.write_text("""
+name = "load_test"
+version = "1.0.0"
+description = "Test load sets filepath"
+""")
+
+        pkg = Package.load(str(pkg_file))
+
+        assert pkg is not None
+        assert pkg.name == "load_test"
+        assert pkg.filepath is not None
+        assert str(pkg.filepath).endswith("package.py")
+
+    def test_filepath_getter_setter(self):
+        """Test filepath getter and setter."""
+        pkg = Package("test_pkg")
+
+        # Default is None
+        assert pkg.filepath is None
+
+        # Set filepath
+        pkg.filepath = "/path/to/package.py"
+        assert pkg.filepath == "/path/to/package.py"
+
+        # Set to None
+        pkg.filepath = None
+        assert pkg.filepath is None
+
+    def test_includes_getter_setter(self):
+        """Test includes getter and setter."""
+        pkg = Package("test_pkg")
+
+        # Default is None
+        assert pkg.includes is None
+
+        # Set includes
+        pkg.includes = ["module1", "module2"]
+        assert pkg.includes == ["module1", "module2"]
+
+        # Set to None
+        pkg.includes = None
+        assert pkg.includes is None
+
+    def test_root_method(self, tmp_path):
+        """Test root() method returns parent directory of filepath."""
+        pkg_file = tmp_path / "package.py"
+        pkg_file.write_text("""
+name = "root_test"
+version = "1.0.0"
+""")
+
+        pkg = Package.load(str(pkg_file))
+
+        assert pkg.filepath is not None
+        root = pkg.root()
+        assert root is not None
+        assert root == str(tmp_path)
+
+    def test_root_returns_none_when_no_filepath(self):
+        """Test root() returns None when filepath is not set."""
+        pkg = Package("test_pkg")
+        assert pkg.root() is None
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
