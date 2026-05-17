@@ -2,6 +2,7 @@
 name = "rez-next-explicit"
 version = "0.1.0"
 edition = "2021"
+rust-version = "1.95.0"
 description = "Explicit package support for rez-next"
 authors = ["loonghao"]
 license = "Apache-2.0"

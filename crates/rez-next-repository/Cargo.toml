@@ -2,6 +2,7 @@
 name = "rez-next-repository"
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 authors.workspace = true
 description = "Repository scanning and caching for Rez Core"
 license.workspace = true

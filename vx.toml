@@ -3,7 +3,7 @@ cargo-llvm-cov = "latest"
 just = "latest"
 maturin = "latest"
 python = "3.14.4"
-rust = "stable"
+rust = "1.95.0"
 uv = "latest"
 
 [settings]

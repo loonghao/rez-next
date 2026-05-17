@@ -2,6 +2,7 @@
 name = "rez-next-bind"
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 authors.workspace = true
 description = "rez bind implementation for rez-next - bind system tools as rez packages"
 license.workspace = true

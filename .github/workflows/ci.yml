@@ -30,7 +30,7 @@ jobs:
           tools: "just"
           cache: "true"
           github-token: ${{ secrets.GITHUB_TOKEN }}
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@1.95.0
         with:
           components: rustfmt
       - run: vx just fmt-check
@@ -45,7 +45,7 @@ jobs:
           tools: "just"
           cache: "true"
           github-token: ${{ secrets.GITHUB_TOKEN }}
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@1.95.0
         with:
           components: clippy
       - uses: Swatinem/rust-cache@v2
@@ -61,14 +61,14 @@ jobs:
           tools: "just"
           cache: "true"
           github-token: ${{ secrets.GITHUB_TOKEN }}
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@1.95.0
       - uses: Swatinem/rust-cache@v2
       - run: vx just doc-check
         env:
           RUSTDOCFLAGS: "-D warnings"
 
-  test-stable:
-    name: Test - stable
+  test-rust-1-95:
+    name: Test - Rust 1.95.0
 
     runs-on: ubuntu-latest
     steps:
@@ -78,7 +78,7 @@ jobs:
           tools: "just"
           cache: "true"
           github-token: ${{ secrets.GITHUB_TOKEN }}
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@1.95.0
       - uses: Swatinem/rust-cache@v2
       - run: vx cargo test --workspace --exclude rez-next-python
 
@@ -92,7 +92,7 @@ jobs:
           tools: "just"
           cache: "true"
           github-token: ${{ secrets.GITHUB_TOKEN }}
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@1.95.0
       - uses: Swatinem/rust-cache@v2
         with:
           key: cli-e2e-v4
@@ -103,7 +103,7 @@ jobs:
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v6
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@1.95.0
       - uses: Swatinem/rust-cache@v2
       - run: cargo test --workspace --exclude rez-next-python
 
@@ -112,7 +112,7 @@ jobs:
     runs-on: windows-2025
     steps:
       - uses: actions/checkout@v6
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@1.95.0
         with:
           targets: x86_64-pc-windows-msvc
       - uses: Swatinem/rust-cache@v2
@@ -123,7 +123,7 @@ jobs:
     runs-on: windows-2025
     steps:
       - uses: actions/checkout@v6
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@1.95.0
         with:
           targets: x86_64-pc-windows-gnu
       - uses: Swatinem/rust-cache@v2
@@ -146,7 +146,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@1.95.0
         with:
           components: llvm-tools-preview
       - uses: Swatinem/rust-cache@v2
@@ -169,7 +169,7 @@ jobs:
         python-version: ["3.9", "3.11", "3.12"]
     steps:
       - uses: actions/checkout@v6
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@1.95.0
       - uses: Swatinem/rust-cache@v2
         with:
           key: python-binding-${{ matrix.python-version }}

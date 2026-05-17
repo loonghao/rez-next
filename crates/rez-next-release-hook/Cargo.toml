@@ -2,6 +2,7 @@
 name = "rez-next-release-hook"
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 authors.workspace = true
 license.workspace = true
 description = "Release hook system for rez-next"

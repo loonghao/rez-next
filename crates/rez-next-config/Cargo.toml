@@ -2,6 +2,7 @@
 name = "rez-next-config"
 version = "0.3.0"
 edition = "2021"
+rust-version = "1.95.0"
 authors = ["LongHao <hal.long@outlook.com>"]
 license = "Apache-2.0"
 description = "Configuration management for Rez package manager"

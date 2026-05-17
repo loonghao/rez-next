@@ -2,6 +2,7 @@
 name = "rez-next-suites"
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 authors.workspace = true
 description = "Suite management for Rez Next - manages collections of resolved contexts"
 license.workspace = true

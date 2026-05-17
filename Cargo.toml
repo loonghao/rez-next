@@ -28,6 +28,7 @@ resolver = "2"
 [workspace.package]
 version = "0.3.0"
 edition = "2021"
+rust-version = "1.95.0"
 authors = ["LongHao <hal.long@outlook.com>"]
 license = "Apache-2.0"
 repository = "https://github.com/loonghao/rez-next"
@@ -58,6 +59,7 @@ tempfile = "3.20"
 name = "rez-next"
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 authors.workspace = true
 description = "Next-generation Rez package manager written in Rust"
 license.workspace = true

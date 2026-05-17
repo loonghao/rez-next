@@ -2,6 +2,7 @@
 name = "rez-next-package"
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 authors.workspace = true
 description = "Advanced package management with complete package.py parsing and 100% Rez compatibility"
 license.workspace = true

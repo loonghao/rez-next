@@ -2,6 +2,7 @@
 name = "rez-next-version"
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 authors.workspace = true
 description = "Ultra-fast version parsing and comparison with 117x performance improvement - core component of Rez-Next"
 license.workspace = true
