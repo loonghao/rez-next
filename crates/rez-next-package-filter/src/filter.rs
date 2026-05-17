@@ -183,7 +183,12 @@ impl PackageFilter {
         let repr = format!("{}", self);
         hasher.update(repr.as_bytes());
 
-        let result = format!("{:x}", hasher.finalize());
+        let result = hasher
+            .finalize()
+            .iter()
+            .map(|byte| format!("{byte:02x}"))
+            .collect::<Vec<_>>()
+            .join("");
         // Note: can't mutate self here because of borrowing
         // Cache will be populated on next call after a mutable operation
         result

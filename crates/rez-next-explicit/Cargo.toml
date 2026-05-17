@@ -12,7 +12,7 @@ rez-next-common = { path = "../rez-next-common" }
 rez-next-package = { path = "../rez-next-package" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-thiserror = "1.0"
+thiserror = "2.0"
 
 [dev-dependencies]
 tempfile = "3.0"

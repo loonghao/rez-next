@@ -5,7 +5,7 @@
 use crate::{
     BenchmarkResult, IntelligentCacheManager, PerformanceMonitor, UnifiedCache, UnifiedCacheConfig,
 };
-use rand::Rng;
+use rand::RngExt;
 use std::{sync::Arc, time::Duration};
 use tokio::time::sleep;
 
