@@ -15,14 +15,14 @@ pub fn is_valid_identifier(s: &str) -> bool {
     if s.is_empty() {
         return false;
     }
-    
+
     let mut chars = s.chars();
     let first = chars.next().unwrap();
-    
+
     if !first.is_alphabetic() && first != '_' {
         return false;
     }
-    
+
     chars.all(|c| c.is_alphanumeric() || c == '_')
 }
 
@@ -50,13 +50,19 @@ pub fn indent(s: &str, spaces: usize) -> String {
 pub fn to_python_identifier(s: &str) -> String {
     // Replace hyphens and spaces with underscores
     let s = s.replace(['-', ' '], "_");
-    
+
     // Remove any characters that are not alphanumeric or underscore
     let s: String = s
         .chars()
-        .map(|c| if c.is_alphanumeric() || c == '_' { c } else { '_' })
+        .map(|c| {
+            if c.is_alphanumeric() || c == '_' {
+                c
+            } else {
+                '_'
+            }
+        })
         .collect();
-    
+
     // Ensure it starts with a letter or underscore
     if s.is_empty() || !s.chars().next().unwrap().is_alphabetic() {
         format!("_{}", s)
@@ -136,7 +142,10 @@ mod tests {
     fn test_format_list() {
         assert_eq!(format_list::<String>(&[], "and"), "");
         assert_eq!(format_list(&["a".to_string()], "and"), "a");
-        assert_eq!(format_list(&["a".to_string(), "b".to_string()], "and"), "a and b");
+        assert_eq!(
+            format_list(&["a".to_string(), "b".to_string()], "and"),
+            "a and b"
+        );
         assert_eq!(
             format_list(&["a".to_string(), "b".to_string(), "c".to_string()], "and"),
             "a, b, and c"

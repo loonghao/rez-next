@@ -529,26 +529,34 @@ mod test_conflict_severity {
 
     #[test]
     fn test_conflict_severity_minor() {
-        let sev = PyConflictSeverity { inner: ConflictSeverity::Minor };
+        let sev = PyConflictSeverity {
+            inner: ConflictSeverity::Minor,
+        };
         assert_eq!(sev.name(), "Minor");
         assert!(sev.__repr__().contains("Minor"));
     }
 
     #[test]
     fn test_conflict_severity_major() {
-        let sev = PyConflictSeverity { inner: ConflictSeverity::Major };
+        let sev = PyConflictSeverity {
+            inner: ConflictSeverity::Major,
+        };
         assert_eq!(sev.name(), "Major");
     }
 
     #[test]
     fn test_conflict_severity_incompatible() {
-        let sev = PyConflictSeverity { inner: ConflictSeverity::Incompatible };
+        let sev = PyConflictSeverity {
+            inner: ConflictSeverity::Incompatible,
+        };
         assert_eq!(sev.name(), "Incompatible");
     }
 
     #[test]
     fn test_conflict_severity_repr() {
-        let sev = PyConflictSeverity { inner: ConflictSeverity::Major };
+        let sev = PyConflictSeverity {
+            inner: ConflictSeverity::Major,
+        };
         let repr = sev.__repr__();
         assert!(repr.contains("ConflictSeverity"));
         assert!(repr.contains("Major"));
@@ -556,9 +564,15 @@ mod test_conflict_severity {
 
     #[test]
     fn test_conflict_severity_equality() {
-        let a = PyConflictSeverity { inner: ConflictSeverity::Minor };
-        let b = PyConflictSeverity { inner: ConflictSeverity::Minor };
-        let c = PyConflictSeverity { inner: ConflictSeverity::Major };
+        let a = PyConflictSeverity {
+            inner: ConflictSeverity::Minor,
+        };
+        let b = PyConflictSeverity {
+            inner: ConflictSeverity::Minor,
+        };
+        let c = PyConflictSeverity {
+            inner: ConflictSeverity::Major,
+        };
         // Note: __eq__ needs Python GIL, so we just test name() for now
         assert_eq!(a.name(), b.name());
         assert_ne!(a.name(), c.name());
@@ -570,12 +584,8 @@ mod test_dependency_conflict {
 
     #[test]
     fn test_dependency_conflict_new() {
-        let conflict = PyDependencyConflict::new(
-            "python".to_string(),
-            None,
-            None,
-            "Major",
-        ).unwrap();
+        let conflict =
+            PyDependencyConflict::new("python".to_string(), None, None, "Major").unwrap();
         assert_eq!(conflict.package_name(), "python");
     }
 
@@ -586,7 +596,8 @@ mod test_dependency_conflict {
             None,
             Some(vec!["pkg_a".to_string(), "pkg_b".to_string()]),
             "Minor",
-        ).unwrap();
+        )
+        .unwrap();
         assert_eq!(conflict.package_name(), "maya");
         assert_eq!(conflict.source_packages().len(), 2);
     }
@@ -598,7 +609,8 @@ mod test_dependency_conflict {
             None,
             Some(vec!["src1".to_string()]),
             "Major",
-        ).unwrap();
+        )
+        .unwrap();
         let repr = conflict.__repr__();
         assert!(repr.contains("python"));
         assert!(repr.contains("src1"));
@@ -606,12 +618,8 @@ mod test_dependency_conflict {
 
     #[test]
     fn test_dependency_conflict_severity() {
-        let conflict = PyDependencyConflict::new(
-            "test".to_string(),
-            None,
-            None,
-            "Incompatible",
-        ).unwrap();
+        let conflict =
+            PyDependencyConflict::new("test".to_string(), None, None, "Incompatible").unwrap();
         let sev = conflict.severity();
         assert_eq!(sev.name(), "Incompatible");
     }
@@ -622,12 +630,7 @@ mod test_conflict_resolution {
 
     #[test]
     fn test_conflict_resolution_new() {
-        let resolution = PyConflictResolution::new(
-            "python".to_string(),
-            None,
-            None,
-            None,
-        ).unwrap();
+        let resolution = PyConflictResolution::new("python".to_string(), None, None, None).unwrap();
         assert_eq!(resolution.package_name(), "python");
         assert_eq!(resolution.strategy(), "");
     }
@@ -639,7 +642,8 @@ mod test_conflict_resolution {
             Some("3.9".to_string()),
             Some("latest_wins".to_string()),
             Some(vec!["pkg_a".to_string()]),
-        ).unwrap();
+        )
+        .unwrap();
         assert_eq!(resolution.package_name(), "python");
         assert!(resolution.selected_version().is_some());
         assert_eq!(resolution.strategy(), "latest_wins");
@@ -653,7 +657,8 @@ mod test_conflict_resolution {
             Some("2024".to_string()),
             Some("earliest_wins".to_string()),
             None,
-        ).unwrap();
+        )
+        .unwrap();
         let repr = resolution.__repr__();
         assert!(repr.contains("maya"));
         assert!(repr.contains("2024"));
@@ -666,7 +671,8 @@ mod test_conflict_resolution {
             None,
             Some("find_compatible".to_string()),
             None,
-        ).unwrap();
+        )
+        .unwrap();
         assert!(resolution.modified_packages().is_empty());
     }
 }

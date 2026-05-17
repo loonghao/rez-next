@@ -3,7 +3,9 @@
 //! Covers: env-var generation, PATH prepend, multi-repo priority/shadowing,
 //! tools round-trip, empty-repo safety, description special-chars, and full E2E pipeline.
 use rez_next_package::{Package, Requirement};
-use rez_next_repository::simple_repository::{PackageRepository, RepositoryManager, SimpleRepository};
+use rez_next_repository::simple_repository::{
+    PackageRepository, RepositoryManager, SimpleRepository,
+};
 use rez_next_solver::{DependencyResolver, SolverConfig};
 use std::fs;
 use std::sync::Arc;

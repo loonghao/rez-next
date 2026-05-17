@@ -3,8 +3,8 @@
 use crate::version_bindings::PyVersion;
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
-use rez_next_package::{Package, PackageRequirement};
 use rez_next_package::serialization::PackageFormat;
+use rez_next_package::{Package, PackageRequirement};
 
 /// Python-accessible Package class, compatible with rez.packages.Package
 #[pyclass(name = "Package", from_py_object)]
@@ -227,7 +227,10 @@ impl PyPackage {
     /// Aligns with Rez's DeveloperPackage.includes attribute.
     #[getter]
     fn includes(&self) -> Option<Vec<String>> {
-        self.0.includes.as_ref().map(|set| set.iter().cloned().collect())
+        self.0
+            .includes
+            .as_ref()
+            .map(|set| set.iter().cloned().collect())
     }
 
     /// Set the includes set
@@ -281,13 +284,12 @@ impl PyPackage {
 
         // Extract required field: name
         let name = match data.get_item("name")? {
-            Some(val) => val.extract::<String>()
-                .map_err(|e| pyo3::exceptions::PyValueError::new_err(
-                    format!("Invalid 'name' field: {}", e)
-                ))?,
+            Some(val) => val.extract::<String>().map_err(|e| {
+                pyo3::exceptions::PyValueError::new_err(format!("Invalid 'name' field: {}", e))
+            })?,
             None => {
                 return Err(pyo3::exceptions::PyValueError::new_err(
-                    "Package dict must contain 'name' field"
+                    "Package dict must contain 'name' field",
                 ))
             }
         };
@@ -296,16 +298,15 @@ impl PyPackage {
 
         // Extract optional fields
         if let Some(val) = data.get_item("version")? {
-            let version_str: String = val.extract()
-                .map_err(|e| pyo3::exceptions::PyValueError::new_err(
-                    format!("Invalid 'version' field: {}", e)
-                ))?;
-            pkg.version = Some(
-                Version::parse(&version_str)
-                    .map_err(|e| pyo3::exceptions::PyValueError::new_err(
-                        format!("Failed to parse version '{}': {}", version_str, e)
-                    ))?
-            );
+            let version_str: String = val.extract().map_err(|e| {
+                pyo3::exceptions::PyValueError::new_err(format!("Invalid 'version' field: {}", e))
+            })?;
+            pkg.version = Some(Version::parse(&version_str).map_err(|e| {
+                pyo3::exceptions::PyValueError::new_err(format!(
+                    "Failed to parse version '{}': {}",
+                    version_str, e
+                ))
+            })?);
         }
 
         if let Some(val) = data.get_item("description")? {
@@ -458,13 +459,12 @@ impl PyPackage {
         use std::path::PathBuf;
 
         let path_buf = PathBuf::from(path);
-        let format = PackageFormat::from_extension(&path_buf)
-            .ok_or_else(|| {
-                pyo3::exceptions::PyValueError::new_err(format!(
-                    "Cannot detect format from path: {}",
-                    path
-                ))
-            })?;
+        let format = PackageFormat::from_extension(&path_buf).ok_or_else(|| {
+            pyo3::exceptions::PyValueError::new_err(format!(
+                "Cannot detect format from path: {}",
+                path
+            ))
+        })?;
 
         PackageSerializer::save_to_file(&self.0, &path_buf, format)
             .map_err(|e| pyo3::exceptions::PyIOError::new_err(e.to_string()))
@@ -505,7 +505,10 @@ impl PyPackage {
             dict.set_item("build_requires", self.0.build_requires.clone())?;
         }
         if !self.0.private_build_requires.is_empty() {
-            dict.set_item("private_build_requires", self.0.private_build_requires.clone())?;
+            dict.set_item(
+                "private_build_requires",
+                self.0.private_build_requires.clone(),
+            )?;
         }
         if !self.0.variants.is_empty() {
             dict.set_item("variants", self.0.variants.clone())?;
@@ -594,7 +597,10 @@ impl PyPackage {
         if !self.0.build_requires.is_empty() {
             lines.push("".to_string());
             if self.0.build_requires.len() == 1 {
-                lines.push(format!("build_requires = [\"{}\"]", self.0.build_requires[0]));
+                lines.push(format!(
+                    "build_requires = [\"{}\"]",
+                    self.0.build_requires[0]
+                ));
             } else {
                 lines.push("build_requires = [".to_string());
                 for req in &self.0.build_requires {
@@ -744,13 +750,9 @@ pub fn save_package_to_file(package: &PyPackage, path: &str) -> PyResult<()> {
     use std::path::PathBuf;
 
     let path_buf = PathBuf::from(path);
-    let format = PackageFormat::from_extension(&path_buf)
-        .ok_or_else(|| {
-            pyo3::exceptions::PyValueError::new_err(format!(
-                "Cannot detect format from path: {}",
-                path
-            ))
-        })?;
+    let format = PackageFormat::from_extension(&path_buf).ok_or_else(|| {
+        pyo3::exceptions::PyValueError::new_err(format!("Cannot detect format from path: {}", path))
+    })?;
 
     PackageSerializer::save_to_file(&package.0, &path_buf, format)
         .map_err(|e| pyo3::exceptions::PyIOError::new_err(e.to_string()))

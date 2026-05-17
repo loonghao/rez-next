@@ -24,11 +24,18 @@ impl PackageLoader {
         // Special handling for binary format: read JSON bytes from file and deserialize
         if format == PackageFormat::Binary {
             let binary_data = fs::read(path).map_err(|e| {
-                RezCoreError::PackageParse(format!("Failed to read binary file {}: {}", path.display(), e))
+                RezCoreError::PackageParse(format!(
+                    "Failed to read binary file {}: {}",
+                    path.display(),
+                    e
+                ))
             })?;
             let json_str = String::from_utf8_lossy(&binary_data);
             let package: Package = serde_json::from_str(&json_str).map_err(|e| {
-                RezCoreError::PackageParse(format!("Failed to deserialize from binary (JSON): {}", e))
+                RezCoreError::PackageParse(format!(
+                    "Failed to deserialize from binary (JSON): {}",
+                    e
+                ))
             })?;
             let mut metadata = PackageMetadata::new(format.default_filename().to_string());
             metadata.set_original_path(path.to_string_lossy().to_string());

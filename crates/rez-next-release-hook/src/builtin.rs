@@ -3,8 +3,8 @@
 //! This module provides sample hooks that can be used for testing
 //! or as references for custom hook implementations.
 
-use std::path::PathBuf;
 use crate::{ReleaseHook, Result};
+use std::path::PathBuf;
 
 /// Configuration for EmailHook.
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
@@ -416,7 +416,7 @@ mod tests {
         // Note: This test verifies the function runs without panic
         // The global registry is shared, so we can't easily assert registration
         register_builtin_hooks();
-        
+
         let types = crate::get_release_hook_types();
         // After registration, "noop", "logging", "email", "webhook" should be available
         assert!(types.contains(&"noop".to_string()));

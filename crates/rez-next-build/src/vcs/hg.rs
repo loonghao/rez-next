@@ -7,7 +7,7 @@ use rez_next_common::RezCoreError;
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-/// Parse timestamp from hgdate format: "(<unix_timestamp>, <offset>)"
+/// Parse timestamp from hgdate format: `"(<unix_timestamp>, <offset>)"`.
 ///
 /// # Arguments
 /// * `date_line` - A string in hgdate format, e.g., "(1706745600, 0)"
@@ -230,11 +230,7 @@ impl super::ReleaseVCS for MercurialVCS {
             "tags": tags,
         });
 
-        let mut revision = super::VCSRevision::with_data(
-            "hg",
-            revision_id,
-            data,
-        );
+        let mut revision = super::VCSRevision::with_data("hg", revision_id, data);
         revision.metadata = metadata;
 
         Ok(revision)
@@ -243,14 +239,19 @@ impl super::ReleaseVCS for MercurialVCS {
     /// Export the repository at the given revision to the given path.
     ///
     /// Uses `hg archive -r <rev> <path>` to export.
-    fn export(&self, revision: &super::VCSRevision, path: &std::path::Path) -> Result<(), RezCoreError> {
+    fn export(
+        &self,
+        revision: &super::VCSRevision,
+        path: &std::path::Path,
+    ) -> Result<(), RezCoreError> {
         use std::fs;
 
         // Validate target path
         if path.exists() {
-            return Err(RezCoreError::BuildError(
-                format!("Export path '{}' already exists", path.display())
-            ));
+            return Err(RezCoreError::BuildError(format!(
+                "Export path '{}' already exists",
+                path.display()
+            )));
         }
 
         // Create target directory

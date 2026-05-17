@@ -34,7 +34,11 @@ impl PyRequirementList {
     }
 
     /// Get all requirements for a package.
-    fn get_requirements<'py>(&self, py: Python<'py>, package_name: &str) -> PyResult<Bound<'py, PyAny>> {
+    fn get_requirements<'py>(
+        &self,
+        py: Python<'py>,
+        package_name: &str,
+    ) -> PyResult<Bound<'py, PyAny>> {
         let requirements = self.inner.get_requirements(package_name);
         let py_list = PyList::empty(py);
         for req in requirements {
@@ -56,10 +60,7 @@ impl PyRequirementList {
 
     /// String representation.
     fn __repr__(&self) -> String {
-        format!(
-            "<RequirementList packages={}>",
-            self.inner.len()
-        )
+        format!("<RequirementList packages={}>", self.inner.len())
     }
 }
 

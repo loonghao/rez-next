@@ -281,7 +281,10 @@ impl PackageCache {
     }
 
     /// Create with custom configuration.
-    pub fn with_config<P: AsRef<Path>>(path: P, config: CacheConfig) -> Result<Self, PackageCacheError> {
+    pub fn with_config<P: AsRef<Path>>(
+        path: P,
+        config: CacheConfig,
+    ) -> Result<Self, PackageCacheError> {
         let mut cache = Self::new(path)?;
         cache.config = config;
         Ok(cache)
@@ -341,10 +344,7 @@ impl PackageCache {
     /// # Returns
     ///
     /// `(CacheStatus, Option<PathBuf>)` - status and path if found.
-    pub fn get_cached_root(
-        &self,
-        handle: &VariantHandle,
-    ) -> (CacheStatus, Option<PathBuf>) {
+    pub fn get_cached_root(&self, handle: &VariantHandle) -> (CacheStatus, Option<PathBuf>) {
         let hash_path = self.hash_path(handle);
 
         if !hash_path.is_dir() {
@@ -373,9 +373,10 @@ impl PackageCache {
 
                 if metadata.handle.hashable_repr() == handle.hashable_repr() {
                     // Check for .copying file (still copying)
-                    let copying_flag = json_path.with_file_name(
-                        format!(".copying-{}", payload_path.file_name().unwrap().to_string_lossy()),
-                    );
+                    let copying_flag = json_path.with_file_name(format!(
+                        ".copying-{}",
+                        payload_path.file_name().unwrap().to_string_lossy()
+                    ));
 
                     if copying_flag.is_file() {
                         // Check if stalled
@@ -461,7 +462,10 @@ impl PackageCache {
         File::create(&copying_flag)?;
 
         // Create metadata
-        let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
         let source_size = Self::directory_size(source_root)?;
         let metadata = CachedVariantInfo {
             handle: handle.clone(),
@@ -487,10 +491,7 @@ impl PackageCache {
     ///
     /// Moves the payload to the to_delete directory; actual deletion
     /// happens during `clean()`.
-    pub fn remove_variant(
-        &self,
-        handle: &VariantHandle,
-    ) -> (CacheStatus, Option<PathBuf>) {
+    pub fn remove_variant(&self, handle: &VariantHandle) -> (CacheStatus, Option<PathBuf>) {
         let (status, cached_path) = self.get_cached_root(handle);
 
         match status {
@@ -501,9 +502,11 @@ impl PackageCache {
             }
             CacheStatus::Found => {
                 if let Some(ref path) = cached_path {
-                    let dest = self.to_delete_dir().join(
-                        format!("{}-{}", handle.name, uuid::Uuid::new_v4()),
-                    );
+                    let dest = self.to_delete_dir().join(format!(
+                        "{}-{}",
+                        handle.name,
+                        uuid::Uuid::new_v4()
+                    ));
 
                     // Move to to_delete
                     if fs::rename(path, &dest).is_err() {
@@ -534,7 +537,13 @@ impl PackageCache {
         if let Ok(pkg_entries) = fs::read_dir(&self.root) {
             for pkg_entry in pkg_entries.flatten() {
                 let pkg_path = pkg_entry.path();
-                if !pkg_path.is_dir() || pkg_path.file_name().unwrap().to_string_lossy().starts_with('.') {
+                if !pkg_path.is_dir()
+                    || pkg_path
+                        .file_name()
+                        .unwrap()
+                        .to_string_lossy()
+                        .starts_with('.')
+                {
                     continue;
                 }
 
@@ -556,7 +565,9 @@ impl PackageCache {
                                 if let Ok(meta_entries) = fs::read_dir(&hash_path) {
                                     for meta_entry in meta_entries.flatten() {
                                         let meta_path = meta_entry.path();
-                                        if meta_path.extension().and_then(|s| s.to_str()) == Some("json") {
+                                        if meta_path.extension().and_then(|s| s.to_str())
+                                            == Some("json")
+                                        {
                                             if let Ok(metadata) = Self::read_metadata(&meta_path) {
                                                 let payload_path = meta_path.with_extension("");
                                                 let status = if payload_path.is_dir() {
@@ -564,7 +575,11 @@ impl PackageCache {
                                                 } else {
                                                     CacheStatus::Pending
                                                 };
-                                                results.push((metadata.handle, payload_path, status));
+                                                results.push((
+                                                    metadata.handle,
+                                                    payload_path,
+                                                    status,
+                                                ));
                                             }
                                         }
                                     }
@@ -610,7 +625,10 @@ impl PackageCache {
 
         // Clean old entries
         if let Some(max_age) = self.config.max_age_secs {
-            let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
+            let now = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_secs();
 
             for (handle, path, status) in self.list_cached() {
                 if Self::check_time_limit(start, time_limit_secs) {
@@ -727,7 +745,8 @@ impl PackageCache {
         let mut total = 0u64;
 
         #[cfg(unix)]
-        let mut seen_inodes: std::collections::HashSet<(u64, u64)> = std::collections::HashSet::new();
+        let mut seen_inodes: std::collections::HashSet<(u64, u64)> =
+            std::collections::HashSet::new();
 
         let mut stack = vec![path.to_path_buf()];
 
@@ -816,7 +835,10 @@ impl PackageCache {
             if dir.file_name().unwrap().to_string_lossy().starts_with('.') {
                 break;
             }
-            if fs::read_dir(dir).map(|mut d| d.next().is_some()).unwrap_or(true) {
+            if fs::read_dir(dir)
+                .map(|mut d| d.next().is_some())
+                .unwrap_or(true)
+            {
                 break;
             }
             let _ = fs::remove_dir(dir);
@@ -995,14 +1017,8 @@ mod tests {
 
     #[test]
     fn test_cache_status_description() {
-        assert_eq!(
-            CacheStatus::Found.description(),
-            "was found"
-        );
-        assert_eq!(
-            CacheStatus::NotFound.description(),
-            "was not found"
-        );
+        assert_eq!(CacheStatus::Found.description(), "was found");
+        assert_eq!(CacheStatus::NotFound.description(), "was not found");
     }
 
     #[test]

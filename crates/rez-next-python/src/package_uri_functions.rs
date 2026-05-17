@@ -3,7 +3,7 @@
 //! Implements: get_package_from_uri, get_variant_from_uri
 
 use pyo3::prelude::*;
-use pyo3::types::{PyDict, PyAny};
+use pyo3::types::{PyAny, PyDict};
 use std::path::Path;
 
 use crate::package_bindings::PyPackage;
@@ -54,7 +54,9 @@ pub fn get_package_from_uri(
         let version_str = parts[parts.len() - 2];
 
         // Try to get package by name and version
-        if let Ok(Some(pkg)) = get_package_by_name_and_version(pkg_name, version_str, &repo_manager, rt) {
+        if let Ok(Some(pkg)) =
+            get_package_by_name_and_version(pkg_name, version_str, &repo_manager, rt)
+        {
             return Ok(Some(PyPackage(pkg)));
         }
     }
@@ -124,13 +126,11 @@ fn get_latest_package_by_name(
         .map_err(|e| e.to_string())?;
 
     // Sort by version descending
-    packages.sort_by(|a, b| {
-        match (&a.version, &b.version) {
-            (Some(v1), Some(v2)) => v2.cmp(v1),
-            (Some(_), None) => std::cmp::Ordering::Less,
-            (None, Some(_)) => std::cmp::Ordering::Greater,
-            (None, None) => std::cmp::Ordering::Equal,
-        }
+    packages.sort_by(|a, b| match (&a.version, &b.version) {
+        (Some(v1), Some(v2)) => v2.cmp(v1),
+        (Some(_), None) => std::cmp::Ordering::Less,
+        (None, Some(_)) => std::cmp::Ordering::Greater,
+        (None, None) => std::cmp::Ordering::Equal,
     });
 
     Ok(packages.into_iter().next().map(|p| (*p).clone()))
@@ -159,7 +159,11 @@ fn find_package_in_path(
     }
 
     // If path itself is a package file
-    if path.exists() && (path.ends_with("package.py") || path.ends_with("package.yaml") || path.ends_with("package.json")) {
+    if path.exists()
+        && (path.ends_with("package.py")
+            || path.ends_with("package.yaml")
+            || path.ends_with("package.json"))
+    {
         if let Ok(pkg) = PackageSerializer::load_from_file(&path) {
             return Ok(Some(pkg));
         }
@@ -173,7 +177,7 @@ fn find_package_in_path(
 /// Equivalent to `rez.packages.get_variant_from_uri(uri, paths=None)`.
 ///
 /// Returns a `Variant` object, or `None` if not found.
-/// 
+///
 /// Note: This is a simplified implementation. Full variant support
 /// requires additional work on the variant system.
 #[pyfunction]
@@ -257,7 +261,11 @@ pub fn get_package_from_handle(
     let path = Path::new(&path_str);
 
     // Check if it's a direct package file
-    if path.exists() && (path.ends_with("package.py") || path.ends_with("package.yaml") || path.ends_with("package.json")) {
+    if path.exists()
+        && (path.ends_with("package.py")
+            || path.ends_with("package.yaml")
+            || path.ends_with("package.json"))
+    {
         if let Ok(pkg) = PackageSerializer::load_from_file(path) {
             return Ok(Some(PyPackage(pkg)));
         }

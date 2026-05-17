@@ -20,9 +20,7 @@ impl GitVCS {
     pub fn new(repo_root: PathBuf) -> Result<Self, RezCoreError> {
         // Verify this is a git repository
         if !repo_root.join(".git").exists() {
-            return Err(RezCoreError::BuildError(
-                "Not a git repository".to_string(),
-            ));
+            return Err(RezCoreError::BuildError("Not a git repository".to_string()));
         }
 
         Ok(Self { repo_root })
@@ -139,9 +137,9 @@ impl super::ReleaseVCS for GitVCS {
             RezCoreError::BuildError(format!("Failed to open git repository: {}", e))
         })?;
 
-        let head = repo.head().map_err(|e| {
-            RezCoreError::BuildError(format!("Failed to get HEAD: {}", e))
-        })?;
+        let head = repo
+            .head()
+            .map_err(|e| RezCoreError::BuildError(format!("Failed to get HEAD: {}", e)))?;
 
         // Check if HEAD is a branch reference
         if head.is_branch() {
@@ -170,13 +168,13 @@ impl super::ReleaseVCS for GitVCS {
             ))
         })?;
 
-        let head = repo.head().map_err(|e| {
-            RezCoreError::BuildError(format!("Failed to get HEAD: {}", e))
-        })?;
+        let head = repo
+            .head()
+            .map_err(|e| RezCoreError::BuildError(format!("Failed to get HEAD: {}", e)))?;
 
-        let commit = head.peel_to_commit().map_err(|e| {
-            RezCoreError::BuildError(format!("Failed to get commit: {}", e))
-        })?;
+        let commit = head
+            .peel_to_commit()
+            .map_err(|e| RezCoreError::BuildError(format!("Failed to get commit: {}", e)))?;
 
         Ok(commit.id().to_string())
     }
@@ -288,12 +286,12 @@ impl super::ReleaseVCS for GitVCS {
         })?;
 
         // Walk commits from to to from
-        let mut revwalk = repo.revwalk().map_err(|e| {
-            RezCoreError::BuildError(format!("Failed to create revwalk: {}", e))
-        })?;
-        revwalk.push(to_obj.id()).map_err(|e| {
-            RezCoreError::BuildError(format!("Failed to push to revwalk: {}", e))
-        })?;
+        let mut revwalk = repo
+            .revwalk()
+            .map_err(|e| RezCoreError::BuildError(format!("Failed to create revwalk: {}", e)))?;
+        revwalk
+            .push(to_obj.id())
+            .map_err(|e| RezCoreError::BuildError(format!("Failed to push to revwalk: {}", e)))?;
 
         // Try to hide from_rev, but don't fail if it doesn't exist
         if let Ok(from_obj) = repo.revparse_single(from) {
@@ -309,9 +307,9 @@ impl super::ReleaseVCS for GitVCS {
             let id = id.map_err(|e| {
                 RezCoreError::BuildError(format!("Failed to walk revisions: {}", e))
             })?;
-            let commit = repo.find_commit(id).map_err(|e| {
-                RezCoreError::BuildError(format!("Failed to find commit: {}", e))
-            })?;
+            let commit = repo
+                .find_commit(id)
+                .map_err(|e| RezCoreError::BuildError(format!("Failed to find commit: {}", e)))?;
 
             let message = commit.message().unwrap_or("(no message)");
             let short_id = &id.to_string()[..8];
@@ -331,12 +329,12 @@ impl super::ReleaseVCS for GitVCS {
         })?;
 
         // Get latest commit
-        let head = repo.head().map_err(|e| {
-            RezCoreError::BuildError(format!("Failed to get HEAD: {}", e))
-        })?;
-        let commit = head.peel_to_commit().map_err(|e| {
-            RezCoreError::BuildError(format!("Failed to get commit: {}", e))
-        })?;
+        let head = repo
+            .head()
+            .map_err(|e| RezCoreError::BuildError(format!("Failed to get HEAD: {}", e)))?;
+        let commit = head
+            .peel_to_commit()
+            .map_err(|e| RezCoreError::BuildError(format!("Failed to get commit: {}", e)))?;
 
         // Get branch name
         let branch = if head.is_branch() {
@@ -420,9 +418,9 @@ impl super::ReleaseVCS for GitVCS {
             ))
         })?;
 
-        let head = repo.head().map_err(|e| {
-            RezCoreError::BuildError(format!("GitVCS: failed to get HEAD: {}", e))
-        })?;
+        let head = repo
+            .head()
+            .map_err(|e| RezCoreError::BuildError(format!("GitVCS: failed to get HEAD: {}", e)))?;
 
         let commit = head.peel_to_commit().map_err(|e| {
             RezCoreError::BuildError(format!("GitVCS: failed to get commit: {}", e))
@@ -468,11 +466,7 @@ impl super::ReleaseVCS for GitVCS {
             "parent_ids": commit.parent_ids().map(|id| id.to_string()).collect::<Vec<_>>(),
         });
 
-        let mut revision = super::VCSRevision::with_data(
-            "git",
-            &commit_hash,
-            data,
-        );
+        let mut revision = super::VCSRevision::with_data("git", &commit_hash, data);
         revision.metadata = metadata;
 
         Ok(revision)
@@ -492,23 +486,29 @@ impl super::ReleaseVCS for GitVCS {
     /// # Returns
     ///
     /// `Ok(())` on success, or `RezCoreError` on failure.
-    fn export(&self, revision: &super::VCSRevision, path: &std::path::Path) -> Result<(), RezCoreError> {
+    fn export(
+        &self,
+        revision: &super::VCSRevision,
+        path: &std::path::Path,
+    ) -> Result<(), RezCoreError> {
         use std::fs;
         use std::process::Command;
 
         // Validate target path
         if path.exists() {
-            return Err(RezCoreError::BuildError(
-                format!("Export path '{}' already exists", path.display())
-            ));
+            return Err(RezCoreError::BuildError(format!(
+                "Export path '{}' already exists",
+                path.display()
+            )));
         }
 
         // Ensure parent directory exists
         if let Some(parent) = path.parent() {
             if !parent.exists() {
-                return Err(RezCoreError::BuildError(
-                    format!("Parent directory '{}' does not exist", parent.display())
-                ));
+                return Err(RezCoreError::BuildError(format!(
+                    "Parent directory '{}' does not exist",
+                    parent.display()
+                )));
             }
         }
 

@@ -151,7 +151,7 @@ pub struct PyVCSRevision {
     pub revision_type: String,
     #[pyo3(get)]
     pub revision_id: String,
-    pub data: String,  // JSON string for flexibility
+    pub data: String, // JSON string for flexibility
     pub metadata: HashMap<String, String>,
 }
 
@@ -177,7 +177,7 @@ impl PyVCSRevision {
                 json_str.extract::<String>()?
             }
         } else {
-            format!("\"{}\"", revision_id)  // Default: just the revision ID as JSON string
+            format!("\"{}\"", revision_id) // Default: just the revision ID as JSON string
         };
 
         let metadata = metadata.unwrap_or_default();
@@ -227,9 +227,8 @@ impl PyVCSRevision {
 
 impl From<VCSRevision> for PyVCSRevision {
     fn from(rev: VCSRevision) -> Self {
-        let data_str = serde_json::to_string(&rev.data).unwrap_or_else(|_| {
-            format!("\"{}\"", rev.revision_id)
-        });
+        let data_str =
+            serde_json::to_string(&rev.data).unwrap_or_else(|_| format!("\"{}\"", rev.revision_id));
 
         Self {
             revision_type: rev.revision_type.clone(),
@@ -242,9 +241,8 @@ impl From<VCSRevision> for PyVCSRevision {
 
 impl From<PyVCSRevision> for VCSRevision {
     fn from(rev: PyVCSRevision) -> Self {
-        let data: serde_json::Value = serde_json::from_str(&rev.data).unwrap_or_else(|_| {
-            serde_json::json!(rev.revision_id)
-        });
+        let data: serde_json::Value =
+            serde_json::from_str(&rev.data).unwrap_or_else(|_| serde_json::json!(rev.revision_id));
 
         Self {
             revision_type: rev.revision_type.clone(),
@@ -396,7 +394,10 @@ impl PyReleaseVCS {
         }
 
         // Stub implementation
-        Ok(PyVCSRevision::from(VCSRevision::new("stub", "stub-revision")))
+        Ok(PyVCSRevision::from(VCSRevision::new(
+            "stub",
+            "stub-revision",
+        )))
     }
 
     /// Export the repository at the given revision to the given path.

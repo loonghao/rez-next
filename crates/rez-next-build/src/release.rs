@@ -456,17 +456,15 @@ impl ReleaseManager {
                                 result.vcs_metadata = Some(metadata);
                             }
                             Err(e) => {
-                                result.warnings.push(format!(
-                                    "Failed to write VCS metadata: {}",
-                                    e
-                                ));
+                                result
+                                    .warnings
+                                    .push(format!("Failed to write VCS metadata: {}", e));
                             }
                         },
                         Err(e) => {
-                            result.warnings.push(format!(
-                                "Failed to serialize VCS metadata: {}",
-                                e
-                            ));
+                            result
+                                .warnings
+                                .push(format!("Failed to serialize VCS metadata: {}", e));
                         }
                     }
                 }
@@ -718,8 +716,14 @@ version = "{}"
 
         let pkg = manager.load_package(temp_dir.path(), &mut result);
         // load_package now returns Ok with default Package when file is missing
-        assert!(pkg.is_ok(), "load_package should return Ok with default Package");
-        assert!(!result.errors.is_empty(), "should have errors when package file is missing");
+        assert!(
+            pkg.is_ok(),
+            "load_package should return Ok with default Package"
+        );
+        assert!(
+            !result.errors.is_empty(),
+            "should have errors when package file is missing"
+        );
     }
 
     #[test]
@@ -755,21 +759,29 @@ version = "1.0.0"
 
         // Manually call write_release_metadata
         let mut result = ReleaseResult::default();
-        manager.write_release_metadata(
-            &pkg,
-            install_dir.path(),
-            &Some(Box::new(vcs) as Box<dyn ReleaseVCS + Send + Sync>),
-            &mut result,
-        ).unwrap();
+        manager
+            .write_release_metadata(
+                &pkg,
+                install_dir.path(),
+                &Some(Box::new(vcs) as Box<dyn ReleaseVCS + Send + Sync>),
+                &mut result,
+            )
+            .unwrap();
 
         // Verify vcs_metadata.json was created
         let metadata_path = install_dir.path().join("vcs_metadata.json");
-        assert!(metadata_path.exists(), "vcs_metadata.json should be created");
+        assert!(
+            metadata_path.exists(),
+            "vcs_metadata.json should be created"
+        );
 
         // Verify JSON content
         let json_content = std::fs::read_to_string(&metadata_path).unwrap();
         assert!(json_content.contains("stub"), "Should contain vcs_type");
-        assert!(json_content.contains("abc123"), "Should contain commit_hash");
+        assert!(
+            json_content.contains("abc123"),
+            "Should contain commit_hash"
+        );
         assert!(json_content.contains("main"), "Should contain branch");
 
         // Verify result has vcs_metadata
@@ -802,16 +814,16 @@ version = "1.0.0"
 
         // Call write_release_metadata with no VCS
         let mut result = ReleaseResult::default();
-        manager.write_release_metadata(
-            &pkg,
-            install_dir.path(),
-            &vcs,
-            &mut result,
-        ).unwrap();
+        manager
+            .write_release_metadata(&pkg, install_dir.path(), &vcs, &mut result)
+            .unwrap();
 
         // Verify vcs_metadata.json was NOT created
         let metadata_path = install_dir.path().join("vcs_metadata.json");
-        assert!(!metadata_path.exists(), "vcs_metadata.json should NOT be created when no VCS");
+        assert!(
+            !metadata_path.exists(),
+            "vcs_metadata.json should NOT be created when no VCS"
+        );
 
         // Verify warning was added
         assert!(!result.warnings.is_empty());

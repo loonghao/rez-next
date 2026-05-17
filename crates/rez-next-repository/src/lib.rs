@@ -23,13 +23,11 @@ pub mod simple_repository;
 pub use cache::*;
 pub use filesystem::*;
 pub use high_performance_scanner::*;
+pub use package_repository::{FilesystemPackageRepository, PackageRepository};
 pub use package_search::{get_plugins, get_reverse_dependency_tree, ResourceSearchResult};
 pub use repository::{
     deduplicate_packages, PackageSearchCriteria, Repository, RepositoryMetadata, RepositoryStats,
     RepositoryType,
-};
-pub use package_repository::{
-    FilesystemPackageRepository, PackageRepository,
 };
 pub use resources::{
     PackageFamilyResource, PackageResource, ResourceHandle, ResourcePool, VariantResource,
@@ -102,7 +100,6 @@ mod lib_tests {
     }
 }
 
-
 /// Get statistics about packages in the given repository paths.
 ///
 /// This is compatible with `rez.solver.package_repo_stats()`.
@@ -158,4 +155,3 @@ pub fn package_repo_stats(paths: Vec<String>) -> RepositoryStats {
 
     combined_stats
 }
-

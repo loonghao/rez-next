@@ -8,7 +8,7 @@ use pyo3::types::PyDict;
 use crate::package_bindings::PyPackage;
 use crate::runtime::get_runtime;
 
-use super::{expand_home, make_repo_manager, copy_dir_recursive};
+use super::{copy_dir_recursive, expand_home, make_repo_manager};
 
 /// Create a Package object from a dictionary.
 /// Equivalent to `rez.packages.create_package(data)`.

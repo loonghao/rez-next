@@ -92,7 +92,9 @@ pub fn create_build_system(system_type: &str) -> Option<BuildSystem> {
         "python" => Some(BuildSystem::Python(systems::PythonBuildSystem::new())),
         "nodejs" => Some(BuildSystem::NodeJs(systems::NodeJsBuildSystem::new())),
         "cargo" => Some(BuildSystem::Cargo(systems::CargoBuildSystem::new())),
-        "custom" => Some(BuildSystem::Custom(systems::CustomBuildSystem::new("default".to_string()))),
+        "custom" => Some(BuildSystem::Custom(systems::CustomBuildSystem::new(
+            "default".to_string(),
+        ))),
         _ => None,
     }
 }

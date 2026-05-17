@@ -29,7 +29,7 @@ pub trait PackageOrder: Send + Sync + fmt::Debug {
     /// Convert to plain old data for serialization.
     fn to_pod(&self) -> serde_json::Value;
 
-    /// Clone this orderer as a Box<dyn PackageOrder>.
+    /// Clone this orderer as a `Box<dyn PackageOrder>`.
     fn clone_box(&self) -> Box<dyn PackageOrder>;
 
     /// Get SHA1 hash of this orderer for caching.
@@ -195,18 +195,8 @@ impl PackageOrder for VersionSplitPackageOrder {
             }
         }
 
-        before.sort_by(|a, b| {
-            a.version
-                .as_ref()
-                .unwrap()
-                .cmp(b.version.as_ref().unwrap())
-        });
-        after.sort_by(|a, b| {
-            a.version
-                .as_ref()
-                .unwrap()
-                .cmp(b.version.as_ref().unwrap())
-        });
+        before.sort_by(|a, b| a.version.as_ref().unwrap().cmp(b.version.as_ref().unwrap()));
+        after.sort_by(|a, b| a.version.as_ref().unwrap().cmp(b.version.as_ref().unwrap()));
 
         let mut result = before;
         result.extend(after);
@@ -268,7 +258,9 @@ impl PackageOrder for PerFamilyOrder {
         let mut result = Vec::new();
         for (family, mut pkgs) in grouped {
             // Get orderer for this family
-            let orderer: Option<&Box<dyn PackageOrder>> = self.order_dict.get(&family)
+            let orderer: Option<&Box<dyn PackageOrder>> = self
+                .order_dict
+                .get(&family)
                 .map(|b| b)
                 .or(self.default_order.as_ref());
 
@@ -438,41 +430,50 @@ pub fn from_pod(data: &serde_json::Value) -> Option<Box<dyn PackageOrder>> {
 
     match type_name {
         "no_order" => {
-            let packages = data
-                .get("packages")
-                .and_then(|p| p.as_array())
-                .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect());
+            let packages = data.get("packages").and_then(|p| p.as_array()).map(|arr| {
+                arr.iter()
+                    .filter_map(|v| v.as_str().map(String::from))
+                    .collect()
+            });
 
             Some(Box::new(NullPackageOrder::new(packages)))
         }
         "sorted" => {
             let descending = data.get("descending")?.as_bool()?;
-            let packages = data
-                .get("packages")
-                .and_then(|p| p.as_array())
-                .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect());
+            let packages = data.get("packages").and_then(|p| p.as_array()).map(|arr| {
+                arr.iter()
+                    .filter_map(|v| v.as_str().map(String::from))
+                    .collect()
+            });
 
             Some(Box::new(SortedOrder::new(descending, packages)))
         }
         "version_split" => {
             let version_str = data.get("first_version")?.as_str()?;
             let first_version = Version::parse(version_str).ok()?;
-            let packages = data
-                .get("packages")
-                .and_then(|p| p.as_array())
-                .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect());
+            let packages = data.get("packages").and_then(|p| p.as_array()).map(|arr| {
+                arr.iter()
+                    .filter_map(|v| v.as_str().map(String::from))
+                    .collect()
+            });
 
-            Some(Box::new(VersionSplitPackageOrder::new(first_version, packages)))
+            Some(Box::new(VersionSplitPackageOrder::new(
+                first_version,
+                packages,
+            )))
         }
         "soft_timestamp" => {
             let timestamp = data.get("timestamp")?.as_i64()?;
             let rank = data.get("rank").and_then(|r| r.as_i64()).unwrap_or(0) as i32;
-            let packages = data
-                .get("packages")
-                .and_then(|p| p.as_array())
-                .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect());
+            let packages = data.get("packages").and_then(|p| p.as_array()).map(|arr| {
+                arr.iter()
+                    .filter_map(|v| v.as_str().map(String::from))
+                    .collect()
+            });
 
-            Some(Box::new(TimestampPackageOrder::new(timestamp, rank, packages)))
+            Some(Box::new(TimestampPackageOrder::new(
+                timestamp, rank, packages,
+            )))
         }
         _ => None,
     }
@@ -520,8 +521,14 @@ mod tests {
         };
 
         let result = order.reorder(&[pkg2.clone(), pkg1.clone()]).unwrap();
-        assert_eq!(result[0].version.as_ref().unwrap(), &Version::parse("1.0.0").unwrap());
-        assert_eq!(result[1].version.as_ref().unwrap(), &Version::parse("2.0.0").unwrap());
+        assert_eq!(
+            result[0].version.as_ref().unwrap(),
+            &Version::parse("1.0.0").unwrap()
+        );
+        assert_eq!(
+            result[1].version.as_ref().unwrap(),
+            &Version::parse("2.0.0").unwrap()
+        );
     }
 
     #[test]
@@ -539,8 +546,14 @@ mod tests {
         };
 
         let result = order.reorder(&[pkg1.clone(), pkg2.clone()]).unwrap();
-        assert_eq!(result[0].version.as_ref().unwrap(), &Version::parse("2.0.0").unwrap());
-        assert_eq!(result[1].version.as_ref().unwrap(), &Version::parse("1.0.0").unwrap());
+        assert_eq!(
+            result[0].version.as_ref().unwrap(),
+            &Version::parse("2.0.0").unwrap()
+        );
+        assert_eq!(
+            result[1].version.as_ref().unwrap(),
+            &Version::parse("1.0.0").unwrap()
+        );
     }
 
     #[test]
@@ -564,7 +577,9 @@ mod tests {
             ..Default::default()
         };
 
-        let result = order.reorder(&[pkg3.clone(), pkg1.clone(), pkg2.clone()]).unwrap();
+        let result = order
+            .reorder(&[pkg3.clone(), pkg1.clone(), pkg2.clone()])
+            .unwrap();
         // pkg1 and pkg2 should come before pkg3
         assert!(result[0].version.as_ref().unwrap() <= &split_version);
         assert!(result[1].version.as_ref().unwrap() <= &split_version);
@@ -598,7 +613,10 @@ mod tests {
         assert!(result.is_some());
         // Descending order: 2.0.0 should come before 1.0.0
         let sorted = result.unwrap();
-        assert_eq!(sorted[0].version.as_ref().unwrap(), &Version::parse("2.0.0").unwrap());
+        assert_eq!(
+            sorted[0].version.as_ref().unwrap(),
+            &Version::parse("2.0.0").unwrap()
+        );
     }
 
     #[test]
@@ -627,7 +645,10 @@ mod tests {
     #[test]
     fn test_package_order_list() {
         let mut list = PackageOrderList::new();
-        list.append(Box::new(SortedOrder::new(false, Some(vec!["foo".to_string()]))));
+        list.append(Box::new(SortedOrder::new(
+            false,
+            Some(vec!["foo".to_string()]),
+        )));
 
         assert!(list.get("foo").is_some());
         assert!(list.get("bar").is_none());

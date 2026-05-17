@@ -180,16 +180,19 @@ impl Config {
         source: ConfigSource,
     ) -> Result<(), ConfigError> {
         let path = path.as_ref();
-        let content = fs::read_to_string(path).map_err(|_| {
-            ConfigError::FileNotFound(path.to_string_lossy().to_string())
-        })?;
+        let content = fs::read_to_string(path)
+            .map_err(|_| ConfigError::FileNotFound(path.to_string_lossy().to_string()))?;
 
         let value: JsonValue = if path.extension().map(|e| e == "json").unwrap_or(false) {
             serde_json::from_str(&content).map_err(|e| ConfigError::ParseError {
                 file: path.to_string_lossy().to_string(),
                 error: e.to_string(),
             })?
-        } else if path.extension().map(|e| e == "yaml" || e == "yml").unwrap_or(false) {
+        } else if path
+            .extension()
+            .map(|e| e == "yaml" || e == "yml")
+            .unwrap_or(false)
+        {
             serde_yaml::from_str(&content).map_err(|e| ConfigError::ParseError {
                 file: path.to_string_lossy().to_string(),
                 error: e.to_string(),
@@ -252,9 +255,7 @@ impl Config {
     fn apply_env_overrides(&mut self) -> Result<(), ConfigError> {
         for (key, value) in env::vars() {
             if let Some(config_key) = key.strip_prefix("REZ_") {
-                let config_key = config_key
-                    .to_lowercase()
-                    .replace('_', ".");
+                let config_key = config_key.to_lowercase().replace('_', ".");
                 // Try to parse as JSON, otherwise treat as string
                 // TODO: Implement proper nested key setting
                 let _ = serde_json::from_str::<JsonValue>(&value)
@@ -370,7 +371,10 @@ mod tests {
             config.get_string("packages.path"),
             Some("/usr/local/packages".to_string())
         );
-        assert_eq!(config.get_bool("resolution.warn_on_lib_conflict"), Some(true));
+        assert_eq!(
+            config.get_bool("resolution.warn_on_lib_conflict"),
+            Some(true)
+        );
         assert_eq!(config.get("nonexistent"), None);
     }
 

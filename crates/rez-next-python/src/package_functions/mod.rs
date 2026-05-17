@@ -9,23 +9,20 @@
 use std::path::PathBuf;
 
 // ── Sub-modules ───────────────────────────────────────────────────────────────────
-pub(crate) mod query;
 pub(crate) mod management;
+pub(crate) mod query;
 pub(crate) mod utility;
 
 // ── Re-exports for lib.rs ───────────────────────────────────────────────────────
+pub use management::{copy_package, create_package, move_package, remove_package};
 pub use query::{
-    get_latest_package, get_package, iter_packages, get_package_family_names,
-    walk_packages, iter_package_families, get_package_from_string,
-    get_latest_package_from_string, resolve_packages,
-};
-pub use management::{
-    create_package, copy_package, move_package, remove_package,
+    get_latest_package, get_latest_package_from_string, get_package, get_package_family_names,
+    get_package_from_string, iter_package_families, iter_packages, resolve_packages, walk_packages,
 };
 pub use utility::{
-    dump_package_data, get_developer_package, get_completions, package_schema,
-    variant_schema, package_family_schema, schema_keys, package_release_keys,
-    get_last_release_time, test_function,
+    dump_package_data, get_completions, get_developer_package, get_last_release_time,
+    package_family_schema, package_release_keys, package_schema, schema_keys, test_function,
+    variant_schema,
 };
 
 // ── Shared helper functions ─────────────────────────────────────────────────────

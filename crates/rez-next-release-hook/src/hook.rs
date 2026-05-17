@@ -2,8 +2,8 @@
 //!
 //! Defines the `ReleaseHook` trait that custom hooks must implement.
 
-use std::path::PathBuf;
 use crate::ReleaseHookError;
+use std::path::PathBuf;
 
 /// Trait that custom release hooks must implement.
 ///

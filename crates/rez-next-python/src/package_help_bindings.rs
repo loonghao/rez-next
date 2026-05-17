@@ -2,10 +2,10 @@
 
 use pyo3::prelude::*;
 
-use rez_next_package::{HelpSection, PackageHelp};
-use rez_next_package::Package;
-use rez_next_version::VersionRange;
 use crate::package_bindings::PyPackage;
+use rez_next_package::Package;
+use rez_next_package::{HelpSection, PackageHelp};
+use rez_next_version::VersionRange;
 
 /// Python wrapper for HelpSection
 #[pyclass(name = "HelpSection", skip_from_py_object)]
@@ -72,15 +72,20 @@ impl PyPackageHelp {
     ///     version_range: Optional version range string (e.g., ">=1.0")
     ///     packages: List of Package objects to search
     #[new]
-    fn new(package_name: String, version_range: Option<String>, packages: Vec<PyPackage>) -> PyResult<Self> {
+    fn new(
+        package_name: String,
+        version_range: Option<String>,
+        packages: Vec<PyPackage>,
+    ) -> PyResult<Self> {
         // Parse version range if provided
         let version_range_parsed = if let Some(range_str) = version_range {
             match VersionRange::parse(&range_str) {
                 Ok(range) => Some(range),
                 Err(e) => {
-                    return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
-                        format!("Invalid version range: {}", e),
-                    ))
+                    return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
+                        "Invalid version range: {}",
+                        e
+                    )))
                 }
             }
         } else {
@@ -132,7 +137,10 @@ mod tests {
     #[test]
     fn test_help_section_creation() {
         if Python::try_attach(|_py| {
-            let section = PyHelpSection::new("Documentation".to_string(), "https://example.com".to_string());
+            let section = PyHelpSection::new(
+                "Documentation".to_string(),
+                "https://example.com".to_string(),
+            );
             assert_eq!(section.name(), "Documentation");
             assert_eq!(section.uri(), "https://example.com");
         })

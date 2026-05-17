@@ -23,7 +23,11 @@ impl fmt::Display for Base26Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Base26Error::InvalidBase26(s) => {
-                write!(f, "Invalid Base26 string: '{}' (must be lowercase a-z only)", s)
+                write!(
+                    f,
+                    "Invalid Base26 string: '{}' (must be lowercase a-z only)",
+                    s
+                )
             }
             Base26Error::IoError(s) => write!(f, "IO error: {}", s),
             Base26Error::RetryExhausted(s) => {

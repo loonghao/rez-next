@@ -93,7 +93,7 @@ impl PyPackageResource {
     ) -> PyResult<Self> {
         // Create a minimal package
         let pkg = rez_next_package::Package::new(name);
-        
+
         let resource = PackageResource::new(pkg, repository_type, repository_location);
         Ok(Self { inner: resource })
     }
@@ -169,13 +169,8 @@ impl PyVariantResource {
         repository_type: String,
         repository_location: String,
     ) -> Self {
-        let variant = VariantResource::new(
-            name,
-            version,
-            index,
-            repository_type,
-            repository_location,
-        );
+        let variant =
+            VariantResource::new(name, version, index, repository_type, repository_location);
         Self { inner: variant }
     }
 
@@ -264,7 +259,7 @@ mod tests {
             "filesystem".to_string(),
             "/packages".to_string(),
         );
-        
+
         assert_eq!(family.get_name(), "python");
         assert_eq!(family.get_repository_type(), "filesystem");
         assert_eq!(family.get_repository_location(), "/packages");
@@ -279,14 +274,14 @@ mod tests {
             "filesystem".to_string(),
             "/packages".to_string(),
         );
-        
+
         assert_eq!(variant.get_name(), "python");
         assert_eq!(variant.get_version(), Some("3.9.0".to_string()));
         assert_eq!(variant.get_index(), 0);
         assert_eq!(variant.get_repository_type(), "filesystem");
         assert_eq!(variant.get_repository_location(), "/packages");
         assert!(variant.get_root().is_none());
-        
+
         // Test set_root
         variant.set_root(Some("/packages/python/3.9.0/platform-windows".to_string()));
         assert_eq!(

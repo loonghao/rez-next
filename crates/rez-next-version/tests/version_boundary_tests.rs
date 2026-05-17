@@ -54,14 +54,14 @@ fn test_version_10_tokens_rejected() {
 fn test_version_unicode_chars() {
     // Test various Unicode characters
     let unicode_versions = [
-        "1.2.3α",        // Greek alpha
-        "1.2.3β",        // Greek beta
-        "1.2.3©",        // Copyright symbol
-        "1.2.3®",        // Registered symbol
-        "版本1.2.3",      // Chinese characters
-        "1.2.3🔴",       // Emoji
-        "1.2.3ñ",        // Latin small letter n with tilde
-        "1.2.3ü",        // Latin small letter u with diaeresis
+        "1.2.3α",    // Greek alpha
+        "1.2.3β",    // Greek beta
+        "1.2.3©",    // Copyright symbol
+        "1.2.3®",    // Registered symbol
+        "版本1.2.3", // Chinese characters
+        "1.2.3🔴",   // Emoji
+        "1.2.3ñ",    // Latin small letter n with tilde
+        "1.2.3ü",    // Latin small letter u with diaeresis
     ];
 
     for &vstr in &unicode_versions {
@@ -201,7 +201,10 @@ fn test_version_too_many_tokens() {
 fn test_version_too_many_numeric_tokens() {
     let many_numeric = "1.2.3.4.5.6";
     let ver = Version::parse(many_numeric);
-    assert!(ver.is_err(), "Version with >5 numeric tokens should be rejected");
+    assert!(
+        ver.is_err(),
+        "Version with >5 numeric tokens should be rejected"
+    );
 }
 
 /// Test version with underscore in token

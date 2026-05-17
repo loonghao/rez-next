@@ -99,8 +99,8 @@ pub struct ConflictResolution {
 /// DFS color for cycle detection
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Color {
-    Gray,    // In progress (in recursion stack)
-    Black,   // Completely processed
+    Gray,  // In progress (in recursion stack)
+    Black, // Completely processed
 }
 
 /// High-performance dependency graph
@@ -939,7 +939,12 @@ mod graph_tests {
         // All nodes can reach all nodes (including themselves)
         for node_key in &["A-1.0.0", "B-1.0.0", "C-1.0.0"] {
             let accessible = accessibility.get(*node_key).unwrap();
-            assert_eq!(accessible.len(), 3, "Node {} should reach all 3 nodes", node_key);
+            assert_eq!(
+                accessible.len(),
+                3,
+                "Node {} should reach all 3 nodes",
+                node_key
+            );
         }
     }
 
@@ -957,7 +962,12 @@ mod graph_tests {
         // Each node can only reach itself
         for node_key in &["A-1.0.0", "B-1.0.0", "C-1.0.0"] {
             let accessible = accessibility.get(*node_key).unwrap();
-            assert_eq!(accessible.len(), 1, "Node {} should only reach itself", node_key);
+            assert_eq!(
+                accessible.len(),
+                1,
+                "Node {} should only reach itself",
+                node_key
+            );
             assert!(accessible.contains(&node_key.to_string()));
         }
     }

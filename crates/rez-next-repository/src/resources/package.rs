@@ -68,7 +68,6 @@ impl PackageResource {
     pub fn version(&self) -> Option<&rez_next_version::Version> {
         self.package.version.as_ref()
     }
-
 }
 
 /// Display trait implementation for PackageResource
@@ -105,11 +104,7 @@ mod tests {
     #[test]
     fn test_package_resource_create() {
         let pkg = make_package("python", "3.9.0");
-        let resource = PackageResource::new(
-            pkg,
-            "filesystem".to_string(),
-            "/packages".to_string(),
-        );
+        let resource = PackageResource::new(pkg, "filesystem".to_string(), "/packages".to_string());
 
         assert_eq!(resource.name(), "python");
         assert!(resource.version().is_some());
@@ -120,35 +115,21 @@ mod tests {
     #[test]
     fn test_package_resource_to_string() {
         let pkg = make_package("python", "3.9.0");
-        let resource = PackageResource::new(
-            pkg,
-            "filesystem".to_string(),
-            "/packages".to_string(),
-        );
+        let resource = PackageResource::new(pkg, "filesystem".to_string(), "/packages".to_string());
 
-        assert_eq!(
-            resource.to_string(),
-            "filesystem@/packages/python-3.9.0"
-        );
+        assert_eq!(resource.to_string(), "filesystem@/packages/python-3.9.0");
     }
 
     #[test]
     fn test_package_resource_get_handle() {
         let pkg = make_package("python", "3.9.0");
-        let resource = PackageResource::new(
-            pkg,
-            "filesystem".to_string(),
-            "/packages".to_string(),
-        );
+        let resource = PackageResource::new(pkg, "filesystem".to_string(), "/packages".to_string());
 
         let handle = resource.get_handle();
         assert_eq!(handle.repository_type, "filesystem");
         assert_eq!(handle.repository_location, "/packages");
         assert_eq!(handle.variables.get("name"), Some(&"python".to_string()));
-        assert_eq!(
-            handle.variables.get("version"),
-            Some(&"3.9.0".to_string())
-        );
+        assert_eq!(handle.variables.get("version"), Some(&"3.9.0".to_string()));
     }
 
     #[test]
@@ -158,18 +139,11 @@ mod tests {
         variables.insert("name".to_string(), "python".to_string());
         variables.insert("version".to_string(), "3.9.0".to_string());
 
-        let handle = ResourceHandle::new(
-            "filesystem".to_string(),
-            "/packages".to_string(),
-            variables,
-        );
+        let handle =
+            ResourceHandle::new("filesystem".to_string(), "/packages".to_string(), variables);
 
-        let resource = PackageResource::new(
-            pkg,
-            "filesystem".to_string(),
-            "/packages".to_string(),
-        )
-        .with_handle(handle.clone());
+        let resource = PackageResource::new(pkg, "filesystem".to_string(), "/packages".to_string())
+            .with_handle(handle.clone());
 
         assert!(resource.handle.is_some());
         let retrieved_handle = resource.get_handle();

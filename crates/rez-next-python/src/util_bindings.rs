@@ -65,13 +65,9 @@ fn truncate_string_py(s: &str, max_len: usize) -> String {
 /// Get the current executable name
 #[pyfunction(name = "get_executable_name")]
 fn get_executable_name_py() -> PyResult<String> {
-    rez_next_util::get_executable_name()
-        .map_err(|e| {
-            pyo3::exceptions::PyRuntimeError::new_err(format!(
-                "Failed to get executable name: {:?}",
-                e
-            ))
-        })
+    rez_next_util::get_executable_name().map_err(|e| {
+        pyo3::exceptions::PyRuntimeError::new_err(format!("Failed to get executable name: {:?}", e))
+    })
 }
 
 /// Register the util module
@@ -308,9 +304,7 @@ fn get_next_base26_py(prev: Option<&str>) -> PyResult<String> {
     rez_next_util::get_next_base26(prev).map_err(|e| {
         let err_str = e.to_string();
         match e {
-            Base26Error::InvalidBase26(_) => {
-                pyo3::exceptions::PyValueError::new_err(err_str)
-            }
+            Base26Error::InvalidBase26(_) => pyo3::exceptions::PyValueError::new_err(err_str),
             _ => pyo3::exceptions::PyRuntimeError::new_err(err_str),
         }
     })

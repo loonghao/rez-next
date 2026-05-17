@@ -46,7 +46,10 @@ impl PackageVariant {
 
     /// Get the package version (if available).
     pub fn version(&self) -> Option<String> {
-        self.package.version.as_ref().map(|v| v.as_str().to_string())
+        self.package
+            .version
+            .as_ref()
+            .map(|v| v.as_str().to_string())
     }
 }
 
@@ -55,7 +58,7 @@ impl PackageVariant {
 /// Mirrors `rez.solver.PackageVariantCache`.
 #[derive(Debug, Clone)]
 pub struct PackageVariantCache {
-    /// Cached variants: package_name -> Vec<PackageVariant>
+    /// Cached variants: package_name -> `Vec<PackageVariant>`
     pub variants: HashMap<String, Vec<PackageVariant>>,
 
     /// Cache statistics.

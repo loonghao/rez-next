@@ -353,7 +353,9 @@ pub fn detect_vcs(repo_path: &Path) -> Option<Box<dyn ReleaseVCS + Send + Sync>>
 
     // Check for Mercurial
     if repo_path.join(".hg").exists() {
-        return Some(Box::new(hg::MercurialVCS::new(repo_path.to_path_buf()).ok()?));
+        return Some(Box::new(
+            hg::MercurialVCS::new(repo_path.to_path_buf()).ok()?,
+        ));
     }
 
     // Check for SVN

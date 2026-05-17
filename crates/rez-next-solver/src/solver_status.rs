@@ -109,10 +109,7 @@ mod tests {
     fn test_solver_status_cyclic() {
         let status = SolverStatus::Cyclic;
         assert_eq!(status.name(), "cyclic");
-        assert_eq!(
-            status.description(),
-            "The solve contains a cycle."
-        );
+        assert_eq!(status.description(), "The solve contains a cycle.");
     }
 
     #[test]

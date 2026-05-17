@@ -6,9 +6,7 @@
 //! - Search performance on large repos
 //! - Memory usage with large package sets
 
-use rez_next_repository::simple_repository::{
-    PackageRepository, SimpleRepository,
-};
+use rez_next_repository::simple_repository::{PackageRepository, SimpleRepository};
 use std::fs;
 use tempfile::TempDir;
 
@@ -33,7 +31,10 @@ fn make_large_repo(count: usize) -> (TempDir, SimpleRepository) {
 }
 
 /// Create a repo with multiple versions per package.
-fn make_repo_with_versions(pkg_count: usize, versions_per_pkg: usize) -> (TempDir, SimpleRepository) {
+fn make_repo_with_versions(
+    pkg_count: usize,
+    versions_per_pkg: usize,
+) -> (TempDir, SimpleRepository) {
     let tmp = TempDir::new().unwrap();
     for i in 0..pkg_count {
         let name = format!("pkg_{}", i);
@@ -65,7 +66,7 @@ fn test_large_repo_scan_1000_packages() {
     let start = std::time::Instant::now();
     let result = rt().block_on(repo.scan());
     let elapsed = start.elapsed();
-    
+
     assert!(result.is_ok(), "scan should succeed for 1000 packages");
     // Should complete within 5 seconds for 1000 packages
     assert!(
@@ -82,7 +83,7 @@ fn test_large_repo_scan_5000_packages() {
     let start = std::time::Instant::now();
     let result = rt().block_on(repo.scan());
     let elapsed = start.elapsed();
-    
+
     assert!(result.is_ok(), "scan should succeed for 5000 packages");
     // Should complete within 10 seconds for 5000 packages
     assert!(
@@ -97,12 +98,15 @@ fn test_large_repo_scan_5000_packages() {
 fn test_large_repo_find_packages() {
     let (_tmp, repo) = make_large_repo(1000);
     rt().block_on(repo.scan()).unwrap();
-    
+
     let start = std::time::Instant::now();
     let packages = rt().block_on(repo.find_packages("pkg_500"));
     let elapsed = start.elapsed();
-    
-    assert!(!packages.as_ref().unwrap().is_empty(), "should find pkg_500");
+
+    assert!(
+        !packages.as_ref().unwrap().is_empty(),
+        "should find pkg_500"
+    );
     // Lookup should be fast (< 100ms)
     assert!(
         elapsed.as_millis() < 100,
@@ -116,12 +120,16 @@ fn test_large_repo_find_packages() {
 fn test_large_repo_list_all_packages() {
     let (_tmp, repo) = make_large_repo(1000);
     rt().block_on(repo.scan()).unwrap();
-    
+
     let start = std::time::Instant::now();
     let packages = rt().block_on(repo.list_packages());
     let elapsed = start.elapsed();
-    
-    assert_eq!(packages.as_ref().unwrap().len(), 1000, "should have 1000 packages");
+
+    assert_eq!(
+        packages.as_ref().unwrap().len(),
+        1000,
+        "should have 1000 packages"
+    );
     // Listing should be reasonably fast
     assert!(
         elapsed.as_secs() < 2,
@@ -137,7 +145,7 @@ fn test_large_repo_multiple_versions() {
     let start = std::time::Instant::now();
     let result = rt().block_on(repo.scan());
     let elapsed = start.elapsed();
-    
+
     assert!(result.is_ok(), "scan should succeed");
     // 100 packages x 10 versions = 1000 package versions
     // Should complete within 5 seconds
@@ -153,11 +161,11 @@ fn test_large_repo_multiple_versions() {
 fn test_large_repo_memory_usage() {
     let (_tmp, repo) = make_large_repo(2000);
     rt().block_on(repo.scan()).unwrap();
-    
+
     // Get a package - this should not cause excessive memory allocation
     let pkg = rt().block_on(repo.get_package("pkg_1000", None));
     assert!(pkg.is_ok(), "should find pkg_1000");
-    
+
     // The package object should be reasonable size
     let pkg = pkg.unwrap().unwrap();
     assert_eq!(pkg.name, "pkg_1000");
@@ -168,10 +176,10 @@ fn test_large_repo_memory_usage() {
 fn test_large_repo_concurrent_readers() {
     let (_tmp, repo) = make_large_repo(500);
     rt().block_on(repo.scan()).unwrap();
-    
+
     let repo = std::sync::Arc::new(repo);
     let mut handles = vec![];
-    
+
     // Spawn 10 concurrent readers
     for i in 0..10 {
         let repo_clone = repo.clone();
@@ -182,11 +190,14 @@ fn test_large_repo_concurrent_readers() {
         });
         handles.push(handle);
     }
-    
+
     // All readers should complete successfully
     for handle in handles {
         let result = handle.join().unwrap();
-        assert!(!result.as_ref().unwrap().is_empty(), "concurrent read should succeed");
+        assert!(
+            !result.as_ref().unwrap().is_empty(),
+            "concurrent read should succeed"
+        );
     }
 }
 
@@ -195,9 +206,9 @@ fn test_large_repo_concurrent_readers() {
 fn test_large_repo_search_performance() {
     let (_tmp, repo) = make_large_repo(2000);
     rt().block_on(repo.scan()).unwrap();
-    
+
     let start = std::time::Instant::now();
-    
+
     // Search for packages with "pkg_1" prefix (should match pkg_1, pkg_10, pkg_100, etc.)
     let mut count = 0;
     for i in 0..20 {
@@ -205,9 +216,9 @@ fn test_large_repo_search_performance() {
         let packages = rt().block_on(repo.find_packages(&pkg_name));
         count += packages.as_ref().unwrap().len();
     }
-    
+
     let elapsed = start.elapsed();
-    
+
     assert!(count > 0, "should find some packages");
     // 20 lookups should complete within 500ms
     assert!(
@@ -225,8 +236,12 @@ fn test_large_repo_scan_idempotent() {
     let result1 = rt().block_on(repo.list_packages()).unwrap();
     rt().block_on(repo.scan()).unwrap();
     let result2 = rt().block_on(repo.list_packages()).unwrap();
-    
-    assert_eq!(result1.len(), result2.len(), "scans should return same number of packages");
+
+    assert_eq!(
+        result1.len(),
+        result2.len(),
+        "scans should return same number of packages"
+    );
 }
 
 /// Test handling of repository with no packages.
@@ -234,7 +249,7 @@ fn test_large_repo_scan_idempotent() {
 fn test_empty_repo_scan() {
     let (_tmp, repo) = make_large_repo(0);
     let result = rt().block_on(repo.scan());
-    
+
     assert!(result.is_ok(), "scan should succeed for empty repo");
     let packages = rt().block_on(repo.list_packages()).unwrap();
     assert_eq!(packages.len(), 0, "empty repo should have no packages");
@@ -245,8 +260,11 @@ fn test_empty_repo_scan() {
 fn test_single_package_repo() {
     let (_tmp, repo) = make_large_repo(1);
     let result = rt().block_on(repo.scan());
-    
-    assert!(result.is_ok(), "scan should succeed for single package repo");
+
+    assert!(
+        result.is_ok(),
+        "scan should succeed for single package repo"
+    );
     let packages = rt().block_on(repo.list_packages()).unwrap();
     assert_eq!(packages.len(), 1, "should have exactly 1 package");
 }
@@ -259,6 +277,6 @@ fn test_large_repo_package_ordering() {
     let result1 = rt().block_on(repo.list_packages()).unwrap();
     rt().block_on(repo.scan()).unwrap();
     let result2 = rt().block_on(repo.list_packages()).unwrap();
-    
+
     assert_eq!(result1, result2, "package ordering should be consistent");
 }

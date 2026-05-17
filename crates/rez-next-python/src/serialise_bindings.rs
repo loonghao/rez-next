@@ -12,8 +12,8 @@ use pyo3::types::{PyAny, PyBytes, PyModule};
 use serde_json::Value;
 
 use rez_next_serialise::{
-    as_block_string, dict_to_attributes_code, dump_yaml,
-    package_key_order, read_package_data, FileFormat, PackageSerialiseError,
+    as_block_string, dict_to_attributes_code, dump_yaml, package_key_order, read_package_data,
+    FileFormat, PackageSerialiseError,
 };
 
 /// Convert a Python object to serde_json::Value using Python's json module.
@@ -106,18 +106,15 @@ fn validate_package_data(data: &Value) -> std::result::Result<(), String> {
 }
 
 /// Serialise data to string based on format.
-fn serialise_to_string(data: &Value, format_: &str) -> std::result::Result<String, PackageSerialiseError> {
+fn serialise_to_string(
+    data: &Value,
+    format_: &str,
+) -> std::result::Result<String, PackageSerialiseError> {
     match format_.to_lowercase().as_str() {
-        "py" | "python" => {
-            dict_to_attributes_code(data)
-        }
-        "yaml" | "yml" => {
-            dump_yaml(data)
-        }
-        "json" => {
-            serde_json::to_string_pretty(data)
-                .map_err(|e| PackageSerialiseError::Serialisation(e.to_string()))
-        }
+        "py" | "python" => dict_to_attributes_code(data),
+        "yaml" | "yml" => dump_yaml(data),
+        "json" => serde_json::to_string_pretty(data)
+            .map_err(|e| PackageSerialiseError::Serialisation(e.to_string())),
         _ => Err(PackageSerialiseError::UnsupportedFormat(
             // Convert format_ string to FileFormat enum
             match format_.to_lowercase().as_str() {
@@ -125,8 +122,8 @@ fn serialise_to_string(data: &Value, format_: &str) -> std::result::Result<Strin
                 "yaml" | "yml" => FileFormat::Yaml,
                 "json" => FileFormat::Json,
                 _ => FileFormat::Yaml, // Default fallback
-            }
-        ))
+            },
+        )),
     }
 }
 

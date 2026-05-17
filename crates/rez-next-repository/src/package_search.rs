@@ -164,8 +164,8 @@ fn load_package_from_dir(dir: &Path) -> Option<Package> {
 ///
 /// # Returns
 /// A tuple of (layers, graph) where:
-/// - layers: Vec<Vec<String>> - Packages grouped by dependency depth
-/// - graph: HashMap<String, Vec<String>> - Adjacency list of dependencies
+/// - layers: `Vec<Vec<String>>` - Packages grouped by dependency depth
+/// - graph: `HashMap<String, Vec<String>>` - Adjacency list of dependencies
 ///
 /// # Example
 /// ```
@@ -325,10 +325,7 @@ fn get_default_package_paths() -> Vec<String> {
     }
 
     // Default paths
-    vec![
-        "./packages".to_string(),
-        "~/.rez/packages".to_string(),
-    ]
+    vec!["./packages".to_string(), "~/.rez/packages".to_string()]
 }
 
 #[cfg(test)]
@@ -347,7 +344,10 @@ mod tests {
     fn test_resource_search_result_with_error() {
         let result = ResourceSearchResult::new("python".to_string(), "family".to_string())
             .with_error("validation failed".to_string());
-        assert_eq!(result.validation_error, Some("validation failed".to_string()));
+        assert_eq!(
+            result.validation_error,
+            Some("validation failed".to_string())
+        );
     }
 
     #[test]
@@ -358,22 +358,14 @@ mod tests {
 
     #[test]
     fn test_get_plugins_nonexistent_path() {
-        let plugins = get_plugins(
-            "python",
-            Some(vec!["C:\\nonexistent\\path".to_string()]),
-        );
+        let plugins = get_plugins("python", Some(vec!["C:\\nonexistent\\path".to_string()]));
         assert!(plugins.is_empty());
     }
 
     #[test]
     fn test_get_reverse_dependency_tree_empty_paths() {
-        let (layers, graph) = get_reverse_dependency_tree(
-            "python",
-            None,
-            Some(vec![]),
-            false,
-            false,
-        );
+        let (layers, graph) =
+            get_reverse_dependency_tree("python", None, Some(vec![]), false, false);
         assert_eq!(layers.len(), 1); // Only the package itself
         assert_eq!(layers[0], vec!["python"]);
         assert!(graph.is_empty());

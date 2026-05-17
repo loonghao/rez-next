@@ -9,8 +9,7 @@ use pyo3::prelude::*;
 use pyo3::types::PyType;
 
 use rez_next_repository::package_repository::{
-    FilesystemPackageRepository as RustFilesystemPackageRepository,
-    PackageRepository,
+    FilesystemPackageRepository as RustFilesystemPackageRepository, PackageRepository,
 };
 
 // ── PyFilesystemPackageRepository ─────────────────────────────────────
@@ -68,7 +67,8 @@ impl PyFilesystemPackageRepository {
 
     /// Check if the repository is empty
     pub fn is_empty(&self) -> PyResult<bool> {
-        self.inner.is_empty()
+        self.inner
+            .is_empty()
             .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
     }
 
@@ -100,7 +100,8 @@ impl PyFilesystemPackageRepository {
     ///     True if package was removed, False if not found
     #[pyo3(signature = (name, version = None))]
     pub fn remove_package(&mut self, name: &str, version: Option<&str>) -> PyResult<bool> {
-        self.inner.remove_package(name, version)
+        self.inner
+            .remove_package(name, version)
             .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
     }
 
@@ -114,7 +115,8 @@ impl PyFilesystemPackageRepository {
     ///     True if family was removed, False if not found
     #[pyo3(signature = (name, force = false))]
     pub fn remove_package_family(&mut self, name: &str, force: bool) -> PyResult<bool> {
-        self.inner.remove_package_family(name, force)
+        self.inner
+            .remove_package_family(name, force)
             .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
     }
 
@@ -128,8 +130,14 @@ impl PyFilesystemPackageRepository {
     /// Returns:
     ///     Number of packages removed (or would be removed if dry_run)
     #[pyo3(signature = (days, dry_run = false, verbose = false))]
-    pub fn remove_ignored_since(&mut self, days: i32, dry_run: bool, verbose: bool) -> PyResult<i32> {
-        self.inner.remove_ignored_since(days, dry_run, verbose)
+    pub fn remove_ignored_since(
+        &mut self,
+        days: i32,
+        dry_run: bool,
+        verbose: bool,
+    ) -> PyResult<i32> {
+        self.inner
+            .remove_ignored_since(days, dry_run, verbose)
             .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
     }
 }
@@ -138,9 +146,7 @@ impl PyFilesystemPackageRepository {
 ///
 /// This function creates the `rez_next._native.package_repository` submodule
 /// and registers it in `sys.modules` for proper dotted-path imports.
-pub fn register_package_repository_submodule(
-    parent_module: &Bound<'_, PyModule>,
-) -> PyResult<()> {
+pub fn register_package_repository_submodule(parent_module: &Bound<'_, PyModule>) -> PyResult<()> {
     let m = PyModule::new(parent_module.py(), "package_repository")?;
 
     // Add FilesystemPackageRepository class

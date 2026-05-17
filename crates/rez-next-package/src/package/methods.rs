@@ -236,9 +236,10 @@ impl Package {
             } else if package_yml.exists() {
                 package_yml
             } else {
-                return Err(RezCoreError::PackageParse(
-                    format!("No package definition file found in {}", path.display())
-                ));
+                return Err(RezCoreError::PackageParse(format!(
+                    "No package definition file found in {}",
+                    path.display()
+                )));
             }
         } else {
             path.to_path_buf()
@@ -266,7 +267,9 @@ impl Package {
     /// Aligns with Rez's `DeveloperPackage.root` property.
     pub fn root(&self) -> Option<String> {
         self.filepath.as_ref().and_then(|fp| {
-            std::path::Path::new(fp).parent().map(|p| p.to_string_lossy().to_string())
+            std::path::Path::new(fp)
+                .parent()
+                .map(|p| p.to_string_lossy().to_string())
         })
     }
 
@@ -541,7 +544,10 @@ mod tests {
         pkg.authors = vec!["Test Author".to_string()];
         pkg.requires = vec!["python-3.9".to_string()];
         pkg.build_requires = vec!["cmake-3.20".to_string()];
-        pkg.variants = vec![vec!["python-3.9".to_string()], vec!["python-3.10".to_string()]];
+        pkg.variants = vec![
+            vec!["python-3.9".to_string()],
+            vec!["python-3.10".to_string()],
+        ];
         pkg.tools = vec!["mytool".to_string()];
         pkg.commands = Some("    env.PATH.prepend(\"{root}/bin\")\n".to_string());
         pkg.uuid = Some("12345678-1234-1234-1234-123456789012".to_string());

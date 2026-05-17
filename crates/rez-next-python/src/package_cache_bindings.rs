@@ -174,11 +174,17 @@ impl PyCacheStatus {
         dict.set_item(0, "was not found").unwrap();
         dict.set_item(1, "was found").unwrap();
         dict.set_item(2, "was created").unwrap();
-        dict.set_item(3, "payload is still being copied to cache").unwrap();
-        dict.set_item(4, "payload copy has stalled (see docs for cleaning instructions)").unwrap();
+        dict.set_item(3, "payload is still being copied to cache")
+            .unwrap();
+        dict.set_item(
+            4,
+            "payload copy has stalled (see docs for cleaning instructions)",
+        )
+        .unwrap();
         dict.set_item(5, "is pending caching").unwrap();
         dict.set_item(6, "was deleted").unwrap();
-        dict.set_item(7, "is not being cached due to cache size limit").unwrap();
+        dict.set_item(7, "is not being cached due to cache size limit")
+            .unwrap();
         dict.into()
     }
 }
@@ -269,9 +275,8 @@ impl PyPackageCache {
     ///     path: Root directory for the cache
     #[new]
     fn new(path: String) -> PyResult<Self> {
-        let cache = PackageCache::new(&path).map_err(|e| {
-            PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string())
-        })?;
+        let cache = PackageCache::new(&path)
+            .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
         Ok(Self { inner: cache })
     }
 
@@ -416,7 +421,8 @@ impl PyPackageCache {
     /// Returns:
     ///     bool: True if there's enough space to cache this variant
     fn variant_meets_space_requirements(&self, variant_root: String) -> bool {
-        self.inner.variant_meets_space_requirements(std::path::Path::new(&variant_root))
+        self.inner
+            .variant_meets_space_requirements(std::path::Path::new(&variant_root))
     }
 }
 

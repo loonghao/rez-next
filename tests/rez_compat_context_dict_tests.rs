@@ -234,7 +234,10 @@ fn test_rez_version_single_token() {
     let v5 = Version::parse("5").unwrap();
     let v50 = Version::parse("5.0").unwrap();
     // In Rez: longer with trailing zeros is greater
-    assert!(v50 > v5, "Version '5.0' should be > '5' (longer is greater)");
+    assert!(
+        v50 > v5,
+        "Version '5.0' should be > '5' (longer is greater)"
+    );
     assert!(v50 >= v5, "Version '5.0' should be >= '5'");
     assert!(v5 < v50, "Version '5' should be < '5.0'");
 }

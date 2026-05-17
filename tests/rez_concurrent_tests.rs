@@ -24,12 +24,12 @@ impl SharedPackageCache {
             data: std::sync::RwLock::new(Vec::new()),
         }
     }
-    
+
     fn add_package(&self, pkg: String) {
         let mut data = self.data.write().unwrap();
         data.push(pkg);
     }
-    
+
     fn get_packages(&self) -> Vec<String> {
         let data = self.data.read().unwrap();
         data.clone()
@@ -42,14 +42,14 @@ impl SharedPackageCache {
 #[test]
 fn test_concurrent_readers_shared_cache() {
     let cache = Arc::new(SharedPackageCache::new());
-    
+
     // Pre-populate
     for i in 0..100 {
         cache.add_package(format!("pkg_{}", i));
     }
-    
+
     let mut handles = vec![];
-    
+
     // Spawn 20 concurrent readers
     for _ in 0..20 {
         let cache_clone = cache.clone();
@@ -60,7 +60,7 @@ fn test_concurrent_readers_shared_cache() {
         });
         handles.push(handle);
     }
-    
+
     // All readers should complete successfully
     for handle in handles {
         handle.join().unwrap();
@@ -72,7 +72,7 @@ fn test_concurrent_readers_shared_cache() {
 fn test_concurrent_writers_shared_cache() {
     let cache = Arc::new(SharedPackageCache::new());
     let mut handles = vec![];
-    
+
     // Spawn 10 concurrent writers
     for i in 0..10 {
         let cache_clone = cache.clone();
@@ -83,12 +83,12 @@ fn test_concurrent_writers_shared_cache() {
         });
         handles.push(handle);
     }
-    
+
     // All writers should complete successfully
     for handle in handles {
         handle.join().unwrap();
     }
-    
+
     // Should have 100 packages total (10 writers x 10 packages each)
     let packages = cache.get_packages();
     assert_eq!(packages.len(), 100);
@@ -99,7 +99,7 @@ fn test_concurrent_writers_shared_cache() {
 fn test_concurrent_read_write() {
     let cache = Arc::new(SharedPackageCache::new());
     let mut handles = vec![];
-    
+
     // Spawn 5 writers
     for i in 0..5 {
         let cache_clone = cache.clone();
@@ -111,7 +111,7 @@ fn test_concurrent_read_write() {
         });
         handles.push(handle);
     }
-    
+
     // Spawn 5 readers
     for _ in 0..5 {
         let cache_clone = cache.clone();
@@ -123,7 +123,7 @@ fn test_concurrent_read_write() {
         });
         handles.push(handle);
     }
-    
+
     // All threads should complete without deadlock
     for handle in handles {
         handle.join().unwrap();
@@ -135,7 +135,7 @@ fn test_concurrent_read_write() {
 fn test_concurrent_no_corruption() {
     let cache = Arc::new(SharedPackageCache::new());
     let mut handles = vec![];
-    
+
     // Spawn many concurrent writers
     for i in 0..20 {
         let cache_clone = cache.clone();
@@ -147,16 +147,16 @@ fn test_concurrent_no_corruption() {
         });
         handles.push(handle);
     }
-    
+
     // Wait for all writers
     for handle in handles {
         handle.join().unwrap();
     }
-    
+
     // Should have exactly 1000 packages (20 x 50)
     let packages = cache.get_packages();
     assert_eq!(packages.len(), 1000);
-    
+
     // Check for duplicates (there shouldn't be any if we're using a Mutex correctly)
     // Actually, in this test, duplicates are expected because different threads
     // might write the same package name. Let me just check the count.
@@ -167,7 +167,7 @@ fn test_concurrent_no_corruption() {
 fn test_concurrent_high_contention() {
     let cache = Arc::new(SharedPackageCache::new());
     let mut handles = vec![];
-    
+
     // Spawn 50 threads, each doing 10 operations
     for i in 0..50 {
         let cache_clone = cache.clone();
@@ -182,7 +182,7 @@ fn test_concurrent_high_contention() {
         });
         handles.push(handle);
     }
-    
+
     // All threads should complete
     for handle in handles {
         handle.join().unwrap();
@@ -193,15 +193,15 @@ fn test_concurrent_high_contention() {
 #[test]
 fn test_concurrent_reads_non_blocking() {
     let cache = Arc::new(SharedPackageCache::new());
-    
+
     // Pre-populate with large dataset
     for i in 0..1000 {
         cache.add_package(format!("pkg_{}", i));
     }
-    
+
     let start = std::time::Instant::now();
     let mut handles = vec![];
-    
+
     // Spawn 100 concurrent readers
     for _ in 0..100 {
         let cache_clone = cache.clone();
@@ -210,13 +210,13 @@ fn test_concurrent_reads_non_blocking() {
         });
         handles.push(handle);
     }
-    
+
     for handle in handles {
         handle.join().unwrap();
     }
-    
+
     let elapsed = start.elapsed();
-    
+
     // 100 concurrent reads should complete quickly (< 1 second)
     assert!(
         elapsed.as_secs() < 1,
@@ -230,7 +230,7 @@ fn test_concurrent_reads_non_blocking() {
 fn test_concurrent_panic_recovery() {
     let cache = Arc::new(SharedPackageCache::new());
     let mut handles = vec![];
-    
+
     // Spawn some threads that might panic
     for i in 0..10 {
         let cache_clone = cache.clone();
@@ -243,7 +243,7 @@ fn test_concurrent_panic_recovery() {
         });
         handles.push(handle);
     }
-    
+
     // Some threads should panic, others should complete
     let mut success_count = 0;
     for handle in handles {
@@ -251,9 +251,12 @@ fn test_concurrent_panic_recovery() {
             success_count += 1;
         }
     }
-    
+
     // At least 9 threads should succeed (1 panicked)
-    assert!(success_count >= 9, "should have at least 9 successful threads");
+    assert!(
+        success_count >= 9,
+        "should have at least 9 successful threads"
+    );
 }
 
 /// Stress test: many concurrent operations over extended period.
@@ -261,7 +264,7 @@ fn test_concurrent_panic_recovery() {
 fn test_concurrent_stress_test() {
     let cache = Arc::new(SharedPackageCache::new());
     let mut handles = vec![];
-    
+
     // Spawn 20 threads, each doing 100 operations
     for i in 0..20 {
         let cache_clone = cache.clone();
@@ -276,15 +279,15 @@ fn test_concurrent_stress_test() {
         });
         handles.push(handle);
     }
-    
+
     let start = std::time::Instant::now();
-    
+
     for handle in handles {
         handle.join().unwrap();
     }
-    
+
     let elapsed = start.elapsed();
-    
+
     // Stress test should complete within 5 seconds
     assert!(
         elapsed.as_secs() < 5,
@@ -298,14 +301,12 @@ fn test_concurrent_stress_test() {
 fn test_concurrent_version_parsing() {
     // This test assumes there's a global version parser that might be called concurrently
     // Adjust based on actual version parsing API
-    
-    let versions: Vec<_> = (0..100)
-        .map(|i| format!("1.2.{}", i))
-        .collect();
-    
+
+    let versions: Vec<_> = (0..100).map(|i| format!("1.2.{}", i)).collect();
+
     let versions = Arc::new(versions);
     let mut handles = vec![];
-    
+
     // Spawn 10 threads parsing versions concurrently
     for _i in 0..10 {
         let versions_clone = versions.clone();
@@ -318,7 +319,7 @@ fn test_concurrent_version_parsing() {
         });
         handles.push(handle);
     }
-    
+
     for handle in handles {
         handle.join().unwrap();
     }
@@ -329,9 +330,9 @@ fn test_concurrent_version_parsing() {
 fn test_concurrent_solver() {
     // This test checks that multiple solver instances can run concurrently
     // without interfering with each other
-    
+
     let mut handles = vec![];
-    
+
     // Spawn 5 concurrent solver runs
     for _i in 0..5 {
         let handle = thread::spawn(move || {
@@ -343,7 +344,7 @@ fn test_concurrent_solver() {
         });
         handles.push(handle);
     }
-    
+
     for handle in handles {
         handle.join().unwrap();
     }
@@ -353,13 +354,13 @@ fn test_concurrent_solver() {
 #[test]
 fn test_thread_local_storage() {
     use std::cell::RefCell;
-    
+
     thread_local! {
         static COUNTER: RefCell<u32> = const { RefCell::new(0) };
     }
-    
+
     let mut handles = vec![];
-    
+
     // Spawn threads that use thread-local storage
     for i in 0..10 {
         let handle = thread::spawn(move || {
@@ -372,7 +373,7 @@ fn test_thread_local_storage() {
         });
         handles.push(handle);
     }
-    
+
     for handle in handles {
         handle.join().unwrap();
     }
@@ -383,7 +384,7 @@ fn test_thread_local_storage() {
 fn test_concurrent_with_timeout() {
     let cache = Arc::new(SharedPackageCache::new());
     let mut handles = vec![];
-    
+
     // Spawn threads that might block
     for i in 0..10 {
         let cache_clone = cache.clone();
@@ -393,14 +394,14 @@ fn test_concurrent_with_timeout() {
                 thread::sleep(Duration::from_millis(100));
                 cache_clone.add_package(format!("pkg_{}", i));
             });
-            
+
             // Wait with timeout
             let result = handle.join();
             assert!(result.is_ok());
         });
         handles.push(handle);
     }
-    
+
     for handle in handles {
         handle.join().unwrap();
     }

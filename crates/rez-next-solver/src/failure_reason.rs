@@ -86,12 +86,12 @@ mod tests {
 
     #[test]
     fn test_failure_reason_clone() {
-        let reason = FailureReason::with_requirements(
-            "test",
-            vec!["req1".to_string()],
-        );
+        let reason = FailureReason::with_requirements("test", vec!["req1".to_string()]);
         let cloned = reason.clone();
         assert_eq!(reason.description(), cloned.description());
-        assert_eq!(reason.involved_requirements(), cloned.involved_requirements());
+        assert_eq!(
+            reason.involved_requirements(),
+            cloned.involved_requirements()
+        );
     }
 }

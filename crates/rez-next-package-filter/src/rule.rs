@@ -115,13 +115,9 @@ impl GlobRule {
         let inner = txt
             .strip_prefix("glob(")
             .and_then(|s| s.strip_suffix(')'))
-            .ok_or_else(|| {
-                FilterError::ParseError(format!("Invalid glob rule format: {}", txt))
-            })?;
+            .ok_or_else(|| FilterError::ParseError(format!("Invalid glob rule format: {}", txt)))?;
 
-        let (field, pattern) = if let Some((field_str, pattern_str)) =
-            inner.split_once(':')
-        {
+        let (field, pattern) = if let Some((field_str, pattern_str)) = inner.split_once(':') {
             let field = match field_str {
                 "name" => GlobField::Name,
                 "version" => GlobField::Version,
@@ -253,9 +249,8 @@ pub enum RegexField {
 impl RegexRule {
     /// Create a new regex rule.
     pub fn new(pattern: &str, field: RegexField, family: Option<&str>) -> Result<Self> {
-        let regex = regex::Regex::new(pattern).map_err(|e| {
-            FilterError::ParseError(format!("Invalid regex pattern: {}", e))
-        })?;
+        let regex = regex::Regex::new(pattern)
+            .map_err(|e| FilterError::ParseError(format!("Invalid regex pattern: {}", e)))?;
 
         Ok(Self {
             regex,
@@ -276,9 +271,7 @@ impl RegexRule {
                 FilterError::ParseError(format!("Invalid regex rule format: {}", txt))
             })?;
 
-        let (field, pattern) = if let Some((field_str, pattern_str)) =
-            inner.split_once(':')
-        {
+        let (field, pattern) = if let Some((field_str, pattern_str)) = inner.split_once(':') {
             let field = match field_str {
                 "name" => RegexField::Name,
                 "description" => RegexField::Description,
@@ -366,9 +359,8 @@ pub struct RangeRule {
 impl RangeRule {
     /// Create a new range rule.
     pub fn new(range_str: &str, family: Option<&str>) -> Result<Self> {
-        let range = VersionRange::parse(range_str).map_err(|e| {
-            FilterError::ParseError(format!("Invalid version range: {}", e))
-        })?;
+        let range = VersionRange::parse(range_str)
+            .map_err(|e| FilterError::ParseError(format!("Invalid version range: {}", e)))?;
 
         Ok(Self {
             range,
@@ -482,13 +474,19 @@ impl TimestampRule {
     /// Example: `before(1704067200)` for before 2024-01-01
     pub fn parse_rule(txt: &str) -> Result<Box<dyn Rule>> {
         let (before, inner) = if let Some(stripped) = txt.strip_prefix("before(") {
-            (true, stripped.strip_suffix(')').ok_or_else(|| {
-                FilterError::ParseError(format!("Invalid before rule format: {}", txt))
-            })?)
+            (
+                true,
+                stripped.strip_suffix(')').ok_or_else(|| {
+                    FilterError::ParseError(format!("Invalid before rule format: {}", txt))
+                })?,
+            )
         } else if let Some(stripped) = txt.strip_prefix("after(") {
-            (false, stripped.strip_suffix(')').ok_or_else(|| {
-                FilterError::ParseError(format!("Invalid after rule format: {}", txt))
-            })?)
+            (
+                false,
+                stripped.strip_suffix(')').ok_or_else(|| {
+                    FilterError::ParseError(format!("Invalid after rule format: {}", txt))
+                })?,
+            )
         } else {
             return Err(FilterError::ParseError(format!(
                 "Invalid timestamp rule format: {}",
@@ -604,8 +602,7 @@ pub fn parse_rule(txt: &str) -> Result<Box<dyn Rule>> {
 
     // Auto-detect: if contains '*' or '?', treat as glob
     if txt.contains('*') || txt.contains('?') {
-        return GlobRule::new(txt, GlobField::Name, None)
-            .map(|r| Box::new(r) as Box<dyn Rule>);
+        return GlobRule::new(txt, GlobField::Name, None).map(|r| Box::new(r) as Box<dyn Rule>);
     }
 
     // Otherwise, treat as version range

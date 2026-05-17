@@ -4,11 +4,9 @@
 
 use pyo3::prelude::*;
 use rez_next_util::{
-    command_exists as rs_command_exists,
-    execute_command as rs_execute_command,
+    command_exists as rs_command_exists, execute_command as rs_execute_command,
     execute_command_with_timeout as rs_execute_command_with_timeout,
-    get_command_output as rs_get_command_output,
-    get_command_path as rs_get_command_path,
+    get_command_output as rs_get_command_output, get_command_path as rs_get_command_path,
     CommandResult,
 };
 
@@ -114,7 +112,10 @@ pub fn register_command_module(py: Python<'_>, parent: &Bound<'_, PyModule>) -> 
 
     // Add functions
     command_mod.add_function(wrap_pyfunction!(execute_command, &command_mod)?)?;
-    command_mod.add_function(wrap_pyfunction!(execute_command_with_timeout, &command_mod)?)?;
+    command_mod.add_function(wrap_pyfunction!(
+        execute_command_with_timeout,
+        &command_mod
+    )?)?;
     command_mod.add_function(wrap_pyfunction!(command_exists, &command_mod)?)?;
     command_mod.add_function(wrap_pyfunction!(get_command_path, &command_mod)?)?;
     command_mod.add_function(wrap_pyfunction!(get_command_output, &command_mod)?)?;

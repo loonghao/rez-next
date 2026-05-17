@@ -218,7 +218,9 @@ impl super::ReleaseVCS for SvnVCS {
         }
 
         // Get last changed author
-        let author = self.run_svn(&["info", "--show-item", "last-changed-author"]).ok();
+        let author = self
+            .run_svn(&["info", "--show-item", "last-changed-author"])
+            .ok();
         if let Some(ref a) = author {
             metadata.insert("author".to_string(), a.clone());
         }
@@ -231,11 +233,7 @@ impl super::ReleaseVCS for SvnVCS {
             "author": author,
         });
 
-        let mut revision = super::VCSRevision::with_data(
-            "svn",
-            revision_id,
-            data,
-        );
+        let mut revision = super::VCSRevision::with_data("svn", revision_id, data);
         revision.metadata = metadata;
 
         Ok(revision)
@@ -244,20 +242,26 @@ impl super::ReleaseVCS for SvnVCS {
     /// Export the repository at the given revision to the given path.
     ///
     /// Uses `svn export -r <rev> <url> <path>`.
-    fn export(&self, revision: &super::VCSRevision, path: &std::path::Path) -> Result<(), RezCoreError> {
+    fn export(
+        &self,
+        revision: &super::VCSRevision,
+        path: &std::path::Path,
+    ) -> Result<(), RezCoreError> {
         // Validate target path
         if path.exists() {
-            return Err(RezCoreError::BuildError(
-                format!("Export path '{}' already exists", path.display())
-            ));
+            return Err(RezCoreError::BuildError(format!(
+                "Export path '{}' already exists",
+                path.display()
+            )));
         }
 
         // Ensure parent directory exists (required by rez interface)
         if let Some(parent) = path.parent() {
             if !parent.exists() {
-                return Err(RezCoreError::BuildError(
-                    format!("Parent directory '{}' does not exist", parent.display())
-                ));
+                return Err(RezCoreError::BuildError(format!(
+                    "Parent directory '{}' does not exist",
+                    parent.display()
+                )));
             }
         }
 

@@ -81,7 +81,7 @@ pub fn expand_requirement(
     // Query latest package
     let latest_version = match query_latest(&req.name, version_spec) {
         Some(v) => v,
-        None => return Ok(request.to_string()),  // No package found, return original
+        None => return Ok(request.to_string()), // No package found, return original
     };
 
     // Build expanded requirement
@@ -104,10 +104,7 @@ pub fn expand_requirements(
 ) -> Vec<String> {
     requests
         .iter()
-        .map(|r| {
-            expand_requirement(r, query_latest)
-                .unwrap_or_else(|_| r.to_string())
-        })
+        .map(|r| expand_requirement(r, query_latest).unwrap_or_else(|_| r.to_string()))
         .collect()
 }
 

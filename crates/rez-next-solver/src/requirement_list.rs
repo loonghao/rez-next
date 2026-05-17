@@ -12,7 +12,7 @@ use std::collections::HashMap;
 /// methods to add, remove, and query requirements.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RequirementList {
-    /// Internal storage: package_name -> Vec<PackageRequirement>
+    /// Internal storage: package_name -> `Vec<PackageRequirement>`
     requirements: HashMap<String, Vec<PackageRequirement>>,
 }
 

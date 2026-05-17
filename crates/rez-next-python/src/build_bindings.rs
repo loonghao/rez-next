@@ -21,9 +21,10 @@ impl PyBuildType {
     pub fn new(name: &str) -> PyResult<Self> {
         match BuildType::from_str_opt(name) {
             Some(bt) => Ok(Self { inner: bt }),
-            None => Err(pyo3::exceptions::PyValueError::new_err(
-                format!("Invalid BuildType: '{}', expected 'local' or 'central'", name),
-            )),
+            None => Err(pyo3::exceptions::PyValueError::new_err(format!(
+                "Invalid BuildType: '{}', expected 'local' or 'central'",
+                name
+            ))),
         }
     }
 

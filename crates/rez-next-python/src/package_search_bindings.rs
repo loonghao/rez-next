@@ -64,10 +64,7 @@ impl PyResourceSearchResult {
 ///     List of plugin package names.
 #[pyfunction]
 #[pyo3(name = "get_plugins")]
-pub fn py_get_plugins(
-    package_name: String,
-    paths: Option<Vec<String>>,
-) -> PyResult<Vec<String>> {
+pub fn py_get_plugins(package_name: String, paths: Option<Vec<String>>) -> PyResult<Vec<String>> {
     let result = get_plugins(&package_name, paths);
     Ok(result)
 }
@@ -112,10 +109,7 @@ pub fn setup_package_search_module(submodule: &Bound<'_, PyModule>) -> PyResult<
 
     // Add functions
     submodule.add_function(wrap_pyfunction!(py_get_plugins, submodule)?)?;
-    submodule.add_function(wrap_pyfunction!(
-        py_get_reverse_dependency_tree,
-        submodule
-    )?)?;
+    submodule.add_function(wrap_pyfunction!(py_get_reverse_dependency_tree, submodule)?)?;
 
     Ok(())
 }
