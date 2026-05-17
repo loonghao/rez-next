@@ -7,6 +7,12 @@ import os
 # Version info (matches rez.__version__ API)
 __version__ = "0.3.0"
 
+# Author info (matches rez.__author__ API)
+__author__ = "rez-next contributors"
+
+# License info (matches rez.__license__ API)
+__license__ = "Apache-2.0"
+
 # Module root path (matches rez.module_root_path API)
 module_root_path = os.path.dirname(os.path.abspath(__file__))
 
