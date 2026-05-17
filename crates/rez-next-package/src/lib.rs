@@ -12,6 +12,7 @@
 pub mod filter;
 pub mod package;
 pub mod package_cache;
+pub mod package_order; // Package ordering strategies
 pub mod package_py_utils; // Utility functions for package.py files
 pub mod python_ast_parser;
 pub mod serialization; // Always available for CLI usage // Package filtering support
@@ -19,6 +20,7 @@ pub mod serialization; // Always available for CLI usage // Package filtering su
 pub use filter::*;
 pub use package::*;
 pub use package_cache::*;
+pub use package_order::*; // Package ordering strategies
 pub use package_py_utils::*;
 pub use python_ast_parser::*;
 pub use serialization::{PackageFormat, PackageSerializer}; // Always available for CLI usage // Package filtering support

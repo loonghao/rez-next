@@ -62,9 +62,12 @@ mod bundle_functions;
 mod cli_functions;
 mod explicit_bindings;
 mod package_functions;
+mod package_order_bindings;
 mod package_uri_functions;
 mod rex_functions;
 mod selftest_functions;
+
+
 
 
 use bind_bindings::{PyBindManager, PyBindResult};
@@ -685,6 +688,9 @@ fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
     // ── Submodule: rez.package_test ─────────────────────────────────
     test_bindings::register_test_submodule(m.py(), m)?;
+
+    // ── Submodule: rez.package_order ──────────────────────────────
+    package_order_bindings::register_package_order_submodule(m.py(), m)?;
 
     // ── Submodule: rez.util ──────────────────────────────────────
     util_bindings::register_util_submodule(m.py(), m)?;
