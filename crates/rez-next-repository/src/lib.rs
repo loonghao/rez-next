@@ -13,6 +13,7 @@ pub mod cache;
 pub mod filesystem;
 pub mod high_performance_scanner;
 pub mod package_repository;
+pub mod package_search;
 pub mod repository;
 pub mod resources;
 pub mod scanner;
@@ -22,6 +23,7 @@ pub mod simple_repository;
 pub use cache::*;
 pub use filesystem::*;
 pub use high_performance_scanner::*;
+pub use package_search::{get_plugins, get_reverse_dependency_tree, ResourceSearchResult};
 pub use repository::{
     deduplicate_packages, PackageSearchCriteria, Repository, RepositoryMetadata, RepositoryStats,
     RepositoryType,

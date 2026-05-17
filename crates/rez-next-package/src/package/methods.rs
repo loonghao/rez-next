@@ -210,8 +210,13 @@ impl Package {
     ///
     /// # Example
     /// ```
-    /// use rez_next_package::package::types::Package;
-    /// let pkg = Package::from_path("/path/to/package").unwrap();
+    /// # use rez_next_package::package::types::Package;
+    /// # use std::path::PathBuf;
+    /// # use tempfile::TempDir;
+    /// # let dir = TempDir::new().unwrap();
+    /// # let pkg_path = dir.path().join("package.py");
+    /// # std::fs::write(&pkg_path, r#"name = "mypackage""#).unwrap();
+    /// let pkg = Package::from_path(pkg_path).unwrap();
     /// assert_eq!(pkg.name, "mypackage");
     /// ```
     pub fn from_path<P: AsRef<std::path::Path>>(path: P) -> Result<Self, RezCoreError> {

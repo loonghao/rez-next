@@ -28,6 +28,7 @@ mod package_help_bindings;
 mod package_py_utils_bindings;
 mod package_repository_bindings;
 mod package_resources_bindings;
+mod package_search_bindings;
 mod pip_bindings;
 mod plugins_bindings;
 
@@ -327,6 +328,11 @@ fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
     let resolved_context = PyModule::new(m.py(), "resolved_context")?;
     resolved_context.add_class::<PyResolvedContext>()?;
     register_submodule(m, "resolved_context", &resolved_context)?;
+
+    // ── Submodule: rez.package_search ──────────────────────────
+    let package_search_mod = PyModule::new(m.py(), "package_search")?;
+    package_search_bindings::setup_package_search_module(&package_search_mod)?;
+    register_submodule(m, "package_search", &package_search_mod)?;
 
     // ── Submodule: rez.suite ──────────────────────────────────────────────────
     let suite_mod = PyModule::new(m.py(), "suite")?;
