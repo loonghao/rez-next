@@ -540,10 +540,6 @@ impl PyPackage {
     fn to_package_py(&self) -> PyResult<String> {
         let mut lines = Vec::new();
 
-        // Add encoding declaration
-        lines.push("# -*- coding: utf-8 -*-".to_string());
-        lines.push("".to_string());
-
         // Add name (required)
         lines.push(format!("name = \"{}\"", self.0.name));
 
@@ -560,7 +556,9 @@ impl PyPackage {
                 lines.push(d.clone());
                 lines.push("\"\"\"".to_string());
             } else {
-                lines.push(format!("description = \"{}\"", d));
+                // Escape quotes in description
+                let escaped = d.replace("\"", "\\\"");
+                lines.push(format!("description = \"{}\"", escaped));
             }
         }
 
@@ -636,6 +634,34 @@ impl PyPackage {
                 }
                 lines.push("]".to_string());
             }
+        }
+
+        // Add commands (as a function definition)
+        if let Some(ref c) = self.0.commands {
+            lines.push("".to_string());
+            lines.push("def commands():".to_string());
+            // Indent each line of commands
+            for line in c.lines() {
+                if line.trim().is_empty() {
+                    lines.push("".to_string());
+                } else {
+                    lines.push(format!("    {}", line));
+                }
+            }
+        }
+
+        // Add relocatable
+        if let Some(ref r) = self.0.relocatable {
+            lines.push("".to_string());
+            let val = if *r { "True" } else { "False" };
+            lines.push(format!("relocatable = {}", val));
+        }
+
+        // Add cachable
+        if let Some(ref c) = self.0.cachable {
+            lines.push("".to_string());
+            let val = if *c { "True" } else { "False" };
+            lines.push(format!("cachable = {}", val));
         }
 
         // Add uuid
