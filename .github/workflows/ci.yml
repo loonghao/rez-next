@@ -81,7 +81,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - uses: dtolnay/rust-toolchain@1.95.0
       - uses: Swatinem/rust-cache@v2
-      - run: vx cargo test --workspace --exclude rez-next-python -- --test-threads=1
+      - run: vx cargo test --workspace --exclude rez-next-python --lib --bins -- --test-threads=1
 
   cli-e2e:
     name: CLI E2E Tests
@@ -158,7 +158,7 @@ jobs:
       - uses: taiki-e/install-action@cargo-llvm-cov
       - name: Build rez-next binary (required for e2e tests)
         run: cargo build --bin rez-next
-      - run: cargo llvm-cov --workspace --exclude rez-next-python --lcov --output-path lcov.info -- --test-threads=1
+      - run: cargo llvm-cov --workspace --exclude rez-next-python --lib --bins --lcov --output-path lcov.info -- --test-threads=1
       - uses: codecov/codecov-action@v6
         with:
           files: lcov.info
