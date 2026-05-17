@@ -298,8 +298,8 @@ fn dict_to_python_code(value: &serde_json::Value, output: &mut String, indent: u
             output.push(']');
         }
         serde_json::Value::Object(map) => {
+            // Generate Python attribute code (key = value) for package.py format
             // Use IndexMap to preserve key order
-            output.push_str("{\n");
             let mut keys: Vec<&String> = map.keys().collect();
 
             // Sort keys according to PACKAGE_KEY_ORDER if possible
@@ -315,18 +315,17 @@ fn dict_to_python_code(value: &serde_json::Value, output: &mut String, indent: u
             });
 
             for (i, key) in keys.iter().enumerate() {
+                if i > 0 {
+                    output.push('\n');
+                }
                 output.push_str(&indent_str);
-                output.push_str("    ");
-                output.push_str(&format_python_string(key));
-                output.push_str(": ");
-                dict_to_python_code(&map[*key], output, indent + 4)?;
+                output.push_str(key);
+                output.push_str(" = ");
+                dict_to_python_code(&map[*key], output, indent)?;
                 if i < keys.len() - 1 {
                     output.push(',');
                 }
-                output.push('\n');
             }
-            output.push_str(&indent_str);
-            output.push('}');
         }
     }
 
@@ -335,7 +334,10 @@ fn dict_to_python_code(value: &serde_json::Value, output: &mut String, indent: u
 
 /// Format a string as a Python string literal.
 fn format_python_string(s: &str) -> String {
-    if s.contains('\'') && s.contains('"') {
+    if s.contains('\n') {
+        // Multiline string - use triple quotes (align with Rez's package.py format)
+        format!("'''{}'''", s.replace("'''", "\\'\\'\\'"))
+    } else if s.contains('\'') && s.contains('"') {
         // Use triple quotes
         format!("'''{}'''", s.replace("'''", "\\'\\'\\'"))
     } else if s.contains('\'') {

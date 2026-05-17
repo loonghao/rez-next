@@ -4,12 +4,18 @@ Tests for rez_next.serialise_ module.
 This module tests the package serialisation functionality,
 including dump_package_data, dump_yaml, as_block_string,
 dict_to_attributes_code, and package_key_order.
+
+This test file aligns with Rez's package_serialise.py interface:
+- dump_package_data(data, buf, format_, skip_attributes)
+- Supports file-like objects (SupportsWrite protocol)
+- Validates data against package_serialise_schema
 """
 
 import sys
 import os
-import tempfile
+import io
 import json
+import tempfile
 
 import pytest
 import rez_next
@@ -146,16 +152,28 @@ class TestPackageKeyOrder:
 
 
 class TestDumpPackageData:
-    """Test dump_package_data function."""
+    """Test dump_package_data function.
 
-    def test_dump_package_data_yaml(self):
-        """Test dump_package_data with YAML format."""
+    This function aligns with Rez's package_serialise.dump_package_data interface:
+    - Args: data (dict), buf (file-like object), format_ (str), skip_attributes (list, optional)
+    - Supports file-like objects (SupportsWrite protocol)
+    - Validates data against package_serialise_schema
+    """
+
+    def test_dump_package_data_yaml_to_file_object(self):
+        """Test dump_package_data with YAML format to file object."""
         data = {"name": "test_package", "version": "1.0.0"}
+
+        # Use a file object (SupportsWrite protocol)
         with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
             path = f.name
+
         try:
-            serialise.dump_package_data(data, path, "yaml")
-            assert os.path.exists(path)
+            # Open file in binary write mode to support write(bytes)
+            with open(path, 'wb') as buf:
+                serialise.dump_package_data(data, buf, "yaml")
+
+            # Read and verify
             with open(path, 'r') as f:
                 content = f.read()
                 assert "name:" in content
@@ -163,50 +181,87 @@ class TestDumpPackageData:
         finally:
             os.unlink(path)
 
+    def test_dump_package_data_yaml_to_bytesio(self):
+        """Test dump_package_data with YAML format to BytesIO (in-memory)."""
+        data = {"name": "test_package", "version": "1.0.0"}
+
+        # Use BytesIO as a file-like object
+        buf = io.BytesIO()
+        serialise.dump_package_data(data, buf, "yaml")
+
+        # Get the content
+        buf.seek(0)
+        content = buf.read().decode('utf-8')
+        assert "name:" in content
+        assert "test_package" in content
+
     def test_dump_package_data_json(self):
         """Test dump_package_data with JSON format."""
         data = {"name": "test_package", "version": "1.0.0"}
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
-            path = f.name
-        try:
-            serialise.dump_package_data(data, path, "json")
-            assert os.path.exists(path)
-            with open(path, 'r') as f:
-                content = json.load(f)
-                assert content["name"] == "test_package"
-                assert content["version"] == "1.0.0"
-        finally:
-            os.unlink(path)
+
+        buf = io.BytesIO()
+        serialise.dump_package_data(data, buf, "json")
+
+        buf.seek(0)
+        content = json.loads(buf.read().decode('utf-8'))
+        assert content["name"] == "test_package"
+        assert content["version"] == "1.0.0"
 
     def test_dump_package_data_python(self):
         """Test dump_package_data with Python format."""
         data = {"name": "test_package", "version": "1.0.0"}
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
-            path = f.name
-        try:
-            serialise.dump_package_data(data, path, "python")
-            assert os.path.exists(path)
-            with open(path, 'r') as f:
-                content = f.read()
-                assert "test_package" in content
-                assert "1.0.0" in content
-        finally:
-            os.unlink(path)
 
-    def test_dump_package_data_toml(self):
-        """Test dump_package_data with TOML format."""
+        buf = io.BytesIO()
+        serialise.dump_package_data(data, buf, "python")
+
+        buf.seek(0)
+        content = buf.read().decode('utf-8')
+        assert "test_package" in content
+        assert "1.0.0" in content
+
+    def test_dump_package_data_skip_attributes(self):
+        """Test dump_package_data with skip_attributes parameter."""
+        data = {
+            "name": "test_package",
+            "version": "1.0.0",
+            "description": "A test package",
+            "requires": ["python-3.9"]
+        }
+
+        buf = io.BytesIO()
+        # Skip 'description' and 'requires'
+        serialise.dump_package_data(data, buf, "yaml", skip_attributes=["description", "requires"])
+
+        buf.seek(0)
+        content = buf.read().decode('utf-8')
+        assert "name:" in content
+        assert "test_package" in content
+        assert "description" not in content
+        assert "requires" not in content
+
+    def test_dump_package_data_txt_format_not_supported(self):
+        """Test that txt format is not supported (align with Rez)."""
         data = {"name": "test_package", "version": "1.0.0"}
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.toml', delete=False) as f:
-            path = f.name
-        try:
-            serialise.dump_package_data(data, path, "toml")
-            assert os.path.exists(path)
-            with open(path, 'r') as f:
-                content = f.read()
-                assert "name" in content
-                assert "test_package" in content
-        finally:
-            os.unlink(path)
+
+        buf = io.BytesIO()
+        with pytest.raises(ValueError, match="txt.*not supported"):
+            serialise.dump_package_data(data, buf, "txt")
+
+    def test_dump_package_data_missing_name(self):
+        """Test that missing 'name' field raises ValueError."""
+        data = {"version": "1.0.0"}  # Missing 'name'
+
+        buf = io.BytesIO()
+        with pytest.raises(ValueError, match="Missing required field"):
+            serialise.dump_package_data(data, buf, "yaml")
+
+    def test_dump_package_data_name_not_string(self):
+        """Test that non-string 'name' field raises ValueError."""
+        data = {"name": 123}  # 'name' is not a string
+
+        buf = io.BytesIO()
+        with pytest.raises(ValueError, match="must be a string"):
+            serialise.dump_package_data(data, buf, "yaml")
 
 
 if __name__ == "__main__":
