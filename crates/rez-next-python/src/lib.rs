@@ -25,6 +25,7 @@ mod package_bindings;
 mod package_cache_bindings;
 mod package_filter_bindings;
 mod package_help_bindings;
+mod package_py_utils_bindings;
 mod package_repository_bindings;
 mod pip_bindings;
 mod plugins_bindings;
@@ -317,6 +318,9 @@ fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
     }
     
     register_submodule(m, "package_help", &package_help_mod)?;
+
+    // ── Submodule: rez.package_py_utils ──────────────────────────────
+    package_py_utils_bindings::register_package_py_utils_submodule(m)?;
 
     // ── Submodule: rez.resolved_context ───────────────────────────────────────
     let resolved_context = PyModule::new(m.py(), "resolved_context")?;
