@@ -196,6 +196,7 @@ mod tests {
     use std::env;
     use std::fs;
     use std::io::Write;
+    #[cfg(windows)]
     use std::os::windows::fs::OpenOptionsExt;
     use std::path::PathBuf;
     use tempfile::TempDir;
