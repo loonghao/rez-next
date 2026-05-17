@@ -8,7 +8,7 @@ pub mod package_serialise;
 
 pub use package_serialise::{
     dump_package_data, dump_yaml, as_block_string, dict_to_attributes_code,
-    package_key_order, FileFormat, PackageSerialiseError, Result,
+    package_key_order, read_package_data, FileFormat, PackageSerialiseError, Result,
 };
 
 #[cfg(test)]

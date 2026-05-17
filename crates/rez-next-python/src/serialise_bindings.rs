@@ -8,7 +8,7 @@ use serde_json::Value;
 
 use rez_next_serialise::{
     as_block_string, dict_to_attributes_code, dump_package_data, dump_yaml,
-    package_key_order, FileFormat, PackageSerialiseError,
+    package_key_order, read_package_data, FileFormat, PackageSerialiseError,
 };
 
 /// Convert a Python object to serde_json::Value using Python's json module.
@@ -136,7 +136,7 @@ fn py_package_key_order() -> Vec<&'static str> {
     package_key_order()
 }
 
-/    // Register the `serialise_` submodule.
+// Register the `serialise_` submodule.
 pub fn register_serialise_module(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     let m = PyModule::new(parent.py(), "serialise_")?;
 

@@ -1,354 +1,423 @@
-//! Python bindings for `rez_next.package_cache`.
+//! Python bindings for `rez_next.package_cache` module.
 //!
-//! Exposes package caching functionality to Python.
+//! Provides high-performance package payload caching with the same API
+//! as `rez.package_cache`.
 
 use pyo3::prelude::*;
+use pyo3::types::{PyDict, PyList};
 
-use rez_next_package_cache::{
-    CacheBackend, CacheStats, CachedPackage, InMemoryCache, PackageCache,
+use rez_next_package::package_cache::{
+    CacheConfig, CacheStatus, CleanStats, PackageCache, VariantHandle,
 };
 
-/// Python-facing cached package entry.
-#[pyclass(name = "CachedPackage")]
-struct PyCachedPackage {
-    inner: CachedPackage,
+// ── VariantHandle bindings ─────────────────────────────────────────────
+
+/// VariantHandle identifies a unique package variant for caching.
+#[pyclass(name = "VariantHandle", from_py_object)]
+#[derive(Clone)]
+pub struct PyVariantHandle {
+    inner: VariantHandle,
 }
 
 #[pymethods]
-impl PyCachedPackage {
-    /// Create a new cached package entry.
+impl PyVariantHandle {
+    /// Create a new VariantHandle.
+    ///
+    /// Args:
+    ///     name: Package name
+    ///     version: Optional version string
+    ///     index: Optional variant index
     #[new]
-    fn new(
-        name: &str,
-        version: &str,
-        path: &str,
-        data: &str,
-    ) -> PyResult<Self> {
-        let mtime = std::fs::metadata(path)
-            .and_then(|m| m.modified())
-            .unwrap_or_else(|_| std::time::SystemTime::now());
-
-        Ok(Self {
-            inner: CachedPackage {
-                name: name.to_string(),
-                version: version.to_string(),
-                path: std::path::PathBuf::from(path),
-                mtime,
-                data: data.to_string(),
-                cached_at: std::time::SystemTime::now(),
-                ttl: None,
-            },
-        })
-    }
-
-    /// Package name.
-    #[getter]
-    fn name(&self) -> &str {
-        &self.inner.name
-    }
-
-    /// Package version.
-    #[getter]
-    fn version(&self) -> &str {
-        &self.inner.version
-    }
-
-    /// Path to the package definition file.
-    #[getter]
-    fn path(&self) -> PyResult<String> {
-        Ok(self.inner.path.to_string_lossy().to_string())
-    }
-
-    /// Cached package data.
-    #[getter]
-    fn data(&self) -> &str {
-        &self.inner.data
-    }
-
-    /// When this entry was cached.
-    #[getter]
-    fn cached_at(&self) -> PyResult<f64> {
-        self.inner
-            .cached_at
-            .duration_since(std::time::UNIX_EPOCH)
-            .map(|dur| dur.as_secs_f64())
-            .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))
-    }
-
-    /// TTL for this entry (seconds).
-    #[getter]
-    fn ttl(&self) -> Option<f64> {
-        self.inner.ttl.map(|ttl| ttl.as_secs_f64())
-    }
-
-    /// Set TTL for this entry (seconds).
-    #[setter]
-    fn set_ttl(&mut self, ttl: Option<f64>) {
-        self.inner.ttl = ttl.map(std::time::Duration::from_secs_f64);
-    }
-
-    /// Check if the cache entry is still valid.
-    fn is_valid(&self, source_mtime: Option<f64>) -> PyResult<bool> {
-        let mtime = if let Some(mtime_secs) = source_mtime {
-            std::time::UNIX_EPOCH + std::time::Duration::from_secs_f64(mtime_secs)
-        } else {
-            std::time::SystemTime::now()
-        };
-
-        Ok(self.inner.is_valid(mtime))
-    }
-
-    /// String representation.
-    fn __repr__(&self) -> String {
-        format!(
-            "CachedPackage(name={}, version={})",
-            self.inner.name,
-            self.inner.version
-        )
-    }
-}
-
-/// Python-facing in-memory cache.
-#[pyclass(name = "InMemoryCache")]
-struct PyInMemoryCache {
-    inner: InMemoryCache,
-}
-
-#[pymethods]
-impl PyInMemoryCache {
-    /// Create a new in-memory cache.
-    #[new]
-    fn new() -> Self {
+    fn new(name: String, version: Option<String>, index: Option<usize>) -> Self {
         Self {
-            inner: InMemoryCache::new(),
+            inner: VariantHandle::new(name, version, index),
         }
     }
 
-    /// Get a cached package by path.
-    fn get(&self, path: &str) -> PyResult<Option<PyCachedPackage>> {
-        let path = std::path::PathBuf::from(path);
-        let result = self.inner.get(&path).map_err(|e| {
-            pyo3::exceptions::PyRuntimeError::new_err(e.to_string())
-        })?;
-
-        Ok(result.map(|cached| PyCachedPackage { inner: cached }))
-    }
-
-    /// Put a package into the cache.
-    fn put(&self, path: &str, package: &PyCachedPackage) -> PyResult<()> {
-        let path = std::path::PathBuf::from(path);
-        self.inner.put(&path, package.inner.clone()).map_err(|e| {
-            pyo3::exceptions::PyRuntimeError::new_err(e.to_string())
-        })?;
-        Ok(())
-    }
-
-    /// Remove a cached package by path.
-    fn remove(&self, path: &str) -> PyResult<()> {
-        let path = std::path::PathBuf::from(path);
-        self.inner.remove(&path).map_err(|e| {
-            pyo3::exceptions::PyRuntimeError::new_err(e.to_string())
-        })?;
-        Ok(())
-    }
-
-    /// Clear all cached packages.
-    fn clear(&self) -> PyResult<()> {
-        self.inner.clear().map_err(|e| {
-            pyo3::exceptions::PyRuntimeError::new_err(e.to_string())
-        })?;
-        Ok(())
-    }
-
-    /// Get cache statistics.
-    fn stats(&self) -> PyResult<PyCacheStats> {
-        let stats = self.inner.stats();
-        Ok(PyCacheStats { inner: stats })
-    }
-}
-
-/// Python-facing cache statistics.
-#[pyclass(name = "CacheStats")]
-struct PyCacheStats {
-    inner: CacheStats,
-}
-
-#[pymethods]
-impl PyCacheStats {
-    /// Number of cache hits.
+    /// name (property)
     #[getter]
-    fn hits(&self) -> u64 {
-        self.inner.hits
+    fn name(&self) -> String {
+        self.inner.name.clone()
     }
 
-    /// Number of cache misses.
+    /// version (property)
     #[getter]
-    fn misses(&self) -> u64 {
-        self.inner.misses
+    fn version(&self) -> Option<String> {
+        self.inner.version.clone()
     }
 
-    /// Number of cache puts.
+    /// index (property)
     #[getter]
-    fn puts(&self) -> u64 {
-        self.inner.puts
+    fn index(&self) -> Option<usize> {
+        self.inner.index
     }
 
-    /// Number of cache removes.
-    #[getter]
-    fn removes(&self) -> u64 {
-        self.inner.removes
+    /// Get the SHA1 hash for this handle.
+    fn sha1_hash(&self) -> String {
+        self.inner.sha1_hash()
     }
 
-    /// Number of cache clears.
-    #[getter]
-    fn clears(&self) -> u64 {
-        self.inner.clears
+    /// Convert to dict.
+    fn to_dict<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyDict>> {
+        let dict = PyDict::new(py);
+        dict.set_item("name", self.inner.name.clone())?;
+        if let Some(v) = &self.inner.version {
+            dict.set_item("version", v)?;
+        }
+        if let Some(i) = self.inner.index {
+            dict.set_item("index", i)?;
+        }
+        Ok(dict)
     }
 
-    /// String representation.
     fn __repr__(&self) -> String {
         format!(
-            "CacheStats(hits={}, misses={}, puts={}, removes={}, clears={})",
-            self.inner.hits,
-            self.inner.misses,
-            self.inner.puts,
-            self.inner.removes,
-            self.inner.clears
+            "VariantHandle(name={:?}, version={:?}, index={:?})",
+            self.inner.name, self.inner.version, self.inner.index
         )
     }
 }
 
-/// Python-facing package cache manager.
+impl From<PyVariantHandle> for VariantHandle {
+    fn from(py_handle: PyVariantHandle) -> Self {
+        py_handle.inner
+    }
+}
+
+impl From<&PyVariantHandle> for VariantHandle {
+    fn from(py_handle: &PyVariantHandle) -> Self {
+        py_handle.inner.clone()
+    }
+}
+
+// ── CacheStatus bindings ──────────────────────────────────────────────
+
+/// CacheStatus enum - status of a variant in the cache.
+#[pyclass(name = "CacheStatus")]
+pub struct PyCacheStatus {
+    status: CacheStatus,
+}
+
+#[pymethods]
+impl PyCacheStatus {
+    /// Not found (0)
+    #[classattr]
+    fn NOT_FOUND() -> i32 {
+        0
+    }
+
+    /// Found (1)
+    #[classattr]
+    fn FOUND() -> i32 {
+        1
+    }
+
+    /// Created (2)
+    #[classattr]
+    fn CREATED() -> i32 {
+        2
+    }
+
+    /// Copying (3)
+    #[classattr]
+    fn COPYING() -> i32 {
+        3
+    }
+
+    /// CopyStalled (4)
+    #[classattr]
+    fn COPY_STALLED() -> i32 {
+        4
+    }
+
+    /// Pending (5)
+    #[classattr]
+    fn PENDING() -> i32 {
+        5
+    }
+
+    /// Removed (6)
+    #[classattr]
+    fn REMOVED() -> i32 {
+        6
+    }
+
+    /// Skipped (7)
+    #[classattr]
+    fn SKIPPED() -> i32 {
+        7
+    }
+
+    /// Get description for a status code.
+    #[staticmethod]
+    fn description(code: i32) -> String {
+        let status = match code {
+            0 => CacheStatus::NotFound,
+            1 => CacheStatus::Found,
+            2 => CacheStatus::Created,
+            3 => CacheStatus::Copying,
+            4 => CacheStatus::CopyStalled,
+            5 => CacheStatus::Pending,
+            6 => CacheStatus::Removed,
+            7 => CacheStatus::Skipped,
+            _ => CacheStatus::NotFound,
+        };
+        status.description().to_string()
+    }
+}
+
+// ── CacheConfig bindings ──────────────────────────────────────────────
+
+/// Configuration for package cache behavior.
+#[pyclass(name = "CacheConfig")]
+pub struct PyCacheConfig {
+    inner: CacheConfig,
+}
+
+#[pymethods]
+impl PyCacheConfig {
+    /// Create a new CacheConfig with defaults.
+    #[new]
+    fn new() -> Self {
+        Self {
+            inner: CacheConfig::default(),
+        }
+    }
+
+    /// max_size_bytes: Maximum cache size in bytes (None = unlimited)
+    #[getter]
+    fn max_size_bytes(&self) -> Option<u64> {
+        self.inner.max_size_bytes
+    }
+
+    #[setter]
+    fn set_max_size_bytes(&mut self, value: Option<u64>) {
+        self.inner.max_size_bytes = value;
+    }
+
+    /// min_free_space_bytes: Minimum free space to maintain
+    #[getter]
+    fn min_free_space_bytes(&self) -> u64 {
+        self.inner.min_free_space_bytes
+    }
+
+    #[setter]
+    fn set_min_free_space_bytes(&mut self, value: u64) {
+        self.inner.min_free_space_bytes = value;
+    }
+
+    /// max_age_secs: Maximum age of unused entries (None = unlimited)
+    #[getter]
+    fn max_age_secs(&self) -> Option<u64> {
+        self.inner.max_age_secs
+    }
+
+    #[setter]
+    fn set_max_age_secs(&mut self, value: Option<u64>) {
+        self.inner.max_age_secs = value;
+    }
+
+    /// cache_local: Whether to cache local packages
+    #[getter]
+    fn cache_local(&self) -> bool {
+        self.inner.cache_local
+    }
+
+    #[setter]
+    fn set_cache_local(&mut self, value: bool) {
+        self.inner.cache_local = value;
+    }
+}
+
+// ── PackageCache bindings ─────────────────────────────────────────────
+
+/// High-performance package payload cache.
+///
+/// Usage::
+///
+///     from rez_next.package_cache import PackageCache, VariantHandle
+///     cache = PackageCache("/path/to/cache")
+///     handle = VariantHandle("python", "3.9.0", None)
+///     path, status = cache.add_variant(handle, "/path/to/payload")
 #[pyclass(name = "PackageCache")]
-struct PyPackageCache {
+pub struct PyPackageCache {
     inner: PackageCache,
 }
 
 #[pymethods]
 impl PyPackageCache {
-    /// Create a new package cache with in-memory backend.
-    #[staticmethod]
-    fn new_in_memory() -> Self {
-        Self {
-            inner: PackageCache::new_in_memory(),
-        }
-    }
-
-    /// Create a new package cache with file-based backend.
-    #[staticmethod]
-    fn new_file_based(cache_dir: &str) -> PyResult<Self> {
-        let inner = PackageCache::new_file_based(cache_dir).map_err(|e| {
-            pyo3::exceptions::PyRuntimeError::new_err(e.to_string())
+    /// Create a new PackageCache.
+    ///
+    /// Args:
+    ///     path: Root directory for the cache
+    #[new]
+    fn new(path: String) -> PyResult<Self> {
+        let cache = PackageCache::new(&path).map_err(|e| {
+            PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string())
         })?;
-        Ok(Self { inner })
+        Ok(Self { inner: cache })
     }
 
-    /// Set the default TTL for cache entries (seconds).
-    fn set_default_ttl(&mut self, ttl: Option<f64>) {
-        let ttl = ttl.map(std::time::Duration::from_secs_f64);
-        self.inner = self.inner.clone().with_default_ttl(ttl.unwrap_or_default());
+    /// Get the root path of the cache.
+    fn get_root(&self) -> String {
+        self.inner.root().display().to_string()
     }
 
-    /// Get a cached package by path.
-    fn get(&self, path: &str) -> PyResult<Option<PyCachedPackage>> {
-        let path = std::path::PathBuf::from(path);
-        let result = self.inner.get(&path).map_err(|e| {
-            pyo3::exceptions::PyRuntimeError::new_err(e.to_string())
-        })?;
-
-        Ok(result.map(|cached| PyCachedPackage { inner: cached }))
+    /// Check if a variant is cached.
+    ///
+    /// Returns:
+    ///     tuple: (status_code, cached_path_or_None)
+    fn get_cached_root(&self, handle: &PyVariantHandle) -> PyResult<(i32, Option<String>)> {
+        let (status, path) = self.inner.get_cached_root(&handle.inner);
+        let code = match status {
+            CacheStatus::NotFound => 0,
+            CacheStatus::Found => 1,
+            CacheStatus::Created => 2,
+            CacheStatus::Copying => 3,
+            CacheStatus::CopyStalled => 4,
+            CacheStatus::Pending => 5,
+            CacheStatus::Removed => 6,
+            CacheStatus::Skipped => 7,
+        };
+        let path_str = path.map(|p| p.display().to_string());
+        Ok((code, path_str))
     }
 
-    /// Put a package into the cache.
-    fn put(&self, path: &str, package: &PyCachedPackage) -> PyResult<()> {
-        let path = std::path::PathBuf::from(path);
-        self.inner.put(&path, package.inner.clone()).map_err(|e| {
-            pyo3::exceptions::PyRuntimeError::new_err(e.to_string())
-        })?;
-        Ok(())
-    }
-
-    /// Put a package into the cache with the given data.
-    fn put_package(
+    /// Add a variant's payload to the cache.
+    ///
+    /// Args:
+    ///     handle: VariantHandle identifying the variant
+    ///     source_root: Path to the variant's payload
+    ///     force: Force caching even if checks fail
+    ///
+    /// Returns:
+    ///     tuple: (status_code, cached_path)
+    fn add_variant(
         &self,
-        path: &str,
-        name: &str,
-        version: &str,
-        data: &str,
-    ) -> PyResult<()> {
-        let path = std::path::PathBuf::from(path);
-        self.inner
-            .put_package(&path, name, version, data)
-            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
-        Ok(())
+        handle: &PyVariantHandle,
+        source_root: String,
+        force: Option<bool>,
+    ) -> PyResult<(i32, String)> {
+        let force = force.unwrap_or(false);
+        let (status, path) = self
+            .inner
+            .add_variant(&handle.inner, std::path::Path::new(&source_root), force)
+            .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
+
+        let code = match status {
+            CacheStatus::NotFound => 0,
+            CacheStatus::Found => 1,
+            CacheStatus::Created => 2,
+            CacheStatus::Copying => 3,
+            CacheStatus::CopyStalled => 4,
+            CacheStatus::Pending => 5,
+            CacheStatus::Removed => 6,
+            CacheStatus::Skipped => 7,
+        };
+
+        Ok((code, path.display().to_string()))
     }
 
-    /// Remove a cached package by path.
-    fn remove(&self, path: &str) -> PyResult<()> {
-        let path = std::path::PathBuf::from(path);
-        self.inner.remove(&path).map_err(|e| {
-            pyo3::exceptions::PyRuntimeError::new_err(e.to_string())
-        })?;
-        Ok(())
+    /// Remove a variant from the cache.
+    ///
+    /// Returns:
+    ///     tuple: (status_code, path_or_None)
+    fn remove_variant(&self, handle: &PyVariantHandle) -> PyResult<(i32, Option<String>)> {
+        let (status, path) = self.inner.remove_variant(&handle.inner);
+        let code = match status {
+            CacheStatus::NotFound => 0,
+            CacheStatus::Found => 1,
+            CacheStatus::Created => 2,
+            CacheStatus::Copying => 3,
+            CacheStatus::CopyStalled => 4,
+            CacheStatus::Pending => 5,
+            CacheStatus::Removed => 6,
+            CacheStatus::Skipped => 7,
+        };
+        let path_str = path.map(|p| p.display().to_string());
+        Ok((code, path_str))
     }
 
-    /// Clear all cached packages.
-    fn clear(&self) -> PyResult<()> {
-        self.inner.clear().map_err(|e| {
-            pyo3::exceptions::PyRuntimeError::new_err(e.to_string())
-        })?;
-        Ok(())
+    /// List all cached variants.
+    ///
+    /// Returns:
+    ///     list: List of (handle_dict, path, status_code) tuples
+    fn list_cached<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyList>> {
+        let cached = self.inner.list_cached();
+        let list = PyList::empty(py);
+
+        for (handle, path, status) in cached {
+            let dict = PyDict::new(py);
+            dict.set_item("name", handle.name)?;
+            if let Some(v) = &handle.version {
+                dict.set_item("version", v)?;
+            }
+            if let Some(i) = handle.index {
+                dict.set_item("index", i)?;
+            }
+
+            let code = match status {
+                CacheStatus::NotFound => 0,
+                CacheStatus::Found => 1,
+                CacheStatus::Created => 2,
+                CacheStatus::Copying => 3,
+                CacheStatus::CopyStalled => 4,
+                CacheStatus::Pending => 5,
+                CacheStatus::Removed => 6,
+                CacheStatus::Skipped => 7,
+            };
+
+            let tuple = (dict, path.display().to_string(), code);
+            list.append(tuple)?;
+        }
+
+        Ok(list)
     }
 
-    /// Get cache statistics.
-    fn stats(&self) -> PyResult<PyCacheStats> {
-        let stats = self.inner.stats();
-        Ok(PyCacheStats { inner: stats })
+    /// Clean old/unused cache entries.
+    ///
+    /// Args:
+    ///     time_limit_secs: Optional time limit for cleaning
+    fn clean(&self, time_limit_secs: Option<u64>) -> PyResult<(u64, u64)> {
+        let stats: CleanStats = self.inner.clean(time_limit_secs);
+        Ok((stats.entries_deleted, stats.deleted_bytes))
     }
 }
 
+// ── Module registration ────────────────────────────────────────────────
+
 /// Register the `package_cache` submodule.
-pub fn register_package_cache_submodule(
-    py: Python<'_>,
-    parent_module: &Bound<'_, PyModule>,
-) -> PyResult<()> {
-    let package_cache = PyModule::new(py, "package_cache")?;
+pub fn register_package_cache_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    let py = m.py();
+    let submodule = PyModule::new(py, "package_cache")?;
 
-    package_cache.add_class::<PyCachedPackage>()?;
-    package_cache.add_class::<PyInMemoryCache>()?;
-    package_cache.add_class::<PyPackageCache>()?;
-    package_cache.add_class::<PyCacheStats>()?;
+    submodule.add_class::<PyVariantHandle>()?;
+    submodule.add_class::<PyCacheStatus>()?;
+    submodule.add_class::<PyCacheConfig>()?;
+    submodule.add_class::<PyPackageCache>()?;
 
-    // Add module-level functions
-    package_cache.add_function(wrap_pyfunction!(
-        new_in_memory_cache,
-        &package_cache
-    )?)?;
+    // Status constants
+    submodule.setattr("VARIANT_NOT_FOUND", 0)?;
+    submodule.setattr("VARIANT_FOUND", 1)?;
+    submodule.setattr("VARIANT_CREATED", 2)?;
+    submodule.setattr("VARIANT_COPYING", 3)?;
+    submodule.setattr("VARIANT_COPY_STALLED", 4)?;
+    submodule.setattr("VARIANT_PENDING", 5)?;
+    submodule.setattr("VARIANT_REMOVED", 6)?;
+    submodule.setattr("VARIANT_SKIPPED", 7)?;
 
-    package_cache.add_function(wrap_pyfunction!(
-        new_file_based_cache,
-        &package_cache
-    )?)?;
-
-    // Register as submodule
-    parent_module.add_submodule(&package_cache)?;
-
-    // Also register in sys.modules
+    // Register in sys.modules
     let sys = py.import("sys")?;
     let modules = sys.getattr("modules")?;
-    modules.set_item("rez_next._native.package_cache", &package_cache)?;
+    modules.set_item("rez_next._native.package_cache", &submodule)?;
+
+    // Also register on parent module
+    m.setattr("package_cache", &submodule)?;
 
     Ok(())
 }
 
-/// Create a new in-memory cache.
-#[pyfunction]
-fn new_in_memory_cache() -> PyInMemoryCache {
-    PyInMemoryCache::new()
-}
-
-/// Create a new file-based cache.
-#[pyfunction]
-fn new_file_based_cache(cache_dir: &str) -> PyResult<PyPackageCache> {
-    PyPackageCache::new_file_based(cache_dir)
+/// Wrapper for lib.rs compatibility: register_package_cache_submodule(py, m)
+pub fn register_package_cache_submodule(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
+    register_package_cache_module(m)
 }

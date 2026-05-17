@@ -11,11 +11,13 @@
 
 pub mod filter;
 pub mod package;
+pub mod package_cache;
 pub mod python_ast_parser;
 pub mod serialization; // Always available for CLI usage // Package filtering support
 
 pub use filter::*;
 pub use package::*;
+pub use package_cache::*;
 pub use python_ast_parser::*;
 pub use serialization::{PackageFormat, PackageSerializer}; // Always available for CLI usage // Package filtering support
 
