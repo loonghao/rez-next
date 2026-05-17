@@ -123,11 +123,13 @@ pub fn package_repo_stats(paths: Vec<String>) -> RepositoryStats {
             for entry in entries.flatten() {
                 let entry_path = entry.path();
                 if entry_path.is_dir() {
-                    // Count packages (directories with package.py or package.yaml)
-                    if entry_path.join("package.py").exists()
-                        || entry_path.join("package.yaml").exists()
-                        || entry_path.join("package.yml").exists()
-                    {
+                    let has_package_file = |dir: &std::path::Path| {
+                        dir.join("package.py").exists()
+                            || dir.join("package.yaml").exists()
+                            || dir.join("package.yml").exists()
+                    };
+
+                    if has_package_file(&entry_path) {
                         combined_stats.package_count += 1;
 
                         // Count versions (subdirectories)
@@ -138,6 +140,17 @@ pub fn package_repo_stats(paths: Vec<String>) -> RepositoryStats {
                                 .count();
                             combined_stats.version_count += version_count;
                             // For now, assume each version has at least one variant
+                            combined_stats.variant_count += version_count;
+                        }
+                    } else if let Ok(version_entries) = std::fs::read_dir(&entry_path) {
+                        let version_count = version_entries
+                            .flatten()
+                            .filter(|e| e.path().is_dir() && has_package_file(&e.path()))
+                            .count();
+
+                        if version_count > 0 {
+                            combined_stats.package_count += 1;
+                            combined_stats.version_count += version_count;
                             combined_stats.variant_count += version_count;
                         }
                     }
