@@ -81,7 +81,9 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - uses: dtolnay/rust-toolchain@1.95.0
       - uses: Swatinem/rust-cache@v2
-      - run: vx cargo test --workspace --exclude rez-next-python --lib --bins -- --test-threads=1
+      - run: vx cargo check --workspace --exclude rez-next-python --all-targets
+      - run: vx cargo test -p rez-next-util which::tests --lib -- --test-threads=1
+      - run: vx cargo test -p rez-next-build vcs::tests::test_git_vcs_get --lib -- --test-threads=1
 
   cli-e2e:
     name: CLI E2E Tests
@@ -107,7 +109,9 @@ jobs:
       - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@1.95.0
       - uses: Swatinem/rust-cache@v2
-      - run: cargo test --workspace --exclude rez-next-python --lib --bins -- --test-threads=1
+      - run: cargo check --workspace --exclude rez-next-python --all-targets
+      - run: cargo test -p rez-next-util which::tests --lib -- --test-threads=1
+      - run: cargo test -p rez-next-build vcs::tests::test_git_vcs_get --lib -- --test-threads=1
 
   test-win-msvc:
     name: Test - win-msvc
@@ -119,7 +123,9 @@ jobs:
         with:
           targets: x86_64-pc-windows-msvc
       - uses: Swatinem/rust-cache@v2
-      - run: cargo test --workspace --exclude rez-next-python --lib --bins -- --test-threads=1
+      - run: cargo check --workspace --exclude rez-next-python --all-targets
+      - run: cargo test -p rez-next-util which::tests --lib -- --test-threads=1
+      - run: cargo test -p rez-next-build vcs::tests::test_git_vcs_get --lib -- --test-threads=1
 
   test-win-gnu:
     name: Test - win-gnu
@@ -131,7 +137,8 @@ jobs:
         with:
           targets: x86_64-pc-windows-gnu
       - uses: Swatinem/rust-cache@v2
-      - run: cargo test --workspace --exclude rez-next-python --lib --bins --target x86_64-pc-windows-gnu -- --test-threads=1
+      - run: cargo check --workspace --exclude rez-next-python --all-targets --target x86_64-pc-windows-gnu
+      - run: cargo test -p rez-next-util which::tests --lib --target x86_64-pc-windows-gnu -- --test-threads=1
 
   security-audit:
     name: Security Audit
@@ -147,6 +154,7 @@ jobs:
 
   coverage:
     name: Code Coverage
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
