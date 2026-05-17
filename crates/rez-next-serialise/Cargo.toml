@@ -17,7 +17,7 @@ tracing.workspace = true
 
 # External dependencies
 indexmap = "2.7"
-toml = "0.8"
+toml = "1.1"
 
 [dev-dependencies]
 criterion.workspace = true
