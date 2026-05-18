@@ -1,10 +1,10 @@
 //! Build environment management
 
-use rez_next_common::RezCoreError;
+use rez_next_common::{RezCoreError, utils::get_thread_count};
 use rez_next_context::ResolvedContext;
-use rez_next_package::Package;
+use rez_next_package::{Package, PackageRequirement};
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 /// Build environment for package builds
 #[derive(Debug, Clone)]
@@ -77,10 +77,15 @@ impl BuildEnvironment {
 
         // Add package-specific variables
         env_vars.insert("REZ_BUILD_PACKAGE_NAME".to_string(), package.name.clone());
+        env_vars.insert("REZ_BUILD_PROJECT_NAME".to_string(), package.name.clone());
 
         if let Some(ref version) = package.version {
             env_vars.insert(
                 "REZ_BUILD_PACKAGE_VERSION".to_string(),
+                version.as_str().to_string(),
+            );
+            env_vars.insert(
+                "REZ_BUILD_PROJECT_VERSION".to_string(),
                 version.as_str().to_string(),
             );
         }
@@ -93,11 +98,26 @@ impl BuildEnvironment {
             "REZ_BUILD_PATH".to_string(),
             package_build_dir.to_string_lossy().to_string(),
         );
+        env_vars.insert(
+            "REZ_BUILD_PROJECT_DESCRIPTION".to_string(),
+            package
+                .description
+                .as_deref()
+                .unwrap_or("")
+                .trim()
+                .to_string(),
+        );
+        env_vars.insert(
+            "REZ_BUILD_THREAD_COUNT".to_string(),
+            get_thread_count(None).to_string(),
+        );
 
         // Add variant-related environment variables (matching original Rez)
         // These will be set when building variants
         env_vars.insert("REZ_BUILD_VARIANT_INDEX".to_string(), "0".to_string());
         env_vars.insert("REZ_BUILD_VARIANT_REQUIRES".to_string(), String::new());
+        env_vars.insert("REZ_BUILD_VARIANT_SUBPATH".to_string(), String::new());
+        Self::set_build_requirements(&mut env_vars, package, &[]);
 
         // Add context environment if available
         if let Some(context) = context {
@@ -165,6 +185,64 @@ impl BuildEnvironment {
         self.env_vars.insert(
             "REZ_BUILD_VARIANT_REQUIRES".to_string(),
             variant_requires.join(" "),
+        );
+        Self::set_build_requirements(&mut self.env_vars, &self.package, variant_requires);
+    }
+
+    /// Set the variant subpath for the build environment.
+    pub fn set_variant_subpath(&mut self, variant_subpath: &str) {
+        self.env_vars.insert(
+            "REZ_BUILD_VARIANT_SUBPATH".to_string(),
+            variant_subpath.to_string(),
+        );
+    }
+
+    /// Set source-related environment variables.
+    pub fn set_source_path(&mut self, source_path: &Path) {
+        self.env_vars.insert(
+            "REZ_BUILD_SOURCE_PATH".to_string(),
+            source_path.to_string_lossy().to_string(),
+        );
+
+        let project_file = self
+            .package
+            .filepath
+            .as_deref()
+            .map(PathBuf::from)
+            .unwrap_or_else(|| source_path.join("package.py"));
+        self.env_vars.insert(
+            "REZ_BUILD_PROJECT_FILE".to_string(),
+            project_file.to_string_lossy().to_string(),
+        );
+    }
+
+    fn set_build_requirements(
+        env_vars: &mut HashMap<String, String>,
+        package: &Package,
+        variant_requires: &[String],
+    ) {
+        let requirements = package
+            .requires
+            .iter()
+            .chain(package.build_requires.iter())
+            .chain(package.private_build_requires.iter())
+            .chain(variant_requires.iter())
+            .cloned()
+            .collect::<Vec<_>>();
+
+        let unversioned = requirements
+            .iter()
+            .map(|requirement| {
+                PackageRequirement::parse(requirement)
+                    .map(|parsed| parsed.name().to_string())
+                    .unwrap_or_else(|_| requirement.clone())
+            })
+            .collect::<Vec<_>>();
+
+        env_vars.insert("REZ_BUILD_REQUIRES".to_string(), requirements.join(" "));
+        env_vars.insert(
+            "REZ_BUILD_REQUIRES_UNVERSIONED".to_string(),
+            unversioned.join(" "),
         );
     }
 
@@ -382,6 +460,14 @@ mod tests {
             vars.get("REZ_BUILD_PACKAGE_VERSION"),
             Some(&"2.3.4".to_string())
         );
+        assert_eq!(
+            vars.get("REZ_BUILD_PROJECT_NAME"),
+            Some(&"my-package".to_string())
+        );
+        assert_eq!(
+            vars.get("REZ_BUILD_PROJECT_VERSION"),
+            Some(&"2.3.4".to_string())
+        );
     }
 
     #[test]
@@ -428,6 +514,63 @@ mod tests {
 
         env.remove_env_var("CUSTOM_VAR");
         assert!(env.get_env_vars().get("CUSTOM_VAR").is_none());
+    }
+
+    #[test]
+    fn test_standard_rez_build_vars_present() {
+        let mut pkg = make_test_package("pkg", "1.0.0");
+        pkg.description = Some(" Test description ".to_string());
+        pkg.requires = vec!["python-3.9".to_string()];
+        pkg.build_requires = vec!["cmake-3".to_string()];
+        pkg.private_build_requires = vec!["internal_lib".to_string()];
+        let base = PathBuf::from("/tmp/build");
+        let mut env = BuildEnvironment::new(&pkg, &base, None).unwrap();
+
+        env.set_variant_env(1, &["platform-windows".to_string()]);
+        env.set_variant_subpath("platform-windows");
+
+        let vars = env.get_env_vars();
+        assert_eq!(
+            vars.get("REZ_BUILD_PROJECT_DESCRIPTION"),
+            Some(&"Test description".to_string())
+        );
+        assert_eq!(
+            vars.get("REZ_BUILD_REQUIRES"),
+            Some(&"python-3.9 cmake-3 internal_lib platform-windows".to_string())
+        );
+        assert_eq!(
+            vars.get("REZ_BUILD_REQUIRES_UNVERSIONED"),
+            Some(&"python cmake internal_lib platform-windows".to_string())
+        );
+        assert_eq!(
+            vars.get("REZ_BUILD_VARIANT_SUBPATH"),
+            Some(&"platform-windows".to_string())
+        );
+        assert!(
+            vars.get("REZ_BUILD_THREAD_COUNT")
+                .and_then(|value| value.parse::<usize>().ok())
+                .unwrap_or_default()
+                >= 1
+        );
+    }
+
+    #[test]
+    fn test_source_path_env_var() {
+        let pkg = make_test_package("pkg", "1.0.0");
+        let base = PathBuf::from("/tmp/build");
+        let source = PathBuf::from("/tmp/source/pkg");
+        let mut env = BuildEnvironment::new(&pkg, &base, None).unwrap();
+
+        env.set_source_path(&source);
+
+        assert_eq!(
+            env.get_env_vars().get("REZ_BUILD_SOURCE_PATH"),
+            Some(&source.to_string_lossy().to_string())
+        );
+        assert_eq!(
+            env.get_env_vars().get("REZ_BUILD_PROJECT_FILE"),
+            Some(&source.join("package.py").to_string_lossy().to_string())
+        );
     }
 
     #[test]
