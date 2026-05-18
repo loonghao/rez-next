@@ -516,6 +516,61 @@ for name, check in checks.items():
         }
     }
 
+    #[tokio::test]
+    async fn test_build_manager_sets_standard_rez_build_env_for_versionless_package() {
+        let mut manager = BuildManager::new();
+        let tmp = TempDir::new().unwrap();
+
+        std::fs::write(tmp.path().join("package.py"), "name = 'versionless'\n").unwrap();
+        std::fs::write(
+            tmp.path().join("rezbuild.py"),
+            r#"
+import os
+import sys
+
+required = [
+    "REZ_BUILD_ENV",
+    "REZ_BUILD_INSTALL",
+    "REZ_BUILD_INSTALL_PATH",
+    "REZ_BUILD_PATH",
+    "REZ_BUILD_PROJECT_DESCRIPTION",
+    "REZ_BUILD_PROJECT_FILE",
+    "REZ_BUILD_PROJECT_NAME",
+    "REZ_BUILD_PROJECT_VERSION",
+    "REZ_BUILD_REQUIRES",
+    "REZ_BUILD_REQUIRES_UNVERSIONED",
+    "REZ_BUILD_SOURCE_PATH",
+    "REZ_BUILD_THREAD_COUNT",
+    "REZ_BUILD_TYPE",
+    "REZ_BUILD_VARIANT_INDEX",
+    "REZ_BUILD_VARIANT_REQUIRES",
+    "REZ_BUILD_VARIANT_SUBPATH",
+]
+
+missing = [name for name in required if name not in os.environ]
+if missing:
+    print("missing: " + ", ".join(missing), file=sys.stderr)
+    sys.exit(1)
+
+if os.environ["REZ_BUILD_PROJECT_VERSION"] != "0.0.0":
+    print("unexpected project version", file=sys.stderr)
+    sys.exit(1)
+"#,
+        )
+        .unwrap();
+
+        let pkg = Package::new("versionless".to_string());
+        let req = make_request(pkg, tmp.path().to_path_buf());
+        let ids = manager.start_build(req).await.unwrap();
+        let result = manager.wait_for_build(&ids[0]).await.unwrap();
+
+        assert!(
+            result.success,
+            "rezbuild.py should receive all standard Rez build env vars: {}",
+            result.errors
+        );
+    }
+
     #[test]
     fn test_build_system_detect_with_ambiguous_files() {
         let tmp = TempDir::new().unwrap();
