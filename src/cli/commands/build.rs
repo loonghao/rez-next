@@ -321,28 +321,8 @@ fn copy_dir_recursive(src: &PathBuf, dest: &PathBuf) -> RezCoreResult<()> {
 
 /// Load package from current directory
 fn load_current_package(working_dir: &Path) -> RezCoreResult<Package> {
-    use rez_next_package::serialization::PackageSerializer;
-
-    // Look for package.py or package.yaml
-    let package_py = working_dir.join("package.py");
-    let package_yaml = working_dir.join("package.yaml");
-
-    if package_py.exists() {
-        // Use the existing PackageSerializer to load Python packages
-        return PackageSerializer::load_from_file(&package_py)
-            .map_err(|e| RezCoreError::PackageParse(format!("Failed to parse package.py: {}", e)));
-    }
-
-    if package_yaml.exists() {
-        // Use the existing PackageSerializer to load YAML packages
-        return PackageSerializer::load_from_file(&package_yaml).map_err(|e| {
-            RezCoreError::PackageParse(format!("Failed to parse package.yaml: {}", e))
-        });
-    }
-
-    Err(RezCoreError::PackageParse(
-        "No package.py or package.yaml found in current directory".to_string(),
-    ))
+    Package::from_path(working_dir)
+        .map_err(|e| RezCoreError::PackageParse(format!("Failed to load package: {}", e)))
 }
 
 /// Parse build arguments string into vector

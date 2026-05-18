@@ -6,6 +6,8 @@ use rez_next_package::{Package, PackageRequirement};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
+const DEFAULT_BUILD_VERSION: &str = "0.0.0";
+
 /// Build environment for package builds
 #[derive(Debug, Clone)]
 pub struct BuildEnvironment {
@@ -51,7 +53,7 @@ impl BuildEnvironment {
                     .version
                     .as_ref()
                     .map(|v| v.as_str())
-                    .unwrap_or("unknown"),
+                    .unwrap_or(DEFAULT_BUILD_VERSION),
             )
         } else {
             package_build_dir.join("install")
@@ -76,19 +78,18 @@ impl BuildEnvironment {
         env_vars.insert("REZ_BUILD_INSTALL".to_string(), install_flag.to_string());
 
         // Add package-specific variables
+        let package_version = package
+            .version
+            .as_ref()
+            .map(|version| version.as_str().to_string())
+            .unwrap_or_else(|| DEFAULT_BUILD_VERSION.to_string());
         env_vars.insert("REZ_BUILD_PACKAGE_NAME".to_string(), package.name.clone());
         env_vars.insert("REZ_BUILD_PROJECT_NAME".to_string(), package.name.clone());
-
-        if let Some(ref version) = package.version {
-            env_vars.insert(
-                "REZ_BUILD_PACKAGE_VERSION".to_string(),
-                version.as_str().to_string(),
-            );
-            env_vars.insert(
-                "REZ_BUILD_PROJECT_VERSION".to_string(),
-                version.as_str().to_string(),
-            );
-        }
+        env_vars.insert(
+            "REZ_BUILD_PACKAGE_VERSION".to_string(),
+            package_version.clone(),
+        );
+        env_vars.insert("REZ_BUILD_PROJECT_VERSION".to_string(), package_version);
 
         env_vars.insert(
             "REZ_BUILD_INSTALL_PATH".to_string(),
@@ -118,6 +119,7 @@ impl BuildEnvironment {
         env_vars.insert("REZ_BUILD_VARIANT_REQUIRES".to_string(), String::new());
         env_vars.insert("REZ_BUILD_VARIANT_SUBPATH".to_string(), String::new());
         Self::set_build_requirements(&mut env_vars, package, &[]);
+        Self::set_package_file_vars(&mut env_vars, package, None);
 
         // Add context environment if available
         if let Some(context) = context {
@@ -204,16 +206,50 @@ impl BuildEnvironment {
             source_path.to_string_lossy().to_string(),
         );
 
-        let project_file = self
-            .package
-            .filepath
-            .as_deref()
-            .map(PathBuf::from)
-            .unwrap_or_else(|| source_path.join("package.py"));
+        let project_file = Self::project_file_for_source(&self.package, source_path);
         self.env_vars.insert(
             "REZ_BUILD_PROJECT_FILE".to_string(),
             project_file.to_string_lossy().to_string(),
         );
+    }
+
+    fn set_package_file_vars(
+        env_vars: &mut HashMap<String, String>,
+        package: &Package,
+        source_path: Option<&Path>,
+    ) {
+        let Some(project_file) = source_path
+            .map(|path| Self::project_file_for_source(package, path))
+            .or_else(|| package.filepath.as_deref().map(PathBuf::from))
+        else {
+            return;
+        };
+
+        env_vars.insert(
+            "REZ_BUILD_PROJECT_FILE".to_string(),
+            project_file.to_string_lossy().to_string(),
+        );
+        if let Some(parent) = project_file.parent() {
+            env_vars.insert(
+                "REZ_BUILD_SOURCE_PATH".to_string(),
+                parent.to_string_lossy().to_string(),
+            );
+        }
+    }
+
+    fn project_file_for_source(package: &Package, source_path: &Path) -> PathBuf {
+        if let Some(filepath) = package.filepath.as_deref() {
+            return PathBuf::from(filepath);
+        }
+
+        for filename in ["package.py", "package.yaml", "package.yml"] {
+            let candidate = source_path.join(filename);
+            if candidate.exists() {
+                return candidate;
+            }
+        }
+
+        source_path.join("package.py")
     }
 
     fn set_build_requirements(
