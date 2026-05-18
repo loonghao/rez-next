@@ -95,7 +95,7 @@ pub enum PathStrategy {
 impl Default for ContextConfig {
     fn default() -> Self {
         Self {
-            inherit_parent_env: true,
+            inherit_parent_env: false,
             shell_type: ShellType::Bash,
             working_directory: None,
             additional_env_vars: HashMap::new(),
@@ -444,7 +444,7 @@ mod tests {
     fn test_context_config_default() {
         let config = ContextConfig::default();
 
-        assert!(config.inherit_parent_env);
+        assert!(!config.inherit_parent_env);
         assert!(config.additional_env_vars.is_empty());
         assert!(config.unset_vars.is_empty());
         assert_eq!(config.path_strategy, crate::PathStrategy::Prepend);

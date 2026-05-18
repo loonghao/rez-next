@@ -224,7 +224,7 @@ impl RezCoreConfig {
 
         // Override with environment variables
         if let Ok(packages_path) = env::var("REZ_PACKAGES_PATH") {
-            config.packages_path = packages_path.split(':').map(ToString::to_string).collect();
+            config.packages_path = split_env_paths(&packages_path);
         }
         if let Ok(local_path) = env::var("REZ_LOCAL_PACKAGES_PATH") {
             config.local_packages_path = local_path;
@@ -251,6 +251,16 @@ impl RezCoreConfig {
 
         Some(current.clone())
     }
+}
+
+fn split_env_paths(paths: &str) -> Vec<String> {
+    let separator = if cfg!(windows) { ';' } else { ':' };
+    paths
+        .split(separator)
+        .map(str::trim)
+        .filter(|path| !path.is_empty())
+        .map(ToString::to_string)
+        .collect()
 }
 
 #[cfg(test)]
@@ -348,7 +358,11 @@ mod tests {
         // Only safe to test if env var is not already set
         if std::env::var("REZ_PACKAGES_PATH").is_err() {
             unsafe {
-                std::env::set_var("REZ_PACKAGES_PATH", "/tmp/test_pkgs:/tmp/other_pkgs");
+                let separator = if cfg!(windows) { ';' } else { ':' };
+                std::env::set_var(
+                    "REZ_PACKAGES_PATH",
+                    format!("/tmp/test_pkgs{separator}/tmp/other_pkgs"),
+                );
             };
             let cfg = RezCoreConfig::load();
             assert!(cfg.packages_path.contains(&"/tmp/test_pkgs".to_string()));
@@ -356,6 +370,26 @@ mod tests {
                 std::env::remove_var("REZ_PACKAGES_PATH");
             };
         }
+    }
+
+    #[test]
+    fn test_split_env_paths_uses_platform_separator() {
+        let separator = if cfg!(windows) { ';' } else { ':' };
+        let result = split_env_paths(&format!("first{separator}second"));
+        assert_eq!(result, vec!["first".to_string(), "second".to_string()]);
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn test_split_env_paths_preserves_windows_drive_letters() {
+        let result = split_env_paths(r"C:\packages\rez;D:\local\packages");
+        assert_eq!(
+            result,
+            vec![
+                r"C:\packages\rez".to_string(),
+                r"D:\local\packages".to_string()
+            ]
+        );
     }
 
     #[test]

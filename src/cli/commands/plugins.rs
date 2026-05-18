@@ -60,6 +60,7 @@ pub fn execute(args: PluginsArgs) -> RezCoreResult<()> {
         println!(
             "Available plugin types: build_process, build_system, release_hook, release_vcs, shell"
         );
+        println!("Built-in build_system plugins: binary_archive, pypi");
         println!("Use 'rez plugins <package>' to list plugins for a specific package.");
         return Ok(());
     }
@@ -197,6 +198,7 @@ fn discover_build_plugins(package: &Package) -> RezCoreResult<Vec<PluginInfo>> {
         ("cmake", "CMake build system"),
         ("make", "Make build system"),
         ("python", "Python build system"),
+        ("pypi", "PyPI package installer"),
         ("pip", "Python pip installer"),
         ("setuptools", "Python setuptools"),
         ("poetry", "Python Poetry"),

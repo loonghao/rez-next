@@ -110,7 +110,9 @@ impl SimpleRepository {
         &self,
         descriptor_path: &Path,
     ) -> Result<Package, RezCoreError> {
-        PackageSerializer::load_from_file(descriptor_path)
+        let mut package = PackageSerializer::load_from_file(descriptor_path)?;
+        package.filepath = Some(descriptor_path.to_string_lossy().to_string());
+        Ok(package)
     }
 }
 

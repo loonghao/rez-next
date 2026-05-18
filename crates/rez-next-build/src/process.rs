@@ -8,7 +8,7 @@ use rez_next_common::RezCoreError;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::process::Child;
-use tokio::sync::{Mutex, RwLock};
+use tokio::sync::{Mutex, RwLock, mpsc};
 
 /// Build process for managing individual package builds
 #[derive(Debug)]
@@ -50,6 +50,42 @@ pub enum BuildStep {
     Installing,
     /// Cleaning up
     Cleanup,
+}
+
+/// Live build event kind.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum BuildEventKind {
+    /// Build process started.
+    BuildStarted,
+    /// One build step started.
+    StepStarted,
+    /// One line or chunk of step output.
+    StepOutput,
+    /// One line or chunk of step error output.
+    StepError,
+    /// One build step finished.
+    StepFinished,
+    /// Build process finished.
+    BuildFinished,
+}
+
+/// Live build event emitted while a build is running.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BuildEvent {
+    /// Build ID.
+    pub build_id: String,
+    /// Build step, if the event belongs to a step.
+    pub step: Option<BuildStep>,
+    /// Event kind.
+    pub kind: BuildEventKind,
+    /// Human-readable event message.
+    pub message: String,
+    /// Whether the event represents a successful result.
+    pub success: Option<bool>,
+    /// Event duration in milliseconds, when relevant.
+    pub duration_ms: Option<u64>,
+    /// Milliseconds since Unix epoch.
+    pub timestamp_ms: u128,
 }
 
 /// Build step result
@@ -212,7 +248,7 @@ impl BuildProcess {
 
     /// Run build steps
     async fn run_build_steps(
-        _build_id: &str,
+        build_id: &str,
         request: &BuildRequest,
         environment: &BuildEnvironment,
         config: &BuildConfig,
@@ -220,6 +256,25 @@ impl BuildProcess {
         errors: Arc<Mutex<String>>,
         child_process: Arc<Mutex<Option<Child>>>,
     ) -> Result<(), RezCoreError> {
+        let event_sender = config.event_sender.clone();
+        emit_build_event(
+            event_sender.as_ref(),
+            build_id,
+            None,
+            BuildEventKind::BuildStarted,
+            format!(
+                "Building {}",
+                request
+                    .package
+                    .version
+                    .as_ref()
+                    .map(|version| format!("{}-{}", request.package.name, version.as_str()))
+                    .unwrap_or_else(|| request.package.name.clone())
+            ),
+            None,
+            None,
+        );
+
         let steps = vec![
             BuildStep::Preparing,
             BuildStep::Configuring,
@@ -231,6 +286,16 @@ impl BuildProcess {
         ];
 
         for step in steps {
+            emit_build_event(
+                event_sender.as_ref(),
+                build_id,
+                Some(step.clone()),
+                BuildEventKind::StepStarted,
+                format!("{:?} started", step),
+                None,
+                None,
+            );
+
             let step_result = Self::execute_build_step(
                 &step,
                 request,
@@ -239,6 +304,14 @@ impl BuildProcess {
                 child_process.clone(),
             )
             .await?;
+
+            emit_step_lines(
+                event_sender.as_ref(),
+                build_id,
+                &step,
+                BuildEventKind::StepOutput,
+                &step_result.output,
+            );
 
             // Append output
             {
@@ -250,20 +323,57 @@ impl BuildProcess {
 
             // Append errors if any
             if !step_result.errors.is_empty() {
+                emit_step_lines(
+                    event_sender.as_ref(),
+                    build_id,
+                    &step,
+                    BuildEventKind::StepError,
+                    &step_result.errors,
+                );
+
                 let mut errors_guard = errors.lock().await;
                 errors_guard.push_str(&format!("=== {:?} Errors ===\n", step));
                 errors_guard.push_str(&step_result.errors);
                 errors_guard.push('\n');
             }
 
+            emit_build_event(
+                event_sender.as_ref(),
+                build_id,
+                Some(step.clone()),
+                BuildEventKind::StepFinished,
+                format!("{:?} finished", step),
+                Some(step_result.success),
+                Some(step_result.duration_ms),
+            );
+
             // Stop on failure
             if !step_result.success {
+                emit_build_event(
+                    event_sender.as_ref(),
+                    build_id,
+                    None,
+                    BuildEventKind::BuildFinished,
+                    format!("Build failed during {:?}", step),
+                    Some(false),
+                    None,
+                );
                 return Err(RezCoreError::BuildError(format!(
                     "Build step {:?} failed: {}",
                     step, step_result.errors
                 )));
             }
         }
+
+        emit_build_event(
+            event_sender.as_ref(),
+            build_id,
+            None,
+            BuildEventKind::BuildFinished,
+            "Build finished".to_string(),
+            Some(true),
+            None,
+        );
 
         Ok(())
     }
@@ -443,4 +553,52 @@ impl BuildProcess {
 
         Ok((true, "Cleanup completed".to_string(), String::new()))
     }
+}
+
+fn emit_step_lines(
+    sender: Option<&mpsc::UnboundedSender<BuildEvent>>,
+    build_id: &str,
+    step: &BuildStep,
+    kind: BuildEventKind,
+    text: &str,
+) {
+    for line in text.lines().filter(|line| !line.trim().is_empty()) {
+        emit_build_event(
+            sender,
+            build_id,
+            Some(step.clone()),
+            kind.clone(),
+            line.trim().to_string(),
+            None,
+            None,
+        );
+    }
+}
+
+fn emit_build_event(
+    sender: Option<&mpsc::UnboundedSender<BuildEvent>>,
+    build_id: &str,
+    step: Option<BuildStep>,
+    kind: BuildEventKind,
+    message: String,
+    success: Option<bool>,
+    duration_ms: Option<u64>,
+) {
+    let Some(sender) = sender else {
+        return;
+    };
+
+    let timestamp_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|duration| duration.as_millis())
+        .unwrap_or_default();
+    let _ = sender.send(BuildEvent {
+        build_id: build_id.to_string(),
+        step,
+        kind,
+        message,
+        success,
+        duration_ms,
+        timestamp_ms,
+    });
 }

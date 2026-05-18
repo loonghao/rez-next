@@ -7,6 +7,7 @@ use rez_next_rex::RexExecutor;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::env;
+use std::path::Path;
 
 /// Environment manager for generating package environments
 // #[pyclass]  // Temporarily disabled due to DLL issues
@@ -107,8 +108,9 @@ impl EnvironmentManager {
     ) -> Result<Vec<EnvVarDefinition>, RezCoreError> {
         let mut definitions = Vec::new();
 
-        // Always set package root and version variables
-        let package_root = format!("/packages/{}", package.name);
+        // Always set package root and version variables. Real repository packages
+        // carry their descriptor path; synthetic packages keep the legacy fallback.
+        let package_root = Self::package_root(package);
         definitions.push(EnvVarDefinition {
             name: format!("{}_ROOT", package.name.to_uppercase()),
             operation: EnvOperation::Set(package_root.clone()),
@@ -157,7 +159,7 @@ impl EnvironmentManager {
 
         // Add tools to PATH
         if !package.tools.is_empty() {
-            let tool_path = format!("{}/bin", package_root);
+            let tool_path = Self::join_root_path(&package_root, "bin");
             definitions.push(EnvVarDefinition {
                 name: "PATH".to_string(),
                 operation: EnvOperation::Prepend(tool_path, get_path_separator()),
@@ -167,6 +169,16 @@ impl EnvironmentManager {
         }
 
         Ok(definitions)
+    }
+
+    fn package_root(package: &Package) -> String {
+        package
+            .root()
+            .unwrap_or_else(|| format!("/packages/{}", package.name))
+    }
+
+    fn join_root_path(root: &str, child: &str) -> String {
+        Path::new(root).join(child).to_string_lossy().to_string()
     }
 
     /// Apply an environment variable definition
@@ -220,7 +232,8 @@ impl EnvironmentManager {
         // Collect tool paths from packages
         for package in packages {
             for _tool in &package.tools {
-                let tool_path = format!("/packages/{}/bin", package.name);
+                let package_root = Self::package_root(package);
+                let tool_path = Self::join_root_path(&package_root, "bin");
                 if !tool_paths.contains(&tool_path) {
                     tool_paths.push(tool_path);
                 }

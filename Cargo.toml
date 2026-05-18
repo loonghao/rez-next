@@ -109,6 +109,8 @@ tokio.workspace = true
 regex.workspace = true
 tempfile.workspace = true
 chrono = { version = "0.4", features = ["serde"] }
+ratatui = "0.30.0"
+crossterm = "0.29.0"
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"

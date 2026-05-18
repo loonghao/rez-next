@@ -203,16 +203,7 @@ impl PackageTestRunner {
     fn extract_tests_from_package(&mut self, package: &rez_next_package::Package) {
         // Package.tests is HashMap<String, String> where value is the command
         for (test_name, command_str) in &package.tests {
-            let cmd = if command_str.contains(' ') {
-                // Multi-word command, split it
-                let parts: Vec<String> = command_str
-                    .split_whitespace()
-                    .map(|s| s.to_string())
-                    .collect();
-                TestCommand::List(parts)
-            } else {
-                TestCommand::String(command_str.clone())
-            };
+            let cmd = TestCommand::String(command_str.clone());
 
             self.test_definitions.insert(
                 test_name.clone(),

@@ -13,6 +13,9 @@ pub fn rez_next_bin() -> PathBuf {
     if let Ok(path) = std::env::var("REZ_NEXT_E2E_BINARY") {
         return PathBuf::from(path);
     }
+    if let Some(path) = option_env!("CARGO_BIN_EXE_rez-next") {
+        return PathBuf::from(path);
+    }
     if let Ok(current_exe) = std::env::current_exe() {
         if let Some(debug_dir) = current_exe.parent().and_then(|deps_dir| deps_dir.parent()) {
             let candidate = debug_dir.join(if cfg!(windows) {

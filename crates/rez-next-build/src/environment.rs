@@ -1,10 +1,12 @@
 //! Build environment management
 
+use crate::{BuildEvent, BuildEventKind, BuildStep};
 use rez_next_common::{RezCoreError, utils::get_thread_count};
 use rez_next_context::ResolvedContext;
 use rez_next_package::{Package, PackageRequirement};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use tokio::sync::mpsc;
 
 const DEFAULT_BUILD_VERSION: &str = "0.0.0";
 
@@ -23,6 +25,10 @@ pub struct BuildEnvironment {
     env_vars: HashMap<String, String>,
     /// Build context (resolved dependencies)
     context: Option<ResolvedContext>,
+    /// Optional live build event stream.
+    event_sender: Option<mpsc::UnboundedSender<BuildEvent>>,
+    /// Build ID used in live events.
+    event_build_id: Option<String>,
 }
 
 impl BuildEnvironment {
@@ -135,6 +141,8 @@ impl BuildEnvironment {
             temp_dir,
             env_vars,
             context: context.cloned(),
+            event_sender: None,
+            event_build_id: None,
         })
     }
 
@@ -166,6 +174,36 @@ impl BuildEnvironment {
     /// Get context
     pub fn get_context(&self) -> Option<&ResolvedContext> {
         self.context.as_ref()
+    }
+
+    /// Set the live build event sender.
+    pub fn set_event_sender(
+        &mut self,
+        sender: Option<mpsc::UnboundedSender<BuildEvent>>,
+        build_id: String,
+    ) {
+        self.event_sender = sender;
+        self.event_build_id = Some(build_id);
+    }
+
+    /// Emit a live build event for this build environment.
+    pub fn emit_event(&self, step: BuildStep, kind: BuildEventKind, message: String) {
+        let Some(sender) = &self.event_sender else {
+            return;
+        };
+        let timestamp_ms = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|duration| duration.as_millis())
+            .unwrap_or_default();
+        let _ = sender.send(BuildEvent {
+            build_id: self.event_build_id.clone().unwrap_or_default(),
+            step: Some(step),
+            kind,
+            message,
+            success: None,
+            duration_ms: None,
+            timestamp_ms,
+        });
     }
 
     /// Add environment variable

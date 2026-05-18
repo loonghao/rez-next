@@ -1,10 +1,13 @@
 //! Custom build system implementation
 
-use crate::{BuildEnvironment, BuildRequest, BuildStep, BuildStepResult};
+use crate::{BuildEnvironment, BuildEventKind, BuildRequest, BuildStep, BuildStepResult};
 use rez_next_common::RezCoreError;
 use rez_next_context::ShellExecutor;
 use std::path::{Path, PathBuf};
+use std::process::Stdio;
 use std::sync::Arc;
+use std::time::Instant;
+use tokio::io::{AsyncBufReadExt, AsyncRead, BufReader};
 use tokio::process::Child;
 use tokio::sync::Mutex;
 
@@ -35,10 +38,19 @@ impl CustomBuildSystem {
 
     pub async fn compile(
         &self,
-        _request: &BuildRequest,
-        _environment: &BuildEnvironment,
+        request: &BuildRequest,
+        environment: &BuildEnvironment,
         _child_process: Arc<Mutex<Option<Child>>>,
     ) -> Result<BuildStepResult, RezCoreError> {
+        match self.script_name.as_str() {
+            "default" | "copy-only" | "build_command" => {}
+            _ => {
+                return self
+                    .execute_build_script(request, environment, "build")
+                    .await;
+            }
+        }
+
         Ok(BuildStepResult {
             step: BuildStep::Compiling,
             success: true,
@@ -146,7 +158,7 @@ impl CustomBuildSystem {
         })?;
 
         let executor = ShellExecutor::with_shell(rez_next_context::ShellType::detect())
-            .with_environment(environment.get_env_vars().clone())
+            .with_environment(Self::script_env(environment))
             .with_working_directory(request.source_dir.clone());
 
         let expanded_command =
@@ -231,27 +243,245 @@ impl CustomBuildSystem {
             RezCoreError::BuildError(format!("Failed to create install directory: {}", e))
         })?;
 
-        let executor = ShellExecutor::with_shell(rez_next_context::ShellType::detect())
-            .with_environment(environment.get_env_vars().clone())
-            .with_working_directory(request.source_dir.clone());
-
         let exec_command = if self.script_name.ends_with(".py") {
-            format!("python {} {}", script_path.to_string_lossy(), command)
+            return Self::execute_python_build_script(request, environment, &script_path, command)
+                .await;
         } else if self.script_name.ends_with(".sh") {
             format!("bash {} {}", script_path.to_string_lossy(), command)
         } else {
             format!("{} {}", script_path.to_string_lossy(), command)
         };
 
+        let executor = ShellExecutor::with_shell(rez_next_context::ShellType::detect())
+            .with_environment(Self::script_env(environment))
+            .with_working_directory(request.source_dir.clone());
         let result = executor.execute(&exec_command).await?;
+        let success = result.is_success();
+        let output = format!(
+            "Invoking custom build system...\nRunning build command: {}\n{}",
+            exec_command, result.stdout
+        );
+
+        let errors = if success {
+            result.stderr.clone()
+        } else {
+            Self::format_command_failure(&exec_command, &result)
+        };
 
         Ok(BuildStepResult {
             step: BuildStep::Installing,
-            success: result.is_success(),
-            output: result.stdout,
-            errors: result.stderr,
+            success,
+            output,
+            errors,
             duration_ms: result.execution_time_ms,
         })
+    }
+
+    async fn execute_python_build_script(
+        request: &BuildRequest,
+        environment: &BuildEnvironment,
+        script_path: &Path,
+        command: &str,
+    ) -> Result<BuildStepResult, RezCoreError> {
+        let python = Self::find_host_python()?;
+        let started_at = Instant::now();
+        let mut process = tokio::process::Command::new(&python);
+        process
+            .arg(script_path)
+            .arg(command)
+            .env_clear()
+            .envs(Self::script_env(environment))
+            .current_dir(&request.source_dir)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
+
+        let exec_command = format!("{} {} {}", python.display(), script_path.display(), command);
+        environment.emit_event(
+            step_for_script_command(command),
+            BuildEventKind::StepOutput,
+            "Invoking custom build system...".to_string(),
+        );
+        environment.emit_event(
+            step_for_script_command(command),
+            BuildEventKind::StepOutput,
+            format!("Running build command: {}", exec_command),
+        );
+
+        let mut child = process.spawn().map_err(|err| {
+            RezCoreError::ExecutionError(format!(
+                "Failed to run Python build script with {}: {}",
+                python.display(),
+                err
+            ))
+        })?;
+
+        let step = step_for_script_command(command);
+        let stdout_task = child.stdout.take().map(|stdout| {
+            tokio::spawn(read_script_stream(
+                stdout,
+                environment.clone(),
+                step.clone(),
+                BuildEventKind::StepOutput,
+            ))
+        });
+        let stderr_task = child.stderr.take().map(|stderr| {
+            tokio::spawn(read_script_stream(
+                stderr,
+                environment.clone(),
+                step.clone(),
+                BuildEventKind::StepError,
+            ))
+        });
+        let status = child.wait().await.map_err(|err| {
+            RezCoreError::ExecutionError(format!(
+                "Failed to wait for Python build script with {}: {}",
+                python.display(),
+                err
+            ))
+        })?;
+
+        let raw_stdout = match stdout_task {
+            Some(task) => task.await.unwrap_or_default(),
+            None => String::new(),
+        };
+        let stderr = match stderr_task {
+            Some(task) => task.await.unwrap_or_default(),
+            None => String::new(),
+        };
+        let success = status.success();
+        let exit_code = status.code().unwrap_or(-1);
+        let stdout = format!(
+            "Invoking custom build system...\nRunning build command: {}\n{}",
+            exec_command, raw_stdout
+        );
+
+        let errors = if success {
+            stderr
+        } else {
+            Self::format_raw_command_failure(&exec_command, exit_code, &raw_stdout, &stderr)
+        };
+
+        Ok(BuildStepResult {
+            step: BuildStep::Installing,
+            success,
+            output: stdout,
+            errors,
+            duration_ms: started_at.elapsed().as_millis() as u64,
+        })
+    }
+
+    fn find_host_python() -> Result<PathBuf, RezCoreError> {
+        if let Ok(path) =
+            std::env::var("REZ_NEXT_BUILD_PYTHON").or_else(|_| std::env::var("PYTHON"))
+        {
+            let path = PathBuf::from(path);
+            if path.is_file() {
+                return Ok(path);
+            }
+        }
+
+        let candidates: &[&str] = if cfg!(windows) {
+            &["python", "py"]
+        } else {
+            &["python3", "python"]
+        };
+        for candidate in candidates {
+            let mut command = std::process::Command::new(candidate);
+            if *candidate == "py" {
+                command.arg("-3");
+            }
+            let output = command
+                .args(["-c", "import sys; print(sys.executable)"])
+                .output();
+            if let Ok(output) = output {
+                if output.status.success() {
+                    let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
+                    if !path.is_empty() {
+                        return Ok(PathBuf::from(path));
+                    }
+                }
+            }
+        }
+
+        Err(RezCoreError::ExecutionError(
+            "No host Python found for rezbuild.py. Set REZ_NEXT_BUILD_PYTHON to a Python executable."
+                .to_string(),
+        ))
+    }
+
+    fn format_command_failure(command: &str, result: &rez_next_context::CommandResult) -> String {
+        Self::format_raw_command_failure(command, result.exit_code, &result.stdout, &result.stderr)
+    }
+
+    fn format_raw_command_failure(
+        command: &str,
+        exit_code: i32,
+        stdout: &str,
+        stderr: &str,
+    ) -> String {
+        let mut message = format!("Command failed with exit code {}: {}", exit_code, command);
+
+        if !stderr.trim().is_empty() {
+            message.push_str("\nstderr:\n");
+            message.push_str(stderr.trim_end());
+        }
+
+        if !stdout.trim().is_empty() {
+            message.push_str("\nstdout:\n");
+            message.push_str(stdout.trim_end());
+        }
+
+        message
+    }
+
+    fn script_env(environment: &BuildEnvironment) -> std::collections::HashMap<String, String> {
+        let mut env = environment.get_env_vars().clone();
+        Self::add_rez_next_pythonpath(&mut env);
+        Self::add_windows_runtime_env(&mut env);
+        env
+    }
+
+    fn add_rez_next_pythonpath(env: &mut std::collections::HashMap<String, String>) {
+        let mut paths = Vec::new();
+        let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        let workspace_root = manifest_dir
+            .parent()
+            .and_then(|path| path.parent())
+            .map(Path::to_path_buf)
+            .unwrap_or(manifest_dir);
+
+        for candidate in [
+            workspace_root.join("crates/rez-next-python/python"),
+            workspace_root.join("python"),
+        ] {
+            if candidate.is_dir() {
+                paths.push(candidate.to_string_lossy().to_string());
+            }
+        }
+
+        if paths.is_empty() {
+            return;
+        }
+
+        let separator = if cfg!(windows) { ";" } else { ":" };
+        if let Some(existing) = env.get("PYTHONPATH").filter(|value| !value.is_empty()) {
+            paths.push(existing.clone());
+        }
+        env.insert("PYTHONPATH".to_string(), paths.join(separator));
+    }
+
+    fn add_windows_runtime_env(env: &mut std::collections::HashMap<String, String>) {
+        if !cfg!(windows) {
+            return;
+        }
+
+        for key in ["SystemRoot", "WINDIR", "TEMP", "TMP"] {
+            if !env.contains_key(key) {
+                if let Ok(value) = std::env::var(key) {
+                    env.insert(key.to_string(), value);
+                }
+            }
+        }
     }
 
     /// Copy package files from source to install directory
@@ -352,6 +582,46 @@ impl CustomBuildSystem {
             || file_name.ends_with(".pyo")
             || file_name.ends_with(".log")
     }
+}
+
+fn step_for_script_command(command: &str) -> BuildStep {
+    match command {
+        "build" => BuildStep::Compiling,
+        "install" => BuildStep::Installing,
+        "test" => BuildStep::Testing,
+        _ => BuildStep::Installing,
+    }
+}
+
+async fn read_script_stream<R>(
+    reader: R,
+    environment: BuildEnvironment,
+    step: BuildStep,
+    kind: BuildEventKind,
+) -> String
+where
+    R: AsyncRead + Unpin,
+{
+    let mut lines = BufReader::new(reader).lines();
+    let mut output = String::new();
+    loop {
+        match lines.next_line().await {
+            Ok(Some(line)) => {
+                environment.emit_event(step.clone(), kind.clone(), line.clone());
+                output.push_str(&line);
+                output.push('\n');
+            }
+            Ok(None) => break,
+            Err(err) => {
+                let message = format!("Failed to read build output: {}", err);
+                environment.emit_event(step.clone(), BuildEventKind::StepError, message.clone());
+                output.push_str(&message);
+                output.push('\n');
+                break;
+            }
+        }
+    }
+    output
 }
 
 #[cfg(test)]
