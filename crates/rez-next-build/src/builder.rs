@@ -326,6 +326,7 @@ impl BuildManager {
             request.context.as_ref(),
             request.install_path.as_ref(),
         )?;
+        build_env.set_source_path(&request.source_dir);
 
         // Set variant-related environment variables if this is a variant build
         if let Some(variant_index) = request.variant_index {
@@ -341,8 +342,10 @@ impl BuildManager {
                     request.context.as_ref(),
                     request.install_path.as_ref(),
                 )?;
+                build_env.set_source_path(&request.source_dir);
                 // Re-set variant env after recreating environment
                 build_env.set_variant_env(variant_index, &variant_requires);
+                build_env.set_variant_subpath(&variant_hash);
             }
         }
 

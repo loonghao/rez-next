@@ -429,6 +429,42 @@ mod build_tests {
         );
     }
 
+    #[tokio::test]
+    async fn test_build_manager_sets_source_path_env() {
+        let mut manager = BuildManager::new();
+        let tmp = TempDir::new().unwrap();
+
+        std::fs::write(
+            tmp.path().join("package.py"),
+            "name = 'testpkg'\nversion = '1.0.0'\n",
+        )
+        .unwrap();
+        std::fs::write(
+            tmp.path().join("rezbuild.py"),
+            r#"
+import os
+import sys
+
+source_path = os.environ.get("REZ_BUILD_SOURCE_PATH")
+if not source_path or not os.path.isdir(source_path):
+    print("missing REZ_BUILD_SOURCE_PATH", file=sys.stderr)
+    sys.exit(1)
+"#,
+        )
+        .unwrap();
+
+        let pkg = make_package("testpkg", "1.0.0");
+        let req = make_request(pkg, tmp.path().to_path_buf());
+        let ids = manager.start_build(req).await.unwrap();
+        let result = manager.wait_for_build(&ids[0]).await.unwrap();
+
+        assert!(
+            result.success,
+            "rezbuild.py should receive REZ_BUILD_SOURCE_PATH: {}",
+            result.errors
+        );
+    }
+
     #[test]
     fn test_build_system_detect_with_ambiguous_files() {
         let tmp = TempDir::new().unwrap();
