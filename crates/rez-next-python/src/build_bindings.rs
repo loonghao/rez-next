@@ -99,6 +99,8 @@ impl PyBuildSystem {
             BuildSystem::Python(_) => "python".to_string(),
             BuildSystem::NodeJs(_) => "nodejs".to_string(),
             BuildSystem::Cargo(_) => "cargo".to_string(),
+            BuildSystem::BinaryArchive(_) => "binary_archive".to_string(),
+            BuildSystem::Pypi(_) => "pypi".to_string(),
             BuildSystem::Custom(_) => "custom".to_string(),
         }
     }
