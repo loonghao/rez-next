@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.4](https://github.com/loonghao/rez-next/compare/v0.3.3...v0.3.4) (2026-05-18)
+
+
+### 🐛 Bug Fixes
+
+* set rez build source path env ([c396c40](https://github.com/loonghao/rez-next/commit/c396c4088cc5e535f3f9993eb48c7be0cf627a0e))
+
 ## [0.3.3](https://github.com/loonghao/rez-next/compare/v0.3.2...v0.3.3) (2026-05-17)
 
 
