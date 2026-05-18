@@ -465,6 +465,57 @@ if not source_path or not os.path.isdir(source_path):
         );
     }
 
+    #[tokio::test]
+    async fn test_build_manager_preserves_variant_env_after_hashed_path_rebuild() {
+        let mut manager = BuildManager::new();
+        let tmp = TempDir::new().unwrap();
+
+        std::fs::write(
+            tmp.path().join("package.py"),
+            "name = 'variantpkg'\nversion = '1.0.0'\nvariants = [['platform-windows'], ['platform-linux']]\n",
+        )
+        .unwrap();
+        std::fs::write(
+            tmp.path().join("rezbuild.py"),
+            r#"
+import os
+import sys
+
+checks = {
+    "REZ_BUILD_SOURCE_PATH": lambda value: value and os.path.isdir(value),
+    "REZ_BUILD_VARIANT_INDEX": lambda value: value in {"0", "1"},
+    "REZ_BUILD_VARIANT_REQUIRES": lambda value: value in {"platform-windows", "platform-linux"},
+    "REZ_BUILD_VARIANT_SUBPATH": lambda value: bool(value),
+}
+
+for name, check in checks.items():
+    value = os.environ.get(name, "")
+    if not check(value):
+        print(f"{name} was not set correctly: {value!r}", file=sys.stderr)
+        sys.exit(1)
+"#,
+        )
+        .unwrap();
+
+        let mut pkg = make_package("variantpkg", "1.0.0");
+        pkg.variants = vec![
+            vec!["platform-windows".to_string()],
+            vec!["platform-linux".to_string()],
+        ];
+        let req = make_request(pkg, tmp.path().to_path_buf());
+        let ids = manager.start_build(req).await.unwrap();
+
+        assert_eq!(ids.len(), 2, "each package variant should start a build");
+        for id in ids {
+            let result = manager.wait_for_build(&id).await.unwrap();
+            assert!(
+                result.success,
+                "rezbuild.py should receive variant build env after rebuild: {}",
+                result.errors
+            );
+        }
+    }
+
     #[test]
     fn test_build_system_detect_with_ambiguous_files() {
         let tmp = TempDir::new().unwrap();
