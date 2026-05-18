@@ -28,8 +28,8 @@ mod execution_behavior_tests {
     fn test_execution_config_defaults() {
         let cfg = ExecutionConfig::default();
         assert!(
-            cfg.inherit_parent_env,
-            "Should inherit parent env by default"
+            !cfg.inherit_parent_env,
+            "Should isolate parent env by default"
         );
         assert!(cfg.additional_env_vars.is_empty());
         assert!(cfg.working_directory.is_none());

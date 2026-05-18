@@ -59,6 +59,46 @@ fn test_env_context_has_rez_variables() {
 }
 
 #[test]
+fn test_env_generation_uses_actual_unpacked_repo_root() {
+    use rez_next_context::{ContextConfig, EnvironmentManager};
+
+    let tmp = TempDir::new().unwrap();
+    let repo_dir = tmp
+        .path()
+        .join("vx")
+        .join("cache")
+        .join("unpacked")
+        .join("packages");
+    create_package(
+        &repo_dir,
+        "python",
+        "3.11.0",
+        &[],
+        &["python"],
+        Some("env.setenv('PYTHON_HOME', '{root}')"),
+    );
+
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let simple_repo = SimpleRepository::new(repo_dir.clone(), "vx-cache".to_string());
+    let packages = rt.block_on(simple_repo.find_packages("python")).unwrap();
+    assert_eq!(packages.len(), 1);
+
+    let env_manager = EnvironmentManager::new(ContextConfig {
+        inherit_parent_env: false,
+        ..Default::default()
+    });
+    let package_values: Vec<Package> = packages.iter().map(|p| (**p).clone()).collect();
+    let env_vars = rt
+        .block_on(env_manager.generate_environment(&package_values))
+        .unwrap();
+
+    let expected_root = repo_dir.join("python").join("3.11.0");
+    let expected_root = expected_root.to_string_lossy().to_string();
+    assert_eq!(env_vars.get("PYTHON_ROOT"), Some(&expected_root));
+    assert_eq!(env_vars.get("PYTHON_HOME"), Some(&expected_root));
+}
+
+#[test]
 fn test_env_context_path_prepend() {
     let tmp = TempDir::new().unwrap();
     let repo_dir = tmp.path().to_path_buf();

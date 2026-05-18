@@ -1,12 +1,13 @@
 //! Build manager and coordination
 
-use crate::{BuildArtifacts, BuildEnvironment, BuildProcess};
+use crate::{BuildArtifacts, BuildEnvironment, BuildEvent, BuildProcess};
 use rez_next_common::RezCoreError;
 use rez_next_context::ResolvedContext;
 use rez_next_package::Package;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
+use tokio::sync::mpsc;
 use uuid::Uuid;
 
 /// Build manager for coordinating package builds
@@ -39,6 +40,9 @@ pub struct BuildConfig {
     pub verbosity: BuildVerbosity,
     /// Environment variables to pass to build processes
     pub build_env_vars: HashMap<String, String>,
+    /// Optional live build event stream.
+    #[serde(skip)]
+    pub event_sender: Option<mpsc::UnboundedSender<BuildEvent>>,
 }
 
 /// Build verbosity levels
@@ -57,7 +61,7 @@ pub enum BuildVerbosity {
 impl Default for BuildConfig {
     fn default() -> Self {
         Self {
-            build_dir: PathBuf::from("build"),
+            build_dir: PathBuf::from(".rez_build"),
             temp_dir: PathBuf::from("tmp"),
             max_concurrent_builds: 4,
             build_timeout_seconds: 3600, // 1 hour
@@ -65,6 +69,7 @@ impl Default for BuildConfig {
             keep_artifacts: true,
             verbosity: BuildVerbosity::Normal,
             build_env_vars: HashMap::new(),
+            event_sender: None,
         }
     }
 }
@@ -327,6 +332,7 @@ impl BuildManager {
             request.install_path.as_ref(),
         )?;
         build_env.set_source_path(&request.source_dir);
+        Self::apply_build_env_overrides(&mut build_env, &request, &self.config);
 
         // Set variant-related environment variables if this is a variant build
         if let Some(variant_index) = request.variant_index {
@@ -343,11 +349,13 @@ impl BuildManager {
                     request.install_path.as_ref(),
                 )?;
                 build_env.set_source_path(&request.source_dir);
+                Self::apply_build_env_overrides(&mut build_env, &request, &self.config);
                 // Re-set variant env after recreating environment
                 build_env.set_variant_env(variant_index, &variant_requires);
                 build_env.set_variant_subpath(&variant_hash);
             }
         }
+        build_env.set_event_sender(self.config.event_sender.clone(), build_id.clone());
 
         // Create build process
         let mut build_process =
@@ -362,6 +370,20 @@ impl BuildManager {
         self.stats.builds_running += 1;
 
         Ok(build_id)
+    }
+
+    fn apply_build_env_overrides(
+        build_env: &mut BuildEnvironment,
+        request: &BuildRequest,
+        config: &BuildConfig,
+    ) {
+        for (key, value) in &config.build_env_vars {
+            build_env.add_env_var(key.clone(), value.clone());
+        }
+
+        for (key, value) in &request.options.env_vars {
+            build_env.add_env_var(key.clone(), value.clone());
+        }
     }
 
     /// Wait for a build to complete

@@ -6,22 +6,28 @@
 //! - `python`      — Python setuptools / rezbuild.py
 //! - `nodejs`      — Node.js npm
 //! - `cargo_build` — Rust Cargo
+//! - `binary_archive` — Prebuilt archive download / extract / install
+//! - `pypi`        — pip-compatible Python package install
 //! - `custom`      — Custom build scripts / copy-only
 //! - `cmd_builder` — Shared command-runner helpers (no shell-specific strings)
 
+mod binary_archive;
 mod cargo_build;
 mod cmake;
 pub(crate) mod cmd_builder;
 mod custom;
 mod make;
 mod nodejs;
+mod pypi;
 mod python;
 
+pub use binary_archive::BinaryArchiveBuildSystem;
 pub use cargo_build::CargoBuildSystem;
 pub use cmake::CMakeBuildSystem;
 pub use custom::CustomBuildSystem;
 pub use make::MakeBuildSystem;
 pub use nodejs::NodeJsBuildSystem;
+pub use pypi::PypiBuildSystem;
 pub use python::PythonBuildSystem;
 
 use crate::{BuildEnvironment, BuildRequest, BuildStepResult};
@@ -45,6 +51,10 @@ pub enum BuildSystemType {
     NodeJs,
     /// Rust Cargo
     Cargo,
+    /// Prebuilt binary archive
+    BinaryArchive,
+    /// pip-compatible Python package
+    Pypi,
     /// Custom build script
     Custom,
     /// Unknown/unsupported
@@ -60,6 +70,8 @@ impl BuildSystemType {
             BuildSystemType::Python => "python",
             BuildSystemType::NodeJs => "nodejs",
             BuildSystemType::Cargo => "cargo",
+            BuildSystemType::BinaryArchive => "binary_archive",
+            BuildSystemType::Pypi => "pypi",
             BuildSystemType::Custom => "custom",
             BuildSystemType::Unknown => "unknown",
         }
@@ -68,7 +80,16 @@ impl BuildSystemType {
 
 /// Get all creatable build system types (excluding Unknown)
 pub fn get_buildsys_types() -> Vec<&'static str> {
-    vec!["cmake", "make", "python", "nodejs", "cargo", "custom"]
+    vec![
+        "cmake",
+        "make",
+        "python",
+        "nodejs",
+        "cargo",
+        "binary_archive",
+        "pypi",
+        "custom",
+    ]
 }
 
 /// Build system abstraction
@@ -84,6 +105,10 @@ pub enum BuildSystem {
     NodeJs(NodeJsBuildSystem),
     /// Rust Cargo build system
     Cargo(CargoBuildSystem),
+    /// Prebuilt binary archive build system
+    BinaryArchive(BinaryArchiveBuildSystem),
+    /// PyPI package build system
+    Pypi(PypiBuildSystem),
     /// Custom build system
     Custom(CustomBuildSystem),
 }
@@ -150,6 +175,12 @@ impl BuildSystem {
                 "python" => return Ok(BuildSystem::Python(PythonBuildSystem::new())),
                 "nodejs" => return Ok(BuildSystem::NodeJs(NodeJsBuildSystem::new())),
                 "cargo" => return Ok(BuildSystem::Cargo(CargoBuildSystem::new())),
+                "binary_archive" => {
+                    return Ok(BuildSystem::BinaryArchive(BinaryArchiveBuildSystem::new()));
+                }
+                "pypi" | "pip" | "rez_pip" => {
+                    return Ok(BuildSystem::Pypi(PypiBuildSystem::new()));
+                }
                 _ => {
                     return Ok(BuildSystem::Custom(CustomBuildSystem::new(
                         build_system.clone(),
@@ -179,6 +210,8 @@ impl BuildSystem {
             BuildSystem::Python(python) => python.configure(request, environment).await,
             BuildSystem::NodeJs(nodejs) => nodejs.configure(request, environment).await,
             BuildSystem::Cargo(cargo) => cargo.configure(request, environment).await,
+            BuildSystem::BinaryArchive(binary) => binary.configure(request, environment).await,
+            BuildSystem::Pypi(pypi) => pypi.configure(request, environment).await,
             BuildSystem::Custom(custom) => custom.configure(request, environment).await,
         }
     }
@@ -200,6 +233,10 @@ impl BuildSystem {
                 nodejs.compile(request, environment, child_process).await
             }
             BuildSystem::Cargo(cargo) => cargo.compile(request, environment, child_process).await,
+            BuildSystem::BinaryArchive(binary) => {
+                binary.compile(request, environment, child_process).await
+            }
+            BuildSystem::Pypi(pypi) => pypi.compile(request, environment, child_process).await,
             BuildSystem::Custom(custom) => {
                 custom.compile(request, environment, child_process).await
             }
@@ -219,6 +256,10 @@ impl BuildSystem {
             BuildSystem::Python(python) => python.test(request, environment, child_process).await,
             BuildSystem::NodeJs(nodejs) => nodejs.test(request, environment, child_process).await,
             BuildSystem::Cargo(cargo) => cargo.test(request, environment, child_process).await,
+            BuildSystem::BinaryArchive(binary) => {
+                binary.test(request, environment, child_process).await
+            }
+            BuildSystem::Pypi(pypi) => pypi.test(request, environment, child_process).await,
             BuildSystem::Custom(custom) => custom.test(request, environment, child_process).await,
         }
     }
@@ -235,6 +276,8 @@ impl BuildSystem {
             BuildSystem::Python(python) => python.package(request, environment).await,
             BuildSystem::NodeJs(nodejs) => nodejs.package(request, environment).await,
             BuildSystem::Cargo(cargo) => cargo.package(request, environment).await,
+            BuildSystem::BinaryArchive(binary) => binary.package(request, environment).await,
+            BuildSystem::Pypi(pypi) => pypi.package(request, environment).await,
             BuildSystem::Custom(custom) => custom.package(request, environment).await,
         }
     }
@@ -251,6 +294,8 @@ impl BuildSystem {
             BuildSystem::Python(python) => python.install(request, environment).await,
             BuildSystem::NodeJs(nodejs) => nodejs.install(request, environment).await,
             BuildSystem::Cargo(cargo) => cargo.install(request, environment).await,
+            BuildSystem::BinaryArchive(binary) => binary.install(request, environment).await,
+            BuildSystem::Pypi(pypi) => pypi.install(request, environment).await,
             BuildSystem::Custom(custom) => custom.install(request, environment).await,
         }
     }

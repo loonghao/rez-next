@@ -92,6 +92,10 @@ pub fn create_build_system(system_type: &str) -> Option<BuildSystem> {
         "python" => Some(BuildSystem::Python(systems::PythonBuildSystem::new())),
         "nodejs" => Some(BuildSystem::NodeJs(systems::NodeJsBuildSystem::new())),
         "cargo" => Some(BuildSystem::Cargo(systems::CargoBuildSystem::new())),
+        "binary_archive" => Some(BuildSystem::BinaryArchive(
+            systems::BinaryArchiveBuildSystem::new(),
+        )),
+        "pypi" | "pip" | "rez_pip" => Some(BuildSystem::Pypi(systems::PypiBuildSystem::new())),
         "custom" => Some(BuildSystem::Custom(systems::CustomBuildSystem::new(
             "default".to_string(),
         ))),

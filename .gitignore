@@ -78,6 +78,7 @@ crates/rez-next-python/test_venv/
 *.temp
 
 # Build artifacts
+.rez_build/
 *.whl
 *.tar.gz
 

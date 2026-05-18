@@ -66,13 +66,8 @@ impl ShellType {
             }
         }
 
-        // Check for Windows
         if cfg!(windows) {
-            if std::env::var("PSModulePath").is_ok() {
-                ShellType::PowerShell
-            } else {
-                ShellType::Cmd
-            }
+            ShellType::Cmd
         } else {
             ShellType::Bash // Default to bash on Unix-like systems
         }
@@ -119,6 +114,8 @@ pub struct ShellExecutor {
     working_directory: Option<PathBuf>,
     /// Environment variables
     environment: HashMap<String, String>,
+    /// Whether to inherit parent process environment
+    inherit_parent_env: bool,
     /// Timeout for command execution (in seconds)
     timeout_seconds: u64,
 }
@@ -135,6 +132,7 @@ impl ShellExecutor {
             shell_type,
             working_directory: None,
             environment: HashMap::new(),
+            inherit_parent_env: false,
             timeout_seconds: 300, // 5 minutes default
         }
     }
@@ -142,6 +140,12 @@ impl ShellExecutor {
     /// Set the environment variables
     pub fn with_environment(mut self, environment: HashMap<String, String>) -> Self {
         self.environment = environment;
+        self
+    }
+
+    /// Set whether child processes inherit the parent environment.
+    pub fn with_inherit_parent_env(mut self, inherit_parent_env: bool) -> Self {
+        self.inherit_parent_env = inherit_parent_env;
         self
     }
 
@@ -173,6 +177,9 @@ impl ShellExecutor {
         }
 
         // Set environment variables
+        if !self.inherit_parent_env {
+            cmd.env_clear();
+        }
         for (key, value) in &self.environment {
             cmd.env(key, value);
         }
@@ -210,6 +217,9 @@ impl ShellExecutor {
         }
 
         // Set environment variables
+        if !self.inherit_parent_env {
+            cmd.env_clear();
+        }
         for (key, value) in &self.environment {
             cmd.env(key, value);
         }

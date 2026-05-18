@@ -4,6 +4,7 @@ mod resolved_context_behavior_tests {
     use crate::{ContextConfig, ContextStatus, EnvironmentManager, PathStrategy, ResolvedContext};
     use rez_next_package::{Package, PackageRequirement};
     use rez_next_version::Version;
+    use std::path::PathBuf;
 
     fn make_package(name: &str, version: &str) -> Package {
         let mut pkg = Package::new(name.to_string());
@@ -16,7 +17,7 @@ mod resolved_context_behavior_tests {
     #[test]
     fn test_context_config_defaults() {
         let cfg = ContextConfig::default();
-        assert!(cfg.inherit_parent_env);
+        assert!(!cfg.inherit_parent_env);
         assert!(cfg.additional_env_vars.is_empty());
         assert!(cfg.unset_vars.is_empty());
         assert_eq!(cfg.path_strategy, PathStrategy::Prepend);
@@ -135,6 +136,37 @@ mod resolved_context_behavior_tests {
         let rt = tokio::runtime::Runtime::new().unwrap();
         let vars = rt.block_on(mgr.generate_environment(&[pkg])).unwrap();
         assert!(vars.contains_key("PYTHON_ROOT"));
+    }
+
+    #[test]
+    fn test_env_manager_uses_package_descriptor_root() {
+        let cfg = ContextConfig {
+            inherit_parent_env: false,
+            ..Default::default()
+        };
+        let mgr = EnvironmentManager::new(cfg);
+        let mut pkg = make_package("python", "3.9.0");
+        let package_root = PathBuf::from("/tmp/vx-cache/bundles/python/3.9.0");
+        pkg.filepath = Some(
+            package_root
+                .join("package.py")
+                .to_string_lossy()
+                .to_string(),
+        );
+        pkg.commands = Some("env.setenv('PYTHON_HOME', '{root}')".to_string());
+        pkg.tools = vec!["python".to_string()];
+
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        let vars = rt.block_on(mgr.generate_environment(&[pkg])).unwrap();
+        let root = package_root.to_string_lossy().to_string();
+
+        assert_eq!(vars.get("PYTHON_ROOT"), Some(&root));
+        assert_eq!(vars.get("PYTHON_HOME"), Some(&root));
+        assert!(
+            vars.get("PATH")
+                .map(|value| value.contains(&package_root.join("bin").to_string_lossy().to_string()))
+                .unwrap_or(false)
+        );
     }
 
     #[test]

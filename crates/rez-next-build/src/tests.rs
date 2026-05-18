@@ -6,9 +6,12 @@
 #[cfg(test)]
 mod build_tests {
     use crate::*;
+    use rez_next_context::{ContextConfig, ContextStatus, EnvironmentManager, ResolvedContext};
     use rez_next_package::Package;
+    use rez_next_package::PackageRequirement;
     use std::collections::HashMap;
     use std::path::PathBuf;
+    use std::process::Command;
     use tempfile::TempDir;
 
     // ── Helpers ─────────────────────────────────────────────────────────────
@@ -23,11 +26,90 @@ mod build_tests {
         BuildRequest::new(pkg, None, source_dir)
     }
 
+    fn python_executable() -> String {
+        let output = Command::new("python")
+            .args(["-c", "import sys; print(sys.executable)"])
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "failed to locate python executable: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        String::from_utf8_lossy(&output.stdout).trim().to_string()
+    }
+
+    fn create_python_package(root: &std::path::Path) -> Package {
+        let package_root = root.join("python").join("3.11.0");
+        let bin_dir = package_root.join("bin");
+        std::fs::create_dir_all(&bin_dir).unwrap();
+        std::fs::write(
+            package_root.join("package.py"),
+            r#"
+name = "python"
+version = "3.11.0"
+tools = ["python"]
+
+def commands():
+    env.setenv("PATHEXT", ".COM;.EXE;.BAT;.CMD")
+    env.prepend_path("PATH", "{root}/bin")
+"#,
+        )
+        .unwrap();
+
+        let python = python_executable();
+        if cfg!(windows) {
+            std::fs::write(
+                bin_dir.join("python.cmd"),
+                format!("@echo off\r\n\"{}\" %*\r\n", python),
+            )
+            .unwrap();
+        } else {
+            let shim = bin_dir.join("python");
+            std::fs::write(&shim, format!("#!/bin/sh\n\"{}\" \"$@\"\n", python)).unwrap();
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                std::fs::set_permissions(&shim, std::fs::Permissions::from_mode(0o755)).unwrap();
+            }
+        }
+
+        Package::from_path(package_root).unwrap()
+    }
+
+    async fn python_build_context(temp_dir: &TempDir) -> ResolvedContext {
+        let package = create_python_package(temp_dir.path());
+        let mut context = ResolvedContext::from_requirements(vec![
+            PackageRequirement::parse("python-3+").unwrap(),
+        ]);
+        context.resolved_packages = vec![package];
+        context.status = ContextStatus::Resolved;
+
+        let manager = EnvironmentManager::new(ContextConfig {
+            inherit_parent_env: false,
+            ..Default::default()
+        });
+        context.environment_vars = manager
+            .generate_environment(&context.resolved_packages)
+            .await
+            .unwrap();
+        context
+    }
+
+    async fn make_request_with_python_context(
+        pkg: Package,
+        source_dir: PathBuf,
+        temp_dir: &TempDir,
+    ) -> BuildRequest {
+        BuildRequest::new(pkg, Some(python_build_context(temp_dir).await), source_dir)
+    }
+
     // ── BuildConfig tests ────────────────────────────────────────────────────
 
     #[test]
     fn test_build_config_defaults() {
         let config = BuildConfig::default();
+        assert_eq!(config.build_dir, PathBuf::from(".rez_build"));
         assert_eq!(config.max_concurrent_builds, 4);
         assert_eq!(config.build_timeout_seconds, 3600);
         assert!(!config.clean_before_build);
@@ -384,6 +466,8 @@ mod build_tests {
         let _ = BuildSystemType::Python;
         let _ = BuildSystemType::NodeJs;
         let _ = BuildSystemType::Cargo;
+        let _ = BuildSystemType::BinaryArchive;
+        let _ = BuildSystemType::Pypi;
         let _ = BuildSystemType::Custom;
         let _ = BuildSystemType::Unknown;
     }
@@ -414,7 +498,7 @@ mod build_tests {
         .unwrap();
 
         let pkg = make_package("testpkg", "1.0.0");
-        let req = make_request(pkg, tmp.path().to_path_buf());
+        let req = make_request_with_python_context(pkg, tmp.path().to_path_buf(), &tmp).await;
         let ids = manager.start_build(req).await.unwrap();
 
         let stats = manager.get_stats();
@@ -454,13 +538,52 @@ if not source_path or not os.path.isdir(source_path):
         .unwrap();
 
         let pkg = make_package("testpkg", "1.0.0");
-        let req = make_request(pkg, tmp.path().to_path_buf());
+        let req = make_request_with_python_context(pkg, tmp.path().to_path_buf(), &tmp).await;
         let ids = manager.start_build(req).await.unwrap();
         let result = manager.wait_for_build(&ids[0]).await.unwrap();
 
         assert!(
             result.success,
             "rezbuild.py should receive REZ_BUILD_SOURCE_PATH: {}",
+            result.errors
+        );
+    }
+
+    #[tokio::test]
+    async fn test_build_manager_passes_request_env_vars_to_rezbuild() {
+        let mut manager = BuildManager::new();
+        let tmp = TempDir::new().unwrap();
+
+        std::fs::write(
+            tmp.path().join("package.py"),
+            "name = 'envpkg'\nversion = '1.0.0'\n",
+        )
+        .unwrap();
+        std::fs::write(
+            tmp.path().join("rezbuild.py"),
+            r#"
+import os
+import sys
+
+if os.environ.get("VX_REZ_TEST_ARTIFACT") != "artifact.zip":
+    print("missing request env override", file=sys.stderr)
+    sys.exit(1)
+"#,
+        )
+        .unwrap();
+
+        let pkg = make_package("envpkg", "1.0.0");
+        let mut req = make_request_with_python_context(pkg, tmp.path().to_path_buf(), &tmp).await;
+        req.options.env_vars.insert(
+            "VX_REZ_TEST_ARTIFACT".to_string(),
+            "artifact.zip".to_string(),
+        );
+        let ids = manager.start_build(req).await.unwrap();
+        let result = manager.wait_for_build(&ids[0]).await.unwrap();
+
+        assert!(
+            result.success,
+            "rezbuild.py should receive request env overrides: {}",
             result.errors
         );
     }
@@ -502,7 +625,7 @@ for name, check in checks.items():
             vec!["platform-windows".to_string()],
             vec!["platform-linux".to_string()],
         ];
-        let req = make_request(pkg, tmp.path().to_path_buf());
+        let req = make_request_with_python_context(pkg, tmp.path().to_path_buf(), &tmp).await;
         let ids = manager.start_build(req).await.unwrap();
 
         assert_eq!(ids.len(), 2, "each package variant should start a build");
@@ -560,7 +683,7 @@ if os.environ["REZ_BUILD_PROJECT_VERSION"] != "0.0.0":
         .unwrap();
 
         let pkg = Package::new("versionless".to_string());
-        let req = make_request(pkg, tmp.path().to_path_buf());
+        let req = make_request_with_python_context(pkg, tmp.path().to_path_buf(), &tmp).await;
         let ids = manager.start_build(req).await.unwrap();
         let result = manager.wait_for_build(&ids[0]).await.unwrap();
 
@@ -823,6 +946,57 @@ if os.environ["REZ_BUILD_PROJECT_VERSION"] != "0.0.0":
         // Just ensure we got a valid result
         assert!(!build_result.build_id.is_empty());
     }
+
+    #[tokio::test]
+    async fn test_build_manager_emits_live_build_events() {
+        let tmp = TempDir::new().unwrap();
+        let source_dir = tmp.path().join("source");
+        std::fs::create_dir_all(&source_dir).unwrap();
+        std::fs::write(
+            source_dir.join("package.py"),
+            "name = 'event_test'\nversion = '1.0.0'\n",
+        )
+        .unwrap();
+
+        let (event_sender, mut event_receiver) = tokio::sync::mpsc::unbounded_channel();
+        let mut config = BuildConfig::default();
+        config.build_dir = tmp.path().join(".rez_build");
+        config.event_sender = Some(event_sender);
+        let mut manager = BuildManager::with_config(config);
+
+        let pkg = make_package("event_test", "1.0.0");
+        let req = make_request(pkg, source_dir);
+        let build_ids = manager.start_build(req).await.unwrap();
+        let build_id = &build_ids[0];
+        let result = manager.wait_for_build(build_id).await.unwrap();
+        assert!(result.success);
+
+        let mut events = Vec::new();
+        while let Ok(event) = event_receiver.try_recv() {
+            events.push(event);
+        }
+
+        assert!(
+            events
+                .iter()
+                .any(|event| event.kind == BuildEventKind::BuildStarted),
+            "build start event should be emitted"
+        );
+        assert!(
+            events
+                .iter()
+                .any(|event| event.kind == BuildEventKind::StepStarted
+                    && event.step == Some(BuildStep::Preparing)),
+            "preparing step start event should be emitted"
+        );
+        assert!(
+            events
+                .iter()
+                .any(|event| event.kind == BuildEventKind::BuildFinished
+                    && event.success == Some(true)),
+            "successful build finish event should be emitted"
+        );
+    }
 }
 
 // ── New tests for BuildType, get_build_process_types, create_build_system ─────
@@ -871,6 +1045,9 @@ mod build_type_tests {
         assert!(create_build_system("python").is_some());
         assert!(create_build_system("nodejs").is_some());
         assert!(create_build_system("cargo").is_some());
+        assert!(create_build_system("binary_archive").is_some());
+        assert!(create_build_system("pypi").is_some());
+        assert!(create_build_system("rez_pip").is_some());
         assert!(create_build_system("custom").is_some());
     }
 

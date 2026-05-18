@@ -30,7 +30,7 @@ impl Default for ExecutionConfig {
         Self {
             shell_type: ShellType::detect(),
             working_directory: None,
-            inherit_parent_env: true,
+            inherit_parent_env: false,
             additional_env_vars: HashMap::new(),
             timeout_seconds: 300, // 5 minutes
             capture_output: true,
@@ -65,6 +65,7 @@ impl ContextExecutor {
 
         let shell_executor = ShellExecutor::with_shell(config.shell_type.clone())
             .with_environment(environment)
+            .with_inherit_parent_env(config.inherit_parent_env)
             .with_timeout(config.timeout_seconds);
 
         let shell_executor = if let Some(ref wd) = config.working_directory {
@@ -192,6 +193,7 @@ impl ContextExecutor {
 
         self.shell_executor = ShellExecutor::with_shell(self.config.shell_type.clone())
             .with_environment(environment)
+            .with_inherit_parent_env(self.config.inherit_parent_env)
             .with_timeout(self.config.timeout_seconds);
 
         if let Some(ref wd) = self.config.working_directory {
@@ -426,7 +428,7 @@ mod tests {
         let config = ExecutionConfig::default();
 
         assert_eq!(config.timeout_seconds, 300);
-        assert!(config.inherit_parent_env);
+        assert!(!config.inherit_parent_env);
         assert!(config.capture_output);
         assert!(config.working_directory.is_none());
         assert_eq!(config.additional_env_vars.len(), 0);
