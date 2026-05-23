@@ -90,3 +90,7 @@ for _attr_name in dir(_native):
 
 # ── config singleton (matches rez.config) ──────────────────────────────
 config = _native.config
+
+# ── utils subpackage ────────────────────────────────────────────────────────
+# Import the utils subpackage so it's available as rez_next.utils
+from rez_next import utils  # noqa: F401
