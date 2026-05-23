@@ -12,6 +12,7 @@ use rez_next_common::RezCoreError;
 mod base26;
 mod command;
 mod filesystem;
+pub mod logging; // Logging utilities (rez.utils.logging)
 mod platform;
 mod string;
 mod system;
@@ -21,6 +22,7 @@ pub mod which;
 pub use base26::*;
 pub use command::*;
 pub use filesystem::*;
+pub use logging::*;
 pub use platform::*;
 pub use string::*;
 pub use system::*;

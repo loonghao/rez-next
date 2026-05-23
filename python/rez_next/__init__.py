@@ -1,5 +1,13 @@
 # Rez-Next: High-performance Rust rewrite of Rez
 # Compatible with rez API - users can `import rez_next as rez`
+#
+# This module mirrors the public API surface of rez.__init__.
+# See https://github.com/AcademySoftwareFoundation/rez/blob/main/src/rez/__init__.py
+#
+# Key alignment areas:
+# - Package management (copy, move, remove)
+# - Configuration system (with env var / file overrides)
+# - Utility submodules (logging, filesystem, platform)
 
 import _native
 import os
@@ -18,15 +26,17 @@ __license__ = "Apache-2.0"
 module_root_path = os.path.dirname(os.path.abspath(__file__))
 
 # Make all public symbols available at rez_next.*
-# (rez_next_bindings exports are now re-exported at rez_next.*)
 from _native import *
 
-# Register submodules in sys.modules for "from rez_next.* import ..." to work
-# Process modules from _native
-import rez_next._native.package_order
-sys.modules["rez_next.package_order"] = rez_next._native.package_order
+# ── Submodule registration ──────────────────────────────────────────────
+# Register submodules in sys.modules so "from rez_next.X import ..." works.
+#
+# This mirrors rez's module hierarchy:
+#   rez.config, rez.packages_, rez.resolved_context, rez.solver_,
+#   rez.package_filter, rez.package_repository, rez.package_resources,
+#   rez.package_copy, rez.package_remove, rez.package_order, etc.
 
-# Also register other submodules dynamically
+# Dynamically register all _native submodules
 for _attr_name in dir(_native):
     _attr = getattr(_native, _attr_name)
     _type_str = str(type(_attr))
@@ -34,3 +44,8 @@ for _attr_name in dir(_native):
         _full_name = f"rez_next._native.{_attr_name}"
         if _full_name in sys.modules:
             sys.modules[f"rez_next.{_attr_name}"] = sys.modules[_full_name]
+
+# ── config singleton (matches rez.config) ──────────────────────────────
+# Environment variables REZ_PACKAGES_PATH and REZ_LOCAL_PACKAGES_PATH
+# are read by the native config loader at init time.
+config = _native.config

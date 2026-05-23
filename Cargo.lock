@@ -3000,6 +3000,7 @@ dependencies = [
  "base64",
  "bincode",
  "chrono",
+ "dunce",
  "flate2",
  "fs2",
  "glob",
