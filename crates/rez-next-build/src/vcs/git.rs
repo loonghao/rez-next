@@ -190,7 +190,8 @@ impl super::ReleaseVCS for GitVCS {
 
         // Check if tag reference exists
         let tag_ref_name = format!("refs/tags/{}", tag);
-        let result = match repo.find_reference(&tag_ref_name) {
+        
+        match repo.find_reference(&tag_ref_name) {
             Ok(_) => Ok(true),
             Err(e) if e.code() == git2::ErrorCode::NotFound => Ok(false),
             Err(e) => Err(RezCoreError::BuildError(format!(
@@ -199,8 +200,7 @@ impl super::ReleaseVCS for GitVCS {
                 self.repo_root.display(),
                 e
             ))),
-        };
-        result
+        }
     }
 
     fn create_tag(&self, tag: &str, message: &str) -> Result<(), RezCoreError> {

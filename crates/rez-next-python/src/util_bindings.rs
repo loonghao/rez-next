@@ -268,7 +268,7 @@ fn get_username_py() -> String {
 /// Get the current user's home directory
 #[pyfunction(name = "get_home_directory")]
 fn get_home_directory_py() -> Option<String> {
-    rez_next_util::get_home_directory().and_then(|p| Some(p.to_string_lossy().to_string()))
+    rez_next_util::get_home_directory().map(|p| p.to_string_lossy().to_string())
 }
 
 /// Get the current machine's fully qualified domain name (FQDN)

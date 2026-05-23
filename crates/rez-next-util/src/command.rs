@@ -139,27 +139,18 @@ pub fn get_command_output(command: &str, args: &[&str]) -> RezCoreResult<String>
 mod tests {
     use super::*;
 
-    /// Helper to get a command that echoes text, cross-platform
-    fn get_echo_command() -> (&'static str, Vec<String>) {
-        if cfg!(unix) {
+    #[test]
+    fn test_command_result_from_output() {
+        use std::process::Command;
+
+        // Create a simple command that outputs "test output"
+        let (cmd, args): (&str, Vec<String>) = if cfg!(unix) {
             ("echo", vec!["test output".to_string()])
         } else {
             (
                 "cmd",
                 vec!["/c".to_string(), "echo test output".to_string()],
             )
-        }
-    }
-
-    #[test]
-    fn test_command_result_from_output() {
-        use std::process::Command;
-
-        // Create a simple command that outputs "test output"
-        let (cmd, args) = if cfg!(unix) {
-            ("echo", vec!["test output"])
-        } else {
-            ("cmd", vec!["/c", "echo test output"])
         };
 
         let output = Command::new(cmd).args(&args).output().unwrap();

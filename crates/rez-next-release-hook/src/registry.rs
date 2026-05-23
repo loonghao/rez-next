@@ -91,7 +91,7 @@ static GLOBAL_REGISTRY: std::sync::OnceLock<ReleaseHookRegistry> = std::sync::On
 
 /// Get the global release hook registry.
 pub fn get_registry() -> &'static ReleaseHookRegistry {
-    GLOBAL_REGISTRY.get_or_init(|| ReleaseHookRegistry::new())
+    GLOBAL_REGISTRY.get_or_init(ReleaseHookRegistry::new)
 }
 
 /// Get a mutable reference to the global registry.

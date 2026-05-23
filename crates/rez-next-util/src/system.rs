@@ -5,7 +5,6 @@
 use std::env;
 use std::path::PathBuf;
 
-use dirs;
 
 /// Get the current machine's hostname
 pub fn get_hostname() -> String {

@@ -124,7 +124,7 @@ pub fn copy_package(
         normalize_paths: true,
     };
 
-    let result = domain_copy(&pkg_name, &ver_str, PathBuf::from(dest_path).as_path(), &config)
+    let result = domain_copy(pkg_name, &ver_str, PathBuf::from(dest_path).as_path(), &config)
         .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
 
     Ok(result.destination.to_string_lossy().to_string())
@@ -162,7 +162,7 @@ pub fn move_package(
         normalize_paths: true,
     };
 
-    let result = domain_move(&pkg_name, &ver_str, PathBuf::from(dest_path).as_path(), &config)
+    let result = domain_move(pkg_name, &ver_str, PathBuf::from(dest_path).as_path(), &config)
         .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
 
     Ok(result.destination.to_string_lossy().to_string())

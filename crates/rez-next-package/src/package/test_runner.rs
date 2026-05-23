@@ -112,7 +112,7 @@ impl PackageTestRunner {
     ///
     /// Returns an error if the package cannot be found or loaded.
     pub fn new(package_spec: String) -> RezCoreResult<Self> {
-        let working_dir = std::env::current_dir().map_err(|e| RezCoreError::from(e))?;
+        let working_dir = std::env::current_dir().map_err(RezCoreError::from)?;
 
         let mut runner = Self {
             package_name: package_spec.clone(),

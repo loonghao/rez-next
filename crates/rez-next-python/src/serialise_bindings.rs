@@ -64,7 +64,7 @@ fn py_dump_package_data(
 
     // Validate against schema (align with Rez's package_serialise_schema)
     validate_package_data(&json_value)
-        .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(e))?;
+        .map_err(PyErr::new::<pyo3::exceptions::PyValueError, _>)?;
 
     // Serialise data to string
     let serialised = serialise_to_string(&json_value, &format_)

@@ -536,7 +536,7 @@ impl PyPackage {
             dict.set_item("format_version", *v)?;
         }
 
-        Ok(dict.into())
+        Ok(dict)
     }
 
     /// Convert the package to a Python-formatted string (package.py format).

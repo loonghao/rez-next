@@ -517,7 +517,7 @@ impl PackageCache {
                     let _ = fs::remove_file(json_path);
 
                     // Clean up empty parent directories
-                    Self::cleanup_empty_dirs(&path);
+                    Self::cleanup_empty_dirs(path);
                 }
                 (CacheStatus::Removed, cached_path)
             }
@@ -611,12 +611,11 @@ impl PackageCache {
                     break;
                 }
                 let path = entry.path();
-                if path.is_dir() {
-                    if fs::remove_dir_all(&path).is_ok() {
+                if path.is_dir()
+                    && fs::remove_dir_all(&path).is_ok() {
                         stats.deleted_bytes += Self::directory_size(&path).unwrap_or(0);
                         stats.entries_deleted += 1;
                     }
-                }
             }
         }
 

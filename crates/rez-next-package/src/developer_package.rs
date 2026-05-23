@@ -127,7 +127,7 @@ impl DeveloperPackage {
     /// Load a package definition from a file.
     fn load_package_definition(filepath: &Path) -> Result<Package, DeveloperPackageError> {
         let content = std::fs::read_to_string(filepath)
-            .map_err(|e| DeveloperPackageError::Io(e))?;
+            .map_err(DeveloperPackageError::Io)?;
 
         if filepath.extension().and_then(|e| e.to_str()) == Some("yaml") {
             crate::serialization::PackageSerializer::load_from_yaml(&content)

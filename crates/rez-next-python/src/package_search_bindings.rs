@@ -82,6 +82,9 @@ pub fn py_get_plugins(package_name: String, paths: Option<Vec<String>>) -> PyRes
 ///     Tuple of (layers, graph) where:
 ///     - layers: List of lists of package names grouped by depth
 ///     - graph: Dict mapping package names to list of dependent packages
+/// Return type for reverse dependency tree: (layers, graph)
+type ReverseDependencyTree = (Vec<Vec<String>>, HashMap<String, Vec<String>>);
+
 #[pyfunction]
 #[pyo3(name = "get_reverse_dependency_tree")]
 pub fn py_get_reverse_dependency_tree(
@@ -90,7 +93,7 @@ pub fn py_get_reverse_dependency_tree(
     paths: Option<Vec<String>>,
     build_requires: bool,
     private_build_requires: bool,
-) -> PyResult<(Vec<Vec<String>>, HashMap<String, Vec<String>>)> {
+) -> PyResult<ReverseDependencyTree> {
     let (layers, graph) = get_reverse_dependency_tree(
         &package_name,
         depth,
