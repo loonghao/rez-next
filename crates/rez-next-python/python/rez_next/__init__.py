@@ -47,6 +47,9 @@ except ImportError:
 from . import complete  # noqa: F401
 from . import deprecations  # noqa: F401
 from . import package_help  # noqa: F401
+from . import bundle_context  # noqa: F401
+from . import wrapper  # noqa: F401
+from . import release_vcs  # noqa: F401
 from .exceptions import *  # noqa: F401,F403
 from .config import Config  # noqa: F401
 
