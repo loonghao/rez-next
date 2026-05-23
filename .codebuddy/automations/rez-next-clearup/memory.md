@@ -1,112 +1,57 @@
 # Rez-Next Auto-Cleanup Cycle Memory
-## Last Execution: Cycle #337
+## Last Execution: Cycle #339
 ### Date
-2026-05-07
-### Environment Preparation
-- Branch: auto-improve (already up-to-date with origin/main)
-- Merge with origin/main: Success (already up-to-date)
-- Working directory: Clean after commit
-### Changes Made (Cycle #337)
-#### 1. Fixed PyO3 0.28 API Compatibility Issues
-**Files modified**:
-- `crates/rez-next-python/src/dependency_conflicts_bindings.rs`
-- `crates/rez-next-python/src/package_variant_bindings.rs`
-- `crates/rez-next-python/src/reduction_bindings.rs`
-- `crates/rez-next-python/src/requirement_list_bindings.rs`
-- `crates/rez-next-python/src/solver_bindings.rs`
-- `crates/rez-next-python/src/solver_state_bindings.rs`
-**Fixes applied**:
-1. Removed conflicting `skip_from_py_object` attributes (caused compile errors with `#[derive(Clone)]`)
-2. Fixed `PyList::empty` API:
-   - Changed `PyList::empty_bound(py)` → `PyList::empty(py)` (PyO3 0.28 correct API)
-   - Return type: `PyResult<Bound<'py, PyList>>`
-3. Added named lifetime parameters to fix lifetime mismatch errors:
-   - `fn reductions<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>>`
-   - Same pattern for `get_requirements`, `get_variants`
-4. Fixed `py.None()` return type:
-   - Changed `Ok(py.None())` → `Ok(py.None().into_bound(py))` (Py<PyAny> → Bound)
-5. Used `PyDict::new_bound` instead of `PyDict::new`:
-   - Updated `solver_state_bindings.rs: metadata()` function
-6. Fixed `get_variants` signature:
-   - Changed `&self` → `&mut self` (Rust side requires `&mut self`)
-7. Cleaned up unused imports:
-   - Removed `SolverState` from `solver_bindings.rs`
-   - Removed `PyAnyMethods` from `package_variant_bindings.rs`
-   - Removed `PyObject` (unused) from imports
-8. Added `skip_from_py_object` to suppress deprecation warnings:
-   - `PyReduction`, `PyTotalReduction`, `PyRequirementList`, etc.
-9. Updated `solver_bindings.rs` to use new PyO3 API:
-   - Changed return types from `Py<PyAny>` → `Bound<'py, PyDict>` / `Bound<'py, PyAny>`
-   - Changed `PyDict::new(py)` → `PyDict::new_bound(py)`
-   - Changed `PyList::new(py, values)?` → `PyList::empty(py)` + `py_list.append(value)?`
-   - Changed `py.None()` → `py.None().into_bound(py)`
-   - Removed `into_any().unbind()` old API usage
-**Commits**:
-1. `91b5e02` - `fix(python-bindings): PyO3 0.28 API compatibility fixes`
-   - 6 files changed, 60 insertions(+), 50 deletions(-)
-2. `e4ecd34` - `fix(solver-bindings): update PyO3 API usage in solver_bindings.rs`
-   - 1 file changed, 14 insertions(+), 8 deletions(-)
-**Push to remote**: ✅ Success (both commits pushed to `origin/auto-improve`)
+2026-05-24
+
+### Environment
+- Branch: auto-improve (based on origin/main, rebased in Cycle #338)
+- Merge-base with origin/main: 494f6c3
+- Working directory: clean after commit
+
+### Changes Made
+1. **Implemented wrapper.py** (`crates/rez-next-python/python/rez_next/wrapper.py`):
+   - `Wrapper` class for suite tool execution wrappers (YAML-based)
+   - Properties: `filepath`, `suite`, `tool_name`, `context_name`
+   - Methods: `run()`, `print_about()`, `print_package_versions()`, `peek()`
+   - Parses executable YAML wrappers with `suite_path`, `context_name`, `tool_name`, `prefix_char`
+   - Aligns with `rez.wrapper.Wrapper`
+
+2. **Implemented bundle_context.py** (`crates/rez-next-python/python/rez_next/bundle_context.py`):
+   - `bundle_context()` function for creating relocatable context bundles
+   - Wraps native `bundles.bundle_context()` Rust function
+   - Parameters: `context`, `dest_dir`, `force`, `skip_non_relocatable`, `quiet`, `patch_libs`, `verbose`
+   - Aligns with `rez.bundle_context.bundle_context()`
+
+3. **Implemented release_vcs.py** (`crates/rez-next-python/python/rez_next/release_vcs.py`):
+   - `ReleaseVCS` ABC with `__init_subclass__` auto-registration pattern
+   - `ReleaseVCSError` exception subclass of `RezSystemError`
+   - Factory functions: `get_release_vcs_types()`, `create_release_vcs()`
+   - Abstract methods: `name()`, `is_valid_root()`, `search_parents_for_root()`, `find_vcs_root()`, etc.
+   - Aligns with `rez.release_vcs.ReleaseVCS`
+
+4. **Updated __init__.py**: Added 3 new submodule exports
+
+### Key Design Decisions
+1. **Pure Python** (not Rust): All 3 modules are pure Python facades over existing rez-next native infrastructure (Suites, Bundles), per Clean Architecture — they are abstraction/facade layers, not performance-critical algorithms.
+2. **ABC + Auto-Registry**: Used `__init_subclass__` for automatic VCS subclass registration, avoiding rez's manual `release_vcs_manager.py` plugin discovery complexity.
+3. **Avoided historical rez issues**: No static type registry, no circular import patterns, no hidden state mutations.
+
+### Files Changed
+7 files, +1118/-0 lines:
+- `crates/rez-next-python/python/rez_next/` (4 files): `__init__.py` (modified), `wrapper.py`, `bundle_context.py`, `release_vcs.py`
+- `tests/` (3 files): `test_wrapper.py`, `test_bundle_context.py`, `test_release_vcs.py`
+
 ### Test Results
-- **Rust tests**: Not yet run (compilation issues were the focus of this cycle)
-- **Python tests**: Not yet run (dependency on `rez-next-python` compilation)
-- **Clippy warnings**: Not yet checked (focused on compilation errors)
-### Codebase Health Metrics (Cycle #337)
-| Metric | Value | Trend |
-|--------|-------|-------|
-| TODO/FIXME in code | 3 (legitimate - unimplemented features) | ⚠️ Unchanged |
-| `#[allow(dead_code)]` attributes | 1 (legitimate - PyO3 export) | ✅ Maintained |
-| Ignored tests | 5 (legitimate - version comparison semantics) | ✅ Maintained |
-| Dead code | 0 | ✅ Maintained |
-| Large files (>500 lines) | 20 (all under 1000 lines) | ✅ Maintained |
-| Unused dependencies | 0 | ✅ Maintained |
-| Security vulnerabilities | 10 allowed warnings (no new) | ✅ Maintained |
-### Issues Identified
-1. **PyO3 0.28 API compatibility** - ✅ FIXED (commits `91b5e02` + `e4ecd34`)
-   - All `#[pyclass]` types with `Clone` now correctly handle `FromPyObject` trait
-   - Updated all old API usage (`PyObject`, `PyDict::new`, `PyList::new`, `with_gil`)
-2. **Compilation errors in `solver_bindings.rs`** - ⚠️ PARTIALLY FIXED
-   - Fixed `accessibility()` method (lines 381-389)
-   - Fixed `find_cycle()` method (lines 399-407)
-   - Fixed standalone `accessibility()` function (lines 432-441)
-   - May have remaining issues in `find_cycle()` standalone function and `package_repo_stats()`
-3. **CI verification needed** - Pending
-   - Pushed commits to `origin/auto-improve`
-   - GitHub Actions will verify compilation and test results
-   - May need additional fixes in next cycle
-### Next Cycle Focus (Cycle #338)
-1. **Verify CI results** - Check GitHub Actions for compilation errors
-2. **Fix remaining PyO3 API issues** (if any):
-   - `find_cycle()` standalone function (lines 452-461)
-   - `package_repo_stats()` function (lines 478-501)
-   - Any other old API usage in `solver_bindings.rs`
-3. **Run full test suite** - Execute `cargo test --workspace`
-4. **Run clippy check** - Execute `cargo clippy --workspace`
-5. **Phase 1-6 cleanup tasks**:
-   - Phase 1: Scan for dead code (likely 0 instances based on previous cycles)
-   - Phase 2: Check for expired documentation
-   - Phase 3: Check for expired/skipped tests
-   - Phase 4: Fix any new clippy warnings
-   - Phase 5: Run `cargo audit` for dependency vulnerabilities
-   - Phase 6: Evaluate large files for potential splitting
-### Notes
-- **Codebase is in excellent shape** (0 clippy warnings, legitimate TODOs preserved, no dead code)
-- **Previous cycles (#1-336) have already cleaned up all major technical debt**
-- **Focus of future cycles should shift from "cleanup" to "preventive maintenance" and "PyO3 API compatibility"**
-- **Python bindings testing is blocked by compilation issues** - need to fix all PyO3 API compatibility problems first
-- **New code added by iteration agent (Cycle #333-#336) is high-quality** - no dead code, proper documentation, comprehensive tests
-- **Only issue**: PyO3 0.28 API changes require updates to `solver_bindings.rs` (multiple functions using old API)
----
-## Previous Cycles Summary
-### Cycle #324 (2026-05-07)
-- Codebase health check (0 warnings, 20 files >500 lines)
-- Commit: 756eda7
-- Result: Fixed compilation error and clippy warnings
-### Cycle #318 (2026-05-06)
-- Codebase health check (0 warnings, 20 files >500 lines)
-- Commit: ed608e8
-- Result: Codebase is clean, no changes required
-### Cycles #1-317
-- Extensive cleanup completed
-- All major technical debt addressed
-- Codebase is in excellent shape
+- New tests: 24 passed (10 wrapper + 6 bundle_context + 8 release_vcs)
+- Core tests: 72 passed (24 new + 43 config + 5 version)
+- Rust tests: 201 passed (1 pre-existing cmake env failure)
+
+### Commit
+- 40805fe: "feat: add wrapper, bundle_context, release_vcs modules (rez API alignment)"
+- Author: loonghao <hal.long@outlook.com>
+- Pushed to origin/auto-improve (51d1e01..40805fe)
+
+### Next Cycle
+- Align remaining missing Python modules with rez API
+- Consider implementing: `release_hook`, `package_serialise`, `build_system` 
+- Run full CI via GitHub Actions
