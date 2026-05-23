@@ -248,53 +248,6 @@ fn pyobject_to_test_status(obj: Bound<'_, PyAny>) -> PyResult<TestStatus> {
 
 // ── Utility functions ─────────────────────────────────────────────
 
-/// Print a heading with the given level.
-///
-/// Args:
-///     level: Heading level (1-6)
-///     text: Heading text
-#[pyfunction]
-#[pyo3(signature = (level, text))]
-fn py_heading(level: u32, text: String) {
-    let char = match level {
-        1 => "=",
-        2 => "-",
-        3 => "~",
-        4 => "^",
-        5 => "\"",
-        _ => "*",
-    };
-    let line: String = char.repeat(text.len());
-    println!("\n{}\n{}\n{}", line, text, line);
-}
-
-/// Print an error message.
-///
-/// Args:
-///     msg: Error message
-#[pyfunction]
-fn py_print_error(msg: String) {
-    eprintln!("[ERROR] {}", msg);
-}
-
-/// Print an info message.
-///
-/// Args:
-///     msg: Info message
-#[pyfunction]
-fn py_print_info(msg: String) {
-    println!("[INFO] {}", msg);
-}
-
-/// Print a warning message.
-///
-/// Args:
-///     msg: Warning message
-#[pyfunction]
-fn py_print_warning(msg: String) {
-    eprintln!("[WARNING] {}", msg);
-}
-
 // ── Registration ──────────────────────────────────────────────────
 
 /// Register the `rez_next._native.test` submodule.

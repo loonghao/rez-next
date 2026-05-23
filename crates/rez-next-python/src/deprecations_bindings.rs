@@ -44,7 +44,6 @@ pub fn register_deprecations_submodule(parent_module: &Bound<'_, PyModule>) -> P
 #[cfg(test)]
 mod tests {
     use super::*;
-    use pyo3::Python;
 
     #[test]
     fn test_deprecations_module_creation() {

@@ -36,11 +36,6 @@ use serde_json;
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
-/// Timeout for file lock acquisition (seconds)
-const LOCK_TIMEOUT_SECS: u64 = 10;
-
-/// Buffer size for copy operations (64 KB)
-const COPY_BUFFER_SIZE: usize = 65536;
 
 /// Hash prefix length (first N chars of SHA1)
 const HASH_PREFIX_LEN: usize = 4;
@@ -330,10 +325,7 @@ impl PackageCache {
         self.root.join(".sys")
     }
 
-    /// Get the pending directory.
-    fn pending_dir(&self) -> PathBuf {
-        self.sys_dir().join("pending")
-    }
+
 
     /// Get the to_delete directory.
     fn to_delete_dir(&self) -> PathBuf {
