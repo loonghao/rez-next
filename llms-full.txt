@@ -1,0 +1,571 @@
+# rez-next — Complete API Reference
+
+> **Full API documentation for AI agents.** For a concise index, see [llms.txt](./llms.txt). For human guides, see [docs/](./docs/).
+
+---
+
+## Table of Contents
+
+1. [Project Structure](#project-structure)
+2. [Rust API](#rust-api)
+3. [Python API](#python-api)
+4. [CLI Reference](#cli-reference)
+5. [Development Commands](#development-commands)
+6. [Configuration Files](#configuration-files)
+
+---
+
+## Project Structure
+
+```
+rez-next/
+├── crates/                          # 20 Rust crates
+│   ├── rez-next-common/             # Shared: Error, Config, utilities
+│   ├── rez-next-config/             # Config loading & validation
+│   ├── rez-next-version/            # Version: parse, compare, range matching
+│   ├── rez-next-package/            # Package: Package, Variant, package.py parser
+│   ├── rez-next-package-cache/      # Package payload caching
+│   ├── rez-next-package-filter/     # Package filter: GlobRule, RangeRule, RegexRule
+│   ├── rez-next-solver/             # Solver: A* algorithm with backtracking
+│   ├── rez-next-repository/         # Repository: scan, index, cache packages
+│   ├── rez-next-context/            # Context: resolved contexts, Rex integration
+│   ├── rez-next-build/              # Build: rez-build system integration
+│   ├── rez-next-cache/              # Cache: multi-level (memory + disk)
+│   ├── rez-next-rex/                # Rex: Rex DSL interpreter
+│   ├── rez-next-suites/             # Suites: tool-chain management
+│   ├── rez-next-bind/               # Bind: system tool → rez package binding
+│   ├── rez-next-search/             # Search: fuzzy/exact/contains/regex search
+│   ├── rez-next-explicit/           # Explicit: explicit package lists
+│   ├── rez-next-serialise/          # Serialise: package serialization
+│   ├── rez-next-release-hook/       # Release hooks
+│   ├── rez-next-util/               # Util: command runner, helpers
+│   └── rez-next-python/             # Python: PyO3 bindings → _native.pyd
+├── src/                             # Rust CLI binary (rez-next)
+├── tests/                           # Integration tests (Rust + Python)
+├── benches/                         # Criterion benchmarks (11 benchmarks)
+├── examples/                        # Example code
+├── docs/                            # Human-oriented documentation
+├── python/                          # Python package layout
+└── metrics/                         # Performance tracking
+```
+
+---
+
+## Rust API
+
+### rez-next-version (`crates/rez-next-version/`)
+
+```rust
+use rez_next_version::{Version, VersionToken, VersionRange};
+
+// Parse a version
+let v = Version::parse("1.2.3").unwrap();
+
+// Compare versions
+assert!(v < Version::parse("2.0.0").unwrap());
+
+// Version ranges
+let range = VersionRange::parse(">=1.0,<2.0").unwrap();
+assert!(range.contains(&v));
+```
+
+### rez-next-package (`crates/rez-next-package/`)
+
+```rust
+use rez_next_package::{Package, Variant, PackageMaker};
+use rez_next_package::filter::{PackageFilter, GlobRule, RangeRule, RegexRule};
+
+// Create a package programmatically
+let pkg = PackageMaker::new("maya")
+    .version("2024.0")
+    .build().unwrap();
+
+// Filter packages
+let filter = PackageFilter::new()
+    .add_inclusion(GlobRule::new("maya-*").unwrap())
+    .add_exclusion(RangeRule::new("maya", "<2023").unwrap());
+```
+
+### rez-next-solver (`crates/rez-next-solver/`)
+
+```rust
+use rez_next_solver::{Solver, SolverConfig, SolverStatus};
+
+let config = SolverConfig::default();
+let solver = Solver::new(config);
+let request = &["python-3.9", "maya-2024"];
+match solver.solve(request) {
+    Ok(context) => println!("Resolved: {:?}", context.packages()),
+    Err(e) => eprintln!("Solve failed: {}", e),
+}
+```
+
+### rez-next-repository (`crates/rez-next-repository/`)
+
+```rust
+use rez_next_repository::{Repository, PackageRepository};
+
+// Scan a directory for packages
+let repo = PackageRepository::new("/path/to/packages");
+for pkg in repo.iter_packages() {
+    println!("{} {}", pkg.name(), pkg.version());
+}
+
+// Get latest version
+if let Some(pkg) = repo.get_latest("python") {
+    println!("Latest python: {}", pkg.version());
+}
+```
+
+### rez-next-context (`crates/rez-next-context/`)
+
+```rust
+use rez_next_context::{ResolvedContext, ContextConfig};
+
+let ctx = ResolvedContext::resolve(&["python-3.9"]);
+println!("Status: {:?}", ctx.status());
+for pkg in ctx.resolved_packages() {
+    println!("{}=={}", pkg.name(), pkg.version());
+}
+```
+
+### rez-next-rex (`crates/rez-next-rex/`)
+
+```rust
+use rez_next_rex::{RexInterpreter, RexEnvironment};
+
+let mut env = RexEnvironment::new();
+env.set("MY_VAR", "hello");
+env.prepend("PATH", "/custom/bin");
+env.alias("build", "cargo build --release");
+```
+
+### rez-next-build (`crates/rez-next-build/`)
+
+```rust
+use rez_next_build::{BuildSystem, BuildConfig, BuildResult};
+
+let config = BuildConfig::default();
+let result = BuildSystem::build("/path/to/package", &config)?;
+println!("Build complete: {:?}", result.files);
+```
+
+### rez-next-package-filter (`crates/rez-next-package-filter/`)
+
+```rust
+use rez_next_package_filter::{PackageFilter, PackageFilterList};
+use rez_next_package::filter::{GlobRule, RangeRule, RegexRule};
+
+// Glob-based filter
+let glob = GlobRule::new("python-3.*").unwrap();
+
+// Range-based filter
+let range = RangeRule::new("maya", ">=2023,<2026").unwrap();
+
+// Regex-based filter
+let regex = RegexRule::new(r"^maya.*", None).unwrap();
+
+// Combined filter list
+let mut filters = PackageFilterList::new();
+filters.add_inclusion(glob);
+filters.add_exclusion(range);
+```
+
+### rez-next-cache (`crates/rez-next-cache/`)
+
+```rust
+use rez_next_cache::{Cache, CacheConfig};
+
+let cache = Cache::new(CacheConfig::default());
+cache.put("key", b"data").unwrap();
+if let Some(data) = cache.get("key") {
+    println!("Hit: {} bytes", data.len());
+}
+```
+
+---
+
+## Python API
+
+### Version
+
+```python
+import rez_next as rez
+
+v = rez.PyVersion("1.2.3")
+v2 = rez.PyVersion("2.0.0")
+assert v < v2
+
+r = rez.PyVersionRange(">=3.9,<4.0")
+r.contains(rez.PyVersion("3.9.7"))  # True
+
+# Rez semantics: 1.0 > 1.0.0 (different interpretation)
+v_strict = rez.PyVersion("1.0")
+v_loose = rez.PyVersion("1.0.0")   # v_strict > v_loose
+```
+
+### Packages
+
+```python
+from rez_next.packages_ import iter_packages, get_latest_package
+
+pkg = get_latest_package("python")
+pkg.name      # "python"
+pkg.version   # PyVersion object
+
+for p in iter_packages("maya", range_=">=2023"):
+    print(p.name, p.version)
+```
+
+### Package Operations
+
+```python
+from rez_next.packages_ import (
+    get_latest_package,
+    iter_packages,
+    copy_package,
+    move_package,
+    remove_package,
+)
+```
+
+### Dependency Resolution
+
+```python
+from rez_next.resolved_context import ResolvedContext
+
+ctx = ResolvedContext.resolve_packages(["python-3.9", "maya-2024"])
+ctx.status              # "solved"
+ctx.resolved_packages   # list of resolved packages
+ctx.success             # bool
+
+# Get environment for context
+env = ctx.get_environ()
+for key, value in env.items():
+    print(f"{key}={value}")
+```
+
+### Config
+
+```python
+from rez_next.config import Config
+
+config = Config()
+config.packages_path       # package search paths
+config.local_packages_path # local packages
+config.release_packages_path
+config.debug               # bool
+```
+
+### System Info
+
+```python
+from rez_next.system import System
+
+s = System()
+s.platform     # "linux" | "darwin" | "windows"
+s.arch         # "x86_64" | "aarch64"
+s.os           # "linux" | "macosx" | "windows"
+s.python_version  # e.g., "3.11.0"
+```
+
+### Context Diff
+
+```python
+from rez_next.diff import diff_contexts, format_diff
+
+result = diff_contexts(
+    ["python-3.9", "maya-2023"],
+    ["python-3.11", "maya-2024"]
+)
+result.num_added       # int
+result.num_removed     # int
+result.num_changed     # int
+print(format_diff(result))
+```
+
+### Reverse Dependencies
+
+```python
+from rez_next.depends import get_reverse_dependencies
+
+result = get_reverse_dependencies("python", transitive=True)
+result.format()  # human-readable output
+```
+
+### Shell
+
+```python
+from rez_next.shell import Shell
+
+# Generate shell scripts for context activation
+shell = Shell("bash")     # or "zsh", "fish", "powershell", "cmd"
+script = shell.generate_activation_script(ctx)
+```
+
+### Rex
+
+```python
+from rez_next.rex import RexEnvironment
+
+env = RexEnvironment()
+env.set("MY_VAR", "value")
+env.prepend("PATH", "/custom/bin")
+env.alias("build", "cargo build --release")
+```
+
+### Build System
+
+```python
+from rez_next.build_ import build_package, BuildConfig
+
+config = BuildConfig()
+config.install_path = "/tmp/install"
+result = build_package("/path/to/package", config)
+```
+
+### Pip Conversion
+
+```python
+from rez_next.pip import pip_to_rez_package
+
+# Convert a pip package to rez format
+pip_to_rez_package("requests", version="2.28.0")
+```
+
+### Package Filter
+
+```python
+from rez_next.package_filter import PackageFilter, GlobRule, RangeRule
+
+f = PackageFilter()
+f.add_inclusion(GlobRule("python-3.*"))
+f.add_exclusion(RangeRule("maya", "<2023"))
+matched = f.matches(pkg)
+```
+
+### Package Test
+
+```python
+from rez_next.test import PackageTestRunner
+
+runner = PackageTestRunner()
+results = runner.run(pkg)
+results.summary()   # "3 passed, 1 failed, 0 skipped"
+```
+
+### Package Cache
+
+```python
+from rez_next.package_cache import PackageCache
+
+cache = PackageCache()
+cache.put(pkg)
+cached = cache.get("python", "3.9.7")
+```
+
+### Plugins
+
+```python
+from rez_next.plugins import PluginManager
+
+pm = PluginManager()
+pm.discover()        # discover available plugins
+pm.list_plugins()    # list all plugins
+pm.load("my_plugin") # load specific plugin
+```
+
+### Release
+
+```python
+from rez_next.release import release_package
+
+release_package(
+    "/path/to/package",
+    message="Release maya-2024.1",
+    variants=True,
+)
+```
+
+### Bind
+
+```python
+from rez_next.bind import bind_package
+
+# Bind a system tool as a rez package
+bind_package("ffmpeg", path="/usr/bin/ffmpeg")
+```
+
+### CLI
+
+```python
+from rez_next.cli import run
+
+# Programmatic CLI invocation
+run(["search", "maya", "--latest"])
+run(["context", "python-3.9", "maya-2024"])
+```
+
+### Exceptions
+
+```python
+from rez_next.exceptions import (
+    RezError,
+    PackageNotFoundError,
+    PackageFamilyNotFoundError,
+    ResolvedContextError,
+    BuildError,
+    ReleaseError,
+    RexError,
+    SolverError,
+    # ... and more
+)
+```
+
+### Serialization
+
+```python
+from rez_next.serialise_ import (
+    serialize_package,
+    deserialize_package,
+    serialize_context,
+    deserialize_context,
+)
+```
+
+---
+
+## CLI Reference
+
+```bash
+# Build and install
+rez-next --version
+rez-next --help
+
+# Package search
+rez-next search maya
+rez-next search python --latest
+rez-next search --regex "^maya-202[3-4]"
+
+# Context resolution
+rez-next context python-3.9 maya-2024
+rez-next context --output json python-3.9
+
+# Reverse dependencies
+rez-next depends python --transitive
+
+# Context diff
+rez-next diff python-3.9 python-3.11 maya-2024
+
+# Active context status
+rez-next status
+
+# Package info
+rez-next info maya-2024
+rez-next info python --all
+
+# Self-update
+rez-next self-update
+rez-next self-update --check
+rez-next self-update --version 0.3.2
+```
+
+---
+
+## Development Commands
+
+```bash
+# Via justfile (recommended)
+vx just build             # Debug build
+vx just build-release     # Release build
+vx just test              # All Rust tests
+vx just test-verbose      # Tests with output
+vx just lint              # Clippy (local: strict)
+vx just lint-ci           # Clippy (CI: correctness only)
+vx just fmt               # Format Rust code
+vx just fmt-check         # Check formatting
+vx just ci                # Full CI pipeline
+vx just bench             # Run benchmarks
+vx just doc               # Generate Rust docs
+vx just doc-check         # Check doc warnings
+
+# Python workflow
+vx just py-build          # maturin develop
+vx just py-test           # Run all Python tests
+vx just py-test-fast      # Fast (stop on first failure)
+vx just py-test-e2e       # E2E tests only
+vx just py-test-module MODULE  # Tests by module name
+vx just py-fmt            # Format Python (ruff)
+vx just py-lint           # Lint Python (ruff)
+vx just py-ci             # Full Python CI (build + test)
+
+# CLI E2E
+vx just cli-e2e           # Build + run CLI E2E tests
+vx just cli-e2e-release   # With release binary
+vx just cli-e2e-one TEST  # Single test
+
+# Pre-commit
+vx just pre-commit-install  # Install hooks
+vx just pre-commit          # Run on all files
+vx just pre-commit-update   # Update hook versions
+
+# Direct cargo commands
+vx cargo test --workspace
+vx cargo test --package rez-next-solver
+vx cargo bench --bench version_benchmark
+vx cargo clippy --workspace --all-targets
+```
+
+---
+
+## Configuration Files
+
+| File | Purpose |
+|------|---------|
+| `Cargo.toml` | Rust workspace root, crates, dependencies |
+| `vx.toml` | Tool version management (Rust, maturin, etc.) |
+| `justfile` | Task runner (build, test, lint, CI) |
+| `rust-toolchain.toml` | Rust toolchain override |
+| `clippy.toml` | Clippy configuration |
+| `deny.toml` | Supply chain audit (cargo-deny) |
+| `renovate.json` | Automated dependency updates |
+| `release-please-config.json` | Automated release management |
+| `audit.toml` | Project audit configuration |
+| `.github/workflows/ci.yml` | GitHub Actions CI definition |
+
+---
+
+## Benchmark Results (Reference)
+
+| Operation | rez-next | Python Rez | Speedup |
+|-----------|----------|------------|---------|
+| Version parse | ~9.1 µs | ~250 µs | ~27× |
+| Version comparison | ~6.8 ns | ~120 ns | ~18× |
+| 100 versions sort | ~19 µs | ~500 µs | ~26× |
+| Package creation | ~35 ns | ~3 µs | ~86× |
+| YAML serialize | ~7.0 µs | ~200 µs | ~29× |
+| Package query | ~42 µs | ~5 ms | ~119× |
+| Context resolve | ~100 ms | ~2 s | ~20× |
+
+---
+
+## Key Design Decisions
+
+1. **Drop-in replacement**: `import rez_next as rez` works for most common workflows
+2. **abi3-py38**: Single wheel for Python 3.8+, no per-version builds
+3. **A* solver**: Guaranteed optimal solutions with configurable heuristics
+4. **Multi-level cache**: Memory (LRU) → Disk → Repository; transparent for consumers
+5. **State machine parsing**: Version parser uses a state machine for correctness
+6. **Conventional Commits**: Enforced by CI; drives release-please automation
+7. **SOLID principles**: Each crate has a single responsibility; traits for extensibility
+
+---
+
+## Links
+
+- **Repository**: https://github.com/loonghao/rez-next
+- **Issues**: https://github.com/loonghao/rez-next/issues
+- **Discussions**: https://github.com/loonghao/rez-next/discussions
+- **Upstream Rez**: https://github.com/AcademySoftwareFoundation/rez
+- **Crates.io**: https://crates.io/crates/rez-next
+- **PyPI**: https://pypi.org/project/rez-next/

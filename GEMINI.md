@@ -14,7 +14,7 @@ Read [AGENTS.md](./AGENTS.md) to understand:
 - Common tasks and how to approach them
 
 ### 2. Key Principles
-- **Progressive disclosure**: AGENTS.md → llms.txt → llms-full.txt → docs/
+- **Progressive disclosure**: AGENTS.md → llms.txt (concise) → llms-full.txt (full API) → docs/ (human guides)
 - **Check coverage**: Not all Rez APIs are implemented; verify before suggesting code
 - **Use vx**: Tool management via `vx` (see `vx.toml`)
 - **Run CI early**: `vx just ci` before submitting changes

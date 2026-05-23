@@ -14,7 +14,7 @@ Read [AGENTS.md](./AGENTS.md) to understand:
 - Common tasks and how to approach them
 
 ### 2. Key Principles
-- **Progressive disclosure**: AGENTS.md → llms.txt → llms-full.txt → docs/
+- **Progressive disclosure**: AGENTS.md → llms.txt (concise) → llms-full.txt (full API) → docs/ (human guides)
 - **Check coverage**: Not all Rez APIs are implemented; verify before suggesting code
 - **Use vx**: Tool management via `vx` (see `vx.toml`)
 - **Run CI early**: `vx just ci` before submitting changes
@@ -44,7 +44,7 @@ use rez_next_package::Package;
 
 When updating documentation:
 1. Update AGENTS.md if project structure changes
-2. Update llms.txt if AI-facing API changes
+2. Update llms.txt if AI-facing usage index changes
 3. Update llms-full.txt for detailed API changes
 4. Update docs/*.md for human-facing changes
 5. Update README.md for user-facing changes
