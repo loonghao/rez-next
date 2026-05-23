@@ -7,11 +7,11 @@
 rez-next is a **high-performance Rust rewrite** of the [Rez](https://github.com/AcademySoftwareFoundation/rez) package manager with Python bindings. It provides drop-in compatibility for most common Rez workflows while delivering significantly better performance.
 
 **Key facts for agents:**
-- Language: Rust (core) + Python (bindings via PyO3)
-- Build system: Cargo workspace + Maturin (Python)
-- Current version: 0.3.1
+- Language: Rust 2024 edition (MSRV 1.95) + Python 3.8+ bindings (PyO3 abi3)
+- Build system: Cargo workspace (20 crates) + Maturin for Python
+- Current version: 0.3.4
 - License: Apache 2.0
-- Status: Many workflows work with `import rez_next`, but **not yet a seamless drop-in** for every API surface
+- Status: Many workflows work with `import rez_next as rez`, but **not yet a seamless drop-in** for every API surface
 
 ## Quick Start
 
@@ -31,6 +31,8 @@ pkg = rez.get_latest_package("python")
 ### For AI Agents (this file is the primary entry point)
 - **CLAUDE.md** → Anthropic Claude-specific guidance (references this file)
 - **GEMINI.md** → Google Gemini-specific guidance (references this file)
+- **llms.txt** → AI-friendly concise usage index (Python submodules, crate map, quick commands)
+- **llms-full.txt** → Complete API reference (Rust + Python + CLI + benchmarks)
 
 ### For Humans
 - **README.md** → Project overview, installation, quick start
@@ -46,18 +48,20 @@ pkg = rez.get_latest_package("python")
 ### Reference
 - **CHANGELOG.md** → Release history
 - **SECURITY.md** → Security policy
-- **CLEANUP_TODO.md** → Technical debt tracker (internal)
 
 ## Architecture (Simplified)
 
 ```
 rez-next/                          # Monorepo root
-├── crates/                        # Rust crates (13 total)
+├── crates/                        # Rust crates (20 total)
 │   ├── rez-next-common/           # Shared types, errors, config
+│   ├── rez-next-config/           # Config loading & validation
 │   ├── rez-next-version/          # Version parsing (state machine)
-│   ├── rez-next-package/         # Package definition, package.py parser
-│   ├── rez-next-solver/          # Dependency solver (A* + backtracking)
-│   ├── rez-next-repository/      # Repository scanning, caching
+│   ├── rez-next-package/          # Package definition, package.py parser
+│   ├── rez-next-package-cache/    # Package payload caching
+│   ├── rez-next-package-filter/   # Package filter (glob, regex, range rules)
+│   ├── rez-next-solver/           # Dependency solver (A* + backtracking)
+│   ├── rez-next-repository/       # Repository scanning, caching
 │   ├── rez-next-context/         # Resolved contexts, Rex integration
 │   ├── rez-next-build/           # Build system integration
 │   ├── rez-next-cache/           # Multi-level caching
@@ -65,6 +69,10 @@ rez-next/                          # Monorepo root
 │   ├── rez-next-suites/          # Suite management
 │   ├── rez-next-bind/            # Bind system tools
 │   ├── rez-next-search/          # Package search
+│   ├── rez-next-explicit/        # Explicit package lists
+│   ├── rez-next-serialise/       # Serialization support
+│   ├── rez-next-release-hook/    # Release hooks
+│   ├── rez-next-util/            # Utility functions
 │   └── rez-next-python/          # Python bindings (PyO3)
 ├── src/                           # Rust CLI binary
 ├── tests/                         # Integration tests
@@ -100,8 +108,12 @@ vx just bench
 
 ### 3. Python Integration Testing
 ```bash
-maturin develop --release
-pytest
+# Build wheel + run tests (recommended)
+vx just py-build
+vx just py-test
+
+# Full Python CI
+vx just py-ci
 ```
 
 ### 4. Release Process
@@ -172,7 +184,7 @@ result = diff_contexts(["python-3.9"], ["python-3.11", "maya-2024"])
 
 ⚠️ **Not all Rez features are implemented** — check coverage before suggesting code changes
 
-⚠️ **Python bindings are partial** — `rez-next-python` has 18 submodules, not full Rez coverage
+⚠️ **Python bindings are partial** — `rez-next-python` has 37 submodules, not full Rez coverage
 
 ⚠️ **Breaking changes possible** — pre-1.0 project, API may change
 
@@ -184,4 +196,4 @@ result = diff_contexts(["python-3.9"], ["python-3.11", "maya-2024"])
 
 ---
 
-**For AI agents:** This file is your starting point. Follow links to `llms.txt` for API details, or `docs/` for human-oriented guides. When in doubt, check `python-integration.md` for feature coverage before suggesting implementations.
+**For AI agents:** This file is your progressive disclosure map. For concise API reference, see [llms.txt](./llms.txt). For complete API details, see [llms-full.txt](./llms-full.txt). For human-oriented guides, see [docs/](./docs/). When in doubt, check `docs/python-integration.md` for feature coverage before suggesting implementations.

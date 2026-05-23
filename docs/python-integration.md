@@ -38,6 +38,7 @@ rez_next/
 |-----------|----------------|---------------|--------|
 | `rez_next.version` | `rez.vendor.version` | Version parsing, comparison, ranges | ✅ Stable |
 | `rez_next.packages_` | `rez.packages_` | Package iteration, queries, copy/move/remove | ✅ Stable |
+| `rez_next.packages` | `rez.packages` | Package object model | ✅ Stable |
 | `rez_next.resolved_context` | `rez.resolved_context` | Dependency resolution, context management | ✅ Stable |
 | `rez_next.suite` | `rez.suite` | Suite creation and tool-chain management | ✅ Stable |
 | `rez_next.config` | `rez.config` | Configuration reading | ✅ Stable |
@@ -45,6 +46,7 @@ rez_next/
 | `rez_next.shell` | `rez.shells` | Shell script generation (bash/zsh/fish/PowerShell/cmd) | ✅ Stable |
 | `rez_next.rex` | `rez.rex` | Rex command-language interpreter | ✅ Stable |
 | `rez_next.build_` | `rez.build_` | Package build system integration | ✅ Stable |
+| `rez_next.build_plugins` | `rez.build_plugins` | Build plugins | ✅ Stable |
 | `rez_next.release` | `rez.release` | Package release workflow | ✅ Stable |
 | `rez_next.bind` | `rez.bind` | Bind system tools as rez packages | ✅ Stable |
 | `rez_next.pip` | `rez.pip` | Convert pip packages to rez packages | ✅ Stable |
@@ -61,25 +63,16 @@ rez_next/
 | `rez_next.data` | `rez.data` | Built-in data resources | ✅ Stable |
 | `rez_next.cli` | `rez.cli` | CLI entry-points (programmatic invocation) | ✅ Stable |
 | `rez_next.exceptions` | `rez.exceptions` | Exception hierarchy | ✅ Stable |
-| `rez_next.utils.resources` | `rez.utils.resources` | Resource loading utilities | ✅ Stable |
+| `rez_next.deprecations` | `rez.utils.deprecations` | Deprecation warnings | ✅ Stable |
 | `rez_next.package_cache` | `rez.package_cache` | Package payload caching | ✅ Stable |
+| `rez_next.package_help` | `rez.package_help` | Package help | ✅ Stable |
+| `rez_next.package_search` | `rez.package_search` | Package search API | ✅ Stable |
+| `rez_next.package_remove` | `rez.package_remove` | Package removal | ✅ Stable |
 | `rez_next.solver_` | `rez.solver` | Dependency solver (partial) | ✅ Stable |
-| `rez_next.package_filter` | `rez.package_filter` | Package filtering | ✅ Stable |
-| `rez_next.package_test` | `rez.package_test` | Package testing | ✅ Stable |
-| `rez_next.command` | `rez.command` | Command utilities | ✅ Stable |
-| `rez_next.env` | `rez.env` | Environment creation and activation | ✅ Stable |
-| `rez_next.source` | `rez.source` | Context activation script generation | ✅ Stable |
-| `rez_next.bundles` | `rez.bundles` | Context bundling (offline use) | ✅ Stable |
-| `rez_next.forward` | `rez.forward` | Shell forward-compatibility scripts | ✅ Stable |
-| `rez_next.search` | `rez.cli.search` | Package search (exact / contains / regex) | ✅ Stable |
-| `rez_next.complete` | `rez.cli.complete` | Shell tab-completion script generation | ✅ Stable |
-| `rez_next.diff` | `rez.cli.diff` | Diff two resolved contexts | ✅ Stable |
-| `rez_next.status` | `rez.cli.status` | Query the currently active context | ✅ Stable |
-| `rez_next.depends` | `rez.cli.depends` | Reverse-dependency queries | ✅ Stable |
-| `rez_next.data` | `rez.data` | Built-in data resources | ✅ Stable |
-| `rez_next.cli` | `rez.cli` | CLI entry-points (programmatic invocation) | ✅ Stable |
-| `rez_next.exceptions` | `rez.exceptions` | Exception hierarchy | ✅ Stable |
-| `rez_next.utils.resources` | `rez.utils.resources` | Resource loading utilities | ✅ Stable |
+| `rez_next.solver` | `rez.solver` | Advanced solver API | ✅ Stable |
+| `rez_next.serialise_` | `rez.serialise` | Serialization support | ✅ Stable |
+| `rez_next.test` | `rez.test` | Package testing | ✅ Stable |
+| `rez_next.util` | `rez.utils` | Utility functions | ✅ Stable |
 
 ## Quick Start
 
@@ -185,21 +178,22 @@ print(result.format())
 
 ### Prerequisites
 
-- Rust 1.70+
+- Rust 1.95+ (MSRV in `Cargo.toml`)
 - Python 3.8+
 - Maturin (`pip install maturin`)
-- (Optional) `vx` for tool management
+- (Optional) `vx` for tool management (see `vx.toml`)
 
 ### Build Commands
 
 ```bash
 # Using just (recommended)
-just py-build
-just py-test
+vx just py-build
+vx just py-test
+vx just py-ci
 
 # Using maturin directly
 cd crates/rez-next-python
-vx maturin develop
+vx maturin develop --features pyo3/extension-module
 vx pytest tests/ -v --tb=short
 ```
 
@@ -298,7 +292,8 @@ maturin develop --release --python /path/to/python3.8
 ## Links
 
 - **Main documentation**: See [AGENTS.md](../AGENTS.md) for project map
-- **API reference**: See [llms-full.txt](../llms-full.txt) for complete API
+- **AI-friendly index**: See [llms.txt](../llms.txt) for concise API reference
+- **Complete API reference**: See [llms-full.txt](../llms-full.txt) for full API details
 - **Contributing**: See [contributing.md](./contributing.md)
 - **Benchmarks**: See [benchmark_guide.md](./benchmark_guide.md)
 - **Repository**: https://github.com/loonghao/rez-next

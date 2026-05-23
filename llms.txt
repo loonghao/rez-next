@@ -1,0 +1,130 @@
+# rez-next - LLM Usage Index
+
+> **AI-first compact reference.** For full API details, see [llms-full.txt](./llms-full.txt). For human guides, see [docs/](./docs/).
+
+## Project: rez-next v0.3.4
+
+High-performance Rust rewrite of [Rez](https://github.com/AcademySoftwareFoundation/rez) with Python bindings (PyO3). Import as `import rez_next as rez` for most workflows.
+
+- **Language**: Rust 2024 edition (MSRV 1.95) + Python 3.8+ (abi3)
+- **Build**: Cargo workspace (20 crates) + Maturin for Python
+- **Status**: Pre-1.0, experimental. Many Rez APIs work, not all.
+
+## Quick Commands
+
+```bash
+vx just build       # Build
+vx just test         # Run all tests
+vx just lint         # Clippy
+vx just ci           # Full CI (fmt + lint + test + doc)
+vx just bench        # Benchmarks
+vx just py-build     # Python wheel (maturin develop)
+vx just py-test      # Python tests
+```
+
+## Architecture Map (20 crates)
+
+```
+crates/
+├── rez-next-common/          # Error types, shared config, utilities
+├── rez-next-config/          # Configuration management
+├── rez-next-version/         # Version parsing (state machine), comparison, ranges
+├── rez-next-package/         # Package definition, package.py parser
+├── rez-next-package-cache/   # Package payload caching
+├── rez-next-package-filter/  # Package filter API (glob, regex, range rules)
+├── rez-next-solver/          # Dependency solver (A* + backtracking)
+├── rez-next-repository/      # Repository scanning, indexing, caching
+├── rez-next-context/         # Resolved contexts, serialization
+├── rez-next-build/           # Build system integration (rez-build compat)
+├── rez-next-cache/           # Multi-level caching (memory + disk)
+├── rez-next-rex/             # Rex DSL interpreter
+├── rez-next-suites/          # Suite management
+├── rez-next-bind/            # System tool binding
+├── rez-next-search/          # Package search
+├── rez-next-explicit/        # Explicit package lists
+├── rez-next-serialise/       # Serialization support
+├── rez-next-release-hook/    # Release hooks
+├── rez-next-util/            # Utility functions (command, etc.)
+└── rez-next-python/          # PyO3 Python bindings (_native.pyd)
+```
+
+## Python Submodules (37 files)
+
+| Module | Rez Equivalent | Key APIs |
+|--------|---------------|----------|
+| `rez_next.version` | `rez.vendor.version` | `PyVersion`, `PyVersionRange` |
+| `rez_next.packages_` | `rez.packages_` | `iter_packages`, `get_latest_package` |
+| `rez_next.packages` | `rez.packages` | Package object model |
+| `rez_next.resolved_context` | `rez.resolved_context` | `ResolvedContext`, `resolve_packages` |
+| `rez_next.solver_` | `rez.solver` | Solver configuration |
+| `rez_next.solver` | `rez.solver` | Advanced solver API |
+| `rez_next.config` | `rez.config` | `Config` singleton |
+| `rez_next.system` | `rez.system` | Platform info |
+| `rez_next.shell` | `rez.shells` | bash/zsh/fish/ps/cmd scripts |
+| `rez_next.rex` | `rez.rex` | Rex command language |
+| `rez_next.build_` | `rez.build_` | Build system |
+| `rez_next.build_plugins` | `rez.build_plugins` | Build plugins |
+| `rez_next.release` | `rez.release` | Package release |
+| `rez_next.bind` | `rez.bind` | System tool binding |
+| `rez_next.pip` | `rez.pip` | pip → rez conversion |
+| `rez_next.plugins` | `rez.plugins` | Plugin management |
+| `rez_next.env` | `rez.env` | Environment creation |
+| `rez_next.source` | `rez.source` | Context activation |
+| `rez_next.bundles` | `rez.bundles` | Context bundling |
+| `rez_next.forward` | `rez.forward` | Shell forward compat |
+| `rez_next.search` | `rez.cli.search` | Package search |
+| `rez_next.complete` | `rez.cli.complete` | Tab completion |
+| `rez_next.diff` | `rez.cli.diff` | Context diff |
+| `rez_next.status` | `rez.cli.status` | Active context query |
+| `rez_next.depends` | `rez.cli.depends` | Reverse dependencies |
+| `rez_next.data` | `rez.data` | Built-in resources |
+| `rez_next.cli` | `rez.cli` | CLI entry points |
+| `rez_next.exceptions` | `rez.exceptions` | Exception hierarchy |
+| `rez_next.deprecations` | `rez.utils.deprecations` | `RezDeprecationWarning` |
+| `rez_next.package_cache` | `rez.package_cache` | Package payload cache |
+| `rez_next.package_help` | `rez.package_help` | Package help |
+| `rez_next.package_search` | `rez.package_search` | Package search API |
+| `rez_next.package_remove` | `rez.package_remove` | Package removal |
+| `rez_next.serialise_` | `rez.serialise` | Serialization |
+| `rez_next.test` | `rez.test` | Package testing |
+| `rez_next.util` | `rez.utils` | Utility functions |
+| `rez_next.suite` | `rez.suite` | Suite management |
+
+## Common Agent Tasks
+
+### Add a new feature
+1. Implement in appropriate `crates/` module
+2. Expose via `crates/rez-next-python/` if Python-facing
+3. Add Rust `#[test]` + Python `pytest` tests
+4. Run `vx just ci` before PR
+5. Update docs (this file, llms-full.txt, docs/)
+
+### Debug solver issues
+→ `crates/rez-next-solver/` (A* with backtracking), `RUST_LOG=debug`
+
+### Profile performance
+→ `vx just bench`, see `docs/performance.md`
+
+### Check API coverage
+→ See `docs/python-integration.md`
+
+## Important Files
+
+| File | Purpose |
+|------|---------|
+| `AGENTS.md` | Progressive disclosure map (start here) |
+| `llms.txt` | This file - AI-friendly index |
+| `llms-full.txt` | Complete API reference |
+| `CLAUDE.md` | Claude-specific guidance |
+| `GEMINI.md` | Gemini-specific guidance |
+| `README.md` | User-facing overview |
+| `docs/` | Detailed human guides |
+| `vx.toml` | Tool version pinning |
+| `justfile` | Task runner recipes |
+
+## CI Pipeline
+
+- `.github/workflows/ci.yml` — main CI (build, test, lint, doc)
+- `release-please-config.json` — automated releases
+- `renovate.json` — dependency updates
+- `deny.toml` — supply chain audit
