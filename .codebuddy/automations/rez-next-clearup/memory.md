@@ -1,57 +1,44 @@
 # Rez-Next Auto-Cleanup Cycle Memory
-## Last Execution: Cycle #339
+## Last Execution: Cycle #340
 ### Date
 2026-05-24
 
 ### Environment
-- Branch: auto-improve (based on origin/main, rebased in Cycle #338)
+- Branch: auto-improve (rebased onto origin/main — already up to date)
 - Merge-base with origin/main: 494f6c3
 - Working directory: clean after commit
 
 ### Changes Made
-1. **Implemented wrapper.py** (`crates/rez-next-python/python/rez_next/wrapper.py`):
-   - `Wrapper` class for suite tool execution wrappers (YAML-based)
-   - Properties: `filepath`, `suite`, `tool_name`, `context_name`
-   - Methods: `run()`, `print_about()`, `print_package_versions()`, `peek()`
-   - Parses executable YAML wrappers with `suite_path`, `context_name`, `tool_name`, `prefix_char`
-   - Aligns with `rez.wrapper.Wrapper`
-
-2. **Implemented bundle_context.py** (`crates/rez-next-python/python/rez_next/bundle_context.py`):
-   - `bundle_context()` function for creating relocatable context bundles
-   - Wraps native `bundles.bundle_context()` Rust function
-   - Parameters: `context`, `dest_dir`, `force`, `skip_non_relocatable`, `quiet`, `patch_libs`, `verbose`
-   - Aligns with `rez.bundle_context.bundle_context()`
-
-3. **Implemented release_vcs.py** (`crates/rez-next-python/python/rez_next/release_vcs.py`):
-   - `ReleaseVCS` ABC with `__init_subclass__` auto-registration pattern
-   - `ReleaseVCSError` exception subclass of `RezSystemError`
-   - Factory functions: `get_release_vcs_types()`, `create_release_vcs()`
-   - Abstract methods: `name()`, `is_valid_root()`, `search_parents_for_root()`, `find_vcs_root()`, etc.
-   - Aligns with `rez.release_vcs.ReleaseVCS`
-
-4. **Updated __init__.py**: Added 3 new submodule exports
-
-### Key Design Decisions
-1. **Pure Python** (not Rust): All 3 modules are pure Python facades over existing rez-next native infrastructure (Suites, Bundles), per Clean Architecture — they are abstraction/facade layers, not performance-critical algorithms.
-2. **ABC + Auto-Registry**: Used `__init_subclass__` for automatic VCS subclass registration, avoiding rez's manual `release_vcs_manager.py` plugin discovery complexity.
-3. **Avoided historical rez issues**: No static type registry, no circular import patterns, no hidden state mutations.
+1. **Removed dead `detect_vcs` from `release_bindings.rs`** (38 lines): `#[pyfunction]` never registered in `lib.rs`, dead code — removed.
+2. **Removed commented-out `build_and_resolve()` from `context.rs`** (9 lines): Referenced non-existent types `DependencySolver`/`SolverRequest` — non-compilable dead code.
+3. **Removed empty TODO stub from `solver.py`**: Empty `# TODO: Implement missing classes...` with no actual list.
+4. **Fixed `test_concurrent_version_parsing`**: Replaced placeholder `let _ = version_str` with real `Version::parse()` calls for meaningful concurrent test.
+5. **Cleaned up `test_concurrent_solver`**: Removed commented-out code referencing non-existent `Solver::new()`/`resolve()`.
 
 ### Files Changed
-7 files, +1118/-0 lines:
-- `crates/rez-next-python/python/rez_next/` (4 files): `__init__.py` (modified), `wrapper.py`, `bundle_context.py`, `release_vcs.py`
-- `tests/` (3 files): `test_wrapper.py`, `test_bundle_context.py`, `test_release_vcs.py`
+4 files, +2/-61 lines:
+- `crates/rez-next-python/src/release_bindings.rs` (-38): remove dead detect_vcs
+- `crates/rez-next-context/src/context.rs` (-9): remove commented-out code
+- `crates/rez-next-python/python/rez_next/solver.py` (-2): remove empty TODO
+- `tests/rez_concurrent_tests.rs` (+2/-12): fix test placeholders
 
 ### Test Results
-- New tests: 24 passed (10 wrapper + 6 bundle_context + 8 release_vcs)
-- Core tests: 72 passed (24 new + 43 config + 5 version)
-- Rust tests: 201 passed (1 pre-existing cmake env failure)
+- All 299+ Rust tests pass (1 pre-existing cmake environment failure unchanged)
+- Clippy clean (no new warnings)
+- Compile clean (no warnings)
 
 ### Commit
-- 40805fe: "feat: add wrapper, bundle_context, release_vcs modules (rez API alignment)"
+- 3872b8f: "chore: rebase auto-improve onto origin/main, cleanup dead code and fix test placeholders (Cycle #340)"
 - Author: loonghao <hal.long@outlook.com>
-- Pushed to origin/auto-improve (51d1e01..40805fe)
+- Pushed to origin/auto-improve (132fc21..3872b8f)
+
+### SOLID / Clean Code Adherence
+- **Single Responsibility**: Removed unused code that had no callers
+- **Open/Closed**: Kept existing public APIs stable, only removed dead internals
+- **Interface Segregation**: No forced dependencies on dead code
+- **Dependency Inversion**: No changes to interfaces or abstractions
 
 ### Next Cycle
-- Align remaining missing Python modules with rez API
-- Consider implementing: `release_hook`, `package_serialise`, `build_system` 
+- Continue aligning missing Python modules with rez API
+- Consider implementing: `release_hook`, `package_serialise`, `build_system`
 - Run full CI via GitHub Actions
