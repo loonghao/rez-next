@@ -50,6 +50,14 @@ from . import package_help  # noqa: F401
 from .exceptions import *  # noqa: F401,F403
 from .config import Config  # noqa: F401
 
+# Package maker — programmatic package creation
+from .package_maker import (  # noqa: F401
+    PackageMaker,
+    create_package,
+    install_package,
+    make_package,
+)
+
 __version__: str = getattr(_native, "__version__", "0.3.0")
 __author__: str = getattr(_native, "__author__", "rez-next contributors")
 __license__: str = "Apache-2.0"
