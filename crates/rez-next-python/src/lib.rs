@@ -37,6 +37,7 @@ use package_help_bindings::{PyHelpSection, PyPackageHelp};
 mod command_bindings;
 pub(crate) mod dependency_conflicts_bindings;
 mod deprecations_bindings;
+mod developer_package_bindings;
 pub(crate) mod package_variant_bindings;
 pub(crate) mod reduction_bindings;
 mod release_bindings;
@@ -714,6 +715,11 @@ fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
     // ── Submodule: rez.deprecations ──────────────────
     deprecations_bindings::register_deprecations_submodule(m)?;
+
+    // ── Submodule: rez.developer_package ──────────────────
+    let developer_package_mod = PyModule::new(m.py(), "developer_package")?;
+    developer_package_bindings::register_developer_package_module(&developer_package_mod)?;
+    register_submodule(m, "developer_package", &developer_package_mod)?;
 
     Ok(())
 }

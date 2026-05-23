@@ -13,7 +13,7 @@ use rez_next_repository::resources::{PackageFamilyResource, PackageResource, Var
 /// This corresponds to the PackageFamilyResource class in Rez's package_resources.py.
 /// It represents a named group of package versions (e.g., "python" is a family
 /// that contains versions like "3.7", "3.8", "3.9", etc.).
-#[pyclass(name = "PackageFamilyResource")]
+#[pyclass(name = "PackageFamilyResource", skip_from_py_object)]
 #[derive(Clone)]
 pub struct PyPackageFamilyResource {
     inner: PackageFamilyResource,
@@ -71,7 +71,7 @@ impl PyPackageFamilyResource {
 ///
 /// This corresponds to the PackageResource class in Rez's package_resources.py.
 /// It represents a specific version of a package (e.g., "python-3.9.0").
-#[pyclass(name = "PackageResource")]
+#[pyclass(name = "PackageResource", skip_from_py_object)]
 #[derive(Clone)]
 pub struct PyPackageResource {
     inner: PackageResource,
@@ -145,7 +145,7 @@ impl PyPackageResource {
 ///
 /// This corresponds to the VariantResource class in Rez's package_resources.py.
 /// It represents a specific variant (build) of a package version.
-#[pyclass(name = "VariantResource")]
+#[pyclass(name = "VariantResource", skip_from_py_object)]
 #[derive(Clone)]
 pub struct PyVariantResource {
     inner: VariantResource,

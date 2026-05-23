@@ -11,7 +11,7 @@ use rez_next_repository::package_search::{
 };
 
 /// Python wrapper for ResourceSearchResult.
-#[pyclass(name = "ResourceSearchResult")]
+#[pyclass(name = "ResourceSearchResult", skip_from_py_object)]
 #[derive(Clone)]
 pub struct PyResourceSearchResult {
     inner: ResourceSearchResult,

@@ -10,7 +10,7 @@ use rez_next_util::{
 };
 
 /// Python wrapper for `CommandResult`.
-#[pyclass(name = "CommandResult")]
+#[pyclass(name = "CommandResult", skip_from_py_object)]
 #[derive(Debug, Clone)]
 pub struct PyCommandResult {
     #[pyo3(get)]

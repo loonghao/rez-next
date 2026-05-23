@@ -9,7 +9,7 @@ use pyo3::prelude::*;
 /// Rez deprecation warning class
 ///
 /// This is a simple warning class that can be used with Python's `warnings` module.
-#[pyclass(name = "RezDeprecationWarning")]
+#[pyclass(name = "RezDeprecationWarning", skip_from_py_object)]
 #[derive(Clone)]
 pub struct PyRezDeprecationWarning;
 
