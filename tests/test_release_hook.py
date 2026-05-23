@@ -1,128 +1,92 @@
-"""
-Tests for rez_next._native.release_hook module.
+"""Tests for rez_next.release_hook module."""
 
-Tests the release hook system including:
-- Getting available hook types
-- Creating hook instances
-- Calling hook methods
-"""
 import pytest
-import rez_next._native as native
+from rez_next.release_hook import (
+    ReleaseHook,
+    ReleaseHookEvent,
+    get_release_hook_types,
+    create_release_hook,
+    create_release_hooks,
+)
 
 
-class TestGetReleaseHookTypes:
-    """Tests for py_get_release_hook_types()."""
-    
-    def test_returns_list(self):
-        """py_get_release_hook_types() should return a list."""
-        types = native.release_hook.py_get_release_hook_types()
+class TestReleaseHook:
+    def test_name_raises(self):
+        with pytest.raises(NotImplementedError):
+            ReleaseHook.name()
+
+    def test_concrete_hook(self):
+        class TestHook(ReleaseHook):
+            @classmethod
+            def name(cls):
+                return "test_hook"
+
+        hook = TestHook("/tmp")
+        assert hook.name() == "test_hook"
+        assert hook.source_path == "/tmp"
+
+    def test_pre_build_default(self):
+        class TestHook(ReleaseHook):
+            @classmethod
+            def name(cls):
+                return "test"
+
+        hook = TestHook("/tmp")
+        hook.pre_build()  # should not raise
+
+    def test_pre_release_default(self):
+        class TestHook(ReleaseHook):
+            @classmethod
+            def name(cls):
+                return "test"
+
+        hook = TestHook("/tmp")
+        hook.pre_release()
+
+    def test_post_release_default(self):
+        class TestHook(ReleaseHook):
+            @classmethod
+            def name(cls):
+                return "test"
+
+        hook = TestHook("/tmp")
+        hook.post_release()
+
+
+class TestReleaseHookEvent:
+    def test_pre_build(self):
+        event = ReleaseHookEvent.pre_build
+        assert event.label == "pre-build"
+        assert event.noun == "build"
+        assert event.__name__ == "pre_build"
+
+    def test_pre_release(self):
+        event = ReleaseHookEvent.pre_release
+        assert event.label == "pre-release"
+        assert event.noun == "release"
+        assert event.__name__ == "pre_release"
+
+    def test_post_release(self):
+        event = ReleaseHookEvent.post_release
+        assert event.label == "post-release"
+        assert event.noun == "release"
+        assert event.__name__ == "post_release"
+
+
+class TestFactoryFunctions:
+    def test_get_release_hook_types(self):
+        types = get_release_hook_types()
         assert isinstance(types, list)
-    
-    def test_includes_noop_hook(self):
-        """Should include the built-in 'noop' hook."""
-        types = native.release_hook.py_get_release_hook_types()
-        assert "noop" in types
-    
-    def test_includes_logging_hook(self):
-        """Should include the built-in 'logging' hook."""
-        types = native.release_hook.py_get_release_hook_types()
-        assert "logging" in types
-    
-    def test_includes_email_hook(self):
-        """Should include the built-in 'email' hook."""
-        types = native.release_hook.py_get_release_hook_types()
-        assert "email" in types
-    
-    def test_includes_webhook_hook(self):
-        """Should include the built-in 'webhook' hook."""
-        types = native.release_hook.py_get_release_hook_types()
-        assert "webhook" in types
 
+    def test_create_release_hook_nonexistent(self):
+        from rez_next.exceptions import RezPluginError
+        with pytest.raises(RezPluginError):
+            create_release_hook("nonexistent_hook", "/tmp")
 
-class TestCreateReleaseHook:
-    """Tests for create_release_hook()."""
-    
-    def test_create_noop_hook(self):
-        """Should be able to create a noop hook."""
-        hook = native.release_hook.py_create_release_hook(
-            "noop", "/tmp/source"
-        )
-        assert hook is not None
-    
-    def test_create_logging_hook(self):
-        """Should be able to create a logging hook."""
-        hook = native.release_hook.py_create_release_hook(
-            "logging", "/tmp/source"
-        )
-        assert hook is not None
-    
-    def test_create_email_hook(self):
-        """Should be able to create an email hook."""
-        hook = native.release_hook.py_create_release_hook(
-            "email", "/tmp/source"
-        )
-        assert hook is not None
-    
-    def test_create_webhook_hook_without_url_fails(self):
-        """WebHook requires URL in config, should fail without it."""
-        with pytest.raises(Exception):
-            native.release_hook.py_create_release_hook(
-                "webhook", "/tmp/source"
-            )
-        """Should raise an error for invalid hook name."""
-        with pytest.raises(Exception):
-            native.release_hook.py_create_release_hook(
-                "invalid_hook", "/tmp/source"
-            )
+    def test_create_release_hooks_empty(self):
+        hooks = create_release_hooks([], "/tmp")
+        assert hooks == []
 
-
-class TestReleaseHookMethods:
-    """Tests for ReleaseHook method calls."""
-    
-    def test_noop_pre_build(self):
-        """NoopHook.pre_build() should not raise."""
-        hook = native.release_hook.py_create_release_hook(
-            "noop", "/tmp/source"
-        )
-        # Should not raise
-        hook.pre_build("test_user", "/tmp/install", None, None, None, None, None)
-    
-    def test_noop_pre_release(self):
-        """NoopHook.pre_release() should not raise."""
-        hook = native.release_hook.py_create_release_hook(
-            "noop", "/tmp/source"
-        )
-        # Should not raise
-        hook.pre_release("test_user", "/tmp/install", None, None, None, None, None)
-    
-    def test_noop_post_release(self):
-        """NoopHook.post_release() should not raise."""
-        hook = native.release_hook.py_create_release_hook(
-            "noop", "/tmp/source"
-        )
-        # Should not raise
-        hook.post_release("test_user", "/tmp/install", [], None, None, None, None)
-    
-    def test_logging_pre_build(self):
-        """LoggingHook.pre_build() should not raise."""
-        hook = native.release_hook.py_create_release_hook(
-            "logging", "/tmp/source"
-        )
-        # Should not raise
-        hook.pre_build("test_user", "/tmp/install", None, None, None, None, None)
-
-
-class TestReleaseHookModule:
-    """Tests for release_hook module attributes."""
-    
-    def test_module_has_release_hook_class(self):
-        """release_hook module should have ReleaseHook class."""
-        assert hasattr(native.release_hook, "ReleaseHook")
-    
-    def test_module_has_get_types_function(self):
-        """release_hook module should have py_get_release_hook_types function."""
-        assert hasattr(native.release_hook, "py_get_release_hook_types")
-    
-    def test_module_has_create_function(self):
-        """release_hook module should have py_create_release_hook function."""
-        assert hasattr(native.release_hook, "py_create_release_hook")
+    def test_create_release_hooks_graceful_fallback(self):
+        hooks = create_release_hooks(["nonexistent"], "/tmp")
+        assert hooks == []

@@ -1,102 +1,60 @@
-"""
-Tests for rez_next.package_py_utils module.
+"""Tests for rez_next.package_py_utils module."""
 
-Tests the expand_requirement and expand_requirements functions
-that correspond to rez's package_py_utils.py interface.
-"""
-
-import sys
-import os
-
-# Add the crates/rez-next-python/python directory to path
-# so we can import rez_next with _native
-sys.path.insert(0, os.path.join(
-    os.path.dirname(__file__), "..", "crates", "rez-next-python", "python"
-))
-
-import rez_next
+import pytest
+from rez_next.package_py_utils import (
+    expand_requirement,
+    expand_requires,
+    exec_command,
+    exec_python,
+    find_site_python,
+)
 
 
 class TestExpandRequirement:
-    """Test expand_requirement function."""
+    def test_no_wildcard_returns_unchanged(self):
+        assert expand_requirement("python-3.9") == "python-3.9"
 
-    def test_no_wildcards(self):
-        """Test that requirements without wildcards are returned as-is."""
-        result = rez_next.package_py_utils.expand_requirement("python-3.9")
-        assert result == "python-3.9"
+    def test_empty_string(self):
+        assert expand_requirement("") == ""
 
-    def test_with_wildcard_no_callback(self):
-        """Test that wildcards without callback return original."""
-        result = rez_next.package_py_utils.expand_requirement("python-3.*")
-        # Without callback, should return original or expanded if possible
-        assert result is not None
-
-    def test_with_callback(self):
-        """Test expansion with a callback function."""
-        def query_func(name, version_spec):
-            if name == "python":
-                return "3.9.0"
-            return None
-
-        result = rez_next.package_py_utils.expand_requirement(
-            "python-3.*", query_func=query_func
-        )
-        assert result is not None
-
-    def test_invalid_requirement(self):
-        """Test handling of invalid requirement strings."""
-        # Should not crash
-        result = rez_next.package_py_utils.expand_requirement("invalid-format")
-        assert result is not None
+    def test_simple_request(self):
+        result = expand_requirement("python")
+        assert result == "python"
 
 
-class TestExpandRequirements:
-    """Test expand_requirements function."""
+class TestExpandRequires:
+    def test_multiple_requests(self):
+        result = expand_requires("python", "maya")
+        assert len(result) == 2
+        assert isinstance(result[0], str)
+        assert isinstance(result[1], str)
 
-    def test_empty_list(self):
-        """Test with empty list."""
-        result = rez_next.package_py_utils.expand_requirements([])
+    def test_empty(self):
+        result = expand_requires()
         assert result == []
 
-    def test_no_wildcards(self):
-        """Test with requirements that have no wildcards."""
-        reqs = ["python-3.9", "maya-2024"]
-        result = rez_next.package_py_utils.expand_requirements(reqs)
-        assert len(result) == 2
-        assert "python-3.9" in result
-        assert "maya-2024" in result
 
-    def test_with_callback(self):
-        """Test expansion with callback."""
-        def query_func(name, version_spec):
-            if name == "python":
-                return "3.9.0"
-            return None
-
-        reqs = ["python-3.*", "maya-2024"]
-        result = rez_next.package_py_utils.expand_requirements(
-            reqs, query_func=query_func
-        )
-        assert len(result) == 2
+class TestExecCommand:
+    def test_simple_echo(self):
+        import sys
+        cmd = [sys.executable, "-c", "print('hello')"]
+        out, err = exec_command("test_attr", cmd)
+        assert out == "hello"
+        assert err == ""
 
 
-class TestModuleStructure:
-    """Test that the module has the expected structure."""
+class TestExecPython:
+    def test_simple_code(self):
+        result = exec_python("test_attr", "print('hello world')")
+        assert result == "hello world"
 
-    def test_module_exists(self):
-        """Test that package_py_utils module exists."""
-        assert hasattr(rez_next, "package_py_utils")
-
-    def test_expand_requirement_exists(self):
-        """Test that expand_requirement function exists."""
-        assert hasattr(rez_next.package_py_utils, "expand_requirement")
-        assert callable(rez_next.package_py_utils.expand_requirement)
-
-    def test_expand_requirements_exists(self):
-        """Test that expand_requirements function exists."""
-        assert hasattr(rez_next.package_py_utils, "expand_requirements")
-        assert callable(rez_next.package_py_utils.expand_requirements)
+    def test_with_list_source(self):
+        result = exec_python("test_attr", ["x = 42", "print(x)"])
+        assert result == "42"
 
 
-if __name__ == "__main__":
-    pytest.main([__file__, "-v"])
+class TestFindSitePython:
+    def test_raises_for_nonexistent_module(self):
+        from rez_next.exceptions import InvalidPackageError
+        with pytest.raises(InvalidPackageError):
+            find_site_python("_nonexistent_module_xyz_")
