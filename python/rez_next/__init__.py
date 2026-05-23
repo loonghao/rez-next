@@ -49,3 +49,7 @@ for _attr_name in dir(_native):
 # Environment variables REZ_PACKAGES_PATH and REZ_LOCAL_PACKAGES_PATH
 # are read by the native config loader at init time.
 config = _native.config
+
+# ── utils subpackage ────────────────────────────────────────────────────────
+# Import the utils subpackage so it's available as rez_next.utils
+from rez_next import utils  # noqa: F401
