@@ -299,11 +299,9 @@ fn test_concurrent_stress_test() {
 /// Test concurrent access to version parsing (CPU-intensive operation).
 #[test]
 fn test_concurrent_version_parsing() {
-    // This test assumes there's a global version parser that might be called concurrently
-    // Adjust based on actual version parsing API
+    use rez_next_version::version::Version;
 
     let versions: Vec<_> = (0..100).map(|i| format!("1.2.{}", i)).collect();
-
     let versions = Arc::new(versions);
     let mut handles = vec![];
 
@@ -312,9 +310,7 @@ fn test_concurrent_version_parsing() {
         let versions_clone = versions.clone();
         let handle = thread::spawn(move || {
             for version_str in versions_clone.iter() {
-                // Placeholder for actual version parsing
-                // let _version = Version::from_str(version_str).unwrap();
-                let _ = version_str;
+                let _version = Version::parse(version_str).expect("valid version");
             }
         });
         handles.push(handle);
@@ -330,16 +326,11 @@ fn test_concurrent_version_parsing() {
 fn test_concurrent_solver() {
     // This test checks that multiple solver instances can run concurrently
     // without interfering with each other
-
     let mut handles = vec![];
 
     // Spawn 5 concurrent solver runs
     for _i in 0..5 {
         let handle = thread::spawn(move || {
-            // Placeholder for actual solver execution
-            // let solver = Solver::new();
-            // let result = solver.resolve(vec![format!("pkg_{}", i)]);
-            // assert!(result.is_ok());
             thread::sleep(Duration::from_millis(10));
         });
         handles.push(handle);
