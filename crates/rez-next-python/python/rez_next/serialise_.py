@@ -18,14 +18,17 @@ from io import BytesIO
 def dump_package_data(data, destination=None, format="yaml", skip_attributes=None):
     buf = BytesIO()
     _native_dump_package_data(data, buf, format, skip_attributes)
-    text = buf.getvalue().decode("utf-8")
+    content = buf.getvalue()
     if destination is None:
-        return text
+        return content.decode("utf-8")
     if hasattr(destination, "write"):
-        destination.write(text)
+        if isinstance(destination, BytesIO) or (hasattr(destination, "mode") and "b" in destination.mode):
+            destination.write(content)
+        else:
+            destination.write(content.decode("utf-8"))
     else:
         with open(destination, "w", encoding="utf-8") as handle:
-            handle.write(text)
+            handle.write(content.decode("utf-8"))
     return None
 
 __all__ = [

@@ -16,7 +16,11 @@ class TestCommandResult:
     def test_command_result_repr(self):
         """CommandResult should have a useful repr."""
         # Create a CommandResult via execute_command
-        result = rez.command.execute_command("echo", ["test"])
+        import sys
+        if sys.platform == "win32":
+            result = rez.command.execute_command("cmd", ["/c", "echo test"])
+        else:
+            result = rez.command.execute_command("echo", ["test"])
         assert result is not None
         assert hasattr(result, "stdout")
         assert hasattr(result, "stderr")

@@ -14,6 +14,15 @@ from __future__ import annotations
 import abc
 from typing import Any
 
+# Re-export native command utilities for drop-in compatibility
+from rez_next._native.command import (  # type: ignore[import]  # noqa: F401
+    CommandResult,
+    execute_command,
+    command_exists,
+    get_command_output,
+    get_command_path,
+)
+
 
 class Command(abc.ABC):
     """Base class for custom Rez subcommand plugins.

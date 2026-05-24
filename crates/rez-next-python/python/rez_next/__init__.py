@@ -96,15 +96,24 @@ from .complete import get_completion_script  # noqa: F401
 def _package_getitem(self, key):
     if key == "version":
         return getattr(self, "version_str", None)
+    if not hasattr(self, key):
+        raise KeyError(key)
     return getattr(self, key)
 
 
-def _context_get(self, key, default=None):
+_context_get_sentinel = object()
+
+
+def _context_get(self, key, default=_context_get_sentinel):
     if key == "success":
         return getattr(self, "success", False)
     if key == "packages":
         return getattr(self, "resolved_packages", [])
-    return getattr(self, key, default)
+    if hasattr(self, key):
+        return getattr(self, key)
+    if default is not _context_get_sentinel:
+        return default
+    raise KeyError(key)
 
 
 def _pkg_node(pkg):
