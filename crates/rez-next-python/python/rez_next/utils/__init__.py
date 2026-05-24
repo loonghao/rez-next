@@ -23,3 +23,4 @@ from . import data_utils  # noqa: F401 — dict/data manipulation utilities
 from . import formatting  # noqa: F401 — string formatting utilities
 from . import filesystem  # noqa: F401 — filesystem utilities
 from . import yaml  # noqa: F401 — YAML serialization
+from . import platform_  # noqa: F401 — platform abstraction (creates global ``platform_`` singleton)
