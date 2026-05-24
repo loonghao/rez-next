@@ -42,23 +42,27 @@ except ImportError:
         pass
 
 # Import submodules
-from . import complete  # noqa: F401
-from . import deprecations  # noqa: F401
-from . import package_help  # noqa: F401
-from . import bundle_context  # noqa: F401
-from . import wrapper  # noqa: F401
-from . import release_vcs  # noqa: F401
+from . import bind  # noqa: F401
 from . import build_process  # noqa: F401
 from . import build_system  # noqa: F401
+from . import bundle_context  # noqa: F401
 from . import command  # noqa: F401
+from . import complete  # noqa: F401
+from . import deprecations  # noqa: F401
+from . import package_cache  # noqa: F401
+from . import package_help  # noqa: F401
 from . import package_py_utils  # noqa: F401
+from . import package_remove  # noqa: F401
 from . import package_repository  # noqa: F401
 from . import plugin_managers  # noqa: F401
 from . import release_hook  # noqa: F401
+from . import release_vcs  # noqa: F401
 from . import resolver  # noqa: F401
 from . import rex_bindings  # noqa: F401
-from . import system  # noqa: F401  — module (rez.system API: from rez.system import system)
+from . import solver  # noqa: F401
 from . import status  # noqa: F401  — module (rez.status API: from rez.status import status)
+from . import system  # noqa: F401  — module (rez.system API: from rez.system import system)
+from . import wrapper  # noqa: F401
 from .exceptions import *  # noqa: F401,F403
 from .config import Config  # noqa: F401
 
@@ -69,6 +73,17 @@ from .package_maker import (  # noqa: F401
     install_package,
     make_package,
 )
+
+# Ensure native submodules used by bridge modules are registered in sys.modules
+# so that "from rez_next.<submodule> import ..." works at runtime.
+import sys as _sys
+import types as _types
+for _name in ('packages', 'packages_', 'package_search', 'search', 'solver_', 'serialise_', 'bind'):
+    _attr = getattr(_native, _name, None)
+    if _attr is not None and isinstance(_attr, _types.ModuleType):
+        _full = 'rez_next.' + _name
+        if _full not in _sys.modules:
+            _sys.modules[_full] = _attr
 
 __version__: str = getattr(_native, "__version__", "0.3.0")
 __author__: str = getattr(_native, "__author__", "rez-next contributors")
