@@ -62,6 +62,7 @@ from . import resolver  # noqa: F401
 from . import rex_bindings  # noqa: F401
 from . import solver  # noqa: F401
 from . import status  # noqa: F401  — module (rez.status API: from rez.status import status)
+from . import shells  # noqa: F401  — module (rez.shells API: create_shell, get_shell_types, get_shell_class)
 from . import system  # noqa: F401  — module (rez.system API: from rez.system import system)
 from . import wrapper  # noqa: F401
 from .exceptions import *  # noqa: F401,F403
