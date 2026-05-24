@@ -50,6 +50,7 @@ from . import command  # noqa: F401
 from . import complete  # noqa: F401
 from . import deprecations  # noqa: F401
 from . import package_cache  # noqa: F401
+from . import package_bind  # noqa: F401  — module (rez.package_bind API: bind_package, get_bind_modules, find_bind_module)
 from . import package_help  # noqa: F401
 from . import package_py_utils  # noqa: F401
 from . import package_remove  # noqa: F401
