@@ -96,14 +96,24 @@ config = _native.config
 # that are implemented in crates/rez-next-python/python/rez_next/.
 from rez_next import utils  # noqa: F401
 from rez_next import build_process  # noqa: F401
+from rez_next import build_plugins  # noqa: F401
+from rez_next import build_system  # noqa: F401
 from rez_next import bundle_context  # noqa: F401
+from rez_next import command  # noqa: F401
 from rez_next import complete  # noqa: F401
 from rez_next import package_help  # noqa: F401
+from rez_next import package_py_utils  # noqa: F401
+from rez_next import package_repository  # noqa: F401
+from rez_next import plugin_managers  # noqa: F401
+from rez_next import release_hook  # noqa: F401
 from rez_next import release_vcs  # noqa: F401
-from rez_next import wrapper  # noqa: F401
+from rez_next import resolver  # noqa: F401
+from rez_next import rex_bindings  # noqa: F401
 from rez_next import shells  # noqa: F401
 from rez_next import system  # noqa: F401
 from rez_next import status  # noqa: F401
+from rez_next import test  # noqa: F401
+from rez_next import wrapper  # noqa: F401
 
 # ── Step 2: Dynamic _native submodule registration ─────────────────────
 # Register remaining _native submodules that don't have bridge files.
