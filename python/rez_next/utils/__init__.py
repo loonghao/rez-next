@@ -16,7 +16,10 @@ from rez_next.util import *  # noqa: F401, F403 — re-export native util functi
 
 # Submodules
 from . import logging_ as logging  # noqa: F401 — rez.utils.logging_ alias
+from . import colorize  # noqa: F401 — terminal color helpers
 from . import formatting  # noqa: F401 — string formatting utilities
 from . import filesystem  # noqa: F401 — filesystem utilities
+from . import data_utils  # noqa: F401 — dict/data manipulation utilities
 from . import yaml  # noqa: F401 — YAML serialization
 from . import platform_  # noqa: F401 — platform abstraction
+from . import resources  # noqa: F401 — resource utilities
