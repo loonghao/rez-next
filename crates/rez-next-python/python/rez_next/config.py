@@ -20,8 +20,17 @@ Plugins settings (``plugins.*``) do not support env var overrides (rules 4-5).
 
 from __future__ import annotations
 
+import copy
 import os
+import re
 import sys as _sys
+from contextlib import contextmanager
+from functools import lru_cache
+from inspect import ismodule
+from typing import Any, TypeVar, TYPE_CHECKING
+
+from .deprecations import warn as _deprecations_warn, RezDeprecationWarning
+from .exceptions import ConfigurationError
 
 try:
     from . import _native as _native_module
@@ -34,6 +43,312 @@ except ImportError:
     except (ImportError, AttributeError):
         _native_module = None  # type: ignore[assignment]
     _rust_load_config = None
+
+
+T = TypeVar("T")
+
+
+# ====================================================================
+#   Lightweight schema / validation helpers
+#   (replaces rez.vendor.schema.Schema to avoid external deps)
+# ====================================================================
+
+class _SchemaError(ValueError):
+    pass
+
+
+class _Schema(object):
+    """Minimal replacement for schema.Schema."""
+    def __init__(self, *validators):
+        self._validators = validators
+
+    def validate(self, data):
+        if not self._validators:
+            return data
+        for v in self._validators:
+            if isinstance(v, type):
+                if not isinstance(data, v):
+                    raise _SchemaError("Expected %s, got %s" % (v.__name__, type(data).__name__))
+            elif isinstance(v, (_Or, _And, _Schema, _Use)):
+                data = v.validate(data)
+            elif callable(v):
+                if not v(data):
+                    raise _SchemaError("Validation failed for %r" % (data,))
+            else:
+                if data != v:
+                    raise _SchemaError("Expected %r, got %r" % (v, data))
+        return data
+
+
+class _Or(object):
+    """At least one alternative must match."""
+    def __init__(self, *alternatives):
+        self._alternatives = alternatives
+    def validate(self, data):
+        for alt in self._alternatives:
+            try:
+                if isinstance(alt, type):
+                    if isinstance(data, alt):
+                        return data
+                elif isinstance(alt, (_Or, _And, _Schema, _Use)):
+                    return alt.validate(data)
+                elif callable(alt):
+                    if alt(data):
+                        return data
+                else:
+                    if data == alt:
+                        return data
+            except (_SchemaError, TypeError, ValueError):
+                continue
+        raise _SchemaError("None matched for %r" % (data,))
+
+
+class _And(object):
+    def __init__(self, *validator):
+        self._validators = validator
+    def validate(self, data):
+        r = data
+        for v in self._validators:
+            if isinstance(v, type):
+                if not isinstance(r, v):
+                    raise _SchemaError("Expected %s, got %s" % (v.__name__, type(r).__name__))
+            elif isinstance(v, (_Or, _And, _Schema, _Use)):
+                r = v.validate(r)
+            elif callable(v):
+                r = v(r)
+            else:
+                if r != v:
+                    raise _SchemaError("Expected %r, got %r" % (v, r))
+        return r
+
+
+class _Use(object):
+    def __init__(self, func):
+        self._func = func
+    def validate(self, data):
+        return self._func(data)
+
+
+# ====================================================================
+#   Setting Hierarchy (lazy validators per config key)
+# ====================================================================
+
+class _Deprecation(object):
+    def __init__(self, removed_in, extra=None):
+        self._removed_in = removed_in
+        self._extra = extra or ""
+    def get_message(self, name, env_var=False):
+        if self._removed_in:
+            p = ["config setting %r" % name]
+            if env_var:
+                p.append("(via %s)" % env_var)
+            p.append("is deprecated, removed in %s." % self._removed_in)
+            p.append(self._extra)
+            return " ".join(p).strip()
+        return ""
+
+
+class Setting(object):
+    schema = _Schema(object)
+
+    def __init__(self, config, key):
+        self.config = config
+        self.key = key
+
+    @property
+    def _env_var_name(self):
+        return "REZ_%s" % self.key.upper()
+
+    def _parse_env_var(self, value):
+        raise NotImplementedError
+
+    def _warn_deprecated(self, varname=None):
+        if self.key in _deprecated_settings:
+            _deprecations_warn(
+                _deprecated_settings[self.key].get_message(self.key, env_var=varname or False),
+                RezDeprecationWarning, pre_formatted=True, filename=varname or self.key)
+
+    def validate(self, data):
+        try:
+            data = self._validate(data)
+            data = self.schema.validate(data)
+            data = expand_system_vars(data)
+        except _SchemaError as e:
+            raise ConfigurationError("Misconfigured setting %r: %s" % (self.key, str(e)))
+        return data
+
+    def _validate(self, data):
+        if self.key in self.config.overrides:
+            return data
+        if not self.config.locked:
+            v = os.getenv(self._env_var_name)
+            if v is not None:
+                self._warn_deprecated(varname=self._env_var_name)
+                return self._parse_env_var(v)
+            vn = self._env_var_name + "_JSON"
+            v = os.getenv(vn)
+            if v is not None:
+                self._warn_deprecated(varname=vn)
+                import json
+                try:
+                    return json.loads(v)
+                except ValueError:
+                    raise ConfigurationError("Expected $%s to be JSON" % vn)
+        if data is not None:
+            return data
+        attr = "_get_%s" % self.key
+        if hasattr(self.config, attr):
+            return getattr(self.config, attr)()
+        return None
+
+
+class Str(Setting):
+    schema = _Schema(str)
+    def _parse_env_var(self, v): return v
+
+
+class Char(Setting):
+    schema = _Schema(str, lambda x: len(x) == 1)
+    def _parse_env_var(self, v): return v
+
+
+class OptionalStr(Str):
+    schema = _Or(None, str)
+
+
+class StrList(Setting):
+    schema = _Schema(list, lambda x: all(isinstance(i, str) for i in x))
+    sep = ","
+    def _parse_env_var(self, v):
+        return [x for x in v.replace(self.sep, " ").split() if x]
+
+
+class OptionalStrList(StrList):
+    schema = _Or(None, _And(_Use(lambda x: x or []), list, lambda x: all(isinstance(i, str) for i in x)))
+
+
+class PathList(StrList):
+    sep = os.pathsep
+    def _parse_env_var(self, v):
+        return [x for x in v.split(self.sep) if x]
+
+
+class PipInstallRemaps(Setting):
+    PARDIR, SEP = map(re.escape, (os.pardir, os.sep))
+    RE_TOKENS = {"sep": SEP, "s": SEP, "pardir": PARDIR, "p": PARDIR}
+    TOKENS = {"sep": os.sep, "s": os.sep, "pardir": os.pardir, "p": os.pardir}
+    KEYS = ["record_path", "pip_install", "rez_install"]
+    schema = _Schema(list)
+
+    def validate(self, data):
+        data = super().validate(data)
+        result = []
+        for remap in data:
+            if not isinstance(remap, dict):
+                raise ConfigurationError("Expected dict, got %s" % type(remap).__name__)
+            for key in self.KEYS:
+                if key not in remap:
+                    raise ConfigurationError("Missing key %r" % key)
+                tokens = self.RE_TOKENS if key == "record_path" else self.TOKENS
+                remap[key] = remap[key].format(**tokens)
+            result.append(remap)
+        return result
+    def _parse_env_var(self, v): return v
+
+
+class Int(Setting):
+    schema = _Schema(int)
+    def _parse_env_var(self, v):
+        try: return int(v)
+        except ValueError: raise ConfigurationError("Expected %s to be int" % self._env_var_name)
+
+
+class Float(Setting):
+    schema = _Schema(float)
+    def _parse_env_var(self, v):
+        try: return float(v)
+        except ValueError: raise ConfigurationError("Expected %s to be float" % self._env_var_name)
+
+
+class Bool(Setting):
+    schema = _Schema(bool)
+    true_words = frozenset(["1","true","t","yes","y","on"])
+    false_words = frozenset(["0","false","f","no","n","off"])
+    all_words = true_words | false_words
+    def _parse_env_var(self, v):
+        v = v.lower()
+        if v in self.true_words: return True
+        if v in self.false_words: return False
+        raise ConfigurationError("Expected $%s to be one of: %s" % (self._env_var_name, ", ".join(sorted(self.all_words))))
+
+
+class OptionalBool(Bool):
+    schema = _Or(None, Bool.schema)
+
+
+class ForceOrBool(Bool):
+    FORCE_STR = "force"
+    schema = _Or("force", Bool.schema)
+    all_words = Bool.all_words | frozenset(["force"])
+    def _parse_env_var(self, v):
+        return v if v == self.FORCE_STR else super()._parse_env_var(v)
+
+
+class Dict(Setting):
+    schema = _Schema(dict)
+    def _parse_env_var(self, v):
+        items, r = v.split(","), {}
+        for item in items:
+            if ":" not in item:
+                raise ConfigurationError("Expected k1:v1,k2:v2: %s" % v)
+            k, val = item.split(":", 1)
+            try: val = int(val)
+            except ValueError:
+                try: val = float(val)
+                except ValueError: pass
+            r[k] = val
+        return r
+
+
+class OptionalDict(Dict):
+    schema = _Or(None, dict)
+
+
+class OptionalDictOrDictList(Setting):
+    schema = _Or(None, _And(dict, _Use(lambda x: [x])), list)
+    def _parse_env_var(self, v): return v
+
+
+class SuiteVisibility_(Str):
+    schema = _Or("never", "always", "parent", "parent_priority")
+
+
+class VariantSelectMode_(Str):
+    schema = _Or("version_priority", "intersection_priority")
+
+
+class RezToolsVisibility_(Str):
+    schema = _Or("append", "prepend", "remove")
+
+
+class ExecutableScriptMode_(Str):
+    schema = _Or("single", "py", "platform_specific", "both")
+
+
+class OptionalStrOrFunction(Setting):
+    schema = _Or(None, str, callable)
+    def _parse_env_var(self, v): return v
+
+
+class PreprocessMode_(Str):
+    schema = _Or("before", "after", "override")
+
+
+class BuildThreadCount_(Setting):
+    schema = _Schema(_Or(_And(int, lambda x: x > 0), "physical_cores", "logical_cores"))
+    def _parse_env_var(self, v):
+        try: return int(v)
+        except ValueError: return v
 
 
 # ============================================================================
@@ -547,20 +862,254 @@ use_pyqt: bool = False
 gui_threads: bool = True
 
 
-# ============================================================================
-#   Config class — used by ``rez_next.__init__``
-# ============================================================================
+# ====================================================================
+#   Config Schema — maps every setting key to its validator class
+# ====================================================================
 
-class Config:
+config_schema = {
+    "packages_path":                              PathList,
+    "plugin_path":                                PathList,
+    "bind_module_path":                           PathList,
+    "standard_system_paths":                      PathList,
+    "package_definition_build_python_paths":       PathList,
+    "platform_map":                               OptionalDict,
+    "default_relocatable_per_package":            OptionalDict,
+    "default_relocatable_per_repository":         OptionalDict,
+    "default_cachable_per_package":               OptionalDict,
+    "default_cachable_per_repository":            OptionalDict,
+    "default_cachable":                           OptionalBool,
+    "implicit_packages":                          StrList,
+    "parent_variables":                           StrList,
+    "resetting_variables":                        StrList,
+    "release_hooks":                              StrList,
+    "context_tracking_context_fields":            StrList,
+    "pathed_env_vars":                            StrList,
+    "prompt_release_message":                     Bool,
+    "critical_styles":                            OptionalStrList,
+    "error_styles":                               OptionalStrList,
+    "warning_styles":                             OptionalStrList,
+    "info_styles":                                OptionalStrList,
+    "debug_styles":                               OptionalStrList,
+    "heading_styles":                             OptionalStrList,
+    "local_styles":                               OptionalStrList,
+    "implicit_styles":                            OptionalStrList,
+    "ephemeral_styles":                           OptionalStrList,
+    "alias_styles":                               OptionalStrList,
+    "memcached_uri":                              OptionalStrList,
+    "pip_extra_args":                             OptionalStrList,
+    "pip_install_remaps":                         PipInstallRemaps,
+    "local_packages_path":                        Str,
+    "release_packages_path":                      Str,
+    "dot_image_format":                           Str,
+    "build_directory":                            Str,
+    "default_build_process":                      Str,
+    "documentation_url":                          Str,
+    "suite_visibility":                           SuiteVisibility_,
+    "rez_tools_visibility":                       RezToolsVisibility_,
+    "create_executable_script_mode":              ExecutableScriptMode_,
+    "suite_alias_prefix_char":                    Char,
+    "cache_packages_path":                        OptionalStr,
+    "package_definition_python_path":             OptionalStr,
+    "tmpdir":                                     OptionalStr,
+    "context_tmpdir":                             OptionalStr,
+    "default_shell":                              OptionalStr,
+    "terminal_emulator_command":                  OptionalStr,
+    "editor":                                     OptionalStr,
+    "image_viewer":                               OptionalStr,
+    "difftool":                                   OptionalStr,
+    "browser":                                    OptionalStr,
+    "critical_fore":                              OptionalStr,
+    "critical_back":                              OptionalStr,
+    "error_fore":                                 OptionalStr,
+    "error_back":                                 OptionalStr,
+    "warning_fore":                               OptionalStr,
+    "warning_back":                               OptionalStr,
+    "info_fore":                                  OptionalStr,
+    "info_back":                                  OptionalStr,
+    "debug_fore":                                 OptionalStr,
+    "debug_back":                                 OptionalStr,
+    "heading_fore":                               OptionalStr,
+    "heading_back":                               OptionalStr,
+    "local_fore":                                 OptionalStr,
+    "local_back":                                 OptionalStr,
+    "implicit_fore":                              OptionalStr,
+    "implicit_back":                              OptionalStr,
+    "ephemeral_fore":                             OptionalStr,
+    "ephemeral_back":                             OptionalStr,
+    "alias_fore":                                 OptionalStr,
+    "alias_back":                                 OptionalStr,
+    "package_preprocess_function":                OptionalStrOrFunction,
+    "package_preprocess_mode":                    PreprocessMode_,
+    "error_on_missing_variant_requires":          Bool,
+    "context_tracking_host":                      OptionalStr,
+    "variant_shortlinks_dirname":                 OptionalStr,
+    "build_thread_count":                         BuildThreadCount_,
+    "resource_caching_maxsize":                   Int,
+    "max_package_changelog_chars":                Int,
+    "max_package_changelog_revisions":            Int,
+    "memcached_package_file_min_compress_len":    Int,
+    "memcached_context_file_min_compress_len":    Int,
+    "memcached_listdir_min_compress_len":         Int,
+    "memcached_resolve_min_compress_len":         Int,
+    "shell_error_truncate_cap":                   Int,
+    "package_cache_log_days":                     Int,
+    "package_cache_max_variant_days":             Int,
+    "package_cache_space_buffer":                 Int,
+    "package_cache_used_threshold":               Int,
+    "package_cache_clean_limit":                  Float,
+    "allow_unversioned_packages":                 Bool,
+    "package_cache_during_build":                 Bool,
+    "package_cache_local":                        Bool,
+    "package_cache_same_device":                  Bool,
+    "package_cache_async":                        Bool,
+    "color_enabled":                              ForceOrBool,
+    "resolve_caching":                            Bool,
+    "cache_package_files":                        Bool,
+    "cache_listdir":                              Bool,
+    "prune_failed_graph":                         Bool,
+    "all_parent_variables":                       Bool,
+    "all_resetting_variables":                    Bool,
+    "package_commands_sourced_first":             Bool,
+    "use_variant_shortlinks":                     Bool,
+    "warn_shell_startup":                         Bool,
+    "warn_untimestamped":                         Bool,
+    "warn_all":                                   Bool,
+    "warn_none":                                  Bool,
+    "debug_file_loads":                           Bool,
+    "debug_plugins":                              Bool,
+    "debug_package_release":                      Bool,
+    "debug_bind_modules":                         Bool,
+    "debug_resources":                            Bool,
+    "debug_package_exclusions":                   Bool,
+    "debug_memcache":                             Bool,
+    "debug_resolve_memcache":                     Bool,
+    "debug_context_tracking":                     Bool,
+    "debug_shell_startup":                        Bool,
+    "debug_all":                                  Bool,
+    "debug_none":                                 Bool,
+    "quiet":                                      Bool,
+    "show_progress":                              Bool,
+    "catch_rex_errors":                           Bool,
+    "default_relocatable":                        Bool,
+    "set_prompt":                                 Bool,
+    "prefix_prompt":                              Bool,
+    "make_package_temporarily_writable":          Bool,
+    "read_package_cache":                         Bool,
+    "write_package_cache":                        Bool,
+    "env_var_separators":                         Dict,
+    "variant_select_mode":                        VariantSelectMode_,
+    "package_filter":                             OptionalDictOrDictList,
+    "package_orderers":                           OptionalDictOrDictList,
+    "new_session_popen_args":                     OptionalDict,
+    "context_tracking_amqp":                      OptionalDict,
+    "context_tracking_extra_fields":              OptionalDict,
+    "optionvars":                                 OptionalDict,
+    "use_pyside":                                 Bool,
+    "use_pyqt":                                   Bool,
+    "gui_threads":                                Bool,
+}
+
+_deprecated_settings = {
+    "warn_old_commands": _Deprecation("the future"),
+    "error_old_commands": _Deprecation("the future"),
+    "rez_1_environment_variables": _Deprecation("the future"),
+    "disable_rez_1_compatibility": _Deprecation("the future"),
+}
+
+
+# ====================================================================
+#   Config File Loading
+# ====================================================================
+
+@lru_cache()
+def _load_config_py(filepath):
+    reserved = dict(
+        __name__=os.path.splitext(os.path.basename(filepath))[0],
+        __file__=filepath,
+    )
+    g = reserved.copy()
+    with open(filepath) as f:
+        try:
+            code = compile(f.read(), filepath, 'exec')
+            exec(code, g)
+        except Exception as e:
+            raise ConfigurationError("Error loading config from %s: %s" % (filepath, str(e)))
+    return {k: v for k, v in g.items()
+            if k != '__builtins__' and not ismodule(v) and k not in reserved}
+
+
+@lru_cache()
+def _load_config_yaml(filepath):
+    try:
+        import yaml as _yaml
+    except ImportError:
+        raise ConfigurationError("PyYAML is required to load YAML config: %s" % filepath)
+    with open(filepath) as f:
+        try:
+            doc = _yaml.safe_load(f) or {}
+        except Exception as e:
+            raise ConfigurationError("Error loading config from %s: %s" % (filepath, str(e)))
+    if not isinstance(doc, dict):
+        raise ConfigurationError("Expected dict, got %s" % type(doc).__name__)
+    return doc
+
+
+def _load_config_from_filepaths(filepaths):
+    data = {}
+    sourced = []
+    loaders = ((".py", _load_config_py), ("", _load_config_yaml))
+    for fp in filepaths:
+        for ext, loader in loaders:
+            f = (os.path.splitext(fp)[0] + ext) if ext else fp
+            if not os.path.isfile(f):
+                continue
+            d = loader(f)
+            if fp != get_module_root_config():
+                for k in d:
+                    if k in _deprecated_settings:
+                        _deprecations_warn(
+                            _deprecated_settings[k].get_message(k),
+                            RezDeprecationWarning, pre_formatted=True, filename=f)
+            deep_update(data, d)
+            sourced.append(f)
+            break
+    return data, sourced
+
+
+def get_module_root_config():
+    return os.path.join(os.path.dirname(os.path.abspath(__file__)), "rezconfig.py")
+
+
+def deep_update(d, u):
+    for k, v in u.items():
+        if isinstance(v, dict) and k in d and isinstance(d[k], dict):
+            deep_update(d[k], v)
+        else:
+            d[k] = v
+
+
+# ====================================================================
+#   Config class — used by ``rez_next.__init__``
+# ====================================================================
+
+class Config(object):
     """Rez-compatible configuration facade.
 
-    Provides attribute-based access to all configuration defaults.
-    When the Rust native extension is available, file/env overrides are
-    loaded transparently.
+    Provides attribute-based access to settings with env var override,
+    file-based overrides, and schema validation.
     """
+    schema = config_schema
 
-    def __init__(self):
-        self._native = self._init_native()
+    if TYPE_CHECKING:
+        def __getattr__(self, item: str) -> Any:
+            pass
+
+    def __init__(self, filepaths=None, overrides=None, locked=False):
+        self.filepaths = filepaths or []
+        self._sourced_filepaths = None
+        self.overrides = overrides or {}
+        self.locked = locked
+        self._native_cfg = self._init_native()
 
     @staticmethod
     def _init_native():
@@ -571,64 +1120,271 @@ class Config:
                 pass
         return None
 
-    def get(self, key: str, default=None):
-        """Get a config value by dot-separated key path.
-
-        Priority:
-        1. Rust native config (file/env overrides) — if available;
-        2. Module-level default defined in this file;
-        3. Explicit ``default`` fallback.
-        """
-        # 1) Check Rust native config (file/env overrides)
-        if self._native is not None:
+    def __getattr__(self, key):
+        schema_cls = self.schema.get(key)
+        if schema_cls is not None:
+            validator = schema_cls(self, key)
             try:
-                if self._native.contains_key(key):
-                    # Try typed getters in priority order
-                    result = self._native.get_string(key)
-                    if result is not None:
-                        return result
-                    result = self._native.get_int(key)
-                    if result is not None:
-                        return result
-                    result = self._native.get_float(key)
-                    if result is not None:
-                        return result
-                    result = self._native.get_bool(key)
-                    if result is not None:
-                        return result
+                result = validator.validate(self._data.get(key))
+            except Exception:
+                result = self._module_defaults().get(key)
+            object.__setattr__(self, key, result)
+            return result
+        d = self._module_defaults()
+        if key in d:
+            return d[key]
+        raise AttributeError("No such config setting: %r" % key)
+
+    def get(self, key, default=None):
+        if self._native_cfg is not None:
+            try:
+                if self._native_cfg.contains_key(key):
+                    for getter in (self._native_cfg.get_string, self._native_cfg.get_int,
+                                   self._native_cfg.get_float, self._native_cfg.get_bool):
+                        r = getter(key)
+                        if r is not None:
+                            return r
             except Exception:
                 pass
-        # 2) Fall back to Python module defaults
         try:
-            return self._module_defaults()[key.replace(".", "_")]
-        except KeyError:
+            return getattr(self, key)
+        except (AttributeError, Exception):
             pass
-        # 3) Fall through to attribute-based lookup
-        try:
-            return getattr(self, key, default)
-        except AttributeError:
-            return default
+        return default
+
+    def warn(self, key):
+        return (not self.quiet and not self.warn_none
+                and (self.warn_all or getattr(self, "warn_%s" % key)))
+
+    def debug(self, key):
+        return (not self.quiet and not self.debug_none
+                and (self.debug_all or getattr(self, "debug_%s" % key)))
+
+    def debug_printer(self, key):
+        return _DebugPrinter(self.debug(key))
+
+    @property
+    def sourced_filepaths(self):
+        _ = self._data
+        return self._sourced_filepaths or []
+
+    @property
+    def plugins(self):
+        return _PluginConfigs(self._data.get("plugins", {}))
+
+    @property
+    def data(self):
+        d = {}
+        for key in self._data:
+            if key == "plugins":
+                d[key] = self.plugins.data()
+            else:
+                try:
+                    d[key] = getattr(self, key)
+                except AttributeError:
+                    pass
+        return d
+
+    @property
+    def nonlocal_packages_path(self):
+        paths = list(self.packages_path)
+        lp = self.local_packages_path
+        if lp in paths:
+            paths.remove(lp)
+        return paths
+
+    def copy(self, overrides=None, locked=False):
+        other = copy.copy(self)
+        if overrides is not None:
+            other.overrides = overrides
+        other.locked = locked
+        other._uncache()
+        return other
+
+    def override(self, key, value):
+        keys = key.split(".")
+        if len(keys) > 1:
+            if keys[0] != "plugins":
+                raise AttributeError("no such setting: %r" % key)
+            self.plugins.override(keys[1:], value)
+        else:
+            self.overrides[key] = value
+            self._uncache(key)
+
+    def is_overridden(self, key):
+        return key in self.overrides
+
+    def remove_override(self, key):
+        ks = key.split(".")
+        if len(ks) > 1:
+            raise NotImplementedError
+        elif key in self.overrides:
+            del self.overrides[key]
+            self._uncache(key)
+
+    def get_completions(self, prefix):
+        toks = prefix.split(".")
+        if len(toks) > 1:
+            if toks[0] == "plugins":
+                return ["plugins." + x for x in self._get_plugin_completions(".".join(toks[1:]))]
+            return []
+        keys = [x for x in list(self.schema.keys()) if isinstance(x, str)] + ["plugins"]
+        keys = [x for x in keys if x.startswith(prefix)]
+        if keys == ["plugins"]:
+            keys += self._get_plugin_completions("")
+        return keys
+
+    def _get_plugin_completions(self, prefix):
+        return []
+
+    def _uncache(self, key=None):
+        if key and hasattr(self, key):
+            delattr(self, key)
+        if hasattr(self, "_data"):
+            delattr(self, "_data")
+        if hasattr(self, "plugins"):
+            delattr(self, "plugins")
+
+    def _swap(self, other):
+        self.__dict__, other.__dict__ = other.__dict__, self.__dict__
+
+    @lru_cache(maxsize=None)
+    def _data_without_overrides(self):
+        data, self._sourced_filepaths = _load_config_from_filepaths(self.filepaths)
+        return data
+
+    @property
+    def _data(self):
+        data = copy.deepcopy(self._data_without_overrides)
+        deep_update(data, self.overrides)
+        return data
+
+    # Dynamic defaults
+    def _get_tmpdir(self): return None
+    def _get_context_tmpdir(self): return None
+    def _get_image_viewer(self): return None
+    def _get_editor(self): return None
+    def _get_difftool(self): return None
+    def _get_terminal_emulator_command(self): return None
+    def _get_new_session_popen_args(self): return None
 
     @staticmethod
     def _module_defaults():
-        """Return a dict of all module-level default values."""
-        import sys as _sys
+        m = _sys.modules[__name__]
+        return {n: v for n, v in vars(m).items()
+                if not n.startswith("_") and not callable(v) and not isinstance(v, type)}
 
-        this_module = _sys.modules[__name__]
-        return {
-            name: value
-            for name, value in vars(this_module).items()
-            if not name.startswith("_")
-            and not callable(value)
-            and not isinstance(value, type)
-        }
+    @classmethod
+    def _create_main_config(cls, overrides=None):
+        filepaths = [get_module_root_config()]
+        fp = os.getenv("REZ_CONFIG_FILE")
+        if fp:
+            filepaths.extend(fp.split(os.pathsep))
+        if os.getenv("REZ_DISABLE_HOME_CONFIG", "").lower() not in ("1", "t", "true"):
+            filepaths.append(os.path.expanduser("~/.rezconfig"))
+        return cls(filepaths, overrides)
+
+    def __str__(self):
+        return "%r" % sorted([k for k in self.schema if isinstance(k, str)] + ["plugins"])
+
+    def __repr__(self):
+        return "%s(%s)" % (self.__class__.__name__, str(self))
 
 
-# ============================================================================
+class _PluginConfigs(object):
+    def __init__(self, plugin_data):
+        self.__dict__["_data"] = plugin_data
+
+    def __setattr__(self, attr, value):
+        raise AttributeError("Read-only")
+
+    def __getattr__(self, attr):
+        if attr in self.__dict__:
+            return self.__dict__[attr]
+        data = self.__dict__["_data"]
+        if attr in data:
+            d = data[attr]
+            self.__dict__[attr] = d
+            return d
+        raise AttributeError("No such setting: plugins.%s" % attr)
+
+    def __iter__(self):
+        return iter(self.__dict__["_data"].keys())
+
+    def override(self, key, value):
+        if not key:
+            raise AttributeError("no such setting")
+        data = {}
+        cur = data
+        ks = list(key)
+        while len(ks) > 1:
+            cur[ks[0]] = {}
+            cur = cur[ks[0]]
+            ks = ks[1:]
+        cur[ks[0]] = value
+        deep_update(self.__dict__["_data"], data)
+        if ks[0] in self.__dict__:
+            del self.__dict__[ks[0]]
+
+    def data(self):
+        d = self.__dict__.copy()
+        del d["_data"]
+        return d
+
+    def __str__(self):
+        return "%r" % sorted(self.__dict__["_data"].keys())
+
+    def __repr__(self):
+        return "%s(%s)" % (self.__class__.__name__, str(self))
+
+
+class _DebugPrinter(object):
+    def __init__(self, enabled):
+        self.enabled = enabled
+    def __call__(self, msg, *args, **kwargs):
+        if self.enabled:
+            print("[DEBUG]", msg)
+
+
+def expand_system_vars(data):
+    if isinstance(data, str):
+        return os.path.expanduser(os.path.expandvars(data))
+    elif isinstance(data, (list, tuple, set)):
+        return [expand_system_vars(x) for x in data]
+    elif isinstance(data, dict):
+        return {k: expand_system_vars(v) for k, v in data.items()}
+    return data
+
+
+def create_config(overrides=None):
+    if not overrides:
+        return config
+    return config.copy(overrides=overrides)
+
+
+def _create_locked_config(overrides=None):
+    return Config([get_module_root_config()], overrides=overrides, locked=True)
+
+
+@contextmanager
+def _replace_config(other):
+    config._swap(other)
+    try:
+        yield
+    finally:
+        config._swap(other)
+
+
+# Singleton
+config = Config._create_main_config()
+
+if os.getenv("REZ_LOG_DEPRECATION_WARNINGS"):
+    config.data
+
+
+# ====================================================================
 #   Module-level convenience
-# ============================================================================
+# ====================================================================
 
-def get(key: str, default=None):
-    """Top-level convenience function (compatible with ``rez.config.get``)."""
-    _config = Config()
-    return _config.get(key, default)
+def get(key, default=None):
+    return config.get(key, default)
