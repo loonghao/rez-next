@@ -58,6 +58,7 @@ from . import package_repository  # noqa: F401
 from . import plugin_managers  # noqa: F401
 from . import release_hook  # noqa: F401
 from . import resolver  # noqa: F401
+from . import rex_bindings  # noqa: F401
 from . import system  # noqa: F401  — module (rez.system API: from rez.system import system)
 from . import status  # noqa: F401  — module (rez.status API: from rez.status import status)
 from .exceptions import *  # noqa: F401,F403
