@@ -102,6 +102,7 @@ from rez_next import bundle_context  # noqa: F401
 from rez_next import command  # noqa: F401
 from rez_next import complete  # noqa: F401
 from rez_next import package_cache  # noqa: F401
+from rez_next import package_bind  # noqa: F401
 from rez_next import package_copy  # noqa: F401
 from rez_next import package_help  # noqa: F401
 from rez_next import package_move  # noqa: F401
