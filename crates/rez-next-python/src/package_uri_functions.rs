@@ -27,6 +27,7 @@ pub fn get_package_from_uri(
     paths: Option<Vec<String>>,
 ) -> PyResult<Option<PyPackage>> {
     use crate::package_functions::make_repo_manager;
+    let _ = py; // Used by PyO3 framework for GIL management
 
     let rt = crate::runtime::get_runtime();
     let repo_manager = make_repo_manager(paths.clone());
@@ -181,7 +182,6 @@ fn find_package_in_path(
 /// requires additional work on the variant system.
 #[pyfunction]
 #[pyo3(signature = (uri, paths=None))]
-#[allow(unused_variables)]
 pub fn get_variant_from_uri(
     py: Python<'_>,
     uri: &str,
@@ -189,6 +189,7 @@ pub fn get_variant_from_uri(
 ) -> PyResult<Option<Py<PyAny>>> {
     // For now, return None as variant support is not fully implemented
     // TODO: Implement full variant support
+    let _ = (py, uri, paths);
     Ok(None)
 }
 
@@ -197,7 +198,6 @@ pub fn get_variant_from_uri(
 /// Equivalent to `rez.packages.get_variant(uri, index=None, paths=None)`.
 #[pyfunction]
 #[pyo3(signature = (uri, index=None, paths=None))]
-#[allow(unused_variables)]
 pub fn get_variant(
     py: Python<'_>,
     uri: &str,
@@ -206,6 +206,7 @@ pub fn get_variant(
 ) -> PyResult<Option<Py<PyAny>>> {
     // For now, return None as variant support is not fully implemented
     // TODO: Implement full variant support
+    let _ = (py, uri, index, paths);
     Ok(None)
 }
 

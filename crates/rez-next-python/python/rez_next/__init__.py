@@ -5,8 +5,6 @@ This module provides a drop-in replacement for Rez.
 """
 
 import os  # noqa: F401
-import sys  # noqa: F401
-import warnings  # noqa: F401
 
 # Import _native module (try multiple methods)
 try:

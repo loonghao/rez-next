@@ -194,10 +194,17 @@ impl PyDependencyConflict {
             _ => ConflictSeverity::Major,
         };
 
+        let reqs: Vec<rez_next_package::PackageRequirement> = conflicting_requirements
+            .unwrap_or_default()
+            .iter()
+            .map(|s| rez_next_package::PackageRequirement::parse(s))
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| pyo3::exceptions::PyValueError::new_err(format!("Invalid requirement: {e}")))?;
+
         Ok(PyDependencyConflict {
             inner: RustDependencyConflict {
                 package_name,
-                conflicting_requirements: conflicting_requirements.unwrap_or_default(),
+                conflicting_requirements: reqs,
                 source_packages: source_packages.unwrap_or_default(),
                 severity: sev,
             },
