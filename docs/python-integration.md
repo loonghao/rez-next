@@ -10,26 +10,68 @@ Python bindings are **partially implemented** in `crates/rez-next-python` and ex
 
 ```
 rez_next/
-├── _native.*.pyd        # PyO3 native extension (abi3-py38)
-├── __init__.py           # Exports, version, drop-in shims
-├── version.py            # rez_next.version
-├── packages_.py          # rez_next.packages_
-├── resolved_context.py    # rez_next.resolved_context
-├── solver_.py            # rez_next.solver (partial)
-├── suite.py              # rez_next.suite
-├── config.py             # rez_next.config
-├── system.py             # rez_next.system
-├── shell.py              # rez_next.shell
-├── rex.py                # rez_next.rex
-├── build_.py             # rez_next.build_ (partial)
-├── release.py            # rez_next.release (partial)
-├── bind.py               # rez_next.bind
-├── search.py             # rez_next.search
-├── diff.py               # rez_next.diff
-├── depends.py            # rez_next.depends
-├── status.py             # rez_next.status
-├── complete.py           # rez_next.complete
-└── ...                   # (18 submodules total)
+├── _native.*.pyd          # PyO3 native extension (abi3-py38)
+├── __init__.py             # Exports, version, drop-in shims
+├── version.py              # rez_next.version
+├── packages_.py            # rez_next.packages_
+├── packages.py             # rez_next.packages
+├── resolved_context.py      # rez_next.resolved_context
+├── solver_.py              # rez_next.solver
+├── solver.py               # rez_next.solver (advanced)
+├── suite.py                # rez_next.suite
+├── config.py               # rez_next.config (100+ fields)
+├── system.py               # rez_next.system
+├── shell.py                # rez_next.shell
+├── rex.py                  # rez_next.rex
+├── build_.py               # rez_next.build_
+├── build_process.py        # rez_next.build_process
+├── build_system.py         # rez_next.build_system
+├── build_plugins.py        # rez_next.build_plugins
+├── release.py              # rez_next.release
+├── release_hook.py         # rez_next.release_hook
+├── release_vcs.py          # rez_next.release_vcs
+├── bind.py                 # rez_next.bind
+├── pip.py                  # rez_next.pip
+├── plugins.py              # rez_next.plugins
+├── plugin_managers.py      # rez_next.plugin_managers
+├── env.py                  # rez_next.env
+├── source.py               # rez_next.source
+├── bundles.py              # rez_next.bundles
+├── bundle_context.py       # rez_next.bundle_context
+├── forward.py              # rez_next.forward
+├── search.py               # rez_next.search
+├── complete.py             # rez_next.complete
+├── diff.py                 # rez_next.diff
+├── depends.py              # rez_next.depends
+├── status.py               # rez_next.status
+├── data.py                 # rez_next.data
+├── cli.py                  # rez_next.cli
+├── exceptions.py           # rez_next.exceptions
+├── deprecations.py         # rez_next.deprecations
+├── package_cache.py        # rez_next.package_cache
+├── package_help.py         # rez_next.package_help
+├── package_maker.py        # rez_next.package_maker
+├── package_repository.py   # rez_next.package_repository
+├── package_search.py       # rez_next.package_search
+├── package_remove.py       # rez_next.package_remove
+├── package_py_utils.py     # rez_next.package_py_utils
+├── serialise_.py           # rez_next.serialise_
+├── test.py                 # rez_next.test
+├── util.py                 # rez_next.util
+├── command.py              # rez_next.command
+├── wrapper.py              # rez_next.wrapper
+├── resolver.py             # rez_next.resolver
+├── utils/                  # rez_next.utils subpackage
+│   ├── __init__.py
+│   ├── filesystem.py
+│   ├── formatting.py
+│   ├── logging_.py
+│   ├── resources.py
+│   └── yaml.py
+├── vendor/                 # rez_next.vendor subpackage
+│   ├── __init__.py
+│   └── version.py
+└── ...                     # (58 submodules total)
 ```
 
 ## Implemented Python Submodules
@@ -73,6 +115,23 @@ rez_next/
 | `rez_next.serialise_` | `rez.serialise` | Serialization support | ✅ Stable |
 | `rez_next.test` | `rez.test` | Package testing | ✅ Stable |
 | `rez_next.util` | `rez.utils` | Utility functions | ✅ Stable |
+| `rez_next.package_maker` | `rez.package_maker` | Programmatic package creation | ✅ Stable |
+| `rez_next.package_repository` | `rez.package_repository` | Package repository abstraction | ✅ Stable |
+| `rez_next.package_py_utils` | `rez.package_py_utils` | package.py utilities | ✅ Stable |
+| `rez_next.build_process` | `rez.build_process` | Build process orchestration | ✅ Stable |
+| `rez_next.build_system` | `rez.build_system` | Build system abstraction | ✅ Stable |
+| `rez_next.release_hook` | `rez.release_hook` | Release hooks | ✅ Stable |
+| `rez_next.release_vcs` | `rez.release_vcs` | VCS release integration | ✅ Stable |
+| `rez_next.wrapper` | `rez.utils.wrapper` | Tool execution wrappers | ✅ Stable |
+| `rez_next.bundle_context` | `rez.bundle_context` | Relocatable context bundles | ✅ Stable |
+| `rez_next.command` | `rez.utils.command` | Command execution | ✅ Stable |
+| `rez_next.resolver` | `rez.resolver` | Package resolver | ✅ Stable |
+| `rez_next.plugin_managers` | `rez.plugin_managers` | Plugin manager implementations | ✅ Stable |
+| `rez_next.utils.filesystem` | `rez.utils.filesystem` | Filesystem utilities | ✅ Stable |
+| `rez_next.utils.formatting` | `rez.utils.formatting` | Output formatting | ✅ Stable |
+| `rez_next.utils.logging_` | `rez.utils.logging_` | Logging utilities | ✅ Stable |
+| `rez_next.utils.yaml` | `rez.utils.yaml` | YAML utilities | ✅ Stable |
+| `rez_next.vendor.version` | `rez.vendor.version` | Vendored version module | ✅ Stable |
 
 ## Quick Start
 

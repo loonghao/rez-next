@@ -433,6 +433,106 @@ from rez_next.serialise_ import (
 )
 ```
 
+### Package Maker
+
+```python
+from rez_next.package_maker import PackageMaker
+
+maker = PackageMaker("my_package")
+maker.version = "1.0.0"
+maker.description = "My custom package"
+pkg = maker.build()
+```
+
+### Package Repository
+
+```python
+from rez_next.package_repository import PackageRepository
+
+repo = PackageRepository("/path/to/packages")
+for pkg in repo.iter_packages():
+    print(pkg.name, pkg.version)
+```
+
+### Build Process / Build System
+
+```python
+from rez_next.build_process import BuildProcess
+from rez_next.build_system import BuildSystem
+
+process = BuildProcess("/path/to/package")
+result = process.run()
+```
+
+### Release Hook / Release VCS
+
+```python
+from rez_next.release_hook import ReleaseHook
+from rez_next.release_vcs import get_release_vcs_types, create_release_vcs
+
+vcs_types = get_release_vcs_types()
+vcs = create_release_vcs("git")
+```
+
+### Wrapper / Bundle Context
+
+```python
+from rez_next.wrapper import Wrapper
+from rez_next.bundle_context import bundle_context
+
+w = Wrapper("/path/to/suite", "context_name", "tool_name")
+ctx = bundle_context("/path/to/context")
+```
+
+### Command / Resolver
+
+```python
+from rez_next.command import CommandResult
+from rez_next.resolver import resolve_package
+
+result = CommandResult(0, "output", "")
+ctx = resolve_package("python-3.9")
+```
+
+### Plugin Managers
+
+```python
+from rez_next.plugin_managers import PluginManager
+
+pm = PluginManager()
+pm.register("my_plugin", MyPluginClass)
+pm.activate("my_plugin")
+```
+
+### Deprecations
+
+```python
+from rez_next.deprecations import RezDeprecationWarning
+import warnings
+
+warnings.warn("old_func is deprecated", RezDeprecationWarning)
+```
+
+### Utils (Filesystem / Formatting / Logging)
+
+```python
+from rez_next.utils.filesystem import make_dirs, copy_file
+from rez_next.utils.formatting import format_table
+from rez_next.utils.logging_ import get_logger
+
+logger = get_logger(__name__)
+logger.info("Processing package...")
+```
+
+### Vendor (Version)
+
+```python
+from rez_next.vendor.version import Version
+
+v = Version("1.2.3")
+print(v.major, v.minor, v.patch)
+```
+
 ---
 
 ## CLI Reference

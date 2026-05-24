@@ -184,7 +184,7 @@ result = diff_contexts(["python-3.9"], ["python-3.11", "maya-2024"])
 
 ⚠️ **Not all Rez features are implemented** — check coverage before suggesting code changes
 
-⚠️ **Python bindings are partial** — `rez-next-python` has 37 submodules, not full Rez coverage
+⚠️ **Python bindings are partial** — `rez-next-python` has 58 submodules, not full Rez coverage
 
 ⚠️ **Breaking changes possible** — pre-1.0 project, API may change
 

@@ -48,7 +48,7 @@ crates/
 └── rez-next-python/          # PyO3 Python bindings (_native.pyd)
 ```
 
-## Python Submodules (37 files)
+## Python Submodules (58 files)
 
 | Module | Rez Equivalent | Key APIs |
 |--------|---------------|----------|
@@ -89,6 +89,22 @@ crates/
 | `rez_next.test` | `rez.test` | Package testing |
 | `rez_next.util` | `rez.utils` | Utility functions |
 | `rez_next.suite` | `rez.suite` | Suite management |
+| `rez_next.package_maker` | `rez.package_maker` | Programmatic package creation |
+| `rez_next.package_repository` | `rez.package_repository` | Package repository |
+| `rez_next.build_process` | `rez.build_process` | Build process orchestration |
+| `rez_next.build_system` | `rez.build_system` | Build system abstraction |
+| `rez_next.release_hook` | `rez.release_hook` | Release hooks |
+| `rez_next.release_vcs` | `rez.release_vcs` | VCS release integration |
+| `rez_next.wrapper` | `rez.utils.wrapper` | Tool execution wrappers |
+| `rez_next.bundle_context` | `rez.bundle_context` | Relocatable context bundles |
+| `rez_next.command` | `rez.utils.command` | Command execution |
+| `rez_next.resolver` | `rez.resolver` | Package resolver |
+| `rez_next.plugin_managers` | `rez.plugin_managers` | Plugin manager implementations |
+| `rez_next.package_py_utils` | `rez.package_py_utils` | package.py utilities |
+| `rez_next.utils.filesystem` | `rez.utils.filesystem` | Filesystem utilities |
+| `rez_next.utils.formatting` | `rez.utils.formatting` | Output formatting |
+| `rez_next.utils.logging_` | `rez.utils.logging_` | Logging utilities |
+| `rez_next.vendor.version` | `rez.vendor.version` | Vendored version module |
 
 ## Common Agent Tasks
 
