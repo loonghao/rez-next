@@ -64,7 +64,15 @@ Plugins settings (``plugins.*``) do not support env var overrides (rules 4-5).
 from __future__ import annotations
 
 import os
+import re
 import sys as _sys
+from contextlib import contextmanager
+from functools import lru_cache
+from inspect import ismodule
+from typing import Any, TypeVar, TYPE_CHECKING
+
+from .deprecations import warn as _deprecations_warn, RezDeprecationWarning
+from .exceptions import ConfigurationError
 
 try:
     from . import _native as _native_module
@@ -77,6 +85,312 @@ except ImportError:
     except (ImportError, AttributeError):
         _native_module = None  # type: ignore[assignment]
     _rust_load_config = None
+
+
+T = TypeVar("T")
+
+
+# ====================================================================
+#   Lightweight schema / validation helpers
+#   (replaces rez.vendor.schema.Schema to avoid external deps)
+# ====================================================================
+
+class _SchemaError(ValueError):
+    pass
+
+
+class _Schema(object):
+    """Minimal replacement for schema.Schema."""
+    def __init__(self, *validators):
+        self._validators = validators
+
+    def validate(self, data):
+        if not self._validators:
+            return data
+        for v in self._validators:
+            if isinstance(v, type):
+                if not isinstance(data, v):
+                    raise _SchemaError("Expected %s, got %s" % (v.__name__, type(data).__name__))
+            elif isinstance(v, (_Or, _And, _Schema, _Use)):
+                data = v.validate(data)
+            elif callable(v):
+                if not v(data):
+                    raise _SchemaError("Validation failed for %r" % (data,))
+            else:
+                if data != v:
+                    raise _SchemaError("Expected %r, got %r" % (v, data))
+        return data
+
+
+class _Or(object):
+    """At least one alternative must match."""
+    def __init__(self, *alternatives):
+        self._alternatives = alternatives
+    def validate(self, data):
+        for alt in self._alternatives:
+            try:
+                if isinstance(alt, type):
+                    if isinstance(data, alt):
+                        return data
+                elif isinstance(alt, (_Or, _And, _Schema, _Use)):
+                    return alt.validate(data)
+                elif callable(alt):
+                    if alt(data):
+                        return data
+                else:
+                    if data == alt:
+                        return data
+            except (_SchemaError, TypeError, ValueError):
+                continue
+        raise _SchemaError("None matched for %r" % (data,))
+
+
+class _And(object):
+    def __init__(self, *validator):
+        self._validators = validator
+    def validate(self, data):
+        r = data
+        for v in self._validators:
+            if isinstance(v, type):
+                if not isinstance(r, v):
+                    raise _SchemaError("Expected %s, got %s" % (v.__name__, type(r).__name__))
+            elif isinstance(v, (_Or, _And, _Schema, _Use)):
+                r = v.validate(r)
+            elif callable(v):
+                r = v(r)
+            else:
+                if r != v:
+                    raise _SchemaError("Expected %r, got %r" % (v, r))
+        return r
+
+
+class _Use(object):
+    def __init__(self, func):
+        self._func = func
+    def validate(self, data):
+        return self._func(data)
+
+
+# ====================================================================
+#   Setting Hierarchy (lazy validators per config key)
+# ====================================================================
+
+class _Deprecation(object):
+    def __init__(self, removed_in, extra=None):
+        self._removed_in = removed_in
+        self._extra = extra or ""
+    def get_message(self, name, env_var=False):
+        if self._removed_in:
+            p = ["config setting %r" % name]
+            if env_var:
+                p.append("(via %s)" % env_var)
+            p.append("is deprecated, removed in %s." % self._removed_in)
+            p.append(self._extra)
+            return " ".join(p).strip()
+        return ""
+
+
+class Setting(object):
+    schema = _Schema(object)
+
+    def __init__(self, config, key):
+        self.config = config
+        self.key = key
+
+    @property
+    def _env_var_name(self):
+        return "REZ_%s" % self.key.upper()
+
+    def _parse_env_var(self, value):
+        raise NotImplementedError
+
+    def _warn_deprecated(self, varname=None):
+        if self.key in _deprecated_settings:
+            _deprecations_warn(
+                _deprecated_settings[self.key].get_message(self.key, env_var=varname or False),
+                RezDeprecationWarning, pre_formatted=True, filename=varname or self.key)
+
+    def validate(self, data):
+        try:
+            data = self._validate(data)
+            data = self.schema.validate(data)
+            data = expand_system_vars(data)
+        except _SchemaError as e:
+            raise ConfigurationError("Misconfigured setting %r: %s" % (self.key, str(e)))
+        return data
+
+    def _validate(self, data):
+        if self.key in self.config.overrides:
+            return data
+        if not self.config.locked:
+            v = os.getenv(self._env_var_name)
+            if v is not None:
+                self._warn_deprecated(varname=self._env_var_name)
+                return self._parse_env_var(v)
+            vn = self._env_var_name + "_JSON"
+            v = os.getenv(vn)
+            if v is not None:
+                self._warn_deprecated(varname=vn)
+                import json
+                try:
+                    return json.loads(v)
+                except ValueError:
+                    raise ConfigurationError("Expected $%s to be JSON" % vn)
+        if data is not None:
+            return data
+        attr = "_get_%s" % self.key
+        if hasattr(self.config, attr):
+            return getattr(self.config, attr)()
+        return None
+
+
+class Str(Setting):
+    schema = _Schema(str)
+    def _parse_env_var(self, v): return v
+
+
+class Char(Setting):
+    schema = _Schema(str, lambda x: len(x) == 1)
+    def _parse_env_var(self, v): return v
+
+
+class OptionalStr(Str):
+    schema = _Or(None, str)
+
+
+class StrList(Setting):
+    schema = _Schema(list, lambda x: all(isinstance(i, str) for i in x))
+    sep = ","
+    def _parse_env_var(self, v):
+        return [x for x in v.replace(self.sep, " ").split() if x]
+
+
+class OptionalStrList(StrList):
+    schema = _Or(None, _And(_Use(lambda x: x or []), list, lambda x: all(isinstance(i, str) for i in x)))
+
+
+class PathList(StrList):
+    sep = os.pathsep
+    def _parse_env_var(self, v):
+        return [x for x in v.split(self.sep) if x]
+
+
+class PipInstallRemaps(Setting):
+    PARDIR, SEP = map(re.escape, (os.pardir, os.sep))
+    RE_TOKENS = {"sep": SEP, "s": SEP, "pardir": PARDIR, "p": PARDIR}
+    TOKENS = {"sep": os.sep, "s": os.sep, "pardir": os.pardir, "p": os.pardir}
+    KEYS = ["record_path", "pip_install", "rez_install"]
+    schema = _Schema(list)
+
+    def validate(self, data):
+        data = super().validate(data)
+        result = []
+        for remap in data:
+            if not isinstance(remap, dict):
+                raise ConfigurationError("Expected dict, got %s" % type(remap).__name__)
+            for key in self.KEYS:
+                if key not in remap:
+                    raise ConfigurationError("Missing key %r" % key)
+                tokens = self.RE_TOKENS if key == "record_path" else self.TOKENS
+                remap[key] = remap[key].format(**tokens)
+            result.append(remap)
+        return result
+    def _parse_env_var(self, v): return v
+
+
+class Int(Setting):
+    schema = _Schema(int)
+    def _parse_env_var(self, v):
+        try: return int(v)
+        except ValueError: raise ConfigurationError("Expected %s to be int" % self._env_var_name)
+
+
+class Float(Setting):
+    schema = _Schema(float)
+    def _parse_env_var(self, v):
+        try: return float(v)
+        except ValueError: raise ConfigurationError("Expected %s to be float" % self._env_var_name)
+
+
+class Bool(Setting):
+    schema = _Schema(bool)
+    true_words = frozenset(["1","true","t","yes","y","on"])
+    false_words = frozenset(["0","false","f","no","n","off"])
+    all_words = true_words | false_words
+    def _parse_env_var(self, v):
+        v = v.lower()
+        if v in self.true_words: return True
+        if v in self.false_words: return False
+        raise ConfigurationError("Expected $%s to be one of: %s" % (self._env_var_name, ", ".join(sorted(self.all_words))))
+
+
+class OptionalBool(Bool):
+    schema = _Or(None, Bool.schema)
+
+
+class ForceOrBool(Bool):
+    FORCE_STR = "force"
+    schema = _Or("force", Bool.schema)
+    all_words = Bool.all_words | frozenset(["force"])
+    def _parse_env_var(self, v):
+        return v if v == self.FORCE_STR else super()._parse_env_var(v)
+
+
+class Dict(Setting):
+    schema = _Schema(dict)
+    def _parse_env_var(self, v):
+        items, r = v.split(","), {}
+        for item in items:
+            if ":" not in item:
+                raise ConfigurationError("Expected k1:v1,k2:v2: %s" % v)
+            k, val = item.split(":", 1)
+            try: val = int(val)
+            except ValueError:
+                try: val = float(val)
+                except ValueError: pass
+            r[k] = val
+        return r
+
+
+class OptionalDict(Dict):
+    schema = _Or(None, dict)
+
+
+class OptionalDictOrDictList(Setting):
+    schema = _Or(None, _And(dict, _Use(lambda x: [x])), list)
+    def _parse_env_var(self, v): return v
+
+
+class SuiteVisibility_(Str):
+    schema = _Or("never", "always", "parent", "parent_priority")
+
+
+class VariantSelectMode_(Str):
+    schema = _Or("version_priority", "intersection_priority")
+
+
+class RezToolsVisibility_(Str):
+    schema = _Or("append", "prepend", "remove")
+
+
+class ExecutableScriptMode_(Str):
+    schema = _Or("single", "py", "platform_specific", "both")
+
+
+class OptionalStrOrFunction(Setting):
+    schema = _Or(None, str, callable)
+    def _parse_env_var(self, v): return v
+
+
+class PreprocessMode_(Str):
+    schema = _Or("before", "after", "override")
+
+
+class BuildThreadCount_(Setting):
+    schema = _Schema(_Or(_And(int, lambda x: x > 0), "physical_cores", "logical_cores"))
+    def _parse_env_var(self, v):
+        try: return int(v)
+        except ValueError: return v
 
 
 # ============================================================================
@@ -590,9 +904,9 @@ use_pyqt: bool = False
 gui_threads: bool = True
 
 
-# ============================================================================
-#   Config class — used by ``rez_next.__init__``
-# ============================================================================
+# ====================================================================
+#   Config Schema — maps every setting key to its validator class
+# ====================================================================
 
 T = TypeVar("T")
 
