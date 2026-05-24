@@ -28,31 +28,18 @@ module_root_path = os.path.dirname(os.path.abspath(__file__))
 # Make all public symbols available at rez_next.*
 from _native import *
 
-# ── Submodule registration ──────────────────────────────────────────────
-# Register submodules in sys.modules so "from rez_next.X import ..." works.
-#
-# This mirrors rez's module hierarchy:
-#   rez.config, rez.packages_, rez.resolved_context, rez.solver_,
-#   rez.package_filter, rez.package_repository, rez.package_resources,
-#   rez.package_copy, rez.package_remove, rez.package_order, etc.
+# ═══════════════════════════════════════════════════════════════════════
+# IMPORT ORDER IS IMPORTANT:
+#   1. Pure-Python bridge files (system.py, status.py) MUST be imported
+#      BEFORE the dynamic _native submodule registration below, so the
+#      bridge modules take precedence in sys.modules.
+#   2. The dynamic registration then fills in remaining _native submodules
+#      that don't have bridge files.
+# ═══════════════════════════════════════════════════════════════════════
 
-# Dynamically register all _native submodules
-for _attr_name in dir(_native):
-    _attr = getattr(_native, _attr_name)
-    _type_str = str(type(_attr))
-    if "module" in _type_str.lower():
-        _full_name = f"rez_next._native.{_attr_name}"
-        if _full_name in sys.modules:
-            sys.modules[f"rez_next.{_attr_name}"] = sys.modules[_full_name]
-
-# ── config singleton (matches rez.config) ──────────────────────────────
-# Environment variables REZ_PACKAGES_PATH and REZ_LOCAL_PACKAGES_PATH
-# are read by the native config loader at init time.
-config = _native.config
-
-# ── Subpackage imports (mirrors rez module hierarchy) ───────────────────────
-# These ensure `from rez_next.X import ...` works for pure-Python modules
-# that are implemented in crates/rez-next-python/python/rez_next/.
+# ── Step 1: Pure-Python bridge submodules (loaded before native overrides) ─
+# These bridge files proxy via runpy to implementations in
+# crates/rez-next-python/python/rez_next/.
 from rez_next import utils  # noqa: F401
 from rez_next import build_process  # noqa: F401
 from rez_next import bundle_context  # noqa: F401
@@ -60,6 +47,26 @@ from rez_next import complete  # noqa: F401
 from rez_next import package_help  # noqa: F401
 from rez_next import release_vcs  # noqa: F401
 from rez_next import wrapper  # noqa: F401
-
-# API naming alignment: rez uses `rez.shells`, we provide `rez_next.shells`
 from rez_next import shells  # noqa: F401
+from rez_next import system  # noqa: F401
+from rez_next import status  # noqa: F401
+
+# ── Step 2: Dynamic _native submodule registration ─────────────────────
+# Register remaining _native submodules that don't have bridge files.
+for _attr_name in dir(_native):
+    _attr = getattr(_native, _attr_name)
+    _type_str = str(type(_attr))
+    if "module" in _type_str.lower():
+        _full_name = f"rez_next._native.{_attr_name}"
+        if _full_name in sys.modules:
+            # Don't overwrite bridge modules that were already registered
+            _module_key = f"rez_next.{_attr_name}"
+            if _module_key not in sys.modules:
+                sys.modules[_module_key] = sys.modules[_full_name]
+
+# ── config singleton (matches rez.config) ──────────────────────────────
+# Environment variables REZ_PACKAGES_PATH and REZ_LOCAL_PACKAGES_PATH
+# are read by the native config loader at init time.
+config = _native.config
+
+

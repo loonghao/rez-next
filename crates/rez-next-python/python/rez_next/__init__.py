@@ -58,6 +58,8 @@ from . import package_repository  # noqa: F401
 from . import plugin_managers  # noqa: F401
 from . import release_hook  # noqa: F401
 from . import resolver  # noqa: F401
+from . import system  # noqa: F401  — module (rez.system API: from rez.system import system)
+from . import status  # noqa: F401  — module (rez.status API: from rez.status import status)
 from .exceptions import *  # noqa: F401,F403
 from .config import Config  # noqa: F401
 
@@ -79,10 +81,9 @@ module_root_path: str = os.path.dirname(os.path.abspath(__file__))
 # Emulate rez.action variable (read from env, used for signal handling)
 action = os.getenv("REZ_SIGUSR1_ACTION")
 
-# Top-level singletons — compatible with `from rez import config` and `from rez import system`
+# Top-level singletons — compatible with `from rez import config`
 config = Config()
 config.Config = Config
-system = getattr(_native, "System", lambda: None)()
 
 # Aliases for API compatibility with original rez
 resolve = getattr(_native, "resolve_packages", None)
