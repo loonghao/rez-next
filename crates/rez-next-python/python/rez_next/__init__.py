@@ -55,6 +55,9 @@ from . import package_help  # noqa: F401
 from . import package_py_utils  # noqa: F401
 from . import package_remove  # noqa: F401
 from . import package_repository  # noqa: F401
+from . import package_search  # noqa: F401
+from . import package_serialise  # noqa: F401  — module (rez.package_serialise API: dump_package_data)
+from . import package_test  # noqa: F401  — module (rez.package_test API: PackageTestRunner, PackageTestResults)
 from . import plugin_managers  # noqa: F401
 from . import release_hook  # noqa: F401
 from . import release_vcs  # noqa: F401
@@ -64,6 +67,8 @@ from . import solver  # noqa: F401
 from . import status  # noqa: F401  — module (rez.status API: from rez.status import status)
 from . import shells  # noqa: F401  — module (rez.shells API: create_shell, get_shell_types, get_shell_class)
 from . import system  # noqa: F401  — module (rez.system API: from rez.system import system)
+from . import serialise  # noqa: F401
+from . import rezconfig  # noqa: F401
 from . import wrapper  # noqa: F401
 from .exceptions import *  # noqa: F401,F403
 from .config import Config  # noqa: F401
