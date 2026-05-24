@@ -50,6 +50,16 @@ for _attr_name in dir(_native):
 # are read by the native config loader at init time.
 config = _native.config
 
-# ── utils subpackage ────────────────────────────────────────────────────────
-# Import the utils subpackage so it's available as rez_next.utils
+# ── Subpackage imports (mirrors rez module hierarchy) ───────────────────────
+# These ensure `from rez_next.X import ...` works for pure-Python modules
+# that are implemented in crates/rez-next-python/python/rez_next/.
 from rez_next import utils  # noqa: F401
+from rez_next import build_process  # noqa: F401
+from rez_next import bundle_context  # noqa: F401
+from rez_next import complete  # noqa: F401
+from rez_next import package_help  # noqa: F401
+from rez_next import release_vcs  # noqa: F401
+from rez_next import wrapper  # noqa: F401
+
+# API naming alignment: rez uses `rez.shells`, we provide `rez_next.shells`
+from rez_next import shells  # noqa: F401
