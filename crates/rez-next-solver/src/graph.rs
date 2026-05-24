@@ -130,6 +130,16 @@ impl DependencyGraph {
         }
     }
 
+    /// Return the number of nodes in the graph.
+    pub fn len(&self) -> usize {
+        self.nodes.len()
+    }
+
+    /// Return true if the graph has no nodes.
+    pub fn is_empty(&self) -> bool {
+        self.nodes.is_empty()
+    }
+
     /// Clear the graph
     pub fn clear(&mut self) {
         self.nodes.clear();

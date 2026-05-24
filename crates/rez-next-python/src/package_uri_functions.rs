@@ -21,7 +21,6 @@ use rez_next_package::serialization::PackageSerializer;
 /// Returns a `Package` object, or `None` if not found.
 #[pyfunction]
 #[pyo3(signature = (uri, paths=None))]
-#[allow(unused_variables)]
 pub fn get_package_from_uri(
     py: Python<'_>,
     uri: &str,

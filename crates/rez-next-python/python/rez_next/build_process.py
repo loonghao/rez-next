@@ -76,9 +76,10 @@ class BuildProcess(abc.ABC):
             name = getattr(cls, "name", cls.__name__)
             BuildProcess._registry[name] = cls
 
-    def __init__(self, build_system=None, vcs=None, ensure_latest=True,
-                 skip_repo_errors=False, ignore_existing_tag=False,
-                 verbose=False, quiet=False):
+    def __init__(self, working_dir="", build_system=None, vcs=None,
+                 ensure_latest=True, skip_repo_errors=False,
+                 ignore_existing_tag=False, verbose=False, quiet=False):
+        self._working_dir = working_dir or ""
         self._build_system = build_system
         self._vcs = vcs
         self._ensure_latest = ensure_latest
@@ -95,9 +96,11 @@ class BuildProcess(abc.ABC):
 
     @property
     def working_dir(self):
-        if self._build_system is not None:
-            return getattr(self._build_system, "working_dir", None)
-        return None
+        return self._working_dir or (
+            getattr(self._build_system, "working_dir", None)
+            if self._build_system is not None
+            else None
+        )
 
     @abc.abstractmethod
     def build(self, install_path=None, clean=False, install=False, variants=None):
@@ -373,8 +376,34 @@ def get_build_process_types():
     return OrderedDict(BuildProcess._registry)
 
 
-def create_build_process(process_type, **kwargs):
-    """Create a BuildProcess instance by type name."""
+def create_build_process(
+    process_type: str,
+    working_dir: str = "",
+    build_system: Any = None,
+    package: Any = None,
+    vcs: Any = None,
+    ensure_latest: bool = True,
+    skip_repo_errors: bool = False,
+    ignore_existing_tag: bool = False,
+    verbose: bool = False,
+    quiet: bool = False,
+) -> "BuildProcess":
+    """Create a :class:`BuildProcess` instance.
+
+    Rez API: ``rez.build_process.create_build_process()``
+
+    Args:
+        process_type: Name of the build process implementation.
+        working_dir: Working directory (DEPRECATED, will be removed).
+        build_system: BuildSystem instance used to build the package.
+        package: DeveloperPackage instance (DEPRECATED).
+        vcs: ReleaseVCS for release process.
+        ensure_latest: If True, do not allow release if newer version exists.
+        skip_repo_errors: If True, proceed even when VCS errors occur.
+        ignore_existing_tag: Perform release even if tag already exists.
+        verbose: Verbose mode.
+        quiet: Quiet mode (overrides verbose).
+    """
     types = get_build_process_types()
     cls = types.get(process_type)
     if cls is None:
@@ -382,7 +411,15 @@ def create_build_process(process_type, **kwargs):
             f"Unknown build process type: {process_type!r}. "
             f"Available: {list(types.keys())}"
         )
-    return cls(**kwargs)
+    return cls(
+        build_system=build_system,
+        vcs=vcs,
+        ensure_latest=ensure_latest,
+        skip_repo_errors=skip_repo_errors,
+        ignore_existing_tag=ignore_existing_tag,
+        verbose=verbose,
+        quiet=quiet,
+    )
 
 
 # --- Platform helpers ---

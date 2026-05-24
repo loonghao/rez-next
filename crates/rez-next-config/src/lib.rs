@@ -252,17 +252,26 @@ impl Config {
     }
 
     /// Apply environment variable overrides (REZ_*).
+    /// NOTE: This is a stub — env overrides are parsed but not yet applied
+    /// to the config tree. Full implementation requires nested key traversal
+    /// and type coercion.
     fn apply_env_overrides(&mut self) -> Result<(), ConfigError> {
+        let mut overrides: Vec<(String, JsonValue)> = Vec::new();
         for (key, value) in env::vars() {
             if let Some(config_key) = key.strip_prefix("REZ_") {
                 let config_key = config_key.to_lowercase().replace('_', ".");
-                // Try to parse as JSON, otherwise treat as string
-                // TODO: Implement proper nested key setting
-                let _ = serde_json::from_str::<JsonValue>(&value)
+                let parsed = serde_json::from_str::<JsonValue>(&value)
                     .unwrap_or_else(|_| JsonValue::String(value.clone()));
-                tracing::debug!("Env override: {} -> {}", key, config_key);
-                // TODO: Set the parsed value in config based on config_key
+                tracing::debug!("Env override: {}={} -> {}", key, parsed, config_key);
+                overrides.push((config_key, parsed));
             }
+        }
+        // TODO: Walk nested keys and set values in self.data
+        if !overrides.is_empty() {
+            tracing::info!(
+                "{} REZ_* env override(s) detected but not yet applied (stub)",
+                overrides.len()
+            );
         }
         Ok(())
     }

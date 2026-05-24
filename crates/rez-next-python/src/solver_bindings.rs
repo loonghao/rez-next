@@ -181,7 +181,6 @@ impl PyDependencyConflict {
     /// Create a new DependencyConflict.
     #[new]
     #[pyo3(signature = (package_name, conflicting_requirements=None, source_packages=None, severity="Major"))]
-    #[allow(unused_variables)]
     fn new(
         package_name: String,
         conflicting_requirements: Option<Vec<String>>,
@@ -198,7 +197,7 @@ impl PyDependencyConflict {
         Ok(PyDependencyConflict {
             inner: RustDependencyConflict {
                 package_name,
-                conflicting_requirements: vec![], // TODO: proper conversion from strings
+                conflicting_requirements: conflicting_requirements.unwrap_or_default(),
                 source_packages: source_packages.unwrap_or_default(),
                 severity: sev,
             },
@@ -415,10 +414,7 @@ impl PyDependencyGraph {
 
     /// Return the number of nodes in the graph.
     fn __len__(&self) -> usize {
-        // Access nodes through the public API
-        // Since nodes field is private, we need to use a public method
-        // For now, return 0 - this should be implemented properly
-        0
+        self.inner.len()
     }
 
     fn __repr__(&self) -> String {

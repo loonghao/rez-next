@@ -9,6 +9,13 @@ Designed with:
 - Thread-safe global stats via thread-local storage
 - Clear error messages with actionable context
 - Cross-platform path normalisation
+
+API alignment:
+- ``PackageRepository``: uid (cached_property), get_resource(), make_resource_handle(),
+  get_resource_from_handle(), register_resource(), get_variant_state_handle(),
+  get_last_release_time()
+- ``PackageRepositoryManager``: get_repository(), are_same(), get_resource(),
+  get_resource_from_handle(), clear_caches()
 """
 
 from __future__ import annotations
@@ -17,8 +24,9 @@ import os
 import abc
 import threading
 import time
+from functools import cached_property
 from contextlib import contextmanager
-from typing import Any, ClassVar, Iterator, Optional, TYPE_CHECKING
+from typing import Any, ClassVar, Iterator, Optional, TYPE_CHECKING, Hashable
 
 if TYPE_CHECKING:
     from rez_next.version import Version
@@ -121,9 +129,15 @@ class PackageRepository(abc.ABC):
 
     # ── Identity ─────────────────────────────────────────────────────
 
-    @property
+    @cached_property
     def uid(self) -> tuple[str, str]:
-        """Unique identifier for this repository."""
+        """Unique identifier for this repository.
+
+        This must be a persistent identifier, for example a filepath, or
+        database address + index, and so on.
+
+        Rez API: ``PackageRepositoryManager.uid`` (``cached_property`` in upstream)
+        """
         return (self.name(), str(self.location))
 
     # ── Resource management ──────────────────────────────────────────
@@ -287,6 +301,67 @@ class PackageRepository(abc.ABC):
         """Return the filesystem path to a package's payload directory."""
         raise NotImplementedError
 
+    # ── Resource management (upstream rez API) ────────────────────────
+
+    def make_resource_handle(
+        self, resource_key: str, **variables: Any
+    ) -> Any:
+        """Create a ``ResourceHandle``.
+
+        Nearly all ``ResourceHandle`` creation should go through here,
+        because it gives the various resource classes a chance to
+        normalize / standardize the resource handles, improving
+        caching / comparison.
+
+        Rez API: ``PackageRepository.make_resource_handle()``
+        """
+        from rez_next.utils.resources import ResourceHandle
+        return ResourceHandle(resource_key, variables)
+
+    def get_resource(
+        self, resource_key: str | type, **variables: Any
+    ) -> Any:
+        """Get a resource (cached or new) for the given key and variables.
+
+        Attempts to get and return a cached version of the resource if
+        available, otherwise a new resource object is created and returned.
+
+        Rez API: ``PackageRepository.get_resource()``
+
+        Args:
+            resource_key: Name or class of the ``Resource`` type to find.
+            **variables: Data to identify / store on the resource.
+
+        Returns:
+            ``PackageRepositoryResource`` instance.
+        """
+        if hasattr(self, "_get_resource_impl"):
+            return self._get_resource_impl(resource_key, **variables)
+        handle = self.make_resource_handle(resource_key, **variables)
+        return self.get_resource_from_handle(handle)
+
+    def get_resource_from_handle(
+        self, resource_handle: Any, verify_repo: bool = True
+    ) -> Any:
+        """Get a resource from its handle.
+
+        Rez API: ``PackageRepository.get_resource_from_handle()``
+
+        Args:
+            resource_handle: ``ResourceHandle`` of the resource.
+            verify_repo: If True, verify the handle's repository matches.
+
+        Returns:
+            ``PackageRepositoryResource`` instance.
+        """
+        if self.pool is not None and hasattr(self.pool, "get_resource"):
+            return self.pool.get_resource(self, resource_handle, verify_repo)
+        from rez_next.exceptions import ResourceError
+        raise ResourceError(
+            f"No resource pool available for get_resource_from_handle "
+            f"on {self}"
+        )
+
 
 # ── Repository manager ────────────────────────────────────────────────────
 
@@ -349,6 +424,24 @@ class PackageRepositoryManager:
         path = f"{repository_type}@{location}"
         repo = self.get_repository(path)
         return repo.get_resource(resource_key, **variables)
+
+    def get_resource_from_handle(
+        self, resource_handle: Any,
+    ) -> Any:
+        """Get a resource from its handle.
+
+        Rez API: ``PackageRepositoryManager.get_resource_from_handle()``
+        """
+        repo_type = getattr(resource_handle, "repository_type", None)
+        location = getattr(resource_handle, "location", None)
+        if repo_type and location:
+            path = f"{repo_type}@{location}"
+            repo = self.get_repository(path)
+            return repo.get_resource_from_handle(resource_handle)
+        from rez_next.exceptions import ResourceError
+        raise ResourceError(
+            f"Resource handle {resource_handle} has no repository type/location"
+        )
 
     def clear_caches(self) -> None:
         """Clear all cached repositories and pool resources."""

@@ -1,4 +1,4 @@
-"""Reusable build helpers for Rez package build scripts."""
+"""Bridge to rez_next build_plugins module (package build helpers)."""
 
 from pathlib import Path
 import runpy

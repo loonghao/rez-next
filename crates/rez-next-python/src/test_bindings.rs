@@ -263,17 +263,6 @@ pub fn register_test_submodule(py: Python<'_>, parent: &Bound<'_, PyModule>) -> 
     m.setattr("SKIPPED", "skipped")?;
     m.setattr("ERROR", "error")?;
 
-    // Add exceptions
-    // TODO: Fix PackageTestError registration
-    // m.add("PackageTestError", py.get_type::<PackageTestError>())?;
-
-    // Add utility functions
-    // TODO: Fix utility function registration
-    // m.add_function(wrap_pyfunction!(py_heading, &m)?)?;
-    // m.add_function(wrap_pyfunction!(py_print_error, &m)?)?;
-    // m.add_function(wrap_pyfunction!(py_print_info, &m)?)?;
-    // m.add_function(wrap_pyfunction!(py_print_warning, &m)?)?;
-
     // Register as submodule
     crate::register_submodule(parent, "test", &m)?;
 
