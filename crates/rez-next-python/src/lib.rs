@@ -283,37 +283,13 @@ fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
         &packages_
     )?)?;
 
-    // Register as submodule (same pattern as config module)
-    m.add_submodule(&packages_)?;
-
-    // Register in sys.modules with full dotted name
-    let sys = m.py().import("sys")?;
-    let modules = sys.getattr("modules")?;
-    let parent_name = m.name()?;
-    let full_name = format!("{}.{}", parent_name, "packages_");
-    modules.set_item(full_name.as_str(), &packages_)?;
+    // Register as submodule (same pattern as other modules)
+    register_submodule(m, "packages_", &packages_)?;
 
     // ── Submodule: rez.package_help ─────────────────────────────────────────
     let package_help_mod = PyModule::new(m.py(), "package_help")?;
     package_help_mod.add_class::<PyHelpSection>()?;
     package_help_mod.add_class::<PyPackageHelp>()?;
-
-    // Debug: print package_help_mod
-    let py = m.py();
-    let sys = py.import("sys")?;
-    let modules = sys.getattr("modules")?;
-    let parent_name = m.name()?;
-    let full_name = format!("{}.{}", parent_name, "package_help");
-
-    m.add_submodule(&package_help_mod)?;
-    modules.set_item(full_name.clone(), &package_help_mod)?;
-
-    // Debug: check if registered
-    let registered = modules.get_item(full_name.clone())?;
-    if registered.is_none() {
-        eprintln!("WARNING: package_help not registered in sys.modules");
-    }
-
     register_submodule(m, "package_help", &package_help_mod)?;
 
     // ── Submodule: rez.package_py_utils ──────────────────────────────
@@ -695,11 +671,6 @@ fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
     // ── Submodule: rez.package_resources ─────────────────────
     package_resources_bindings::register_package_resources_submodule(m)?;
-
-    // ── Submodule: rez.explicit ───────────────────────────────────
-    let explicit_mod = PyModule::new(m.py(), "explicit")?;
-    explicit_bindings::register_explicit_module(&explicit_mod)?;
-    register_submodule(m, "explicit", &explicit_mod)?;
 
     // ── Submodule: rez.package_test ─────────────────────────────────
     test_bindings::register_test_submodule(m.py(), m)?;

@@ -180,12 +180,13 @@ impl Config {
         source: ConfigSource,
     ) -> Result<(), ConfigError> {
         let path = path.as_ref();
+        let path_str = path.display().to_string();
         let content = fs::read_to_string(path)
-            .map_err(|_| ConfigError::FileNotFound(path.to_string_lossy().to_string()))?;
+            .map_err(|_| ConfigError::FileNotFound(path_str.clone()))?;
 
         let value: JsonValue = if path.extension().map(|e| e == "json").unwrap_or(false) {
             serde_json::from_str(&content).map_err(|e| ConfigError::ParseError {
-                file: path.to_string_lossy().to_string(),
+                file: path_str.clone(),
                 error: e.to_string(),
             })?
         } else if path
@@ -194,23 +195,28 @@ impl Config {
             .unwrap_or(false)
         {
             serde_yaml::from_str(&content).map_err(|e| ConfigError::ParseError {
-                file: path.to_string_lossy().to_string(),
+                file: path_str.clone(),
                 error: e.to_string(),
             })?
         } else if path.extension().map(|e| e == "toml").unwrap_or(false) {
             let toml_value: toml::Value =
                 toml::from_str(&content).map_err(|e| ConfigError::ParseError {
-                    file: path.to_string_lossy().to_string(),
+                    file: path_str.clone(),
                     error: e.to_string(),
                 })?;
-            json5::from_str(&json5::to_string(&toml_value).unwrap_or_default())
-                .unwrap_or(JsonValue::Null)
+            let toml_json_str = json5::to_string(&toml_value).map_err(|e| {
+                ConfigError::ParseError {
+                    file: path_str.clone(),
+                    error: format!("TOML → JSON5 conversion failed: {e}"),
+                }
+            })?;
+            json5::from_str(&toml_json_str).map_err(|e| ConfigError::ParseError {
+                file: path_str,
+                error: format!("JSON5 parse failed: {e}"),
+            })?
         } else {
             return Err(ConfigError::UnsupportedFormat(
-                path.extension()
-                    .unwrap_or_default()
-                    .to_string_lossy()
-                    .to_string(),
+                path.extension().unwrap_or_default().to_string_lossy().to_string(),
             ));
         };
 

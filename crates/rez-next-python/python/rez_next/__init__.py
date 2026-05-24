@@ -171,5 +171,5 @@ try:
     Package.__getitem__ = _package_getitem  # type: ignore[name-defined]
     ResolvedContext.get = _context_get  # type: ignore[name-defined]
     ResolvedContext.to_dot = _context_to_dot  # type: ignore[name-defined]
-except Exception:
-    pass
+except (NameError, AttributeError):
+    pass  # Core classes not yet available — expected in early imports

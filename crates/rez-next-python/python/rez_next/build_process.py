@@ -276,8 +276,8 @@ class BuildProcessHelper(BuildProcess):
             cfg_tag = cfg.get("plugins.release_vcs.tag_name", None)
             if cfg_tag:
                 tag_format = cfg_tag
-        except Exception:
-            pass
+        except (AttributeError, KeyError):
+            pass  # Config may not have the expected structure
         return tag_format.format(version=version)
 
     def run_hooks(self, hook_event, **kwargs):
@@ -430,13 +430,13 @@ def _remove_readonly(func, path, exc_info):
     try:
         os.chmod(path, stat.S_IWRITE)
         func(path)
-    except Exception:
+    except (OSError, PermissionError):
         time.sleep(0.1)
         try:
             os.chmod(path, stat.S_IWRITE)
             func(path)
-        except Exception:
-            pass
+        except (OSError, PermissionError):
+            pass  # Best-effort: file may be locked by another process
 
 
 def _retry_rmtree(path, max_retries=3, delay=0.1):

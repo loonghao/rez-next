@@ -8,7 +8,6 @@ that can be invoked from the command line.
 from __future__ import annotations
 
 import os
-import sys
 from typing import Optional
 
 from rez_next._native.suite import Suite
