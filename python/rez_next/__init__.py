@@ -101,18 +101,25 @@ from rez_next import build_system  # noqa: F401
 from rez_next import bundle_context  # noqa: F401
 from rez_next import command  # noqa: F401
 from rez_next import complete  # noqa: F401
+from rez_next import package_cache  # noqa: F401
+from rez_next import package_copy  # noqa: F401
 from rez_next import package_help  # noqa: F401
+from rez_next import package_move  # noqa: F401
 from rez_next import package_py_utils  # noqa: F401
+from rez_next import package_remove  # noqa: F401
 from rez_next import package_repository  # noqa: F401
+from rez_next import package_search  # noqa: F401
 from rez_next import plugin_managers  # noqa: F401
 from rez_next import release_hook  # noqa: F401
 from rez_next import release_vcs  # noqa: F401
 from rez_next import resolver  # noqa: F401
 from rez_next import rex_bindings  # noqa: F401
 from rez_next import shells  # noqa: F401
+from rez_next import solver  # noqa: F401
 from rez_next import system  # noqa: F401
 from rez_next import status  # noqa: F401
 from rez_next import test  # noqa: F401
+from rez_next import utils  # noqa: F401
 from rez_next import wrapper  # noqa: F401
 
 # ── Step 2: Dynamic _native submodule registration ─────────────────────
