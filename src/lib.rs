@@ -24,9 +24,19 @@ pub mod cli;
 
 #[cfg(test)]
 mod tests {
+    use rez_next_common::RezCoreConfig;
 
     #[test]
-    fn test_module_structure() {
-        // Basic test to ensure modules compile without panicking
+    fn test_default_config_has_values() {
+        let config = RezCoreConfig::default();
+        assert!(!config.version.is_empty());
+        assert!(!config.packages_path.is_empty());
+    }
+
+    #[test]
+    fn test_config_cache_settings() {
+        let config = RezCoreConfig::default();
+        assert!(config.cache.enable_memory_cache);
+        assert!(config.cache.memory_cache_size > 0);
     }
 }

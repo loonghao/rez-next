@@ -125,9 +125,8 @@ mod tests {
     use crate::NoopHook;
 
     /// Mock hook for testing.
-    #[derive(Debug)]
+    #[derive(Debug, PartialEq)]
     struct MockHook {
-        #[allow(dead_code)]
         source_path: std::path::PathBuf,
     }
 
