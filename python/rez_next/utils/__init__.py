@@ -19,3 +19,4 @@ from . import logging_ as logging  # noqa: F401 — rez.utils.logging_ alias
 from . import formatting  # noqa: F401 — string formatting utilities
 from . import filesystem  # noqa: F401 — filesystem utilities
 from . import yaml  # noqa: F401 — YAML serialization
+from . import platform_  # noqa: F401 — platform abstraction
