@@ -163,7 +163,22 @@ for p in rez.iter_packages("maya"):
 | `rez_next.utils.filesystem` | `rez.utils.filesystem` | Filesystem utilities |
 | `rez_next.utils.formatting` | `rez.utils.formatting` | Output formatting |
 | `rez_next.utils.logging_` | `rez.utils.logging_` | Logging utilities |
+| `rez_next.utils.yaml` | `rez.utils.yaml` | YAML utilities |
+| `rez_next.utils.colorize` | `rez.utils.colorize` | Terminal color output |
+| `rez_next.utils.platform_` | `rez.utils.platform_` | Platform detection |
 | `rez_next.vendor.version` | `rez.vendor.version` | Vendored version module |
+| `rez_next.package_copy` | `rez.package_copy` | Package copy operations |
+| `rez_next.package_move` | `rez.package_move` | Package move operations |
+| `rez_next.package_order` | `rez.package_order` | Package sorting strategies |
+| `rez_next.package_bind` | `rez.package_bind` | Package bind utilities |
+| `rez_next.package_resources` | `rez.package_resources` | Package resource management |
+| `rez_next.package_serialise` | `rez.package_serialise` | Package serialization |
+| `rez_next.package_filter` | `rez.package_filter` | Filter rules (glob/range/regex) |
+| `rez_next.package_test` | `rez.package_test` | Package test runner |
+| `rez_next.developer_package` | `rez.developer_package` | Developer package workflow |
+| `rez_next.rex_bindings` | `rez.rex_bindings` | Rex low-level bindings |
+| `rez_next.shells` | `rez.shells` | Shell type registry |
+| `rez_next.rezconfig` | `rez.rezconfig` | Config defaults (100+ fields) |
 
 ### API Examples
 

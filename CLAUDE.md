@@ -43,11 +43,11 @@ use rez_next_package::Package;
 ### 5. Documentation Updates
 
 When updating documentation:
-1. Update AGENTS.md if project structure changes
-2. Update llms.txt if AI-facing usage index changes
-3. Update llms-full.txt for detailed API changes
-4. Update docs/*.md for human-facing changes
-5. Update README.md for user-facing changes
+1. Update AGENTS.md (project map) if structure changes
+2. Update llms.txt (AI-friendly concise index) if submodule list changes
+3. Update llms-full.txt (complete API reference) for new APIs
+4. Update docs/*.md (human guides) for workflow changes
+5. Update README.md / README_zh.md for user-facing changes
 
 ### 6. Commit Messages
 

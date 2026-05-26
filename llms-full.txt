@@ -524,6 +524,116 @@ logger = get_logger(__name__)
 logger.info("Processing package...")
 ```
 
+### Package Copy / Move / Order
+
+```python
+from rez_next.package_copy import copy_package
+from rez_next.package_move import move_package
+from rez_next.package_order import (
+    NullPackageOrder, SortedOrder, VersionSplitOrder,
+    TimestampPackageOrder, PackageOrderList, sort_packages,
+)
+
+# Copy a package
+copy_package(pkg, "/new/path")
+
+# Move a package
+move_package(pkg, "/new/path")
+
+# Sort packages by different strategies
+order = SortedOrder(descending=True)
+sorted_list = sort_packages(packages, order)
+```
+
+### Package Resources / Serialise
+
+```python
+from rez_next.package_resources import (
+    find_package_resource, list_package_resources, open_package_resource,
+)
+from rez_next.package_serialise import (
+    serialise_package, deserialise_package,
+    PackageSerialisationFormat,
+)
+
+# Access package-embedded resources
+path = find_package_resource(pkg, "icons/icon.png")
+contents = open_package_resource(pkg, "README.md").read()
+
+# Serialize packages to/from formats
+json_str = serialise_package(pkg, format=PackageSerialisationFormat.JSON)
+pkg2 = deserialise_package(json_str, format=PackageSerialisationFormat.JSON)
+```
+
+### Package Filter
+
+```python
+from rez_next.package_filter import (
+    PackageFilter, PackageFilterList,
+    GlobRule, RangeRule, RegexRule,
+)
+
+# Glob-based filter
+glob = GlobRule("python-3.*")
+glob.matches(pkg)
+
+# Range-based filter
+range_rule = RangeRule("maya", ">=2023,<2026")
+
+# Regex-based filter
+regex = RegexRule(r"^maya-202[3-4]", field="name")
+
+# Combined filter list
+filters = PackageFilterList()
+filters.add_inclusion(glob)
+filters.add_exclusion(range_rule)
+print(f"Total cost: {filters.cost()}")
+```
+
+### Package Bind / Developer Package
+
+```python
+from rez_next.package_bind import bind_package, unbind_package
+from rez_next.developer_package import DeveloperPackage
+
+# Bind a system tool as a rez package
+bind_package("ffmpeg", path="/usr/bin/ffmpeg")
+
+# Developer package mode (local dev)
+dev_pkg = DeveloperPackage("/path/to/my_package")
+dev_pkg.install()
+```
+
+### Shells / Rex Bindings
+
+```python
+from rez_next.shells import Shell, get_shell_types
+from rez_next.rex_bindings import RexBindings
+
+# List available shell types
+for shell_name in get_shell_types():
+    print(shell_name)  # bash, zsh, fish, powershell, cmd
+
+# Generate shell script
+shell = Shell("powershell")
+script = shell.generate_activation_script(ctx)
+```
+
+### Resolver
+
+```python
+from rez_next.resolver import resolve_package, Resolver
+
+# Simple resolution
+ctx = resolve_package("python-3.9")
+
+# Advanced resolution
+resolver = Resolver()
+resolver.add_request("python-3.9")
+resolver.add_request("maya-2024")
+ctx = resolver.solve()
+```
+
 ### Vendor (Version)
 
 ```python
@@ -531,6 +641,24 @@ from rez_next.vendor.version import Version
 
 v = Version("1.2.3")
 print(v.major, v.minor, v.patch)
+```
+
+### Utils Extended (colorize / data_utils / platform_)
+
+```python
+from rez_next.utils.colorize import colorize, Colors
+from rez_next.utils.data_utils import read_data_file
+from rez_next.utils.platform_ import Platform
+
+# Terminal color output
+print(colorize("Success!", Colors.GREEN))
+
+# Read built-in data files
+content = read_data_file("completions/bash.sh")
+
+# Platform detection
+p = Platform()
+print(p.name, p.arch, p.os_version)
 ```
 
 ---

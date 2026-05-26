@@ -63,15 +63,18 @@ rez_next/
 ├── resolver.py             # rez_next.resolver
 ├── utils/                  # rez_next.utils subpackage
 │   ├── __init__.py
+│   ├── colorize.py
+│   ├── data_utils.py
 │   ├── filesystem.py
 │   ├── formatting.py
 │   ├── logging_.py
+│   ├── platform_.py
 │   ├── resources.py
 │   └── yaml.py
 ├── vendor/                 # rez_next.vendor subpackage
 │   ├── __init__.py
 │   └── version.py
-└── ...                     # (58 submodules total)
+└── ...                     # (67 .py files, 56+ submodules)
 ```
 
 ## Implemented Python Submodules
@@ -131,7 +134,23 @@ rez_next/
 | `rez_next.utils.formatting` | `rez.utils.formatting` | Output formatting | ✅ Stable |
 | `rez_next.utils.logging_` | `rez.utils.logging_` | Logging utilities | ✅ Stable |
 | `rez_next.utils.yaml` | `rez.utils.yaml` | YAML utilities | ✅ Stable |
+| `rez_next.utils.resources` | `rez.utils.resources` | Resource loading utilities | ✅ Stable |
+| `rez_next.utils.colorize` | `rez.utils.colorize` | Terminal color output | ✅ Stable |
+| `rez_next.utils.data_utils` | `rez.utils.data_utils` | Data file helpers | ✅ Stable |
+| `rez_next.utils.platform_` | `rez.utils.platform_` | Platform detection utilities | ✅ Stable |
 | `rez_next.vendor.version` | `rez.vendor.version` | Vendored version module | ✅ Stable |
+| `rez_next.package_copy` | `rez.package_copy` | Package copy operations | ✅ Stable |
+| `rez_next.package_move` | `rez.package_move` | Package move operations | ✅ Stable |
+| `rez_next.package_order` | `rez.package_order` | Package ordering strategies | ✅ Stable |
+| `rez_next.package_bind` | `rez.package_bind` | Package bind utilities | ✅ Stable |
+| `rez_next.package_resources` | `rez.package_resources` | Package resource management | ✅ Stable |
+| `rez_next.package_serialise` | `rez.package_serialise` | Package serialization | ✅ Stable |
+| `rez_next.package_filter` | `rez.package_filter` | Package filter rules | ✅ Stable |
+| `rez_next.package_test` | `rez.package_test` | Package test runner | ✅ Stable |
+| `rez_next.developer_package` | `rez.developer_package` | Developer package support | ✅ Stable |
+| `rez_next.rex_bindings` | `rez.rex_bindings` | Rex low-level bindings | ✅ Stable |
+| `rez_next.shells` | `rez.shells` | Shell type registry | ✅ Stable |
+| `rez_next.rezconfig` | `rez.rezconfig` | Config defaults module | ✅ Stable |
 
 ## Quick Start
 

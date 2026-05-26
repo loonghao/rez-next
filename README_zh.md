@@ -163,7 +163,22 @@ for p in rez.iter_packages("maya"):
 | `rez_next.utils.filesystem` | `rez.utils.filesystem` | 文件系统工具 |
 | `rez_next.utils.formatting` | `rez.utils.formatting` | 输出格式化 |
 | `rez_next.utils.logging_` | `rez.utils.logging_` | 日志工具 |
+| `rez_next.utils.yaml` | `rez.utils.yaml` | YAML 工具 |
+| `rez_next.utils.colorize` | `rez.utils.colorize` | 终端颜色输出 |
+| `rez_next.utils.platform_` | `rez.utils.platform_` | 平台检测 |
 | `rez_next.vendor.version` | `rez.vendor.version` | 内置版本模块 |
+| `rez_next.package_copy` | `rez.package_copy` | 包复制操作 |
+| `rez_next.package_move` | `rez.package_move` | 包移动操作 |
+| `rez_next.package_order` | `rez.package_order` | 包排序策略 |
+| `rez_next.package_bind` | `rez.package_bind` | 包绑定工具 |
+| `rez_next.package_resources` | `rez.package_resources` | 包资源管理 |
+| `rez_next.package_serialise` | `rez.package_serialise` | 包序列化 |
+| `rez_next.package_filter` | `rez.package_filter` | 过滤规则 (glob/range/regex) |
+| `rez_next.package_test` | `rez.package_test` | 包测试运行器 |
+| `rez_next.developer_package` | `rez.developer_package` | 开发者包工作流 |
+| `rez_next.rex_bindings` | `rez.rex_bindings` | Rex 底层绑定 |
+| `rez_next.shells` | `rez.shells` | Shell 类型注册 |
+| `rez_next.rezconfig` | `rez.rezconfig` | 配置默认值 (100+ 字段) |
 
 ### API 示例
 
