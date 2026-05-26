@@ -1,6 +1,8 @@
 # rez-next - AI Agent Guide
 
 > **Progressive disclosure map** — start here, then follow links to details.
+>
+> **Disclosure chain**: this file → [llms.txt](./llms.txt) (concise AI index) → [llms-full.txt](./llms-full.txt) (full API reference) → [docs/](./docs/) (human guides)
 
 ## Project Overview
 
@@ -9,8 +11,11 @@ rez-next is a **high-performance Rust rewrite** of the [Rez](https://github.com/
 **Key facts for agents:**
 - Language: Rust 2024 edition (MSRV 1.95) + Python 3.8+ bindings (PyO3 abi3)
 - Build system: Cargo workspace (20 crates) + Maturin for Python
-- Current version: 0.3.4
+- Current version: 0.3.4 (see [CHANGELOG.md](./CHANGELOG.md))
 - License: Apache 2.0
+- Python modules: **56+ submodules** (67 .py files) covering most Rez APIs
+- Native: **43 registered** PyO3 submodules, 25 native classes, ~50 top-level functions
+- Tests: **111 test files** (56 Python + 46 Rust + 9 fixtures)
 - Status: Many workflows work with `import rez_next as rez`, but **not yet a seamless drop-in** for every API surface
 
 ## Quick Start
@@ -184,7 +189,7 @@ result = diff_contexts(["python-3.9"], ["python-3.11", "maya-2024"])
 
 ⚠️ **Not all Rez features are implemented** — check coverage before suggesting code changes
 
-⚠️ **Python bindings are partial** — `rez-next-python` has 37 submodules, not full Rez coverage
+⚠️ **Python bindings are partial** — `rez_next` has 56+ submodules, covering most Rez APIs but not every edge case
 
 ⚠️ **Breaking changes possible** — pre-1.0 project, API may change
 

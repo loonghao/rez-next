@@ -1,6 +1,6 @@
 # rez-next
 
-[![Rust](https://img.shields.io/badge/rust-1.70+-orange.svg)](https://www.rust-lang.org)
+[![Rust](https://img.shields.io/badge/rust-1.95+-orange.svg)](https://www.rust-lang.org)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 [![CI](https://img.shields.io/github/actions/workflow/status/loonghao/rez-next/ci.yml?branch=main)](https://github.com/loonghao/rez-next/actions)
 [![GitHub Release](https://img.shields.io/github/v/release/loonghao/rez-next)](https://github.com/loonghao/rez-next/releases)
@@ -113,30 +113,72 @@ for p in rez.iter_packages("maya"):
 |--------|--------------|------|
 | `rez_next.version` | `rez.vendor.version` | 版本解析、比较、范围 |
 | `rez_next.packages_` | `rez.packages_` | 包迭代、查询、复制/移动/删除 |
+| `rez_next.packages` | `rez.packages` | 包对象模型 |
 | `rez_next.resolved_context` | `rez.resolved_context` | 依赖解析、上下文管理 |
 | `rez_next.suite` | `rez.suite` | Suite 创建、工具链管理 |
-| `rez_next.config` | `rez.config` | 配置读取 |
+| `rez_next.config` | `rez.config` | 配置读取（100+ 字段）|
 | `rez_next.system` | `rez.system` | 系统信息（平台、Python版本等） |
 | `rez_next.shell` | `rez.shells` | Shell 脚本生成（bash/zsh/fish/PowerShell/cmd）|
 | `rez_next.rex` | `rez.rex` | Rex 命令语言解释器 |
 | `rez_next.build_` | `rez.build_` | 包构建系统集成 |
+| `rez_next.build_process` | `rez.build_process` | 构建流程编排 |
+| `rez_next.build_system` | `rez.build_system` | 构建系统抽象 |
+| `rez_next.build_plugins` | `rez.build_plugins` | 构建插件 |
 | `rez_next.release` | `rez.release` | 包发布流程 |
+| `rez_next.release_hook` | `rez.release_hook` | 发布钩子 |
+| `rez_next.release_vcs` | `rez.release_vcs` | VCS 发布集成 |
 | `rez_next.bind` | `rez.bind` | 系统工具绑定为 rez 包 |
 | `rez_next.pip` | `rez.pip` | pip 包转换为 rez 包 |
 | `rez_next.plugins` | `rez.plugins` | 插件管理 |
+| `rez_next.plugin_managers` | `rez.plugin_managers` | 插件管理器实现 |
 | `rez_next.env` | `rez.env` | 环境创建与激活 |
 | `rez_next.source` | `rez.source` | 上下文激活脚本生成 |
 | `rez_next.bundles` | `rez.bundles` | 上下文打包（离线使用）|
+| `rez_next.bundle_context` | `rez.bundle_context` | 可重定位上下文打包 |
 | `rez_next.forward` | `rez.forward` | Shell 前向兼容脚本 |
 | `rez_next.search` | `rez.cli.search` | 包搜索（精确/包含/正则）|
 | `rez_next.complete` | `rez.cli.complete` | Shell tab 补全脚本生成 |
 | `rez_next.diff` | `rez.cli.diff` | 两个已解析上下文的差异比对 |
 | `rez_next.status` | `rez.cli.status` | 当前激活上下文状态查询 |
 | `rez_next.depends` | `rez.cli.depends` | 反向依赖查询 |
-| `rez_next.data` | `rez.data` | 内置数据资源（补全脚本、示例）|
+| `rez_next.data` | `rez.data` | 内置数据资源 |
 | `rez_next.cli` | `rez.cli` | CLI 入口（程序化调用）|
 | `rez_next.exceptions` | `rez.exceptions` | 异常类 |
+| `rez_next.deprecations` | `rez.utils.deprecations` | 弃用警告 |
+| `rez_next.package_cache` | `rez.package_cache` | 包负载缓存 |
+| `rez_next.package_help` | `rez.package_help` | 包帮助 |
+| `rez_next.package_maker` | `rez.package_maker` | 编程式包创建 |
+| `rez_next.package_repository` | `rez.package_repository` | 包仓库抽象 |
+| `rez_next.package_search` | `rez.package_search` | 包搜索 API |
+| `rez_next.package_remove` | `rez.package_remove` | 包删除 |
+| `rez_next.solver_` | `rez.solver` | 依赖求解器 |
+| `rez_next.solver` | `rez.solver` | 高级求解器 API |
+| `rez_next.serialise_` | `rez.serialise` | 序列化支持 |
+| `rez_next.test` | `rez.test` | 包测试 |
+| `rez_next.util` | `rez.utils` | 工具函数 |
+| `rez_next.command` | `rez.utils.command` | 命令执行 |
+| `rez_next.wrapper` | `rez.utils.wrapper` | 工具执行包装器 |
+| `rez_next.resolver` | `rez.resolver` | 包解析器 |
 | `rez_next.utils.resources` | `rez.utils.resources` | 资源加载工具 |
+| `rez_next.utils.filesystem` | `rez.utils.filesystem` | 文件系统工具 |
+| `rez_next.utils.formatting` | `rez.utils.formatting` | 输出格式化 |
+| `rez_next.utils.logging_` | `rez.utils.logging_` | 日志工具 |
+| `rez_next.utils.yaml` | `rez.utils.yaml` | YAML 工具 |
+| `rez_next.utils.colorize` | `rez.utils.colorize` | 终端颜色输出 |
+| `rez_next.utils.platform_` | `rez.utils.platform_` | 平台检测 |
+| `rez_next.vendor.version` | `rez.vendor.version` | 内置版本模块 |
+| `rez_next.package_copy` | `rez.package_copy` | 包复制操作 |
+| `rez_next.package_move` | `rez.package_move` | 包移动操作 |
+| `rez_next.package_order` | `rez.package_order` | 包排序策略 |
+| `rez_next.package_bind` | `rez.package_bind` | 包绑定工具 |
+| `rez_next.package_resources` | `rez.package_resources` | 包资源管理 |
+| `rez_next.package_serialise` | `rez.package_serialise` | 包序列化 |
+| `rez_next.package_filter` | `rez.package_filter` | 过滤规则 (glob/range/regex) |
+| `rez_next.package_test` | `rez.package_test` | 包测试运行器 |
+| `rez_next.developer_package` | `rez.developer_package` | 开发者包工作流 |
+| `rez_next.rex_bindings` | `rez.rex_bindings` | Rex 底层绑定 |
+| `rez_next.shells` | `rez.shells` | Shell 类型注册 |
+| `rez_next.rezconfig` | `rez.rezconfig` | 配置默认值 (100+ 字段) |
 
 ### API 示例
 
@@ -252,22 +294,29 @@ print(script)
 
 ## 架构
 
-Cargo workspace 包含 13 个 crate，其中 `rez-next-python` 提供 Python bindings：
+Cargo workspace 包含 20 个 crate，其中 `rez-next-python` 提供 Python bindings：
 
 ```
-rez-next-common       共享错误类型、配置、工具函数
-rez-next-version      版本解析、比较、范围（状态机解析器）
-rez-next-package      包定义、package.py 解析（RustPython AST）
-rez-next-solver       依赖求解（A* 算法 + 回溯 + 环检测）
-rez-next-repository   仓库扫描和缓存
-rez-next-context      已解析上下文、Rex 集成、序列化
-rez-next-build        构建系统集成（cmake/make/python/cargo/nodejs）
-rez-next-cache        多级缓存（内存 + 磁盘）
-rez-next-rex          Rex 命令语言（完整 DSL + 5 种 shell 激活脚本）
-rez-next-suites       Suite 管理（已解析上下文集合）
-rez-next-bind         系统工具绑定（python/cmake/pip/git 等）
-rez-next-search       包搜索（精确/包含/正则 FilterMode）
-rez-next-python       Python 绑定 via PyO3（18 个子模块）
+rez-next-common        共享错误类型、配置、工具函数
+rez-next-config        配置加载与校验
+rez-next-version       版本解析、比较、范围（状态机解析器）
+rez-next-package       包定义、package.py 解析（RustPython AST）
+rez-next-package-cache 包负载缓存
+rez-next-package-filter 包过滤（glob, regex, range rules）
+rez-next-solver        依赖求解（A* 算法 + 回溯 + 环检测）
+rez-next-repository    仓库扫描和缓存
+rez-next-context       已解析上下文、Rex 集成、序列化
+rez-next-build         构建系统集成（cmake/make/python/cargo/nodejs）
+rez-next-cache         多级缓存（内存 + 磁盘）
+rez-next-rex           Rex 命令语言（完整 DSL + 5 种 shell 激活脚本）
+rez-next-suites        Suite 管理（已解析上下文集合）
+rez-next-bind          系统工具绑定（python/cmake/pip/git 等）
+rez-next-search        包搜索（精确/包含/正则 FilterMode）
+rez-next-explicit      显式包列表
+rez-next-serialise     包序列化
+rez-next-release-hook  发布钩子
+rez-next-util          工具函数（命令执行等）
+rez-next-python        Python 绑定 via PyO3（58 个子模块）
 ```
 
 ### 各组件状态
@@ -277,6 +326,7 @@ rez-next-python       Python 绑定 via PyO3（18 个子模块）
 | `rez-next-version` | 核心能力较成熟 | ~30 |
 | `rez-next-package` | 核心能力较成熟 | ~25 |
 | `rez-next-common` | 核心能力较成熟 | ~10 |
+| `rez-next-config` | 稳定 | ~8 |
 | `rez-next-rex` | 核心能力较成熟 | ~20 |
 | `rez-next-solver` | 持续演进中（A* 已启用）| ~15 |
 | `rez-next-context` | 持续演进中 | ~12 |
@@ -286,7 +336,13 @@ rez-next-python       Python 绑定 via PyO3（18 个子模块）
 | `rez-next-suites` | 持续演进中 | ~10 |
 | `rez-next-bind` | 持续演进中 | ~37 |
 | `rez-next-search` | 持续演进中 | ~16 |
-| `rez-next-python` | 部分兼容（18 个子模块） | ~101 |
+| `rez-next-package-cache` | 稳定 | ~8 |
+| `rez-next-package-filter` | 稳定 | ~12 |
+| `rez-next-release-hook` | 稳定 | ~6 |
+| `rez-next-serialise` | 稳定 | ~5 |
+| `rez-next-explicit` | 稳定 | ~5 |
+| `rez-next-util` | 稳定 | ~5 |
+| `rez-next-python` | 部分兼容（58 个子模块） | ~125 |
 | Compat integration | 覆盖面持续增长 | ~210 |
 
 ---
@@ -301,19 +357,19 @@ cargo build --release
 
 ### 前置条件
 
-- Rust 1.70+
+- Rust 1.95+
 - [just](https://github.com/casey/just)（可选，便捷命令）
 
 ### 常用命令
 
 ```bash
-just build           # 开发构建
-just build-release   # 发布构建
-just test            # 运行所有测试
-just lint            # Clippy
-just fmt             # 格式化
-just ci              # 完整 CI 检查
-just bench           # 基准测试
+vx just build           # 开发构建
+vx just build-release   # 发布构建
+vx just test            # 运行所有测试
+vx just lint            # Clippy
+vx just fmt             # 格式化
+vx just ci              # 完整 CI 检查
+vx just bench           # 基准测试
 ```
 
 ---
@@ -396,10 +452,17 @@ cargo bench --bench simple_package_benchmark
 ## 文档
 
 - [贡献指南](docs/contributing.md) — 开发工作流和 CI
+- [Python 集成](docs/python-integration_zh.md) — Python 绑定使用说明与模块覆盖
 - [基准测试指南](docs/benchmark_guide.md) — 运行和解读基准测试
 - [性能指南](docs/performance.md) — 性能分析工具
-- [Python 集成](docs/python-integration_zh.md) — Python 绑定使用说明
 - [Pre-commit 配置](docs/PRE_COMMIT_SETUP.md) — 代码质量钩子
+
+### 面向 AI Agent
+- [AGENTS.md](AGENTS.md) — 渐进式信息披露地图（从这里开始）
+- [llms.txt](llms.txt) — AI 友好的精简用法索引
+- [llms-full.txt](llms-full.txt) — 完整 API 参考
+- [CLAUDE.md](CLAUDE.md) — Claude 专用指南
+- [GEMINI.md](GEMINI.md) — Gemini 专用指南
 
 ---
 

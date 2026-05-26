@@ -1,6 +1,6 @@
 # rez-next
 
-[![Rust](https://img.shields.io/badge/rust-1.70+-orange.svg)](https://www.rust-lang.org)
+[![Rust](https://img.shields.io/badge/rust-1.95+-orange.svg)](https://www.rust-lang.org)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 [![CI](https://img.shields.io/github/actions/workflow/status/loonghao/rez-next/ci.yml?branch=main)](https://github.com/loonghao/rez-next/actions)
 [![GitHub Release](https://img.shields.io/github/v/release/loonghao/rez-next)](https://github.com/loonghao/rez-next/releases)
@@ -113,20 +113,28 @@ for p in rez.iter_packages("maya"):
 |-----------|----------------------|---------------|
 | `rez_next.version` | `rez.vendor.version` | Version parsing, comparison, ranges |
 | `rez_next.packages_` | `rez.packages_` | Package iteration, queries, copy/move/remove |
+| `rez_next.packages` | `rez.packages` | Package object model |
 | `rez_next.resolved_context` | `rez.resolved_context` | Dependency resolution, context management |
 | `rez_next.suite` | `rez.suite` | Suite creation and tool-chain management |
-| `rez_next.config` | `rez.config` | Configuration reading |
+| `rez_next.config` | `rez.config` | Configuration reading (100+ fields) |
 | `rez_next.system` | `rez.system` | System info (platform, Python version, etc.) |
 | `rez_next.shell` | `rez.shells` | Shell script generation (bash/zsh/fish/PowerShell/cmd) |
 | `rez_next.rex` | `rez.rex` | Rex command-language interpreter |
 | `rez_next.build_` | `rez.build_` | Package build system integration |
+| `rez_next.build_process` | `rez.build_process` | Build process orchestration |
+| `rez_next.build_system` | `rez.build_system` | Build system abstraction |
+| `rez_next.build_plugins` | `rez.build_plugins` | Build plugins |
 | `rez_next.release` | `rez.release` | Package release workflow |
+| `rez_next.release_hook` | `rez.release_hook` | Release hooks |
+| `rez_next.release_vcs` | `rez.release_vcs` | VCS integration for releases |
 | `rez_next.bind` | `rez.bind` | Bind system tools as rez packages |
 | `rez_next.pip` | `rez.pip` | Convert pip packages to rez packages |
 | `rez_next.plugins` | `rez.plugins` | Plugin management |
+| `rez_next.plugin_managers` | `rez.plugin_managers` | Plugin manager implementations |
 | `rez_next.env` | `rez.env` | Environment creation and activation |
 | `rez_next.source` | `rez.source` | Context activation script generation |
 | `rez_next.bundles` | `rez.bundles` | Context bundling (offline use) |
+| `rez_next.bundle_context` | `rez.bundle_context` | Relocatable context bundles |
 | `rez_next.forward` | `rez.forward` | Shell forward-compatibility scripts |
 | `rez_next.search` | `rez.cli.search` | Package search (exact / contains / regex) |
 | `rez_next.complete` | `rez.cli.complete` | Shell tab-completion script generation |
@@ -136,7 +144,41 @@ for p in rez.iter_packages("maya"):
 | `rez_next.data` | `rez.data` | Built-in data resources (completion scripts, examples) |
 | `rez_next.cli` | `rez.cli` | CLI entry-points (programmatic invocation) |
 | `rez_next.exceptions` | `rez.exceptions` | Exception hierarchy |
+| `rez_next.deprecations` | `rez.utils.deprecations` | Deprecation warnings |
+| `rez_next.package_cache` | `rez.package_cache` | Package payload cache |
+| `rez_next.package_help` | `rez.package_help` | Package help |
+| `rez_next.package_maker` | `rez.package_maker` | Programmatic package creation |
+| `rez_next.package_repository` | `rez.package_repository` | Package repository abstraction |
+| `rez_next.package_search` | `rez.package_search` | Package search API |
+| `rez_next.package_remove` | `rez.package_remove` | Package removal |
+| `rez_next.solver_` | `rez.solver` | Dependency solver |
+| `rez_next.solver` | `rez.solver` | Advanced solver API |
+| `rez_next.serialise_` | `rez.serialise` | Serialization support |
+| `rez_next.test` | `rez.test` | Package testing |
+| `rez_next.util` | `rez.utils` | Utility functions |
+| `rez_next.command` | `rez.utils.command` | Command execution |
+| `rez_next.wrapper` | `rez.utils.wrapper` | Tool execution wrappers |
+| `rez_next.resolver` | `rez.resolver` | Package resolver |
 | `rez_next.utils.resources` | `rez.utils.resources` | Resource loading utilities |
+| `rez_next.utils.filesystem` | `rez.utils.filesystem` | Filesystem utilities |
+| `rez_next.utils.formatting` | `rez.utils.formatting` | Output formatting |
+| `rez_next.utils.logging_` | `rez.utils.logging_` | Logging utilities |
+| `rez_next.utils.yaml` | `rez.utils.yaml` | YAML utilities |
+| `rez_next.utils.colorize` | `rez.utils.colorize` | Terminal color output |
+| `rez_next.utils.platform_` | `rez.utils.platform_` | Platform detection |
+| `rez_next.vendor.version` | `rez.vendor.version` | Vendored version module |
+| `rez_next.package_copy` | `rez.package_copy` | Package copy operations |
+| `rez_next.package_move` | `rez.package_move` | Package move operations |
+| `rez_next.package_order` | `rez.package_order` | Package sorting strategies |
+| `rez_next.package_bind` | `rez.package_bind` | Package bind utilities |
+| `rez_next.package_resources` | `rez.package_resources` | Package resource management |
+| `rez_next.package_serialise` | `rez.package_serialise` | Package serialization |
+| `rez_next.package_filter` | `rez.package_filter` | Filter rules (glob/range/regex) |
+| `rez_next.package_test` | `rez.package_test` | Package test runner |
+| `rez_next.developer_package` | `rez.developer_package` | Developer package workflow |
+| `rez_next.rex_bindings` | `rez.rex_bindings` | Rex low-level bindings |
+| `rez_next.shells` | `rez.shells` | Shell type registry |
+| `rez_next.rezconfig` | `rez.rezconfig` | Config defaults (100+ fields) |
 
 ### API Examples
 
@@ -252,22 +294,29 @@ print(script)
 
 ## Architecture
 
-A Cargo workspace with 13 crates, including `rez-next-python` for Python bindings:
+A Cargo workspace with 20 crates, including `rez-next-python` for Python bindings:
 
 ```
-rez-next-common       Shared error types, config, utilities
-rez-next-version      Version parsing, comparison, ranges (state-machine parser)
-rez-next-package      Package definition, package.py parsing (RustPython AST)
-rez-next-solver       Dependency resolution (A* algorithm + backtracking + cycle detection)
-rez-next-repository   Repository scanning and caching
-rez-next-context      Resolved context, Rex integration, serialization
-rez-next-build        Build system integration (cmake/make/python/cargo/nodejs)
-rez-next-cache        Multi-level caching (memory + disk)
-rez-next-rex          Rex command language (full DSL + 5 shell activation scripts)
-rez-next-suites       Suite management (collections of resolved contexts)
-rez-next-bind         Bind system tools (python/cmake/pip/git, etc.)
-rez-next-search       Package search (exact / contains / regex FilterMode)
-rez-next-python       Python bindings via PyO3 (18 submodules)
+rez-next-common        Shared error types, config, utilities
+rez-next-config        Config loading & validation
+rez-next-version       Version parsing, comparison, ranges (state-machine parser)
+rez-next-package       Package definition, package.py parsing (RustPython AST)
+rez-next-package-cache Package payload caching
+rez-next-package-filter Package filter (glob, regex, range rules)
+rez-next-solver        Dependency resolution (A* algorithm + backtracking + cycle detection)
+rez-next-repository    Repository scanning and caching
+rez-next-context       Resolved context, Rex integration, serialization
+rez-next-build         Build system integration (cmake/make/python/cargo/nodejs)
+rez-next-cache         Multi-level caching (memory + disk)
+rez-next-rex           Rex command language (full DSL + 5 shell activation scripts)
+rez-next-suites        Suite management (collections of resolved contexts)
+rez-next-bind          Bind system tools (python/cmake/pip/git, etc.)
+rez-next-search        Package search (exact / contains / regex FilterMode)
+rez-next-explicit      Explicit package lists
+rez-next-serialise     Package serialization
+rez-next-release-hook  Release hooks
+rez-next-util          Utility functions (command runner, etc.)
+rez-next-python        Python bindings via PyO3 (58 submodules)
 ```
 
 ### Component status
@@ -277,6 +326,7 @@ rez-next-python       Python bindings via PyO3 (18 submodules)
 | `rez-next-version` | Mature core | ~30 |
 | `rez-next-package` | Mature core | ~25 |
 | `rez-next-common` | Mature core | ~10 |
+| `rez-next-config` | Stable | ~8 |
 | `rez-next-rex` | Mature core | ~20 |
 | `rez-next-solver` | Active development (A* enabled) | ~15 |
 | `rez-next-context` | Active development | ~12 |
@@ -286,7 +336,13 @@ rez-next-python       Python bindings via PyO3 (18 submodules)
 | `rez-next-suites` | Active development | ~10 |
 | `rez-next-bind` | Active development | ~37 |
 | `rez-next-search` | Active development | ~16 |
-| `rez-next-python` | Partial compatibility (18 submodules) | ~125 |
+| `rez-next-package-cache` | Stable | ~8 |
+| `rez-next-package-filter` | Stable | ~12 |
+| `rez-next-release-hook` | Stable | ~6 |
+| `rez-next-serialise` | Stable | ~5 |
+| `rez-next-explicit` | Stable | ~5 |
+| `rez-next-util` | Stable | ~5 |
+| `rez-next-python` | Partial compatibility (58 submodules) | ~125 |
 | Compat integration tests | Growing coverage | ~210 |
 
 ---
@@ -301,19 +357,19 @@ cargo build --release
 
 ### Prerequisites
 
-- Rust 1.70+
+- Rust 1.95+
 - [just](https://github.com/casey/just) (optional, convenience commands)
 
 ### Common commands
 
 ```bash
-just build           # Dev build
-just build-release   # Release build
-just test            # Run all tests
-just lint            # Clippy
-just fmt             # Format
-just ci              # Full CI check
-just bench           # Benchmarks
+vx just build           # Dev build
+vx just build-release   # Release build
+vx just test            # Run all tests
+vx just lint            # Clippy
+vx just fmt             # Format
+vx just ci              # Full CI check
+vx just bench           # Benchmarks
 ```
 
 ---
@@ -397,10 +453,17 @@ Measured with `pytest-benchmark` (Python layer over Rust core).
 ## Documentation
 
 - [Contributing](docs/contributing.md) — development workflow and CI
+- [Python Integration](docs/python-integration.md) — Python bindings usage and module coverage
 - [Benchmark Guide](docs/benchmark_guide.md) — running and interpreting benchmarks
 - [Performance Guide](docs/performance.md) — profiling tools
-- [Python Integration](docs/python-integration.md) — Python bindings usage
 - [Pre-commit Setup](docs/PRE_COMMIT_SETUP.md) — code quality hooks
+
+### For AI Agents
+- [AGENTS.md](AGENTS.md) — progressive disclosure map (start here)
+- [llms.txt](llms.txt) — AI-friendly concise usage index
+- [llms-full.txt](llms-full.txt) — complete API reference
+- [CLAUDE.md](CLAUDE.md) — Claude-specific guidance
+- [GEMINI.md](GEMINI.md) — Gemini-specific guidance
 
 ---
 
