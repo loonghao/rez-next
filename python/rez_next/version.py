@@ -13,31 +13,8 @@ Provides version-related classes and utilities aligning with ``rez.version`` API
 """
 from __future__ import annotations
 
-from pathlib import Path
-import runpy
+from rez_next._native.vendor.version import *  # noqa: F401,F403
 
-_IMPL = (
-    Path(__file__).resolve().parents[2]
-    / "crates"
-    / "rez-next-python"
-    / "python"
-    / "rez_next"
-    / "vendor"
-    / "version.py"
-)
-
-# Export version classes and utilities
-_version_globals = runpy.run_path(str(_IMPL))
-globals().update(_version_globals)
-
-# Additional re-exports for convenience
-try:
-    from rez_next.vendor.version import (  # type: ignore[import-untyped]  # noqa: F401,F811
-        Version as Version,
-        VersionRange as VersionRange,
-    )
-except ImportError:
-    pass
 
 # Version-related exception classes
 class ParseException(ValueError):
@@ -67,7 +44,7 @@ def reverse_sort_key(version):
     except Exception:
         pass
 
-    from rez_next.vendor.version import Version as V
+    from rez_next._native.vendor.version import Version as V
 
     if isinstance(version, V):
         # Use negative of the version's components for reverse order

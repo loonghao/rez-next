@@ -2,13 +2,13 @@
 
 Provides version-related classes and utilities aligning with ``rez.version`` API.
 
-This module wraps the native vendor version module and adds Rez-API-compatible
+This module wraps the native version module and adds Rez-API-compatible
 exception classes and utility functions.
 """
 from __future__ import annotations
 
 import rez_next._native  # noqa: F401
-from rez_next.vendor.version import *  # noqa: F401,F403
+from rez_next._native.vendor.version import *  # noqa: F401,F403
 
 
 class ParseException(ValueError):
@@ -41,7 +41,7 @@ def reverse_sort_key(version):
     except Exception:
         pass
 
-    from rez_next.vendor.version import Version as V
+    from rez_next._native.vendor.version import Version as V
 
     if isinstance(version, V):
         parts = str(version).split(".")

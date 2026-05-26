@@ -72,7 +72,7 @@ class TestVersionClasses:
         assert r is not None
 
     def test_vendor_version_import(self):
-        from rez_next.vendor.version import Version, VersionRange
+        from rez_next._native.vendor.version import Version, VersionRange
         v = Version("2.0.0")
         assert str(v) == "2.0.0"
         r = VersionRange(">=1.0,<3.0")
@@ -89,14 +89,14 @@ class TestVersionClasses:
         assert v1 < v2
 
     def test_version_range_any_none(self):
-        from rez_next.vendor.version import VersionRange
+        from rez_next._native.vendor.version import VersionRange
         any_r = VersionRange.any()
         assert any_r.is_any()
         none_r = VersionRange.none()
         assert none_r.is_empty()
 
     def test_version_range_from_str(self):
-        from rez_next.vendor.version import VersionRange, Version
+        from rez_next._native.vendor.version import VersionRange, Version
         r = VersionRange.from_str(">=2.0,<3.0")
         assert r.contains(Version("2.5"))
         assert not r.contains(Version("3.0"))
