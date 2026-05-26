@@ -5,6 +5,8 @@ This module provides a drop-in replacement for Rez.
 """
 
 import os  # noqa: F401
+import warnings  # noqa: F401
+import sys
 
 # Import _native module (try multiple methods)
 try:
@@ -99,8 +101,58 @@ __license__: str = "Apache-2.0"
 # Module root path (matches rez.module_root_path API)
 module_root_path: str = os.path.dirname(os.path.abspath(__file__))
 
-# Emulate rez.action variable (read from env, used for signal handling)
-action = os.getenv("REZ_SIGUSR1_ACTION")
+# ── Logging Initialization ───────────────────────────────────────────────
+# Mirrors upstream rez._init_logging()
+def _init_logging() -> None:
+    """Initialize rez-next logging.
+
+    If ``REZ_LOGGING_CONF`` is set, uses that logging config file.
+    Otherwise, configures a default StreamHandler on the ``rez`` logger.
+    """
+    _logging_conf = os.getenv("REZ_LOGGING_CONF")
+    if _logging_conf:
+        import logging.config
+        logging.config.fileConfig(_logging_conf, disable_existing_loggers=False)
+        return
+
+    import logging
+    _logger = logging.getLogger("rez")
+    _logger.propagate = False
+    _logger.setLevel(logging.DEBUG)
+    if not _logger.handlers:
+        _handler = logging.StreamHandler()
+        _handler.setFormatter(logging.Formatter(
+            fmt="%(asctime)s %(levelname)-8s %(message)s",
+            datefmt="%X",
+        ))
+        _logger.addHandler(_handler)
+
+
+_init_logging()
+
+# ── SIGUSR1 / Signal Handler ─────────────────────────────────────────────
+# Mirrors upstream rez SIGUSR1 handler for debug / stack trace dumping.
+_action = os.getenv("REZ_SIGUSR1_ACTION")
+if _action:
+    try:
+        import signal
+        import traceback
+
+        if _action == "print_stack":
+            def _callback(sig, frame):  # type: ignore
+                txt = "".join(traceback.format_stack(frame))
+                print()
+                print(txt)
+        else:
+            _callback = None  # type: ignore
+
+        if _callback:
+            signal.signal(signal.SIGUSR1, _callback)
+    except (ValueError, OSError, AttributeError):
+        pass  # SIGUSR1 not available on this platform (e.g., Windows)
+
+# Module-level variable for API compat (matches rez.action)
+action: str | None = _action
 
 # Top-level singletons — compatible with `from rez import config`
 config = Config()
@@ -180,3 +232,9 @@ try:
     ResolvedContext.to_dot = _context_to_dot  # type: ignore[name-defined]
 except (NameError, AttributeError):
     pass  # Core classes not yet available — expected in early imports
+
+# ── Deprecation Warnings Filter ──────────────────────────────────────────
+# Mirrors upstream rez behavior: log all rez deprecation warnings by default,
+# bypassing user-defined warning filters.
+if os.getenv("REZ_LOG_DEPRECATION_WARNINGS"):
+    warnings.filterwarnings("default", category=deprecations.RezDeprecationWarning)
