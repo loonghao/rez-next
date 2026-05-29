@@ -73,12 +73,10 @@ pub fn execute_command(command: &str, args: &[&str]) -> RezCoreResult<CommandRes
 pub fn execute_command_with_timeout(
     command: &str,
     args: &[&str],
-    timeout_secs: u64,
+    _timeout_secs: u64,
 ) -> RezCoreResult<CommandResult> {
-    // Note: Proper timeout implementation would require async runtime.
-    // For now, we just execute the command without timeout.
-    // TODO: Implement proper timeout using tokio or similar
-    let _ = timeout_secs; // Suppress unused warning
+    // Stub: proper timeout requires async runtime (tokio/smol).
+    // The _timeout_secs parameter is accepted but not enforced.
     execute_command(command, args)
 }
 

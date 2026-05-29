@@ -10,7 +10,10 @@ use std::env;
 use std::path::Path;
 
 /// Environment manager for generating package environments
-// #[pyclass]  // Temporarily disabled due to DLL issues
+///
+/// Note: PyO3 #[pyclass] is disabled until DLL layout allows safe cross-crate
+/// type sharing. See crates/rez-next-python/src/environment_bindings.rs for
+/// the Python-facing wrapper.
 #[derive(Debug, Clone)]
 pub struct EnvironmentManager {
     /// Configuration for environment generation

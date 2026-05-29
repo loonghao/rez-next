@@ -183,28 +183,17 @@ class Resolver:
         return get_variant(variant_handle, context=self.context)
 
     def _get_cached_solve(self) -> Optional[SolverDict]:
-        """Retrieve cached solve result (stub — implement memcached as needed)."""
-        from rez_next.config import config as cfg
-        memcached_uri = getattr(cfg, "memcached_uri", None)
-        if not memcached_uri:
-            return None
+        """Stub — always returns None (memcached not wired yet).
 
-        try:
-            import memcached  # noqa: F401
-        except ImportError:
-            return None
-
-        # Full memcached implementation would go here with:
-        # 1. Key construction from request + repo_ids + filter_hash + orderers_hash
-        # 2. Variant state invalidation checks
-        # 3. Release time invalidation checks
-        # 4. Timestamp-aware lookup fallback
-        #
-        # For now, return None to always perform a fresh solve
+        Full implementation would:
+        1. Build a cache key from request + repo_ids + filter_hash + orderers_hash
+        2. Check variant state / release time for invalidation
+        3. Return cached SolverDict on hit, None on miss
+        """
         return None
 
     def _set_cached_solve(self, solver_dict: SolverDict) -> None:
-        """Cache a solve result (stub)."""
+        """Stub — cache write is not yet implemented."""
         pass
 
     @staticmethod

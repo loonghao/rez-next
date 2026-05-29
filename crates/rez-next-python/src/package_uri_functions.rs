@@ -183,13 +183,12 @@ fn find_package_in_path(
 #[pyfunction]
 #[pyo3(signature = (uri, paths=None))]
 pub fn get_variant_from_uri(
-    py: Python<'_>,
+    _py: Python<'_>,
     uri: &str,
-    paths: Option<Vec<String>>,
+    _paths: Option<Vec<String>>,
 ) -> PyResult<Option<Py<PyAny>>> {
-    // For now, return None as variant support is not fully implemented
-    // TODO: Implement full variant support
-    let _ = (py, uri, paths);
+    // Stub: variant resolution not yet implemented upstream
+    tracing::debug!("get_variant_from_uri called for '{}' (stub — no variant support yet)", uri);
     Ok(None)
 }
 
@@ -199,14 +198,16 @@ pub fn get_variant_from_uri(
 #[pyfunction]
 #[pyo3(signature = (uri, index=None, paths=None))]
 pub fn get_variant(
-    py: Python<'_>,
+    _py: Python<'_>,
     uri: &str,
     index: Option<usize>,
-    paths: Option<Vec<String>>,
+    _paths: Option<Vec<String>>,
 ) -> PyResult<Option<Py<PyAny>>> {
-    // For now, return None as variant support is not fully implemented
-    // TODO: Implement full variant support
-    let _ = (py, uri, index, paths);
+    // Stub: variant resolution not yet implemented upstream
+    tracing::debug!(
+        "get_variant called for '{}' index={:?} (stub — no variant support yet)",
+        uri, index
+    );
     Ok(None)
 }
 

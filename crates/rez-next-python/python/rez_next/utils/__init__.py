@@ -8,6 +8,7 @@ Mirrors `rez.utils` public API:
 - formatting (string formatting utilities)
 - data_utils (dict merge, diff, caching descriptors, etc.)
 - filesystem (file/symlink utilities)
+- graph_utils (graph manipulation: DOT read/write, pruning, rendering)
 
 Base functions (get_hostname, get_username, which, etc.)
 are exposed via the native _native.util module.
@@ -24,3 +25,4 @@ from . import formatting  # noqa: F401 — string formatting utilities
 from . import filesystem  # noqa: F401 — filesystem utilities
 from . import yaml  # noqa: F401 — YAML serialization
 from . import platform_  # noqa: F401 — platform abstraction (creates global ``platform_`` singleton)
+from . import graph_utils  # noqa: F401 — graph manipulation utilities

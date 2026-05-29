@@ -258,26 +258,24 @@ impl Config {
     }
 
     /// Apply environment variable overrides (REZ_*).
-    /// NOTE: This is a stub — env overrides are parsed but not yet applied
-    /// to the config tree. Full implementation requires nested key traversal
-    /// and type coercion.
+    ///
+    /// REZ_FOO_BAR=42 becomes config["foo"]["bar"] = 42.
+    /// JSON values (booleans, numbers, arrays) are parsed automatically;
+    /// plain strings are stored as strings.
     fn apply_env_overrides(&mut self) -> Result<(), ConfigError> {
-        let mut overrides: Vec<(String, JsonValue)> = Vec::new();
+        let mut count = 0usize;
         for (key, value) in env::vars() {
             if let Some(config_key) = key.strip_prefix("REZ_") {
-                let config_key = config_key.to_lowercase().replace('_', ".");
-                let parsed = serde_json::from_str::<JsonValue>(&value)
+                let dotted = config_key.to_lowercase().replace('_', ".");
+                let parsed: JsonValue = serde_json::from_str(&value)
                     .unwrap_or_else(|_| JsonValue::String(value.clone()));
-                tracing::debug!("Env override: {}={} -> {}", key, parsed, config_key);
-                overrides.push((config_key, parsed));
+                tracing::debug!("REZ override: {}={}", dotted, parsed);
+                set_nested_value(&mut self.data, &dotted, parsed);
+                count += 1;
             }
         }
-        // TODO: Walk nested keys and set values in self.data
-        if !overrides.is_empty() {
-            tracing::info!(
-                "{} REZ_* env override(s) detected but not yet applied (stub)",
-                overrides.len()
-            );
+        if count > 0 {
+            tracing::info!("Applied {} REZ_* environment override(s)", count);
         }
         Ok(())
     }
@@ -346,6 +344,32 @@ impl Config {
     pub fn data(&self) -> &JsonValue {
         &self.data
     }
+}
+
+/// Set a nested JSON value given a dotted key path (e.g. "plugins.release_vcs.git").
+fn set_nested_value(root: &mut JsonValue, dotted_key: &str, value: JsonValue) {
+    let segments: Vec<&str> = dotted_key.split('.').collect();
+    if segments.is_empty() {
+        return;
+    }
+    let target = get_or_create_nested(root, &segments[..segments.len() - 1]);
+    if let Some(obj) = target.as_object_mut() {
+        obj.insert(segments.last().unwrap().to_string(), value);
+    }
+}
+
+/// Drill into a JSON object, creating intermediate objects as needed.
+fn get_or_create_nested<'v>(root: &'v mut JsonValue, segments: &[&str]) -> &'v mut JsonValue {
+    let mut current = root;
+    for seg in segments {
+        // Ensure current is an object
+        if current.is_null() || !current.is_object() {
+            *current = JsonValue::Object(serde_json::Map::new());
+        }
+        let obj = current.as_object_mut().expect("just set to object");
+        current = obj.entry(seg.to_string()).or_insert(JsonValue::Object(serde_json::Map::new()));
+    }
+    current
 }
 
 impl Default for Config {

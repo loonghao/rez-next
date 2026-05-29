@@ -2,14 +2,338 @@
 String formatting utilities for Rez-next.
 
 Mirrors ``rez.utils.formatting`` — provides columnar output, terminal-aware
-truncation, and tabular formatting helpers used by ``rez-depends --tree``,
-``rez-search``, ``rez-config``, and similar CLI commands.
+truncation, tabular formatting helpers, string format mixins, package request
+parsing, and human-readable time/memory formatting used across the Rez API.
 """
 from __future__ import annotations
 
+import math
+import os
+import os.path
+import re
 import shutil
-from typing import Iterable, Sequence
+import time
+from enum import Enum
+from pprint import pformat
+from string import Formatter
+from typing import Any, Iterable, Mapping, Sequence, TYPE_CHECKING
 
+if TYPE_CHECKING:
+    from rez_next.utils import colorize
+
+# ── Package name validation ──────────────────────────────────────────────────
+
+PACKAGE_NAME_REGSTR = r"[a-zA-Z_0-9](\.?[a-zA-Z0-9_]+)*"
+PACKAGE_NAME_REGEX = re.compile(r"^%s\Z" % PACKAGE_NAME_REGSTR)
+
+ENV_VAR_REGSTR = r'\$(\w+|\{[^}]*\})'
+ENV_VAR_REGEX = re.compile(ENV_VAR_REGSTR)
+
+FORMAT_VAR_REGSTR = "{(?P<var>.+?)}"
+FORMAT_VAR_REGEX = re.compile(FORMAT_VAR_REGSTR)
+
+invalid_package_names = (
+    "__pycache__",
+)
+
+
+def is_valid_package_name(name: str, raise_error: bool = False) -> bool:
+    """Test the validity of a package name string.
+
+    Args:
+        name: Name to test.
+        raise_error: If True, raise an exception on failure.
+
+    Returns:
+        ``True`` if the name is valid.
+    """
+    is_valid = bool(
+        PACKAGE_NAME_REGEX.match(name)
+        and name not in invalid_package_names
+    )
+    if raise_error and not is_valid:
+        from rez_next.exceptions import PackageRequestError
+        raise PackageRequestError("Not a valid package name: %r" % name)
+    return is_valid
+
+
+class PackageRequest:
+    """A package request parser.
+
+    Valid requests include:
+
+    * Any standard request, eg ``'foo-1.2.3'``, ``'!foo-1'``, etc
+    * "Ephemeral" request, eg ``'.foo-1.2.3'``
+
+    Example::
+
+        >>> pr = PackageRequest("foo-1.3+")
+        >>> print(pr.name, pr.range)
+        foo 1.3+
+
+    Note:
+        This is a lightweight reimplementation that does not depend on
+        ``rez.vendor``.  It wraps ``rez_next.version.Requirement``.
+    """
+
+    def __init__(self, s: str) -> None:
+        from rez_next.version import Requirement
+
+        self._req = Requirement(s)
+        self.name = self._req.name
+        self.range = self._req.range
+
+        # detect ephemeral package
+        if s.startswith('.'):
+            self.ephemeral = True
+            is_valid_package_name(self.name[1:], True)
+        else:
+            self.ephemeral = False
+            is_valid_package_name(self.name, True)
+
+    @property
+    def version(self):
+        return self._req.version
+
+    def __str__(self) -> str:
+        return str(self._req)
+
+    def __repr__(self) -> str:
+        return "%s(%r)" % (self.__class__.__name__, str(self._req))
+
+
+# ── String formatting ────────────────────────────────────────────────────────
+
+class StringFormatType(Enum):
+    """Behaviour of key expansion when using ``ObjectStringFormatter``."""
+    error = 1       # raise exception on unknown key
+    empty = 2       # expand to empty on unknown key
+    unchanged = 3   # leave string unchanged on unknown key
+
+
+class ObjectStringFormatter(Formatter):
+    """String formatter for objects.
+
+    This formatter will expand any reference to an object's attributes.
+    """
+    error = StringFormatType.error
+    empty = StringFormatType.empty
+    unchanged = StringFormatType.unchanged
+
+    def __init__(
+        self,
+        instance: Any,
+        pretty: bool = False,
+        expand: StringFormatType = StringFormatType.error,
+    ) -> None:
+        """Create a formatter.
+
+        Args:
+            instance: The object to format with.
+            pretty: If True, references to non-string attributes such as lists
+                are converted to basic form, with characters such as brackets
+                and parentheses removed.
+            expand: ``StringFormatType``.
+        """
+        self.instance = instance
+        self.pretty = pretty
+        self.expand = expand
+
+    def convert_field(self, value: Any, conversion: str | None) -> Any:
+        if self.pretty:
+            if value is None:
+                return ''
+            elif isinstance(value, list):
+                return ' '.join(map(str, value))
+        return Formatter.convert_field(self, value, conversion)
+
+    def get_field(
+        self, field_name: str, args: Sequence[Any], kwargs: Mapping[str, Any]
+    ) -> Any:
+        if self.expand == StringFormatType.error:
+            return Formatter.get_field(self, field_name, args, kwargs)
+        try:
+            return Formatter.get_field(self, field_name, args, kwargs)
+        except (AttributeError, KeyError, TypeError):
+            reg = re.compile(r"[^\.\[]+")
+            try:
+                key = reg.match(field_name).group()  # type: ignore[union-attr]
+            except Exception:
+                key = field_name
+            if self.expand == StringFormatType.empty:
+                return ('', key)
+            else:  # StringFormatType.unchanged
+                return ("{%s}" % field_name, key)
+
+    def get_value(
+        self, key: int | str, args: Sequence[Any], kwds: Mapping[str, Any]
+    ) -> Any:
+        if isinstance(key, str):
+            if key:
+                try:
+                    return kwds[key]
+                except KeyError:
+                    pass
+                try:
+                    return getattr(self.instance, key)
+                except AttributeError:
+                    pass
+                return self.instance[key]
+            else:
+                raise ValueError("zero length field name in format")
+        return Formatter.get_value(self, key, args, kwds)
+
+
+class StringFormatMixin:
+    """Turn any object into a string formatter.
+
+    An object inheriting this mixin will have a ``format`` function added,
+    that is able to format using attributes of the object.
+    """
+    format_expand = StringFormatType.error
+    format_pretty = True
+
+    def format(
+        self,
+        s: str,
+        pretty: bool | None = None,
+        expand: StringFormatType | None = None,
+    ) -> str:
+        """Format a string.
+
+        Args:
+            s: String to format, eg ``"hello {name}"``.
+            pretty: If True, references to non-string attributes such as
+                lists are converted to basic form.  If None, defaults to
+                the object's ``format_pretty`` attribute.
+            expand: Expansion mode.  If None, defaults to the object's
+                ``format_expand`` attribute.
+
+        Returns:
+            The formatted string.
+        """
+        if pretty is None:
+            pretty = self.format_pretty
+        if expand is None:
+            expand = self.format_expand
+        formatter = ObjectStringFormatter(self, pretty=pretty, expand=expand)
+        return formatter.format(s)
+
+
+# ── Abbreviation expansion ───────────────────────────────────────────────────
+
+def expand_abbreviations(txt: str, fields: list[str]) -> str:
+    """Expand abbreviations in a format string.
+
+    If an abbreviation does not match a field, or matches multiple fields, it
+    is left unchanged.
+
+    Example::
+
+        >>> fields = ("hey", "there", "dude")
+        >>> expand_abbreviations("hello {d}", fields)
+        'hello dude'
+
+    Args:
+        txt: Format string.
+        fields: Fields to expand to.
+
+    Returns:
+        Expanded string.
+    """
+    def _expand(matchobj: re.Match[str]) -> str:
+        s = matchobj.group("var")
+        if s not in fields:
+            matches = [x for x in fields if x.startswith(s)]
+            if len(matches) == 1:
+                s = matches[0]
+        return "{%s}" % s
+    return re.sub(FORMAT_VAR_REGEX, _expand, txt)
+
+
+def expandvars(text: str, environ: Mapping[str, str] | None = None) -> str:
+    """Expand shell variables of form ``$var`` and ``${var}``.
+
+    Unknown variables are left unchanged.
+
+    Args:
+        text: String to expand.
+        environ: Environ dict to use for expansions, defaults to ``os.environ``.
+
+    Returns:
+        The expanded string.
+    """
+    if '$' not in text:
+        return text
+
+    i = 0
+    if environ is None:
+        environ = os.environ
+
+    while True:
+        m = ENV_VAR_REGEX.search(text, i)
+        if not m:
+            break
+        i, j = m.span(0)
+        name = m.group(1)
+        if name.startswith('{') and name.endswith('}'):
+            name = name[1:-1]
+        if name in environ:
+            tail = text[j:]
+            text = text[:i] + environ[name]
+            i = len(text)
+            text += tail
+        else:
+            i = j
+    return text
+
+
+# ── Text indentation ─────────────────────────────────────────────────────────
+
+def indent(txt: str) -> str:
+    """Indent the given text by 4 spaces."""
+    lines = ("    " + x for x in txt.split('\n'))
+    return '\n'.join(lines)
+
+
+# ── Dict to attribute code ───────────────────────────────────────────────────
+
+def dict_to_attributes_code(dict_: dict) -> str:
+    """Given a nested dict, generate a python code equivalent.
+
+    Example::
+
+        >>> d = {'foo': 'bah', 'colors': {'red': 1, 'blue': 2}}
+        >>> print(dict_to_attributes_code(d))
+        foo = 'bah'
+        colors.red = 1
+        colors.blue = 2
+
+    Returns:
+        str.
+    """
+    lines = []
+    for key, value in dict_.items():
+        if isinstance(value, dict):
+            txt = dict_to_attributes_code(value)
+            lines_ = txt.split('\n')
+            for line in lines_:
+                if not line.startswith(' '):
+                    line = "%s.%s" % (key, line)
+                lines.append(line)
+        else:
+            value_txt = pformat(value)
+            if '\n' in value_txt:
+                lines.append("%s = \\" % key)
+                value_txt = indent(value_txt)
+                lines.extend(value_txt.split('\n'))
+            else:
+                line = "%s = %s" % (key, value_txt)
+                lines.append(line)
+    return '\n'.join(lines)
+
+
+# ── Terminal output helpers ──────────────────────────────────────────────────
 
 def get_terminal_width() -> int:
     """Return the current terminal width in columns (default 80)."""
@@ -25,34 +349,67 @@ def columnise(
     """Format an iterable of strings into columnar output.
 
     Items are laid out left-to-right, top-to-bottom, similar to ``ls`` output.
-
-    Args:
-        items: Strings to format.
-        width: Total available width in columns.  ``None`` → auto-detect.
-        padding: Minimum spaces between columns.
-
-    Returns:
-        Column-formatted string.
     """
     items_list = list(items)
     if not items_list:
         return ""
-
     w = width if width is not None else get_terminal_width()
     max_item = max(len(s) for s in items_list) + padding
     cols = max(1, w // max_item)
-
-    # Build rows
     rows: list[list[str]] = []
     for i in range(0, len(items_list), cols):
-        rows.append(items_list[i : i + cols])
-
+        rows.append(items_list[i: i + cols])
     lines: list[str] = []
     for row in rows:
         padded = [s.ljust(max_item) for s in row]
         lines.append("".join(padded).rstrip())
     return "\n".join(lines)
 
+
+def _columnise_rows(
+    rows: Sequence[Sequence[Any]], padding: int = 2
+) -> list[str]:
+    """Like ``columnise`` but for sequences of rows (list of lists)."""
+    strs = []
+    maxwidths: dict[int, int] = {}
+    for row in rows:
+        for i, e in enumerate(row):
+            nse = len(str(e))
+            w = maxwidths.get(i, -1)
+            if nse > w:
+                maxwidths[i] = nse
+    for row in rows:
+        s = ''
+        for i, e in enumerate(row):
+            se = str(e)
+            if i < len(row) - 1:
+                n = maxwidths[i] + padding - len(se)
+                se += ' ' * n
+            s += se
+        strs.append(s)
+    return strs
+
+
+def print_colored_columns(
+    printer: colorize.Printer,
+    rows: Sequence[tuple],
+    padding: int = 2,
+) -> None:
+    """Like ``columnise``, but with colored rows.
+
+    Args:
+        printer: Printer object.
+
+    Note:
+        The last entry in each row is the row color, or ``None`` for no coloring.
+    """
+    rows_ = [x[:-1] for x in rows]
+    colors = [x[-1] for x in rows]
+    for col, line in zip(colors, _columnise_rows(rows_, padding=padding)):
+        printer(line, col)
+
+
+# ── Header lines ─────────────────────────────────────────────────────────────
 
 def header_line(
     label: str,
@@ -62,11 +419,6 @@ def header_line(
     """Return a centred header line::
 
         --- label ---
-
-    Args:
-        label: Text to centre inside the line.
-        char: Repeat character for the line.
-        width: Total width.  ``None`` → auto-detect.
     """
     w = width if width is not None else get_terminal_width()
     inner = f" {label} " if label else ""
@@ -76,19 +428,14 @@ def header_line(
     return f"{char * left}{inner}{char * right}"
 
 
+# ── Truncation ───────────────────────────────────────────────────────────────
+
 def truncate(
     text: str,
     max_len: int,
     suffix: str = "...",
 ) -> str:
-    """Truncate *text* to *max_len* characters, appending *suffix* if needed.
-
-    This is a pure-Python companion to the native ``rez_next.util.truncate_string``.
-
-    Edge cases:
-    - ``max_len <= 0``: returns empty string.
-    - ``max_len < len(suffix)``: cannot fit suffix, returns ``text[:max_len]``.
-    """
+    """Truncate *text* to *max_len* characters, appending *suffix* if needed."""
     if max_len <= 0:
         return ""
     if len(text) <= max_len:
@@ -99,46 +446,229 @@ def truncate(
     return text[:available] + suffix
 
 
+# ── Table formatting ─────────────────────────────────────────────────────────
+
 def format_table(
     rows: Sequence[Sequence[str]],
     headers: Sequence[str] | None = None,
     col_sep: str = "  ",
 ) -> str:
-    """Format tabular data as an aligned text table.
-
-    Args:
-        rows: Data rows (each row is a sequence of strings).
-        headers: Optional column headers (same length as rows).
-        col_sep: Column separator.
-
-    Returns:
-        Formatted table string.
-    """
+    """Format tabular data as an aligned text table."""
     if not rows and not headers:
         return ""
-
     all_rows: list[Sequence[str]] = list(rows)
     if headers:
         all_rows.insert(0, headers)
-
     if not all_rows:
         return ""
-
-    # Compute column widths
     num_cols = max(len(r) for r in all_rows)
     widths = [0] * num_cols
     for row in all_rows:
         for i in range(len(row)):
             widths[i] = max(widths[i], len(row[i]))
-
     lines: list[str] = []
     for idx, row in enumerate(all_rows):
         padded = [row[i].ljust(widths[i]) for i in range(len(row))]
         lines.append(col_sep.join(padded))
-
         if headers and idx == 0:
-            # Separator under header
             sep = col_sep.join("-" * w for w in widths)
             lines.append(sep)
-
     return "\n".join(lines)
+
+
+# ── Human-readable duration / size ──────────────────────────────────────────
+
+time_divs = (
+    (365 * 24 * 3600, "years", 10),
+    (30 * 24 * 3600, "months", 12),
+    (7 * 24 * 3600, "weeks", 5),
+    (24 * 3600, "days", 7),
+    (3600, "hours", 10),
+    (60, "minutes", 10),
+    (1, "seconds", 60),
+)
+
+
+def readable_time_duration(secs: int) -> str:
+    """Convert number of seconds into human readable form, eg '3.2 hours'."""
+    return _readable_units(secs, time_divs, True)
+
+
+memory_divs = (
+    (1024 * 1024 * 1024 * 1024, "Tb", 128),
+    (1024 * 1024 * 1024, "Gb", 64),
+    (1024 * 1024, "Mb", 32),
+    (1024, "Kb", 16),
+    (1, "bytes", 1024),
+)
+
+
+def readable_memory_size(bytes_: int) -> str:
+    """Convert number of bytes into human-readable form (eg '1.2 Kb')."""
+    return _readable_units(bytes_, memory_divs)
+
+
+def _readable_units(
+    value: int,
+    divs: tuple[tuple[int, str, int], ...],
+    plural_aware: bool = False,
+) -> str:
+    if value == 0:
+        unit = divs[-1][1]
+        return "0 %s" % unit
+    neg = (value < 0)
+    if neg:
+        value = -value
+    for quantity, unit, threshold in divs:
+        if value >= quantity:
+            f = value / float(quantity)
+            rounding = 0 if f > threshold else 1
+            f = round(f, rounding)
+            f = int(f * 10) / 10.0
+            is_one = math.isclose(f, 1.0, rel_tol=1e-09, abs_tol=1e-09)
+            if plural_aware and is_one:
+                unit = unit[:-1]
+            txt = "%g %s" % (f, unit)
+            break
+    if neg:
+        txt = '-' + txt
+    return txt
+
+
+def get_epoch_time_from_str(s: str) -> int:
+    """Convert a string into epoch time.
+
+    Examples::
+
+        1418350671   # already epoch time
+        -12s         # 12 seconds ago
+        -5.4m        # 5.4 minutes ago
+    """
+    try:
+        return int(s)
+    except Exception:
+        pass
+    try:
+        if s.startswith('-'):
+            chars = {'d': 24 * 60 * 60, 'h': 60 * 60, 'm': 60, 's': 1}
+            m = chars.get(s[-1])
+            if m:
+                n = float(s[1:-1])
+                secs = int(n * m)
+                now = int(time.time())
+                return max((now - secs), 0)
+    except Exception:
+        pass
+    raise ValueError("'%s' is an unrecognised time format." % s)
+
+
+positional_suffix = ("th", "st", "nd", "rd", "th", "th", "th", "th", "th", "th")
+
+
+def positional_number_string(n: int) -> str:
+    """Print the position string equivalent of a positive integer.
+
+    Examples::
+
+        0: zeroeth
+        1: first
+        2: second
+        14: 14th
+        21: 21st
+    """
+    if n > 20:
+        suffix = positional_suffix[n % 10]
+        return "%d%s" % (n, suffix)
+    elif n > 3:
+        return "%dth" % n
+    elif n == 3:
+        return "third"
+    elif n == 2:
+        return "second"
+    elif n == 1:
+        return "first"
+    return "zeroeth"
+
+
+# ── Expand user (tilde) ──────────────────────────────────────────────────────
+
+EXPANDUSER_RE = re.compile(
+    r'(\A|\s|[{pathseps}])~([{seps}]|[{pathseps}]|\s|\Z)'.format(
+        seps=re.escape(''.join(set([os.sep + (getattr(os, 'altsep') or os.sep)]))),
+        pathseps=re.escape(''.join(set([os.pathsep + ';']))),
+    )
+)
+
+
+def expanduser(path: str) -> str:
+    """Expand ``~`` to home directory in the given string.
+
+    This function deliberately differs from the builtin ``os.path.expanduser()``
+    on Linux systems, which expands strings such as ``~sclaus`` to that user's
+    homedir.  This is problematic in rez because the string ``~packagename``
+    may inadvertently convert to a homedir.
+    """
+    if '~' not in path:
+        return path
+    if os.name == "nt":
+        if 'HOME' in os.environ:
+            userhome = os.environ['HOME']
+        elif 'USERPROFILE' in os.environ:
+            userhome = os.environ['USERPROFILE']
+        elif 'HOMEPATH' in os.environ:
+            drive = os.environ.get('HOMEDRIVE', '')
+            userhome = os.path.join(drive, os.environ['HOMEPATH'])
+        else:
+            return path
+    else:
+        userhome = os.path.expanduser('~')
+
+    def _expanduser(path_: str) -> str:
+        return EXPANDUSER_RE.sub(
+            lambda m: m.groups()[0] + userhome + m.groups()[1],
+            path_)
+
+    return os.path.normpath(_expanduser(path))
+
+
+# ── Block string ─────────────────────────────────────────────────────────────
+
+def as_block_string(txt: str) -> str:
+    """Return a string formatted as a python block comment string.
+
+    Special characters are escaped if necessary.
+    """
+    import json
+    lines = []
+    for line in txt.split('\n'):
+        line_ = json.dumps(line, ensure_ascii=False)
+        line_ = line_[1:-1].rstrip()  # drop double quotes
+        lines.append(line_)
+    return '"""\n%s\n"""' % '\n'.join(lines)
+
+
+# ── Header comments (for Rex executor) ───────────────────────────────────────
+
+_header_br = '#' * 80
+_header_br_minor = '-' * 80
+
+
+def header_comment(executor, txt: str) -> None:
+    """Convenience for creating header-like comment in a rex executor.
+
+    Args:
+        executor: ``RexExecutor`` instance.
+        txt: Comment text.
+    """
+    executor.comment("")
+    executor.comment("")
+    executor.comment(_header_br)
+    executor.comment(txt)
+    executor.comment(_header_br)
+
+
+def minor_header_comment(executor, txt: str) -> None:
+    """Create a minor header comment in a rex executor."""
+    executor.comment("")
+    executor.comment(txt)
+    executor.comment(_header_br_minor)
