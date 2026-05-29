@@ -87,12 +87,39 @@ from .package_maker import (  # noqa: F401
 # so that "from rez_next.<submodule> import ..." works at runtime.
 import sys as _sys
 import types as _types
-for _name in ('packages', 'packages_', 'package_search', 'search', 'solver_', 'serialise_', 'bind'):
+for _name in ('packages_', 'package_search', 'search', 'solver_', 'serialise_', 'bind'):
     _attr = getattr(_native, _name, None)
     if _attr is not None and isinstance(_attr, _types.ModuleType):
         _full = 'rez_next.' + _name
         if _full not in _sys.modules:
             _sys.modules[_full] = _attr
+
+# 'packages' needs special handling: register as a Python bridge module
+# that re-exports classes from _native.packages and functions from
+# _native.packages_. Otherwise the native _native.packages submodule
+# shadows packages.py entirely.
+_packages_module = _types.ModuleType("rez_next.packages")
+_packages_module.__package__ = "rez_next"
+_packages_module.__path__ = []
+_packages_module.__file__ = __file__
+# Native classes
+_attr = getattr(_native, "packages", None)
+if _attr is not None:
+    for _cls_name in ("Package", "PackageFamily", "PackageRequirement", "PackageFormat"):
+        setattr(_packages_module, _cls_name, getattr(_attr, _cls_name))
+# Functions from packages_
+_attr = getattr(_native, "packages_", None)
+if _attr is not None:
+    for _func_name in (n for n in dir(_attr) if not n.startswith("_")):
+        setattr(_packages_module, _func_name, getattr(_attr, _func_name))
+# Build __all__ from all public names
+_packages_module.__all__ = [
+    n for n in dir(_packages_module) if not n.startswith("_")
+]
+# Register
+_sys.modules["rez_next.packages"] = _packages_module
+setattr(sys.modules["rez_next"], "packages", _packages_module)
+del _cls_name, _func_name, _packages_module
 
 __version__: str = getattr(_native, "__version__", "0.3.0")
 __author__: str = getattr(_native, "__author__", "rez-next contributors")

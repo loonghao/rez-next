@@ -181,7 +181,7 @@ fn find_package_in_path(
 /// Note: This is a simplified implementation. Full variant support
 /// requires additional work on the variant system.
 #[pyfunction]
-#[pyo3(signature = (uri, paths=None))]
+#[pyo3(signature = (uri, _paths=None))]
 pub fn get_variant_from_uri(
     _py: Python<'_>,
     uri: &str,
@@ -196,7 +196,7 @@ pub fn get_variant_from_uri(
 ///
 /// Equivalent to `rez.packages.get_variant(uri, index=None, paths=None)`.
 #[pyfunction]
-#[pyo3(signature = (uri, index=None, paths=None))]
+#[pyo3(signature = (uri, index=None, _paths=None))]
 pub fn get_variant(
     _py: Python<'_>,
     uri: &str,
