@@ -48,109 +48,80 @@ crates/
 └── rez-next-python/          # PyO3 Python bindings (_native.pyd)
 ```
 
-## Python Submodules (56+ submodules, 67 .py files)
+## Python Submodules (39 modules, 43 .py files)
+
+> **Note**: All listed modules exist on `main` branch. Additional modules (`bundle_context`, `build_process`, `command`, `developer_package`, `package_bind`, `package_copy`, `package_filter`, `package_maker`, `package_move`, `package_order`, `package_resources`, `package_serialise`, `package_test`, `plugin_managers`, `release_hook`, `release_vcs`, `resolver`, `rex_bindings`, `serialise`, `shells`, `wrapper`, `utils/*`, `rezconfig`) are in development on the `auto-improve` branch.
 
 ### Core Modules
 | Module | Rez Equivalent | Key APIs |
 |--------|---------------|----------|
 | `rez_next.version` | `rez.vendor.version` | `PyVersion`, `PyVersionRange` |
-| `rez_next.packages_` | `rez.packages_` | `iter_packages`, `get_latest_package` |
+| `rez_next.packages_` | `rez.packages_` | `iter_packages`, `get_latest_package`, `copy_package`, `move_package`, `remove_package` |
 | `rez_next.packages` | `rez.packages` | Package object model |
 | `rez_next.resolved_context` | `rez.resolved_context` | `ResolvedContext`, `resolve_packages` |
 | `rez_next.config` | `rez.config` | `Config` singleton (100+ fields) |
-| `rez_next.rezconfig` | `rez.rezconfig` | Config defaults module |
-| `rez_next.system` | `rez.system` | Platform info |
-| `rez_next.shell` | `rez.shells` | Shell scripts (bash/zsh/fish/ps/cmd) |
-| `rez_next.shells` | `rez.shells` | Shell type registry |
+| `rez_next.system` | `rez.system` | Platform info, OS/arch detection |
+| `rez_next.shell` | `rez.shells` | Shell scripts (bash/zsh/fish/powershell/cmd) |
 | `rez_next.rex` | `rez.rex` | Rex DSL interpreter |
-| `rez_next.rex_bindings` | `rez.rex_bindings` | Low-level Rex bindings |
 
-### Solver & Resolver
+### Solver
 | Module | Rez Equivalent | Key APIs |
 |--------|---------------|----------|
 | `rez_next.solver_` | `rez.solver` | Solver configuration |
 | `rez_next.solver` | `rez.solver` | Advanced solver API |
-| `rez_next.resolver` | `rez.resolver` | Package resolver |
 
 ### Build & Release
 | Module | Rez Equivalent | Key APIs |
 |--------|---------------|----------|
 | `rez_next.build_` | `rez.build_` | Build system integration |
-| `rez_next.build_process` | `rez.build_process` | Build process orchestration |
-| `rez_next.build_system` | `rez.build_system` | Build system abstraction |
 | `rez_next.build_plugins` | `rez.build_plugins` | Build plugins |
 | `rez_next.release` | `rez.release` | Package release workflow |
-| `rez_next.release_hook` | `rez.release_hook` | Release hooks |
-| `rez_next.release_vcs` | `rez.release_vcs` | VCS release integration |
 
 ### Package Management
 | Module | Rez Equivalent | Key APIs |
 |--------|---------------|----------|
-| `rez_next.package_maker` | `rez.package_maker` | Programmatic package creation |
-| `rez_next.package_repository` | `rez.package_repository` | Package repository abstraction |
 | `rez_next.package_cache` | `rez.package_cache` | Package payload cache |
-| `rez_next.package_copy` | `rez.package_copy` | Package copying |
-| `rez_next.package_move` | `rez.package_move` | Package moving |
 | `rez_next.package_remove` | `rez.package_remove` | Package removal |
 | `rez_next.package_search` | `rez.package_search` | Package search API |
 | `rez_next.package_help` | `rez.package_help` | Package help |
-| `rez_next.package_filter` | `rez.package_filter` | Glob/Range/Regex rules |
-| `rez_next.package_order` | `rez.package_order` | Package sorting strategies |
-| `rez_next.package_resources` | `rez.package_resources` | Package resource management |
-| `rez_next.package_serialise` | `rez.package_serialise` | Package serialization |
-| `rez_next.package_test` | `rez.package_test` | Package testing runner |
-| `rez_next.package_py_utils` | `rez.package_py_utils` | package.py utilities |
-| `rez_next.package_bind` | `rez.package_bind` | Package bind utilities |
-| `rez_next.developer_package` | `rez.developer_package` | Dev workflow support |
 
 ### Environment & Context
 | Module | Rez Equivalent | Key APIs |
 |--------|---------------|----------|
-| `rez_next.env` | `rez.env` | Environment creation |
-| `rez_next.source` | `rez.source` | Context activation |
-| `rez_next.bundles` | `rez.bundles` | Context bundling |
-| `rez_next.bundle_context` | `rez.bundle_context` | Relocatable bundles |
-| `rez_next.forward` | `rez.forward` | Shell forward compat |
+| `rez_next.env` | `rez.env` | Environment creation/activation |
+| `rez_next.source` | `rez.source` | Context activation scripts |
+| `rez_next.bundles` | `rez.bundles` | Context bundling (offline use) |
+| `rez_next.forward` | `rez.forward` | Shell forward compatibility |
 
 ### CLI & Tools
 | Module | Rez Equivalent | Key APIs |
 |--------|---------------|----------|
-| `rez_next.cli` | `rez.cli` | CLI entry points |
-| `rez_next.search` | `rez.cli.search` | Package search |
-| `rez_next.complete` | `rez.cli.complete` | Tab completion |
-| `rez_next.diff` | `rez.cli.diff` | Context diff |
+| `rez_next.cli` | `rez.cli` | CLI entry points (programmatic) |
+| `rez_next.search` | `rez.cli.search` | Package search (exact/contains/regex) |
+| `rez_next.complete` | `rez.cli.complete` | Tab completion script generation |
+| `rez_next.diff` | `rez.cli.diff` | Context diff between two resolves |
 | `rez_next.status` | `rez.cli.status` | Active context query |
-| `rez_next.depends` | `rez.cli.depends` | Reverse dependencies |
-| `rez_next.command` | `rez.utils.command` | Command execution |
-| `rez_next.wrapper` | `rez.utils.wrapper` | Tool execution wrappers |
+| `rez_next.depends` | `rez.cli.depends` | Reverse dependency queries |
 
 ### Infrastructure
 | Module | Rez Equivalent | Key APIs |
 |--------|---------------|----------|
 | `rez_next.plugins` | `rez.plugins` | Plugin management |
-| `rez_next.plugin_managers` | `rez.plugin_managers` | Plugin manager implementations |
 | `rez_next.bind` | `rez.bind` | System tool binding |
-| `rez_next.pip` | `rez.pip` | pip → rez conversion |
+| `rez_next.pip` | `rez.pip` | pip → rez package conversion |
 | `rez_next.serialise_` | `rez.serialise` | Serialization support |
-| `rez_next.serialise` | `rez.serialise` | Serialization bridge |
 | `rez_next.suite` | `rez.suite` | Suite management |
 | `rez_next.test` | `rez.test` | Package testing |
-| `rez_next.data` | `rez.data` | Built-in resources |
-| `rez_next.exceptions` | `rez.exceptions` | Exception hierarchy |
+| `rez_next.data` | `rez.data` | Built-in data resources |
+| `rez_next.exceptions` | `rez.exceptions` | Exception hierarchy (15+ types) |
 | `rez_next.deprecations` | `rez.utils.deprecations` | `RezDeprecationWarning` |
 
 ### Utilities (`rez_next.utils.*`)
 | Module | Rez Equivalent | Key APIs |
 |--------|---------------|----------|
 | `rez_next.util` | `rez.utils` | General utilities |
-| `rez_next.utils.filesystem` | `rez.utils.filesystem` | File operations |
-| `rez_next.utils.formatting` | `rez.utils.formatting` | Output formatting |
 | `rez_next.utils.logging_` | `rez.utils.logging_` | Logging setup |
 | `rez_next.utils.resources` | `rez.utils.resources` | Resource loading |
-| `rez_next.utils.yaml` | `rez.utils.yaml` | YAML utilities |
-| `rez_next.utils.colorize` | `rez.utils.colorize` | Terminal colors |
-| `rez_next.utils.data_utils` | `rez.utils.data_utils` | Data helpers |
-| `rez_next.utils.platform_` | `rez.utils.platform_` | Platform detection |
 
 ### Vendor
 | Module | Rez Equivalent | Key APIs |
