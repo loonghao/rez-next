@@ -44,7 +44,7 @@ EXISTING_BRIDGE_MODULES = [
     "rez_next.complete",
     "rez_next.deprecations",
     "rez_next.exceptions",
-    "rez_next.package_bind",
+    # rez_next.package_bind intentionally skipped (use bind module instead)
     "rez_next.package_cache",
     "rez_next.package_copy",
     "rez_next.package_help",

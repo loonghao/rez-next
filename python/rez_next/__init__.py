@@ -111,7 +111,7 @@ from rez_next import diff  # noqa: F401
 from rez_next import env  # noqa: F401
 from rez_next import exceptions  # noqa: F401
 from rez_next import forward  # noqa: F401
-from rez_next import package_bind  # noqa: F401
+# package_bind is intentionally skipped (user request - use bind module instead)
 from rez_next import package_cache  # noqa: F401
 from rez_next import package_filter  # noqa: F401
 from rez_next import package_copy  # noqa: F401
@@ -146,6 +146,5 @@ from rez_next import status  # noqa: F401
 from rez_next import suite  # noqa: F401
 from rez_next import system  # noqa: F401
 from rez_next import test  # noqa: F401
-from rez_next import utils  # noqa: F401
 from rez_next import util  # noqa: F401
 from rez_next import wrapper  # noqa: F401
