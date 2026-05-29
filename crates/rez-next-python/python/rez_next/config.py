@@ -44,48 +44,6 @@ except ImportError:
         _native_module = None  # type: ignore[assignment]
     _rust_load_config = None
 
-This module serves as the `rezconfig.py` of rez-next, defining ALL default
-configuration values with the same structure as the original
-``rez/rezconfig.py`` for API compatibility.
-
-Settings priority (higher number = higher precedence):
-
-1) Defaults defined in this file (lowest);
-2) Overridden by file(s) pointed at by ``$REZ_CONFIG_FILE`` (multiple allowed,
-   separated by ``os.pathsep``);
-3) Overridden by ``$HOME/.rezconfig`` (unless ``$REZ_DISABLE_HOME_CONFIG`` is 1);
-4) Overridden by environment variable ``$REZ_XXX``;
-5) Overridden by environment variable ``$REZ_XXX_JSON``;
-6) Special: package ``config`` section during build/release.
-
-Plugins settings (``plugins.*``) do not support env var overrides (rules 4-5).
-"""
-
-from __future__ import annotations
-
-import os
-import re
-import sys as _sys
-from contextlib import contextmanager
-from functools import lru_cache
-from inspect import ismodule
-from typing import Any, TypeVar, TYPE_CHECKING
-
-from .deprecations import warn as _deprecations_warn, RezDeprecationWarning
-from .exceptions import ConfigurationError
-
-try:
-    from . import _native as _native_module
-    from ._native.config import load_config as _rust_load_config  # type: ignore
-except ImportError:
-    try:
-        import _native as _native_module
-
-        _native_module.config
-    except (ImportError, AttributeError):
-        _native_module = None  # type: ignore[assignment]
-    _rust_load_config = None
-
 
 T = TypeVar("T")
 
