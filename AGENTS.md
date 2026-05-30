@@ -15,8 +15,9 @@ rez-next is a **high-performance Rust rewrite** of the [Rez](https://github.com/
 - License: Apache 2.0
 - Python modules: **41 modules** (43 .py files) + **35 native** PyO3 submodules covering most Rez APIs
 - Native: **35 registered** PyO3 submodules, 28 native classes, ~50 top-level functions
-- Tests: **93 test files** (36 Python + 46 Rust + 11 fixtures)
-- Status: Many workflows work with `import rez_next as rez`, but **not yet a seamless drop-in** for every API surface
+- CLI: **28 subcommands** (config, context, view, env, release, test, build, search, bind, depends, solve, cp, mv, rm, status, diff, pkg-help, plugins, pkg-cache, suites, bundle, pip, complete, forward, gui, parse-version, self-test, self-update)
+- Tests: **82 test files** (27 Python + 46 Rust + 9 fixtures)
+- Status: Many workflows work with `import rez_next as rez`, but **not yet a seamless drop-in** for every API surface. The [`auto-improve`](https://github.com/loonghao/rez-next/tree/auto-improve) branch has 25+ additional modules in active development (62 total submodules, 56 Python tests).
 
 ## Quick Start
 
@@ -79,7 +80,7 @@ rez-next/                          # Monorepo root
 │   ├── rez-next-release-hook/    # Release hooks
 │   ├── rez-next-util/            # Utility functions
 │   └── rez-next-python/          # Python bindings (PyO3)
-├── src/                           # Rust CLI binary
+├── src/                           # Rust CLI binary (28 subcommands, entry: src/bin/rez-next.rs)
 ├── tests/                         # Integration tests
 ├── benches/                       # Criterion benchmarks
 ├── docs/                          # Documentation (see above)
