@@ -23,6 +23,27 @@ from rez_next._native.util import *  # noqa: F401,F403
 
 T = TypeVar("T")
 
+# ── Re-export with upstream-compatible signature ─────────────────────
+
+import rez_next._native.util as _native_util
+
+
+def which(*programs, **shutilwhich_kwargs) -> str | None:
+    """Find the first available program in PATH.
+
+    Wraps the native ``_native.util.which()`` to match the upstream
+    ``rez.util.which()`` signature which accepts multiple program names
+    and returns the first one found.
+
+    Rez API: ``rez.util.which(*programs, **shutilwhich_kwargs)``
+    """
+    for cmd in programs:
+        result = _native_util.which(cmd)
+        if result is not None:
+            return result
+    return None
+
+
 # ── Python-level utility functions ───────────────────────────────────
 
 

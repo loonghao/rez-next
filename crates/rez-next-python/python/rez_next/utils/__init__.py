@@ -1,28 +1,49 @@
-"""
-Rez-next utility subpackage.
+"""Rez-compatible utils sub-package.
 
-Mirrors `rez.utils` public API:
-- logging_ (conditional Printer, log_duration)
-- yaml (dump/load with custom Rez type support)
-- colorize (terminal color helpers)
-- formatting (string formatting utilities)
-- data_utils (dict merge, diff, caching descriptors, etc.)
-- filesystem (file/symlink utilities)
-- graph_utils (graph manipulation: DOT read/write, pruning, rendering)
+Aligns with ``rez.utils`` API by providing utility context managers
+and exception re-raising helpers.
 
-Base functions (get_hostname, get_username, which, etc.)
-are exposed via the native _native.util module.
+Functions:
+    with_noop: No-op context manager (placeholder).
+    reraise: Re-raise an exception with a different type but preserving
+        the original traceback.
 """
 from __future__ import annotations
 
-from rez_next.util import *  # noqa: F401, F403 — re-export native util functions
+import sys
+from contextlib import contextmanager
+from typing import NoReturn
 
-# Submodules
-from . import logging_ as logging  # noqa: F401 — rez.utils.logging_ alias
-from . import colorize  # noqa: F401 — terminal color helpers
-from . import data_utils  # noqa: F401 — dict/data manipulation utilities
-from . import formatting  # noqa: F401 — string formatting utilities
-from . import filesystem  # noqa: F401 — filesystem utilities
-from . import yaml  # noqa: F401 — YAML serialization
-from . import platform_  # noqa: F401 — platform abstraction (creates global ``platform_`` singleton)
-from . import graph_utils  # noqa: F401 — graph manipulation utilities
+
+@contextmanager
+def with_noop():
+    """No-op context manager.
+
+    Usage::
+
+        with with_noop():
+            pass  # nothing happens
+
+    Rez API: ``rez.utils.with_noop()``
+    """
+    yield
+
+
+def reraise(exc: BaseException, new_exc_cls: type[BaseException]) -> NoReturn:
+    """Re-raise an exception with a different type.
+
+    Preserves the original traceback while changing the exception class.
+
+    Args:
+        exc: Original exception instance.
+        new_exc_cls: Target exception class (e.g., ValueError).
+
+    Raises:
+        NoReturn: Always raises an exception of type ``new_exc_cls``.
+
+    Rez API: ``rez.utils.reraise()``
+    """
+    def _reraise(exc, new_exc_cls):
+        raise new_exc_cls(exc).with_traceback(sys.exc_info()[2]) from None
+
+    _reraise(exc, new_exc_cls)

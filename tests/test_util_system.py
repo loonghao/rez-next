@@ -12,6 +12,7 @@ from rez_next.util import (
     get_home_directory,
     get_fqdn,
     get_domain,
+    which,
 )
 
 
@@ -50,6 +51,45 @@ class TestSystemFunctions:
         assert isinstance(domain, str)
         # Domain might be empty if FQDN doesn't contain a dot
         # Just ensure it doesn't raise an exception
+
+
+class TestWhichFunction:
+    """Test rez_next.util.which() — upstream-compatible wrapper."""
+
+    def test_which_finds_existing_command(self):
+        """Test which() returns a path for an existing command."""
+        result = which("python")
+        assert result is not None
+        assert "python" in result.lower()
+
+    def test_which_returns_none_for_missing(self):
+        """Test which() returns None for a non-existent command."""
+        result = which("nonexistent_cmd_xyz_123")
+        assert result is None
+
+    def test_which_multi_args_returns_first_found(self):
+        """Test which(*programs) accepts multiple args and returns the first match."""
+        result = which("nonexistent_cmd_xyz_123", "python")
+        assert result is not None
+        assert "python" in result.lower()
+
+    def test_which_all_missing_returns_none(self):
+        """Test which() returns None when none of the programs exist."""
+        result = which(
+            "nonexistent_cmd_xyz_123",
+            "another_missing_prog_456",
+        )
+        assert result is None
+
+    def test_which_signature_matches_upstream(self):
+        """Test which() has the upstream-compatible signature."""
+        import inspect
+        sig = inspect.signature(which)
+        # Should accept *args style
+        assert any(
+            p.kind == inspect.Parameter.VAR_POSITIONAL
+            for p in sig.parameters.values()
+        )
 
 
 if __name__ == "__main__":

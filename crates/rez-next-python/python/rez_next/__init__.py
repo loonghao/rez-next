@@ -71,6 +71,7 @@ from . import shells  # noqa: F401  — module (rez.shells API: create_shell, ge
 from . import system  # noqa: F401  — module (rez.system API: from rez.system import system)
 from . import serialise  # noqa: F401
 from . import rezconfig  # noqa: F401
+from . import utils  # noqa: F401
 from . import wrapper  # noqa: F401
 from .exceptions import *  # noqa: F401,F403
 from .config import Config  # noqa: F401
