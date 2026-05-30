@@ -379,9 +379,7 @@ def get_build_process_types():
 
 def create_build_process(
     process_type: str,
-    working_dir: str = "",
     build_system: Any = None,
-    package: Any = None,
     vcs: Any = None,
     ensure_latest: bool = True,
     skip_repo_errors: bool = False,
@@ -395,9 +393,7 @@ def create_build_process(
 
     Args:
         process_type: Name of the build process implementation.
-        working_dir: Working directory (DEPRECATED, will be removed).
         build_system: BuildSystem instance used to build the package.
-        package: DeveloperPackage instance (DEPRECATED).
         vcs: ReleaseVCS for release process.
         ensure_latest: If True, do not allow release if newer version exists.
         skip_repo_errors: If True, proceed even when VCS errors occur.
