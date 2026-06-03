@@ -107,7 +107,7 @@ for p in rez.iter_packages("maya"):
 
 ## 功能概览
 
-### 已实现的 Python 子模块（41 个模块）
+### 已实现的 Python 子模块（40 个模块）
 
 | 子模块 | 等价 rez 模块 | 功能 |
 |--------|--------------|------|
@@ -290,7 +290,7 @@ rez-next-explicit      显式包列表
 rez-next-serialise     包序列化
 rez-next-release-hook  发布钩子
 rez-next-util          工具函数（命令执行等）
-rez-next-python        Python 绑定 via PyO3（41 个子模块）
+rez-next-python        Python 绑定 via PyO3（40 个子模块）
 ```
 
 ### 各组件状态
@@ -316,7 +316,7 @@ rez-next-python        Python 绑定 via PyO3（41 个子模块）
 | `rez-next-serialise` | 稳定 | ~5 |
 | `rez-next-explicit` | 稳定 | ~5 |
 | `rez-next-util` | 稳定 | ~5 |
-| `rez-next-python` | 部分兼容（41 个子模块） | ~125 |
+| `rez-next-python` | 部分兼容（40 个子模块） | ~125 |
 | Compat integration | 覆盖面持续增长 | ~210 |
 
 ---

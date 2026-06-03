@@ -13,7 +13,7 @@ rez-next is a **high-performance Rust rewrite** of the [Rez](https://github.com/
 - Build system: Cargo workspace (20 crates) + Maturin for Python
 - Current version: 0.3.4 (see [CHANGELOG.md](./CHANGELOG.md))
 - License: Apache 2.0
-- Python modules: **41 modules** (43 .py files) + **35 native** PyO3 submodules covering most Rez APIs
+- Python modules: **40 modules** (43 .py files) + **35 native** PyO3 submodules covering most Rez APIs
 - Native: **35 registered** PyO3 submodules, 28 native classes, ~50 top-level functions
 - CLI: **28 subcommands** (config, context, view, env, release, test, build, search, bind, depends, solve, cp, mv, rm, status, diff, pkg-help, plugins, pkg-cache, suites, bundle, pip, complete, forward, gui, parse-version, self-test, self-update)
 - Tests: **82 test files** (27 Python + 46 Rust + 9 fixtures)
@@ -190,7 +190,7 @@ result = diff_contexts(["python-3.9"], ["python-3.11", "maya-2024"])
 
 ⚠️ **Not all Rez features are implemented** — check coverage before suggesting code changes
 
-⚠️ **Python bindings are partial** — `rez_next` has 41 Python modules + 35 native submodules, covering most Rez APIs but not every edge case
+⚠️ **Python bindings are partial** — `rez_next` has 40 Python modules + 35 native submodules, covering most Rez APIs but not every edge case
 
 ⚠️ **Breaking changes possible** — pre-1.0 project, API may change
 
