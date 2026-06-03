@@ -9,7 +9,7 @@ Python bindings are **partially implemented** in `crates/rez-next-python` and ex
 ## Architecture
 
 ```
-rez_next/                              # Main package (43 .py files, 41 modules)
+rez_next/                              # Main package (43 .py files, 40 modules)
 ├── _native.*.pyd                      # PyO3 native extension (abi3-py38)
 ├── __init__.py                        # Exports, version, drop-in shims
 ├── vendor/                            # rez_next.vendor subpackage
@@ -46,7 +46,7 @@ rez_next/                              # Main package (43 .py files, 41 modules)
 ├── package_remove.py                  # Package removal
 ├── package_search.py                  # Package search
 ├── __main__.py                        # CLI entry points
-└── ...                                # Total: 43 .py files, 39 modules
+└── ...                                # Total: 43 .py files, 40 modules
 ```
 
 > **Note**: Additional 25+ modules (`bundle_context`, `build_process`, `command`, `developer_package`, `package_bind`, `package_copy`, `package_filter`, `package_maker`, `package_move`, `package_order`, `package_resources`, `package_serialise`, `package_test`, `plugin_managers`, `release_hook`, `release_vcs`, `resolver`, `rex_bindings`, `serialise`, `shells`, `wrapper`, `utils.*` extended, `rezconfig`) are in development on the `auto-improve` branch.
@@ -133,7 +133,7 @@ rez_next/                              # Main package (43 .py files, 41 modules)
 | `rez_next.utils.resources` | `rez.utils.resources` | Resource loading utilities | ✅ Stable |
 | `rez_next.vendor.version` | `rez.vendor.version` | Vendored version module | ✅ Stable |
 
-**Total: 41 modules** (39 Python .py files + 2 native-only: `version`, submodules in `_native.pyd`)
+**Total: 40 modules** (all from 43 .py files in the `rez_next` package)
 
 > **Note**: 25+ additional modules (`bundle_context`, `build_process`, `command`, `developer_package`, `package_bind`, `package_copy`, `package_filter`, `package_maker`, `package_move`, `package_order`, `package_resources`, `package_serialise`, `package_test`, `plugin_managers`, `release_hook`, `release_vcs`, `resolver`, `rex_bindings`, `serialise`, `shells`, `wrapper`, `utils.*` extended, `rezconfig`) are in development on the `auto-improve` branch.
 

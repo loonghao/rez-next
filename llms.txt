@@ -48,7 +48,7 @@ crates/
 └── rez-next-python/          # PyO3 Python bindings (_native.pyd)
 ```
 
-## Python Submodules (41 modules, 43 .py files)
+## Python Submodules (40 modules, 43 .py files)
 
 > **Note**: All listed modules exist on `main` branch. Additional modules (`bundle_context`, `build_process`, `command`, `developer_package`, `package_bind`, `package_copy`, `package_filter`, `package_maker`, `package_move`, `package_order`, `package_resources`, `package_serialise`, `package_test`, `plugin_managers`, `release_hook`, `release_vcs`, `resolver`, `rex_bindings`, `serialise`, `shells`, `wrapper`, `utils/*`, `rezconfig`) are in development on the `auto-improve` branch.
 

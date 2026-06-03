@@ -107,7 +107,7 @@ for p in rez.iter_packages("maya"):
 
 ## Feature Overview
 
-### Implemented Python Submodules (41 modules)
+### Implemented Python Submodules (40 modules)
 
 | Submodule | Equivalent rez module | Functionality |
 |-----------|----------------------|---------------|
@@ -290,7 +290,7 @@ rez-next-explicit      Explicit package lists
 rez-next-serialise     Package serialization
 rez-next-release-hook  Release hooks
 rez-next-util          Utility functions (command runner, etc.)
-rez-next-python        Python bindings via PyO3 (41 submodules)
+rez-next-python        Python bindings via PyO3 (40 submodules)
 ```
 
 ### Component status
@@ -316,7 +316,7 @@ rez-next-python        Python bindings via PyO3 (41 submodules)
 | `rez-next-serialise` | Stable | ~5 |
 | `rez-next-explicit` | Stable | ~5 |
 | `rez-next-util` | Stable | ~5 |
-| `rez-next-python` | Partial compatibility (41 submodules) | ~125 |
+| `rez-next-python` | Partial compatibility (40 submodules) | ~125 |
 | Compat integration tests | Growing coverage | ~210 |
 
 ---
