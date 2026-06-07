@@ -179,7 +179,7 @@ jobs:
       - name: Build rez-next binary (required for e2e tests)
         run: cargo build --bin rez-next
       - run: cargo llvm-cov --workspace --exclude rez-next-python --lib --bins --lcov --output-path lcov.info -- --test-threads=1
-      - uses: codecov/codecov-action@v6
+      - uses: codecov/codecov-action@v7
         with:
           files: lcov.info
           fail_ci_if_error: false
