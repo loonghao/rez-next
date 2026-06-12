@@ -37,7 +37,7 @@ rez-next-package-filter = { version = "0.3.0", path = "../rez-next-package-filte
 rez-next-release-hook = { version = "0.3.0", path = "../rez-next-release-hook" }
 rez-next-explicit = { version = "0.1.0", path = "../rez-next-explicit" }
 rez-next-config = { version = "0.3.0", path = "../rez-next-config" }
-pyo3 = { version = "0.28", features = ["extension-module", "abi3-py38"] }
+pyo3 = { version = "0.29", features = ["extension-module", "abi3-py38"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
 tokio = { workspace = true }
