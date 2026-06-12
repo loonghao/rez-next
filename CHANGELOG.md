@@ -5,6 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.5](https://github.com/loonghao/rez-next/compare/v0.3.4...v0.3.5) (2026-06-12)
+
+
+### 🚀 Features
+
+* add live build events and plugins ([09fdc2c](https://github.com/loonghao/rez-next/commit/09fdc2ce65fc57bd276fe1f110fa3b995c31e564))
+
+
+### 🐛 Bug Fixes
+
+* **deps:** update rust crate pyo3 to 0.29 ([#203](https://github.com/loonghao/rez-next/issues/203)) ([0401e25](https://github.com/loonghao/rez-next/commit/0401e25a716392cbcf354d9e65c0d9b277c4a309))
+* **deps:** update rust crate zip to v8 ([#181](https://github.com/loonghao/rez-next/issues/181)) ([f2cb221](https://github.com/loonghao/rez-next/commit/f2cb221cce7546e869803a1b0dc7f2c42f0960e5))
+* support standard rez build env vars ([9f3c54a](https://github.com/loonghao/rez-next/commit/9f3c54a518a299223e796941d3db60a39b7d7f1e))
+* update python build bindings ([ca5c295](https://github.com/loonghao/rez-next/commit/ca5c295ec42e121774c7c8295043cb77e1c19b6f))
+
+
+### 📚 Documentation
+
+* add llms.txt/llms-full.txt, update AGENTS.md/CLAUDE.md/GEMINI.md with corrected crate count, version, and module references ([#185](https://github.com/loonghao/rez-next/issues/185)) ([494f6c3](https://github.com/loonghao/rez-next/commit/494f6c3fc00b41e16885275dd8276666454c4b1e))
+* comprehensive doc refresh - add 19 missing modules, fix counts ([bfcfcef](https://github.com/loonghao/rez-next/commit/bfcfcef741915bd5da2fc9d2da8f577bd6f94864))
+* comprehensive doc refresh - fix submodule counts, add missing modules, improve disclosure chain ([a893379](https://github.com/loonghao/rez-next/commit/a8933799a3fef10d040e7d1ec1d3c5c1ff59b141))
+* fix module count from 41 to 40 across all docs (Run [#4](https://github.com/loonghao/rez-next/issues/4)) ([b42ec33](https://github.com/loonghao/rez-next/commit/b42ec33cd2d601000e8ba38eae2abaf604d28a2c))
+* fix module counts - remove 30 non-existent modules from all tables ([637ab87](https://github.com/loonghao/rez-next/commit/637ab87835cc182bc905c418e8cc2edae1f1b9a5))
+* fix module counts and remove non-existent modules from all tables ([#190](https://github.com/loonghao/rez-next/issues/190)) ([637ab87](https://github.com/loonghao/rez-next/commit/637ab87835cc182bc905c418e8cc2edae1f1b9a5))
+* fix module counts and remove non-existent modules from tables ([bbdb14d](https://github.com/loonghao/rez-next/commit/bbdb14d3b64a1d5298509483349383d5bca736ae))
+* fix outdated module/test counts and add CLI info (Run [#3](https://github.com/loonghao/rez-next/issues/3)) ([1b7776a](https://github.com/loonghao/rez-next/commit/1b7776afc1f5b31f7be9e6eaab0837e61d3f823e))
+* update documentation to reflect current project state (20 crates, 58 submodules) ([aec5918](https://github.com/loonghao/rez-next/commit/aec5918ae392a9580c7b820c1a846a03761aa9a7))
+
 ## [0.3.4](https://github.com/loonghao/rez-next/compare/v0.3.3...v0.3.4) (2026-05-18)
 
 
