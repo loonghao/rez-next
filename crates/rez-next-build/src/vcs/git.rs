@@ -69,11 +69,11 @@ impl GitVCS {
     ) -> Option<String> {
         // Try to get the remote and its push URL
         if let Ok(remote) = repo.find_remote(remote_name) {
-            if let Some(push_url) = remote.pushurl() {
+            if let Ok(Some(push_url)) = remote.pushurl() {
                 return Some(push_url.to_string());
             }
             // Fallback to fetch URL if no push URL is set
-            if let Some(url) = remote.url() {
+            if let Ok(url) = remote.url() {
                 return Some(url.to_string());
             }
         }
@@ -143,7 +143,7 @@ impl super::ReleaseVCS for GitVCS {
 
         // Check if HEAD is a branch reference
         if head.is_branch() {
-            if let Some(branch_name) = head.shorthand() {
+            if let Ok(branch_name) = head.shorthand() {
                 return Ok(branch_name.to_string());
             }
         }
@@ -338,18 +338,18 @@ impl super::ReleaseVCS for GitVCS {
 
         // Get branch name
         let branch = if head.is_branch() {
-            head.shorthand().map(|s| s.to_string())
+            head.shorthand().ok().map(|s| s.to_string())
         } else {
             None
         };
 
         // Get author info
         let author = commit.author();
-        let author_name = author.name().map(|s| s.to_string());
-        let author_email = author.email().map(|s| s.to_string());
+        let author_name = author.name().ok().map(|s| s.to_string());
+        let author_email = author.email().ok().map(|s| s.to_string());
 
         // Get commit message
-        let commit_message = commit.message().map(|s| s.to_string());
+        let commit_message = commit.message().ok().map(|s| s.to_string());
 
         // Get timestamp
         let timestamp = Some(commit.time().seconds());
@@ -358,7 +358,7 @@ impl super::ReleaseVCS for GitVCS {
         let remote_name = {
             if let Ok(remotes) = repo.remotes() {
                 if !remotes.is_empty() {
-                    remotes.get(0).unwrap_or("origin").to_string()
+                    remotes.get(0).ok().flatten().unwrap_or("origin").to_string()
                 } else {
                     "origin".to_string()
                 }
@@ -370,7 +370,7 @@ impl super::ReleaseVCS for GitVCS {
         // Try to get remote URL
         let repository_url = {
             if let Ok(remote) = repo.find_remote(&remote_name) {
-                remote.url().map(|s| s.to_string())
+                remote.url().ok().map(|s| s.to_string())
             } else {
                 None
             }
@@ -433,7 +433,7 @@ impl super::ReleaseVCS for GitVCS {
 
         // Add branch name
         if head.is_branch() {
-            if let Some(branch_name) = head.shorthand() {
+            if let Ok(branch_name) = head.shorthand() {
                 metadata.insert("branch".to_string(), branch_name.to_string());
             }
         }
