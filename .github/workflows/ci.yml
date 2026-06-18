@@ -42,7 +42,7 @@ jobs:
           tools: "just"
           cache: "true"
           github-token: ${{ secrets.GITHUB_TOKEN }}
-      - uses: dtolnay/rust-toolchain@1.95.0
+      - uses: dtolnay/rust-toolchain@1.100.0
         with:
           components: rustfmt
       - run: vx just fmt-check
@@ -57,7 +57,7 @@ jobs:
           tools: "just"
           cache: "true"
           github-token: ${{ secrets.GITHUB_TOKEN }}
-      - uses: dtolnay/rust-toolchain@1.95.0
+      - uses: dtolnay/rust-toolchain@1.100.0
         with:
           components: clippy
       - uses: Swatinem/rust-cache@v2
@@ -73,7 +73,7 @@ jobs:
           tools: "just"
           cache: "true"
           github-token: ${{ secrets.GITHUB_TOKEN }}
-      - uses: dtolnay/rust-toolchain@1.95.0
+      - uses: dtolnay/rust-toolchain@1.100.0
       - uses: Swatinem/rust-cache@v2
       - run: vx just doc-check
         env:
@@ -91,7 +91,7 @@ jobs:
           tools: "just"
           cache: "true"
           github-token: ${{ secrets.GITHUB_TOKEN }}
-      - uses: dtolnay/rust-toolchain@1.95.0
+      - uses: dtolnay/rust-toolchain@1.100.0
       - uses: Swatinem/rust-cache@v2
       - run: vx cargo check --workspace --exclude rez-next-python --all-targets
       - run: vx cargo test -p rez-next-util which::tests --lib -- --test-threads=1
@@ -107,7 +107,7 @@ jobs:
           tools: "just"
           cache: "true"
           github-token: ${{ secrets.GITHUB_TOKEN }}
-      - uses: dtolnay/rust-toolchain@1.95.0
+      - uses: dtolnay/rust-toolchain@1.100.0
       - uses: Swatinem/rust-cache@v2
         with:
           key: cli-e2e-v4
@@ -119,7 +119,7 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@1.95.0
+      - uses: dtolnay/rust-toolchain@1.100.0
       - uses: Swatinem/rust-cache@v2
       - run: cargo check --workspace --exclude rez-next-python --all-targets
       - run: cargo test -p rez-next-util which::tests --lib -- --test-threads=1
@@ -131,7 +131,7 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@1.95.0
+      - uses: dtolnay/rust-toolchain@1.100.0
         with:
           targets: x86_64-pc-windows-msvc
       - uses: Swatinem/rust-cache@v2
@@ -145,7 +145,7 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@1.95.0
+      - uses: dtolnay/rust-toolchain@1.100.0
         with:
           targets: x86_64-pc-windows-gnu
       - run: rustup target add x86_64-pc-windows-gnu
@@ -172,7 +172,7 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@1.95.0
+      - uses: dtolnay/rust-toolchain@1.100.0
         with:
           components: llvm-tools-preview
       - uses: Swatinem/rust-cache@v2
@@ -195,7 +195,7 @@ jobs:
         python-version: ["3.9", "3.11", "3.12"]
     steps:
       - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@1.95.0
+      - uses: dtolnay/rust-toolchain@1.100.0
       - uses: Swatinem/rust-cache@v2
         with:
           key: python-binding-${{ matrix.python-version }}
