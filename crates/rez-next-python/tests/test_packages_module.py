@@ -469,8 +469,8 @@ description = "A developer package"
         assert pkg.description == "A developer package"
         assert pkg.is_dev_package == True
 
-    def test_with_package_yaml(self, tmp_path):
-        """Test loading a developer package from directory with package.yaml."""
+    def test_rejects_package_yaml(self, tmp_path):
+        """YAML package definitions are intentionally unsupported."""
         pkg_file = tmp_path / "package.yaml"
         pkg_file.write_text("""
 name: yaml_package
@@ -478,11 +478,8 @@ version: "2.0.0"
 description: "A package from yaml"
 """)
 
-        pkg = packages_.get_developer_package(str(tmp_path))
-
-        assert pkg is not None
-        assert pkg.name == "yaml_package"
-        assert pkg.is_dev_package == True
+        with pytest.raises(FileNotFoundError, match="No package.py"):
+            packages_.get_developer_package(str(tmp_path))
 
     def test_not_a_directory(self):
         """Test with a file path instead of directory."""

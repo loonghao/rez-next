@@ -33,16 +33,12 @@ pub fn build_package(
 
     // Load package definition
     let pkg_py = source.join("package.py");
-    let pkg_yaml = source.join("package.yaml");
     let package = if pkg_py.exists() {
         PackageSerializer::load_from_file(&pkg_py)
             .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))?
-    } else if pkg_yaml.exists() {
-        PackageSerializer::load_from_file(&pkg_yaml)
-            .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))?
     } else {
         return Err(pyo3::exceptions::PyFileNotFoundError::new_err(
-            "No package.py or package.yaml found",
+            "No package.py found",
         ));
     };
 

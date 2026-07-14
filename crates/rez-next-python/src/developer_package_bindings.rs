@@ -62,7 +62,7 @@ impl PyDeveloperPackage {
     /// Load a DeveloperPackage from a directory path.
     ///
     /// Args:
-    ///     path: Directory containing package.py or package.yaml
+    ///     path: Directory containing package.py
     ///
     /// Returns:
     ///     DeveloperPackage instance

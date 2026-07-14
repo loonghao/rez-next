@@ -210,7 +210,7 @@ impl PyPackage {
         self.0.is_dev_package = value;
     }
 
-    /// File path to the package definition file (package.py or package.yaml)
+    /// File path to the package definition file (package.py)
     /// Aligns with Rez's DeveloperPackage.filepath attribute.
     #[getter]
     fn filepath(&self) -> Option<String> {
@@ -255,7 +255,7 @@ impl PyPackage {
         Ok(())
     }
 
-    /// Load a package from file (package.py or package.yaml)
+    /// Load a package from file (package.py)
     #[staticmethod]
     fn load(path: &str) -> PyResult<PyPackage> {
         use rez_next_package::serialization::PackageSerializer;
@@ -733,7 +733,7 @@ impl PyPackageFormat {
     }
 }
 
-/// Load a package from file (package.py or package.yaml)
+/// Load a package from file (package.py)
 #[pyfunction]
 pub fn load_package_from_file(path: &str) -> PyResult<PyPackage> {
     use rez_next_package::serialization::PackageSerializer;

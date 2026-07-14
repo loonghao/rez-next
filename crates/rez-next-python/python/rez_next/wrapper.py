@@ -41,7 +41,7 @@ class Wrapper:
 
     def _parse_wrapper(self) -> None:
         """Parse the wrapper YAML file to extract suite and tool metadata."""
-        import yaml  # using rez vendor yaml
+        from rez_next._native.serialise_ import py_read_package_data
 
         if not os.path.isfile(self._filepath):
             from rez_next.exceptions import RezSystemError
@@ -49,8 +49,7 @@ class Wrapper:
             raise RezSystemError(f"Wrapper file not found: {self._filepath}")
 
         try:
-            with open(self._filepath, "r") as f:
-                data = yaml.safe_load(f)
+            data = py_read_package_data(self._filepath, "yaml")
         except Exception as e:
             from rez_next.exceptions import RezSystemError
 

@@ -117,7 +117,7 @@ pub struct PackageTestRunner {
     pub dry_run: bool,
     pub stop_on_fail: bool,
     pub test_results: Vec<TestResult>,
-    /// Loaded test definitions from package.py/yaml
+    /// Loaded test definitions from package.py
     test_definitions: HashMap<String, TestDefinition>,
 }
 
@@ -145,18 +145,13 @@ impl PackageTestRunner {
         Ok(runner)
     }
 
-    /// Load test definitions from package.py or package.yaml in working directory
+    /// Load test definitions from package.py in working directory
     fn load_test_definitions(
         &mut self,
         working_dir: &Path,
         package_spec: &str,
     ) -> RezCoreResult<()> {
-        // First, try to find package.py or package.yaml in working_dir
-        let candidates = [
-            working_dir.join("package.py"),
-            working_dir.join("package.yaml"),
-            working_dir.join("package.yml"),
-        ];
+        let candidates = [working_dir.join("package.py")];
 
         for candidate in &candidates {
             if candidate.exists() {
@@ -181,7 +176,7 @@ impl PackageTestRunner {
                         .collect();
                     versions.sort();
                     if let Some(latest) = versions.last() {
-                        for fname in &["package.py", "package.yaml"] {
+                        for fname in &["package.py"] {
                             let f = latest.join(fname);
                             if f.exists() {
                                 if let Ok(package) = PackageSerializer::load_from_file(&f) {
@@ -482,7 +477,7 @@ pub fn execute(args: TestArgs) -> RezCoreResult<()> {
 
     if available_tests.is_empty() {
         println!("No tests found in package '{}'.", args.package);
-        println!("Make sure the package has a 'tests' field in its package.py or package.yaml.");
+        println!("Make sure the package has a 'tests' field in its package.py.");
         return Ok(());
     }
 

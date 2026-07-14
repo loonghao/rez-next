@@ -14,7 +14,7 @@ use lru::LruCache;
 use memmap2::Mmap;
 use parking_lot::RwLock;
 use rez_next_common::RezCoreError;
-use rez_next_package::Package;
+use rez_next_package::PackageSerializer;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -323,7 +323,7 @@ impl HighPerformanceScanner {
         // Phase 2: Parsing
         let parse_start = Instant::now();
         let _format = self.detect_format_simd(path, &content)?;
-        let package: Package = serde_yaml::from_str(&content).map_err(|e| {
+        let package = PackageSerializer::load_from_python(&content).map_err(|e| {
             self.scan_errors.fetch_add(1, Ordering::Relaxed);
             RezCoreError::Repository(format!("Failed to parse package file: {}", e))
         })?;
@@ -457,7 +457,7 @@ impl SIMDPatternMatcher {
     }
 
     /// Returns `true` only for recognised rez package definition filenames
-    /// (`package.py`, `package.yaml`, `package.yml`, `package.json`).
+    /// (`package.py`).
     ///
     /// Uses the shared `REZ_PACKAGE_FILENAMES` constant for an O(n) linear
     /// scan over the small slice (4 entries), which is branch-predictor-friendly

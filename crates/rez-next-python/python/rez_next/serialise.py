@@ -88,7 +88,7 @@ def load_from_file(
         disable_memcache: If True, skip memcache (no-op in this impl).
 
     Returns:
-        Parsed data: ``dict`` for ``.py``/``.yaml``, ``str`` for ``.txt``.
+        Parsed data: ``dict`` for ``.py`` and ``str`` for ``.txt``.
     """
     abs_path = os.path.abspath(filepath)
 
@@ -162,25 +162,13 @@ def load_py(stream: str, filepath: Optional[str] = None) -> dict[str, Any]:
 
 
 def load_yaml(stream: str, filepath: Optional[str] = None) -> dict[str, Any]:
-    """Load YAML-format data from a string.
+    """Reject the obsolete YAML package-definition format."""
 
-    Args:
-        stream: YAML content as a string.
-        filepath: Optional source file path (for error reporting).
-
-    Returns:
-        Parsed data dictionary.
-    """
-    try:
-        import yaml as _yaml
-
-        data = _yaml.safe_load(stream)
-        return data if isinstance(data, dict) else {}
-    except ImportError:
-        raise RuntimeError("PyYAML is required to load .yaml files")
-    except Exception as e:
-        msg = str(e).replace("<string>", filepath or "<string>")
-        raise RuntimeError(f"Failed to load YAML definition: {msg}")
+    del stream
+    location = f" ({filepath})" if filepath else ""
+    raise ValueError(
+        f"YAML package definitions are not supported{location}; use package.py"
+    )
 
 
 def load_txt(stream: str, filepath: Optional[str] = None) -> str:

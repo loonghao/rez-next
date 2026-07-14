@@ -8,17 +8,17 @@ use tokio::fs;
 
 // ── helpers (mirrored from filesystem_tests.rs) ───────────────────────────────
 
-async fn make_yaml_pkg(root: &std::path::Path, name: &str, version: &str) {
+async fn make_python_pkg(root: &std::path::Path, name: &str, version: &str) {
     let dir = root.join(name).join(version);
     fs::create_dir_all(&dir).await.unwrap();
     let content = format!(
-        "name: \"{}\"\nversion: \"{}\"\ndescription: \"Test\"\n",
+        "name = \"{}\"\nversion = \"{}\"\ndescription = \"Test\"\n",
         name, version
     );
-    fs::write(dir.join("package.yaml"), content).await.unwrap();
+    fs::write(dir.join("package.py"), content).await.unwrap();
 }
 
-async fn make_yaml_pkg_with_variants(
+async fn make_python_pkg_with_variants(
     root: &std::path::Path,
     name: &str,
     version: &str,
@@ -26,21 +26,20 @@ async fn make_yaml_pkg_with_variants(
 ) {
     let dir = root.join(name).join(version);
     fs::create_dir_all(&dir).await.unwrap();
-    let mut variant_yaml = String::new();
+    let mut variant_py = String::new();
     if !variants.is_empty() {
-        variant_yaml.push_str("variants:\n");
+        variant_py.push_str("variants = [\n");
         for group in variants {
-            let reqs: Vec<String> = group.iter().map(|r| format!("    - \"{}\"", r)).collect();
-            variant_yaml.push_str("  -\n");
-            variant_yaml.push_str(&reqs.join("\n"));
-            variant_yaml.push('\n');
+            let reqs: Vec<String> = group.iter().map(|r| format!("\"{}\"", r)).collect();
+            variant_py.push_str(&format!("    [{}],\n", reqs.join(", ")));
         }
+        variant_py.push_str("]\n");
     }
     let content = format!(
-        "name: \"{}\"\nversion: \"{}\"\ndescription: \"Test\"\n{}",
-        name, version, variant_yaml
+        "name = \"{}\"\nversion = \"{}\"\ndescription = \"Test\"\n{}",
+        name, version, variant_py
     );
-    fs::write(dir.join("package.yaml"), content).await.unwrap();
+    fs::write(dir.join("package.py"), content).await.unwrap();
 }
 
 async fn make_py_pkg(root: &std::path::Path, name: &str, version: &str) {
@@ -81,7 +80,7 @@ async fn make_py_pkg_with_variants(
 #[tokio::test]
 async fn test_get_package_variants_returns_empty_when_none() {
     let tmp = TempDir::new().unwrap();
-    make_yaml_pkg(tmp.path(), "simplepkg", "1.0.0").await;
+    make_python_pkg(tmp.path(), "simplepkg", "1.0.0").await;
 
     let mut repo = FileSystemRepository::new(tmp.path().to_path_buf(), Some("r".to_string()));
     repo.initialize().await.unwrap();
@@ -98,8 +97,8 @@ async fn test_get_package_variants_returns_empty_when_none() {
 #[tokio::test]
 async fn test_get_stats_reflects_scanned_packages() {
     let tmp = TempDir::new().unwrap();
-    make_yaml_pkg(tmp.path(), "pkg_a", "1.0.0").await;
-    make_yaml_pkg(tmp.path(), "pkg_b", "1.0.0").await;
+    make_python_pkg(tmp.path(), "pkg_a", "1.0.0").await;
+    make_python_pkg(tmp.path(), "pkg_b", "1.0.0").await;
 
     let mut repo = FileSystemRepository::new(tmp.path().to_path_buf(), Some("r".to_string()));
     repo.initialize().await.unwrap();
@@ -121,9 +120,9 @@ async fn test_get_stats_reflects_scanned_packages() {
 #[tokio::test]
 async fn test_matches_pattern_question_mark_wildcard() {
     let tmp = TempDir::new().unwrap();
-    make_yaml_pkg(tmp.path(), "lib_a", "1.0.0").await;
-    make_yaml_pkg(tmp.path(), "lib_b", "1.0.0").await;
-    make_yaml_pkg(tmp.path(), "libxx", "1.0.0").await;
+    make_python_pkg(tmp.path(), "lib_a", "1.0.0").await;
+    make_python_pkg(tmp.path(), "lib_b", "1.0.0").await;
+    make_python_pkg(tmp.path(), "libxx", "1.0.0").await;
 
     let mut repo = FileSystemRepository::new(tmp.path().to_path_buf(), Some("r".to_string()));
     repo.initialize().await.unwrap();
@@ -137,12 +136,12 @@ async fn test_matches_pattern_question_mark_wildcard() {
     assert_eq!(results.len(), 2, "? should match exactly one char");
 }
 
-// ── variants field (YAML) ─────────────────────────────────────────────────────
+// ── variants field (package.py) ─────────────────────────────────────────────────────
 
 #[tokio::test]
-async fn test_variants_in_yaml_are_discovered() {
+async fn test_variants_in_python_are_discovered() {
     let tmp = TempDir::new().unwrap();
-    make_yaml_pkg_with_variants(
+    make_python_pkg_with_variants(
         tmp.path(),
         "mypkg",
         "1.0.0",
@@ -163,7 +162,7 @@ async fn test_variants_in_yaml_are_discovered() {
 #[tokio::test]
 async fn test_variants_stats_count_is_updated() {
     let tmp = TempDir::new().unwrap();
-    make_yaml_pkg_with_variants(
+    make_python_pkg_with_variants(
         tmp.path(),
         "multi",
         "2.0.0",
@@ -181,7 +180,7 @@ async fn test_variants_stats_count_is_updated() {
 #[tokio::test]
 async fn test_variants_key_without_version_returns_empty() {
     let tmp = TempDir::new().unwrap();
-    make_yaml_pkg_with_variants(tmp.path(), "pkg", "1.0.0", &[&["python-3.9"]]).await;
+    make_python_pkg_with_variants(tmp.path(), "pkg", "1.0.0", &[&["python-3.9"]]).await;
 
     let mut repo = FileSystemRepository::new(tmp.path().to_path_buf(), Some("r".to_string()));
     repo.initialize().await.unwrap();
@@ -229,10 +228,10 @@ async fn test_package_py_correct_version_loaded() {
 }
 
 #[tokio::test]
-async fn test_package_py_and_yaml_coexist() {
+async fn test_multiple_python_packages_coexist() {
     let tmp = TempDir::new().unwrap();
     make_py_pkg(tmp.path(), "alpha", "1.0.0").await;
-    make_yaml_pkg(tmp.path(), "beta", "2.0.0").await;
+    make_python_pkg(tmp.path(), "beta", "2.0.0").await;
 
     let mut repo = FileSystemRepository::new(tmp.path().to_path_buf(), Some("r".to_string()));
     repo.initialize().await.unwrap();
@@ -244,7 +243,7 @@ async fn test_package_py_and_yaml_coexist() {
     );
     assert!(
         names.contains(&"beta".to_string()),
-        "yaml pkg should be found"
+        "second Python pkg should be found"
     );
     assert_eq!(names.len(), 2);
 }
@@ -294,13 +293,13 @@ async fn test_package_py_stats_package_count() {
     let tmp = TempDir::new().unwrap();
     make_py_pkg(tmp.path(), "p1", "1.0.0").await;
     make_py_pkg(tmp.path(), "p2", "1.0.0").await;
-    make_yaml_pkg(tmp.path(), "p3", "1.0.0").await;
+    make_python_pkg(tmp.path(), "p3", "1.0.0").await;
 
     let mut repo = FileSystemRepository::new(tmp.path().to_path_buf(), Some("r".to_string()));
     repo.initialize().await.unwrap();
 
     let stats = repo.get_stats().await.unwrap();
-    assert_eq!(stats.package_count, 3, "Mixed py+yaml packages counted");
+    assert_eq!(stats.package_count, 3, "Python packages counted");
 }
 
 // ── Cycle 64: concurrent access tests ────────────────────────────────────────
@@ -309,8 +308,8 @@ async fn test_package_py_stats_package_count() {
 #[tokio::test]
 async fn test_concurrent_initialize_is_safe() {
     let tmp = TempDir::new().unwrap();
-    make_yaml_pkg(tmp.path(), "alpha", "1.0.0").await;
-    make_yaml_pkg(tmp.path(), "beta", "2.0.0").await;
+    make_python_pkg(tmp.path(), "alpha", "1.0.0").await;
+    make_python_pkg(tmp.path(), "beta", "2.0.0").await;
 
     use std::sync::Arc;
     use tokio::sync::Mutex;
@@ -361,7 +360,7 @@ async fn test_concurrent_initialize_is_safe() {
 async fn test_concurrent_find_packages_consistent() {
     let tmp = TempDir::new().unwrap();
     for i in 0..5 {
-        make_yaml_pkg(tmp.path(), "pkg", &format!("1.{}.0", i)).await;
+        make_python_pkg(tmp.path(), "pkg", &format!("1.{}.0", i)).await;
     }
 
     use std::sync::Arc;
@@ -401,7 +400,7 @@ async fn test_concurrent_find_packages_consistent() {
 async fn test_get_package_names_sorted() {
     let tmp = TempDir::new().unwrap();
     for name in &["zzz", "aaa", "mmm", "bbb"] {
-        make_yaml_pkg(tmp.path(), name, "1.0.0").await;
+        make_python_pkg(tmp.path(), name, "1.0.0").await;
     }
 
     let mut repo = FileSystemRepository::new(tmp.path().to_path_buf(), Some("r".to_string()));
@@ -420,9 +419,9 @@ async fn test_get_package_names_sorted() {
 #[tokio::test]
 async fn test_find_packages_version_filter() {
     let tmp = TempDir::new().unwrap();
-    make_yaml_pkg(tmp.path(), "mypkg", "1.0.0").await;
-    make_yaml_pkg(tmp.path(), "mypkg", "2.0.0").await;
-    make_yaml_pkg(tmp.path(), "mypkg", "3.0.0").await;
+    make_python_pkg(tmp.path(), "mypkg", "1.0.0").await;
+    make_python_pkg(tmp.path(), "mypkg", "2.0.0").await;
+    make_python_pkg(tmp.path(), "mypkg", "3.0.0").await;
 
     let mut repo = FileSystemRepository::new(tmp.path().to_path_buf(), Some("r".to_string()));
     repo.initialize().await.unwrap();
@@ -448,7 +447,7 @@ async fn test_find_packages_version_filter() {
 #[tokio::test]
 async fn test_find_packages_unknown_name_empty() {
     let tmp = TempDir::new().unwrap();
-    make_yaml_pkg(tmp.path(), "known_pkg", "1.0.0").await;
+    make_python_pkg(tmp.path(), "known_pkg", "1.0.0").await;
 
     let mut repo = FileSystemRepository::new(tmp.path().to_path_buf(), Some("r".to_string()));
     repo.initialize().await.unwrap();

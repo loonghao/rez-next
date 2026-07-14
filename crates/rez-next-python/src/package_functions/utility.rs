@@ -149,8 +149,8 @@ pub fn dump_package_data<'py>(
 /// Load a package from a developer sandbox directory.
 ///
 /// Equivalent to `rez.packages.get_developer_package(path, paths=None)`.
-/// Looks for `package.py` or `package.yaml` in the given directory,
-/// loads the package, and marks it as a developer package.
+/// Looks for `package.py` in the given directory, loads it, and marks it as a
+/// developer package.
 #[pyfunction]
 #[pyo3(signature = (path, _paths=None))]
 pub fn get_developer_package(path: &str, _paths: Option<Vec<String>>) -> PyResult<PyPackage> {
@@ -166,20 +166,13 @@ pub fn get_developer_package(path: &str, _paths: Option<Vec<String>>) -> PyResul
         )));
     }
 
-    // Look for package.py first, then package.yaml
     let package_py = dir.join("package.py");
-    let package_yaml = dir.join("package.yaml");
-    let package_json = dir.join("package.json");
 
     let file_path = if package_py.exists() {
         package_py
-    } else if package_yaml.exists() {
-        package_yaml
-    } else if package_json.exists() {
-        package_json
     } else {
         return Err(pyo3::exceptions::PyFileNotFoundError::new_err(format!(
-            "No package.py, package.yaml, or package.json found in: {}",
+            "No package.py found in: {}",
             path
         )));
     };

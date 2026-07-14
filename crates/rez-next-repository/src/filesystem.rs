@@ -312,7 +312,7 @@ impl FileSystemRepository {
         let mut variant_cache = self.variant_cache.write().await;
 
         // Walk through the repository directory.
-        // Expected layout: root/{family}/{version}/package.yaml
+        // Expected layout: root/{family}/{version}/package.py
         // We iterate two levels: family dirs first, then version dirs inside each family.
         let mut family_entries = fs::read_dir(&self.metadata.path).await.map_err(|e| {
             RezCoreError::Repository(format!("Failed to read repository directory: {}", e))
@@ -327,9 +327,7 @@ impl FileSystemRepository {
             }
 
             // First check if this directory itself contains a package file (flat layout)
-            let has_direct_pkg = ["package.yaml", "package.yml", "package.json"]
-                .iter()
-                .any(|f| family_path.join(f).exists());
+            let has_direct_pkg = family_path.join("package.py").exists();
 
             if has_direct_pkg {
                 if let Ok(scan_result) = self
@@ -388,12 +386,7 @@ impl FileSystemRepository {
         let mut size_bytes = 0;
 
         // Look for package definition files
-        let package_files = [
-            path.join("package.py"),
-            path.join("package.yaml"),
-            path.join("package.yml"),
-            path.join("package.json"),
-        ];
+        let package_files = [path.join("package.py")];
 
         for package_file in &package_files {
             if package_file.exists() {

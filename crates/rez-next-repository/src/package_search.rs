@@ -135,20 +135,11 @@ fn is_plugin_for(family_path: &Path, target_package: &str) -> bool {
 /// Load a package from a version directory.
 fn load_package_from_dir(dir: &Path) -> Option<Package> {
     let package_py = dir.join("package.py");
-    let package_yaml = dir.join("package.yaml");
-    let package_yml = dir.join("package.yml");
-
-    let file_path = if package_py.exists() {
-        &package_py
-    } else if package_yaml.exists() {
-        &package_yaml
-    } else if package_yml.exists() {
-        &package_yml
-    } else {
+    if !package_py.exists() {
         return None;
-    };
+    }
 
-    Package::from_path(file_path).ok()
+    Package::from_path(&package_py).ok()
 }
 
 /// Get the reverse dependency tree for a package.

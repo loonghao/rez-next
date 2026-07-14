@@ -82,20 +82,19 @@ class TestSerialiseLoadPy:
 
 
 class TestSerialiseLoadYaml:
-    """Tests for serialise.load_yaml."""
+    """YAML package definitions are intentionally unsupported."""
 
     def test_load_yaml_simple(self):
-        data = serialise.load_yaml("name: mylib\nversion: \"1.0.0\"")
-        assert data.get("name") == "mylib"
-        assert data.get("version") == "1.0.0"
+        with pytest.raises(ValueError, match="YAML package definitions"):
+            serialise.load_yaml("name: mylib\nversion: \"1.0.0\"")
 
     def test_load_yaml_empty(self):
-        data = serialise.load_yaml("")
-        assert data == {}
+        with pytest.raises(ValueError, match="YAML package definitions"):
+            serialise.load_yaml("")
 
     def test_load_yaml_empty_doc(self):
-        data = serialise.load_yaml("---\n...")
-        assert data == {}
+        with pytest.raises(ValueError, match="YAML package definitions"):
+            serialise.load_yaml("---\n...")
 
 
 class TestSerialiseLoadTxt:

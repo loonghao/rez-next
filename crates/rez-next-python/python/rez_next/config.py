@@ -1041,14 +1041,10 @@ def _load_config_py(filepath):
 @lru_cache()
 def _load_config_yaml(filepath):
     try:
-        import yaml as _yaml
-    except ImportError:
-        raise ConfigurationError("PyYAML is required to load YAML config: %s" % filepath)
-    with open(filepath) as f:
-        try:
-            doc = _yaml.safe_load(f) or {}
-        except Exception as e:
-            raise ConfigurationError("Error loading config from %s: %s" % (filepath, str(e)))
+        from rez_next._native.serialise_ import py_read_package_data
+        doc = py_read_package_data(filepath, "yaml") or {}
+    except Exception as e:
+        raise ConfigurationError("Error loading config from %s: %s" % (filepath, str(e)))
     if not isinstance(doc, dict):
         raise ConfigurationError("Expected dict, got %s" % type(doc).__name__)
     return doc

@@ -681,18 +681,13 @@ impl PyReleaseManager {
         let mut issues: Vec<String> = vec![];
 
         let pkg_file = source.join("package.py");
-        let pkg_yaml = source.join("package.yaml");
 
-        if !pkg_file.exists() && !pkg_yaml.exists() {
-            issues.push("Missing package.py or package.yaml".to_string());
+        if !pkg_file.exists() {
+            issues.push("Missing package.py".to_string());
             return Ok((false, issues));
         }
 
-        let pkg_path = if pkg_file.exists() {
-            &pkg_file
-        } else {
-            &pkg_yaml
-        };
+        let pkg_path = &pkg_file;
         match PackageSerializer::load_from_file(pkg_path) {
             Ok(pkg) => {
                 if pkg.name.is_empty() {

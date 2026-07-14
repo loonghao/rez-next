@@ -15,7 +15,7 @@ use crate::scanner_types::{
 use dashmap::DashMap;
 use memmap2::Mmap;
 use rez_next_common::RezCoreError;
-use rez_next_package::Package;
+use rez_next_package::PackageSerializer;
 use smallvec::SmallVec;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -303,7 +303,7 @@ impl RepositoryScanner {
         }
 
         let parse_start = std::time::Instant::now();
-        let package: Package = serde_yaml::from_str(&content).map_err(|e| {
+        let package = PackageSerializer::load_from_python(&content).map_err(|e| {
             RezCoreError::Repository(format!("Failed to parse package file: {}", e))
         })?;
         let parse_time = parse_start.elapsed().as_millis() as u64;

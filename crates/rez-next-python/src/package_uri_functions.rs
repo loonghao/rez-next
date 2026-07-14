@@ -149,7 +149,7 @@ fn find_package_in_path(
     }
 
     // Try to find package file
-    for filename in &["package.py", "package.yaml", "package.json"] {
+    for filename in &["package.py", "package.json"] {
         let file_path = path.join(filename);
         if file_path.exists() {
             if let Ok(pkg) = PackageSerializer::load_from_file(&file_path) {
@@ -159,11 +159,7 @@ fn find_package_in_path(
     }
 
     // If path itself is a package file
-    if path.exists()
-        && (path.ends_with("package.py")
-            || path.ends_with("package.yaml")
-            || path.ends_with("package.json"))
-    {
+    if path.exists() && (path.ends_with("package.py") || path.ends_with("package.json")) {
         if let Ok(pkg) = PackageSerializer::load_from_file(&path) {
             return Ok(Some(pkg));
         }
@@ -266,11 +262,7 @@ pub fn get_package_from_handle(
     let path = Path::new(&path_str);
 
     // Check if it's a direct package file
-    if path.exists()
-        && (path.ends_with("package.py")
-            || path.ends_with("package.yaml")
-            || path.ends_with("package.json"))
-    {
+    if path.exists() && (path.ends_with("package.py") || path.ends_with("package.json")) {
         if let Ok(pkg) = PackageSerializer::load_from_file(path) {
             return Ok(Some(PyPackage(pkg)));
         }
@@ -278,7 +270,7 @@ pub fn get_package_from_handle(
 
     // If not a direct file, try to find package files in the directory
     if path.is_dir() {
-        for filename in &["package.py", "package.yaml", "package.json"] {
+        for filename in &["package.py", "package.json"] {
             let file_path = path.join(filename);
             if file_path.exists() {
                 if let Ok(pkg) = PackageSerializer::load_from_file(&file_path) {
@@ -300,7 +292,7 @@ pub fn get_package_from_handle(
 
             // Also check for package files in directory
             if full_path.is_dir() {
-                for filename in &["package.py", "package.yaml", "package.json"] {
+                for filename in &["package.py", "package.json"] {
                     let file_path = full_path.join(filename);
                     if file_path.exists() {
                         if let Ok(pkg) = PackageSerializer::load_from_file(&file_path) {
@@ -334,7 +326,7 @@ pub fn get_package_from_repository(
     }
 
     // Try to find package file in repo path
-    for filename in &["package.py", "package.yaml", "package.json"] {
+    for filename in &["package.py", "package.json"] {
         let file_path = pkg_path.join(filename);
         if file_path.exists() {
             if let Ok(pkg) = PackageSerializer::load_from_file(&file_path) {

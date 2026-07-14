@@ -106,13 +106,13 @@ fn test_is_package_file_package_py() {
 #[test]
 fn test_is_package_file_package_yaml() {
     let scanner = make_scanner_no_background();
-    assert!(scanner.is_package_file(Path::new("/some/repo/package.yaml")));
+    assert!(!scanner.is_package_file(Path::new("/some/repo/package.yaml")));
 }
 
 #[test]
 fn test_is_package_file_package_yml() {
     let scanner = make_scanner_no_background();
-    assert!(scanner.is_package_file(Path::new("/some/repo/package.yml")));
+    assert!(!scanner.is_package_file(Path::new("/some/repo/package.yml")));
 }
 
 #[test]
@@ -366,13 +366,13 @@ mod test_async {
     // --- scan_repository: directory with a valid package.py ---
 
     #[tokio::test]
-    async fn test_scan_repository_finds_package_yaml() {
+    async fn test_scan_repository_finds_package_py() {
         let tmp = TempDir::new().unwrap();
         let pkg_dir = tmp.path().join("mypkg").join("1.0.0");
         std::fs::create_dir_all(&pkg_dir).unwrap();
         std::fs::write(
-            pkg_dir.join("package.yaml"),
-            "name: mypkg\nversion: '1.0.0'\n",
+            pkg_dir.join("package.py"),
+            "name = 'mypkg'\nversion = '1.0.0'\n",
         )
         .unwrap();
 
@@ -382,7 +382,7 @@ mod test_async {
         assert_eq!(
             result.errors.len(),
             0,
-            "valid YAML fixture should parse cleanly"
+            "valid Python fixture should parse cleanly"
         );
         assert_eq!(
             result.packages.len(),
@@ -408,8 +408,8 @@ mod test_async {
             let pkg_dir = tmp.path().join(name).join("1.0.0");
             std::fs::create_dir_all(&pkg_dir).unwrap();
             std::fs::write(
-                pkg_dir.join("package.yaml"),
-                format!("name: {}\nversion: '1.0.0'\n", name),
+                pkg_dir.join("package.py"),
+                format!("name = '{}'\nversion = '1.0.0'\n", name),
             )
             .unwrap();
         }

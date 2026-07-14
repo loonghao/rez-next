@@ -199,9 +199,9 @@ async fn test_scan_package_with_tools() {
 
 // ── Multi-format descriptor discovery tests ──────────────────────────────────
 
-/// `SimpleRepository` must discover packages in all four supported formats.
+/// Non-Python package descriptors are intentionally ignored.
 #[tokio::test]
-async fn test_multi_format_json_discovered() {
+async fn test_package_json_is_ignored() {
     let temp_dir = TempDir::new().unwrap();
     let dir = temp_dir.path().join("jsonpkg").join("1.0.0");
     fs::create_dir_all(&dir).await.unwrap();
@@ -214,8 +214,7 @@ async fn test_multi_format_json_discovered() {
 
     let repo = SimpleRepository::new(temp_dir.path(), "repo".to_string());
     let pkgs = repo.find_packages("jsonpkg").await.unwrap();
-    assert_eq!(pkgs.len(), 1, "package.json should be discovered");
-    assert_eq!(pkgs[0].name, "jsonpkg");
+    assert!(pkgs.is_empty(), "package.json must not be discovered");
 }
 
 /// When multiple formats exist in the same directory, only one package should
@@ -248,8 +247,7 @@ async fn test_multi_format_priority_py_beats_yaml_no_duplicate() {
     assert_eq!(pkgs[0].description.as_deref(), Some("from python"));
 }
 
-/// A mixed-format repository contains packages in different formats; all should
-/// be discoverable via `list_packages` and `find_packages`.
+/// A mixed-format repository only discovers canonical package.py definitions.
 #[tokio::test]
 async fn test_multi_format_mixed_repository_list_all() {
     let temp_dir = TempDir::new().unwrap();
@@ -291,12 +289,5 @@ async fn test_multi_format_mixed_repository_list_all() {
         names.contains(&"pypkg".to_string()),
         "package.py pkg missing"
     );
-    assert!(
-        names.contains(&"yamlpkg2".to_string()),
-        "package.yaml pkg missing"
-    );
-    assert!(
-        names.contains(&"ymlpkg".to_string()),
-        "package.yml pkg missing"
-    );
+    assert_eq!(names, vec!["pypkg"]);
 }

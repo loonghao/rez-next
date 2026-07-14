@@ -70,7 +70,7 @@ pub async fn execute(args: &GuiArgs) -> Result<(), Box<dyn std::error::Error>> {
                             continue;
                         }
 
-                        // Try to read description from package.py or package.yaml
+                        // Read the description from package.py.
                         let description = read_description(&ver_path);
 
                         all_packages.push(PkgInfo {
@@ -99,7 +99,7 @@ pub async fn execute(args: &GuiArgs) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-/// Try to read package description from package.py or package.yaml
+/// Try to read package description from package.py.
 fn read_description(pkg_dir: &std::path::Path) -> String {
     // Try package.py
     let py_path = pkg_dir.join("package.py");
@@ -113,22 +113,6 @@ fn read_description(pkg_dir: &std::path::Path) -> String {
                         if !s.is_empty() {
                             return s;
                         }
-                    }
-                }
-            }
-        }
-    }
-
-    // Try package.yaml
-    let yaml_path = pkg_dir.join("package.yaml");
-    if yaml_path.exists() {
-        if let Ok(content) = std::fs::read_to_string(&yaml_path) {
-            for line in content.lines() {
-                let trimmed = line.trim();
-                if trimmed.starts_with("description:") {
-                    let val = trimmed.trim_start_matches("description:").trim();
-                    if !val.is_empty() {
-                        return val.trim_matches('"').trim_matches('\'').to_string();
                     }
                 }
             }

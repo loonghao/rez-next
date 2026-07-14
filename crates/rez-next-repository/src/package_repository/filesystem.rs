@@ -259,7 +259,7 @@ impl PackageRepository for FilesystemPackageRepository {
         }
 
         // For now, create a single variant (index 0)
-        // In a full implementation, would parse package.py/package.yaml for variants
+        // In a full implementation, would parse package.py for variants
         let variant = VariantResource::new(
             package.name().to_string(),
             Some(version_str),
