@@ -176,13 +176,11 @@ impl PackageTestRunner {
                         .collect();
                     versions.sort();
                     if let Some(latest) = versions.last() {
-                        for fname in &["package.py"] {
-                            let f = latest.join(fname);
-                            if f.exists() {
-                                if let Ok(package) = PackageSerializer::load_from_file(&f) {
-                                    self.extract_tests_from_package(&package);
-                                    return Ok(());
-                                }
+                        let package_file = latest.join("package.py");
+                        if package_file.exists() {
+                            if let Ok(package) = PackageSerializer::load_from_file(&package_file) {
+                                self.extract_tests_from_package(&package);
+                                return Ok(());
                             }
                         }
                     }
