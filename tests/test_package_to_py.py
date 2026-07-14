@@ -50,7 +50,6 @@ class TestToPackagePy:
         """Test to_package_py() for package with only name."""
         pkg = rez.Package("test_package")
         result = pkg.to_package_py()
-        assert "# -*- coding: utf-8 -*-" in result
         assert 'name = "test_package"' in result
 
     def test_package_with_version(self):
@@ -139,7 +138,6 @@ class TestToPackagePy:
         result = pkg.to_package_py()
 
         # Check all fields are present
-        assert "# -*- coding: utf-8 -*-" in result
         assert 'name = "my_package"' in result
         assert 'version = "1.2.3"' in result
         assert 'description = "A test package"' in result

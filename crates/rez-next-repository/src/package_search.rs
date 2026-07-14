@@ -63,7 +63,7 @@ impl ResourceSearchResult {
 /// // let plugins = get_plugins("maya", None);
 /// ```
 pub fn get_plugins(package_name: &str, paths: Option<Vec<String>>) -> Vec<String> {
-    let search_paths = paths.unwrap_or_else(|| get_default_package_paths());
+    let search_paths = paths.unwrap_or_else(get_default_package_paths);
 
     let mut plugins = Vec::new();
     let mut visited = HashSet::new();
@@ -181,7 +181,7 @@ pub fn get_reverse_dependency_tree(
     build_requires: bool,
     _private_build_requires: bool,
 ) -> (Vec<Vec<String>>, HashMap<String, Vec<String>>) {
-    let search_paths = paths.unwrap_or_else(|| get_default_package_paths());
+    let search_paths = paths.unwrap_or_else(get_default_package_paths);
 
     let mut graph: HashMap<String, Vec<String>> = HashMap::new();
     let mut layers: Vec<Vec<String>> = Vec::new();
@@ -208,10 +208,7 @@ pub fn get_reverse_dependency_tree(
                     next_layer.push(dep.clone());
 
                     // Add to graph
-                    graph
-                        .entry(pkg_name.clone())
-                        .or_insert_with(Vec::new)
-                        .push(dep);
+                    graph.entry(pkg_name.clone()).or_default().push(dep);
                 }
             }
         }

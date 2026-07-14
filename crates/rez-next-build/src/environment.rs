@@ -614,7 +614,7 @@ mod tests {
         );
         assert_eq!(
             vars.get("REZ_BUILD_REQUIRES_UNVERSIONED"),
-            Some(&"python cmake internal_lib platform-windows".to_string())
+            Some(&"python cmake internal_lib platform".to_string())
         );
         assert_eq!(
             vars.get("REZ_BUILD_VARIANT_SUBPATH"),

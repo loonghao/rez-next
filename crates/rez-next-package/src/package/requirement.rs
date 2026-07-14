@@ -4,6 +4,8 @@ use rez_next_common::RezCoreError;
 use rez_next_version::Version;
 use serde::{Deserialize, Serialize};
 
+use crate::requirement::Requirement as ParsedRequirement;
+
 /// Simple package requirement for basic functionality
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PackageRequirement {
@@ -81,21 +83,13 @@ impl PackageRequirement {
             (s, false)
         };
 
-        let mut req = if let Some(dash_pos) = s.rfind('-') {
-            let potential_name = &s[..dash_pos];
-            let potential_version = &s[dash_pos + 1..];
-            if potential_version
-                .chars()
-                .next()
-                .map(|c| c.is_ascii_digit())
-                .unwrap_or(false)
-            {
-                Self::with_version(potential_name.to_string(), potential_version.to_string())
-            } else {
-                Self::new(s.to_string())
-            }
+        let parsed: ParsedRequirement = s.parse().map_err(RezCoreError::RequirementParse)?;
+        let remainder = &s[parsed.name.len()..];
+        let version_spec = remainder.strip_prefix('-').unwrap_or(remainder);
+        let mut req = if version_spec.is_empty() {
+            Self::new(parsed.name)
         } else {
-            Self::new(s.to_string())
+            Self::with_version(parsed.name, version_spec.to_string())
         };
         req.weak = weak;
         req.conflict = conflict;

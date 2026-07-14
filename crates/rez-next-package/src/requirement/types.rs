@@ -17,6 +17,10 @@ pub struct Requirement {
     /// Whether this is a weak requirement (optional)
     pub weak: bool,
 
+    /// Whether matching package versions must be excluded from the solve.
+    #[serde(default)]
+    pub conflict: bool,
+
     /// Platform-specific conditions
     pub platform_conditions: Vec<PlatformCondition>,
 
@@ -91,6 +95,7 @@ impl Requirement {
             name,
             version_constraint: None,
             weak: false,
+            conflict: false,
             platform_conditions: Vec::new(),
             env_conditions: Vec::new(),
             conditional_expression: None,
@@ -104,6 +109,7 @@ impl Requirement {
             name,
             version_constraint: Some(constraint),
             weak: false,
+            conflict: false,
             platform_conditions: Vec::new(),
             env_conditions: Vec::new(),
             conditional_expression: None,
@@ -117,6 +123,7 @@ impl Requirement {
             name,
             version_constraint: None,
             weak: true,
+            conflict: false,
             platform_conditions: Vec::new(),
             env_conditions: Vec::new(),
             conditional_expression: None,
@@ -288,11 +295,7 @@ impl VersionConstraint {
             }
             VersionConstraint::Exclude(versions) => !versions.iter().any(|v| version == v),
             VersionConstraint::Wildcard(pattern) => self.matches_wildcard(version, pattern),
-            VersionConstraint::Prefix(prefix) => {
-                let ver_str = version.as_str();
-                let prefix_str = prefix.as_str();
-                ver_str == prefix_str || ver_str.starts_with(&format!("{}.", prefix_str))
-            }
+            VersionConstraint::Prefix(prefix) => version.has_prefix(prefix),
             VersionConstraint::Any => true,
         }
     }

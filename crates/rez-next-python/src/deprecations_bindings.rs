@@ -9,7 +9,7 @@ use pyo3::prelude::*;
 /// Rez deprecation warning class
 ///
 /// This is a simple warning class that can be used with Python's `warnings` module.
-#[pyclass(name = "RezDeprecationWarning")]
+#[pyclass(name = "RezDeprecationWarning", skip_from_py_object)]
 #[derive(Clone)]
 pub struct PyRezDeprecationWarning;
 
@@ -44,7 +44,6 @@ pub fn register_deprecations_submodule(parent_module: &Bound<'_, PyModule>) -> P
 #[cfg(test)]
 mod tests {
     use super::*;
-    use pyo3::Python;
 
     #[test]
     fn test_deprecations_module_creation() {

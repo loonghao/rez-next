@@ -241,11 +241,6 @@ impl ShellExecutor {
         for command in commands {
             let result = self.execute(command).await?;
             results.push(result);
-
-            // Stop on first failure if desired
-            // if !result.is_success() {
-            //     break;
-            // }
         }
 
         Ok(results)

@@ -3,9 +3,11 @@
 use crate::SolverConfig;
 use crate::resolution_state::ResolutionState;
 use rez_next_common::RezCoreError;
-use rez_next_package::{Package, Requirement};
+use rez_next_package::{Package, Requirement, VersionConstraint};
 use rez_next_repository::simple_repository::RepositoryManager;
+use rez_next_version::Version;
 use std::collections::HashMap;
+use std::path::PathBuf;
 use std::sync::Arc;
 
 /// A dependency resolver that finds compatible package combinations
@@ -53,6 +55,30 @@ pub struct ResolvedPackageInfo {
 
     /// The specific requirement that was satisfied
     pub satisfying_requirement: Option<Requirement>,
+}
+
+impl ResolvedPackageInfo {
+    /// Return the package descriptor rooted at its selected variant payload.
+    pub fn materialized_package(&self) -> Package {
+        let mut package = (*self.package).clone();
+        if package.hashed_variants != Some(true)
+            && let Some(index) = self.variant_index
+            && let (Some(root), Some(requirements)) = (package.root(), package.variants.get(index))
+        {
+            let variant_root = requirements
+                .iter()
+                .fold(PathBuf::from(root), |path, requirement| {
+                    path.join(requirement)
+                });
+            package.filepath = Some(
+                variant_root
+                    .join("package.py")
+                    .to_string_lossy()
+                    .into_owned(),
+            );
+        }
+        package
+    }
 }
 
 /// A conflict encountered during resolution
@@ -128,7 +154,16 @@ impl DependencyResolver {
             backtrack_steps: resolution_state.backtrack_steps,
         };
 
-        let failed = resolution_state.failed_requirements;
+        let failed_requirements = std::mem::take(&mut resolution_state.failed_requirements);
+        let failed: Vec<_> = failed_requirements
+            .into_iter()
+            .filter(|requirement| {
+                resolution_state.is_requirement_active(requirement)
+                    && resolution_state
+                        .find_satisfying_package(requirement)
+                        .is_none()
+            })
+            .collect();
 
         // Strict mode: any unsatisfied requirement is a hard error
         if self.config.strict_mode && !failed.is_empty() {
@@ -161,9 +196,24 @@ impl DependencyResolver {
                 continue;
             }
 
+            // Weak requirements constrain a package when it is otherwise part
+            // of the solve, but never introduce that package on their own.
+            if requirement.weak
+                && !state
+                    .resolved_packages
+                    .iter()
+                    .any(|resolved| resolved.package.name == requirement.name)
+            {
+                continue;
+            }
+
             // Find candidate packages for this requirement
             let candidates = self.find_candidate_packages(&requirement).await?;
             state.packages_considered += candidates.len();
+            let has_resolved_package = state
+                .resolved_packages
+                .iter()
+                .any(|resolved| resolved.package.name == requirement.name);
 
             if candidates.is_empty() {
                 state.failed_requirements.push(requirement.clone());
@@ -172,7 +222,16 @@ impl DependencyResolver {
 
             // Try each candidate
             let mut resolved = false;
+            let mut best_effort_candidate = None;
             for candidate in candidates {
+                if state.is_package_rejected(&candidate) {
+                    continue;
+                }
+                if best_effort_candidate.is_none()
+                    && state.check_explicit_conflicts(&candidate).is_none()
+                {
+                    best_effort_candidate = Some(candidate.clone());
+                }
                 // Check for conflicts with existing packages
                 if let Some(conflict) = state.check_conflicts(&candidate, &requirement) {
                     state.conflicts.push(conflict);
@@ -180,14 +239,39 @@ impl DependencyResolver {
                 }
 
                 // Try to resolve with this candidate
-                if let Ok(resolved_info) = self
+                if let Ok((resolved_info, dependencies, conflicts)) = self
                     .try_resolve_with_candidate(state, &candidate, &requirement)
                     .await
                 {
+                    let package_name = resolved_info.package.name.clone();
                     state.add_resolved_package(resolved_info);
+                    state.set_package_requirements(package_name, dependencies, conflicts);
                     resolved = true;
                     break;
                 }
+            }
+
+            if !resolved
+                && !self.config.strict_mode
+                && !has_resolved_package
+                && let Some(candidate) = best_effort_candidate
+                && let Ok((resolved_info, dependencies, conflicts)) = self
+                    .try_resolve_with_candidate(state, &candidate, &requirement)
+                    .await
+            {
+                let package_name = resolved_info.package.name.clone();
+                state.add_resolved_package(resolved_info);
+                state.set_package_requirements(package_name, dependencies, conflicts);
+                resolved = true;
+            }
+
+            if !resolved
+                && self.config.strict_mode
+                && self
+                    .backtrack_dependency_source(state, &requirement)
+                    .await?
+            {
+                continue;
             }
 
             if !resolved {
@@ -196,6 +280,109 @@ impl DependencyResolver {
         }
 
         Ok(state.resolved_packages.clone())
+    }
+
+    async fn backtrack_dependency_source(
+        &mut self,
+        state: &mut ResolutionState,
+        failed_requirement: &Requirement,
+    ) -> Result<bool, RezCoreError> {
+        let target_candidates = self.find_candidate_packages(failed_requirement).await?;
+        let mut exact_sources = Vec::new();
+        let mut incompatible_sources = Vec::new();
+        let mut other_sources = Vec::new();
+
+        for resolved in &state.resolved_packages {
+            let source = &resolved.package.name;
+            let Some(requirements) = state.package_requirements.get(source) else {
+                continue;
+            };
+            let target_requirements: Vec<_> = requirements
+                .iter()
+                .filter(|requirement| requirement.name == failed_requirement.name)
+                .collect();
+            if target_requirements.is_empty() {
+                continue;
+            }
+
+            if target_requirements.contains(&failed_requirement) {
+                exact_sources.push(source.clone());
+            } else if target_requirements.iter().any(|requirement| {
+                !target_candidates.iter().any(|candidate| {
+                    candidate
+                        .version
+                        .as_ref()
+                        .is_some_and(|version| requirement.is_satisfied_by(version))
+                })
+            }) {
+                incompatible_sources.push(source.clone());
+            } else {
+                other_sources.push(source.clone());
+            }
+        }
+
+        exact_sources.extend(incompatible_sources);
+        exact_sources.extend(other_sources);
+        for source in exact_sources {
+            if self.backtrack_package(state, &source).await? {
+                return Ok(true);
+            }
+        }
+
+        Ok(false)
+    }
+
+    async fn backtrack_package(
+        &mut self,
+        state: &mut ResolutionState,
+        package_name: &str,
+    ) -> Result<bool, RezCoreError> {
+        let Some(current) = state
+            .resolved_packages
+            .iter()
+            .find(|resolved| resolved.package.name == package_name)
+            .cloned()
+        else {
+            return Ok(false);
+        };
+        let Some(requirements) = state.active_requirements.get(package_name).cloned() else {
+            return Ok(false);
+        };
+        let Some(primary_requirement) = requirements.first() else {
+            return Ok(false);
+        };
+
+        state.reject_package(&current.package);
+        let candidates = self.find_candidate_packages(primary_requirement).await?;
+        for candidate in candidates {
+            if state.is_package_rejected(&candidate)
+                || candidate.version == current.package.version
+                || candidate.version.as_ref().is_some_and(|version| {
+                    requirements
+                        .iter()
+                        .any(|requirement| !requirement.is_satisfied_by(version))
+                })
+                || state.check_explicit_conflicts(&candidate).is_some()
+            {
+                continue;
+            }
+
+            let requirement = current
+                .satisfying_requirement
+                .as_ref()
+                .unwrap_or(primary_requirement);
+            if let Ok((resolved_info, dependencies, conflicts)) = self
+                .try_resolve_with_candidate(state, &candidate, requirement)
+                .await
+            {
+                state.add_resolved_package(resolved_info);
+                state.set_package_requirements(package_name.to_string(), dependencies, conflicts);
+                state.backtrack_steps += 1;
+                return Ok(true);
+            }
+        }
+
+        Ok(false)
     }
 
     /// Find candidate packages that could satisfy a requirement
@@ -270,7 +457,7 @@ impl DependencyResolver {
         state: &mut ResolutionState,
         candidate: &Arc<Package>,
         requirement: &Requirement,
-    ) -> Result<ResolvedPackageInfo, RezCoreError> {
+    ) -> Result<(ResolvedPackageInfo, Vec<Requirement>, Vec<Requirement>), RezCoreError> {
         // Determine which variant to use (if package has variants)
         let variant_index = self.select_variant(candidate, state);
         state.variants_evaluated += candidate.variants.len().max(1);
@@ -287,20 +474,24 @@ impl DependencyResolver {
             satisfying_requirement: Some(requirement.clone()),
         };
 
-        // Add transitive dependencies to resolution queue
+        let mut dependencies = Vec::new();
+        let mut conflicts = Vec::new();
         for dep_req_str in &effective_requires {
-            let dep_requirement: Requirement = dep_req_str.parse().map_err(|e| {
-                RezCoreError::RequirementParse(format!(
-                    "Invalid requirement '{}': {}",
-                    dep_req_str, e
-                ))
-            })?;
-            // Record the dependency edge for cycle detection
-            state.record_dependency(&candidate.name, &dep_requirement.name);
-            state.add_requirement(dep_requirement);
+            let (conflict, dep_requirement) = Self::parse_variant_requirement(dep_req_str)
+                .map_err(|e| {
+                    RezCoreError::RequirementParse(format!(
+                        "Invalid requirement '{}': {}",
+                        dep_req_str, e
+                    ))
+                })?;
+            if conflict {
+                conflicts.push(dep_requirement);
+                continue;
+            }
+            dependencies.push(dep_requirement);
         }
 
-        Ok(resolved_info)
+        Ok((resolved_info, dependencies, conflicts))
     }
 
     /// Select the best variant for a package given current resolution state
@@ -309,34 +500,121 @@ impl DependencyResolver {
             return None;
         }
 
-        // Try each variant, pick the first one that doesn't conflict with resolved packages
-        for (i, variant_requires) in package.variants.iter().enumerate() {
-            let mut compatible = true;
-            for req_str in variant_requires {
-                if let Ok(req) = req_str.parse::<Requirement>() {
-                    // Check if this variant requirement conflicts with already resolved packages
-                    for resolved in &state.resolved_packages {
-                        if resolved.package.name == req.name {
-                            if let Some(ref version) = resolved.package.version {
-                                if !req.is_satisfied_by(version) {
-                                    compatible = false;
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                }
-                if !compatible {
-                    break;
-                }
-            }
-            if compatible {
-                return Some(i);
-            }
-        }
+        package
+            .variants
+            .iter()
+            .enumerate()
+            .filter(|(_, requirements)| self.variant_is_compatible(requirements, state))
+            .max_by_key(|(index, requirements)| {
+                let positive: Vec<_> = requirements
+                    .iter()
+                    .filter_map(|raw| Self::parse_variant_requirement(raw).ok())
+                    .filter(|(conflict, _)| !conflict)
+                    .map(|(_, requirement)| requirement)
+                    .collect();
+                let resolved_matches = positive
+                    .iter()
+                    .filter(|requirement| {
+                        state.resolved_packages.iter().any(|resolved| {
+                            resolved.package.name == requirement.name
+                                && resolved
+                                    .package
+                                    .version
+                                    .as_ref()
+                                    .is_some_and(|version| requirement.is_satisfied_by(version))
+                        })
+                    })
+                    .count();
+                let shared = positive
+                    .iter()
+                    .filter(|requirement| {
+                        state
+                            .original_requirements
+                            .iter()
+                            .any(|original| original.name == requirement.name)
+                    })
+                    .count();
+                let resolved_version_priority: Vec<_> = positive
+                    .iter()
+                    .filter(|requirement| {
+                        state
+                            .resolved_packages
+                            .iter()
+                            .any(|resolved| resolved.package.name == requirement.name)
+                    })
+                    .map(|requirement| {
+                        (
+                            requirement
+                                .version_constraint
+                                .as_ref()
+                                .and_then(Self::constraint_version_floor),
+                            requirement.name.clone(),
+                        )
+                    })
+                    .collect();
+                (
+                    resolved_matches,
+                    shared,
+                    std::cmp::Reverse(positive.len()),
+                    resolved_version_priority,
+                    std::cmp::Reverse(*index),
+                )
+            })
+            .map(|(index, _)| index)
+    }
 
-        // Fall back to first variant
-        Some(0)
+    fn constraint_version_floor(constraint: &VersionConstraint) -> Option<Version> {
+        match constraint {
+            VersionConstraint::Exact(version)
+            | VersionConstraint::GreaterThan(version)
+            | VersionConstraint::GreaterThanOrEqual(version)
+            | VersionConstraint::Compatible(version)
+            | VersionConstraint::Range(version, _)
+            | VersionConstraint::Prefix(version) => Some(version.clone()),
+            VersionConstraint::Multiple(constraints)
+            | VersionConstraint::Alternative(constraints) => constraints
+                .iter()
+                .filter_map(Self::constraint_version_floor)
+                .max(),
+            VersionConstraint::LessThan(_)
+            | VersionConstraint::LessThanOrEqual(_)
+            | VersionConstraint::Exclude(_)
+            | VersionConstraint::Wildcard(_)
+            | VersionConstraint::Any => None,
+        }
+    }
+
+    fn variant_is_compatible(&self, requirements: &[String], state: &ResolutionState) -> bool {
+        requirements.iter().all(|raw| {
+            let Ok((conflict, requirement)) = Self::parse_variant_requirement(raw) else {
+                return false;
+            };
+            let resolved = state
+                .resolved_packages
+                .iter()
+                .find(|resolved| resolved.package.name == requirement.name);
+            match (conflict, resolved) {
+                (true, Some(resolved)) => resolved
+                    .package
+                    .version
+                    .as_ref()
+                    .is_some_and(|version| !requirement.is_satisfied_by(version)),
+                // A later positive constraint may legitimately narrow an already
+                // selected package. The queue will replace it with a candidate
+                // satisfying every active constraint.
+                (false, Some(_)) => true,
+                _ => true,
+            }
+        })
+    }
+
+    fn parse_variant_requirement(raw: &str) -> Result<(bool, Requirement), String> {
+        let (conflict, requirement) = raw
+            .strip_prefix('!')
+            .map_or((false, raw), |requirement| (true, requirement));
+        requirement
+            .parse()
+            .map(|requirement| (conflict, requirement))
     }
 
     /// Get the effective requires list, merging base requires with variant requires

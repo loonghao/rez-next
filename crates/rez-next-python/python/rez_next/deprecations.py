@@ -6,7 +6,6 @@ This module provides compatibility with rez.deprecations.
 from __future__ import annotations
 
 import warnings
-import os
 
 
 class RezDeprecationWarning(DeprecationWarning):
@@ -58,6 +57,7 @@ def warn(
     warnings.formatwarning = original_formatwarning
 
 
+
 # Emulate rez.deprecations behavior
-# (module-level imports for compatibility)
-warnings  # make sure it's accessible as rez.deprecations.warnings
+# Module-level attribute for backwards compatibility
+# (warnings is already importable as rez_next.deprecations.warnings via the top-level import)

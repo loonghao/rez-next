@@ -170,11 +170,16 @@ mod tests {
     }
 
     #[test]
-    fn test_ensure_dir_exists() {
-        // This is harder to test without temp dirs in Rust
-        // The rez-next-util crate has better tests with tempfile
-        // Just verify the function exists and compiles
-        assert!(true);
+    fn test_ensure_dir_exists_creates_dir() {
+        let dir = std::env::temp_dir().join("rez_next_test_ensure_dir");
+        // Clean up first in case previous test run left it
+        let _ = std::fs::remove_dir_all(&dir);
+        let path_str = dir.to_string_lossy().to_string();
+        let result = ensure_dir_exists_py(&path_str);
+        assert!(result.is_ok());
+        assert!(dir.exists() && dir.is_dir());
+        // Clean up
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
@@ -185,10 +190,19 @@ mod tests {
     }
 
     #[test]
-    fn test_copy_file() {
-        // Just verify the function exists and has correct signature
-        // Actual file operations are tested in rez-next-util crate
-        assert!(true);
+    fn test_copy_file_creates_copy() {
+        let dir = std::env::temp_dir().join("rez_next_test_copy");
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let src = dir.join("src.txt");
+        let dst = dir.join("dst.txt");
+        std::fs::write(&src, b"hello").unwrap();
+        let result = copy_file_py(src.to_str().unwrap(), dst.to_str().unwrap());
+        assert!(result.is_ok());
+        assert!(dst.exists());
+        assert_eq!(std::fs::read_to_string(&dst).unwrap(), "hello");
+        // Clean up
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }
 
@@ -268,7 +282,7 @@ fn get_username_py() -> String {
 /// Get the current user's home directory
 #[pyfunction(name = "get_home_directory")]
 fn get_home_directory_py() -> Option<String> {
-    rez_next_util::get_home_directory().and_then(|p| Some(p.to_string_lossy().to_string()))
+    rez_next_util::get_home_directory().map(|p| p.to_string_lossy().to_string())
 }
 
 /// Get the current machine's fully qualified domain name (FQDN)

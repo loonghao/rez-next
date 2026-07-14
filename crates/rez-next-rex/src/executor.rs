@@ -39,13 +39,19 @@ impl RexExecutor {
         if let Some(root) = root {
             self.context_vars
                 .insert("root".to_string(), root.to_string());
+            self.context_vars
+                .insert("this.root".to_string(), root.to_string());
         }
         if let Some(version) = version {
             self.context_vars
                 .insert("version".to_string(), version.to_string());
+            self.context_vars
+                .insert("this.version".to_string(), version.to_string());
         }
         self.context_vars
             .insert("name".to_string(), package_name.to_string());
+        self.context_vars
+            .insert("this.name".to_string(), package_name.to_string());
 
         // Parse and execute commands (using cached parser for efficiency)
         let parser = crate::parser::get_cached_parser();

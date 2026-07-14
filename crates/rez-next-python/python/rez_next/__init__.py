@@ -5,8 +5,8 @@ This module provides a drop-in replacement for Rez.
 """
 
 import os  # noqa: F401
-import sys  # noqa: F401
 import warnings  # noqa: F401
+import sys
 
 # Import _native module (try multiple methods)
 try:
@@ -44,11 +44,83 @@ except ImportError:
         pass
 
 # Import submodules
+from . import bind  # noqa: F401
+from . import build_process  # noqa: F401
+from . import build_system  # noqa: F401
+from . import bundle_context  # noqa: F401
+from . import command  # noqa: F401
 from . import complete  # noqa: F401
 from . import deprecations  # noqa: F401
+from . import package_cache  # noqa: F401
+
 from . import package_help  # noqa: F401
+from . import package_py_utils  # noqa: F401
+from . import package_remove  # noqa: F401
+from . import package_repository  # noqa: F401
+from . import package_search  # noqa: F401
+from . import package_serialise  # noqa: F401  — module (rez.package_serialise API: dump_package_data)
+from . import package_test  # noqa: F401  — module (rez.package_test API: PackageTestRunner, PackageTestResults)
+from . import plugin_managers  # noqa: F401
+from . import release_hook  # noqa: F401
+from . import release_vcs  # noqa: F401
+from . import resolver  # noqa: F401
+from . import rex_bindings  # noqa: F401
+from . import solver  # noqa: F401
+from . import status  # noqa: F401  — module (rez.status API: from rez.status import status)
+from . import shells  # noqa: F401  — module (rez.shells API: create_shell, get_shell_types, get_shell_class)
+from . import system  # noqa: F401  — module (rez.system API: from rez.system import system)
+from . import serialise  # noqa: F401
+from . import rezconfig  # noqa: F401
+from . import utils  # noqa: F401
+from . import wrapper  # noqa: F401
 from .exceptions import *  # noqa: F401,F403
 from .config import Config  # noqa: F401
+
+# Package maker — programmatic package creation
+from .package_maker import (  # noqa: F401
+    PackageMaker,
+    create_package,
+    install_package,
+    make_package,
+)
+
+# Ensure native submodules used by bridge modules are registered in sys.modules
+# so that "from rez_next.<submodule> import ..." works at runtime.
+import sys as _sys
+import types as _types
+for _name in ('packages_', 'package_search', 'search', 'solver_', 'serialise_', 'bind'):
+    _attr = getattr(_native, _name, None)
+    if _attr is not None and isinstance(_attr, _types.ModuleType):
+        _full = 'rez_next.' + _name
+        if _full not in _sys.modules:
+            _sys.modules[_full] = _attr
+
+# 'packages' needs special handling: register as a Python bridge module
+# that re-exports classes from _native.packages and functions from
+# _native.packages_. Otherwise the native _native.packages submodule
+# shadows packages.py entirely.
+_packages_module = _types.ModuleType("rez_next.packages")
+_packages_module.__package__ = "rez_next"
+_packages_module.__path__ = []
+_packages_module.__file__ = __file__
+# Native classes
+_attr = getattr(_native, "packages", None)
+if _attr is not None:
+    for _cls_name in ("Package", "PackageFamily", "PackageRequirement", "PackageFormat"):
+        setattr(_packages_module, _cls_name, getattr(_attr, _cls_name))
+# Functions from packages_
+_attr = getattr(_native, "packages_", None)
+if _attr is not None:
+    for _func_name in (n for n in dir(_attr) if not n.startswith("_")):
+        setattr(_packages_module, _func_name, getattr(_attr, _func_name))
+# Build __all__ from all public names
+_packages_module.__all__ = [
+    n for n in dir(_packages_module) if not n.startswith("_")
+]
+# Register
+_sys.modules["rez_next.packages"] = _packages_module
+setattr(sys.modules["rez_next"], "packages", _packages_module)
+del _cls_name, _func_name, _packages_module
 
 __version__: str = getattr(_native, "__version__", "0.3.0")
 __author__: str = getattr(_native, "__author__", "rez-next contributors")
@@ -57,13 +129,62 @@ __license__: str = "Apache-2.0"
 # Module root path (matches rez.module_root_path API)
 module_root_path: str = os.path.dirname(os.path.abspath(__file__))
 
-# Emulate rez.action variable (read from env, used for signal handling)
-action = os.getenv("REZ_SIGUSR1_ACTION")
+# ── Logging Initialization ───────────────────────────────────────────────
+# Mirrors upstream rez._init_logging()
+def _init_logging() -> None:
+    """Initialize rez-next logging.
 
-# Top-level singletons — compatible with `from rez import config` and `from rez import system`
+    If ``REZ_LOGGING_CONF`` is set, uses that logging config file.
+    Otherwise, configures a default StreamHandler on the ``rez`` logger.
+    """
+    _logging_conf = os.getenv("REZ_LOGGING_CONF")
+    if _logging_conf:
+        import logging.config
+        logging.config.fileConfig(_logging_conf, disable_existing_loggers=False)
+        return
+
+    import logging
+    _logger = logging.getLogger("rez")
+    _logger.propagate = False
+    _logger.setLevel(logging.DEBUG)
+    if not _logger.handlers:
+        _handler = logging.StreamHandler()
+        _handler.setFormatter(logging.Formatter(
+            fmt="%(asctime)s %(levelname)-8s %(message)s",
+            datefmt="%X",
+        ))
+        _logger.addHandler(_handler)
+
+
+_init_logging()
+
+# ── SIGUSR1 / Signal Handler ─────────────────────────────────────────────
+# Mirrors upstream rez SIGUSR1 handler for debug / stack trace dumping.
+_action = os.getenv("REZ_SIGUSR1_ACTION")
+if _action:
+    try:
+        import signal
+        import traceback
+
+        if _action == "print_stack":
+            def _callback(sig, frame):  # type: ignore
+                txt = "".join(traceback.format_stack(frame))
+                print()
+                print(txt)
+        else:
+            _callback = None  # type: ignore
+
+        if _callback:
+            signal.signal(signal.SIGUSR1, _callback)
+    except (ValueError, OSError, AttributeError):
+        pass  # SIGUSR1 not available on this platform (e.g., Windows)
+
+# Module-level variable for API compat (matches rez.action)
+action: str | None = _action
+
+# Top-level singletons — compatible with `from rez import config`
 config = Config()
 config.Config = Config
-system = getattr(_native, "System", lambda: None)()
 
 # Aliases for API compatibility with original rez
 resolve = getattr(_native, "resolve_packages", None)
@@ -77,15 +198,24 @@ from .complete import get_completion_script  # noqa: F401
 def _package_getitem(self, key):
     if key == "version":
         return getattr(self, "version_str", None)
+    if not hasattr(self, key):
+        raise KeyError(key)
     return getattr(self, key)
 
 
-def _context_get(self, key, default=None):
+_context_get_sentinel = object()
+
+
+def _context_get(self, key, default=_context_get_sentinel):
     if key == "success":
         return getattr(self, "success", False)
     if key == "packages":
         return getattr(self, "resolved_packages", [])
-    return getattr(self, key, default)
+    if hasattr(self, key):
+        return getattr(self, key)
+    if default is not _context_get_sentinel:
+        return default
+    raise KeyError(key)
 
 
 def _pkg_node(pkg):
@@ -128,5 +258,11 @@ try:
     Package.__getitem__ = _package_getitem  # type: ignore[name-defined]
     ResolvedContext.get = _context_get  # type: ignore[name-defined]
     ResolvedContext.to_dot = _context_to_dot  # type: ignore[name-defined]
-except Exception:
-    pass
+except (NameError, AttributeError):
+    pass  # Core classes not yet available — expected in early imports
+
+# ── Deprecation Warnings Filter ──────────────────────────────────────────
+# Mirrors upstream rez behavior: log all rez deprecation warnings by default,
+# bypassing user-defined warning filters.
+if os.getenv("REZ_LOG_DEPRECATION_WARNINGS"):
+    warnings.filterwarnings("default", category=deprecations.RezDeprecationWarning)

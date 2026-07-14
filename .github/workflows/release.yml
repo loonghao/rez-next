@@ -103,8 +103,9 @@ jobs:
         run: |
           BINARY="target/${TARGET}/release/${BINARY_NAME}"
           ARCHIVE="${BINARY_NAME}-${TARGET}.tar.gz"
-          chmod +x "$BINARY"
-          tar czf "$ARCHIVE" -C "target/${TARGET}/release" "${BINARY_NAME}"
+          REZ_BINARY="target/${TARGET}/release/rez"
+          chmod +x "$BINARY" "$REZ_BINARY"
+          tar czf "$ARCHIVE" -C "target/${TARGET}/release" "${BINARY_NAME}" rez
           echo "ASSET=$ARCHIVE" >> "$GITHUB_ENV"
 
       - name: Prepare archive (Windows)
@@ -114,8 +115,9 @@ jobs:
           TARGET: ${{ matrix.target }}
         run: |
           BINARY="target/${TARGET}/release/${BINARY_NAME}.exe"
+          REZ_BINARY="target/${TARGET}/release/rez.exe"
           ARCHIVE="${BINARY_NAME}-${TARGET}.zip"
-          7z a "$ARCHIVE" "$BINARY"
+          7z a "$ARCHIVE" "$BINARY" "$REZ_BINARY"
           echo "ASSET=$ARCHIVE" >> "$GITHUB_ENV"
 
       - name: Upload artifact

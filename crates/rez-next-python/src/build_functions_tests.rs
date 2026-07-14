@@ -647,12 +647,12 @@ mod test_get_buildsys_types {
     use crate::build_functions::get_buildsys_types;
 
     #[test]
-    fn test_get_buildsys_types_returns_six_types() {
+    fn test_get_buildsys_types_returns_eight_types() {
         let types = get_buildsys_types().unwrap();
         assert_eq!(
             types.len(),
-            6,
-            "get_buildsys_types should return 6 types (excluding 'unknown')"
+            8,
+            "get_buildsys_types should return 8 types: cmake, make, python, nodejs, cargo, binary_archive, pypi, custom"
         );
     }
 

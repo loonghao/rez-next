@@ -80,8 +80,7 @@ class TestCreateUniqueBase26Symlink:
 
     def test_placeholder(self):
         """Placeholder test - actual symlink tests require Unix environment."""
-        # This function is tested manually on Unix systems
-        pass
+        pytest.skip("actual symlink tests require Unix environment")
 
 
 class TestBase26Alignment:

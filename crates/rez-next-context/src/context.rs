@@ -416,17 +416,6 @@ impl ContextBuilder {
         context.metadata = self.metadata;
         context
     }
-
-    // /// Build and resolve the context
-    // pub async fn build_and_resolve(
-    //     self,
-    //     solver: &DependencySolver,
-    // ) -> Result<ResolvedContext, RezCoreError> {
-    //     let context = self.build();
-    //     let request = SolverRequest::new(context.requirements.clone());
-    //     let resolution = solver.resolve(request)?;
-    //     Ok(ResolvedContext::from_resolution_result(context.requirements, resolution))
-    // }
 }
 
 impl Default for ContextBuilder {

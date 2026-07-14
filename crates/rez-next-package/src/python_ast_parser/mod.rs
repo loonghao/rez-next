@@ -547,4 +547,26 @@ authors = ["author1"] + ["author2"]
         let package = result.unwrap();
         assert_eq!(package.name, "test_package");
     }
+
+    #[test]
+    fn test_commands_select_os_getenv_default_branch() {
+        let package = PythonAstParser::parse_package_py(
+            r#"
+name = "test_package"
+version = "1.0.0"
+import os
+def commands():
+    if os.getenv("REZ_NEXT_TEST_UNSET", "false").lower() == "true":
+        env.MODE = "enabled"
+    else:
+        env.MODE = "disabled"
+"#,
+        )
+        .unwrap();
+
+        assert_eq!(
+            package.commands.as_deref(),
+            Some("env.setenv('MODE', 'disabled')")
+        );
+    }
 }
