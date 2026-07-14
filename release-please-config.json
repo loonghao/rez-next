@@ -12,8 +12,62 @@
       "bump-patch-for-minor-pre-major": true,
       "changelog-path": "CHANGELOG.md",
       "extra-files": [
-        "Cargo.toml",
-        "crates/rez-next-python/pyproject.toml"
+        {
+          "type": "generic",
+          "path": "Cargo.toml"
+        },
+        {
+          "type": "generic",
+          "path": "crates/rez-next-bind/Cargo.toml"
+        },
+        {
+          "type": "generic",
+          "path": "crates/rez-next-build/Cargo.toml"
+        },
+        {
+          "type": "generic",
+          "path": "crates/rez-next-config/Cargo.toml"
+        },
+        {
+          "type": "generic",
+          "path": "crates/rez-next-context/Cargo.toml"
+        },
+        {
+          "type": "generic",
+          "path": "crates/rez-next-package/Cargo.toml"
+        },
+        {
+          "type": "generic",
+          "path": "crates/rez-next-python/Cargo.toml"
+        },
+        {
+          "type": "generic",
+          "path": "crates/rez-next-repository/Cargo.toml"
+        },
+        {
+          "type": "generic",
+          "path": "crates/rez-next-rex/Cargo.toml"
+        },
+        {
+          "type": "generic",
+          "path": "crates/rez-next-search/Cargo.toml"
+        },
+        {
+          "type": "generic",
+          "path": "crates/rez-next-solver/Cargo.toml"
+        },
+        {
+          "type": "generic",
+          "path": "crates/rez-next-suites/Cargo.toml"
+        },
+        {
+          "type": "generic",
+          "path": "crates/rez-next-version/Cargo.toml"
+        },
+        {
+          "type": "generic",
+          "path": "crates/rez-next-python/pyproject.toml"
+        }
       ],
       "changelog-sections": [
         {"type": "feat", "section": "🚀 Features", "hidden": false},

@@ -10,7 +10,7 @@ repository.workspace = true
 keywords = ["rez", "bind", "package-manager"]
 
 [dependencies]
-rez-next-common = { version = "0.3.0", path = "../rez-next-common" }
+rez-next-common = { version = "0.3.0", path = "../rez-next-common" } # x-release-please-version
 thiserror.workspace = true
 regex.workspace = true
 

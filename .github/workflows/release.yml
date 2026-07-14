@@ -23,8 +23,34 @@ env:
   BINARY_NAME: rez-next
 
 jobs:
+  verify-version:
+    name: Verify Release Version
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - name: Match tag and package versions
+        shell: python
+        run: |
+          import json
+          import os
+          import tomllib
+
+          expected = os.environ["GITHUB_REF_NAME"].removeprefix("v")
+          with open("Cargo.toml", "rb") as stream:
+              cargo = tomllib.load(stream)["workspace"]["package"]["version"]
+          with open("crates/rez-next-python/pyproject.toml", "rb") as stream:
+              python = tomllib.load(stream)["project"]["version"]
+          with open(".release-please-manifest.json", encoding="utf-8") as stream:
+              manifest = json.load(stream)["."]
+
+          versions = {"tag": expected, "cargo": cargo, "python": python, "manifest": manifest}
+          print(versions)
+          if len(set(versions.values())) != 1:
+              raise SystemExit("release versions do not match")
+
   build:
     name: Build ${{ matrix.target }}
+    needs: verify-version
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -90,9 +116,9 @@ jobs:
           USE_CROSS: ${{ matrix.use-cross == true }}
         run: |
           if [ "$USE_CROSS" = "true" ]; then
-            cross build --release --target "$TARGET"
+            cross build --release --target "$TARGET" --bin rez-next --bin rez
           else
-            cargo build --release --target "$TARGET"
+            cargo build --release --target "$TARGET" --bin rez-next --bin rez
           fi
 
       - name: Prepare archive (Unix)
@@ -168,6 +194,7 @@ jobs:
 
   build-wheels:
     name: Build Python wheels (${{ matrix.name }})
+    needs: verify-version
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -230,14 +257,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - name: linux
-            os: ubuntu-22.04
-          - name: windows
-            os: windows-2022
-          - name: macos
-            os: macos-14
+        os: [ubuntu-22.04, windows-2022, macos-14]
         python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
+        include:
+          - os: ubuntu-22.04
+            name: linux
+          - os: windows-2022
+            name: windows
+          - os: macos-14
+            name: macos
 
     steps:
       - uses: actions/checkout@v7
@@ -352,7 +380,7 @@ jobs:
                 break
               fi
 
-              if echo "${output}" | grep -qi "already uploaded"; then
+              if echo "${output}" | grep -Eqi "already uploaded|already exists on crates.io index"; then
                 echo "${package} is already published for this version; continuing."
                 echo "::endgroup::"
                 break
@@ -420,5 +448,6 @@ jobs:
         with:
           # Trusted Publisher configured at https://pypi.org/manage/account/publishing/
           # No PYPI_API_TOKEN needed — uses OIDC identity from GitHub Actions.
+          skip-existing: true
           verbose: true
 
