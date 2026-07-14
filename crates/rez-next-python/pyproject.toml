@@ -9,7 +9,7 @@ description = "Next-generation Rez package manager - drop-in Python replacement"
 readme = "README.md"
 license = { text = "Apache-2.0" }
 requires-python = ">=3.8"
-dependencies = ["PyYAML>=6"]
+dependencies = []
 classifiers = [
     "Programming Language :: Rust",
     "Programming Language :: Python :: Implementation :: CPython",

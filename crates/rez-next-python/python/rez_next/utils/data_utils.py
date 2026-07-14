@@ -59,7 +59,7 @@ class ModifyList:
 class DelayLoad:
     """Used in config to delay-load a value from another file.
 
-    Supported formats: YAML (``*.yaml``, ``*.yml``) and JSON (``*.json``).
+    Supported format: JSON (``*.json``).
     """
 
     def __init__(self, filepath: str) -> None:
@@ -72,17 +72,7 @@ class DelayLoad:
         """Load and return the value from the configured file."""
         ext = os.path.splitext(self.filepath)[-1]
 
-        if ext in (".yaml", ".yml"):
-            from rez_next.utils.yaml import _yaml as _yaml_lib, _RUAMEL as _RUAMEL_FLAG
-
-            def _loader(contents: str) -> Any:
-                if _RUAMEL_FLAG:
-                    import io
-                    yml = _yaml_lib.YAML(typ="safe")
-                    return yml.load(io.StringIO(contents))
-                return _yaml_lib.safe_load(contents)
-
-        elif ext == ".json":
+        if ext == ".json":
 
             def _loader(contents: str) -> Any:
                 return json.loads(contents)

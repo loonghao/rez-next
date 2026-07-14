@@ -18,18 +18,18 @@ mod test_rez_package_filenames {
     }
 
     #[test]
-    fn test_contains_package_yaml() {
-        assert!(REZ_PACKAGE_FILENAMES.contains(&"package.yaml"));
+    fn test_excludes_package_yaml() {
+        assert!(!REZ_PACKAGE_FILENAMES.contains(&"package.yaml"));
     }
 
     #[test]
-    fn test_contains_package_yml() {
-        assert!(REZ_PACKAGE_FILENAMES.contains(&"package.yml"));
+    fn test_excludes_package_yml() {
+        assert!(!REZ_PACKAGE_FILENAMES.contains(&"package.yml"));
     }
 
     #[test]
-    fn test_contains_package_json() {
-        assert!(REZ_PACKAGE_FILENAMES.contains(&"package.json"));
+    fn test_excludes_package_json() {
+        assert!(!REZ_PACKAGE_FILENAMES.contains(&"package.json"));
     }
 
     #[test]
@@ -43,8 +43,8 @@ mod test_rez_package_filenames {
     }
 
     #[test]
-    fn test_exactly_four_entries() {
-        assert_eq!(REZ_PACKAGE_FILENAMES.len(), 4);
+    fn test_exactly_one_entry() {
+        assert_eq!(REZ_PACKAGE_FILENAMES, &["package.py"]);
     }
 
     /// Validates that the constant stays in sync with ScannerConfig::default().
@@ -81,21 +81,21 @@ mod test_simd_pattern_matcher {
     }
 
     #[test]
-    fn test_matches_package_yaml() {
+    fn test_does_not_match_package_yaml() {
         let matcher = SIMDPatternMatcher::new();
-        assert!(matcher.matches_package_pattern(Path::new("/some/dir/package.yaml")));
+        assert!(!matcher.matches_package_pattern(Path::new("/some/dir/package.yaml")));
     }
 
     #[test]
-    fn test_matches_package_yml() {
+    fn test_does_not_match_package_yml() {
         let matcher = SIMDPatternMatcher::new();
-        assert!(matcher.matches_package_pattern(Path::new("/some/dir/package.yml")));
+        assert!(!matcher.matches_package_pattern(Path::new("/some/dir/package.yml")));
     }
 
     #[test]
-    fn test_matches_package_json() {
+    fn test_does_not_match_package_json() {
         let matcher = SIMDPatternMatcher::new();
-        assert!(matcher.matches_package_pattern(Path::new("/some/dir/package.json")));
+        assert!(!matcher.matches_package_pattern(Path::new("/some/dir/package.json")));
     }
 
     // --- non-rez .py files must NOT match (regression guard) ---
@@ -159,9 +159,9 @@ mod test_simd_pattern_matcher {
     // --- filename-only paths (no parent dir) ---
 
     #[test]
-    fn test_matches_bare_package_yaml() {
+    fn test_does_not_match_bare_package_yaml() {
         let matcher = SIMDPatternMatcher::new();
-        assert!(matcher.matches_package_pattern(Path::new("package.yaml")));
+        assert!(!matcher.matches_package_pattern(Path::new("package.yaml")));
     }
 
     #[test]
@@ -236,8 +236,8 @@ mod test_simd_pattern_matcher {
     fn test_default_is_same_as_new() {
         let a = SIMDPatternMatcher::new();
         let b = SIMDPatternMatcher::default();
-        assert!(a.matches_package_pattern(Path::new("package.yaml")));
-        assert!(b.matches_package_pattern(Path::new("package.yaml")));
+        assert!(a.matches_package_pattern(Path::new("package.py")));
+        assert!(b.matches_package_pattern(Path::new("package.py")));
         assert!(!a.matches_package_pattern(Path::new("build.py")));
         assert!(!b.matches_package_pattern(Path::new("build.py")));
     }
@@ -518,12 +518,12 @@ mod test_scan_optimized_async {
     }
 
     #[tokio::test]
-    async fn test_scan_valid_yaml_package_file_is_parsed() {
+    async fn test_scan_valid_python_package_file_is_parsed() {
         let tmp = TempDir::new().unwrap();
         let pkg_dir = tmp.path().join("maya").join("2024.1");
         std::fs::create_dir_all(&pkg_dir).unwrap();
-        let yaml = "name: maya\nversion: '2024.1'\ndescription: Maya DCC\n";
-        std::fs::write(pkg_dir.join("package.yaml"), yaml).unwrap();
+        let package_py = "name = 'maya'\nversion = '2024.1'\ndescription = 'Maya DCC'\n";
+        std::fs::write(pkg_dir.join("package.py"), package_py).unwrap();
 
         let config = HighPerformanceConfig::default();
         let scanner = HighPerformanceScanner::new(config);
@@ -543,8 +543,8 @@ mod test_scan_optimized_async {
         for (name, ver) in &pkgs {
             let pkg_dir = tmp.path().join(name).join(ver);
             std::fs::create_dir_all(&pkg_dir).unwrap();
-            let yaml = format!("name: {}\nversion: '{}'\n", name, ver);
-            std::fs::write(pkg_dir.join("package.yaml"), &yaml).unwrap();
+            let package_py = format!("name = '{}'\nversion = '{}'\n", name, ver);
+            std::fs::write(pkg_dir.join("package.py"), &package_py).unwrap();
         }
 
         let config = HighPerformanceConfig::default();
@@ -581,8 +581,8 @@ mod test_scan_optimized_async {
         let pkg_dir = tmp.path().join("mypkg").join("1.0");
         std::fs::create_dir_all(&pkg_dir).unwrap();
         // Write a valid package file
-        let yaml = "name: mypkg\nversion: '1.0'\n";
-        std::fs::write(pkg_dir.join("package.yaml"), yaml).unwrap();
+        let package_py = "name = 'mypkg'\nversion = '1.0'\n";
+        std::fs::write(pkg_dir.join("package.py"), package_py).unwrap();
         // Write non-package files that should be ignored
         std::fs::write(pkg_dir.join("build.py"), "# build script").unwrap();
         std::fs::write(pkg_dir.join("setup.yaml"), "key: value").unwrap();
@@ -591,11 +591,11 @@ mod test_scan_optimized_async {
         let config = HighPerformanceConfig::default();
         let scanner = HighPerformanceScanner::new(config);
         let result = scanner.scan_repository_optimized(tmp.path()).await.unwrap();
-        // Only package.yaml should be discovered; non-package files are filtered
+        // Only package.py should be discovered; non-package files are filtered
         assert_eq!(
             result.packages.len(),
             1,
-            "only package.yaml should be scanned"
+            "only package.py should be scanned"
         );
     }
 }

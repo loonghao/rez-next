@@ -76,7 +76,7 @@ class TestDelayLoad:
 
     def test_get_value_file_not_found(self):
         dl = DelayLoad("/nonexistent/file.yaml")
-        with pytest.raises(ValueError, match="Error reading|Error loading"):
+        with pytest.raises(ValueError, match="unsupported file format"):
             dl.get_value()
 
     def test_unsupported_format(self):

@@ -361,7 +361,7 @@ async fn test_get_latest_from_many_versions() {
 }
 
 #[tokio::test]
-async fn test_scan_yaml_packages_discovered() {
+async fn test_scan_yaml_packages_ignored() {
     let temp_dir = TempDir::new().unwrap();
     let dir = temp_dir.path().join("yamlpkg").join("1.0.0");
     fs::create_dir_all(&dir).await.unwrap();
@@ -375,12 +375,7 @@ async fn test_scan_yaml_packages_discovered() {
     let repo = SimpleRepository::new(temp_dir.path(), "repo".to_string());
     repo.scan().await.unwrap();
     let pkgs = repo.find_packages("yamlpkg").await.unwrap();
-    assert_eq!(
-        pkgs.len(),
-        1,
-        "package.yaml should be discovered by SimpleRepository"
-    );
-    assert_eq!(pkgs[0].name, "yamlpkg");
+    assert!(pkgs.is_empty(), "package.yaml must not be discovered");
 }
 
 #[tokio::test]

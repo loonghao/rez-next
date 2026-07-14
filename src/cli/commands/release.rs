@@ -186,17 +186,13 @@ fn detect_vcs(working_dir: &Path) -> &'static str {
 /// Load developer package from working directory
 fn load_developer_package(working_dir: &Path) -> RezCoreResult<rez_next_package::Package> {
     let package_py = working_dir.join("package.py");
-    let package_yaml = working_dir.join("package.yaml");
 
     if package_py.exists() {
         PackageSerializer::load_from_file(&package_py)
             .map_err(|e| RezCoreError::PackageParse(format!("Failed to parse package.py: {}", e)))
-    } else if package_yaml.exists() {
-        PackageSerializer::load_from_file(&package_yaml)
-            .map_err(|e| RezCoreError::PackageParse(format!("Failed to parse package.yaml: {}", e)))
     } else {
         Err(RezCoreError::PackageParse(
-            "No package.py or package.yaml found in current directory".to_string(),
+            "No package.py found in current directory".to_string(),
         ))
     }
 }

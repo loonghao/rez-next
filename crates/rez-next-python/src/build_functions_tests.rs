@@ -525,7 +525,7 @@ version = "1.0.0"
         let tmp = std::env::temp_dir().join("rez_bs_no_pkg");
         let _ = std::fs::remove_dir_all(&tmp);
         std::fs::create_dir_all(&tmp).unwrap();
-        // No package.py or package.yaml created
+        // No package.py created
         let result = build_package(Some(tmp.to_str().unwrap()), false, false, None);
         assert!(
             result.is_err(),
@@ -571,8 +571,7 @@ version = "1.0.0"
     }
 
     #[test]
-    fn test_build_package_with_yaml_loads_without_file_not_found() {
-        // Test that package.yaml can also be loaded
+    fn test_build_package_rejects_yaml_package_definition() {
         let tmp = std::env::temp_dir().join("rez_bs_pkg_yaml");
         let _ = std::fs::remove_dir_all(&tmp);
         std::fs::create_dir_all(&tmp).unwrap();
@@ -582,15 +581,7 @@ version: "1.0.0"
         "#;
         std::fs::write(tmp.join("package.yaml"), pkg).unwrap();
         let result = build_package(Some(tmp.to_str().unwrap()), false, false, None);
-        // Should not be a "No package.py or package.yaml" error
-        if let Err(e) = &result {
-            let err_str = e.to_string();
-            assert!(
-                !err_str.contains("No package.py"),
-                "Should not be a 'No package.py' error: {}",
-                err_str
-            );
-        }
+        assert!(result.is_err());
         let _ = std::fs::remove_dir_all(&tmp);
     }
 
