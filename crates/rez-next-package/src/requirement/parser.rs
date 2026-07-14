@@ -29,7 +29,13 @@ impl RequirementParser {
     pub fn parse(&self, s: &str) -> Result<Requirement, String> {
         let s = s.trim();
 
-        let (s, weak) = if let Some(stripped) = s.strip_prefix('~') {
+        let (s, conflict) = if let Some(stripped) = s.strip_prefix('!') {
+            (stripped, true)
+        } else {
+            (s, false)
+        };
+
+        let (s, weak) = if !conflict && let Some(stripped) = s.strip_prefix('~') {
             (stripped, true)
         } else {
             (s, false)
@@ -50,6 +56,7 @@ impl RequirementParser {
             name,
             version_constraint,
             weak,
+            conflict,
             platform_conditions,
             env_conditions,
             conditional_expression: None,
@@ -220,19 +227,7 @@ impl RequirementParser {
 
         // Handle rez combined format: "package-ver+<max", "package-ver+", "package-ver"
         {
-            let bytes = s.as_bytes();
-            let mut split_pos: Option<usize> = None;
-            for i in (0..s.len()).rev() {
-                if bytes[i] == b'-' {
-                    let after = &s[i + 1..];
-                    if after.starts_with(|c: char| c.is_ascii_digit()) {
-                        split_pos = Some(i);
-                        break;
-                    }
-                }
-            }
-
-            if let Some(pos) = split_pos {
+            if let Some(pos) = s.find('-') {
                 let name = s[..pos].to_string();
                 let ver_spec = &s[pos + 1..];
 
@@ -283,10 +278,6 @@ impl RequirementParser {
         } else {
             (spec.trim_end_matches('+'), None)
         };
-
-        if !base_spec.starts_with(|c: char| c.is_ascii_digit()) {
-            return None;
-        }
 
         let min_ver = Version::parse(base_spec).ok()?;
 

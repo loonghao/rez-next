@@ -46,9 +46,9 @@ impl RexParser {
             setenv_re: Regex::new(
                 r#"env\.setenv\s*\(\s*['"]([^'"]+)['"]\s*,\s*['"]([^'"]*)['"]\s*\)"#
             ).unwrap(),
-            // env.unsetenv('VAR')
+            // env.unsetenv('VAR') or unsetenv('VAR')
             unsetenv_re: Regex::new(
-                r#"env\.unsetenv\s*\(\s*['"]([^'"]+)['"]\s*\)"#
+                r#"(?:env\.)?unsetenv\s*\(\s*['"]([^'"]+)['"]\s*\)"#
             ).unwrap(),
             // env.prepend_path('VAR', 'value') or prependenv('VAR', 'value')
             prepend_re: Regex::new(

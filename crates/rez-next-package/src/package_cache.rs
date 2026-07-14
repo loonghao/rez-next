@@ -36,12 +36,6 @@ use serde_json;
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
-/// Timeout for file lock acquisition (seconds)
-const LOCK_TIMEOUT_SECS: u64 = 10;
-
-/// Buffer size for copy operations (64 KB)
-const COPY_BUFFER_SIZE: usize = 65536;
-
 /// Hash prefix length (first N chars of SHA1)
 const HASH_PREFIX_LEN: usize = 4;
 
@@ -330,11 +324,6 @@ impl PackageCache {
         self.root.join(".sys")
     }
 
-    /// Get the pending directory.
-    fn pending_dir(&self) -> PathBuf {
-        self.sys_dir().join("pending")
-    }
-
     /// Get the to_delete directory.
     fn to_delete_dir(&self) -> PathBuf {
         self.sys_dir().join("to_delete")
@@ -525,7 +514,7 @@ impl PackageCache {
                     let _ = fs::remove_file(json_path);
 
                     // Clean up empty parent directories
-                    Self::cleanup_empty_dirs(&path);
+                    Self::cleanup_empty_dirs(path);
                 }
                 (CacheStatus::Removed, cached_path)
             }
@@ -619,11 +608,9 @@ impl PackageCache {
                     break;
                 }
                 let path = entry.path();
-                if path.is_dir() {
-                    if fs::remove_dir_all(&path).is_ok() {
-                        stats.deleted_bytes += Self::directory_size(&path).unwrap_or(0);
-                        stats.entries_deleted += 1;
-                    }
+                if path.is_dir() && fs::remove_dir_all(&path).is_ok() {
+                    stats.deleted_bytes += Self::directory_size(&path).unwrap_or(0);
+                    stats.entries_deleted += 1;
                 }
             }
         }

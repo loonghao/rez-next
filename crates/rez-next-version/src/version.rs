@@ -58,6 +58,18 @@ impl Version {
     pub fn as_str(&self) -> &str {
         &self.string_repr
     }
+
+    /// Return whether this version begins with every token in `prefix`.
+    pub fn has_prefix(&self, prefix: &Version) -> bool {
+        self.tokens.len() >= prefix.tokens.len()
+            && self
+                .tokens
+                .iter()
+                .zip(&prefix.tokens)
+                .all(|(token, prefix_token)| {
+                    Self::compare_single_token(token, prefix_token) == Ordering::Equal
+                })
+    }
 }
 
 impl Version {

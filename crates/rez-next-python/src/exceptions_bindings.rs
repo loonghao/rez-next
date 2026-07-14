@@ -4,7 +4,6 @@
 //! by importing them from `rez_next.exceptions` (the Python module).
 
 use pyo3::prelude::*;
-use rez_next_common::error::RezCoreError;
 
 /// Register the `exceptions` submodule.
 ///
@@ -74,16 +73,4 @@ pub fn register_all_exceptions(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_submodule(&exceptions_mod)?;
 
     Ok(())
-}
-
-/// Convert a `RezCoreError` to the appropriate Python exception.
-///
-/// This allows Rust functions to raise the correct Python exception type
-/// from `rez_next.exceptions`.
-///
-/// NOTE: Currently uses `PyException` for all errors.
-/// TODO: Map each `RezCoreError` variant to the correct exception type.
-pub fn rez_error_to_pyerr(py: Python<'_>, err: RezCoreError) -> PyErr {
-    let msg = err.to_string();
-    PyErr::new::<pyo3::exceptions::PyException, _>(msg)
 }

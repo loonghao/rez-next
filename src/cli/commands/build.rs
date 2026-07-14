@@ -139,13 +139,7 @@ pub enum BuildOutputMode {
 impl BuildOutputMode {
     fn effective(self) -> Self {
         match self {
-            BuildOutputMode::Auto => {
-                if std::io::stdout().is_terminal() {
-                    BuildOutputMode::Compact
-                } else {
-                    BuildOutputMode::Compact
-                }
-            }
+            BuildOutputMode::Auto => BuildOutputMode::Compact,
             other => other,
         }
     }
@@ -449,7 +443,7 @@ fn resolve_build_context(
     context.resolved_packages = resolution
         .resolved_packages
         .into_iter()
-        .map(|info| (*info.package).clone())
+        .map(|info| info.materialized_package())
         .collect();
     context.status = rez_next_context::ContextStatus::Resolved;
 
@@ -610,8 +604,10 @@ fn execute_build(
     _source_dir: &PathBuf,
 ) -> RezCoreResult<()> {
     let (event_sender, event_receiver) = mpsc::unbounded_channel();
-    let mut build_config = BuildConfig::default();
-    build_config.event_sender = Some(event_sender);
+    let build_config = BuildConfig {
+        event_sender: Some(event_sender),
+        ..Default::default()
+    };
     let mut build_manager = BuildManager::with_config(build_config);
 
     if args.verbose {

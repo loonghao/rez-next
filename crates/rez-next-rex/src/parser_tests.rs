@@ -51,6 +51,16 @@ alias('python3', '{root}/bin/python3')
     assert_eq!(actions.len(), 5);
 }
 
+#[test]
+fn test_parse_unsetenv_shorthand() {
+    let parser = RexParser::new();
+    let actions = parser.parse("unsetenv('PYTHONPATH')").unwrap();
+    assert!(matches!(
+        &actions[0].action_type,
+        RexActionType::Unsetenv { name } if name == "PYTHONPATH"
+    ));
+}
+
 // ── Phase 82: command() statement parsing ──────────────────────────────
 
 #[test]

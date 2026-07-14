@@ -56,8 +56,8 @@ impl PySystem {
 
     /// Python version (of the current interpreter)
     #[getter]
-    fn python_version(&self, py: Python) -> String {
-        py.version().to_string()
+    fn python_version(&self, _py: Python) -> String {
+        Python::version_str().to_string()
     }
 
     /// Number of logical CPUs

@@ -9,21 +9,29 @@
 //! - Package validation
 //! - Package management operations
 
+pub mod developer_package; // Developer package support (rez.developer_package)
 pub mod filter;
 pub mod package;
 pub mod package_cache;
+pub mod package_copy; // Package copy operations (rez.package_copy)
+pub mod package_move; // Package move operations (rez.package_move)
 pub mod package_order; // Package ordering strategies
 pub mod package_py_utils; // Utility functions for package.py files
+pub mod package_remove; // Package remove operations (rez.package_remove)
 pub mod python_ast_parser;
-pub mod serialization; // Always available for CLI usage // Package filtering support
+pub mod serialization; // Always available for CLI usage
 
+pub use developer_package::*; // Developer package support
 pub use filter::*;
 pub use package::*;
 pub use package_cache::*;
+pub use package_copy::*; // Package copy operations
+pub use package_move::*; // Package move operations
 pub use package_order::*; // Package ordering strategies
 pub use package_py_utils::*;
+pub use package_remove::*; // Package remove operations
 pub use python_ast_parser::*;
-pub use serialization::{PackageFormat, PackageSerializer}; // Always available for CLI usage // Package filtering support
+pub use serialization::{PackageFormat, PackageSerializer};
 
 // Always export requirement types for CLI usage
 pub mod requirement;

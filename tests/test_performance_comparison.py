@@ -14,7 +14,7 @@ try:
     import rez as rez_original
     from rez.version import Version as RezVersion
     from rez.version import VersionRange as RezVersionRange
-    HAS_REZ = True
+    HAS_REZ = rez_original.__name__ != "rez_next"
 except ImportError:
     HAS_REZ = False
     RezVersion = None

@@ -63,22 +63,22 @@ class TestDictToAttributesCode:
 
 
 class TestPackageKeyOrder:
-    """Tests for package_key_order function."""
+    """Tests for the upstream-compatible package_key_order list."""
 
     def test_returns_list(self):
         """Test package_key_order returns a list."""
-        result = serialise.package_key_order()
+        result = serialise.package_key_order
         assert isinstance(result, list)
         assert len(result) > 0
 
     def test_first_key_is_name(self):
         """Test package_key_order starts with 'name'."""
-        result = serialise.package_key_order()
+        result = serialise.package_key_order
         assert result[0] == "name"
 
     def test_contains_version(self):
         """Test package_key_order contains 'version'."""
-        result = serialise.package_key_order()
+        result = serialise.package_key_order
         assert "version" in result
 
 

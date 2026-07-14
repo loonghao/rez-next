@@ -321,7 +321,7 @@ fn resolve_context(
     context.resolved_packages = resolution
         .resolved_packages
         .into_iter()
-        .map(|info| (*info.package).clone())
+        .map(|info| info.materialized_package())
         .collect();
     context.status = rez_next_context::ContextStatus::Resolved;
 

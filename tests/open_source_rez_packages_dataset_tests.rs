@@ -409,7 +409,7 @@ sys.exit(1)
 
     assert!(!result.success, "failing rezbuild.py should fail the build");
     assert!(
-        result.errors.contains("Installing Errors"),
+        result.errors.contains("Compiling Errors"),
         "{}",
         result.errors
     );

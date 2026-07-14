@@ -12,20 +12,20 @@
 mod artifacts;
 mod builder;
 mod environment;
-mod process;
+pub mod process; // Build process (rez.build_process)
 pub mod release;
 mod sources;
-mod systems;
+pub mod systems; // Build systems (rez.build_system)
 mod tests;
 pub mod vcs;
 
 pub use artifacts::*;
 pub use builder::*;
 pub use environment::*;
-pub use process::*;
+pub use process::*; // Re-export process types for backward compat
 pub use release::*;
 pub use sources::*;
-pub use systems::*;
+pub use systems::*; // Re-export system types for backward compat
 pub use vcs::*;
 
 /// Build type enumeration (local or central build)

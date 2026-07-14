@@ -657,7 +657,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "FIXME: RangeRule evaluation is incorrect for boundary versions (e.g., 2.0.0 should not match <2.0)"]
     fn test_range_rule_no_match() {
         let rule = RangeRule::new(">=1.0,<2.0", None).unwrap();
         let pkg = create_test_package("test", "2.0.0");

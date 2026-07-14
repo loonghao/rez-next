@@ -25,10 +25,34 @@ fn test_version_constraint_parsing() {
 }
 
 #[test]
+fn test_rez_versions_support_string_tokens_and_build_suffixes() {
+    let platform: Requirement = "platform-windows".parse().unwrap();
+    assert_eq!(platform.name, "platform");
+    assert!(platform.is_satisfied_by(&Version::parse("windows").unwrap()));
+
+    let package: Requirement = "pylint-2.9.6".parse().unwrap();
+    assert!(package.is_satisfied_by(&Version::parse("2.9.6-build.3").unwrap()));
+
+    let build: Requirement = "pylint-2.9.6-build.3".parse().unwrap();
+    assert_eq!(build.name, "pylint");
+    assert!(build.is_satisfied_by(&Version::parse("2.9.6-build.3").unwrap()));
+}
+
+#[test]
 fn test_weak_requirement() {
     let req: Requirement = "~python>=3.8".parse().unwrap();
     assert_eq!(req.name, "python");
     assert!(req.weak);
+}
+
+#[test]
+fn test_conflict_requirement() {
+    let req: Requirement = "!python-3".parse().unwrap();
+    assert_eq!(req.name, "python");
+    assert!(req.conflict);
+    assert!(!req.weak);
+    assert!(req.is_satisfied_by(&Version::parse("3.11").unwrap()));
+    assert_eq!(req.to_string(), "!python-3");
 }
 
 #[test]

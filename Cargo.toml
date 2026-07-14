@@ -85,6 +85,10 @@ quick-benchmarks = []
 name = "rez-next"
 path = "src/bin/rez-next.rs"
 
+[[bin]]
+name = "rez"
+path = "src/bin/rez.rs"
+
 [dependencies]
 # Workspace crates
 rez-next-common = { version = "0.3.0", path = "crates/rez-next-common", default-features = false }

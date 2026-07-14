@@ -532,4 +532,295 @@ mod tests {
             );
         }
     }
+
+    #[test]
+    fn test_variant_prefers_fewer_additional_packages_and_honors_conflict() {
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        let tmp = tempfile::TempDir::new().unwrap();
+        write_package(tmp.path(), "platform-windows", "1.0.0", &[]);
+        write_package(tmp.path(), "python_embedded", "1.0.0", &[]);
+        let package_dir = tmp.path().join("python").join("3.14.5");
+        std::fs::create_dir_all(&package_dir).unwrap();
+        std::fs::write(
+            package_dir.join("package.py"),
+            "name = 'python'\nversion = '3.14.5'\nvariants = [\n    ['platform-windows', 'python_embedded'],\n    ['platform-windows', '!python_embedded'],\n]\n",
+        )
+        .unwrap();
+
+        let mut manager = RepositoryManager::new();
+        manager.add_repository(Box::new(SimpleRepository::new(
+            tmp.path(),
+            "test".to_string(),
+        )));
+        let mut resolver = DependencyResolver::new(Arc::new(manager), SolverConfig::default());
+        let result = rt
+            .block_on(resolver.resolve(vec![Requirement::new("python".to_string())]))
+            .unwrap();
+
+        let python = result
+            .resolved_packages
+            .iter()
+            .find(|package| package.package.name == "python")
+            .unwrap();
+        assert_eq!(python.variant_index, Some(1));
+        let materialized_root = python.materialized_package().root().unwrap();
+        assert!(
+            std::path::Path::new(&materialized_root)
+                .ends_with(std::path::Path::new("platform-windows").join("!python_embedded"))
+        );
+        assert!(
+            result
+                .resolved_packages
+                .iter()
+                .all(|package| package.package.name != "python_embedded")
+        );
+    }
+
+    #[test]
+    fn test_later_constraint_replaces_package_with_compatible_version() {
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        let tmp = tempfile::TempDir::new().unwrap();
+        write_package(tmp.path(), "python", "3.9.0", &[]);
+        write_package(tmp.path(), "python", "3.14.0", &[]);
+        write_package(tmp.path(), "app", "1.0.0", &["tool"]);
+        write_package(tmp.path(), "tool", "1.0.0", &["python-3.7..3.10"]);
+
+        let mut manager = RepositoryManager::new();
+        manager.add_repository(Box::new(SimpleRepository::new(
+            tmp.path(),
+            "test".to_string(),
+        )));
+        let mut resolver = DependencyResolver::new(Arc::new(manager), SolverConfig::default());
+        let result = rt
+            .block_on(resolver.resolve(vec![
+                Requirement::new("app".to_string()),
+                "python-3..4".parse().unwrap(),
+            ]))
+            .unwrap();
+
+        let python = result
+            .resolved_packages
+            .iter()
+            .find(|package| package.package.name == "python")
+            .unwrap();
+        assert_eq!(
+            python.package.version.as_ref().unwrap().to_string(),
+            "3.9.0"
+        );
+    }
+
+    #[test]
+    fn test_variants_follow_resolved_version_family_and_narrow_it() {
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        let tmp = tempfile::TempDir::new().unwrap();
+        write_package(tmp.path(), "python", "2.7.18", &[]);
+        write_package(tmp.path(), "python", "3.9.13", &[]);
+        write_package(tmp.path(), "python", "3.11.9", &[]);
+
+        for package in ["future", "tox"] {
+            let package_dir = tmp.path().join(package).join("1.0.0");
+            std::fs::create_dir_all(&package_dir).unwrap();
+            let python_3_range = if package == "future" {
+                "python-3.7..3.13"
+            } else {
+                "python-3.7..3.10"
+            };
+            std::fs::write(
+                package_dir.join("package.py"),
+                format!(
+                    "name = '{package}'\nversion = '1.0.0'\nvariants = [\n    ['python-2.7'],\n    ['{python_3_range}'],\n]\n"
+                ),
+            )
+            .unwrap();
+        }
+
+        let mut manager = RepositoryManager::new();
+        manager.add_repository(Box::new(SimpleRepository::new(
+            tmp.path(),
+            "test".to_string(),
+        )));
+        let mut resolver = DependencyResolver::new(Arc::new(manager), SolverConfig::default());
+        let result = rt
+            .block_on(resolver.resolve(vec![
+                "python-3..4".parse().unwrap(),
+                Requirement::new("future".to_string()),
+                Requirement::new("tox".to_string()),
+            ]))
+            .unwrap();
+
+        for package in ["future", "tox"] {
+            assert_eq!(
+                result
+                    .resolved_packages
+                    .iter()
+                    .find(|resolved| resolved.package.name == package)
+                    .unwrap()
+                    .variant_index,
+                Some(1)
+            );
+        }
+        let python = result
+            .resolved_packages
+            .iter()
+            .find(|resolved| resolved.package.name == "python")
+            .unwrap();
+        assert_eq!(
+            python.package.version.as_ref().unwrap().to_string(),
+            "3.9.13"
+        );
+    }
+
+    #[test]
+    fn test_missing_weak_requirement_does_not_fail_strict_resolve() {
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        let mut resolver = DependencyResolver::new(
+            Arc::new(RepositoryManager::new()),
+            SolverConfig {
+                strict_mode: true,
+                ..SolverConfig::default()
+            },
+        );
+
+        let result = rt
+            .block_on(resolver.resolve(vec!["~optional-1".parse().unwrap()]))
+            .unwrap();
+
+        assert!(result.resolved_packages.is_empty());
+        assert!(result.failed_requirements.is_empty());
+    }
+
+    #[test]
+    fn test_replacing_package_removes_dependencies_from_old_version() {
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        let tmp = tempfile::TempDir::new().unwrap();
+        write_package(tmp.path(), "metadata", "2.0.0", &[]);
+        write_package(
+            tmp.path(),
+            "metadata",
+            "4.0.0",
+            &["typing_extensions-3..4.5"],
+        );
+        write_package(tmp.path(), "limiter", "1.0.0", &["~metadata-2"]);
+        write_package(tmp.path(), "client", "1.0.0", &["typing_extensions-4.5..5"]);
+        write_package(tmp.path(), "typing_extensions", "4.5.0", &[]);
+
+        let mut manager = RepositoryManager::new();
+        manager.add_repository(Box::new(SimpleRepository::new(
+            tmp.path(),
+            "test".to_string(),
+        )));
+        let mut resolver = DependencyResolver::new(
+            Arc::new(manager),
+            SolverConfig {
+                strict_mode: true,
+                ..SolverConfig::default()
+            },
+        );
+
+        let result = rt
+            .block_on(resolver.resolve(vec![
+                Requirement::new("metadata".to_string()),
+                Requirement::new("limiter".to_string()),
+                Requirement::new("client".to_string()),
+            ]))
+            .unwrap();
+
+        let version = |name: &str| {
+            result
+                .resolved_packages
+                .iter()
+                .find(|resolved| resolved.package.name == name)
+                .and_then(|resolved| resolved.package.version.as_ref())
+                .unwrap()
+                .to_string()
+        };
+        assert_eq!(version("metadata"), "2.0.0");
+        assert_eq!(version("typing_extensions"), "4.5.0");
+        assert!(result.failed_requirements.is_empty());
+    }
+
+    #[test]
+    fn test_strict_resolve_backtracks_package_that_introduced_conflict() {
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        let tmp = tempfile::TempDir::new().unwrap();
+        write_package(tmp.path(), "typing", "3.0.0", &[]);
+        write_package(tmp.path(), "typing", "4.0.0", &[]);
+        write_package(tmp.path(), "plugin", "1.0.0", &["typing-3"]);
+        write_package(tmp.path(), "plugin", "1.1.0", &["typing-4"]);
+        write_package(
+            tmp.path(),
+            "application",
+            "1.0.0",
+            &["plugin-1", "typing-3"],
+        );
+
+        let mut manager = RepositoryManager::new();
+        manager.add_repository(Box::new(SimpleRepository::new(
+            tmp.path(),
+            "test".to_string(),
+        )));
+        let mut resolver = DependencyResolver::new(
+            Arc::new(manager),
+            SolverConfig {
+                strict_mode: true,
+                ..SolverConfig::default()
+            },
+        );
+
+        let result = rt
+            .block_on(resolver.resolve(vec![Requirement::new("application".to_string())]))
+            .unwrap();
+
+        let version = |name: &str| {
+            result
+                .resolved_packages
+                .iter()
+                .find(|resolved| resolved.package.name == name)
+                .and_then(|resolved| resolved.package.version.as_ref())
+                .unwrap()
+                .to_string()
+        };
+        assert_eq!(version("plugin"), "1.0.0");
+        assert_eq!(version("typing"), "3.0.0");
+        assert!(result.stats.backtrack_steps > 0);
+    }
+
+    #[test]
+    fn test_root_conflict_requirement_excludes_matching_version() {
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        let tmp = tempfile::TempDir::new().unwrap();
+        write_package(tmp.path(), "tool", "1.0.0", &[]);
+        write_package(tmp.path(), "tool", "2.0.0", &[]);
+
+        let mut manager = RepositoryManager::new();
+        manager.add_repository(Box::new(SimpleRepository::new(
+            tmp.path(),
+            "test".to_string(),
+        )));
+        let mut resolver = DependencyResolver::new(
+            Arc::new(manager),
+            SolverConfig {
+                strict_mode: true,
+                ..SolverConfig::default()
+            },
+        );
+
+        let result = rt
+            .block_on(resolver.resolve(vec![
+                Requirement::new("tool".to_string()),
+                "!tool-2".parse().unwrap(),
+            ]))
+            .unwrap();
+
+        assert_eq!(result.resolved_packages.len(), 1);
+        assert_eq!(
+            result.resolved_packages[0]
+                .package
+                .version
+                .as_ref()
+                .unwrap()
+                .to_string(),
+            "1.0.0"
+        );
+    }
 }

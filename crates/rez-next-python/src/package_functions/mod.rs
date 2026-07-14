@@ -69,7 +69,8 @@ pub(crate) fn make_repo_manager(
     repo_manager
 }
 
-/// Recursively copy a directory tree.
+/// Recursively copy a directory tree (used by tests and legacy paths).
+#[cfg(test)]
 pub(crate) fn copy_dir_recursive(
     src: &std::path::Path,
     dest: &std::path::Path,

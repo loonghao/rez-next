@@ -256,18 +256,15 @@ impl PackageOrder for PerFamilyOrder {
         for pkg in packages {
             grouped
                 .entry(pkg.name.clone())
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push(pkg.clone());
         }
 
         let mut result = Vec::new();
         for (family, mut pkgs) in grouped {
             // Get orderer for this family
-            let orderer: Option<&Box<dyn PackageOrder>> = self
-                .order_dict
-                .get(&family)
-                .map(|b| b)
-                .or(self.default_order.as_ref());
+            let orderer: Option<&Box<dyn PackageOrder>> =
+                self.order_dict.get(&family).or(self.default_order.as_ref());
 
             if let Some(o) = orderer {
                 if let Some(reordered) = o.reorder(&pkgs) {
@@ -339,8 +336,8 @@ impl PackageOrder for TimestampPackageOrder {
         // Sort by timestamp proximity
         let mut result: Vec<Package> = packages.to_vec();
         result.sort_by(|a, b| {
-            let a_time = a.timestamp.unwrap_or(0) as i64;
-            let b_time = b.timestamp.unwrap_or(0) as i64;
+            let a_time = a.timestamp.unwrap_or(0);
+            let b_time = b.timestamp.unwrap_or(0);
 
             // Packages before timestamp come first, sorted by proximity
             let a_before = a_time <= self.timestamp;
@@ -664,7 +661,7 @@ mod tests {
         let order = SortedOrder::new(true, Some(vec!["foo".to_string()]));
         let pod = to_pod(&order);
         assert_eq!(pod.get("type").unwrap().as_str().unwrap(), "sorted");
-        assert_eq!(pod.get("descending").unwrap().as_bool().unwrap(), true);
+        assert!(pod.get("descending").unwrap().as_bool().unwrap());
 
         let restored = from_pod(&pod).unwrap();
         assert_eq!(restored.name(), "sorted");

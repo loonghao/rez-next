@@ -39,67 +39,6 @@ pub use scanner_types::{
 };
 pub use simple_repository::*;
 
-#[cfg(test)]
-mod lib_tests {
-    use super::*;
-    use std::fs;
-    use tempfile::TempDir;
-
-    /// Create a temporary repository with packages for testing.
-    fn create_test_repo() -> TempDir {
-        let dir = TempDir::new().unwrap();
-        let root = dir.path();
-
-        // Create python/3.9.0/package.py
-        let python_dir = root.join("python");
-        fs::create_dir(&python_dir).unwrap();
-        let v39 = python_dir.join("3.9.0");
-        fs::create_dir(&v39).unwrap();
-        fs::write(v39.join("package.py"), "# python 3.9.0").unwrap();
-
-        // Create python/3.10.0/package.py
-        let v310 = python_dir.join("3.10.0");
-        fs::create_dir(&v310).unwrap();
-        fs::write(v310.join("package.py"), "# python 3.10.0").unwrap();
-
-        // Create maya/2024/package.py
-        let maya_dir = root.join("maya");
-        fs::create_dir(&maya_dir).unwrap();
-        let v2024 = maya_dir.join("2024");
-        fs::create_dir(&v2024).unwrap();
-        fs::write(v2024.join("package.py"), "# maya 2024").unwrap();
-
-        dir
-    }
-
-    #[test]
-    fn test_package_repo_stats_empty_paths() {
-        let stats = package_repo_stats(vec![]);
-        assert_eq!(stats.package_count, 0);
-        assert_eq!(stats.version_count, 0);
-        assert_eq!(stats.variant_count, 0);
-    }
-
-    #[test]
-    fn test_package_repo_stats_nonexistent_path() {
-        let stats = package_repo_stats(vec!["C:\\nonexistent".to_string()]);
-        assert_eq!(stats.package_count, 0);
-    }
-
-    #[test]
-    fn test_package_repo_stats_with_packages() {
-        let dir = create_test_repo();
-        let path = dir.path().to_string_lossy().to_string();
-
-        let stats = package_repo_stats(vec![path]);
-
-        // Should find 2 packages: python, maya
-        assert_eq!(stats.package_count, 2);
-        // Should find 3 versions: python-3.9.0, python-3.10.0, maya-2024
-        assert!(stats.version_count >= 2);
-    }
-}
-
 /// Get statistics about packages in the given repository paths.
 ///
 /// This is compatible with `rez.solver.package_repo_stats()`.
@@ -167,4 +106,65 @@ pub fn package_repo_stats(paths: Vec<String>) -> RepositoryStats {
     }
 
     combined_stats
+}
+
+#[cfg(test)]
+mod lib_tests {
+    use super::*;
+    use std::fs;
+    use tempfile::TempDir;
+
+    /// Create a temporary repository with packages for testing.
+    fn create_test_repo() -> TempDir {
+        let dir = TempDir::new().unwrap();
+        let root = dir.path();
+
+        // Create python/3.9.0/package.py
+        let python_dir = root.join("python");
+        fs::create_dir(&python_dir).unwrap();
+        let v39 = python_dir.join("3.9.0");
+        fs::create_dir(&v39).unwrap();
+        fs::write(v39.join("package.py"), "# python 3.9.0").unwrap();
+
+        // Create python/3.10.0/package.py
+        let v310 = python_dir.join("3.10.0");
+        fs::create_dir(&v310).unwrap();
+        fs::write(v310.join("package.py"), "# python 3.10.0").unwrap();
+
+        // Create maya/2024/package.py
+        let maya_dir = root.join("maya");
+        fs::create_dir(&maya_dir).unwrap();
+        let v2024 = maya_dir.join("2024");
+        fs::create_dir(&v2024).unwrap();
+        fs::write(v2024.join("package.py"), "# maya 2024").unwrap();
+
+        dir
+    }
+
+    #[test]
+    fn test_package_repo_stats_empty_paths() {
+        let stats = package_repo_stats(vec![]);
+        assert_eq!(stats.package_count, 0);
+        assert_eq!(stats.version_count, 0);
+        assert_eq!(stats.variant_count, 0);
+    }
+
+    #[test]
+    fn test_package_repo_stats_nonexistent_path() {
+        let stats = package_repo_stats(vec!["C:\\nonexistent".to_string()]);
+        assert_eq!(stats.package_count, 0);
+    }
+
+    #[test]
+    fn test_package_repo_stats_with_packages() {
+        let dir = create_test_repo();
+        let path = dir.path().to_string_lossy().to_string();
+
+        let stats = package_repo_stats(vec![path]);
+
+        // Should find 2 packages: python, maya
+        assert_eq!(stats.package_count, 2);
+        // Should find 3 versions: python-3.9.0, python-3.10.0, maya-2024
+        assert!(stats.version_count >= 2);
+    }
 }

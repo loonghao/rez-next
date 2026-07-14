@@ -6,7 +6,9 @@ use super::types::{EnvCondition, PlatformCondition, Requirement, VersionConstrai
 
 impl fmt::Display for Requirement {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if self.weak {
+        if self.conflict {
+            write!(f, "!")?;
+        } else if self.weak {
             write!(f, "~")?;
         }
         if let Some(ref namespace) = self.namespace {

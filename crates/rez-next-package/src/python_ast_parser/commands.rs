@@ -82,6 +82,23 @@ impl PythonAstParser {
         stmt: &Stmt,
     ) -> Result<Option<String>, RezCoreError> {
         match stmt {
+            Stmt::If(if_stmt) => {
+                let statements = match self.evaluate_expression(&if_stmt.test) {
+                    Ok(super::types::PythonValue::Boolean(true)) => &if_stmt.body,
+                    Ok(super::types::PythonValue::Boolean(false)) => &if_stmt.orelse,
+                    _ => return Ok(None),
+                };
+                let mut commands = Vec::new();
+                for statement in statements {
+                    if let Some(command) = self.extract_command_from_statement(statement)? {
+                        commands.push(command);
+                    }
+                }
+                if !commands.is_empty() {
+                    return Ok(Some(commands.join("\n")));
+                }
+            }
+
             // Handle `env.VAR = "value"` (attribute assignment shorthand)
             Stmt::Assign(assign) => {
                 if let Some(Expr::Attribute(attr)) = assign.targets.first() {

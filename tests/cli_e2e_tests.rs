@@ -14,6 +14,7 @@
 //!   target/release/rez-next (if REZ_NEXT_E2E_BINARY is set to release path)
 
 use std::fs;
+use std::process::Command;
 
 #[path = "cli_e2e_helpers.rs"]
 mod cli_e2e_helpers;
@@ -52,6 +53,16 @@ fn test_version_flag() {
     let out = rez_ok(&["--version"]);
     // Should output something like "rez-next 0.2.0"
     assert!(!out.trim().is_empty());
+}
+
+#[test]
+fn test_rez_alias_version_flag() {
+    let output = Command::new(env!("CARGO_BIN_EXE_rez"))
+        .arg("--version")
+        .output()
+        .expect("rez alias should run");
+    assert!(output.status.success());
+    assert!(!output.stdout.is_empty());
 }
 
 #[test]

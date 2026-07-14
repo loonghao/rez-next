@@ -437,19 +437,17 @@ pub struct PyGitVCS {}
 impl PyGitVCS {
     #[new]
     #[pyo3(signature = (repo_root))]
-    pub fn new(repo_root: &str) -> PyResult<(Self, PyReleaseVCS)> {
+    pub fn new(repo_root: &str) -> PyResult<PyClassInitializer<Self>> {
         use rez_next_build::vcs::GitVCS as InnerGitVCS;
         use std::path::PathBuf;
 
         let inner = InnerGitVCS::new(PathBuf::from(repo_root))
             .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))?;
 
-        Ok((
-            Self {},
-            PyReleaseVCS {
-                _inner: Some(Box::new(inner)),
-            },
-        ))
+        Ok(PyClassInitializer::from(PyReleaseVCS {
+            _inner: Some(Box::new(inner)),
+        })
+        .add_subclass(Self {}))
     }
 }
 
@@ -461,7 +459,7 @@ pub struct PyGitVCS {}
 #[pymethods]
 impl PyGitVCS {
     #[new]
-    pub fn new(_repo_root: &str) -> PyResult<(Self, PyReleaseVCS)> {
+    pub fn new(_repo_root: &str) -> PyResult<PyClassInitializer<Self>> {
         Err(pyo3::exceptions::PyRuntimeError::new_err(
             "Git support not compiled in. Enable 'git' feature when building.",
         ))
@@ -478,19 +476,17 @@ pub struct PyMercurialVCS {}
 impl PyMercurialVCS {
     #[new]
     #[pyo3(signature = (repo_root))]
-    pub fn new(repo_root: &str) -> PyResult<(Self, PyReleaseVCS)> {
+    pub fn new(repo_root: &str) -> PyResult<PyClassInitializer<Self>> {
         use rez_next_build::vcs::MercurialVCS as InnerHgVCS;
         use std::path::PathBuf;
 
         let inner = InnerHgVCS::new(PathBuf::from(repo_root))
             .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))?;
 
-        Ok((
-            Self {},
-            PyReleaseVCS {
-                _inner: Some(Box::new(inner)),
-            },
-        ))
+        Ok(PyClassInitializer::from(PyReleaseVCS {
+            _inner: Some(Box::new(inner)),
+        })
+        .add_subclass(Self {}))
     }
 }
 
@@ -504,58 +500,17 @@ pub struct PySvnVCS {}
 impl PySvnVCS {
     #[new]
     #[pyo3(signature = (repo_root))]
-    pub fn new(repo_root: &str) -> PyResult<(Self, PyReleaseVCS)> {
+    pub fn new(repo_root: &str) -> PyResult<PyClassInitializer<Self>> {
         use rez_next_build::vcs::SvnVCS as InnerSvnVCS;
         use std::path::PathBuf;
 
         let inner = InnerSvnVCS::new(PathBuf::from(repo_root))
             .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))?;
 
-        Ok((
-            Self {},
-            PyReleaseVCS {
-                _inner: Some(Box::new(inner)),
-            },
-        ))
-    }
-}
-
-// ============================================================================
-/// Detect VCS for a given path
-// ============================================================================
-#[pyfunction]
-#[allow(dead_code)] // exported to Python, may not be called from Rust
-pub fn detect_vcs<'a>(py: Python<'a>, repo_root: &str) -> PyResult<Option<Bound<'a, PyAny>>> {
-    use rez_next_build::vcs::detect_vcs as inner_detect_vcs;
-    use std::path::Path;
-
-    let path = Path::new(repo_root);
-    let result = inner_detect_vcs(path); // Option<Box<dyn ReleaseVCS>>
-
-    match result {
-        Some(vcs) => {
-            let type_name = vcs.get_type_name(); // &str
-            let obj = match type_name {
-                "git" => {
-                    let git_vcs = PyGitVCS::new(repo_root)
-                        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
-                    pyo3::Bound::new(py, git_vcs).unwrap().into_any()
-                }
-                "hg" => {
-                    let hg_vcs = PyMercurialVCS::new(repo_root)
-                        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
-                    pyo3::Bound::new(py, hg_vcs).unwrap().into_any()
-                }
-                "svn" => {
-                    let svn_vcs = PySvnVCS::new(repo_root)
-                        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
-                    pyo3::Bound::new(py, svn_vcs).unwrap().into_any()
-                }
-                _ => return Ok(None),
-            };
-            Ok(Some(obj))
-        }
-        None => Ok(None),
+        Ok(PyClassInitializer::from(PyReleaseVCS {
+            _inner: Some(Box::new(inner)),
+        })
+        .add_subclass(Self {}))
     }
 }
 

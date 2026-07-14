@@ -227,6 +227,30 @@ impl PythonAstParser {
         &self,
         call: &rustpython_ast::ExprCall,
     ) -> Result<PythonValue, RezCoreError> {
+        if let Expr::Attribute(attribute) = &*call.func {
+            if let Expr::Name(owner) = &*attribute.value
+                && owner.id.as_str() == "os"
+                && attribute.attr.as_str() == "getenv"
+                && let Some(name) = call.args.first()
+                && let PythonValue::String(name) = self.evaluate_expression(name)?
+            {
+                return Ok(match std::env::var(name) {
+                    Ok(value) => PythonValue::String(value),
+                    Err(_) => call
+                        .args
+                        .get(1)
+                        .map(|default| self.evaluate_expression(default))
+                        .transpose()?
+                        .unwrap_or(PythonValue::None),
+                });
+            }
+
+            if attribute.attr.as_str() == "lower"
+                && let PythonValue::String(value) = self.evaluate_expression(&attribute.value)?
+            {
+                return Ok(PythonValue::String(value.to_lowercase()));
+            }
+        }
         Ok(PythonValue::Expression(format!("{:?}", call)))
     }
 

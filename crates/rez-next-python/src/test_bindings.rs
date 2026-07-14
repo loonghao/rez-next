@@ -248,53 +248,6 @@ fn pyobject_to_test_status(obj: Bound<'_, PyAny>) -> PyResult<TestStatus> {
 
 // ── Utility functions ─────────────────────────────────────────────
 
-/// Print a heading with the given level.
-///
-/// Args:
-///     level: Heading level (1-6)
-///     text: Heading text
-#[pyfunction]
-#[pyo3(signature = (level, text))]
-fn py_heading(level: u32, text: String) {
-    let char = match level {
-        1 => "=",
-        2 => "-",
-        3 => "~",
-        4 => "^",
-        5 => "\"",
-        _ => "*",
-    };
-    let line: String = char.repeat(text.len());
-    println!("\n{}\n{}\n{}", line, text, line);
-}
-
-/// Print an error message.
-///
-/// Args:
-///     msg: Error message
-#[pyfunction]
-fn py_print_error(msg: String) {
-    eprintln!("[ERROR] {}", msg);
-}
-
-/// Print an info message.
-///
-/// Args:
-///     msg: Info message
-#[pyfunction]
-fn py_print_info(msg: String) {
-    println!("[INFO] {}", msg);
-}
-
-/// Print a warning message.
-///
-/// Args:
-///     msg: Warning message
-#[pyfunction]
-fn py_print_warning(msg: String) {
-    eprintln!("[WARNING] {}", msg);
-}
-
 // ── Registration ──────────────────────────────────────────────────
 
 /// Register the `rez_next._native.test` submodule.
@@ -309,17 +262,6 @@ pub fn register_test_submodule(py: Python<'_>, parent: &Bound<'_, PyModule>) -> 
     m.setattr("FAILED", "failed")?;
     m.setattr("SKIPPED", "skipped")?;
     m.setattr("ERROR", "error")?;
-
-    // Add exceptions
-    // TODO: Fix PackageTestError registration
-    // m.add("PackageTestError", py.get_type::<PackageTestError>())?;
-
-    // Add utility functions
-    // TODO: Fix utility function registration
-    // m.add_function(wrap_pyfunction!(py_heading, &m)?)?;
-    // m.add_function(wrap_pyfunction!(py_print_error, &m)?)?;
-    // m.add_function(wrap_pyfunction!(py_print_info, &m)?)?;
-    // m.add_function(wrap_pyfunction!(py_print_warning, &m)?)?;
 
     // Register as submodule
     crate::register_submodule(parent, "test", &m)?;

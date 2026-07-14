@@ -105,6 +105,23 @@ fn test_context_variable_expansion_version() {
 }
 
 #[test]
+fn test_rez_this_context_variable_expansion() {
+    let mut exec = RexExecutor::new();
+    let env = exec
+        .execute_commands(
+            r#"env.prepend_path("PYTHONPATH", "{this.root}/site-packages")"#,
+            "tox",
+            Some("/packages/tox/3.28/variant"),
+            Some("3.28"),
+        )
+        .unwrap();
+    assert_eq!(
+        env.vars.get("PYTHONPATH"),
+        Some(&"/packages/tox/3.28/variant/site-packages".to_string())
+    );
+}
+
+#[test]
 fn test_multiple_commands_applied_in_order() {
     let mut exec = RexExecutor::new();
     let commands = r#"

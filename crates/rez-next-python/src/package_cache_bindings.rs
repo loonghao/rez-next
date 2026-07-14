@@ -95,7 +95,7 @@ impl From<&PyVariantHandle> for VariantHandle {
 /// CacheStatus enum - status of a variant in the cache.
 #[pyclass(name = "CacheStatus")]
 pub struct PyCacheStatus {
-    status: CacheStatus,
+    // Only class attributes are exposed; no instance state needed.
 }
 
 #[pymethods]
@@ -462,6 +462,6 @@ pub fn register_package_cache_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
 }
 
 /// Wrapper for lib.rs compatibility: register_package_cache_submodule(py, m)
-pub fn register_package_cache_submodule(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
+pub fn register_package_cache_submodule(_py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     register_package_cache_module(m)
 }

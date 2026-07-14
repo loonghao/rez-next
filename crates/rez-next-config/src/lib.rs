@@ -180,12 +180,13 @@ impl Config {
         source: ConfigSource,
     ) -> Result<(), ConfigError> {
         let path = path.as_ref();
-        let content = fs::read_to_string(path)
-            .map_err(|_| ConfigError::FileNotFound(path.to_string_lossy().to_string()))?;
+        let path_str = path.display().to_string();
+        let content =
+            fs::read_to_string(path).map_err(|_| ConfigError::FileNotFound(path_str.clone()))?;
 
         let value: JsonValue = if path.extension().map(|e| e == "json").unwrap_or(false) {
             serde_json::from_str(&content).map_err(|e| ConfigError::ParseError {
-                file: path.to_string_lossy().to_string(),
+                file: path_str.clone(),
                 error: e.to_string(),
             })?
         } else if path
@@ -194,17 +195,24 @@ impl Config {
             .unwrap_or(false)
         {
             serde_yaml::from_str(&content).map_err(|e| ConfigError::ParseError {
-                file: path.to_string_lossy().to_string(),
+                file: path_str.clone(),
                 error: e.to_string(),
             })?
         } else if path.extension().map(|e| e == "toml").unwrap_or(false) {
             let toml_value: toml::Value =
                 toml::from_str(&content).map_err(|e| ConfigError::ParseError {
-                    file: path.to_string_lossy().to_string(),
+                    file: path_str.clone(),
                     error: e.to_string(),
                 })?;
-            json5::from_str(&json5::to_string(&toml_value).unwrap_or_default())
-                .unwrap_or(JsonValue::Null)
+            let toml_json_str =
+                json5::to_string(&toml_value).map_err(|e| ConfigError::ParseError {
+                    file: path_str.clone(),
+                    error: format!("TOML → JSON5 conversion failed: {e}"),
+                })?;
+            json5::from_str(&toml_json_str).map_err(|e| ConfigError::ParseError {
+                file: path_str,
+                error: format!("JSON5 parse failed: {e}"),
+            })?
         } else {
             return Err(ConfigError::UnsupportedFormat(
                 path.extension()
@@ -252,17 +260,24 @@ impl Config {
     }
 
     /// Apply environment variable overrides (REZ_*).
+    ///
+    /// `REZ_FOO_BAR=42` becomes `config["foo"]["bar"] = 42`.
+    /// JSON values (booleans, numbers, arrays) are parsed automatically;
+    /// plain strings are stored as strings.
     fn apply_env_overrides(&mut self) -> Result<(), ConfigError> {
+        let mut count = 0usize;
         for (key, value) in env::vars() {
             if let Some(config_key) = key.strip_prefix("REZ_") {
-                let config_key = config_key.to_lowercase().replace('_', ".");
-                // Try to parse as JSON, otherwise treat as string
-                // TODO: Implement proper nested key setting
-                let _ = serde_json::from_str::<JsonValue>(&value)
+                let dotted = config_key.to_lowercase().replace('_', ".");
+                let parsed: JsonValue = serde_json::from_str(&value)
                     .unwrap_or_else(|_| JsonValue::String(value.clone()));
-                tracing::debug!("Env override: {} -> {}", key, config_key);
-                // TODO: Set the parsed value in config based on config_key
+                tracing::debug!("REZ override: {}={}", dotted, parsed);
+                set_nested_value(&mut self.data, &dotted, parsed);
+                count += 1;
             }
+        }
+        if count > 0 {
+            tracing::info!("Applied {} REZ_* environment override(s)", count);
         }
         Ok(())
     }
@@ -331,6 +346,34 @@ impl Config {
     pub fn data(&self) -> &JsonValue {
         &self.data
     }
+}
+
+/// Set a nested JSON value given a dotted key path (e.g. "plugins.release_vcs.git").
+fn set_nested_value(root: &mut JsonValue, dotted_key: &str, value: JsonValue) {
+    let segments: Vec<&str> = dotted_key.split('.').collect();
+    if segments.is_empty() {
+        return;
+    }
+    let target = get_or_create_nested(root, &segments[..segments.len() - 1]);
+    if let Some(obj) = target.as_object_mut() {
+        obj.insert(segments.last().unwrap().to_string(), value);
+    }
+}
+
+/// Drill into a JSON object, creating intermediate objects as needed.
+fn get_or_create_nested<'v>(root: &'v mut JsonValue, segments: &[&str]) -> &'v mut JsonValue {
+    let mut current = root;
+    for seg in segments {
+        // Ensure current is an object
+        if current.is_null() || !current.is_object() {
+            *current = JsonValue::Object(serde_json::Map::new());
+        }
+        let obj = current.as_object_mut().expect("just set to object");
+        current = obj
+            .entry(seg.to_string())
+            .or_insert(JsonValue::Object(serde_json::Map::new()));
+    }
+    current
 }
 
 impl Default for Config {

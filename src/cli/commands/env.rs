@@ -10,6 +10,7 @@ use rez_next_package::{PackageRequirement, Requirement};
 use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
 use rez_next_rex::{RexEnvironment, ShellType as RexShellType, generate_shell_script};
 use rez_next_solver::{DependencyResolver, SolverConfig};
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::sync::Arc;
@@ -189,7 +190,12 @@ fn resolve_environment(
     requirements: &[PackageRequirement],
     args: &EnvArgs,
 ) -> RezCoreResult<ResolvedContext> {
-    let mut config = ContextConfig::default();
+    // Rez environments extend the caller's process environment. Package
+    // actions then prepend, append, set, or unset values on top of it.
+    let mut config = ContextConfig {
+        inherit_parent_env: true,
+        ..Default::default()
+    };
 
     // Set shell type based on args
     if let Some(shell) = &args.shell {
@@ -256,6 +262,7 @@ fn resolve_environment(
     let rt = tokio::runtime::Runtime::new().map_err(RezCoreError::Io)?;
     let solver_config = SolverConfig {
         max_time_seconds: args.max_solve_time.unwrap_or(300),
+        strict_mode: true,
         ..SolverConfig::default()
     };
     let mut resolver = DependencyResolver::new(Arc::clone(&repo_arc), solver_config);
@@ -263,10 +270,11 @@ fn resolve_environment(
 
     // Build context from resolution result
     let mut context = ResolvedContext::from_requirements(requirements.to_vec());
+    context.config = config;
     context.resolved_packages = resolution
         .resolved_packages
-        .into_iter()
-        .map(|info| (*info.package).clone())
+        .iter()
+        .map(|package| package.materialized_package())
         .collect();
     context.status = rez_next_context::ContextStatus::Resolved;
 
@@ -293,13 +301,64 @@ fn print_resolved_packages(context: &ResolvedContext) -> RezCoreResult<()> {
     Ok(())
 }
 
-/// Print environment variables
-fn print_environment(context: &ResolvedContext, args: &EnvArgs) -> RezCoreResult<()> {
-    // Generate environment variables using EnvironmentManager
+fn context_environment(context: &ResolvedContext) -> RezCoreResult<HashMap<String, String>> {
     let env_manager = EnvironmentManager::new(context.config.clone());
-    let env_vars = tokio::runtime::Runtime::new()
+    let mut environment = tokio::runtime::Runtime::new()
         .map_err(RezCoreError::Io)?
         .block_on(env_manager.generate_environment(&context.resolved_packages))?;
+    if let Ok(executable) = std::env::current_exe() {
+        prepend_executable_dir(&mut environment, &executable)?;
+    }
+    Ok(environment)
+}
+
+fn prepend_executable_dir(
+    environment: &mut HashMap<String, String>,
+    executable: &std::path::Path,
+) -> RezCoreResult<()> {
+    let Some(directory) = executable.parent() else {
+        return Ok(());
+    };
+    let path_key = if cfg!(windows) {
+        environment
+            .keys()
+            .find(|name| name.eq_ignore_ascii_case("PATH"))
+            .cloned()
+            .unwrap_or_else(|| "PATH".to_string())
+    } else {
+        "PATH".to_string()
+    };
+    let mut paths: Vec<_> = environment
+        .get(&path_key)
+        .map(std::env::split_paths)
+        .into_iter()
+        .flatten()
+        .collect();
+    if !paths.iter().any(|path| path == directory) {
+        paths.insert(0, directory.to_path_buf());
+    }
+    let value = std::env::join_paths(paths)
+        .map_err(|error| RezCoreError::ExecutionError(format!("Failed to update PATH: {error}")))?;
+    environment.insert(path_key, value.to_string_lossy().into_owned());
+    Ok(())
+}
+
+fn print_context_summary(context: &ResolvedContext, action: &str) {
+    println!("{}", action);
+    println!("Resolved packages:");
+    for package in &context.resolved_packages {
+        println!(
+            "  {}-{}",
+            package.name,
+            package.version.as_ref().map(|v| v.as_str()).unwrap_or("")
+        );
+    }
+    println!();
+}
+
+/// Print environment variables
+fn print_environment(context: &ResolvedContext, args: &EnvArgs) -> RezCoreResult<()> {
+    let env_vars = context_environment(context)?;
 
     match args.format.as_deref() {
         Some("json") => {
@@ -324,10 +383,7 @@ fn print_environment(context: &ResolvedContext, args: &EnvArgs) -> RezCoreResult
 
 /// Print shell activation script for the resolved environment
 fn print_shell_script(context: &ResolvedContext, args: &EnvArgs) -> RezCoreResult<()> {
-    let env_manager = EnvironmentManager::new(context.config.clone());
-    let env_vars = tokio::runtime::Runtime::new()
-        .map_err(RezCoreError::Io)?
-        .block_on(env_manager.generate_environment(&context.resolved_packages))?;
+    let env_vars = context_environment(context)?;
 
     // Determine shell type
     let shell_str =
@@ -372,23 +428,13 @@ fn execute_command_in_context(
     command: &str,
     args: &EnvArgs,
 ) -> RezCoreResult<()> {
-    // Generate environment variables
-    let env_manager = EnvironmentManager::new(context.config.clone());
-    let env_vars = tokio::runtime::Runtime::new()
-        .map_err(RezCoreError::Io)?
-        .block_on(env_manager.generate_environment(&context.resolved_packages))?;
+    let env_vars = context_environment(context)?;
 
     if !args.quiet {
-        println!("Executing command in rez environment: {}", command);
-        println!("Resolved packages:");
-        for package in &context.resolved_packages {
-            println!(
-                "  {}-{}",
-                package.name,
-                package.version.as_ref().map(|v| v.as_str()).unwrap_or("")
-            );
-        }
-        println!();
+        print_context_summary(
+            context,
+            &format!("Executing command in rez environment: {}", command),
+        );
     }
 
     // Create command with resolved environment
@@ -402,10 +448,7 @@ fn execute_command_in_context(
         cmd
     };
 
-    // Set environment variables
-    for (key, value) in env_vars {
-        cmd.env(key, value);
-    }
+    cmd.envs(env_vars);
 
     // Execute the command
     let status = cmd
@@ -427,26 +470,16 @@ fn execute_extra_args_in_context(
         ));
     }
 
-    // Generate environment variables
-    let env_manager = EnvironmentManager::new(context.config.clone());
-    let env_vars = tokio::runtime::Runtime::new()
-        .map_err(RezCoreError::Io)?
-        .block_on(env_manager.generate_environment(&context.resolved_packages))?;
+    let env_vars = context_environment(context)?;
 
     if !args.quiet {
-        println!(
-            "Executing command in rez environment: {}",
-            extra_args.join(" ")
+        print_context_summary(
+            context,
+            &format!(
+                "Executing command in rez environment: {}",
+                extra_args.join(" ")
+            ),
         );
-        println!("Resolved packages:");
-        for package in &context.resolved_packages {
-            println!(
-                "  {}-{}",
-                package.name,
-                package.version.as_ref().map(|v| v.as_str()).unwrap_or("")
-            );
-        }
-        println!();
     }
 
     // Create command with resolved environment
@@ -455,10 +488,7 @@ fn execute_extra_args_in_context(
         cmd.args(&extra_args[1..]);
     }
 
-    // Set environment variables
-    for (key, value) in env_vars {
-        cmd.env(key, value);
-    }
+    cmd.envs(env_vars);
 
     // Set up stdio
     cmd.stdin(Stdio::inherit())
@@ -478,23 +508,10 @@ fn execute_extra_args_in_context(
 
 /// Spawn an interactive shell in the resolved context
 fn spawn_shell_in_context(context: &ResolvedContext, args: &EnvArgs) -> RezCoreResult<()> {
-    // Generate environment variables
-    let env_manager = EnvironmentManager::new(context.config.clone());
-    let env_vars = tokio::runtime::Runtime::new()
-        .map_err(RezCoreError::Io)?
-        .block_on(env_manager.generate_environment(&context.resolved_packages))?;
+    let env_vars = context_environment(context)?;
 
     if !args.quiet {
-        println!("Starting shell with rez environment...");
-        println!("Resolved packages:");
-        for package in &context.resolved_packages {
-            println!(
-                "  {}-{}",
-                package.name,
-                package.version.as_ref().map(|v| v.as_str()).unwrap_or("")
-            );
-        }
-        println!();
+        print_context_summary(context, "Starting shell with rez environment...");
     }
 
     // Determine shell executable
@@ -514,10 +531,7 @@ fn spawn_shell_in_context(context: &ResolvedContext, args: &EnvArgs) -> RezCoreR
         cmd.arg("-NoExit");
     }
 
-    // Set environment variables
-    for (key, value) in env_vars {
-        cmd.env(key, value);
-    }
+    cmd.envs(env_vars);
 
     // Set up stdio
     cmd.stdin(Stdio::inherit())
@@ -580,5 +594,66 @@ mod tests {
         assert_eq!(requirements[0].name(), "python");
         assert_eq!(requirements[1].name(), "python");
         assert_eq!(requirements[2].name(), "maya");
+    }
+
+    #[test]
+    fn test_current_rez_directory_is_first_on_path() {
+        let temp = tempfile::TempDir::new().unwrap();
+        let executable = temp
+            .path()
+            .join(if cfg!(windows) { "rez.exe" } else { "rez" });
+        let path_key = if cfg!(windows) { "Path" } else { "PATH" };
+        let mut environment = HashMap::from([(
+            path_key.to_string(),
+            std::env::join_paths([std::env::temp_dir()])
+                .unwrap()
+                .to_string_lossy()
+                .into_owned(),
+        )]);
+
+        prepend_executable_dir(&mut environment, &executable).unwrap();
+
+        let paths: Vec<_> = std::env::split_paths(environment.get(path_key).unwrap()).collect();
+        assert_eq!(paths[0], temp.path());
+        assert_eq!(
+            environment
+                .keys()
+                .filter(|name| name.eq_ignore_ascii_case("PATH"))
+                .count(),
+            1
+        );
+    }
+
+    #[test]
+    fn test_env_rejects_an_incomplete_resolve() {
+        let temp = tempfile::TempDir::new().unwrap();
+        let args = EnvArgs {
+            packages: vec!["missing-package".to_string()],
+            extra_args: Vec::new(),
+            shell: None,
+            rcfile: None,
+            norc: false,
+            command: None,
+            stdin: false,
+            quiet: true,
+            new_session: false,
+            detached: false,
+            pre_command: None,
+            print_resolve: false,
+            print_request: false,
+            print_env: false,
+            print_script: false,
+            format: None,
+            paths: Some(temp.path().to_string_lossy().into_owned()),
+            verbose: 0,
+            max_solve_time: None,
+            fail_fast: false,
+            fail_graph: false,
+        };
+        let requirements = parse_package_requirements(&args.packages).unwrap();
+
+        let error = resolve_environment(&requirements, &args).unwrap_err();
+
+        assert!(error.to_string().contains("missing-package"));
     }
 }

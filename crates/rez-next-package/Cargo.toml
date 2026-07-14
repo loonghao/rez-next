@@ -36,6 +36,7 @@ tracing.workspace = true
 sha1 = "0.11"
 fs2 = "0.4"
 uuid = { version = "1.7", features = ["v4", "serde"] }
+dunce = "1.0"
 
 [lib]
 name = "rez_next_package"

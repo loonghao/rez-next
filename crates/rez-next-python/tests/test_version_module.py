@@ -102,7 +102,7 @@ class TestVersionRange:
         assert r is not None
 
     def test_range_from_vendor(self):
-        from rez_next.vendor.version import Version, VersionRange
+        from rez_next._native.vendor.version import Version, VersionRange
 
         r = VersionRange(">=3.9")
         assert r.contains(Version("3.9"))
