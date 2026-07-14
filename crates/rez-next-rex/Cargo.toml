@@ -13,7 +13,7 @@ name = "rez_next_rex"
 crate-type = ["rlib"]
 
 [dependencies]
-rez-next-common = { version = "0.3.0", path = "../rez-next-common" }
+rez-next-common = { version = "0.3.0", path = "../rez-next-common" } # x-release-please-version
 serde = { workspace = true }
 regex = { workspace = true }
 thiserror = { workspace = true }

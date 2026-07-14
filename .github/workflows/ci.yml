@@ -138,6 +138,12 @@ jobs:
       - run: cargo check --workspace --exclude rez-next-python --all-targets
       - run: cargo test -p rez-next-util which::tests --lib -- --test-threads=1
       - run: cargo test -p rez-next-build vcs::tests::test_git_vcs_get --lib -- --test-threads=1
+      - name: Build and smoke-test release executables
+        shell: pwsh
+        run: |
+          cargo build --release --bin rez-next --bin rez
+          target/release/rez-next.exe --version
+          target/release/rez.exe --version
 
   test-win-gnu:
     name: Test - win-gnu
@@ -215,3 +221,15 @@ jobs:
       - name: Run Python binding tests
         working-directory: crates/rez-next-python
         run: pytest tests/ -v --tb=short
+      - name: Build wheel artifact
+        if: matrix.python-version == '3.12'
+        working-directory: crates/rez-next-python
+        run: maturin build --release --out dist
+      - name: Smoke-test installed wheel
+        if: matrix.python-version == '3.12'
+        shell: bash
+        run: |
+          python -m venv "$RUNNER_TEMP/rez-next-wheel"
+          "$RUNNER_TEMP/rez-next-wheel/bin/python" -m pip install crates/rez-next-python/dist/*.whl
+          cd "$RUNNER_TEMP"
+          "$RUNNER_TEMP/rez-next-wheel/bin/python" -I -c "import rez, rez_next; print(rez_next.__version__)"
