@@ -235,13 +235,28 @@ def extract_archive(artifact: Path, destination: Path) -> None:
     name = artifact.name.lower()
     if name.endswith(".zip") or name.endswith(".whl"):
         with zipfile.ZipFile(artifact) as archive:
-            archive.extractall(destination)
+            for member in archive.infolist():
+                target = _validated_archive_target(destination, member.filename)
+                archive.extract(member, destination)
+                mode = (member.external_attr >> 16) & 0o7777
+                if mode and target.exists():
+                    target.chmod(mode)
         return
     if name.endswith(".tar.gz") or name.endswith(".tgz"):
         with tarfile.open(artifact, "r:gz") as archive:
             archive.extractall(destination)
         return
     raise ValueError(f"unsupported archive format: {artifact}")
+
+
+def _validated_archive_target(destination: Path, member_name: str) -> Path:
+    root = destination.resolve()
+    target = (destination / member_name).resolve()
+    try:
+        target.relative_to(root)
+    except ValueError as error:
+        raise ValueError(f"archive member escapes destination: {member_name}") from error
+    return target
 
 
 def copy_tree_contents(source: Path, destination: Path) -> None:
