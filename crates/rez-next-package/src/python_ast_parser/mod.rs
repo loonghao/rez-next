@@ -569,4 +569,31 @@ def commands():
             Some("env.setenv('MODE', 'disabled')")
         );
     }
+
+    #[test]
+    fn test_commands_evaluate_platform_alias_with_local_variables() {
+        let package = PythonAstParser::parse_package_py(
+            r#"
+name = "test_package"
+version = "15.2.1"
+def commands():
+    extension = ".exe" if system.platform == "windows" else ""
+    executable = "Tool{{this.version.major}}.{{this.version.minor}}{0}".format(extension)
+    if system.platform == "windows":
+        alias("tool", "{0} $*".format(executable))
+    else:
+        alias("tool", "{0} $@".format(executable))
+"#,
+        )
+        .unwrap();
+
+        let suffix = if cfg!(windows) { ".exe $*" } else { " $@" };
+        assert_eq!(
+            package.commands.as_deref(),
+            Some(format!(
+                "alias('tool', 'Tool{{this.version.major}}.{{this.version.minor}}{suffix}')"
+            ))
+            .as_deref()
+        );
+    }
 }

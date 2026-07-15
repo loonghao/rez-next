@@ -21,15 +21,7 @@ impl PythonAstParser {
         body: &[Stmt],
         package_data: &mut PackageData,
     ) -> Result<(), RezCoreError> {
-        let mut commands = Vec::new();
-        for stmt in body {
-            if let Some(command) = self.extract_command_from_statement(stmt)? {
-                commands.push(command);
-            }
-        }
-        if !commands.is_empty() {
-            package_data.commands_function = Some(commands.join("\n"));
-        }
+        package_data.commands_function = self.process_command_function_body(body)?;
         Ok(())
     }
 
@@ -39,15 +31,7 @@ impl PythonAstParser {
         body: &[Stmt],
         package_data: &mut PackageData,
     ) -> Result<(), RezCoreError> {
-        let mut commands = Vec::new();
-        for stmt in body {
-            if let Some(command) = self.extract_command_from_statement(stmt)? {
-                commands.push(command);
-            }
-        }
-        if !commands.is_empty() {
-            package_data.pre_commands = Some(commands.join("\n"));
-        }
+        package_data.pre_commands = self.process_command_function_body(body)?;
         Ok(())
     }
 
@@ -57,16 +41,26 @@ impl PythonAstParser {
         body: &[Stmt],
         package_data: &mut PackageData,
     ) -> Result<(), RezCoreError> {
-        let mut commands = Vec::new();
-        for stmt in body {
-            if let Some(command) = self.extract_command_from_statement(stmt)? {
-                commands.push(command);
-            }
-        }
-        if !commands.is_empty() {
-            package_data.post_commands = Some(commands.join("\n"));
-        }
+        package_data.post_commands = self.process_command_function_body(body)?;
         Ok(())
+    }
+
+    fn process_command_function_body(
+        &mut self,
+        body: &[Stmt],
+    ) -> Result<Option<String>, RezCoreError> {
+        let outer_variables = self.context.variables.clone();
+        let result = (|| {
+            let mut commands = Vec::new();
+            for stmt in body {
+                if let Some(command) = self.extract_command_from_statement(stmt)? {
+                    commands.push(command);
+                }
+            }
+            Ok((!commands.is_empty()).then(|| commands.join("\n")))
+        })();
+        self.context.variables = outer_variables;
+        result
     }
 
     /// Extract a Rex DSL command string from a single statement.
@@ -78,7 +72,7 @@ impl PythonAstParser {
     /// - Top-level: `alias`, `command`, `source`, `info`, `error`, `stop`, `resetenv`
     /// - Top-level shorthand: `setenv`, `prependenv`, `appendenv`, `unsetenv`
     pub(super) fn extract_command_from_statement(
-        &self,
+        &mut self,
         stmt: &Stmt,
     ) -> Result<Option<String>, RezCoreError> {
         match stmt {
@@ -101,6 +95,12 @@ impl PythonAstParser {
 
             // Handle `env.VAR = "value"` (attribute assignment shorthand)
             Stmt::Assign(assign) => {
+                if let Some(Expr::Name(name)) = assign.targets.first() {
+                    if let Ok(value) = self.evaluate_expression(&assign.value) {
+                        self.context.variables.insert(name.id.to_string(), value);
+                    }
+                    return Ok(None);
+                }
                 if let Some(Expr::Attribute(attr)) = assign.targets.first() {
                     if let Expr::Name(name_expr) = &*attr.value {
                         if name_expr.id.as_str() == "env" {

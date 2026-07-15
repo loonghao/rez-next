@@ -88,6 +88,18 @@ pub struct EnvArgs {
     #[arg(long, value_name = "PATH")]
     pub paths: Option<String>,
 
+    /// Exclude the configured local package repository
+    #[arg(long = "no-local")]
+    pub no_local: bool,
+
+    /// Mark the context as a build environment
+    #[arg(long)]
+    pub build: bool,
+
+    /// Accept an upper-level resolve timestamp request
+    #[arg(long, value_name = "TIMESTAMP")]
+    pub time: Option<String>,
+
     /// Verbosity level
     #[arg(long, short = 'v', action = clap::ArgAction::Count)]
     pub verbose: u8,
@@ -209,34 +221,31 @@ fn resolve_environment(
         };
     }
 
+    if args.build {
+        config
+            .additional_env_vars
+            .insert("REZ_BUILD_ENV".to_string(), "1".to_string());
+    }
+
     // Setup repository manager from config or args
     let mut repo_manager = RepositoryManager::new();
     let rez_config = RezCoreConfig::load();
 
     // Add configured package paths as repositories
-    let package_paths: Vec<PathBuf> = if let Some(ref paths_str) = args.paths {
+    let mut package_paths: Vec<PathBuf> = if let Some(ref paths_str) = args.paths {
         split_package_paths(paths_str)
     } else {
         rez_config
             .packages_path
             .iter()
-            .map(|p| {
-                // Expand ~ on all platforms
-                let expanded = if p.starts_with("~/") || p == "~" {
-                    if let Ok(home) =
-                        std::env::var("USERPROFILE").or_else(|_| std::env::var("HOME"))
-                    {
-                        p.replacen("~", &home, 1)
-                    } else {
-                        p.clone()
-                    }
-                } else {
-                    p.clone()
-                };
-                PathBuf::from(expanded)
-            })
+            .map(|path| expand_home(path))
             .collect()
     };
+
+    if args.no_local {
+        let local_packages_path = expand_home(&rez_config.local_packages_path);
+        package_paths.retain(|path| !same_path(path, &local_packages_path));
+    }
 
     for (i, path) in package_paths.iter().enumerate() {
         if path.exists() {
@@ -281,6 +290,29 @@ fn resolve_environment(
     Ok(context)
 }
 
+fn expand_home(path: &str) -> PathBuf {
+    if (path.starts_with("~/") || path.starts_with("~\\") || path == "~")
+        && let Ok(home) = std::env::var("USERPROFILE").or_else(|_| std::env::var("HOME"))
+    {
+        return PathBuf::from(path.replacen('~', &home, 1));
+    }
+    PathBuf::from(path)
+}
+
+fn same_path(left: &std::path::Path, right: &std::path::Path) -> bool {
+    let normalize = |path: &std::path::Path| {
+        path.to_string_lossy()
+            .replace('/', std::path::MAIN_SEPARATOR_STR)
+            .trim_end_matches(std::path::MAIN_SEPARATOR)
+            .to_string()
+    };
+    if cfg!(windows) {
+        normalize(left).eq_ignore_ascii_case(&normalize(right))
+    } else {
+        normalize(left) == normalize(right)
+    }
+}
+
 /// Print requested packages
 fn print_requested_packages(requirements: &[PackageRequirement]) -> RezCoreResult<()> {
     for req in requirements {
@@ -301,14 +333,38 @@ fn print_resolved_packages(context: &ResolvedContext) -> RezCoreResult<()> {
     Ok(())
 }
 
-fn context_environment(context: &ResolvedContext) -> RezCoreResult<HashMap<String, String>> {
+fn context_environment(context: &ResolvedContext) -> RezCoreResult<RexEnvironment> {
     let env_manager = EnvironmentManager::new(context.config.clone());
     let mut environment = tokio::runtime::Runtime::new()
         .map_err(RezCoreError::Io)?
-        .block_on(env_manager.generate_environment(&context.resolved_packages))?;
+        .block_on(env_manager.generate_rex_environment(&context.resolved_packages))?;
     if let Ok(executable) = std::env::current_exe() {
-        prepend_executable_dir(&mut environment, &executable)?;
+        prepend_executable_dir(&mut environment.vars, &executable)?;
     }
+    environment.vars.insert(
+        "REZ_USED_REQUEST".to_string(),
+        context
+            .requirements
+            .iter()
+            .map(ToString::to_string)
+            .collect::<Vec<_>>()
+            .join(" "),
+    );
+    let resolved = context
+        .resolved_packages
+        .iter()
+        .map(|package| match &package.version {
+            Some(version) => format!("{}-{}", package.name, version.as_str()),
+            None => package.name.clone(),
+        })
+        .collect::<Vec<_>>()
+        .join(" ");
+    environment
+        .vars
+        .insert("REZ_USED_RESOLVE".to_string(), resolved.clone());
+    environment
+        .vars
+        .insert("REZ_USED_PACKAGES_NAMES".to_string(), resolved);
     Ok(environment)
 }
 
@@ -358,7 +414,8 @@ fn print_context_summary(context: &ResolvedContext, action: &str) {
 
 /// Print environment variables
 fn print_environment(context: &ResolvedContext, args: &EnvArgs) -> RezCoreResult<()> {
-    let env_vars = context_environment(context)?;
+    let environment = context_environment(context)?;
+    let env_vars = &environment.vars;
 
     match args.format.as_deref() {
         Some("json") => {
@@ -383,7 +440,7 @@ fn print_environment(context: &ResolvedContext, args: &EnvArgs) -> RezCoreResult
 
 /// Print shell activation script for the resolved environment
 fn print_shell_script(context: &ResolvedContext, args: &EnvArgs) -> RezCoreResult<()> {
-    let env_vars = context_environment(context)?;
+    let environment = context_environment(context)?;
 
     // Determine shell type
     let shell_str =
@@ -400,10 +457,7 @@ fn print_shell_script(context: &ResolvedContext, args: &EnvArgs) -> RezCoreResul
         _ => RexShellType::Bash,
     };
 
-    let mut rex_env = RexEnvironment::new();
-    rex_env.vars = env_vars;
-
-    let script = generate_shell_script(&rex_env, &rex_shell);
+    let script = generate_shell_script(&environment, &rex_shell);
     println!("{}", script);
     Ok(())
 }
@@ -428,7 +482,7 @@ fn execute_command_in_context(
     command: &str,
     args: &EnvArgs,
 ) -> RezCoreResult<()> {
-    let env_vars = context_environment(context)?;
+    let environment = context_environment(context)?;
 
     if !args.quiet {
         print_context_summary(
@@ -448,7 +502,7 @@ fn execute_command_in_context(
         cmd
     };
 
-    cmd.envs(env_vars);
+    cmd.envs(&environment.vars);
 
     // Execute the command
     let status = cmd
@@ -470,7 +524,7 @@ fn execute_extra_args_in_context(
         ));
     }
 
-    let env_vars = context_environment(context)?;
+    let environment = context_environment(context)?;
 
     if !args.quiet {
         print_context_summary(
@@ -483,12 +537,17 @@ fn execute_extra_args_in_context(
     }
 
     // Create command with resolved environment
-    let mut cmd = Command::new(&extra_args[0]);
-    if extra_args.len() > 1 {
-        cmd.args(&extra_args[1..]);
-    }
+    let mut cmd = if let Some(alias) = environment.aliases.get(&extra_args[0]) {
+        shell_command(&expand_alias(alias, &extra_args[1..]))
+    } else {
+        let mut cmd = Command::new(&extra_args[0]);
+        if extra_args.len() > 1 {
+            cmd.args(&extra_args[1..]);
+        }
+        cmd
+    };
 
-    cmd.envs(env_vars);
+    cmd.envs(&environment.vars);
 
     // Set up stdio
     cmd.stdin(Stdio::inherit())
@@ -506,9 +565,53 @@ fn execute_extra_args_in_context(
     std::process::exit(status.code().unwrap_or(1));
 }
 
+fn expand_alias(alias: &str, arguments: &[String]) -> String {
+    let arguments = arguments
+        .iter()
+        .map(|argument| quote_shell_argument(argument))
+        .collect::<Vec<_>>()
+        .join(" ");
+    if alias.contains("$*") {
+        alias.replace("$*", &arguments)
+    } else if alias.contains("$@") {
+        alias.replace("$@", &arguments)
+    } else if arguments.is_empty() {
+        alias.to_string()
+    } else {
+        format!("{alias} {arguments}")
+    }
+}
+
+fn quote_shell_argument(argument: &str) -> String {
+    if cfg!(windows) {
+        if argument
+            .chars()
+            .any(|character| character.is_whitespace() || "&|<>^\"".contains(character))
+        {
+            format!("\"{}\"", argument.replace('"', "\\\""))
+        } else {
+            argument.to_string()
+        }
+    } else {
+        format!("'{}'", argument.replace('\'', "'\\''"))
+    }
+}
+
+fn shell_command(command: &str) -> Command {
+    if cfg!(windows) {
+        let mut process = Command::new("cmd");
+        process.args(["/D", "/S", "/C", command]);
+        process
+    } else {
+        let mut process = Command::new("sh");
+        process.args(["-c", command]);
+        process
+    }
+}
+
 /// Spawn an interactive shell in the resolved context
 fn spawn_shell_in_context(context: &ResolvedContext, args: &EnvArgs) -> RezCoreResult<()> {
-    let env_vars = context_environment(context)?;
+    let environment = context_environment(context)?;
 
     if !args.quiet {
         print_context_summary(context, "Starting shell with rez environment...");
@@ -531,7 +634,7 @@ fn spawn_shell_in_context(context: &ResolvedContext, args: &EnvArgs) -> RezCoreR
         cmd.arg("-NoExit");
     }
 
-    cmd.envs(env_vars);
+    cmd.envs(&environment.vars);
 
     // Set up stdio
     cmd.stdin(Stdio::inherit())
@@ -570,6 +673,9 @@ mod tests {
             print_script: false,
             format: None,
             paths: None,
+            no_local: false,
+            build: false,
+            time: None,
             verbose: 0,
             max_solve_time: None,
             fail_fast: false,
@@ -645,6 +751,9 @@ mod tests {
             print_script: false,
             format: None,
             paths: Some(temp.path().to_string_lossy().into_owned()),
+            no_local: false,
+            build: false,
+            time: None,
             verbose: 0,
             max_solve_time: None,
             fail_fast: false,
@@ -655,5 +764,30 @@ mod tests {
         let error = resolve_environment(&requirements, &args).unwrap_err();
 
         assert!(error.to_string().contains("missing-package"));
+    }
+
+    #[test]
+    fn test_context_environment_exposes_resolve_metadata() {
+        let requirements = parse_package_requirements(&["tool-1".to_string()]).unwrap();
+        let mut context = ResolvedContext::from_requirements(requirements);
+        context.config.inherit_parent_env = false;
+        let mut package = rez_next_package::Package::new("tool".to_string());
+        package.version = Some(rez_next_version::Version::parse("1.2.0").unwrap());
+        context.resolved_packages.push(package);
+
+        let environment = context_environment(&context).unwrap();
+
+        assert_eq!(
+            environment.vars.get("REZ_USED_REQUEST"),
+            Some(&"tool-1".to_string())
+        );
+        assert_eq!(
+            environment.vars.get("REZ_USED_RESOLVE"),
+            Some(&"tool-1.2.0".to_string())
+        );
+        assert_eq!(
+            environment.vars.get("REZ_USED_PACKAGES_NAMES"),
+            Some(&"tool-1.2.0".to_string())
+        );
     }
 }
