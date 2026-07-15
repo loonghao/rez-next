@@ -50,11 +50,15 @@ run *ARGS:
 check: fmt-check lint test
 
 # Run all CI checks locally (mirrors GitHub Actions)
-ci: version-check actionlint fmt-check lint-ci doc-check test
+ci: version-check benchmark-tools-test actionlint fmt-check lint-ci doc-check test
 
 # Check that all release-managed package versions match
 version-check:
     vx python scripts/check_release_versions.py
+
+# Validate the benchmark output parser and regression-gate contract
+benchmark-tools-test:
+    vx python -m unittest discover -s metrics/benchmarking/scripts -p "test_*.py" -v
 
 # Check documentation builds without warnings
 doc:

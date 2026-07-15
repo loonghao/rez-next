@@ -29,6 +29,8 @@ jobs:
         with:
           python-version: "3.12"
       - run: python scripts/check_release_versions.py
+      - name: Test benchmark tooling
+        run: python -m unittest discover -s metrics/benchmarking/scripts -p "test_*.py" -v
 
   actionlint:
     name: Actionlint
