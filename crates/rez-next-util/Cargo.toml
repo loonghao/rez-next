@@ -1,6 +1,6 @@
 [package]
 name = "rez-next-util"
-version = "0.3.4" # x-release-please-version
+version = "0.3.5" # x-release-please-version
 edition.workspace = true
 rust-version.workspace = true
 description = "Utility functions for rez-next"
@@ -9,7 +9,7 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
-rez-next-common = { version = "0.3.4", path = "../rez-next-common" }
+rez-next-common = { version = "0.3.5", path = "../rez-next-common" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 chrono = "0.4"

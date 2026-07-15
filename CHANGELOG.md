@@ -5,6 +5,63 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.5](https://github.com/loonghao/rez-next/compare/v0.3.4...v0.3.5) (2026-07-15)
+
+
+### 🚀 Features
+
+* add live build events and plugins ([09fdc2c](https://github.com/loonghao/rez-next/commit/09fdc2ce65fc57bd276fe1f110fa3b995c31e564))
+* align Rez CLI and Python APIs ([5928fe5](https://github.com/loonghao/rez-next/commit/5928fe51f31fe6a60cc82dc2ba2e0f6a0c2ddd25))
+* harden production release contracts ([ab1dbc1](https://github.com/loonghao/rez-next/commit/ab1dbc1b90a4690681cfff596e7270ee34bc9729))
+
+
+### 🐛 Bug Fixes
+
+* activate rez environments through shell scripts ([4f829bb](https://github.com/loonghao/rez-next/commit/4f829bbc329b73453b112a19c47adc42dafb8b36))
+* align inplace test semantics ([541fcc5](https://github.com/loonghao/rez-next/commit/541fcc5544f81c1aeb091824d1edb2fda7b51928))
+* avoid cache stats deadlock ([63429a4](https://github.com/loonghao/rez-next/commit/63429a438add6347fc420602470ec4f59e334601))
+* **ci:** ensure x86_64-pc-windows-gnu target installed for active toolchain ([db63a91](https://github.com/loonghao/rez-next/commit/db63a9167f678186390a1191ff8dff29e892079b))
+* **deps:** update rust crate pyo3 to 0.29 ([#203](https://github.com/loonghao/rez-next/issues/203)) ([0401e25](https://github.com/loonghao/rez-next/commit/0401e25a716392cbcf354d9e65c0d9b277c4a309))
+* **deps:** update rust crate zip to v8 ([#181](https://github.com/loonghao/rez-next/issues/181)) ([f2cb221](https://github.com/loonghao/rez-next/commit/f2cb221cce7546e869803a1b0dc7f2c42f0960e5))
+* enforce variant build and test contracts ([76bc8c9](https://github.com/loonghao/rez-next/commit/76bc8c9b51f88f5c5633cec74d42360271961034))
+* execute package aliases in rez env ([241861b](https://github.com/loonghao/rez-next/commit/241861b9733f904bdb18d784be0f9fd165e830b8))
+* harden builds and Windows validation ([7120100](https://github.com/loonghao/rez-next/commit/71201001e320a1a3f605675b79fc752ec4e2cc69))
+* harden cross-platform build validation ([f562ae7](https://github.com/loonghao/rez-next/commit/f562ae7c82d644b1a62c99a1aadc0c7cd72fc1d3))
+* parse grouped benchmark results ([830982d](https://github.com/loonghao/rez-next/commit/830982d186f43924658b4c76edde6f096b1649a7))
+* preserve benchmark result publishing ([47fe0ed](https://github.com/loonghao/rez-next/commit/47fe0edf3f7906a10acf88ea6b12b12bb1750b2d))
+* preserve plugin archive permissions ([af225ff](https://github.com/loonghao/rez-next/commit/af225ff1ea594081edc0e0df5ea7e26ebc0a5a8b))
+* preserve Unix runtime contracts ([5010eae](https://github.com/loonghao/rez-next/commit/5010eaea7f95a84ddd2e196838c0bf824b25bfc8))
+* reject unsupported package definitions ([ea7d78f](https://github.com/loonghao/rez-next/commit/ea7d78fb4c5becce5c05a1b73c7786b836f1f96c))
+* repair release version synchronization ([01df2b3](https://github.com/loonghao/rez-next/commit/01df2b3ebbd85f1297fd07e50bfbcbb3478ce7c0))
+* report Unix symlink creation errors ([59faa04](https://github.com/loonghao/rez-next/commit/59faa04cc5cd2b2ded0d4802592c5ffe3d65c70b))
+* respect POSIX shell detection ([9550481](https://github.com/loonghao/rez-next/commit/955048133dac3bd4b7d6a736302ff5b002749c36))
+* support Cargo workspace releases ([900496d](https://github.com/loonghao/rez-next/commit/900496d8defc59b1c563e7125d30437e0d6cfa3a))
+* support Python 3.9 annotations ([0a501d7](https://github.com/loonghao/rez-next/commit/0a501d70453d07c8669ee856d221cd2f4da860cc))
+* support standard rez build env vars ([9f3c54a](https://github.com/loonghao/rez-next/commit/9f3c54a518a299223e796941d3db60a39b7d7f1e))
+* support workspace release automation ([eae067a](https://github.com/loonghao/rez-next/commit/eae067a056e36f80708f85c5b72fb52d937be377))
+* update python build bindings ([ca5c295](https://github.com/loonghao/rez-next/commit/ca5c295ec42e121774c7c8295043cb77e1c19b6f))
+* update vulnerable transitive dependencies ([30c9b87](https://github.com/loonghao/rez-next/commit/30c9b872e2826ea3319aa8e777114899060e7538))
+
+
+### 📚 Documentation
+
+* add llms.txt/llms-full.txt, update AGENTS.md/CLAUDE.md/GEMINI.md with corrected crate count, version, and module references ([#185](https://github.com/loonghao/rez-next/issues/185)) ([494f6c3](https://github.com/loonghao/rez-next/commit/494f6c3fc00b41e16885275dd8276666454c4b1e))
+* comprehensive doc refresh - add 19 missing modules, fix counts ([bfcfcef](https://github.com/loonghao/rez-next/commit/bfcfcef741915bd5da2fc9d2da8f577bd6f94864))
+* comprehensive doc refresh - fix submodule counts, add missing modules, improve disclosure chain ([a893379](https://github.com/loonghao/rez-next/commit/a8933799a3fef10d040e7d1ec1d3c5c1ff59b141))
+* fix module count from 41 to 40 across all docs (Run [#4](https://github.com/loonghao/rez-next/issues/4)) ([b42ec33](https://github.com/loonghao/rez-next/commit/b42ec33cd2d601000e8ba38eae2abaf604d28a2c))
+* fix module counts - remove 30 non-existent modules from all tables ([637ab87](https://github.com/loonghao/rez-next/commit/637ab87835cc182bc905c418e8cc2edae1f1b9a5))
+* fix module counts and remove non-existent modules from all tables ([#190](https://github.com/loonghao/rez-next/issues/190)) ([637ab87](https://github.com/loonghao/rez-next/commit/637ab87835cc182bc905c418e8cc2edae1f1b9a5))
+* fix module counts and remove non-existent modules from tables ([bbdb14d](https://github.com/loonghao/rez-next/commit/bbdb14d3b64a1d5298509483349383d5bca736ae))
+* fix outdated module/test counts and add CLI info (Run [#3](https://github.com/loonghao/rez-next/issues/3)) ([1b7776a](https://github.com/loonghao/rez-next/commit/1b7776afc1f5b31f7be9e6eaab0837e61d3f823e))
+* update documentation to reflect current project state (20 crates, 58 submodules) ([aec5918](https://github.com/loonghao/rez-next/commit/aec5918ae392a9580c7b820c1a846a03761aa9a7))
+
+
+### ♻️ Refactoring
+
+* remove legacy Rez utils mirror ([7907a17](https://github.com/loonghao/rez-next/commit/7907a17264b015d116e2b2b13db00b5ab64c13b0))
+* remove legacy YAML package support ([2bb3832](https://github.com/loonghao/rez-next/commit/2bb3832ec308f81668a8755e8ea63c37754e7024))
+* simplify package test discovery ([670c287](https://github.com/loonghao/rez-next/commit/670c2875c5ce6d2710ae033b7ece5213d54ce4ef))
+
 ## [0.3.4](https://github.com/loonghao/rez-next/compare/v0.3.3...v0.3.4) (2026-05-18)
 
 

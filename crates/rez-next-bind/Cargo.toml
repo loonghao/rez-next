@@ -1,6 +1,6 @@
 [package]
 name = "rez-next-bind"
-version = "0.3.4" # x-release-please-version
+version = "0.3.5" # x-release-please-version
 edition.workspace = true
 rust-version.workspace = true
 authors.workspace = true
@@ -10,7 +10,7 @@ repository.workspace = true
 keywords = ["rez", "bind", "package-manager"]
 
 [dependencies]
-rez-next-common = { version = "0.3.4", path = "../rez-next-common" } # x-release-please-version
+rez-next-common = { version = "0.3.5", path = "../rez-next-common" } # x-release-please-version
 thiserror.workspace = true
 regex.workspace = true
 

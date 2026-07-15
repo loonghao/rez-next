@@ -1,6 +1,6 @@
 [package]
 name = "rez-next-package-cache"
-version = "0.3.4" # x-release-please-version
+version = "0.3.5" # x-release-please-version
 edition.workspace = true
 rust-version.workspace = true
 authors.workspace = true
@@ -9,8 +9,8 @@ repository.workspace = true
 description = "Package caching for rez-next"
 
 [dependencies]
-rez-next-common = { version = "0.3.4", path = "../rez-next-common" }
-rez-next-package = { version = "0.3.4", path = "../rez-next-package" }
+rez-next-common = { version = "0.3.5", path = "../rez-next-common" }
+rez-next-package = { version = "0.3.5", path = "../rez-next-package" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 thiserror = "2.0"
