@@ -14,7 +14,6 @@ and verify rez_next behaves correctly for common pipeline workflows:
   - Package serialization roundtrip (package.py / YAML)
 """
 
-import json
 import os
 
 import pytest
@@ -345,35 +344,6 @@ class TestExceptionsE2E:
     def test_raise_resolve_error(self):
         with pytest.raises(rez.ResolveError):
             raise rez.ResolveError("test resolve error")
-
-
-# ── Resource Strings ──────────────────────────────────────────────────────────
-
-
-class TestUtilsResourcesE2E:
-    """rez_next.utils.resources submodule."""
-
-    def test_get_version_string(self):
-        from rez_next.utils.resources import get_resource_string
-
-        ver = get_resource_string("version")
-        assert isinstance(ver, str)
-        assert len(ver) > 0
-        # Should look like a semver
-        parts = ver.split(".")
-        assert len(parts) >= 2
-
-    def test_get_name_string(self):
-        from rez_next.utils.resources import get_resource_string
-
-        name = get_resource_string("name")
-        assert "rez" in name.lower()
-
-    def test_unknown_resource_raises_key_error(self):
-        from rez_next.utils.resources import get_resource_string
-
-        with pytest.raises(KeyError):
-            get_resource_string("__nonexistent_xyz_9999__")
 
 
 # ── Build System Detection ────────────────────────────────────────────────────

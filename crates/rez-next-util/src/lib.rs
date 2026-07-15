@@ -12,7 +12,7 @@ use rez_next_common::RezCoreError;
 mod base26;
 mod command;
 mod filesystem;
-pub mod logging; // Logging utilities (rez.utils.logging)
+pub mod logging;
 mod platform;
 mod string;
 mod system;

@@ -9,16 +9,12 @@ Python bindings are **partially implemented** in `crates/rez-next-python` and ex
 ## Architecture
 
 ```
-rez_next/                              # Main package (43 .py files, 40 modules)
+rez_next/                              # Main Python package
 ├── _native.*.pyd                      # PyO3 native extension (abi3-py38)
-├── __init__.py                        # Exports, version, drop-in shims
+├── __init__.py                        # Supported exports and version
 ├── vendor/                            # rez_next.vendor subpackage
 │   ├── __init__.py
 │   └── version.py                     # rez_next.vendor.version
-├── utils/                             # rez_next.utils subpackage
-│   ├── __init__.py
-│   ├── logging_.py                    # rez_next.utils.logging_
-│   └── resources.py                   # rez_next.utils.resources
 ├── packages_.py                       # rez_next.packages_ (iter, get, copy, move, remove)
 ├── packages.py                        # rez_next.packages (object model)
 ├── resolved_context.py                # rez_next.resolved_context
@@ -46,10 +42,8 @@ rez_next/                              # Main package (43 .py files, 40 modules)
 ├── package_remove.py                  # Package removal
 ├── package_search.py                  # Package search
 ├── __main__.py                        # CLI entry points
-└── ...                                # Total: 43 .py files, 40 modules
+└── ...
 ```
-
-> **Note**: Additional 25+ modules (`bundle_context`, `build_process`, `command`, `developer_package`, `package_bind`, `package_copy`, `package_filter`, `package_maker`, `package_move`, `package_order`, `package_resources`, `package_serialise`, `package_test`, `plugin_managers`, `release_hook`, `release_vcs`, `resolver`, `rex_bindings`, `serialise`, `shells`, `wrapper`, `utils.*` extended, `rezconfig`) are in development on the `auto-improve` branch.
 
 ## Implemented Python Submodules
 
@@ -64,7 +58,7 @@ rez_next/                              # Main package (43 .py files, 40 modules)
 | `rez_next.config` | `rez.config` | Configuration reading (100+ fields) | ✅ Stable |
 | `rez_next.system` | `rez.system` | System info (platform, Python version, etc.) | ✅ Stable |
 | `rez_next.exceptions` | `rez.exceptions` | Exception hierarchy | ✅ Stable |
-| `rez_next.deprecations` | `rez.utils.deprecations` | Deprecation warnings | ✅ Stable |
+| `rez_next.deprecations` | — | Deprecation warnings | ✅ Stable |
 
 ### Environment & Shell
 
@@ -127,15 +121,11 @@ rez_next/                              # Main package (43 .py files, 40 modules)
 
 | Submodule | Rez Equivalent | Functionality | Status |
 |-----------|----------------|---------------|--------|
-| `rez_next.util` | `rez.utils` | General utility functions | ✅ Stable |
+| `rez_next.util` | — | Curated native utility functions | ✅ Stable |
 | `rez_next.data` | `rez.data` | Built-in data resources | ✅ Stable |
-| `rez_next.utils.logging_` | `rez.utils.logging_` | Logging utilities | ✅ Stable |
-| `rez_next.utils.resources` | `rez.utils.resources` | Resource loading utilities | ✅ Stable |
 | `rez_next.vendor.version` | `rez.vendor.version` | Vendored version module | ✅ Stable |
 
-**Total: 40 modules** (all from 43 .py files in the `rez_next` package)
-
-> **Note**: 25+ additional modules (`bundle_context`, `build_process`, `command`, `developer_package`, `package_bind`, `package_copy`, `package_filter`, `package_maker`, `package_move`, `package_order`, `package_resources`, `package_serialise`, `package_test`, `plugin_managers`, `release_hook`, `release_vcs`, `resolver`, `rex_bindings`, `serialise`, `shells`, `wrapper`, `utils.*` extended, `rezconfig`) are in development on the `auto-improve` branch.
+The supported public modules are listed above; internal Rez utility modules are not mirrored.
 
 ## Quick Start
 
@@ -151,7 +141,7 @@ cd rez-next
 maturin develop --release
 ```
 
-### Basic Usage (Drop-in Replacement)
+### Basic Usage (Supported Interface)
 
 ```python
 # Before (Rez)
@@ -162,7 +152,7 @@ from rez.packages_ import iter_packages, get_latest_package
 import rez_next as rez
 from rez_next.packages_ import iter_packages, get_latest_package
 
-# API is fully compatible for implemented modules
+# Supported top-level API
 ctx = rez.resolve_packages(["python-3.9", "maya-2024"])
 pkg = rez.get_latest_package("python")
 for p in rez.iter_packages("maya"):

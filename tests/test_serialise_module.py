@@ -11,7 +11,6 @@ This test file aligns with Rez's package_serialise.py interface:
 - Validates data against package_serialise_schema
 """
 
-import sys
 import os
 import io
 import json
@@ -76,20 +75,6 @@ class TestDumpYaml:
         assert "test_package" in result
         assert "version:" in result
         assert "1.0.0" in result
-
-    def test_dump_yaml_without_python_yaml_dependency(self, tmp_path):
-        """Native YAML output can be read without PyYAML."""
-        from rez_next.utils.yaml import load_yaml
-
-        data = {"name": "test_package", "version": "1.0.0", "requires": ["python-3.9"]}
-        result = serialise.dump_yaml(data)
-        path = tmp_path / "metadata.yaml"
-        path.write_text(result, encoding="utf-8")
-        parsed = load_yaml(str(path))
-        assert parsed["name"] == "test_package"
-        assert parsed["version"] == "1.0.0"
-        assert "python-3.9" in parsed["requires"]
-
 
 class TestAsBlockString:
     """Test as_block_string function."""

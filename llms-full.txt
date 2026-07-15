@@ -463,16 +463,6 @@ import warnings
 warnings.warn("old_func is deprecated", RezDeprecationWarning)
 ```
 
-### Utils (Logging / Resources)
-
-```python
-from rez_next.utils.logging_ import get_logger
-from rez_next.utils.resources import load_resource
-
-logger = get_logger(__name__)
-logger.info("Processing package...")
-```
-
 ### Vendor (Version)
 
 ```python
@@ -482,7 +472,6 @@ v = Version("1.2.3")
 print(v.major, v.minor, v.patch)
 ```
 
-> **Note**: Additional modules (`bundle_context`, `build_process`, `build_system`, `command`, `developer_package`, `package_bind`, `package_copy`, `package_filter`, `package_maker`, `package_move`, `package_order`, `package_resources`, `package_serialise`, `package_test`, `plugin_managers`, `release_hook`, `release_vcs`, `resolver`, `rex_bindings`, `serialise`, `shells`, `wrapper`, `utils.*` extended) are in development on the `auto-improve` branch.
 
 ---
 

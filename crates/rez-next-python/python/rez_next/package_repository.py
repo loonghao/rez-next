@@ -11,11 +11,8 @@ Designed with:
 - Cross-platform path normalisation
 
 API alignment:
-- ``PackageRepository``: uid (cached_property), get_resource(), make_resource_handle(),
-  get_resource_from_handle(), register_resource(), get_variant_state_handle(),
-  get_last_release_time()
-- ``PackageRepositoryManager``: get_repository(), are_same(), get_resource(),
-  get_resource_from_handle(), clear_caches()
+- ``PackageRepository``: uid, package iteration, lifecycle and payload access
+- ``PackageRepositoryManager``: repository lookup and cache management
 """
 
 from __future__ import annotations
@@ -26,7 +23,7 @@ import threading
 import time
 from functools import cached_property
 from contextlib import contextmanager
-from typing import Any, ClassVar, Iterator, Optional, TYPE_CHECKING, Hashable
+from typing import Any, Iterator, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from rez_next.version import Version
@@ -301,68 +298,6 @@ class PackageRepository(abc.ABC):
         """Return the filesystem path to a package's payload directory."""
         raise NotImplementedError
 
-    # ── Resource management (upstream rez API) ────────────────────────
-
-    def make_resource_handle(
-        self, resource_key: str, **variables: Any
-    ) -> Any:
-        """Create a ``ResourceHandle``.
-
-        Nearly all ``ResourceHandle`` creation should go through here,
-        because it gives the various resource classes a chance to
-        normalize / standardize the resource handles, improving
-        caching / comparison.
-
-        Rez API: ``PackageRepository.make_resource_handle()``
-        """
-        from rez_next.utils.resources import ResourceHandle
-        return ResourceHandle(resource_key, variables)
-
-    def get_resource(
-        self, resource_key: str | type, **variables: Any
-    ) -> Any:
-        """Get a resource (cached or new) for the given key and variables.
-
-        Attempts to get and return a cached version of the resource if
-        available, otherwise a new resource object is created and returned.
-
-        Rez API: ``PackageRepository.get_resource()``
-
-        Args:
-            resource_key: Name or class of the ``Resource`` type to find.
-            **variables: Data to identify / store on the resource.
-
-        Returns:
-            ``PackageRepositoryResource`` instance.
-        """
-        if hasattr(self, "_get_resource_impl"):
-            return self._get_resource_impl(resource_key, **variables)
-        handle = self.make_resource_handle(resource_key, **variables)
-        return self.get_resource_from_handle(handle)
-
-    def get_resource_from_handle(
-        self, resource_handle: Any, verify_repo: bool = True
-    ) -> Any:
-        """Get a resource from its handle.
-
-        Rez API: ``PackageRepository.get_resource_from_handle()``
-
-        Args:
-            resource_handle: ``ResourceHandle`` of the resource.
-            verify_repo: If True, verify the handle's repository matches.
-
-        Returns:
-            ``PackageRepositoryResource`` instance.
-        """
-        if self.pool is not None and hasattr(self.pool, "get_resource"):
-            return self.pool.get_resource(self, resource_handle, verify_repo)
-        from rez_next.exceptions import ResourceError
-        raise ResourceError(
-            f"No resource pool available for get_resource_from_handle "
-            f"on {self}"
-        )
-
-
 # ── Repository manager ────────────────────────────────────────────────────
 
 
@@ -373,18 +308,6 @@ class PackageRepositoryManager:
     """
 
     def __init__(self, pool: Any = None) -> None:
-        if pool is None:
-            # Use config to determine cache size, default to unbounded
-            try:
-                from rez_next.config import config as cfg
-                cache_size: int | None = getattr(
-                    cfg, "resource_caching_maxsize", -1
-                )
-                if cache_size is not None and cache_size < 0:
-                    cache_size = None
-            except Exception:
-                cache_size = None
-            pool = _create_resource_pool(cache_size)
         self.pool = pool
         self.repositories: dict[str, PackageRepository] = {}
 
@@ -416,33 +339,6 @@ class PackageRepositoryManager:
             return True
         return self.get_repository(path_1).uid == self.get_repository(path_2).uid
 
-    def get_resource(
-        self, resource_key: str, repository_type: str,
-        location: str, **variables: Any,
-    ) -> Any:
-        """Load a resource from the repository identified by type+location."""
-        path = f"{repository_type}@{location}"
-        repo = self.get_repository(path)
-        return repo.get_resource(resource_key, **variables)
-
-    def get_resource_from_handle(
-        self, resource_handle: Any,
-    ) -> Any:
-        """Get a resource from its handle.
-
-        Rez API: ``PackageRepositoryManager.get_resource_from_handle()``
-        """
-        repo_type = getattr(resource_handle, "repository_type", None)
-        location = getattr(resource_handle, "location", None)
-        if repo_type and location:
-            path = f"{repo_type}@{location}"
-            repo = self.get_repository(path)
-            return repo.get_resource_from_handle(resource_handle)
-        from rez_next.exceptions import ResourceError
-        raise ResourceError(
-            f"Resource handle {resource_handle} has no repository type/location"
-        )
-
     def clear_caches(self) -> None:
         """Clear all cached repositories and pool resources."""
         self.repositories.clear()
@@ -455,23 +351,6 @@ class PackageRepositoryManager:
         repo_type, location = path.split("@", 1)
         cls = plugin_manager.get_plugin_class("package_repository", repo_type)
         return cls(location, self.pool, **repo_args)
-
-
-# ── Internal helpers ──────────────────────────────────────────────────────
-
-
-def _create_resource_pool(maxsize: Optional[int] = None) -> Any:
-    """Create a simple resource pool.
-
-    If the rez_next resource pool implementation is available, use it.
-    Otherwise return None (no caching).
-    """
-    try:
-        from rez_next.utils.resources import ResourcePool
-        return ResourcePool(cache_size=maxsize)
-    except ImportError:
-        return None
-
 
 # Module-level singleton (matches rez.package_repository.package_repository_manager)
 package_repository_manager = PackageRepositoryManager()

@@ -91,12 +91,12 @@ import rez
 from rez.packages_ import iter_packages, get_latest_package
 from rez.resolved_context import ResolvedContext
 
-# After (drop-in replacement)
+# After (supported interface)
 import rez_next as rez
 from rez_next.packages_ import iter_packages, get_latest_package
 from rez_next.resolved_context import ResolvedContext
 
-# API is fully compatible
+# Supported top-level API
 ctx = rez.resolve_packages(["python-3.9", "maya-2024"])
 pkg = rez.get_latest_package("python")
 for p in rez.iter_packages("maya"):
@@ -107,7 +107,7 @@ for p in rez.iter_packages("maya"):
 
 ## Feature Overview
 
-### Implemented Python Submodules (40 modules)
+### Implemented Python Submodules
 
 | Submodule | Equivalent rez module | Functionality |
 |-----------|----------------------|---------------|
@@ -138,7 +138,7 @@ for p in rez.iter_packages("maya"):
 | `rez_next.data` | `rez.data` | Built-in data resources |
 | `rez_next.cli` | `rez.cli` | CLI entry-points (programmatic invocation) |
 | `rez_next.exceptions` | `rez.exceptions` | Exception hierarchy |
-| `rez_next.deprecations` | `rez.utils.deprecations` | Deprecation warnings |
+| `rez_next.deprecations` | — | Deprecation warnings |
 | `rez_next.package_cache` | `rez.package_cache` | Package payload cache |
 | `rez_next.package_help` | `rez.package_help` | Package help |
 | `rez_next.package_search` | `rez.package_search` | Package search API |
@@ -147,12 +147,8 @@ for p in rez.iter_packages("maya"):
 | `rez_next.solver` | `rez.solver` | Advanced solver API |
 | `rez_next.serialise_` | `rez.serialise` | Serialization support |
 | `rez_next.test` | `rez.test` | Package testing |
-| `rez_next.util` | `rez.utils` | General utility functions |
-| `rez_next.utils.logging_` | `rez.utils.logging_` | Logging utilities |
-| `rez_next.utils.resources` | `rez.utils.resources` | Resource loading utilities |
+| `rez_next.util` | — | Curated native utility functions |
 | `rez_next.vendor.version` | `rez.vendor.version` | Vendored version module |
-
-> **25+ modules in active development** on the [`auto-improve`](https://github.com/loonghao/rez-next/tree/auto-improve) branch: `bundle_context`, `build_process`, `build_system`, `command`, `developer_package`, `package_bind`, `package_copy`, `package_filter`, `package_maker`, `package_move`, `package_order`, `package_resources`, `package_serialise`, `package_test`, `plugin_managers`, `release_hook`, `release_vcs`, `resolver`, `rex_bindings`, `shells`, `wrapper`, `utils.*` extended, `rezconfig`.
 
 ### API Examples
 

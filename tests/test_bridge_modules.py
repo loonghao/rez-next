@@ -6,6 +6,8 @@ via the runpy bridge pattern.
 """
 from __future__ import annotations
 
+import importlib
+
 import pytest
 
 
@@ -76,24 +78,12 @@ class TestBridgeModules:
         __import__(module_name)
 
 
-class TestUtilsSubpackage:
-    """Verify utils subpackage bridges load correctly."""
+def test_legacy_utils_mirror_is_not_exposed() -> None:
+    import rez_next
 
-    UTILS_SUBMODULES = [
-        "rez_next.utils.colorize",
-        "rez_next.utils.data_utils",
-        "rez_next.utils.filesystem",
-        "rez_next.utils.formatting",
-        "rez_next.utils.logging_",
-        "rez_next.utils.platform_",
-        "rez_next.utils.resources",
-        "rez_next.utils.yaml",
-    ]
-
-    @pytest.mark.parametrize("module_name", UTILS_SUBMODULES)
-    def test_utils_submodule_imports(self, module_name: str) -> None:
-        """All utils submodules should import without errors."""
-        __import__(module_name)
+    assert not hasattr(rez_next, "utils")
+    with pytest.raises(ModuleNotFoundError):
+        importlib.import_module("rez_next.utils")
 
 
 class TestRezNextInitImports:

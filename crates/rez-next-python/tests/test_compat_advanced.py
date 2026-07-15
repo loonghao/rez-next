@@ -317,35 +317,6 @@ class TestSelftest:
         assert failed == 0, f"selftest failed: {failed} tests failed"
 
 
-# ── Utils ─────────────────────────────────────────────────────────────────────
-
-
-class TestUtilsModule:
-    """Verify rez.utils.resources submodule."""
-
-    def test_utils_resources_submodule(self):
-        from rez_next.utils.resources import get_resource_string
-        ver = get_resource_string("version")
-        assert isinstance(ver, str)
-        assert len(ver) > 0
-
-    def test_get_resource_string_name(self):
-        from rez_next.utils.resources import get_resource_string
-        name = get_resource_string("name")
-        assert "rez" in name.lower()
-
-    def test_get_resource_string_unknown_raises(self):
-        from rez_next.utils.resources import get_resource_string
-        with pytest.raises(KeyError):
-            get_resource_string("nonexistent_resource_xyz_12345")
-
-    def test_get_version_string_is_semver_like(self):
-        from rez_next.utils.resources import get_resource_string
-        ver = get_resource_string("version")
-        parts = ver.split(".")
-        assert len(parts) >= 2
-
-
 # ── Rex ───────────────────────────────────────────────────────────────────────
 
 
