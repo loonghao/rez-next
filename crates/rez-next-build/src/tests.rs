@@ -1052,9 +1052,11 @@ if os.environ["REZ_BUILD_PROJECT_VERSION"] != "0.0.0":
         .unwrap();
 
         let (event_sender, mut event_receiver) = tokio::sync::mpsc::unbounded_channel();
-        let mut config = BuildConfig::default();
-        config.build_dir = tmp.path().join(".rez_build");
-        config.event_sender = Some(event_sender);
+        let config = BuildConfig {
+            build_dir: tmp.path().join(".rez_build"),
+            event_sender: Some(event_sender),
+            ..BuildConfig::default()
+        };
         let mut manager = BuildManager::with_config(config);
 
         let pkg = make_package("event_test", "1.0.0");

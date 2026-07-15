@@ -664,4 +664,23 @@ tests = {
             "unexpected error: {error}"
         );
     }
+
+    #[test]
+    fn test_package_test_command_preserves_nested_quotes() {
+        let package = PythonAstParser::parse_package_py(
+            r#"
+name = "test_package"
+version = "1.0.0"
+tests = {
+    "import": "python -c \"import test_package; print(test_package.VALUE)\"",
+}
+"#,
+        )
+        .unwrap();
+
+        assert_eq!(
+            package.tests.get("import").map(String::as_str),
+            Some(r#"python -c "import test_package; print(test_package.VALUE)""#)
+        );
+    }
 }

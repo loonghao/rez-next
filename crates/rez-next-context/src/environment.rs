@@ -5,7 +5,7 @@ use rez_next_common::RezCoreError;
 use rez_next_package::Package;
 use rez_next_rex::{RexAction, RexActionType, RexEnvironment, RexExecutor};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::env;
 use std::path::Path;
 
@@ -61,6 +61,33 @@ impl EnvironmentManager {
             HashMap::new()
         };
 
+        Self { config, base_env }
+    }
+
+    /// Create a manager with an explicit base environment.
+    ///
+    /// Package Rex commands are applied after this environment, unlike
+    /// `ContextConfig::additional_env_vars`, which intentionally applies last.
+    pub fn with_base_environment(
+        config: ContextConfig,
+        environment: HashMap<String, String>,
+    ) -> Self {
+        let mut entries: Vec<_> = environment.into_iter().collect();
+        if cfg!(windows) {
+            entries.sort_by(|(left, _), (right, _)| {
+                let left_key = left.to_ascii_uppercase();
+                let right_key = right.to_ascii_uppercase();
+                left_key.cmp(&right_key).then_with(|| {
+                    let left_is_canonical = left == &left_key;
+                    let right_is_canonical = right == &right_key;
+                    left_is_canonical.cmp(&right_is_canonical)
+                })
+            });
+        }
+        let mut base_env = HashMap::new();
+        for (name, value) in entries {
+            base_env.insert(environment_key(&name), value);
+        }
         Self { config, base_env }
     }
 
@@ -133,6 +160,8 @@ impl EnvironmentManager {
         for var_name in &self.config.unset_vars {
             env_vars.remove(&environment_key(var_name));
         }
+
+        normalize_environment_paths(&mut env_vars);
 
         let mut environment = RexEnvironment::new();
         environment.vars = env_vars;
@@ -522,6 +551,35 @@ fn environment_key(name: &str) -> String {
     }
 }
 
+/// Remove duplicate PATH entries while preserving their activation order.
+///
+/// This also keeps Windows command environments below `cmd.exe`'s practical
+/// PATH-length limit when nested tool managers repeat their own search paths.
+pub fn normalize_environment_paths(env_vars: &mut HashMap<String, String>) {
+    let path_key = env_vars
+        .keys()
+        .find(|name| name.eq_ignore_ascii_case("PATH"))
+        .cloned()
+        .unwrap_or_else(|| environment_key("PATH"));
+    let Some(path) = env_vars.get_mut(&path_key) else {
+        return;
+    };
+    let separator = get_path_separator();
+    let mut seen = HashSet::new();
+    let entries = path
+        .split(&separator)
+        .filter(|entry| {
+            let identity = if cfg!(windows) {
+                entry.replace('/', "\\").to_ascii_lowercase()
+            } else {
+                (*entry).to_string()
+            };
+            seen.insert(identity)
+        })
+        .collect::<Vec<_>>();
+    *path = entries.join(&separator);
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -804,5 +862,60 @@ mod tests {
                     .into_owned()
             )
         );
+    }
+
+    #[test]
+    fn test_explicit_base_environment_precedes_package_commands() {
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        let temp = tempfile::TempDir::new().unwrap();
+        let package = Package {
+            name: "tool".to_string(),
+            filepath: Some(
+                temp.path()
+                    .join("package.py")
+                    .to_string_lossy()
+                    .into_owned(),
+            ),
+            commands: Some("env.prepend_path('PATH', '{root}/bin')".to_string()),
+            tools: vec!["tool".to_string()],
+            ..Default::default()
+        };
+        let separator = get_path_separator();
+        let mut base = HashMap::from([(
+            "Path".to_string(),
+            format!("parent-path{separator}parent-path"),
+        )]);
+        if cfg!(windows) {
+            base.insert("PATH".to_string(), format!("base-path{separator}base-path"));
+        }
+        let manager = EnvironmentManager::with_base_environment(
+            ContextConfig {
+                inherit_parent_env: false,
+                ..Default::default()
+            },
+            base,
+        );
+
+        let environment = rt
+            .block_on(manager.generate_environment(&[package]))
+            .unwrap();
+        let path = environment
+            .get(&environment_key("PATH"))
+            .unwrap()
+            .replace('/', "\\");
+        assert!(path.starts_with(&temp.path().join("bin").to_string_lossy().into_owned()));
+        assert!(path.ends_with(if cfg!(windows) {
+            "base-path"
+        } else {
+            "parent-path"
+        }));
+        let normalized_root = temp.path().join("bin").to_string_lossy().replace('/', "\\");
+        assert_eq!(path.matches(&normalized_root).count(), 1);
+        let base_entry = if cfg!(windows) {
+            "base-path"
+        } else {
+            "parent-path"
+        };
+        assert_eq!(path.matches(base_entry).count(), 1);
     }
 }

@@ -10,7 +10,7 @@
 use crate::cli::utils::expand_home_path;
 use clap::Args;
 use rez_next_common::{RezCoreError, config::RezCoreConfig, error::RezCoreResult};
-use rez_next_context::{ContextConfig, EnvironmentManager};
+use rez_next_context::{ContextConfig, EnvironmentManager, normalize_environment_paths};
 use rez_next_package::{Requirement, serialization::PackageSerializer};
 use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
 use rez_next_solver::{DependencyResolver, SolverConfig};
@@ -243,7 +243,9 @@ impl PackageTestRunner {
         }
 
         if args.inplace {
-            self.test_environment = None;
+            let mut environment = std::env::vars().collect();
+            normalize_environment_paths(&mut environment);
+            self.test_environment = Some(environment);
             return Ok(());
         }
 

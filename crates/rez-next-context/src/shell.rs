@@ -166,10 +166,21 @@ impl ShellExecutor {
         let start_time = std::time::Instant::now();
 
         let mut cmd = AsyncCommand::new(self.shell_type.executable());
-        cmd.arg(self.shell_type.command_flag())
-            .arg(command)
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped());
+        let command_file = if self.shell_type == ShellType::Cmd {
+            let path = std::env::temp_dir().join(format!("rez-next-{}.cmd", uuid::Uuid::new_v4()));
+            std::fs::write(&path, format!("@echo off\r\n{command}\r\n")).map_err(|error| {
+                RezCoreError::ExecutionError(format!(
+                    "Failed to create temporary CMD script '{}': {error}",
+                    path.display()
+                ))
+            })?;
+            cmd.args(["/d", "/s", "/c"]).arg(&path);
+            Some(path)
+        } else {
+            cmd.arg(self.shell_type.command_flag()).arg(command);
+            None
+        };
+        cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
 
         // Set working directory
         if let Some(ref wd) = self.working_directory {
@@ -189,9 +200,15 @@ impl ShellExecutor {
             std::time::Duration::from_secs(self.timeout_seconds),
             cmd.output(),
         )
-        .await
-        .map_err(|_| RezCoreError::ExecutionError("Command execution timeout".to_string()))?
-        .map_err(|e| RezCoreError::ExecutionError(format!("Failed to execute command: {}", e)))?;
+        .await;
+        if let Some(path) = command_file {
+            let _ = std::fs::remove_file(path);
+        }
+        let output = output
+            .map_err(|_| RezCoreError::ExecutionError("Command execution timeout".to_string()))?
+            .map_err(|e| {
+                RezCoreError::ExecutionError(format!("Failed to execute command: {}", e))
+            })?;
 
         let execution_time_ms = start_time.elapsed().as_millis() as u64;
 

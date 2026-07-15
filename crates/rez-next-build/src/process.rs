@@ -5,6 +5,7 @@ use crate::{
     BuildSystem,
 };
 use rez_next_common::RezCoreError;
+use rez_next_context::{ContextConfig, EnvironmentManager, ShellExecutor, ShellType};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::process::Child;
@@ -48,6 +49,8 @@ pub enum BuildStep {
     Packaging,
     /// Installing artifacts
     Installing,
+    /// Running tests declared by the installed package
+    PackageTesting,
     /// Cleaning up
     Cleanup,
 }
@@ -282,6 +285,7 @@ impl BuildProcess {
             BuildStep::Testing,
             BuildStep::Packaging,
             BuildStep::Installing,
+            BuildStep::PackageTesting,
             BuildStep::Cleanup,
         ];
 
@@ -411,6 +415,13 @@ impl BuildProcess {
             BuildStep::Installing => {
                 Self::execute_install_step(request, environment, config).await?
             }
+            BuildStep::PackageTesting => {
+                if request.options.skip_tests {
+                    (true, "Package tests skipped".to_string(), String::new())
+                } else {
+                    Self::execute_package_test_step(request, environment).await?
+                }
+            }
             BuildStep::Cleanup => Self::execute_cleanup_step(request, environment, config).await?,
         };
 
@@ -533,6 +544,78 @@ impl BuildProcess {
             install_result.output,
             install_result.errors,
         ))
+    }
+
+    async fn execute_package_test_step(
+        request: &BuildRequest,
+        environment: &BuildEnvironment,
+    ) -> Result<(bool, String, String), RezCoreError> {
+        if request.package.tests.is_empty() {
+            return Ok((true, "No package tests defined".to_string(), String::new()));
+        }
+
+        let install_dir = environment.get_install_dir();
+        let mut package = request.package.clone();
+        package.filepath = Some(
+            install_dir
+                .join("package.py")
+                .to_string_lossy()
+                .into_owned(),
+        );
+        if let Some(pre_test_commands) = package.pre_test_commands.take() {
+            package.post_commands = Some(match package.post_commands.take() {
+                Some(post_commands) => format!("{post_commands}\n{pre_test_commands}"),
+                None => pre_test_commands,
+            });
+        }
+        let mut base_environment = std::collections::HashMap::new();
+        for (name, value) in std::env::vars().chain(environment.get_env_vars().clone()) {
+            let name = if cfg!(windows) {
+                name.to_ascii_uppercase()
+            } else {
+                name
+            };
+            base_environment.insert(name, value);
+        }
+        let manager = EnvironmentManager::with_base_environment(
+            ContextConfig {
+                inherit_parent_env: false,
+                ..ContextConfig::default()
+            },
+            base_environment,
+        );
+        let test_environment = manager.generate_environment(&[package]).await?;
+        let executor = ShellExecutor::with_shell(ShellType::detect())
+            .with_environment(test_environment)
+            .with_working_directory(request.source_dir.clone());
+
+        let mut tests: Vec<_> = request.package.tests.iter().collect();
+        tests.sort_by_key(|(name, _)| *name);
+        let mut output = String::new();
+        for (name, command) in tests {
+            let root = install_dir.to_string_lossy();
+            let command = command
+                .replace("{this.root}", &root)
+                .replace("{this.base}", &root)
+                .replace("{root}", &root)
+                .replace("{base}", &root);
+            output.push_str(&format!("Running package test '{name}': {command}\n"));
+            let result = executor.execute(&command).await?;
+            output.push_str(&result.stdout);
+            if !result.is_success() {
+                let errors = if result.stderr.trim().is_empty() {
+                    format!(
+                        "Package test '{name}' exited with code {}",
+                        result.exit_code
+                    )
+                } else {
+                    result.stderr
+                };
+                return Ok((false, output, errors));
+            }
+        }
+
+        Ok((true, output, String::new()))
     }
 
     /// Execute cleanup step

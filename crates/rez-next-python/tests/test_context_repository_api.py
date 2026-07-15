@@ -425,30 +425,30 @@ class TestRepositoryManagerWithRealRepo:
         names = repo.get_package_family_names()
         assert names.count("mylib") == 1, f"mylib should appear once, got: {names}"
 
-    # ── graceful degradation on invalid package.py ───────────────────────────
+    # ── fail-closed behavior for invalid package.py ──────────────────────────
 
-    def test_find_packages_syntax_error_skips_gracefully(self, tmp_path):
-        """A malformed package.py must be silently skipped; no exception raised."""
+    def test_find_packages_syntax_error_returns_error(self, tmp_path):
+        """A malformed package.py must not look like an empty package family."""
         bad_dir = tmp_path / "badpkg" / "1.0.0"
         bad_dir.mkdir(parents=True, exist_ok=True)
         (bad_dir / "package.py").write_bytes(b"name = 'badpkg\nversion = '1.0.0'\n")
 
         repo = rez.RepositoryManager(paths=[str(tmp_path)])
-        pkgs = repo.find_packages("badpkg")
-        assert pkgs == [], f"malformed package.py must be skipped, got {pkgs}"
+        with pytest.raises(RuntimeError, match="Failed to load"):
+            repo.find_packages("badpkg")
 
-    def test_find_packages_empty_package_py_skips_gracefully(self, tmp_path):
-        """An empty package.py must be silently skipped."""
+    def test_find_packages_empty_package_py_returns_error(self, tmp_path):
+        """An empty package.py is an invalid package definition."""
         empty_dir = tmp_path / "emptypkg" / "1.0.0"
         empty_dir.mkdir(parents=True, exist_ok=True)
         (empty_dir / "package.py").write_bytes(b"")
 
         repo = rez.RepositoryManager(paths=[str(tmp_path)])
-        pkgs = repo.find_packages("emptypkg")
-        assert pkgs == [], f"empty package.py must be skipped, got {pkgs}"
+        with pytest.raises(RuntimeError, match="Missing 'name' field"):
+            repo.find_packages("emptypkg")
 
-    def test_find_packages_valid_and_invalid_mixed_returns_valid_only(self, tmp_path):
-        """Valid packages are returned even when sibling version has an invalid package.py."""
+    def test_find_packages_valid_and_invalid_mixed_returns_error(self, tmp_path):
+        """A partially invalid family must not return incomplete results."""
         # Good version
         write_package_py(tmp_path / "mypkg" / "1.0.0", "mypkg", "1.0.0")
         # Bad version — missing 'name' field
@@ -457,9 +457,8 @@ class TestRepositoryManagerWithRealRepo:
         (bad_dir / "package.py").write_bytes(b"version = '0.0.1'\n")
 
         repo = rez.RepositoryManager(paths=[str(tmp_path)])
-        pkgs = repo.find_packages("mypkg")
-        versions = [p.version_str for p in pkgs]
-        assert "1.0.0" in versions, f"valid mypkg 1.0.0 must be returned; got {versions}"
+        with pytest.raises(RuntimeError, match="Missing 'name' field"):
+            repo.find_packages("mypkg")
 
 
 # ── Context + Repository integration ─────────────────────────────────────────

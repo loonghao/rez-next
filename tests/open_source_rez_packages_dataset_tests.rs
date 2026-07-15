@@ -248,6 +248,9 @@ async fn run_vx_build(
     sha256: &str,
 ) -> rez_next_build::BuildResult {
     let mut manager = make_build_manager(temp_dir);
+    let fixture_artifact = source_dir.join("dist").join("vx-artifact.zip");
+    std::fs::create_dir_all(fixture_artifact.parent().unwrap()).unwrap();
+    std::fs::copy(artifact, &fixture_artifact).unwrap();
     let mut request =
         BuildRequest::new(package, Some(vx_build_context(temp_dir).await), source_dir);
     request.options.env_vars.insert(

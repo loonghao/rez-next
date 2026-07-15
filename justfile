@@ -1,5 +1,7 @@
 # rez-next development commands
 
+set windows-shell := ["pwsh.exe", "-NoLogo", "-NoProfile", "-Command"]
+
 # Default recipe - show available commands
 default:
     @just --list
@@ -14,20 +16,19 @@ build-release:
 
 # Run all tests
 test:
-    vx cargo test --workspace
+    vx cargo test --workspace -- --test-threads=1
 
 # Run tests with output
 test-verbose:
-    vx cargo test --workspace -- --nocapture
+    vx cargo test --workspace -- --test-threads=1 --nocapture
 
 # Run clippy lints (local dev: all features, all targets)
 lint:
     vx cargo clippy --workspace --all-targets --all-features -- -D warnings
 
-# Run clippy lints (CI mode: excludes rez-next-python to avoid pyo3 extension-module issues)
-# Only deny correctness-level issues to avoid new lint churn from newer Rust versions
+# Run the same complete Clippy gate in CI
 lint-ci:
-    vx cargo clippy --workspace --all-targets --all-features --exclude rez-next-python -- -A warnings -D clippy::correctness
+    vx cargo clippy --workspace --all-targets --all-features -- -D warnings
 
 # Check GitHub Actions workflows
 actionlint:
@@ -57,7 +58,7 @@ doc:
 
 # Check documentation with warnings as errors
 doc-check:
-    RUSTDOCFLAGS="-D warnings" vx cargo doc --workspace --all-features --no-deps --document-private-items
+    vx cargo --config 'build.rustdocflags=["-D", "warnings"]' doc --workspace --all-features --no-deps --document-private-items
 
 # Run benchmarks
 bench:
@@ -93,23 +94,23 @@ pre-commit-update:
 
 # Build Python wheel with maturin develop (for local testing)
 py-build:
-    cd crates/rez-next-python && vx maturin develop --features pyo3/extension-module
+    cd crates/rez-next-python && vx uv run --locked --extra test python -m maturin develop --features pyo3/extension-module
 
 # Run Python compatibility tests
 py-test:
-    cd crates/rez-next-python && vx pytest tests/ -v --tb=short
+    cd crates/rez-next-python && vx uv run --locked --extra test pytest tests/ -v --tb=short
 
 # Run Python compatibility tests (fast, stop on first failure)
 py-test-fast:
-    cd crates/rez-next-python && vx pytest tests/ -v --tb=short -x
+    cd crates/rez-next-python && vx uv run --locked --extra test pytest tests/ -v --tb=short -x
 
 # Run Python e2e tests only
 py-test-e2e:
-    cd crates/rez-next-python && vx pytest tests/ -v --tb=short -k "e2e or E2E or end_to_end"
+    cd crates/rez-next-python && vx uv run --locked --extra test pytest tests/ -v --tb=short -k "e2e or E2E or end_to_end"
 
 # Run Python tests by module
 py-test-module MODULE:
-    cd crates/rez-next-python && vx pytest tests/ -v --tb=short -k "{{MODULE}}"
+    cd crates/rez-next-python && vx uv run --locked --extra test pytest tests/ -v --tb=short -k "{{MODULE}}"
 
 # Format Python test files with ruff
 py-fmt:
@@ -137,9 +138,9 @@ cli-e2e:
 # Run CLI e2e tests with release binary (faster)
 cli-e2e-release:
     vx cargo build --release --bin rez-next
-    REZ_NEXT_E2E_BINARY=target/release/rez-next vx cargo test --test cli_e2e_tests -- --nocapture
+    vx cargo --config 'env.REZ_NEXT_E2E_BINARY="target/release/rez-next"' test --test cli_e2e_tests -- --nocapture
 
 # Run a single CLI e2e test by name
 cli-e2e-one TEST: build-bin
-    REZ_NEXT_E2E_BINARY=target/debug/rez-next vx cargo test --test cli_e2e_tests {{TEST}} -- --nocapture
+    vx cargo --config 'env.REZ_NEXT_E2E_BINARY="target/debug/rez-next"' test --test cli_e2e_tests {{TEST}} -- --nocapture
 

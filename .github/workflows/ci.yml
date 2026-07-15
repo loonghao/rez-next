@@ -92,10 +92,12 @@ jobs:
           cache: "true"
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - uses: dtolnay/rust-toolchain@1.95.0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
       - uses: Swatinem/rust-cache@v2
       - run: vx cargo check --workspace --exclude rez-next-python --all-targets
-      - run: vx cargo test -p rez-next-util which::tests --lib -- --test-threads=1
-      - run: vx cargo test -p rez-next-build vcs::tests::test_git_vcs_get --lib -- --test-threads=1
+      - run: vx just test
 
   cli-e2e:
     name: CLI E2E Tests
@@ -120,10 +122,12 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@1.95.0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
       - uses: Swatinem/rust-cache@v2
       - run: cargo check --workspace --exclude rez-next-python --all-targets
-      - run: cargo test -p rez-next-util which::tests --lib -- --test-threads=1
-      - run: cargo test -p rez-next-build vcs::tests::test_git_vcs_get --lib -- --test-threads=1
+      - run: cargo test --workspace -- --test-threads=1
 
   test-win-msvc:
     name: Test - win-msvc
@@ -134,16 +138,48 @@ jobs:
       - uses: dtolnay/rust-toolchain@1.95.0
         with:
           targets: x86_64-pc-windows-msvc
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
       - uses: Swatinem/rust-cache@v2
       - run: cargo check --workspace --exclude rez-next-python --all-targets
-      - run: cargo test -p rez-next-util which::tests --lib -- --test-threads=1
-      - run: cargo test -p rez-next-build vcs::tests::test_git_vcs_get --lib -- --test-threads=1
+      - run: cargo test --workspace -- --test-threads=1
       - name: Build and smoke-test release executables
         shell: pwsh
         run: |
           cargo build --release --bin rez-next --bin rez
           target/release/rez-next.exe --version
           target/release/rez.exe --version
+      - name: Smoke-test CMD and PowerShell environment activation
+        shell: pwsh
+        run: |
+          $repo = Join-Path $env:RUNNER_TEMP "rez-next-smoke-repo"
+          $package = Join-Path $repo "smoke/1.0.0"
+          New-Item -ItemType Directory -Force -Path $package | Out-Null
+          @'
+          name = "smoke"
+          version = "1.0.0"
+          def commands():
+              env.REZ_NEXT_SMOKE = "ready"
+          '@ | Set-Content -Encoding utf8 (Join-Path $package "package.py")
+
+          $cmdOutput = & target/release/rez.exe env --shell cmd --paths $repo smoke -c 'if "%REZ_NEXT_SMOKE%"=="ready" (echo cmd-ok) else (exit /b 9)'
+          if ($LASTEXITCODE -ne 0 -or ($cmdOutput -join "`n") -notmatch "cmd-ok") {
+              throw "CMD activation failed: $cmdOutput"
+          }
+          if (($cmdOutput -join "`n") -notmatch "Resolved packages") {
+              throw "CMD command mode omitted the resolved package summary: $cmdOutput"
+          }
+
+          $interactiveOutput = "exit" | & target/release/rez.exe env --shell cmd --paths $repo smoke
+          if ($LASTEXITCODE -ne 0 -or ($interactiveOutput -join "`n") -notmatch "You are now in a rez-configured environment") {
+              throw "Interactive CMD activation omitted the Rez environment banner: $interactiveOutput"
+          }
+
+          $pwshOutput = & target/release/rez.exe env -q --shell powershell --paths $repo smoke -c 'if ($env:REZ_NEXT_SMOKE -eq "ready") { Write-Output "powershell-ok" } else { exit 9 }'
+          if ($LASTEXITCODE -ne 0 -or ($pwshOutput -join "`n") -notmatch "powershell-ok") {
+              throw "PowerShell activation failed: $pwshOutput"
+          }
 
   test-win-gnu:
     name: Test - win-gnu
@@ -233,3 +269,30 @@ jobs:
           "$RUNNER_TEMP/rez-next-wheel/bin/python" -m pip install crates/rez-next-python/dist/*.whl
           cd "$RUNNER_TEMP"
           "$RUNNER_TEMP/rez-next-wheel/bin/python" -I -c "import rez, rez_next; print(rez_next.__version__)"
+
+  python-binding-windows:
+    name: Python Binding Tests - Windows
+    runs-on: windows-2025
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@1.95.0
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: python-binding-windows
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Create virtualenv and install test dependencies
+        shell: pwsh
+        run: |
+          python -m venv .venv
+          $venv = (Resolve-Path .venv).Path
+          "$venv\Scripts" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          "VIRTUAL_ENV=$venv" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          & "$venv\Scripts\python.exe" -m pip install maturin pytest pytest-benchmark
+      - name: Build and install Python binding
+        working-directory: crates/rez-next-python
+        run: maturin develop --release
+      - name: Run Python binding tests
+        working-directory: crates/rez-next-python
+        run: pytest tests/ -v --tb=short

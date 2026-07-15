@@ -45,7 +45,7 @@ exclude = ["**/__pycache__/**", "**/*.pyc", "**/*.pyo", "**/*.pdb"]
 strip = false
 
 [project.optional-dependencies]
-test = ["pytest", "pytest-benchmark"]
+test = ["maturin>=1.0,<2.0", "pytest", "pytest-benchmark"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

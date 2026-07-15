@@ -766,18 +766,16 @@ fn run_live_build_tui(
 
         if event::poll(std::time::Duration::from_millis(40))
             .map_err(|err| RezCoreError::BuildError(err.to_string()))?
-        {
-            if let Event::Key(key) =
+            && let Event::Key(key) =
                 event::read().map_err(|err| RezCoreError::BuildError(err.to_string()))?
-            {
-                match key.code {
-                    KeyCode::Char('q') | KeyCode::Esc if app.finished => break,
-                    KeyCode::Down | KeyCode::Char('j') => app.next(),
-                    KeyCode::Up | KeyCode::Char('k') => app.previous(),
-                    KeyCode::Enter | KeyCode::Char(' ') => app.toggle_selected(),
-                    KeyCode::Char('c') => app.toggle_mode(),
-                    _ => {}
-                }
+        {
+            match key.code {
+                KeyCode::Char('q') | KeyCode::Esc if app.finished => break,
+                KeyCode::Down | KeyCode::Char('j') => app.next(),
+                KeyCode::Up | KeyCode::Char('k') => app.previous(),
+                KeyCode::Enter | KeyCode::Char(' ') => app.toggle_selected(),
+                KeyCode::Char('c') => app.toggle_mode(),
+                _ => {}
             }
         }
 
@@ -937,6 +935,7 @@ impl BuildTuiApp {
             BuildStep::Testing,
             BuildStep::Packaging,
             BuildStep::Installing,
+            BuildStep::PackageTesting,
             BuildStep::Cleanup,
         ]
         .into_iter()
@@ -1210,6 +1209,7 @@ fn step_label(step: &BuildStep) -> &'static str {
         BuildStep::Testing => "testing",
         BuildStep::Packaging => "packaging",
         BuildStep::Installing => "installing",
+        BuildStep::PackageTesting => "package-testing",
         BuildStep::Cleanup => "cleanup",
     }
 }
