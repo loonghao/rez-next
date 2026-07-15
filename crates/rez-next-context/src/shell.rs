@@ -34,6 +34,51 @@ impl ShellType {
         }
     }
 
+    /// Resolve the shell against the parent process environment before a
+    /// command replaces PATH with a Rez context. The returned absolute path
+    /// keeps the shell launchable even when the resolved context contains only
+    /// package-provided tools.
+    fn executable_path(&self) -> PathBuf {
+        if self == &ShellType::Cmd
+            && let Some(comspec) = std::env::var_os("COMSPEC")
+        {
+            let path = PathBuf::from(comspec);
+            if path.is_file() {
+                return path;
+            }
+        }
+
+        if let Some(shell) = std::env::var_os("SHELL") {
+            let path = PathBuf::from(shell);
+            if path.is_file()
+                && path
+                    .file_name()
+                    .and_then(|name| name.to_str())
+                    .is_some_and(|name| name == self.executable())
+            {
+                return path;
+            }
+        }
+
+        let extensions: &[&str] = if cfg!(windows) {
+            &["", ".exe", ".cmd", ".bat"]
+        } else {
+            &[""]
+        };
+        if let Some(search_path) = std::env::var_os("PATH") {
+            for directory in std::env::split_paths(&search_path) {
+                for extension in extensions {
+                    let candidate = directory.join(format!("{}{}", self.executable(), extension));
+                    if candidate.is_file() {
+                        return candidate;
+                    }
+                }
+            }
+        }
+
+        PathBuf::from(self.executable())
+    }
+
     /// Get the shell script extension
     pub fn script_extension(&self) -> &'static str {
         match self {
@@ -165,7 +210,7 @@ impl ShellExecutor {
     pub async fn execute(&self, command: &str) -> Result<CommandResult, RezCoreError> {
         let start_time = std::time::Instant::now();
 
-        let mut cmd = AsyncCommand::new(self.shell_type.executable());
+        let mut cmd = AsyncCommand::new(self.shell_type.executable_path());
         let command_file = if self.shell_type == ShellType::Cmd {
             let path = std::env::temp_dir().join(format!("rez-next-{}.cmd", uuid::Uuid::new_v4()));
             std::fs::write(&path, format!("@echo off\r\n{command}\r\n")).map_err(|error| {
@@ -222,7 +267,7 @@ impl ShellExecutor {
 
     /// Execute a command in the background and return the process ID
     pub async fn execute_background(&self, command: &str) -> Result<u32, RezCoreError> {
-        let mut cmd = AsyncCommand::new(self.shell_type.executable());
+        let mut cmd = AsyncCommand::new(self.shell_type.executable_path());
         cmd.arg(self.shell_type.command_flag())
             .arg(command)
             .stdout(Stdio::null())
@@ -277,7 +322,7 @@ impl ShellExecutor {
 
         let start_time = std::time::Instant::now();
 
-        let mut cmd = AsyncCommand::new(self.shell_type.executable());
+        let mut cmd = AsyncCommand::new(self.shell_type.executable_path());
 
         match self.shell_type {
             ShellType::Bash | ShellType::Zsh => {
@@ -326,7 +371,7 @@ impl ShellExecutor {
 
     /// Start an interactive shell session
     pub async fn start_interactive_shell(&self) -> Result<(), RezCoreError> {
-        let mut cmd = AsyncCommand::new(self.shell_type.executable());
+        let mut cmd = AsyncCommand::new(self.shell_type.executable_path());
 
         // Set interactive flags
         match self.shell_type {
@@ -591,5 +636,23 @@ mod tests {
 
         // Just verify it creates successfully
         let _ = executor;
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn test_shell_executor_survives_context_path_replacement() {
+        let temp = tempfile::tempdir().unwrap();
+        let environment = HashMap::from([(
+            "PATH".to_string(),
+            temp.path().to_string_lossy().into_owned(),
+        )]);
+        let result = ShellExecutor::with_shell(ShellType::Bash)
+            .with_environment(environment)
+            .execute("printf shell-ok")
+            .await
+            .unwrap();
+
+        assert!(result.is_success(), "{}", result.stderr);
+        assert_eq!(result.stdout, "shell-ok");
     }
 }

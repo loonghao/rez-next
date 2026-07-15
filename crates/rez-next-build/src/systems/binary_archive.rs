@@ -329,9 +329,7 @@ fn copy_tree_contents(source: &Path, destination: &Path) -> Result<(), RezCoreEr
                     RezCoreError::BuildError(format!("Failed to create parent directory: {err}"))
                 })?;
             }
-            fs::copy(&source_path, &destination_path).map_err(|err| {
-                RezCoreError::BuildError(format!("Failed to copy archive file: {err}"))
-            })?;
+            copy_file_preserving_permissions(&source_path, &destination_path)?;
         }
     }
     Ok(())
@@ -350,17 +348,38 @@ fn copy_dir_recursive(source: &Path, destination: &Path) -> Result<(), RezCoreEr
         if source_path.is_dir() {
             copy_dir_recursive(&source_path, &destination_path)?;
         } else {
-            fs::copy(&source_path, &destination_path).map_err(|err| {
-                RezCoreError::BuildError(format!("Failed to copy archive file: {err}"))
-            })?;
+            copy_file_preserving_permissions(&source_path, &destination_path)?;
         }
     }
     Ok(())
 }
 
+fn copy_file_preserving_permissions(source: &Path, destination: &Path) -> Result<(), RezCoreError> {
+    fs::copy(source, destination).map_err(|err| {
+        RezCoreError::BuildError(format!(
+            "Failed to copy archive file {}: {err}",
+            source.display()
+        ))
+    })?;
+    let permissions = fs::metadata(source)
+        .map_err(|err| {
+            RezCoreError::BuildError(format!(
+                "Failed to read archive file permissions for {}: {err}",
+                source.display()
+            ))
+        })?
+        .permissions();
+    fs::set_permissions(destination, permissions).map_err(|err| {
+        RezCoreError::BuildError(format!(
+            "Failed to preserve archive file permissions for {}: {err}",
+            destination.display()
+        ))
+    })
+}
+
 #[cfg(all(test, unix))]
 mod tests {
-    use super::extract_zip;
+    use super::{copy_tree_contents, extract_zip};
     use std::io::Write;
     use std::os::unix::fs::PermissionsExt;
 
@@ -378,10 +397,13 @@ mod tests {
         let destination = temp.path().join("extract");
         extract_zip(&archive_path, &destination).unwrap();
 
-        let mode = std::fs::metadata(destination.join("bin/tool"))
+        let install = temp.path().join("install");
+        copy_tree_contents(&destination, &install).unwrap();
+
+        let mode = std::fs::metadata(install.join("bin/tool"))
             .unwrap()
             .permissions()
             .mode();
-        assert_ne!(mode & 0o111, 0, "extracted tool must remain executable");
+        assert_ne!(mode & 0o111, 0, "installed tool must remain executable");
     }
 }
