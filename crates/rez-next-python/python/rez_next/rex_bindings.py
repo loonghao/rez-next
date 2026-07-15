@@ -13,7 +13,8 @@ Rez API: ``rez.rex_bindings``
 
 from __future__ import annotations
 
-from typing import Any, Iterator
+from collections.abc import Iterator
+from typing import Any
 
 # ── Base class ─────────────────────────────────────────────────────────────
 

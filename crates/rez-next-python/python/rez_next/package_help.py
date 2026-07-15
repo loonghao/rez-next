@@ -6,7 +6,7 @@ Provides PackageHelp class that matches rez's rez.package_help.PackageHelp inter
 
 import subprocess
 import webbrowser
-from typing import List, Optional, Tuple
+from typing import Optional
 
 from . import packages_ as _packages
 
@@ -78,7 +78,7 @@ class PackageHelp:
         return len(self._sections) > 0
 
     @property
-    def sections(self) -> List[Tuple[str, str]]:
+    def sections(self) -> list[tuple[str, str]]:
         """Returns a list of (name, uri) 2-tuples."""
         return self._sections
 

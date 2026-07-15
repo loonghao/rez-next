@@ -16,9 +16,9 @@ import sys
 import tarfile
 import urllib.request
 import zipfile
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Sequence
 
 
 @dataclass(frozen=True)

@@ -13,7 +13,7 @@ API Reference: rez.package_order
 """
 
 from collections import OrderedDict as _OrderedDict
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import rez_next._native  # noqa: F401
 from rez_next._native.package_order import (  # noqa: F401
@@ -24,7 +24,7 @@ from rez_next._native.package_order import (  # noqa: F401
 )
 
 # Orderer registry: maps name → class for plugin-like extension
-_order_registry: Dict[str, type] = {}
+_order_registry: dict[str, type] = {}
 
 
 def register_orderer(cls: type) -> None:
@@ -41,7 +41,7 @@ def register_orderer(cls: type) -> None:
     _order_registry[str(name)] = cls
 
 
-def _build_pod(orderer) -> Dict[str, Any]:
+def _build_pod(orderer) -> dict[str, Any]:
     """Convert an orderer instance to its serializable dict form.
 
     Args:
@@ -52,7 +52,7 @@ def _build_pod(orderer) -> Dict[str, Any]:
     """
     name = getattr(orderer, "name", None)
     if name is not None:
-        pod: Dict[str, Any] = {"type": name}
+        pod: dict[str, Any] = {"type": name}
         if hasattr(orderer, "packages") and getattr(orderer, "packages") is not None:
             pod["packages"] = list(getattr(orderer, "packages"))
         if hasattr(orderer, "descending"):
@@ -67,7 +67,7 @@ def _build_pod(orderer) -> Dict[str, Any]:
     return {"type": "no_order"}
 
 
-def to_pod(orderer) -> Dict[str, Any]:
+def to_pod(orderer) -> dict[str, Any]:
     """Convert an orderer to a serializable POD dict.
 
     This matches rez.package_order.to_pod().
@@ -81,7 +81,7 @@ def to_pod(orderer) -> Dict[str, Any]:
     return _build_pod(orderer)
 
 
-def from_pod(data: Dict[str, Any]) -> Any:
+def from_pod(data: dict[str, Any]) -> Any:
     """Create an orderer from a POD dict.
 
     This matches rez.package_order.from_pod().
@@ -137,14 +137,14 @@ class PerFamilyOrder:
 
     def __init__(
         self,
-        order_dict: Dict[str, Any],
+        order_dict: dict[str, Any],
         default_order: Any = None,
     ):
         self._order_dict = _OrderedDict(order_dict)
         self._default = default_order
 
     @property
-    def packages(self) -> Optional[List[str]]:
+    def packages(self) -> Optional[list[str]]:
         return list(self._order_dict.keys()) if self._order_dict else None
 
     def get_orderer(self, package_name: str) -> Any:
@@ -153,14 +153,14 @@ class PerFamilyOrder:
             return self._order_dict[package_name]
         return self._default
 
-    def to_pod(self) -> Dict[str, Any]:
+    def to_pod(self) -> dict[str, Any]:
         """Serialize to POD format."""
-        entries: List[Dict[str, Any]] = []
+        entries: list[dict[str, Any]] = []
         for family, orderer in self._order_dict.items():
             entry = _build_pod(orderer)
             entry["packages"] = [family]
             entries.append(entry)
-        pod: Dict[str, Any] = {"type": self.name}
+        pod: dict[str, Any] = {"type": self.name}
         if entries:
             pod["entries"] = entries
         return pod
@@ -193,7 +193,7 @@ def get_orderer(
 
 
 # Default orderers
-DEFAULT_ORDERERS: List[Any] = [SortedOrder(descending=True, packages=None)]
+DEFAULT_ORDERERS: list[Any] = [SortedOrder(descending=True, packages=None)]
 
 
 # Re-export for convenience

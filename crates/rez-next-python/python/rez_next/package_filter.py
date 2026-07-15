@@ -14,7 +14,7 @@ API Reference: rez.package_filter
 
 import fnmatch as _fnmatch
 import re as _re
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Optional
 
 import rez_next._native  # noqa: F401
 from rez_next._native.package_filter import PackageFilter  # noqa: F401
@@ -38,7 +38,7 @@ class Rule:
 
     name = "base"
 
-    def matches(self, package_dict: Dict[str, Any]) -> bool:
+    def matches(self, package_dict: dict[str, Any]) -> bool:
         raise NotImplementedError
 
     @property
@@ -49,7 +49,7 @@ class Rule:
     def family(self) -> Optional[str]:
         return None
 
-    def to_pod(self) -> Tuple[str, str]:
+    def to_pod(self) -> tuple[str, str]:
         return (self.name, "")
 
 
@@ -91,13 +91,13 @@ class GlobRule(Rule):
     def family(self) -> Optional[str]:
         return self._family
 
-    def matches(self, package_dict: Dict[str, Any]) -> bool:
+    def matches(self, package_dict: dict[str, Any]) -> bool:
         value = package_dict.get(self._field, "")
         if value is None:
             value = ""
         return _fnmatch.fnmatchcase(str(value), self._pattern)
 
-    def to_pod(self) -> Tuple[str, str]:
+    def to_pod(self) -> tuple[str, str]:
         return (self.name, self._pattern)
 
     def __repr__(self) -> str:
@@ -142,13 +142,13 @@ class RegexRule(Rule):
     def family(self) -> Optional[str]:
         return self._family
 
-    def matches(self, package_dict: Dict[str, Any]) -> bool:
+    def matches(self, package_dict: dict[str, Any]) -> bool:
         value = package_dict.get(self._field, "")
         if value is None:
             value = ""
         return bool(self._regex.search(str(value)))
 
-    def to_pod(self) -> Tuple[str, str]:
+    def to_pod(self) -> tuple[str, str]:
         return (self.name, self._pattern)
 
     def __repr__(self) -> str:
@@ -190,7 +190,7 @@ class RangeRule(Rule):
     def family(self) -> Optional[str]:
         return self._family
 
-    def matches(self, package_dict: Dict[str, Any]) -> bool:
+    def matches(self, package_dict: dict[str, Any]) -> bool:
         version_str = package_dict.get("version")
         if not version_str:
             return False
@@ -202,7 +202,7 @@ class RangeRule(Rule):
         except Exception:
             return False
 
-    def to_pod(self) -> Tuple[str, str]:
+    def to_pod(self) -> tuple[str, str]:
         return (self.name, self._range_str)
 
     def __repr__(self) -> str:
@@ -254,7 +254,7 @@ class TimestampRule(Rule):
     def family(self) -> Optional[str]:
         return self._family
 
-    def matches(self, package_dict: Dict[str, Any]) -> bool:
+    def matches(self, package_dict: dict[str, Any]) -> bool:
         pkg_ts = package_dict.get("timestamp")
         if pkg_ts is None:
             return False
@@ -267,7 +267,7 @@ class TimestampRule(Rule):
         except (ValueError, TypeError):
             return False
 
-    def to_pod(self) -> Tuple[str, str]:
+    def to_pod(self) -> tuple[str, str]:
         return (self.name, self.pattern)
 
     def __repr__(self) -> str:
