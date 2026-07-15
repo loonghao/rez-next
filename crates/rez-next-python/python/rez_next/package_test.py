@@ -13,12 +13,12 @@ from __future__ import annotations
 
 # Re-export from the native test module
 from ._native.test import (  # type: ignore[import]
-    PackageTestRunner,
-    PackageTestResults,
-    SUCCESS,
+    ERROR,
     FAILED,
     SKIPPED,
-    ERROR,
+    SUCCESS,
+    PackageTestResults,
+    PackageTestRunner,
 )
 
 __all__ = [

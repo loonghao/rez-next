@@ -164,11 +164,14 @@ pub fn create_unique_base26_symlink<P: AsRef<Path>, Q: AsRef<Path>>(
         // Try to create symlink
         match symlink(source, &symlink_path) {
             Ok(()) => return Ok(symlink_path),
-            Err(e) => {
-                // If symlink creation failed because path already exists,
-                // try the next name
+            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
                 next_name = get_next_base26(Some(&next_name))?;
-                continue;
+            }
+            Err(e) => {
+                return Err(Base26Error::IoError(format!(
+                    "Failed to create symlink '{}': {e}",
+                    symlink_path.display()
+                )));
             }
         }
     }

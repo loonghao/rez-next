@@ -8,7 +8,9 @@ use crate::resources::{PackageFamilyResource, PackageResource, VariantResource};
 use rez_next_common::RezCoreError;
 use std::collections::HashMap;
 use std::fs;
+use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
+use std::time::{Duration, SystemTime};
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -95,6 +97,53 @@ impl FilesystemPackageRepository {
     /// Check if initialized
     pub fn is_initialized(&self) -> bool {
         self.initialized
+    }
+
+    fn validate_component<'a>(value: &'a str, label: &str) -> Result<&'a str, RezCoreError> {
+        let mut components = Path::new(value).components();
+        let is_single_normal = matches!(components.next(), Some(std::path::Component::Normal(_)))
+            && components.next().is_none();
+        if value.is_empty() || !is_single_normal {
+            return Err(RezCoreError::Repository(format!(
+                "Invalid {label} path component: {value:?}"
+            )));
+        }
+        Ok(value)
+    }
+
+    fn require_version(version: Option<&str>) -> Result<&str, RezCoreError> {
+        let version = version.ok_or_else(|| {
+            RezCoreError::Repository(
+                "Filesystem repository lifecycle operations require a package version".to_string(),
+            )
+        })?;
+        Self::validate_component(version, "package version")
+    }
+
+    fn ensure_writable(&self, operation: &str) -> Result<(), RezCoreError> {
+        if self.read_only {
+            return Err(RezCoreError::Repository(format!(
+                "Cannot {operation}: repository '{}' is read-only",
+                self.location.display()
+            )));
+        }
+        Ok(())
+    }
+
+    fn family_path(&self, name: &str) -> Result<PathBuf, RezCoreError> {
+        Ok(self
+            .location
+            .join(Self::validate_component(name, "package name")?))
+    }
+
+    fn version_path(&self, name: &str, version: &str) -> Result<PathBuf, RezCoreError> {
+        Ok(self
+            .family_path(name)?
+            .join(Self::validate_component(version, "package version")?))
+    }
+
+    fn ignore_path(&self, name: &str, version: &str) -> Result<PathBuf, RezCoreError> {
+        Ok(self.family_path(name)?.join(format!(".ignore{version}")))
     }
 }
 
@@ -215,6 +264,11 @@ impl PackageRepository for FilesystemPackageRepository {
                     continue;
                 }
 
+                // Rez hides a version when a sibling `.ignore{version}` marker exists.
+                if family_path.join(format!(".ignore{version_str}")).is_file() {
+                    continue;
+                }
+
                 // Try to parse version string
                 let version = rez_next_version::Version::parse(&version_str).ok();
 
@@ -275,49 +329,210 @@ impl PackageRepository for FilesystemPackageRepository {
 
     fn ignore_package(
         &mut self,
-        _pkg_name: &str,
-        _pkg_version: Option<&str>,
-        _allow_missing: bool,
+        pkg_name: &str,
+        pkg_version: Option<&str>,
+        allow_missing: bool,
     ) -> Result<i32, RezCoreError> {
-        // TODO: Implement package ignoring
-        Ok(0)
+        self.ensure_writable("ignore package")?;
+        let version = Self::require_version(pkg_version)?;
+        let package_path = self.version_path(pkg_name, version)?;
+        if !allow_missing && !package_path.is_dir() {
+            return Ok(-1);
+        }
+
+        let family_path = self.family_path(pkg_name)?;
+        fs::create_dir_all(&family_path).map_err(|e| {
+            RezCoreError::Repository(format!(
+                "Failed to create package family '{}': {e}",
+                family_path.display()
+            ))
+        })?;
+        let marker = self.ignore_path(pkg_name, version)?;
+        match fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&marker)
+        {
+            Ok(_) => Ok(1),
+            Err(e) if e.kind() == ErrorKind::AlreadyExists => Ok(0),
+            Err(e) => Err(RezCoreError::Repository(format!(
+                "Failed to create ignore marker '{}': {e}",
+                marker.display()
+            ))),
+        }
     }
 
     fn unignore_package(
         &mut self,
-        _pkg_name: &str,
-        _pkg_version: Option<&str>,
+        pkg_name: &str,
+        pkg_version: Option<&str>,
     ) -> Result<i32, RezCoreError> {
-        // TODO: Implement package unignoring
-        Ok(0)
+        self.ensure_writable("unignore package")?;
+        let version = Self::require_version(pkg_version)?;
+        let marker = self.ignore_path(pkg_name, version)?;
+        let removed = match fs::remove_file(&marker) {
+            Ok(()) => true,
+            Err(e) if e.kind() == ErrorKind::NotFound => false,
+            Err(e) => {
+                return Err(RezCoreError::Repository(format!(
+                    "Failed to remove ignore marker '{}': {e}",
+                    marker.display()
+                )));
+            }
+        };
+
+        if !self.version_path(pkg_name, version)?.is_dir() {
+            return Ok(-1);
+        }
+        Ok(i32::from(removed))
     }
 
     fn remove_package(
         &mut self,
-        _pkg_name: &str,
-        _pkg_version: Option<&str>,
+        pkg_name: &str,
+        pkg_version: Option<&str>,
     ) -> Result<bool, RezCoreError> {
-        // TODO: Implement package removal
-        Ok(false)
+        self.ensure_writable("remove package")?;
+        let version = Self::require_version(pkg_version)?;
+        if self.ignore_package(pkg_name, Some(version), false)? == -1 {
+            return Ok(false);
+        }
+
+        let package_path = self.version_path(pkg_name, version)?;
+        if let Err(e) = fs::remove_dir_all(&package_path) {
+            return Err(RezCoreError::Repository(format!(
+                "Failed to remove package payload '{}': {e}; the ignore marker was retained",
+                package_path.display()
+            )));
+        }
+
+        let marker = self.ignore_path(pkg_name, version)?;
+        match fs::remove_file(&marker) {
+            Ok(()) => Ok(true),
+            Err(e) if e.kind() == ErrorKind::NotFound => Ok(true),
+            Err(e) => Err(RezCoreError::Repository(format!(
+                "Package payload was removed, but ignore marker '{}' could not be removed: {e}",
+                marker.display()
+            ))),
+        }
     }
 
-    fn remove_package_family(
-        &mut self,
-        _pkg_name: &str,
-        _force: bool,
-    ) -> Result<bool, RezCoreError> {
-        // TODO: Implement package family removal
-        Ok(false)
+    fn remove_package_family(&mut self, pkg_name: &str, force: bool) -> Result<bool, RezCoreError> {
+        self.ensure_writable("remove package family")?;
+        let family_path = self.family_path(pkg_name)?;
+        if !family_path.is_dir() {
+            return Ok(false);
+        }
+
+        if !force {
+            let has_packages = fs::read_dir(&family_path)
+                .map_err(|e| {
+                    RezCoreError::Repository(format!(
+                        "Failed to inspect package family '{}': {e}",
+                        family_path.display()
+                    ))
+                })?
+                .filter_map(Result::ok)
+                .any(|entry| {
+                    entry.path().is_dir() && !entry.file_name().to_string_lossy().starts_with('.')
+                });
+            if has_packages {
+                return Err(RezCoreError::Repository(format!(
+                    "Cannot remove non-empty package family {pkg_name:?} without force"
+                )));
+            }
+        }
+
+        fs::remove_dir_all(&family_path).map_err(|e| {
+            RezCoreError::Repository(format!(
+                "Failed to remove package family '{}': {e}",
+                family_path.display()
+            ))
+        })?;
+        Ok(true)
     }
 
     fn remove_ignored_since(
         &mut self,
-        _days: i32,
-        _dry_run: bool,
-        _verbose: bool,
+        days: i32,
+        dry_run: bool,
+        verbose: bool,
     ) -> Result<i32, RezCoreError> {
-        // TODO: Implement ignored package removal
-        Ok(0)
+        self.ensure_writable("remove ignored packages")?;
+        if days < 0 {
+            return Err(RezCoreError::Repository(
+                "Ignored-package age must be zero or greater".to_string(),
+            ));
+        }
+
+        let threshold = Duration::from_secs(days as u64 * 24 * 60 * 60);
+        let now = SystemTime::now();
+        let mut candidates = Vec::new();
+        if !self.location.is_dir() {
+            return Ok(0);
+        }
+
+        for family in fs::read_dir(&self.location).map_err(|e| {
+            RezCoreError::Repository(format!(
+                "Failed to inspect repository '{}': {e}",
+                self.location.display()
+            ))
+        })? {
+            let family = family.map_err(|e| RezCoreError::Repository(e.to_string()))?;
+            if !family.path().is_dir() {
+                continue;
+            }
+            let family_name = family.file_name().to_string_lossy().to_string();
+            for entry in fs::read_dir(family.path()).map_err(|e| {
+                RezCoreError::Repository(format!(
+                    "Failed to inspect package family '{}': {e}",
+                    family.path().display()
+                ))
+            })? {
+                let entry = entry.map_err(|e| RezCoreError::Repository(e.to_string()))?;
+                let filename = entry.file_name().to_string_lossy().to_string();
+                let Some(version) = filename.strip_prefix(".ignore") else {
+                    continue;
+                };
+                if version.is_empty() || !entry.path().is_file() {
+                    continue;
+                }
+                let metadata = entry.metadata().map_err(|e| {
+                    RezCoreError::Repository(format!(
+                        "Failed to read ignore marker '{}': {e}",
+                        entry.path().display()
+                    ))
+                })?;
+                let timestamp = metadata
+                    .created()
+                    .or_else(|_| metadata.modified())
+                    .map_err(|e| {
+                        RezCoreError::Repository(format!(
+                            "Failed to determine ignore marker age '{}': {e}",
+                            entry.path().display()
+                        ))
+                    })?;
+                if now.duration_since(timestamp).unwrap_or_default() >= threshold {
+                    candidates.push((family_name.clone(), version.to_string()));
+                }
+            }
+        }
+
+        let mut removed = 0;
+        for (name, version) in candidates {
+            if verbose {
+                tracing::info!(
+                    package = %name,
+                    version = %version,
+                    dry_run,
+                    "removing ignored package"
+                );
+            }
+            if dry_run || self.remove_package(&name, Some(&version))? {
+                removed += 1;
+            }
+        }
+        Ok(removed)
     }
 
     fn install_variant(
@@ -326,35 +541,53 @@ impl PackageRepository for FilesystemPackageRepository {
         _dry_run: bool,
         _overrides: Option<HashMap<String, serde_json::Value>>,
     ) -> Result<Option<PackageResource>, RezCoreError> {
-        // TODO: Implement variant installation
-        Ok(None)
+        Err(RezCoreError::Repository(
+            "Filesystem variant installation is not implemented; use the build or release workflow"
+                .to_string(),
+        ))
     }
 
     fn get_parent_package_family(
         &self,
-        _package: &PackageResource,
+        package: &PackageResource,
     ) -> Result<PackageFamilyResource, RezCoreError> {
-        Err(RezCoreError::Repository(
-            "FilesystemPackageRepository::get_parent_package_family not implemented".to_string(),
+        Self::validate_component(package.name(), "package name")?;
+        Ok(PackageFamilyResource::new(
+            package.name().to_string(),
+            FILESYSTEM_REPO_TYPE.to_string(),
+            self.location.to_string_lossy().to_string(),
         ))
     }
 
     fn get_parent_package(
         &self,
-        _variant: &VariantResource,
+        variant: &VariantResource,
     ) -> Result<PackageResource, RezCoreError> {
-        Err(RezCoreError::Repository(
-            "FilesystemPackageRepository::get_parent_package not implemented".to_string(),
+        Self::validate_component(&variant.name, "package name")?;
+        let mut package = rez_next_package::Package::new(variant.name.clone());
+        package.version = variant
+            .version
+            .as_deref()
+            .map(rez_next_version::Version::parse)
+            .transpose()
+            .map_err(|e| RezCoreError::Repository(format!("Invalid package version: {e}")))?;
+        Ok(PackageResource::new(
+            package,
+            FILESYSTEM_REPO_TYPE.to_string(),
+            self.location.to_string_lossy().to_string(),
         ))
     }
 
     fn get_package_payload_path(
         &self,
-        _pkg_name: &str,
-        _pkg_version: Option<&str>,
+        pkg_name: &str,
+        pkg_version: Option<&str>,
     ) -> Result<Option<PathBuf>, RezCoreError> {
-        // TODO: Implement payload path retrieval
-        Ok(None)
+        let mut path = self.family_path(pkg_name)?;
+        if let Some(version) = pkg_version {
+            path.push(Self::validate_component(version, "package version")?);
+        }
+        Ok(Some(path))
     }
 
     fn repository_type(&self) -> &str {
@@ -593,5 +826,156 @@ mod tests {
 
         let variants = repo.iter_variants(&resource).unwrap();
         assert!(variants.is_empty());
+    }
+
+    #[test]
+    fn ignore_and_unignore_package_follow_rez_marker_contract() {
+        let temp_dir = TempDir::new().unwrap();
+        let family_dir = temp_dir.path().join("python");
+        fs::create_dir_all(family_dir.join("3.12.0")).unwrap();
+        let mut repo = FilesystemPackageRepository::new(temp_dir.path());
+
+        assert_eq!(
+            repo.ignore_package("python", Some("3.12.0"), false)
+                .unwrap(),
+            1
+        );
+        assert!(family_dir.join(".ignore3.12.0").is_file());
+        assert!(
+            repo.get_package("python", Some("3.12.0"))
+                .unwrap()
+                .is_none()
+        );
+        assert_eq!(
+            repo.ignore_package("python", Some("3.12.0"), false)
+                .unwrap(),
+            0
+        );
+
+        assert_eq!(repo.unignore_package("python", Some("3.12.0")).unwrap(), 1);
+        assert!(!family_dir.join(".ignore3.12.0").exists());
+        assert!(
+            repo.get_package("python", Some("3.12.0"))
+                .unwrap()
+                .is_some()
+        );
+        assert_eq!(repo.unignore_package("python", Some("3.12.0")).unwrap(), 0);
+    }
+
+    #[test]
+    fn ignore_missing_package_requires_explicit_allow_missing() {
+        let temp_dir = TempDir::new().unwrap();
+        let mut repo = FilesystemPackageRepository::new(temp_dir.path());
+
+        assert_eq!(
+            repo.ignore_package("python", Some("3.12.0"), false)
+                .unwrap(),
+            -1
+        );
+        assert_eq!(
+            repo.ignore_package("python", Some("3.12.0"), true).unwrap(),
+            1
+        );
+        assert!(temp_dir.path().join("python/.ignore3.12.0").is_file());
+    }
+
+    #[test]
+    fn remove_package_deletes_payload_and_marker() {
+        let temp_dir = TempDir::new().unwrap();
+        let package_dir = temp_dir.path().join("python/3.12.0");
+        fs::create_dir_all(&package_dir).unwrap();
+        fs::write(package_dir.join("package.py"), "name = 'python'").unwrap();
+        let mut repo = FilesystemPackageRepository::new(temp_dir.path());
+
+        assert!(repo.remove_package("python", Some("3.12.0")).unwrap());
+        assert!(!package_dir.exists());
+        assert!(!temp_dir.path().join("python/.ignore3.12.0").exists());
+        assert!(!repo.remove_package("python", Some("3.12.0")).unwrap());
+    }
+
+    #[test]
+    fn remove_package_family_requires_force_when_non_empty() {
+        let temp_dir = TempDir::new().unwrap();
+        fs::create_dir_all(temp_dir.path().join("python/3.12.0")).unwrap();
+        let mut repo = FilesystemPackageRepository::new(temp_dir.path());
+
+        assert!(repo.remove_package_family("python", false).is_err());
+        assert!(repo.remove_package_family("python", true).unwrap());
+        assert!(!temp_dir.path().join("python").exists());
+        assert!(!repo.remove_package_family("python", true).unwrap());
+    }
+
+    #[test]
+    fn remove_ignored_since_supports_dry_run_and_removal() {
+        let temp_dir = TempDir::new().unwrap();
+        let family_dir = temp_dir.path().join("python");
+        fs::create_dir_all(family_dir.join("3.12.0")).unwrap();
+        fs::write(family_dir.join(".ignore3.12.0"), "").unwrap();
+        let mut repo = FilesystemPackageRepository::new(temp_dir.path());
+
+        assert_eq!(repo.remove_ignored_since(0, true, false).unwrap(), 1);
+        assert!(family_dir.join("3.12.0").exists());
+        assert_eq!(repo.remove_ignored_since(0, false, false).unwrap(), 1);
+        assert!(!family_dir.join("3.12.0").exists());
+        assert!(!family_dir.join(".ignore3.12.0").exists());
+    }
+
+    #[test]
+    fn payload_and_parent_resources_are_derived_from_repository_location() {
+        let temp_dir = TempDir::new().unwrap();
+        let repo = FilesystemPackageRepository::new(temp_dir.path());
+        let mut package = Package::new("python".to_string());
+        package.version = Some(rez_next_version::Version::parse("3.12.0").unwrap());
+        let package = PackageResource::new(
+            package,
+            FILESYSTEM_REPO_TYPE.to_string(),
+            temp_dir.path().to_string_lossy().to_string(),
+        );
+        let variant = VariantResource::new(
+            "python".to_string(),
+            Some("3.12.0".to_string()),
+            0,
+            FILESYSTEM_REPO_TYPE.to_string(),
+            temp_dir.path().to_string_lossy().to_string(),
+        );
+
+        assert_eq!(
+            repo.get_package_payload_path("python", Some("3.12.0"))
+                .unwrap(),
+            Some(temp_dir.path().join("python/3.12.0"))
+        );
+        assert_eq!(
+            repo.get_parent_package_family(&package).unwrap().name,
+            "python"
+        );
+        assert_eq!(repo.get_parent_package(&variant).unwrap().name(), "python");
+    }
+
+    #[test]
+    fn destructive_operations_reject_read_only_and_unsafe_paths() {
+        let temp_dir = TempDir::new().unwrap();
+        fs::create_dir_all(temp_dir.path().join("python/3.12.0")).unwrap();
+        let mut read_only = FilesystemPackageRepository::new(temp_dir.path()).with_read_only(true);
+        assert!(read_only.remove_package("python", Some("3.12.0")).is_err());
+
+        let mut repo = FilesystemPackageRepository::new(temp_dir.path());
+        assert!(repo.remove_package("../outside", Some("3.12.0")).is_err());
+        assert!(repo.remove_package("python", Some("../outside")).is_err());
+        assert!(repo.remove_package("python", None).is_err());
+    }
+
+    #[test]
+    fn install_variant_fails_closed_until_supported() {
+        let temp_dir = TempDir::new().unwrap();
+        let mut repo = FilesystemPackageRepository::new(temp_dir.path());
+        let variant = VariantResource::new(
+            "python".to_string(),
+            Some("3.12.0".to_string()),
+            0,
+            FILESYSTEM_REPO_TYPE.to_string(),
+            temp_dir.path().to_string_lossy().to_string(),
+        );
+
+        assert!(repo.install_variant(&variant, false, None).is_err());
     }
 }

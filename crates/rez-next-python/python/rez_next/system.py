@@ -20,6 +20,7 @@ Lessons from upstream rez issues:
 - #436 (MAX_PATH): Path operations use ``os.path`` with long-path support
 - #446 (cache staleness): ``clear_caches()`` exposes both soft and hard clear
 """
+
 from __future__ import annotations
 
 import os as _os
@@ -28,10 +29,10 @@ import re
 from functools import cached_property
 
 import rez_next._native  # noqa: F401 — ensure extension module
-
 from rez_next._native.system import System as _NativeSystem  # noqa: F401
 from rez_next._native.system import system as _native_system
-from rez_next.util import get_architecture, get_hostname, get_username, which as _which
+from rez_next.util import get_architecture, get_hostname, get_username
+from rez_next.util import which as _which
 
 __all__ = [
     "System",
@@ -80,8 +81,7 @@ class System:
             The current architecture (``"x86_64"``, ``"AMD64"``, ``"aarch64"``, etc).
         """
         return self._make_safe_version_string(
-            self._native.arch or get_architecture()
-            or _stdlib_platform.machine()
+            self._native.arch or get_architecture() or _stdlib_platform.machine()
         )
 
     @cached_property
@@ -92,18 +92,16 @@ class System:
             OS identifier such as ``"windows-10.0.26100.SP0"``,
             ``"Ubuntu-22.04"``, or ``"osx-14.5"``.
         """
-        return self._make_safe_version_string(
-            self._native.os or self._detect_os()
-        )
+        return self._make_safe_version_string(self._native.os or self._detect_os())
 
     @cached_property
     def variant(self) -> list[str]:
         """Returns a list of the form ``["platform-X", "arch-X", "os-X"]``
         suitable for use as a variant in a system-dependent package."""
         return [
-            "platform-%s" % self.platform,
-            "arch-%s" % self.arch,
-            "os-%s" % self.os,
+            f"platform-{self.platform}",
+            f"arch-{self.arch}",
+            f"os-{self.os}",
         ]
 
     @cached_property
@@ -123,6 +121,7 @@ class System:
         # Infer shell from /proc/self/comm or /proc/<ppid>/cmdline
         try:
             import subprocess as sp
+
             result = sp.run(
                 ["ps", "-o", "args=", "-p", str(parent_pid)],
                 capture_output=True,
@@ -170,6 +169,7 @@ class System:
             eg ``somesvr.somestudio.com``.
         """
         import socket as _socket
+
         return _socket.getfqdn()
 
     @cached_property
@@ -221,9 +221,12 @@ class System:
             The path to the ``rez`` binary directory, or ``None``.
         """
         import rez_next  # noqa: F811 — lazy import to avoid circular import
+
         bin_dir = _os.path.join(
             _os.path.dirname(_os.path.abspath(rez_next.__file__)),
-            "..", "..", "Scripts" if self.platform == "windows" else "bin",
+            "..",
+            "..",
+            "Scripts" if self.platform == "windows" else "bin",
         )
         bin_dir = _os.path.realpath(_os.path.normpath(bin_dir))
         # Check if rez binary exists
@@ -254,14 +257,16 @@ class System:
         Includes the plugin manager summary.
         """
         from rez_next.plugin_managers import plugin_manager
-        txt = "Rez-Next %s" % self.rez_version
-        txt += "\n\n%s" % plugin_manager.get_summary_string()
+
+        txt = f"Rez-Next {self.rez_version}"
+        txt += f"\n\n{plugin_manager.get_summary_string()}"
         return txt
 
     def clear_caches(self, hard: bool = False) -> None:
         """Clear package repository caches."""
         del hard
         from rez_next.package_repository import package_repository_manager
+
         package_repository_manager.clear_caches()
 
     def which(self, arg: str) -> str | None:
@@ -296,9 +301,7 @@ class System:
                 tok = toks[0]
                 toks = toks[1:]
                 if tok:
-                    valid_tok = "".join(
-                        ch if char_regex.match(ch) else "_" for ch in tok
-                    )
+                    valid_tok = "".join(ch if char_regex.match(ch) else "_" for ch in tok)
                     valid_toks.append(valid_tok)
                 else:
                     seps = seps[1:]  # skip empty
@@ -318,15 +321,15 @@ class System:
             try:
                 ver, sp, _, _ = _stdlib_platform.win32_ver()
                 if sp:
-                    return "windows-%s.%s" % (ver, sp)
-                return "windows-%s" % ver if ver else "windows"
+                    return f"windows-{ver}.{sp}"
+                return f"windows-{ver}" if ver else "windows"
             except Exception:  # noqa: BLE001
                 return "windows"
         elif system_name == "linux":
             return _stdlib_platform.platform(terse=True)
         elif system_name == "darwin":
             ver = _stdlib_platform.mac_ver()[0]
-            return "osx-%s" % ver if ver else "osx"
+            return f"osx-{ver}" if ver else "osx"
         return system_name
 
 

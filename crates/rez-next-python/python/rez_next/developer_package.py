@@ -10,9 +10,6 @@ API Reference: rez.developer_package
 """
 
 import rez_next._native  # noqa: F401
-
-from typing import Any, Dict, Optional
-
 from rez_next._native.developer_package import (  # noqa: F401
     DeveloperPackage,
     PreprocessMode,

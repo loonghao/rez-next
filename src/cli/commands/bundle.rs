@@ -102,14 +102,13 @@ pub fn execute(mut args: BundleArgs) -> RezCoreResult<()> {
 
     // If the last positional argument looks like a path, treat it as the output directory.
     // This supports the rez-style CLI: `rez bundle python-3.9 maya-2024 /path/to/bundle`
-    if args.output.is_none() {
-        if let Some(last) = args.packages.last() {
-            if looks_like_path(last) {
-                let dest = last.clone();
-                args.packages.pop();
-                args.output = Some(dest);
-            }
-        }
+    if args.output.is_none()
+        && let Some(last) = args.packages.last()
+        && looks_like_path(last)
+    {
+        let dest = last.clone();
+        args.packages.pop();
+        args.output = Some(dest);
     }
 
     if args.packages.is_empty() {
@@ -337,12 +336,11 @@ fn get_search_paths(args: &BundleArgs, config: &RezCoreConfig) -> Vec<PathBuf> {
             .packages_path
             .iter()
             .map(|p| {
-                if p.starts_with("~/") || p == "~" {
-                    if let Ok(home) =
+                if (p.starts_with("~/") || p == "~")
+                    && let Ok(home) =
                         std::env::var("USERPROFILE").or_else(|_| std::env::var("HOME"))
-                    {
-                        return PathBuf::from(p.replacen("~", &home, 1));
-                    }
+                {
+                    return PathBuf::from(p.replacen("~", &home, 1));
                 }
                 PathBuf::from(p)
             })

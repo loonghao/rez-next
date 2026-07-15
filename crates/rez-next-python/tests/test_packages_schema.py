@@ -3,7 +3,6 @@ Tests for schema-related functions in rez_next.packages_
 """
 
 import pytest
-import rez_next as rez
 from rez_next._native import packages_
 
 

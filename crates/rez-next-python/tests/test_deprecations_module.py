@@ -1,6 +1,7 @@
 """Tests for rez_next.deprecations module."""
 
 import warnings
+
 import pytest
 import rez_next.deprecations as deprecations
 

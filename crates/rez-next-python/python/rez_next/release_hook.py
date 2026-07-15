@@ -16,7 +16,7 @@ from __future__ import annotations
 import abc
 import logging
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +27,7 @@ def get_release_hook_types() -> list[str]:
     Rez API: ``rez.release_hook.get_release_hook_types()``
     """
     from rez_next.plugin_managers import plugin_manager
+
     return sorted(plugin_manager.get_plugins("release_hook"))
 
 
@@ -43,9 +44,8 @@ def create_release_hook(name: str, source_path: str) -> ReleaseHook:
     Rez API: ``rez.release_hook.create_release_hook()``
     """
     from rez_next.plugin_managers import plugin_manager
-    return plugin_manager.create_instance(
-        "release_hook", name, source_path=source_path
-    )
+
+    return plugin_manager.create_instance("release_hook", name, source_path=source_path)
 
 
 def create_release_hooks(
@@ -98,6 +98,7 @@ class ReleaseHook(abc.ABC):
         if self.package is None:
             try:
                 from rez_next.developer_package import DeveloperPackage
+
                 self.package = DeveloperPackage.from_path(self.source_path)
             except Exception:
                 self.package = None
@@ -108,8 +109,8 @@ class ReleaseHook(abc.ABC):
         user: str = "",
         install_path: str = "",
         variants: Any = None,
-        release_message: Optional[str] = None,
-        changelog: Optional[list[str]] = None,
+        release_message: str | None = None,
+        changelog: list[str] | None = None,
         previous_version: Any = None,
         previous_revision: Any = None,
         **kwargs: Any,
@@ -127,8 +128,8 @@ class ReleaseHook(abc.ABC):
         user: str = "",
         install_path: str = "",
         variants: Any = None,
-        release_message: Optional[str] = None,
-        changelog: Optional[list[str]] = None,
+        release_message: str | None = None,
+        changelog: list[str] | None = None,
         previous_version: Any = None,
         previous_revision: Any = None,
         **kwargs: Any,
@@ -146,8 +147,8 @@ class ReleaseHook(abc.ABC):
         user: str = "",
         install_path: str = "",
         variants: Any = None,
-        release_message: Optional[str] = None,
-        changelog: Optional[list[str]] = None,
+        release_message: str | None = None,
+        changelog: list[str] | None = None,
         previous_version: Any = None,
         previous_revision: Any = None,
         **kwargs: Any,

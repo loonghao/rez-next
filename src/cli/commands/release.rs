@@ -88,6 +88,7 @@ pub fn execute(args: ReleaseArgs) -> RezCoreResult<()> {
         .vcs
         .as_deref()
         .unwrap_or_else(|| detect_vcs(&working_dir));
+    ensure_supported_vcs(vcs_type)?;
 
     if args.verbose {
         println!("VCS: {}", vcs_type);
@@ -127,29 +128,39 @@ pub fn execute(args: ReleaseArgs) -> RezCoreResult<()> {
         env_vars: std::collections::HashMap::new(),
     };
 
-    let build_request = BuildRequest {
-        package: package.clone(),
-        context: None,
-        source_dir: working_dir.clone(),
-        variant_index: None,
-        variant_requires: None,
-        options: build_options,
-        install_path: Some(install_path),
-    };
-
     let rt = tokio::runtime::Runtime::new()
         .map_err(|e| RezCoreError::BuildError(format!("Failed to create runtime: {}", e)))?;
 
     let mut build_manager = BuildManager::new();
-    let build_ids = rt.block_on(build_manager.start_build(build_request))?;
-    // Wait for the first build to complete (or all builds)
-    let result = rt.block_on(build_manager.wait_for_build(&build_ids[0]))?;
+    for variant_index in release_variant_indices(&package, args.variants.as_deref())? {
+        let variant_requires = variant_index.map(|index| package.variants[index].clone());
+        let context = super::build::resolve_build_context(
+            &package,
+            variant_requires.as_deref(),
+            args.verbose,
+        )?;
+        let build_request = BuildRequest {
+            package: package.clone(),
+            context,
+            source_dir: working_dir.clone(),
+            variant_index,
+            variant_requires,
+            options: build_options.clone(),
+            install_path: Some(install_path.clone()),
+        };
+        let build_ids = rt.block_on(build_manager.start_build(build_request))?;
+        let build_id = build_ids
+            .first()
+            .ok_or_else(|| RezCoreError::BuildError("Release did not start a build".to_string()))?;
+        let result = rt.block_on(build_manager.wait_for_build(build_id))?;
 
-    if !result.success {
-        return Err(RezCoreError::BuildError(format!(
-            "Build failed: {}",
-            result.errors
-        )));
+        if !result.success {
+            return Err(RezCoreError::BuildError(format!(
+                "Build failed for variant {}: {}",
+                variant_index.map_or_else(|| "none".to_string(), |index| index.to_string()),
+                result.errors
+            )));
+        }
     }
 
     println!("Build successful.");
@@ -170,6 +181,51 @@ pub fn execute(args: ReleaseArgs) -> RezCoreResult<()> {
     Ok(())
 }
 
+fn release_variant_indices(
+    package: &rez_next_package::Package,
+    selected: Option<&str>,
+) -> RezCoreResult<Vec<Option<usize>>> {
+    if package.variants.is_empty() {
+        if selected.is_some_and(|value| !value.trim().is_empty()) {
+            return Err(RezCoreError::BuildError(format!(
+                "Package '{}' has no variants",
+                package.name
+            )));
+        }
+        return Ok(vec![None]);
+    }
+
+    let Some(selected) = selected else {
+        return Ok((0..package.variants.len()).map(Some).collect());
+    };
+    let mut indices = Vec::new();
+    for value in selected
+        .split(',')
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    {
+        let index = value
+            .parse::<usize>()
+            .map_err(|_| RezCoreError::BuildError(format!("Invalid variant index '{value}'")))?;
+        if index >= package.variants.len() {
+            return Err(RezCoreError::BuildError(format!(
+                "Variant index {index} is out of range for package '{}' ({} variants)",
+                package.name,
+                package.variants.len()
+            )));
+        }
+        if !indices.contains(&Some(index)) {
+            indices.push(Some(index));
+        }
+    }
+    if indices.is_empty() {
+        return Err(RezCoreError::BuildError(
+            "No release variants were selected".to_string(),
+        ));
+    }
+    Ok(indices)
+}
+
 /// Detect VCS type from working directory
 fn detect_vcs(working_dir: &Path) -> &'static str {
     if working_dir.join(".git").exists() {
@@ -181,6 +237,15 @@ fn detect_vcs(working_dir: &Path) -> &'static str {
     } else {
         "unknown"
     }
+}
+
+fn ensure_supported_vcs(vcs_type: &str) -> RezCoreResult<()> {
+    if vcs_type == "git" {
+        return Ok(());
+    }
+    Err(RezCoreError::BuildError(format!(
+        "Release VCS '{vcs_type}' is not supported; only git releases currently provide transactional tagging"
+    )))
 }
 
 /// Load developer package from working directory
@@ -221,12 +286,12 @@ fn validate_vcs_state(working_dir: &Path, vcs_type: &str, args: &ReleaseArgs) ->
             .current_dir(working_dir)
             .output();
 
-        if let Ok(output) = output {
-            if !output.stdout.is_empty() {
-                let unpushed = String::from_utf8_lossy(&output.stdout);
-                if args.verbose {
-                    println!("Warning: Repository has unpushed commits:\n{}", unpushed);
-                }
+        if let Ok(output) = output
+            && !output.stdout.is_empty()
+        {
+            let unpushed = String::from_utf8_lossy(&output.stdout);
+            if args.verbose {
+                println!("Warning: Repository has unpushed commits:\n{}", unpushed);
             }
         }
     }
@@ -268,17 +333,28 @@ fn create_git_tag(
         )));
     }
 
-    // Push the tag to origin if possible
-    let push_output = Command::new("git")
+    let push = Command::new("git")
         .args(["push", "origin", tag])
         .current_dir(working_dir)
-        .output();
+        .output()
+        .map_err(|error| {
+            let _ = Command::new("git")
+                .args(["tag", "-d", tag])
+                .current_dir(working_dir)
+                .output();
+            RezCoreError::BuildError(format!("Failed to push tag '{tag}': {error}"))
+        })?;
 
-    if let Ok(push) = push_output {
-        if !push.status.success() && verbose {
-            let stderr = String::from_utf8_lossy(&push.stderr);
-            println!("Warning: Could not push tag to origin: {}", stderr);
-        }
+    if !push.status.success() {
+        let stderr = String::from_utf8_lossy(&push.stderr);
+        let _ = Command::new("git")
+            .args(["tag", "-d", tag])
+            .current_dir(working_dir)
+            .output();
+        return Err(RezCoreError::BuildError(format!(
+            "Failed to push tag '{tag}' to origin: {}",
+            stderr.trim()
+        )));
     }
 
     Ok(())
@@ -292,4 +368,86 @@ fn read_message_file(path: Option<&PathBuf>) -> Option<String> {
 /// Get release packages path from config
 fn get_release_path() -> String {
     RezCoreConfig::load().release_packages_path
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rez_next_package::Package;
+    use std::fs;
+
+    fn git(working_dir: &Path, args: &[&str]) {
+        let output = Command::new("git")
+            .args(args)
+            .current_dir(working_dir)
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "git {:?} failed: {}",
+            args,
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+
+    #[test]
+    fn test_release_variant_indices_selects_requested_variants() {
+        let mut package = Package::new("tool".to_string());
+        package.variants = vec![vec![], vec![], vec![]];
+
+        assert_eq!(
+            release_variant_indices(&package, Some("2,0")).unwrap(),
+            vec![Some(2), Some(0)]
+        );
+    }
+
+    #[test]
+    fn test_release_variant_indices_rejects_out_of_range_variant() {
+        let mut package = Package::new("tool".to_string());
+        package.variants = vec![vec![]];
+
+        let error = release_variant_indices(&package, Some("1"))
+            .expect_err("invalid release variants must not be skipped");
+        assert!(error.to_string().contains("out of range"), "{error}");
+    }
+
+    #[test]
+    fn test_release_resolves_build_requirements() {
+        let mut package = Package::new("tool".to_string());
+        package.build_requires = vec!["definitely-missing-release-build-dependency".to_string()];
+
+        let error = super::super::build::resolve_build_context(&package, None, false)
+            .expect_err("release must not build without its unresolved build dependency");
+        assert!(
+            error
+                .to_string()
+                .contains("definitely-missing-release-build-dependency"),
+            "{error}"
+        );
+    }
+
+    #[test]
+    fn test_create_git_tag_reports_push_failure() {
+        let temp = tempfile::tempdir().unwrap();
+        git(temp.path(), &["init"]);
+        git(temp.path(), &["config", "user.name", "rez-next test"]);
+        git(temp.path(), &["config", "user.email", "test@example.com"]);
+        fs::write(temp.path().join("README.md"), "test").unwrap();
+        git(temp.path(), &["add", "README.md"]);
+        git(temp.path(), &["commit", "-m", "test"]);
+
+        let error = create_git_tag(temp.path(), "tool-1.0.0", "release", false)
+            .expect_err("a release without a pushable origin must fail");
+        assert!(error.to_string().contains("push tag"), "{error}");
+    }
+
+    #[test]
+    fn test_release_rejects_vcs_backends_without_tag_implementation() {
+        assert!(ensure_supported_vcs("git").is_ok());
+        for vcs in ["unknown", "hg", "svn"] {
+            let error = ensure_supported_vcs(vcs)
+                .expect_err("an unsupported VCS must not report a successful release");
+            assert!(error.to_string().contains(vcs), "{error}");
+        }
+    }
 }

@@ -293,10 +293,10 @@ async fn move_package_directory(
     // Remove source unless keeping it
     if !args.keep_source {
         std::fs::remove_dir_all(source_path).map_err(|e| {
-            RezCoreError::Io(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                format!("Failed to remove source directory: {}", e),
-            ))
+            RezCoreError::Io(std::io::Error::other(format!(
+                "Failed to remove source directory: {}",
+                e
+            )))
         })?;
         if args.verbose {
             println!("Removed source: {}", source_path.display());

@@ -577,6 +577,45 @@ mod tests {
     }
 
     #[test]
+    fn test_package_is_rejected_when_no_variant_is_compatible() {
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        let tmp = tempfile::TempDir::new().unwrap();
+        write_package(tmp.path(), "marker", "1.0.0", &[]);
+        let package_dir = tmp.path().join("tool").join("1.0.0");
+        std::fs::create_dir_all(&package_dir).unwrap();
+        std::fs::write(
+            package_dir.join("package.py"),
+            "name = 'tool'\nversion = '1.0.0'\nvariants = [['!marker']]\n",
+        )
+        .unwrap();
+
+        let mut manager = RepositoryManager::new();
+        manager.add_repository(Box::new(SimpleRepository::new(
+            tmp.path(),
+            "test".to_string(),
+        )));
+        let mut resolver = DependencyResolver::new(
+            Arc::new(manager),
+            SolverConfig {
+                strict_mode: true,
+                ..SolverConfig::default()
+            },
+        );
+
+        let error = rt
+            .block_on(resolver.resolve(vec![
+                Requirement::new("marker".to_string()),
+                Requirement::new("tool".to_string()),
+            ]))
+            .expect_err("a package with no compatible variant cannot resolve");
+
+        assert!(
+            error.to_string().contains("tool"),
+            "unexpected error: {error}"
+        );
+    }
+
+    #[test]
     fn test_later_constraint_replaces_package_with_compatible_version() {
         let rt = tokio::runtime::Runtime::new().unwrap();
         let tmp = tempfile::TempDir::new().unwrap();

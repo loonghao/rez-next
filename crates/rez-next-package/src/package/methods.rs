@@ -152,12 +152,12 @@ impl Package {
             )));
         }
 
-        if let Some(ref version) = self.version {
-            if version.as_str().is_empty() {
-                return Err(RezCoreError::PackageParse(
-                    "Package version cannot be empty".to_string(),
-                ));
-            }
+        if let Some(ref version) = self.version
+            && version.as_str().is_empty()
+        {
+            return Err(RezCoreError::PackageParse(
+                "Package version cannot be empty".to_string(),
+            ));
         }
 
         for req in &self.requires {

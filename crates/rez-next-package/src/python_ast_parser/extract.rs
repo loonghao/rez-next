@@ -14,7 +14,6 @@ impl PythonAstParser {
             Ok(PythonValue::Integer(i)) => Ok(i.to_string()),
             Ok(PythonValue::Float(f)) => Ok(f.to_string()),
             Ok(PythonValue::Boolean(b)) => Ok(b.to_string()),
-            Ok(PythonValue::Expression(s)) => Ok(s),
             _ => match expr {
                 Expr::Constant(constant) => match &constant.value {
                     Constant::Str(s) => Ok(s.clone()),
@@ -148,10 +147,11 @@ impl PythonAstParser {
                 for (key, value) in dict {
                     let value_str = match value {
                         PythonValue::String(s) => s,
-                        PythonValue::Integer(i) => i.to_string(),
-                        PythonValue::Float(f) => f.to_string(),
-                        PythonValue::Boolean(b) => b.to_string(),
-                        _ => format!("{:?}", value),
+                        _ => {
+                            return Err(RezCoreError::PackageParse(format!(
+                                "Unsupported test definition for '{key}': only string commands are supported"
+                            )));
+                        }
                     };
                     result.insert(key, value_str);
                 }

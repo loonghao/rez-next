@@ -11,6 +11,39 @@ use tokio::io::{AsyncBufReadExt, AsyncRead, BufReader};
 use tokio::process::Child;
 use tokio::sync::Mutex;
 
+const EMBEDDED_BUILD_PLUGINS: &str =
+    include_str!("../../../rez-next-python/python/rez_next/build_plugins.py");
+
+const PYTHON_BUILD_BOOTSTRAP: &str = r#"
+import runpy
+import sys
+import types
+
+build_plugins_source = sys.argv[1]
+script_path = sys.argv[2]
+script_args = sys.argv[3:]
+
+try:
+    import rez_next.build_plugins
+except ImportError:
+    for module_name in list(sys.modules):
+        if module_name == "rez_next" or module_name.startswith("rez_next."):
+            del sys.modules[module_name]
+
+    package = types.ModuleType("rez_next")
+    package.__path__ = []
+    package.__package__ = "rez_next"
+    build_plugins = types.ModuleType("rez_next.build_plugins")
+    build_plugins.__package__ = "rez_next"
+    sys.modules["rez_next"] = package
+    sys.modules["rez_next.build_plugins"] = build_plugins
+    package.build_plugins = build_plugins
+    exec(compile(build_plugins_source, "<rez_next.build_plugins>", "exec"), build_plugins.__dict__)
+
+sys.argv = [script_path, *script_args]
+runpy.run_path(script_path, run_name="__main__")
+"#;
+
 /// Custom build system — handles build scripts and copy-only installs
 #[derive(Debug, Clone)]
 pub struct CustomBuildSystem {
@@ -69,7 +102,7 @@ impl CustomBuildSystem {
         Ok(BuildStepResult {
             step: BuildStep::Testing,
             success: true,
-            output: "Tests completed".to_string(),
+            output: "Custom build-system tests completed".to_string(),
             errors: String::new(),
             duration_ms: 0,
         })
@@ -287,6 +320,9 @@ impl CustomBuildSystem {
         let started_at = Instant::now();
         let mut process = tokio::process::Command::new(&python);
         process
+            .arg("-c")
+            .arg(PYTHON_BUILD_BOOTSTRAP)
+            .arg(EMBEDDED_BUILD_PLUGINS)
             .arg(script_path)
             .arg(command)
             .env_clear()
@@ -393,12 +429,12 @@ impl CustomBuildSystem {
             let output = command
                 .args(["-c", "import sys; print(sys.executable)"])
                 .output();
-            if let Ok(output) = output {
-                if output.status.success() {
-                    let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
-                    if !path.is_empty() {
-                        return Ok(PathBuf::from(path));
-                    }
+            if let Ok(output) = output
+                && output.status.success()
+            {
+                let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
+                if !path.is_empty() {
+                    return Ok(PathBuf::from(path));
                 }
             }
         }
@@ -476,10 +512,10 @@ impl CustomBuildSystem {
         }
 
         for key in ["SystemRoot", "WINDIR", "TEMP", "TMP"] {
-            if !env.contains_key(key) {
-                if let Ok(value) = std::env::var(key) {
-                    env.insert(key.to_string(), value);
-                }
+            if !env.contains_key(key)
+                && let Ok(value) = std::env::var(key)
+            {
+                env.insert(key.to_string(), value);
             }
         }
     }

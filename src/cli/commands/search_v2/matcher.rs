@@ -39,11 +39,11 @@ pub fn evaluate_package_match(
     };
 
     if args.regex {
-        if let Ok(regex) = regex::Regex::new(&query) {
-            if regex.is_match(&package_name) {
-                match_score += 10.0;
-                match_fields.push("name".to_string());
-            }
+        if let Ok(regex) = regex::Regex::new(&query)
+            && regex.is_match(&package_name)
+        {
+            match_score += 10.0;
+            match_fields.push("name".to_string());
         }
     } else if package_name.contains(&query) {
         match_score += if package_name == query { 10.0 } else { 5.0 };
@@ -51,25 +51,25 @@ pub fn evaluate_package_match(
     }
 
     // Check description if requested
-    if args.description {
-        if let Some(ref desc) = package.description {
-            let desc_text = if args.case_sensitive {
-                desc.clone()
-            } else {
-                desc.to_lowercase()
-            };
+    if args.description
+        && let Some(ref desc) = package.description
+    {
+        let desc_text = if args.case_sensitive {
+            desc.clone()
+        } else {
+            desc.to_lowercase()
+        };
 
-            if args.regex {
-                if let Ok(regex) = regex::Regex::new(&query) {
-                    if regex.is_match(&desc_text) {
-                        match_score += 3.0;
-                        match_fields.push("description".to_string());
-                    }
-                }
-            } else if desc_text.contains(&query) {
+        if args.regex {
+            if let Ok(regex) = regex::Regex::new(&query)
+                && regex.is_match(&desc_text)
+            {
                 match_score += 3.0;
                 match_fields.push("description".to_string());
             }
+        } else if desc_text.contains(&query) {
+            match_score += 3.0;
+            match_fields.push("description".to_string());
         }
     }
 
@@ -83,12 +83,12 @@ pub fn evaluate_package_match(
             };
 
             if args.regex {
-                if let Ok(regex) = regex::Regex::new(&query) {
-                    if regex.is_match(&tool_name) {
-                        match_score += 2.0;
-                        match_fields.push("tools".to_string());
-                        break;
-                    }
+                if let Ok(regex) = regex::Regex::new(&query)
+                    && regex.is_match(&tool_name)
+                {
+                    match_score += 2.0;
+                    match_fields.push("tools".to_string());
+                    break;
                 }
             } else if tool_name.contains(&query) {
                 match_score += 2.0;
@@ -108,12 +108,12 @@ pub fn evaluate_package_match(
             };
 
             if args.regex {
-                if let Ok(regex) = regex::Regex::new(&query) {
-                    if regex.is_match(&req_text) {
-                        match_score += 1.0;
-                        match_fields.push("requirements".to_string());
-                        break;
-                    }
+                if let Ok(regex) = regex::Regex::new(&query)
+                    && regex.is_match(&req_text)
+                {
+                    match_score += 1.0;
+                    match_fields.push("requirements".to_string());
+                    break;
                 }
             } else if req_text.contains(&query) {
                 match_score += 1.0;

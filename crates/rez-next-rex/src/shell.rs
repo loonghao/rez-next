@@ -157,7 +157,7 @@ fn generate_cmd_script(env: &RexEnvironment) -> String {
     let mut vars: Vec<_> = env.vars.iter().collect();
     vars.sort_by_key(|(k, _)| k.as_str());
     for (key, value) in &vars {
-        lines.push(format!("SET {}={}", key, value));
+        lines.push(format!("SET \"{}={}\"", key, value));
     }
 
     if !env.aliases.is_empty() {
@@ -198,7 +198,15 @@ fn generate_powershell_script(env: &RexEnvironment) -> String {
     vars.sort_by_key(|(k, _)| k.as_str());
     for (key, value) in &vars {
         let escaped = value.replace('\'', "''");
-        lines.push(format!("$env:{} = '{}'", key, escaped));
+        let variable = if key
+            .chars()
+            .all(|character| character.is_ascii_alphanumeric() || character == '_')
+        {
+            format!("$env:{key}")
+        } else {
+            format!("${{env:{key}}}")
+        };
+        lines.push(format!("{variable} = '{escaped}'"));
     }
 
     if !env.vars.is_empty() && !env.aliases.is_empty() {

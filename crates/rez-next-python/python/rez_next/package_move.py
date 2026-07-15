@@ -18,12 +18,12 @@ Design:
 from __future__ import annotations
 
 import os
-from typing import Any, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from rez_next.exceptions import PackageMoveError
 
 if TYPE_CHECKING:
-    from rez_next.packages import Package
+    pass
 
 
 def _resolve_package_name(package: Any) -> str:
@@ -39,7 +39,7 @@ def _resolve_package_name(package: Any) -> str:
     return pkg_str
 
 
-def _resolve_package_version(package: Any, version: Any = None) -> Optional[str]:
+def _resolve_package_version(package: Any, version: Any = None) -> str | None:
     """Resolve a version from a Package object or explicit value."""
     if version is not None:
         return str(version)
@@ -88,6 +88,9 @@ def move_package(
     Raises:
         PackageMoveError: If the move operation fails.
     """
+    if keep_timestamp:
+        raise PackageMoveError("keep_timestamp is not supported in rez-next")
+
     pkg_name = _resolve_package_name(package)
     pkg_version = _resolve_package_version(package)
     dest_path = _resolve_dest_path(dest_repository)
@@ -125,10 +128,3 @@ def move_package(
         print(f"{action} {pkg_name} to {result_path}")
 
     return result_path
-
-
-# Re-export from native for advanced use cases
-try:
-    from rez_next._native.packages_ import move_package as _native_move  # noqa: F811
-except ImportError:
-    pass

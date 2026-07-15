@@ -11,10 +11,10 @@ Rez API: ``rez.package_py_utils``
 from __future__ import annotations
 
 import subprocess
-from typing import Any, Optional
+from typing import Any
 
 
-def expand_requirement(request: str, paths: Optional[list[str]] = None) -> str:
+def expand_requirement(request: str, paths: list[str] | None = None) -> str:
     """Expand wildcard version tokens in a requirement string.
 
     Wildcards (``*`` and ``**``) are expanded to the latest matching version.
@@ -37,9 +37,10 @@ def expand_requirement(request: str, paths: Optional[list[str]] = None) -> str:
     if "*" not in request:
         return request
 
-    from rez_next.version import Requirement, VersionRange, Version
-    from rez_next.packages_ import get_latest_package
     from uuid import uuid4
+
+    from rez_next.packages_ import get_latest_package
+    from rez_next.version import Requirement, Version, VersionRange
 
     wildcard_map: dict[str, str] = {}
     expanded_versions: dict[Version, Version] = {}
@@ -58,7 +59,7 @@ def expand_requirement(request: str, paths: Optional[list[str]] = None) -> str:
 
     req = Requirement(request_, invalid_bound_error=False)
 
-    def expand_version(version: Version) -> Optional[Version]:
+    def expand_version(version: Version) -> Version | None:
         rank = len(version)
         wildcard_found = False
 
@@ -84,7 +85,7 @@ def expand_requirement(request: str, paths: Optional[list[str]] = None) -> str:
             return package.version.trim(rank)
         return package.version
 
-    def visit_version(version: Version) -> Optional[Version]:
+    def visit_version(version: Version) -> Version | None:
         for v, expanded_v in expanded_versions.items():
             if version == next(v):
                 return next(expanded_v)
@@ -106,7 +107,7 @@ def expand_requirement(request: str, paths: Optional[list[str]] = None) -> str:
     return str(expanded_req)
 
 
-def expand_requires(*requests: str, paths: Optional[list[str]] = None) -> list[str]:
+def expand_requires(*requests: str, paths: list[str] | None = None) -> list[str]:
     """Expand wildcards across multiple requirement strings.
 
     Args:
@@ -142,9 +143,8 @@ def exec_command(attr: str, cmd: list[str]) -> tuple[str, str]:
 
     if p.returncode:
         from rez_next.exceptions import InvalidPackageError
-        raise InvalidPackageError(
-            f"Error determining package attribute '{attr}':\n{err}"
-        )
+
+        raise InvalidPackageError(f"Error determining package attribute '{attr}':\n{err}")
 
     return out.strip(), err.strip()
 
@@ -180,16 +180,15 @@ def exec_python(
 
     if p.returncode:
         from rez_next.exceptions import InvalidPackageError
-        raise InvalidPackageError(
-            f"Error determining package attribute '{attr}':\n{err}"
-        )
+
+        raise InvalidPackageError(f"Error determining package attribute '{attr}':\n{err}")
 
     return out.strip()
 
 
 def find_site_python(
     module_name: str,
-    paths: Optional[list[str]] = None,
+    paths: list[str] | None = None,
 ) -> Any:
     """Find the rez native Python package containing a given module.
 
@@ -206,9 +205,10 @@ def find_site_python(
     Raises:
         InvalidPackageError: If no matching package is found.
     """
-    from rez_next.packages_ import iter_packages
-    from rez_next.exceptions import InvalidPackageError
     import ast
+
+    from rez_next.exceptions import InvalidPackageError
+    from rez_next.packages_ import iter_packages
 
     py_cmd = f"import {module_name}; print({module_name}.__path__)"
     p = subprocess.Popen(
@@ -220,9 +220,7 @@ def find_site_python(
     out, err = p.communicate()
 
     if p.returncode:
-        raise InvalidPackageError(
-            f"Failed to find installed python module '{module_name}':\n{err}"
-        )
+        raise InvalidPackageError(f"Failed to find installed python module '{module_name}':\n{err}")
 
     module_paths = ast.literal_eval(out.strip())
 
@@ -235,10 +233,7 @@ def find_site_python(
         site_paths = getattr(package, "_site_paths", None)
         if not site_paths:
             continue
-        contained = all(
-            any(issubdir(mp, sp) for sp in site_paths)
-            for mp in module_paths
-        )
+        contained = all(any(issubdir(mp, sp) for sp in site_paths) for mp in module_paths)
         if contained:
             return package
 

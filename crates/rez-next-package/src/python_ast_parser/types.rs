@@ -9,8 +9,6 @@ pub(crate) struct ParsingContext {
     pub variables: HashMap<String, PythonValue>,
     /// Imported modules and their aliases
     pub imports: HashMap<String, String>,
-    /// Current function scope (for nested function handling)
-    pub function_scope: Vec<String>,
 }
 
 /// Represents a Python value that can be evaluated
@@ -23,8 +21,6 @@ pub(crate) enum PythonValue {
     List(Vec<PythonValue>),
     Dict(HashMap<String, PythonValue>),
     None,
-    /// For complex expressions that need runtime evaluation
-    Expression(String),
 }
 
 /// Intermediate data structure for collecting package information during parsing
@@ -60,8 +56,6 @@ pub(crate) struct PackageData {
     pub plugin_for: Vec<String>,
     pub format_version: Option<i32>,
     pub preprocess: Option<String>,
-    // Function definitions for late binding
-    pub functions: HashMap<String, String>,
 }
 
 impl PackageData {

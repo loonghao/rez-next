@@ -5,8 +5,11 @@
 
 use clap::Args;
 use rez_next_common::{RezCoreError, error::RezCoreResult};
+use sha2::{Digest, Sha256};
 use std::env;
-use std::fs;
+use std::fmt::Write as _;
+use std::fs::{self, File};
+use std::io::{BufReader, Read};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -43,6 +46,7 @@ fn success(msg: &str) {
     println!("success: {}", msg);
 }
 
+#[cfg(windows)]
 fn warn(msg: &str) {
     eprintln!("warn: {}", msg);
 }
@@ -364,39 +368,41 @@ pub fn execute(args: SelfUpdateArgs) -> RezCoreResult<()> {
         ))
     })?;
 
-    // Optionally verify checksum
+    // A release archive is not trusted until its published checksum is verified.
     let checksums_url = format!(
         "https://github.com/{}/releases/download/v{}/checksums-sha256.txt",
         REPO, target_version
     );
     let checksums_path = tmp_dir.join("checksums-sha256.txt");
-    if download_to_file(downloader, &checksums_url, &checksums_path).is_ok() {
-        if let Ok(checksums) = fs::read_to_string(&checksums_path) {
-            if let Some(expected) = checksums
-                .lines()
-                .find(|l| l.contains(&archive_name))
-                .and_then(|l| l.split_whitespace().next())
-            {
-                let actual = compute_sha256(&archive_path)?;
-                if actual != expected {
-                    let _ = fs::remove_dir_all(&tmp_dir);
-                    return Err(RezCoreError::Python(format!(
-                        "Checksum mismatch! Expected: {}, Got: {}",
-                        expected, actual
-                    )));
-                }
-                success("Checksum verified ✓");
-            }
-        }
-    } else {
-        warn("Checksums file not available, skipping verification");
+    download_to_file(downloader, &checksums_url, &checksums_path).map_err(|error| {
+        let _ = fs::remove_dir_all(&tmp_dir);
+        RezCoreError::Python(format!(
+            "Cannot verify release archive because its checksum file is unavailable: {error}"
+        ))
+    })?;
+    let checksums = fs::read_to_string(&checksums_path).map_err(|error| {
+        let _ = fs::remove_dir_all(&tmp_dir);
+        RezCoreError::Python(format!("Failed to read release checksums: {error}"))
+    })?;
+    let expected = checksum_for_asset(&checksums, &archive_name).inspect_err(|_| {
+        let _ = fs::remove_dir_all(&tmp_dir);
+    })?;
+    let actual = compute_sha256(&archive_path).inspect_err(|_| {
+        let _ = fs::remove_dir_all(&tmp_dir);
+    })?;
+    if actual != expected {
+        let _ = fs::remove_dir_all(&tmp_dir);
+        return Err(RezCoreError::Python(format!(
+            "Checksum mismatch! Expected: {}, Got: {}",
+            expected, actual
+        )));
     }
+    success("Checksum verified ✓");
 
     // Extract archive
     info("Extracting...");
-    extract_archive(&archive_path, &tmp_dir).map_err(|e| {
+    extract_archive(&archive_path, &tmp_dir).inspect_err(|_e| {
         let _ = fs::remove_dir_all(&tmp_dir);
-        e
     })?;
 
     // Locate new binary
@@ -419,50 +425,82 @@ pub fn execute(args: SelfUpdateArgs) -> RezCoreResult<()> {
     Ok(())
 }
 
-/// Compute SHA-256 of a file using the system sha256sum / shasum tool.
+fn checksum_for_asset(checksums: &str, archive_name: &str) -> RezCoreResult<String> {
+    for line in checksums.lines() {
+        let mut fields = line.split_whitespace();
+        let Some(hash) = fields.next() else {
+            continue;
+        };
+        let Some(filename) = fields.next() else {
+            continue;
+        };
+        if filename != archive_name {
+            continue;
+        }
+        if fields.next().is_some()
+            || hash.len() != 64
+            || !hash.bytes().all(|byte| byte.is_ascii_hexdigit())
+        {
+            return Err(RezCoreError::Python(format!(
+                "Invalid checksum entry for release asset '{archive_name}'"
+            )));
+        }
+        return Ok(hash.to_ascii_lowercase());
+    }
+
+    Err(RezCoreError::Python(format!(
+        "Release checksum file has no entry for '{archive_name}'"
+    )))
+}
+
+/// Compute SHA-256 without relying on platform-specific command-line tools.
 fn compute_sha256(path: &Path) -> RezCoreResult<String> {
-    // Try sha256sum (Linux / Git Bash on Windows)
-    if let Ok(output) = Command::new("sha256sum").arg(path).output() {
-        if output.status.success() {
-            let s = String::from_utf8_lossy(&output.stdout);
-            if let Some(hash) = s.split_whitespace().next() {
-                return Ok(hash.to_string());
-            }
+    let file = File::open(path).map_err(RezCoreError::Io)?;
+    let mut reader = BufReader::new(file);
+    let mut hasher = Sha256::new();
+    let mut buffer = [0_u8; 64 * 1024];
+    loop {
+        let read = reader.read(&mut buffer).map_err(RezCoreError::Io)?;
+        if read == 0 {
+            break;
         }
+        hasher.update(&buffer[..read]);
     }
-    // Try shasum -a 256 (macOS)
-    if let Ok(output) = Command::new("shasum")
-        .args(["-a", "256"])
-        .arg(path)
-        .output()
-    {
-        if output.status.success() {
-            let s = String::from_utf8_lossy(&output.stdout);
-            if let Some(hash) = s.split_whitespace().next() {
-                return Ok(hash.to_string());
-            }
-        }
+    let digest = hasher.finalize();
+    let mut checksum = String::with_capacity(64);
+    for byte in digest {
+        write!(&mut checksum, "{byte:02x}").expect("writing to a String cannot fail");
     }
-    // Try certutil (native Windows)
-    #[cfg(target_os = "windows")]
-    if let Ok(output) = Command::new("certutil")
-        .args(["-hashfile", path.to_str().unwrap_or(""), "SHA256"])
-        .output()
-    {
-        if output.status.success() {
-            let s = String::from_utf8_lossy(&output.stdout);
-            // certutil output has the hash on the second non-empty line
-            let hash = s
-                .lines()
-                .map(str::trim)
-                .find(|l| !l.is_empty() && !l.starts_with("CertUtil") && !l.contains("hash"))
-                .unwrap_or("")
-                .replace(' ', "");
-            if hash.len() == 64 {
-                return Ok(hash);
-            }
-        }
+    Ok(checksum)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn checksum_for_asset_requires_an_exact_valid_entry() {
+        let expected = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+        let checksums = format!("{expected}  rez-next-x86_64-pc-windows-msvc.zip\n");
+
+        assert_eq!(
+            checksum_for_asset(&checksums, "rez-next-x86_64-pc-windows-msvc.zip").unwrap(),
+            expected
+        );
+        assert!(
+            checksum_for_asset(&checksums, "rez-next-x86_64-unknown-linux-gnu.tar.gz").is_err()
+        );
+        assert!(checksum_for_asset("not-a-hash  archive.zip\n", "archive.zip").is_err());
     }
-    warn("No SHA256 tool found, skipping checksum verification");
-    Ok(String::new())
+
+    #[test]
+    fn compute_sha256_does_not_depend_on_external_tools() {
+        let temp = tempfile::NamedTempFile::new().unwrap();
+        fs::write(temp.path(), b"abc").unwrap();
+
+        assert_eq!(
+            compute_sha256(temp.path()).unwrap(),
+            "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+        );
+    }
 }

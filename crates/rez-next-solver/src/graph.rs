@@ -290,15 +290,15 @@ impl DependencyGraph {
             let range1 = req1.version_spec.as_deref().unwrap_or("");
             let range2 = req2.version_spec.as_deref().unwrap_or("");
             // Both have ranges and they don't intersect → Incompatible
-            if !range1.is_empty() && !range2.is_empty() {
-                if let (Ok(r1), Ok(r2)) = (
+            if !range1.is_empty()
+                && !range2.is_empty()
+                && let (Ok(r1), Ok(r2)) = (
                     rez_next_version::VersionRange::parse(range1),
                     rez_next_version::VersionRange::parse(range2),
-                ) {
-                    if r1.intersect(&r2).is_none() {
-                        return ConflictSeverity::Incompatible;
-                    }
-                }
+                )
+                && r1.intersect(&r2).is_none()
+            {
+                return ConflictSeverity::Incompatible;
             }
         }
 
@@ -311,11 +311,11 @@ impl DependencyGraph {
 
         for node in self.nodes.values() {
             for req_str in &node.package.requires {
-                if let Ok(req) = PackageRequirement::parse(req_str) {
-                    if req.name == package_name {
-                        sources.push(node.key());
-                        break;
-                    }
+                if let Ok(req) = PackageRequirement::parse(req_str)
+                    && req.name == package_name
+                {
+                    sources.push(node.key());
+                    break;
                 }
             }
         }
@@ -490,10 +490,10 @@ impl DependencyGraph {
         let mut parent: HashMap<String, String> = HashMap::new();
 
         for node_key in self.nodes.keys() {
-            if !color.contains_key(node_key) {
-                if let Some(cycle) = self.dfs_find_cycle(node_key, &mut color, &mut parent) {
-                    return Some(cycle);
-                }
+            if !color.contains_key(node_key)
+                && let Some(cycle) = self.dfs_find_cycle(node_key, &mut color, &mut parent)
+            {
+                return Some(cycle);
             }
         }
 

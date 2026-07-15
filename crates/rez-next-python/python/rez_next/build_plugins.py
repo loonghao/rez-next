@@ -18,7 +18,7 @@ import urllib.request
 import zipfile
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable, Sequence
+from typing import Sequence
 
 
 @dataclass(frozen=True)
@@ -37,18 +37,18 @@ class BuildContext:
     target_os: str
 
     @classmethod
-    def from_env(cls) -> "BuildContext":
+    def from_env(cls) -> BuildContext:
         source_path = Path(os.environ.get("REZ_BUILD_SOURCE_PATH", os.getcwd())).resolve()
         build_path = Path(os.environ.get("REZ_BUILD_PATH", source_path / ".rez_build")).resolve()
-        install_path = Path(os.environ.get("REZ_BUILD_INSTALL_PATH", build_path / "install")).resolve()
+        install_path = Path(
+            os.environ.get("REZ_BUILD_INSTALL_PATH", build_path / "install")
+        ).resolve()
         host_platform = _host_platform()
         target_platform = os.environ.get("REZ_BUILD_TARGET_PLATFORM", host_platform)
         target_arch = os.environ.get("REZ_BUILD_TARGET_ARCH", platform.machine().lower())
         target_os = os.environ.get("REZ_BUILD_TARGET_OS", target_platform.split("-", 1)[0])
         variant_requires = tuple(
-            req
-            for req in os.environ.get("REZ_BUILD_VARIANT_REQUIRES", "").split()
-            if req
+            req for req in os.environ.get("REZ_BUILD_VARIANT_REQUIRES", "").split() if req
         )
         return cls(
             source_path=source_path,
@@ -210,7 +210,9 @@ class PipFromDownloadBuilder(BuildPlugin):
         if self.requirement:
             args.extend(["-r", str(self.resolve_path(self.requirement))])
         if self.package:
-            package = self.resolve_path(self.package) if _looks_like_path(self.package) else self.package
+            package = (
+                self.resolve_path(self.package) if _looks_like_path(self.package) else self.package
+            )
             args.append(str(package))
         if not self.package and not self.requirement:
             raise ValueError("PipFromDownloadBuilder requires package or requirement")
@@ -233,13 +235,28 @@ def extract_archive(artifact: Path, destination: Path) -> None:
     name = artifact.name.lower()
     if name.endswith(".zip") or name.endswith(".whl"):
         with zipfile.ZipFile(artifact) as archive:
-            archive.extractall(destination)
+            for member in archive.infolist():
+                target = _validated_archive_target(destination, member.filename)
+                archive.extract(member, destination)
+                mode = (member.external_attr >> 16) & 0o7777
+                if mode and target.exists():
+                    target.chmod(mode)
         return
     if name.endswith(".tar.gz") or name.endswith(".tgz"):
         with tarfile.open(artifact, "r:gz") as archive:
             archive.extractall(destination)
         return
     raise ValueError(f"unsupported archive format: {artifact}")
+
+
+def _validated_archive_target(destination: Path, member_name: str) -> Path:
+    root = destination.resolve()
+    target = (destination / member_name).resolve()
+    try:
+        target.relative_to(root)
+    except ValueError as error:
+        raise ValueError(f"archive member escapes destination: {member_name}") from error
+    return target
 
 
 def copy_tree_contents(source: Path, destination: Path) -> None:
@@ -257,7 +274,9 @@ def copy_tree_contents(source: Path, destination: Path) -> None:
 
 def _looks_like_path(value: str | os.PathLike[str]) -> bool:
     text = os.fspath(value)
-    return any(sep in text for sep in ("/", "\\")) or text.endswith((".whl", ".zip", ".tar.gz", ".tgz"))
+    return any(sep in text for sep in ("/", "\\")) or text.endswith(
+        (".whl", ".zip", ".tar.gz", ".tgz")
+    )
 
 
 def _host_platform() -> str:

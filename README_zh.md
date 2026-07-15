@@ -11,9 +11,9 @@
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/rez-next)](https://pypi.org/project/rez-next/)
 [![Coverage](https://img.shields.io/codecov/c/gh/loonghao/rez-next/main)](https://codecov.io/gh/loonghao/rez-next)
 
-> ⚠️ **实验性项目。** rez-next 是一个 Rust 实验项目，探索完整重写 [Rez](https://github.com/AcademySoftwareFoundation/rez) 包管理器的可能性。它**不是**生产就绪的，**不是** AcademySoftwareFoundation 官方项目，API 可能随时变更。请将其用于评估、基准测试与研究，**不要**用于工作室关键管线。
+> **生产就绪范围。** 文档明确覆盖的常用工作流，在锁定正式发布版本并通过自身包库验证后可用于生产。rez-next 仍处于 1.0 之前，采用按工作流精选的兼容策略，**不承诺**替代 Rez 的全部 API，也不是 AcademySoftwareFoundation 官方项目。
 
-一个用 Rust 实现的 [Rez](https://github.com/AcademySoftwareFoundation/rez) 包管理器实验项目，提供 Python 绑定且兼容覆盖度持续增长。许多常用工作流已经可以通过 `import rez_next` 使用，但目前尚不能在所有 API 层面实现无缝切换。
+一个以 Rust 实现常用 [Rez](https://github.com/AcademySoftwareFoundation/rez) 包管理工作流的高性能项目，并提供 Python 绑定。尚未支持的兼容接口会明确报错，不会伪造成功。支持范围、明确排除项、发布门禁和上线检查清单见[生产就绪说明](docs/production-readiness.md)。
 
 [English](README.md) | [中文](README_zh.md)
 
@@ -30,14 +30,14 @@ curl -fsSL https://raw.githubusercontent.com/loonghao/rez-next/main/install.sh |
 或指定版本安装：
 
 ```bash
-REZ_NEXT_VERSION=0.3.1 curl -fsSL https://raw.githubusercontent.com/loonghao/rez-next/main/install.sh | sh
+REZ_NEXT_VERSION=0.3.4 curl -fsSL https://raw.githubusercontent.com/loonghao/rez-next/main/install.sh | sh # x-release-please-version
 ```
 
 环境变量说明：
 
 | 变量 | 说明 | 默认值 |
 |---|---|---|
-| `REZ_NEXT_VERSION` | 指定安装版本（如 `0.3.0`） | 最新版本 |
+| `REZ_NEXT_VERSION` | 指定安装版本（如 `0.3.4`） | 最新版本 | <!-- x-release-please-version -->
 | `REZ_NEXT_INSTALL` | 安装目录 | `$HOME/.rez-next/bin` |
 | `REZ_NEXT_MUSL` | Linux 强制使用 musl 构建 | 自动检测 |
 
@@ -75,7 +75,7 @@ rez-next self-update
 rez-next self-update --check
 
 # 更新到指定版本
-rez-next self-update --version 0.3.1
+rez-next self-update --version 0.3.4 # x-release-please-version
 
 # 强制重新安装当前版本
 rez-next self-update --force
@@ -96,7 +96,7 @@ import rez_next as rez
 from rez_next.packages_ import iter_packages, get_latest_package
 from rez_next.resolved_context import ResolvedContext
 
-# API 完全一致
+# 支持的顶层 API
 ctx = rez.resolve_packages(["python-3.9", "maya-2024"])
 pkg = rez.get_latest_package("python")
 for p in rez.iter_packages("maya"):
@@ -301,7 +301,7 @@ rez-next-python        Python 绑定 via PyO3（40 个子模块）
 | `rez-next-solver` | 持续演进中（A* 已启用）| ~15 |
 | `rez-next-context` | 持续演进中 | ~12 |
 | `rez-next-repository` | 核心能力较成熟 | ~8 |
-| `rez-next-build` | 局部实现（基础流程 + placeholders） | ~6 |
+| `rez-next-build` | 支持的构建/发布工作流 | ~6 |
 | `rez-next-cache` | 持续演进中 | ~5 |
 | `rez-next-suites` | 持续演进中 | ~10 |
 | `rez-next-bind` | 持续演进中 | ~37 |
@@ -312,7 +312,7 @@ rez-next-python        Python 绑定 via PyO3（40 个子模块）
 | `rez-next-serialise` | 稳定 | ~5 |
 | `rez-next-explicit` | 稳定 | ~5 |
 | `rez-next-util` | 稳定 | ~5 |
-| `rez-next-python` | 部分兼容（40 个子模块） | ~125 |
+| `rez-next-python` | 精选兼容（40 个子模块） | ~125 |
 | Compat integration | 覆盖面持续增长 | ~210 |
 
 ---

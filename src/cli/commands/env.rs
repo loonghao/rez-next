@@ -157,25 +157,24 @@ pub fn execute_with_extra_args(mut args: EnvArgs, extra_args: Vec<String>) -> Re
     }
 
     // Save resolved context to a .rxt file in a temp location
-    // and set REZ_CONTEXT_FILE so subprocesses can access it
+    // so subprocesses can access it through REZ_RXT_FILE.
     let rxt_path = save_context_to_rxt(&context)?;
-    if let Some(ref path) = rxt_path {
-        unsafe {
-            std::env::set_var("REZ_CONTEXT_FILE", path);
-        };
-    }
 
     // Execute shell or command
-    execute_in_context(&context, &args)
+    let result = execute_in_context(&context, &args, &rxt_path);
+    if result.is_err() {
+        let _ = std::fs::remove_file(rxt_path);
+    }
+    result
 }
 
 /// Save resolved context to a temporary .rxt file
 /// Returns the path if successful
-fn save_context_to_rxt(context: &ResolvedContext) -> RezCoreResult<Option<PathBuf>> {
+fn save_context_to_rxt(context: &ResolvedContext) -> RezCoreResult<PathBuf> {
     let json = serde_json::to_string_pretty(context).map_err(RezCoreError::Serde)?;
     let rxt_path = std::env::temp_dir().join(format!("rez_context_{}.rxt", &context.id[..8]));
     std::fs::write(&rxt_path, &json).map_err(RezCoreError::Io)?;
-    Ok(Some(rxt_path))
+    Ok(rxt_path)
 }
 
 /// Parse package requirement strings into PackageRequirement objects
@@ -333,11 +332,22 @@ fn print_resolved_packages(context: &ResolvedContext) -> RezCoreResult<()> {
     Ok(())
 }
 
-fn context_environment(context: &ResolvedContext) -> RezCoreResult<RexEnvironment> {
+fn context_environment(
+    context: &ResolvedContext,
+    rxt_path: Option<&std::path::Path>,
+) -> RezCoreResult<RexEnvironment> {
     let env_manager = EnvironmentManager::new(context.config.clone());
     let mut environment = tokio::runtime::Runtime::new()
         .map_err(RezCoreError::Io)?
         .block_on(env_manager.generate_rex_environment(&context.resolved_packages))?;
+    if environment.stopped {
+        return Err(RezCoreError::ExecutionError(
+            environment
+                .stop_message
+                .clone()
+                .unwrap_or_else(|| "Package stopped environment activation".to_string()),
+        ));
+    }
     if let Ok(executable) = std::env::current_exe() {
         prepend_executable_dir(&mut environment.vars, &executable)?;
     }
@@ -365,6 +375,12 @@ fn context_environment(context: &ResolvedContext) -> RezCoreResult<RexEnvironmen
     environment
         .vars
         .insert("REZ_USED_PACKAGES_NAMES".to_string(), resolved);
+    if let Some(path) = rxt_path {
+        environment.vars.insert(
+            "REZ_RXT_FILE".to_string(),
+            path.to_string_lossy().into_owned(),
+        );
+    }
     Ok(environment)
 }
 
@@ -414,7 +430,7 @@ fn print_context_summary(context: &ResolvedContext, action: &str) {
 
 /// Print environment variables
 fn print_environment(context: &ResolvedContext, args: &EnvArgs) -> RezCoreResult<()> {
-    let environment = context_environment(context)?;
+    let environment = context_environment(context, None)?;
     let env_vars = &environment.vars;
 
     match args.format.as_deref() {
@@ -440,7 +456,7 @@ fn print_environment(context: &ResolvedContext, args: &EnvArgs) -> RezCoreResult
 
 /// Print shell activation script for the resolved environment
 fn print_shell_script(context: &ResolvedContext, args: &EnvArgs) -> RezCoreResult<()> {
-    let environment = context_environment(context)?;
+    let environment = context_environment(context, None)?;
 
     // Determine shell type
     let shell_str =
@@ -462,17 +478,58 @@ fn print_shell_script(context: &ResolvedContext, args: &EnvArgs) -> RezCoreResul
     Ok(())
 }
 
+fn create_activation_script(
+    environment: &mut RexEnvironment,
+    shell_type: &RexShellType,
+    trailing_command: Option<&str>,
+) -> RezCoreResult<(tempfile::TempDir, PathBuf)> {
+    let directory = tempfile::tempdir().map_err(RezCoreError::Io)?;
+    let filename = match shell_type {
+        RexShellType::Bash => "rez-env.sh",
+        RexShellType::Zsh => ".zshrc",
+        RexShellType::Fish => "rez-env.fish",
+        RexShellType::Cmd => "rez-env.cmd",
+        RexShellType::PowerShell => "rez-env.ps1",
+    };
+    let path = directory.path().join(filename);
+    environment.vars.insert(
+        "REZ_CONTEXT_FILE".to_string(),
+        path.to_string_lossy().into_owned(),
+    );
+    let mut script = generate_shell_script(environment, shell_type);
+    if let Some(command) = trailing_command {
+        script.push_str(if matches!(shell_type, RexShellType::Cmd) {
+            "\r\n"
+        } else {
+            "\n"
+        });
+        script.push_str(command);
+    }
+    std::fs::write(&path, script).map_err(RezCoreError::Io)?;
+    Ok((directory, path))
+}
+
+fn remove_temporary_context(environment: &RexEnvironment) {
+    if let Some(path) = environment.vars.get("REZ_RXT_FILE") {
+        let _ = std::fs::remove_file(path);
+    }
+}
+
 /// Execute command or spawn shell in the resolved context
-fn execute_in_context(context: &ResolvedContext, args: &EnvArgs) -> RezCoreResult<()> {
+fn execute_in_context(
+    context: &ResolvedContext,
+    args: &EnvArgs,
+    rxt_path: &std::path::Path,
+) -> RezCoreResult<()> {
     if let Some(command) = &args.command {
         // Execute specific command from -c option
-        execute_command_in_context(context, command, args)
+        execute_command_in_context(context, command, args, rxt_path)
     } else if !args.extra_args.is_empty() {
         // Execute command from extra args (after '--')
-        execute_extra_args_in_context(context, &args.extra_args, args)
+        execute_extra_args_in_context(context, &args.extra_args, args, rxt_path)
     } else {
         // Spawn interactive shell
-        spawn_shell_in_context(context, args)
+        spawn_shell_in_context(context, args, rxt_path)
     }
 }
 
@@ -481,9 +538,18 @@ fn execute_command_in_context(
     context: &ResolvedContext,
     command: &str,
     args: &EnvArgs,
+    rxt_path: &std::path::Path,
 ) -> RezCoreResult<()> {
-    let environment = context_environment(context)?;
+    let environment = context_environment(context, Some(rxt_path))?;
+    execute_shell_command_in_environment(context, command, args, environment)
+}
 
+fn execute_shell_command_in_environment(
+    context: &ResolvedContext,
+    command: &str,
+    args: &EnvArgs,
+    mut environment: RexEnvironment,
+) -> RezCoreResult<()> {
     if !args.quiet {
         print_context_summary(
             context,
@@ -491,16 +557,28 @@ fn execute_command_in_context(
         );
     }
 
-    // Create command with resolved environment
-    let mut cmd = if cfg!(target_os = "windows") {
-        let mut cmd = Command::new("cmd");
-        cmd.args(["/C", command]);
-        cmd
-    } else {
-        let mut cmd = Command::new("sh");
-        cmd.args(["-c", command]);
-        cmd
-    };
+    let shell = args
+        .shell
+        .as_deref()
+        .unwrap_or(if cfg!(windows) { "cmd" } else { "bash" });
+    let shell_type = shell
+        .parse::<RexShellType>()
+        .map_err(RezCoreError::ExecutionError)?;
+    let (activation_directory, activation_script) =
+        create_activation_script(&mut environment, &shell_type, Some(command))?;
+
+    let mut cmd = Command::new(shell);
+    match shell_type {
+        RexShellType::Cmd => {
+            cmd.args(["/D", "/S", "/C"]).arg(&activation_script);
+        }
+        RexShellType::PowerShell => {
+            cmd.args(["-NoProfile", "-File"]).arg(&activation_script);
+        }
+        _ => {
+            cmd.arg(&activation_script);
+        }
+    }
 
     cmd.envs(&environment.vars);
 
@@ -508,6 +586,8 @@ fn execute_command_in_context(
     let status = cmd
         .status()
         .map_err(|e| RezCoreError::ExecutionError(format!("Failed to execute command: {}", e)))?;
+    drop(activation_directory);
+    remove_temporary_context(&environment);
 
     std::process::exit(status.code().unwrap_or(1));
 }
@@ -517,6 +597,7 @@ fn execute_extra_args_in_context(
     context: &ResolvedContext,
     extra_args: &[String],
     args: &EnvArgs,
+    rxt_path: &std::path::Path,
 ) -> RezCoreResult<()> {
     if extra_args.is_empty() {
         return Err(RezCoreError::ExecutionError(
@@ -524,45 +605,17 @@ fn execute_extra_args_in_context(
         ));
     }
 
-    let environment = context_environment(context)?;
-
-    if !args.quiet {
-        print_context_summary(
-            context,
-            &format!(
-                "Executing command in rez environment: {}",
-                extra_args.join(" ")
-            ),
-        );
-    }
-
-    // Create command with resolved environment
-    let mut cmd = if let Some(alias) = environment.aliases.get(&extra_args[0]) {
-        shell_command(&expand_alias(alias, &extra_args[1..]))
+    let environment = context_environment(context, Some(rxt_path))?;
+    let command = if let Some(alias) = environment.aliases.get(&extra_args[0]) {
+        expand_alias(alias, &extra_args[1..])
     } else {
-        let mut cmd = Command::new(&extra_args[0]);
-        if extra_args.len() > 1 {
-            cmd.args(&extra_args[1..]);
-        }
-        cmd
+        extra_args
+            .iter()
+            .map(|argument| quote_shell_argument(argument))
+            .collect::<Vec<_>>()
+            .join(" ")
     };
-
-    cmd.envs(&environment.vars);
-
-    // Set up stdio
-    cmd.stdin(Stdio::inherit())
-        .stdout(Stdio::inherit())
-        .stderr(Stdio::inherit());
-
-    // Execute the command
-    let status = cmd.status().map_err(|e| {
-        RezCoreError::ExecutionError(format!(
-            "Failed to execute command '{}': {}",
-            extra_args[0], e
-        ))
-    })?;
-
-    std::process::exit(status.code().unwrap_or(1));
+    execute_shell_command_in_environment(context, &command, args, environment)
 }
 
 fn expand_alias(alias: &str, arguments: &[String]) -> String {
@@ -597,24 +650,15 @@ fn quote_shell_argument(argument: &str) -> String {
     }
 }
 
-fn shell_command(command: &str) -> Command {
-    if cfg!(windows) {
-        let mut process = Command::new("cmd");
-        process.args(["/D", "/S", "/C", command]);
-        process
-    } else {
-        let mut process = Command::new("sh");
-        process.args(["-c", command]);
-        process
-    }
-}
-
 /// Spawn an interactive shell in the resolved context
-fn spawn_shell_in_context(context: &ResolvedContext, args: &EnvArgs) -> RezCoreResult<()> {
-    let environment = context_environment(context)?;
-
+fn spawn_shell_in_context(
+    context: &ResolvedContext,
+    args: &EnvArgs,
+    rxt_path: &std::path::Path,
+) -> RezCoreResult<()> {
+    let mut environment = context_environment(context, Some(rxt_path))?;
     if !args.quiet {
-        print_context_summary(context, "Starting shell with rez environment...");
+        print_context_summary(context, "You are now in a rez-configured environment.");
     }
 
     // Determine shell executable
@@ -623,15 +667,34 @@ fn spawn_shell_in_context(context: &ResolvedContext, args: &EnvArgs) -> RezCoreR
     } else {
         args.shell.as_deref().unwrap_or("bash")
     };
+    let shell_type = shell_exe
+        .parse::<RexShellType>()
+        .map_err(RezCoreError::ExecutionError)?;
+    let (activation_directory, activation_script) =
+        create_activation_script(&mut environment, &shell_type, None)?;
 
     // Create shell command
     let mut cmd = Command::new(shell_exe);
 
-    // Add interactive flags for common shells
-    if shell_exe == "bash" || shell_exe == "zsh" {
-        cmd.arg("-i");
-    } else if shell_exe == "powershell" || shell_exe == "pwsh" {
-        cmd.arg("-NoExit");
+    match shell_type {
+        RexShellType::Cmd => {
+            cmd.args(["/D", "/K"]).arg(&activation_script);
+        }
+        RexShellType::PowerShell => {
+            cmd.args(["-NoExit", "-File"]).arg(&activation_script);
+        }
+        RexShellType::Bash => {
+            cmd.arg("--rcfile").arg(&activation_script).arg("-i");
+        }
+        RexShellType::Zsh => {
+            cmd.arg("-i");
+            cmd.env("ZDOTDIR", activation_directory.path());
+        }
+        RexShellType::Fish => {
+            cmd.arg("-C")
+                .arg(format!("source '{}'", activation_script.display()))
+                .arg("-i");
+        }
     }
 
     cmd.envs(&environment.vars);
@@ -645,6 +708,8 @@ fn spawn_shell_in_context(context: &ResolvedContext, args: &EnvArgs) -> RezCoreR
     let status = cmd
         .status()
         .map_err(|e| RezCoreError::ExecutionError(format!("Failed to start shell: {}", e)))?;
+    drop(activation_directory);
+    remove_temporary_context(&environment);
 
     std::process::exit(status.code().unwrap_or(0));
 }
@@ -775,7 +840,7 @@ mod tests {
         package.version = Some(rez_next_version::Version::parse("1.2.0").unwrap());
         context.resolved_packages.push(package);
 
-        let environment = context_environment(&context).unwrap();
+        let environment = context_environment(&context, None).unwrap();
 
         assert_eq!(
             environment.vars.get("REZ_USED_REQUEST"),

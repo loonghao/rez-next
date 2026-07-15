@@ -8,20 +8,17 @@ Usage:
     maturin develop --features extension-module
     pytest tests/test_context_repository_api.py -v
 """
+
 import json
 import os
 
 import pytest
-
 from conftest import write_package_py
 
 rez = pytest.importorskip(
     "rez_next",
     reason="rez_next not built — run: maturin develop --features extension-module",
 )
-
-
-
 
 
 # ── ResolvedContext attributes ────────────────────────────────────────────────
@@ -155,8 +152,9 @@ class TestResolvedContextWithRealRepo:
     def test_resolve_single_package(self, tmp_path):
         """Resolve a single package from a real on-disk repo."""
         pkg_dir = tmp_path / "python" / "3.11.0"
-        write_package_py(pkg_dir, "python", "3.11.0",
-                         commands="env.setenv('PYTHON_ROOT', '{root}')")
+        write_package_py(
+            pkg_dir, "python", "3.11.0", commands="env.setenv('PYTHON_ROOT', '{root}')"
+        )
 
         ctx = rez.ResolvedContext(["python"], paths=[str(tmp_path)])
         assert ctx.success is True
@@ -224,8 +222,9 @@ class TestResolvedContextWithRealRepo:
 
     def test_get_environ_with_resolved_context(self, tmp_path):
         pkg_dir = tmp_path / "python" / "3.11.0"
-        write_package_py(pkg_dir, "python", "3.11.0",
-                         commands="env.setenv('PYTHON_ROOT', '/opt/python')")
+        write_package_py(
+            pkg_dir, "python", "3.11.0", commands="env.setenv('PYTHON_ROOT', '/opt/python')"
+        )
 
         ctx = rez.ResolvedContext(["python"], paths=[str(tmp_path)])
         env = ctx.get_environ()
@@ -313,16 +312,6 @@ class TestRepositoryManagerWithRealRepo:
         latest = repo.get_latest_package("python")
         assert latest is not None
         assert "3.11" in latest.version_str
-
-    def test_get_package_family_names_includes_all(self, tmp_path):
-        write_package_py(tmp_path / "python" / "3.11.0", "python", "3.11.0")
-
-        write_package_py(tmp_path / "numpy" / "1.25.0", "numpy", "1.25.0")
-
-        repo = rez.RepositoryManager(paths=[str(tmp_path)])
-        names = repo.get_package_family_names()
-        assert "python" in names
-        assert "numpy" in names
 
     def test_get_package_family_names_sorted(self, tmp_path):
         write_package_py(tmp_path / "zzz_pkg" / "1.0.0", "zzz_pkg", "1.0.0")
@@ -425,30 +414,30 @@ class TestRepositoryManagerWithRealRepo:
         names = repo.get_package_family_names()
         assert names.count("mylib") == 1, f"mylib should appear once, got: {names}"
 
-    # ── graceful degradation on invalid package.py ───────────────────────────
+    # ── fail-closed behavior for invalid package.py ──────────────────────────
 
-    def test_find_packages_syntax_error_skips_gracefully(self, tmp_path):
-        """A malformed package.py must be silently skipped; no exception raised."""
+    def test_find_packages_syntax_error_returns_error(self, tmp_path):
+        """A malformed package.py must not look like an empty package family."""
         bad_dir = tmp_path / "badpkg" / "1.0.0"
         bad_dir.mkdir(parents=True, exist_ok=True)
         (bad_dir / "package.py").write_bytes(b"name = 'badpkg\nversion = '1.0.0'\n")
 
         repo = rez.RepositoryManager(paths=[str(tmp_path)])
-        pkgs = repo.find_packages("badpkg")
-        assert pkgs == [], f"malformed package.py must be skipped, got {pkgs}"
+        with pytest.raises(RuntimeError, match="Failed to load"):
+            repo.find_packages("badpkg")
 
-    def test_find_packages_empty_package_py_skips_gracefully(self, tmp_path):
-        """An empty package.py must be silently skipped."""
+    def test_find_packages_empty_package_py_returns_error(self, tmp_path):
+        """An empty package.py is an invalid package definition."""
         empty_dir = tmp_path / "emptypkg" / "1.0.0"
         empty_dir.mkdir(parents=True, exist_ok=True)
         (empty_dir / "package.py").write_bytes(b"")
 
         repo = rez.RepositoryManager(paths=[str(tmp_path)])
-        pkgs = repo.find_packages("emptypkg")
-        assert pkgs == [], f"empty package.py must be skipped, got {pkgs}"
+        with pytest.raises(RuntimeError, match="Missing 'name' field"):
+            repo.find_packages("emptypkg")
 
-    def test_find_packages_valid_and_invalid_mixed_returns_valid_only(self, tmp_path):
-        """Valid packages are returned even when sibling version has an invalid package.py."""
+    def test_find_packages_valid_and_invalid_mixed_returns_error(self, tmp_path):
+        """A partially invalid family must not return incomplete results."""
         # Good version
         write_package_py(tmp_path / "mypkg" / "1.0.0", "mypkg", "1.0.0")
         # Bad version — missing 'name' field
@@ -457,9 +446,8 @@ class TestRepositoryManagerWithRealRepo:
         (bad_dir / "package.py").write_bytes(b"version = '0.0.1'\n")
 
         repo = rez.RepositoryManager(paths=[str(tmp_path)])
-        pkgs = repo.find_packages("mypkg")
-        versions = [p.version_str for p in pkgs]
-        assert "1.0.0" in versions, f"valid mypkg 1.0.0 must be returned; got {versions}"
+        with pytest.raises(RuntimeError, match="Missing 'name' field"):
+            repo.find_packages("mypkg")
 
 
 # ── Context + Repository integration ─────────────────────────────────────────

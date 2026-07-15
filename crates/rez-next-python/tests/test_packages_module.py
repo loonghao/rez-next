@@ -1,14 +1,15 @@
 """Tests for rez_next.packages_ module - Cycle 290."""
 
-import sys
 import os
+import sys
 import tempfile
+
 import pytest
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import rez_next.packages_ as packages_
-from rez_next import Package, PackageFormat
+from rez_next import Package
 
 
 class TestLoadPackageFromFile:
@@ -24,10 +25,10 @@ version = "1.0.0"
 description = "A test package"
 requires = ["python-3.9"]
 """)
-        
+
         # Load the package
         pkg = packages_.load_package_from_file(str(pkg_file))
-        
+
         assert pkg is not None
         assert pkg.name == "test_package"
         assert str(pkg.version) == "1.0.0"
@@ -42,7 +43,7 @@ requires = ["python-3.9"]
         """Test loading an invalid package file."""
         pkg_file = tmp_path / "package.py"
         pkg_file.write_text("this is not a valid package file")
-        
+
         # Might raise an error or return None
         try:
             result = packages_.load_package_from_file(str(pkg_file))
@@ -60,10 +61,10 @@ class TestSavePackageToFile:
         pkg = Package("test_save")
         pkg.set_version("1.0.0")
         pkg.description = "Test save package"
-        
+
         output_file = tmp_path / "package.py"
         packages_.save_package_to_file(pkg, str(output_file))
-        
+
         assert output_file.exists()
         content = output_file.read_text()
         assert "name" in content
@@ -75,14 +76,14 @@ class TestSavePackageToFile:
         original = Package("roundtrip")
         original.set_version("2.0.0")
         original.description = "Roundtrip test"
-        
+
         # Save to file
         pkg_file = tmp_path / "package.py"
         packages_.save_package_to_file(original, str(pkg_file))
-        
+
         # Load back
         loaded = packages_.load_package_from_file(str(pkg_file))
-        
+
         assert loaded is not None
         assert loaded.name == original.name
         assert str(loaded.version) == str(original.version)
@@ -147,7 +148,7 @@ class TestRemovePackage:
 
 class TestWalkPackages:
     """Tests for walk_packages function."""
-    
+
     def test_function_exists(self):
         """Test that walk_packages function exists and is callable."""
         assert hasattr(packages_, "walk_packages")
@@ -172,7 +173,20 @@ class TestIterPackageFamilies:
         result = packages_.iter_package_families()
         if len(result) > 0:
             from rez_next._native import PackageFamily
+
             assert isinstance(result[0], PackageFamily)
+
+
+class TestUnsupportedVariantUriLookup:
+    """Variant URI lookup must not disguise an unsupported operation as a miss."""
+
+    def test_get_variant_from_uri_fails_closed(self):
+        with pytest.raises(NotImplementedError, match="variant URI lookup"):
+            packages_.get_variant_from_uri("/packages/tool/1.0.0/package.py[0]")
+
+    def test_get_variant_fails_closed(self):
+        with pytest.raises(NotImplementedError, match="variant URI lookup"):
+            packages_.get_variant("/packages/tool/1.0.0/package.py", 0)
 
 
 class TestCreatePackage:
@@ -200,33 +214,21 @@ class TestCreatePackage:
 
     def test_create_package_with_description(self):
         """Test creating a package with description."""
-        data = {
-            "name": "my_package",
-            "version": "2.0.0",
-            "description": "A test package"
-        }
+        data = {"name": "my_package", "version": "2.0.0", "description": "A test package"}
         pkg = packages_.create_package(data)
         assert pkg.name == "my_package"
         assert pkg.description == "A test package"
 
     def test_create_package_with_requires(self):
         """Test creating a package with requirements."""
-        data = {
-            "name": "my_package",
-            "version": "1.0.0",
-            "requires": ["python-3.9", "maya-2024"]
-        }
+        data = {"name": "my_package", "version": "1.0.0", "requires": ["python-3.9", "maya-2024"]}
         pkg = packages_.create_package(data)
         assert len(pkg.requires) == 2
         assert "python-3.9" in pkg.requires
 
     def test_create_package_with_tools(self):
         """Test creating a package with tools."""
-        data = {
-            "name": "my_tool_package",
-            "version": "1.0.0",
-            "tools": ["my_tool", "another_tool"]
-        }
+        data = {"name": "my_tool_package", "version": "1.0.0", "tools": ["my_tool", "another_tool"]}
         pkg = packages_.create_package(data)
         assert len(pkg.tools) == 2
         assert "my_tool" in pkg.tools
@@ -236,10 +238,7 @@ class TestCreatePackage:
         data = {
             "name": "my_variant_package",
             "version": "1.0.0",
-            "variants": [
-                ["python-3.9"],
-                ["python-3.10"]
-            ]
+            "variants": [["python-3.9"], ["python-3.10"]],
         }
         pkg = packages_.create_package(data)
         assert len(pkg.variants) == 2
@@ -261,7 +260,7 @@ class TestCreatePackage:
             "requires": ["python-3.11"],
             "build_requires": ["cmake-3.20"],
             "tools": ["full_tool"],
-            "uuid": "12345678-1234-1234-1234-123456789012"
+            "uuid": "12345678-1234-1234-1234-123456789012",
         }
         pkg = packages_.create_package(data)
         assert pkg.name == "full_package"
@@ -467,7 +466,7 @@ description = "A developer package"
         assert pkg.name == "dev_package"
         assert str(pkg.version) == "1.0.0"
         assert pkg.description == "A developer package"
-        assert pkg.is_dev_package == True
+        assert pkg.is_dev_package
 
     def test_rejects_package_yaml(self, tmp_path):
         """YAML package definitions are intentionally unsupported."""
@@ -483,7 +482,6 @@ description: "A package from yaml"
 
     def test_not_a_directory(self):
         """Test with a file path instead of directory."""
-        import tempfile
         with tempfile.NamedTemporaryFile() as tmp:
             try:
                 packages_.get_developer_package(tmp.name)
@@ -516,6 +514,7 @@ class TestGetLastReleaseTime:
     def test_returns_datetime_or_none(self):
         """Test that it returns a datetime object or None."""
         import datetime
+
         result = packages_.get_last_release_time("python")
 
         if result is not None:

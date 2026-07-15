@@ -186,7 +186,7 @@ pub fn get_reverse_dependency_tree(
     let mut current_layer: Vec<String> = vec![package_name.to_string()];
     let mut current_depth = 0;
 
-    while !current_layer.is_empty() && depth.map_or(true, |d| current_depth < d) {
+    while !current_layer.is_empty() && depth.is_none_or(|d| current_depth < d) {
         let mut next_layer = Vec::new();
 
         for pkg_name in &current_layer {

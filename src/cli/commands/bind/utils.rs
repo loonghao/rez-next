@@ -84,13 +84,13 @@ pub fn find_close_matches<'a>(
 /// Locate an executable on `PATH` using `which` (Unix) or `where` (Windows).
 pub fn which_executable(cmd: &str) -> Option<PathBuf> {
     let which_cmd = if cfg!(windows) { "where" } else { "which" };
-    if let Ok(output) = Command::new(which_cmd).arg(cmd).output() {
-        if output.status.success() {
-            let path_str = String::from_utf8_lossy(&output.stdout);
-            let first_line = path_str.lines().next().unwrap_or("").trim();
-            if !first_line.is_empty() {
-                return Some(PathBuf::from(first_line));
-            }
+    if let Ok(output) = Command::new(which_cmd).arg(cmd).output()
+        && output.status.success()
+    {
+        let path_str = String::from_utf8_lossy(&output.stdout);
+        let first_line = path_str.lines().next().unwrap_or("").trim();
+        if !first_line.is_empty() {
+            return Some(PathBuf::from(first_line));
         }
     }
     None

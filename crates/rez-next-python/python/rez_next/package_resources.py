@@ -11,9 +11,6 @@ API Reference: rez.package_resources
 """
 
 import rez_next._native  # noqa: F401
-
-from typing import Any, Dict, List, Optional
-
 from rez_next._native.package_resources import (  # noqa: F401
     PackageFamilyResource,
     PackageResource,

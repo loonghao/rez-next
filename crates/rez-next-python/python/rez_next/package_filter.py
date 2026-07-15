@@ -12,16 +12,15 @@ API Reference: rez.package_filter
   - TimestampRule: match packages before/after a timestamp
 """
 
-import rez_next._native  # noqa: F401
-
-import re as _re
 import fnmatch as _fnmatch
-from typing import Any, Dict, List, Optional, Tuple
+import re as _re
+from typing import Any, Dict, Optional, Tuple
 
+import rez_next._native  # noqa: F401
 from rez_next._native.package_filter import PackageFilter  # noqa: F401
 
-
 # ── Rule base class ─────────────────────────────────────────────────────────
+
 
 class Rule:
     """Base class for filter rules.
@@ -55,6 +54,7 @@ class Rule:
 
 
 # ── GlobRule ────────────────────────────────────────────────────────────────
+
 
 class GlobRule(Rule):
     """A rule that matches packages using glob patterns.
@@ -106,6 +106,7 @@ class GlobRule(Rule):
 
 # ── RegexRule ───────────────────────────────────────────────────────────────
 
+
 class RegexRule(Rule):
     """A rule that matches packages using regular expressions.
 
@@ -156,6 +157,7 @@ class RegexRule(Rule):
 
 # ── RangeRule ───────────────────────────────────────────────────────────────
 
+
 class RangeRule(Rule):
     """A rule that matches packages by version range.
 
@@ -173,6 +175,7 @@ class RangeRule(Rule):
         self._family = family
         # Parse version range from string
         from rez_next.version import VersionRange
+
         self._range = VersionRange(range_str)
 
     @property
@@ -192,6 +195,7 @@ class RangeRule(Rule):
         if not version_str:
             return False
         from rez_next.version import Version
+
         try:
             version = Version(str(version_str))
             return self._range.contains(version)
@@ -206,6 +210,7 @@ class RangeRule(Rule):
 
 
 # ── TimestampRule ───────────────────────────────────────────────────────────
+
 
 class TimestampRule(Rule):
     """A rule that matches packages based on timestamp (before/after).
@@ -222,7 +227,9 @@ class TimestampRule(Rule):
 
     def __init__(self, operation: str, timestamp: int, family: Optional[str] = None):
         if operation not in ("before", "after"):
-            raise ValueError(f"TimestampRule operation must be 'before' or 'after', got '{operation}'")
+            raise ValueError(
+                f"TimestampRule operation must be 'before' or 'after', got '{operation}'"
+            )
         self._operation = operation
         self._timestamp = timestamp
         self._family = family
@@ -268,6 +275,7 @@ class TimestampRule(Rule):
 
 
 # ── Convenience functions ──────────────────────────────────────────────────
+
 
 def parse_filter_string(text: str) -> PackageFilter:
     """Parse a filter string into a PackageFilter.

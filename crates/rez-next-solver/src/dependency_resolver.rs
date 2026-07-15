@@ -461,6 +461,12 @@ impl DependencyResolver {
         // Determine which variant to use (if package has variants)
         let variant_index = self.select_variant(candidate, state);
         state.variants_evaluated += candidate.variants.len().max(1);
+        if !candidate.variants.is_empty() && variant_index.is_none() {
+            return Err(RezCoreError::Solver(format!(
+                "No compatible variant for package {}",
+                candidate.name
+            )));
+        }
 
         // Get the effective requires list (base + variant-specific)
         let effective_requires = self.get_effective_requires(candidate, variant_index);
@@ -625,13 +631,13 @@ impl DependencyResolver {
     ) -> Vec<String> {
         let mut requires = package.requires.clone();
 
-        if let Some(idx) = variant_index {
-            if let Some(variant_reqs) = package.variants.get(idx) {
-                // Variant requires are appended to base requires
-                for vreq in variant_reqs {
-                    if !requires.contains(vreq) {
-                        requires.push(vreq.clone());
-                    }
+        if let Some(idx) = variant_index
+            && let Some(variant_reqs) = package.variants.get(idx)
+        {
+            // Variant requires are appended to base requires
+            for vreq in variant_reqs {
+                if !requires.contains(vreq) {
+                    requires.push(vreq.clone());
                 }
             }
         }

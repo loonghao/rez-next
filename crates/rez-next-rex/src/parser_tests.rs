@@ -456,3 +456,24 @@ comment('function-style comment')
         );
     }
 }
+
+#[test]
+fn test_unknown_rex_statement_is_rejected() {
+    let parser = RexParser::new();
+    let error = parser
+        .parse("env.PATH.extend('/unsupported')")
+        .expect_err("unknown Rex statements must not be silently ignored");
+
+    assert!(
+        error.to_string().contains("Unsupported Rex statement"),
+        "unexpected error: {error}"
+    );
+}
+
+#[test]
+fn test_rex_statement_must_match_the_whole_line() {
+    let parser = RexParser::new();
+    parser
+        .parse("python env.setenv('INJECTED', 'value')")
+        .expect_err("embedded Rex fragments must not be accepted");
+}

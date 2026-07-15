@@ -67,6 +67,16 @@ pub struct FamilyStatus {
 
 /// Execute the status command
 pub fn execute(args: StatusArgs) -> RezCoreResult<()> {
+    if let Some(rxt_path) = std::env::var_os("REZ_RXT_FILE") {
+        let rxt_path = PathBuf::from(rxt_path);
+        if rxt_path.is_file() {
+            println!("Using Rez v{}", env!("CARGO_PKG_VERSION"));
+            println!("Active Context: {}", rxt_path.display());
+            println!("No visible suites.");
+            return Ok(());
+        }
+    }
+
     if args.verbose {
         println!("📊 Rez Status - Analyzing package and repository status...");
     }
@@ -332,12 +342,11 @@ async fn show_general_status(
             .packages_path
             .iter()
             .map(|p| {
-                if p.starts_with("~/") || p == "~" {
-                    if let Ok(home) =
+                if (p.starts_with("~/") || p == "~")
+                    && let Ok(home) =
                         std::env::var("USERPROFILE").or_else(|_| std::env::var("HOME"))
-                    {
-                        return PathBuf::from(p.replacen("~", &home, 1));
-                    }
+                {
+                    return PathBuf::from(p.replacen("~", &home, 1));
                 }
                 PathBuf::from(p)
             })

@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "rez-next"
-version = "0.3.0"  # x-release-please-version
+version = "0.3.4"  # x-release-please-version
 description = "High-performance Rust package manager with Rez-compatible workflows"
 readme = "README.md"
 license = { text = "Apache-2.0" }
@@ -45,7 +45,7 @@ exclude = ["**/__pycache__/**", "**/*.pyc", "**/*.pyo", "**/*.pdb"]
 strip = false
 
 [project.optional-dependencies]
-test = ["pytest", "pytest-benchmark"]
+test = ["maturin>=1.0,<2.0", "pytest", "pytest-benchmark"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

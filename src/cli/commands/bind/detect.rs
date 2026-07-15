@@ -45,17 +45,17 @@ fn detect_python() -> Option<DetectedTool> {
     };
 
     for cmd in candidates {
-        if let Ok(output) = Command::new(cmd).args(["--version"]).output() {
-            if output.status.success() {
-                let version_output = String::from_utf8_lossy(&output.stdout).to_string()
-                    + &String::from_utf8_lossy(&output.stderr);
-                if let Some(ver) = extract_version_from_output(&version_output, "Python") {
-                    return Some(DetectedTool {
-                        version: ver,
-                        executable_path: which_executable(cmd),
-                        metadata: HashMap::new(),
-                    });
-                }
+        if let Ok(output) = Command::new(cmd).args(["--version"]).output()
+            && output.status.success()
+        {
+            let version_output = String::from_utf8_lossy(&output.stdout).to_string()
+                + &String::from_utf8_lossy(&output.stderr);
+            if let Some(ver) = extract_version_from_output(&version_output, "Python") {
+                return Some(DetectedTool {
+                    version: ver,
+                    executable_path: which_executable(cmd),
+                    metadata: HashMap::new(),
+                });
             }
         }
     }
@@ -70,16 +70,16 @@ fn detect_pip() -> Option<DetectedTool> {
     };
 
     for cmd in candidates {
-        if let Ok(output) = Command::new(cmd).args(["--version"]).output() {
-            if output.status.success() {
-                let version_output = String::from_utf8_lossy(&output.stdout).to_string();
-                if let Some(ver) = extract_version_from_output(&version_output, "pip") {
-                    return Some(DetectedTool {
-                        version: ver,
-                        executable_path: which_executable(cmd),
-                        metadata: HashMap::new(),
-                    });
-                }
+        if let Ok(output) = Command::new(cmd).args(["--version"]).output()
+            && output.status.success()
+        {
+            let version_output = String::from_utf8_lossy(&output.stdout).to_string();
+            if let Some(ver) = extract_version_from_output(&version_output, "pip") {
+                return Some(DetectedTool {
+                    version: ver,
+                    executable_path: which_executable(cmd),
+                    metadata: HashMap::new(),
+                });
             }
         }
     }
@@ -87,65 +87,65 @@ fn detect_pip() -> Option<DetectedTool> {
 }
 
 fn detect_cmake() -> Option<DetectedTool> {
-    if let Ok(output) = Command::new("cmake").args(["--version"]).output() {
-        if output.status.success() {
-            let version_output = String::from_utf8_lossy(&output.stdout).to_string();
-            if let Some(ver) = extract_version_from_output(&version_output, "cmake version") {
-                return Some(DetectedTool {
-                    version: ver,
-                    executable_path: which_executable("cmake"),
-                    metadata: HashMap::new(),
-                });
-            }
+    if let Ok(output) = Command::new("cmake").args(["--version"]).output()
+        && output.status.success()
+    {
+        let version_output = String::from_utf8_lossy(&output.stdout).to_string();
+        if let Some(ver) = extract_version_from_output(&version_output, "cmake version") {
+            return Some(DetectedTool {
+                version: ver,
+                executable_path: which_executable("cmake"),
+                metadata: HashMap::new(),
+            });
         }
     }
     None
 }
 
 fn detect_git() -> Option<DetectedTool> {
-    if let Ok(output) = Command::new("git").args(["--version"]).output() {
-        if output.status.success() {
-            let version_output = String::from_utf8_lossy(&output.stdout).to_string();
-            if let Some(ver) = extract_version_from_output(&version_output, "git version") {
-                return Some(DetectedTool {
-                    version: ver,
-                    executable_path: which_executable("git"),
-                    metadata: HashMap::new(),
-                });
-            }
+    if let Ok(output) = Command::new("git").args(["--version"]).output()
+        && output.status.success()
+    {
+        let version_output = String::from_utf8_lossy(&output.stdout).to_string();
+        if let Some(ver) = extract_version_from_output(&version_output, "git version") {
+            return Some(DetectedTool {
+                version: ver,
+                executable_path: which_executable("git"),
+                metadata: HashMap::new(),
+            });
         }
     }
     None
 }
 
 fn detect_gcc() -> Option<DetectedTool> {
-    if let Ok(output) = Command::new("gcc").args(["--version"]).output() {
-        if output.status.success() {
-            let version_output = String::from_utf8_lossy(&output.stdout).to_string();
-            let first_line = version_output.lines().next().unwrap_or("");
-            if let Some(ver) = parse_version_from_string(first_line) {
-                return Some(DetectedTool {
-                    version: ver,
-                    executable_path: which_executable("gcc"),
-                    metadata: HashMap::new(),
-                });
-            }
+    if let Ok(output) = Command::new("gcc").args(["--version"]).output()
+        && output.status.success()
+    {
+        let version_output = String::from_utf8_lossy(&output.stdout).to_string();
+        let first_line = version_output.lines().next().unwrap_or("");
+        if let Some(ver) = parse_version_from_string(first_line) {
+            return Some(DetectedTool {
+                version: ver,
+                executable_path: which_executable("gcc"),
+                metadata: HashMap::new(),
+            });
         }
     }
     None
 }
 
 fn detect_clang() -> Option<DetectedTool> {
-    if let Ok(output) = Command::new("clang").args(["--version"]).output() {
-        if output.status.success() {
-            let version_output = String::from_utf8_lossy(&output.stdout).to_string();
-            if let Some(ver) = extract_version_from_output(&version_output, "clang version") {
-                return Some(DetectedTool {
-                    version: ver,
-                    executable_path: which_executable("clang"),
-                    metadata: HashMap::new(),
-                });
-            }
+    if let Ok(output) = Command::new("clang").args(["--version"]).output()
+        && output.status.success()
+    {
+        let version_output = String::from_utf8_lossy(&output.stdout).to_string();
+        if let Some(ver) = extract_version_from_output(&version_output, "clang version") {
+            return Some(DetectedTool {
+                version: ver,
+                executable_path: which_executable("clang"),
+                metadata: HashMap::new(),
+            });
         }
     }
     None
@@ -154,16 +154,16 @@ fn detect_clang() -> Option<DetectedTool> {
 fn detect_setuptools() -> Option<DetectedTool> {
     let script = "import setuptools; print(setuptools.__version__)";
     let cmd = if cfg!(windows) { "python" } else { "python3" };
-    if let Ok(output) = Command::new(cmd).args(["-c", script]).output() {
-        if output.status.success() {
-            let ver = String::from_utf8_lossy(&output.stdout).trim().to_string();
-            if !ver.is_empty() {
-                return Some(DetectedTool {
-                    version: ver,
-                    executable_path: which_executable(cmd),
-                    metadata: HashMap::new(),
-                });
-            }
+    if let Ok(output) = Command::new(cmd).args(["-c", script]).output()
+        && output.status.success()
+    {
+        let ver = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        if !ver.is_empty() {
+            return Some(DetectedTool {
+                version: ver,
+                executable_path: which_executable(cmd),
+                metadata: HashMap::new(),
+            });
         }
     }
     None

@@ -1,14 +1,15 @@
 [package]
 name = "rez-next-util"
-version = "0.1.0"
-edition = "2024"
-rust-version = "1.95.0"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
 description = "Utility functions for rez-next"
-authors = ["rez-next contributors"]
-license = "Apache-2.0"
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
 
 [dependencies]
-rez-next-common = { path = "../rez-next-common" }
+rez-next-common = { version = "0.3.4", path = "../rez-next-common" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 chrono = "0.4"

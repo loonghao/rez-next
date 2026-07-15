@@ -7,7 +7,7 @@ from __future__ import annotations
 
 def main() -> None:
     """Print basic information about rez_next."""
-    from rez_next import __version__, __author__, __license__
+    from rez_next import __author__, __license__, __version__
 
     print(f"rez_next version {__version__}")
     print(f"Author: {__author__}")

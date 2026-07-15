@@ -280,6 +280,16 @@ fn extract_zip(artifact: &Path, destination: &Path) -> Result<(), RezCoreError> 
             std::io::copy(&mut entry, &mut out).map_err(|err| {
                 RezCoreError::BuildError(format!("Failed to extract zip entry: {err}"))
             })?;
+            #[cfg(unix)]
+            if let Some(mode) = entry.unix_mode() {
+                use std::os::unix::fs::PermissionsExt;
+                fs::set_permissions(&target, fs::Permissions::from_mode(mode)).map_err(|err| {
+                    RezCoreError::BuildError(format!(
+                        "Failed to restore zip permissions for {}: {err}",
+                        target.display()
+                    ))
+                })?;
+            }
         }
     }
 
@@ -319,9 +329,7 @@ fn copy_tree_contents(source: &Path, destination: &Path) -> Result<(), RezCoreEr
                     RezCoreError::BuildError(format!("Failed to create parent directory: {err}"))
                 })?;
             }
-            fs::copy(&source_path, &destination_path).map_err(|err| {
-                RezCoreError::BuildError(format!("Failed to copy archive file: {err}"))
-            })?;
+            copy_file_preserving_permissions(&source_path, &destination_path)?;
         }
     }
     Ok(())
@@ -340,10 +348,62 @@ fn copy_dir_recursive(source: &Path, destination: &Path) -> Result<(), RezCoreEr
         if source_path.is_dir() {
             copy_dir_recursive(&source_path, &destination_path)?;
         } else {
-            fs::copy(&source_path, &destination_path).map_err(|err| {
-                RezCoreError::BuildError(format!("Failed to copy archive file: {err}"))
-            })?;
+            copy_file_preserving_permissions(&source_path, &destination_path)?;
         }
     }
     Ok(())
+}
+
+fn copy_file_preserving_permissions(source: &Path, destination: &Path) -> Result<(), RezCoreError> {
+    fs::copy(source, destination).map_err(|err| {
+        RezCoreError::BuildError(format!(
+            "Failed to copy archive file {}: {err}",
+            source.display()
+        ))
+    })?;
+    let permissions = fs::metadata(source)
+        .map_err(|err| {
+            RezCoreError::BuildError(format!(
+                "Failed to read archive file permissions for {}: {err}",
+                source.display()
+            ))
+        })?
+        .permissions();
+    fs::set_permissions(destination, permissions).map_err(|err| {
+        RezCoreError::BuildError(format!(
+            "Failed to preserve archive file permissions for {}: {err}",
+            destination.display()
+        ))
+    })
+}
+
+#[cfg(all(test, unix))]
+mod tests {
+    use super::{copy_tree_contents, extract_zip};
+    use std::io::Write;
+    use std::os::unix::fs::PermissionsExt;
+
+    #[test]
+    fn extract_zip_restores_unix_executable_permissions() {
+        let temp = tempfile::tempdir().unwrap();
+        let archive_path = temp.path().join("tools.zip");
+        let file = std::fs::File::create(&archive_path).unwrap();
+        let mut archive = zip::ZipWriter::new(file);
+        let options = zip::write::SimpleFileOptions::default().unix_permissions(0o755);
+        archive.start_file("bin/tool", options).unwrap();
+        archive.write_all(b"#!/bin/sh\nexit 0\n").unwrap();
+        archive.finish().unwrap();
+
+        let destination = temp.path().join("extract");
+        extract_zip(&archive_path, &destination).unwrap();
+
+        let install = temp.path().join("install");
+        copy_tree_contents(&destination, &install).unwrap();
+
+        let mode = std::fs::metadata(install.join("bin/tool"))
+            .unwrap()
+            .permissions()
+            .mode();
+        assert_ne!(mode & 0o111, 0, "installed tool must remain executable");
+    }
 }

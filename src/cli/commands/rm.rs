@@ -308,16 +308,13 @@ async fn remove_ignored_since(args: &RmArgs) -> RezCoreResult<()> {
                 found_path
             };
 
-            if !pkg_path.as_os_str().is_empty() {
-                if let Ok(metadata) = std::fs::metadata(&pkg_path) {
-                    if let Ok(modified) = metadata.modified() {
-                        if let Ok(dur) = modified.duration_since(std::time::UNIX_EPOCH) {
-                            if dur.as_secs() < cutoff_timestamp {
-                                removal_candidates.push(pkg);
-                            }
-                        }
-                    }
-                }
+            if !pkg_path.as_os_str().is_empty()
+                && let Ok(metadata) = std::fs::metadata(&pkg_path)
+                && let Ok(modified) = metadata.modified()
+                && let Ok(dur) = modified.duration_since(std::time::UNIX_EPOCH)
+                && dur.as_secs() < cutoff_timestamp
+            {
+                removal_candidates.push(pkg);
             }
         }
     }
@@ -416,9 +413,7 @@ async fn find_packages_to_remove(
     let result: Vec<Package> = packages
         .into_iter()
         .filter(|p| {
-            version_spec.map_or(true, |ver| {
-                p.version.as_ref().is_some_and(|v| v.as_str() == ver)
-            })
+            version_spec.is_none_or(|ver| p.version.as_ref().is_some_and(|v| v.as_str() == ver))
         })
         .map(|p| (*p).clone())
         .collect();
@@ -478,10 +473,11 @@ async fn remove_single_package(package: &Package, args: &RmArgs) -> RezCoreResul
     }
 
     std::fs::remove_dir_all(&pkg_path).map_err(|e| {
-        RezCoreError::Io(std::io::Error::new(
-            std::io::ErrorKind::Other,
-            format!("Failed to remove {}: {}", pkg_path.display(), e),
-        ))
+        RezCoreError::Io(std::io::Error::other(format!(
+            "Failed to remove {}: {}",
+            pkg_path.display(),
+            e
+        )))
     })?;
 
     let variants_removed = if args.all_variants {

@@ -8,7 +8,6 @@ that can be invoked from the command line.
 from __future__ import annotations
 
 import os
-from typing import Optional
 
 from rez_next._native.suite import Suite
 from rez_next.resolved_context import ResolvedContext
@@ -31,12 +30,12 @@ class Wrapper:
             filepath: Path to the wrapper executable (YAML file).
         """
         self._filepath = filepath
-        self._suite_path: Optional[str] = None
-        self._context_name: Optional[str] = None
-        self._context: Optional[ResolvedContext] = None
-        self._tool_name: Optional[str] = None
-        self._prefix_char: Optional[str] = None
-        self._suite_instance: Optional[Suite] = None
+        self._suite_path: str | None = None
+        self._context_name: str | None = None
+        self._context: ResolvedContext | None = None
+        self._tool_name: str | None = None
+        self._prefix_char: str | None = None
+        self._suite_instance: Suite | None = None
         self._parse_wrapper()
 
     def _parse_wrapper(self) -> None:
@@ -64,9 +63,7 @@ class Wrapper:
         if not suite_path:
             from rez_next.exceptions import RezSystemError
 
-            raise RezSystemError(
-                f"Wrapper '{self._filepath}' missing 'suite_path'"
-            )
+            raise RezSystemError(f"Wrapper '{self._filepath}' missing 'suite_path'")
 
         self._suite_path = suite_path
         self._context_name = data.get("context_name")
@@ -90,9 +87,7 @@ class Wrapper:
             except (OSError, Exception) as e:
                 from rez_next.exceptions import RezSystemError
 
-                raise RezSystemError(
-                    f"Failed to load suite from '{self._suite_path}': {e}"
-                ) from e
+                raise RezSystemError(f"Failed to load suite from '{self._suite_path}': {e}") from e
         return self._suite_instance
 
     @property
@@ -101,12 +96,12 @@ class Wrapper:
         return self._filepath
 
     @property
-    def tool_name(self) -> Optional[str]:
+    def tool_name(self) -> str | None:
         """Name of the tool wrapped by this wrapper."""
         return self._tool_name
 
     @property
-    def context_name(self) -> Optional[str]:
+    def context_name(self) -> str | None:
         """Name of the context in the suite."""
         return self._context_name
 
@@ -268,7 +263,7 @@ class Wrapper:
                 [str(p) for p in self._context.resolved_packages],
                 [str(p) for p in fresh.resolved_packages],
             )
-            print(f"Context staleness analysis:")
+            print("Context staleness analysis:")
             print(f"  Added packages:   {result.added_count}")
             print(f"  Removed packages: {result.removed_count}")
             print(f"  Changed packages: {result.changed_count}")

@@ -27,9 +27,10 @@ import sys as _sys
 from contextlib import contextmanager
 from functools import lru_cache
 from inspect import ismodule
-from typing import Any, TypeVar, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, TypeVar
 
-from .deprecations import warn as _deprecations_warn, RezDeprecationWarning
+from .deprecations import RezDeprecationWarning
+from .deprecations import warn as _deprecations_warn
 from .exceptions import ConfigurationError
 
 try:
@@ -53,12 +54,14 @@ T = TypeVar("T")
 #   (replaces rez.vendor.schema.Schema to avoid external deps)
 # ====================================================================
 
+
 class _SchemaError(ValueError):
     pass
 
 
-class _Schema(object):
+class _Schema:
     """Minimal replacement for schema.Schema."""
+
     def __init__(self, *validators):
         self._validators = validators
 
@@ -68,22 +71,24 @@ class _Schema(object):
         for v in self._validators:
             if isinstance(v, type):
                 if not isinstance(data, v):
-                    raise _SchemaError("Expected %s, got %s" % (v.__name__, type(data).__name__))
+                    raise _SchemaError(f"Expected {v.__name__}, got {type(data).__name__}")
             elif isinstance(v, (_Or, _And, _Schema, _Use)):
                 data = v.validate(data)
             elif callable(v):
                 if not v(data):
-                    raise _SchemaError("Validation failed for %r" % (data,))
+                    raise _SchemaError(f"Validation failed for {data!r}")
             else:
                 if data != v:
-                    raise _SchemaError("Expected %r, got %r" % (v, data))
+                    raise _SchemaError(f"Expected {v!r}, got {data!r}")
         return data
 
 
-class _Or(object):
+class _Or:
     """At least one alternative must match."""
+
     def __init__(self, *alternatives):
         self._alternatives = alternatives
+
     def validate(self, data):
         for alt in self._alternatives:
             try:
@@ -100,31 +105,33 @@ class _Or(object):
                         return data
             except (_SchemaError, TypeError, ValueError):
                 continue
-        raise _SchemaError("None matched for %r" % (data,))
+        raise _SchemaError(f"None matched for {data!r}")
 
 
-class _And(object):
+class _And:
     def __init__(self, *validator):
         self._validators = validator
+
     def validate(self, data):
         r = data
         for v in self._validators:
             if isinstance(v, type):
                 if not isinstance(r, v):
-                    raise _SchemaError("Expected %s, got %s" % (v.__name__, type(r).__name__))
+                    raise _SchemaError(f"Expected {v.__name__}, got {type(r).__name__}")
             elif isinstance(v, (_Or, _And, _Schema, _Use)):
                 r = v.validate(r)
             elif callable(v):
                 r = v(r)
             else:
                 if r != v:
-                    raise _SchemaError("Expected %r, got %r" % (v, r))
+                    raise _SchemaError(f"Expected {v!r}, got {r!r}")
         return r
 
 
-class _Use(object):
+class _Use:
     def __init__(self, func):
         self._func = func
+
     def validate(self, data):
         return self._func(data)
 
@@ -133,22 +140,24 @@ class _Use(object):
 #   Setting Hierarchy (lazy validators per config key)
 # ====================================================================
 
-class _Deprecation(object):
+
+class _Deprecation:
     def __init__(self, removed_in, extra=None):
         self._removed_in = removed_in
         self._extra = extra or ""
+
     def get_message(self, name, env_var=False):
         if self._removed_in:
-            p = ["config setting %r" % name]
+            p = [f"config setting {name!r}"]
             if env_var:
-                p.append("(via %s)" % env_var)
-            p.append("is deprecated, removed in %s." % self._removed_in)
+                p.append(f"(via {env_var})")
+            p.append(f"is deprecated, removed in {self._removed_in}.")
             p.append(self._extra)
             return " ".join(p).strip()
         return ""
 
 
-class Setting(object):
+class Setting:
     schema = _Schema(object)
 
     def __init__(self, config, key):
@@ -157,7 +166,7 @@ class Setting(object):
 
     @property
     def _env_var_name(self):
-        return "REZ_%s" % self.key.upper()
+        return f"REZ_{self.key.upper()}"
 
     def _parse_env_var(self, value):
         raise NotImplementedError
@@ -166,7 +175,10 @@ class Setting(object):
         if self.key in _deprecated_settings:
             _deprecations_warn(
                 _deprecated_settings[self.key].get_message(self.key, env_var=varname or False),
-                RezDeprecationWarning, pre_formatted=True, filename=varname or self.key)
+                RezDeprecationWarning,
+                pre_formatted=True,
+                filename=varname or self.key,
+            )
 
     def validate(self, data):
         try:
@@ -174,7 +186,7 @@ class Setting(object):
             data = self.schema.validate(data)
             data = expand_system_vars(data)
         except _SchemaError as e:
-            raise ConfigurationError("Misconfigured setting %r: %s" % (self.key, str(e)))
+            raise ConfigurationError(f"Misconfigured setting {self.key!r}: {str(e)}")
         return data
 
     def _validate(self, data):
@@ -190,13 +202,14 @@ class Setting(object):
             if v is not None:
                 self._warn_deprecated(varname=vn)
                 import json
+
                 try:
                     return json.loads(v)
                 except ValueError:
-                    raise ConfigurationError("Expected $%s to be JSON" % vn)
+                    raise ConfigurationError(f"Expected ${vn} to be JSON")
         if data is not None:
             return data
-        attr = "_get_%s" % self.key
+        attr = f"_get_{self.key}"
         if hasattr(self.config, attr):
             return getattr(self.config, attr)()
         return None
@@ -204,12 +217,16 @@ class Setting(object):
 
 class Str(Setting):
     schema = _Schema(str)
-    def _parse_env_var(self, v): return v
+
+    def _parse_env_var(self, v):
+        return v
 
 
 class Char(Setting):
     schema = _Schema(str, lambda x: len(x) == 1)
-    def _parse_env_var(self, v): return v
+
+    def _parse_env_var(self, v):
+        return v
 
 
 class OptionalStr(Str):
@@ -219,16 +236,20 @@ class OptionalStr(Str):
 class StrList(Setting):
     schema = _Schema(list, lambda x: all(isinstance(i, str) for i in x))
     sep = ","
+
     def _parse_env_var(self, v):
         return [x for x in v.replace(self.sep, " ").split() if x]
 
 
 class OptionalStrList(StrList):
-    schema = _Or(None, _And(_Use(lambda x: x or []), list, lambda x: all(isinstance(i, str) for i in x)))
+    schema = _Or(
+        None, _And(_Use(lambda x: x or []), list, lambda x: all(isinstance(i, str) for i in x))
+    )
 
 
 class PathList(StrList):
     sep = os.pathsep
+
     def _parse_env_var(self, v):
         return [x for x in v.split(self.sep) if x]
 
@@ -245,41 +266,56 @@ class PipInstallRemaps(Setting):
         result = []
         for remap in data:
             if not isinstance(remap, dict):
-                raise ConfigurationError("Expected dict, got %s" % type(remap).__name__)
+                raise ConfigurationError(f"Expected dict, got {type(remap).__name__}")
             for key in self.KEYS:
                 if key not in remap:
-                    raise ConfigurationError("Missing key %r" % key)
+                    raise ConfigurationError(f"Missing key {key!r}")
                 tokens = self.RE_TOKENS if key == "record_path" else self.TOKENS
                 remap[key] = remap[key].format(**tokens)
             result.append(remap)
         return result
-    def _parse_env_var(self, v): return v
+
+    def _parse_env_var(self, v):
+        return v
 
 
 class Int(Setting):
     schema = _Schema(int)
+
     def _parse_env_var(self, v):
-        try: return int(v)
-        except ValueError: raise ConfigurationError("Expected %s to be int" % self._env_var_name)
+        try:
+            return int(v)
+        except ValueError:
+            raise ConfigurationError(f"Expected {self._env_var_name} to be int")
 
 
 class Float(Setting):
     schema = _Schema(float)
+
     def _parse_env_var(self, v):
-        try: return float(v)
-        except ValueError: raise ConfigurationError("Expected %s to be float" % self._env_var_name)
+        try:
+            return float(v)
+        except ValueError:
+            raise ConfigurationError(f"Expected {self._env_var_name} to be float")
 
 
 class Bool(Setting):
     schema = _Schema(bool)
-    true_words = frozenset(["1","true","t","yes","y","on"])
-    false_words = frozenset(["0","false","f","no","n","off"])
+    true_words = frozenset(["1", "true", "t", "yes", "y", "on"])
+    false_words = frozenset(["0", "false", "f", "no", "n", "off"])
     all_words = true_words | false_words
+
     def _parse_env_var(self, v):
         v = v.lower()
-        if v in self.true_words: return True
-        if v in self.false_words: return False
-        raise ConfigurationError("Expected $%s to be one of: %s" % (self._env_var_name, ", ".join(sorted(self.all_words))))
+        if v in self.true_words:
+            return True
+        if v in self.false_words:
+            return False
+        raise ConfigurationError(
+            "Expected ${} to be one of: {}".format(
+                self._env_var_name, ", ".join(sorted(self.all_words))
+            )
+        )
 
 
 class OptionalBool(Bool):
@@ -290,22 +326,27 @@ class ForceOrBool(Bool):
     FORCE_STR = "force"
     schema = _Or("force", Bool.schema)
     all_words = Bool.all_words | frozenset(["force"])
+
     def _parse_env_var(self, v):
         return v if v == self.FORCE_STR else super()._parse_env_var(v)
 
 
 class Dict(Setting):
     schema = _Schema(dict)
+
     def _parse_env_var(self, v):
         items, r = v.split(","), {}
         for item in items:
             if ":" not in item:
-                raise ConfigurationError("Expected k1:v1,k2:v2: %s" % v)
+                raise ConfigurationError(f"Expected k1:v1,k2:v2: {v}")
             k, val = item.split(":", 1)
-            try: val = int(val)
+            try:
+                val = int(val)
             except ValueError:
-                try: val = float(val)
-                except ValueError: pass
+                try:
+                    val = float(val)
+                except ValueError:
+                    pass
             r[k] = val
         return r
 
@@ -316,7 +357,9 @@ class OptionalDict(Dict):
 
 class OptionalDictOrDictList(Setting):
     schema = _Or(None, _And(dict, _Use(lambda x: [x])), list)
-    def _parse_env_var(self, v): return v
+
+    def _parse_env_var(self, v):
+        return v
 
 
 class SuiteVisibility_(Str):
@@ -337,7 +380,9 @@ class ExecutableScriptMode_(Str):
 
 class OptionalStrOrFunction(Setting):
     schema = _Or(None, str, callable)
-    def _parse_env_var(self, v): return v
+
+    def _parse_env_var(self, v):
+        return v
 
 
 class PreprocessMode_(Str):
@@ -346,9 +391,12 @@ class PreprocessMode_(Str):
 
 class BuildThreadCount_(Setting):
     schema = _Schema(_Or(_And(int, lambda x: x > 0), "physical_cores", "logical_cores"))
+
     def _parse_env_var(self, v):
-        try: return int(v)
-        except ValueError: return v
+        try:
+            return int(v)
+        except ValueError:
+            return v
 
 
 # ============================================================================
@@ -867,146 +915,146 @@ gui_threads: bool = True
 # ====================================================================
 
 config_schema = {
-    "packages_path":                              PathList,
-    "plugin_path":                                PathList,
-    "bind_module_path":                           PathList,
-    "standard_system_paths":                      PathList,
-    "package_definition_build_python_paths":       PathList,
-    "platform_map":                               OptionalDict,
-    "default_relocatable_per_package":            OptionalDict,
-    "default_relocatable_per_repository":         OptionalDict,
-    "default_cachable_per_package":               OptionalDict,
-    "default_cachable_per_repository":            OptionalDict,
-    "default_cachable":                           OptionalBool,
-    "implicit_packages":                          StrList,
-    "parent_variables":                           StrList,
-    "resetting_variables":                        StrList,
-    "release_hooks":                              StrList,
-    "context_tracking_context_fields":            StrList,
-    "pathed_env_vars":                            StrList,
-    "prompt_release_message":                     Bool,
-    "critical_styles":                            OptionalStrList,
-    "error_styles":                               OptionalStrList,
-    "warning_styles":                             OptionalStrList,
-    "info_styles":                                OptionalStrList,
-    "debug_styles":                               OptionalStrList,
-    "heading_styles":                             OptionalStrList,
-    "local_styles":                               OptionalStrList,
-    "implicit_styles":                            OptionalStrList,
-    "ephemeral_styles":                           OptionalStrList,
-    "alias_styles":                               OptionalStrList,
-    "memcached_uri":                              OptionalStrList,
-    "pip_extra_args":                             OptionalStrList,
-    "pip_install_remaps":                         PipInstallRemaps,
-    "local_packages_path":                        Str,
-    "release_packages_path":                      Str,
-    "dot_image_format":                           Str,
-    "build_directory":                            Str,
-    "default_build_process":                      Str,
-    "documentation_url":                          Str,
-    "suite_visibility":                           SuiteVisibility_,
-    "rez_tools_visibility":                       RezToolsVisibility_,
-    "create_executable_script_mode":              ExecutableScriptMode_,
-    "suite_alias_prefix_char":                    Char,
-    "cache_packages_path":                        OptionalStr,
-    "package_definition_python_path":             OptionalStr,
-    "tmpdir":                                     OptionalStr,
-    "context_tmpdir":                             OptionalStr,
-    "default_shell":                              OptionalStr,
-    "terminal_emulator_command":                  OptionalStr,
-    "editor":                                     OptionalStr,
-    "image_viewer":                               OptionalStr,
-    "difftool":                                   OptionalStr,
-    "browser":                                    OptionalStr,
-    "critical_fore":                              OptionalStr,
-    "critical_back":                              OptionalStr,
-    "error_fore":                                 OptionalStr,
-    "error_back":                                 OptionalStr,
-    "warning_fore":                               OptionalStr,
-    "warning_back":                               OptionalStr,
-    "info_fore":                                  OptionalStr,
-    "info_back":                                  OptionalStr,
-    "debug_fore":                                 OptionalStr,
-    "debug_back":                                 OptionalStr,
-    "heading_fore":                               OptionalStr,
-    "heading_back":                               OptionalStr,
-    "local_fore":                                 OptionalStr,
-    "local_back":                                 OptionalStr,
-    "implicit_fore":                              OptionalStr,
-    "implicit_back":                              OptionalStr,
-    "ephemeral_fore":                             OptionalStr,
-    "ephemeral_back":                             OptionalStr,
-    "alias_fore":                                 OptionalStr,
-    "alias_back":                                 OptionalStr,
-    "package_preprocess_function":                OptionalStrOrFunction,
-    "package_preprocess_mode":                    PreprocessMode_,
-    "error_on_missing_variant_requires":          Bool,
-    "context_tracking_host":                      OptionalStr,
-    "variant_shortlinks_dirname":                 OptionalStr,
-    "build_thread_count":                         BuildThreadCount_,
-    "resource_caching_maxsize":                   Int,
-    "max_package_changelog_chars":                Int,
-    "max_package_changelog_revisions":            Int,
-    "memcached_package_file_min_compress_len":    Int,
-    "memcached_context_file_min_compress_len":    Int,
-    "memcached_listdir_min_compress_len":         Int,
-    "memcached_resolve_min_compress_len":         Int,
-    "shell_error_truncate_cap":                   Int,
-    "package_cache_log_days":                     Int,
-    "package_cache_max_variant_days":             Int,
-    "package_cache_space_buffer":                 Int,
-    "package_cache_used_threshold":               Int,
-    "package_cache_clean_limit":                  Float,
-    "allow_unversioned_packages":                 Bool,
-    "package_cache_during_build":                 Bool,
-    "package_cache_local":                        Bool,
-    "package_cache_same_device":                  Bool,
-    "package_cache_async":                        Bool,
-    "color_enabled":                              ForceOrBool,
-    "resolve_caching":                            Bool,
-    "cache_package_files":                        Bool,
-    "cache_listdir":                              Bool,
-    "prune_failed_graph":                         Bool,
-    "all_parent_variables":                       Bool,
-    "all_resetting_variables":                    Bool,
-    "package_commands_sourced_first":             Bool,
-    "use_variant_shortlinks":                     Bool,
-    "warn_shell_startup":                         Bool,
-    "warn_untimestamped":                         Bool,
-    "warn_all":                                   Bool,
-    "warn_none":                                  Bool,
-    "debug_file_loads":                           Bool,
-    "debug_plugins":                              Bool,
-    "debug_package_release":                      Bool,
-    "debug_bind_modules":                         Bool,
-    "debug_resources":                            Bool,
-    "debug_package_exclusions":                   Bool,
-    "debug_memcache":                             Bool,
-    "debug_resolve_memcache":                     Bool,
-    "debug_context_tracking":                     Bool,
-    "debug_shell_startup":                        Bool,
-    "debug_all":                                  Bool,
-    "debug_none":                                 Bool,
-    "quiet":                                      Bool,
-    "show_progress":                              Bool,
-    "catch_rex_errors":                           Bool,
-    "default_relocatable":                        Bool,
-    "set_prompt":                                 Bool,
-    "prefix_prompt":                              Bool,
-    "make_package_temporarily_writable":          Bool,
-    "read_package_cache":                         Bool,
-    "write_package_cache":                        Bool,
-    "env_var_separators":                         Dict,
-    "variant_select_mode":                        VariantSelectMode_,
-    "package_filter":                             OptionalDictOrDictList,
-    "package_orderers":                           OptionalDictOrDictList,
-    "new_session_popen_args":                     OptionalDict,
-    "context_tracking_amqp":                      OptionalDict,
-    "context_tracking_extra_fields":              OptionalDict,
-    "optionvars":                                 OptionalDict,
-    "use_pyside":                                 Bool,
-    "use_pyqt":                                   Bool,
-    "gui_threads":                                Bool,
+    "packages_path": PathList,
+    "plugin_path": PathList,
+    "bind_module_path": PathList,
+    "standard_system_paths": PathList,
+    "package_definition_build_python_paths": PathList,
+    "platform_map": OptionalDict,
+    "default_relocatable_per_package": OptionalDict,
+    "default_relocatable_per_repository": OptionalDict,
+    "default_cachable_per_package": OptionalDict,
+    "default_cachable_per_repository": OptionalDict,
+    "default_cachable": OptionalBool,
+    "implicit_packages": StrList,
+    "parent_variables": StrList,
+    "resetting_variables": StrList,
+    "release_hooks": StrList,
+    "context_tracking_context_fields": StrList,
+    "pathed_env_vars": StrList,
+    "prompt_release_message": Bool,
+    "critical_styles": OptionalStrList,
+    "error_styles": OptionalStrList,
+    "warning_styles": OptionalStrList,
+    "info_styles": OptionalStrList,
+    "debug_styles": OptionalStrList,
+    "heading_styles": OptionalStrList,
+    "local_styles": OptionalStrList,
+    "implicit_styles": OptionalStrList,
+    "ephemeral_styles": OptionalStrList,
+    "alias_styles": OptionalStrList,
+    "memcached_uri": OptionalStrList,
+    "pip_extra_args": OptionalStrList,
+    "pip_install_remaps": PipInstallRemaps,
+    "local_packages_path": Str,
+    "release_packages_path": Str,
+    "dot_image_format": Str,
+    "build_directory": Str,
+    "default_build_process": Str,
+    "documentation_url": Str,
+    "suite_visibility": SuiteVisibility_,
+    "rez_tools_visibility": RezToolsVisibility_,
+    "create_executable_script_mode": ExecutableScriptMode_,
+    "suite_alias_prefix_char": Char,
+    "cache_packages_path": OptionalStr,
+    "package_definition_python_path": OptionalStr,
+    "tmpdir": OptionalStr,
+    "context_tmpdir": OptionalStr,
+    "default_shell": OptionalStr,
+    "terminal_emulator_command": OptionalStr,
+    "editor": OptionalStr,
+    "image_viewer": OptionalStr,
+    "difftool": OptionalStr,
+    "browser": OptionalStr,
+    "critical_fore": OptionalStr,
+    "critical_back": OptionalStr,
+    "error_fore": OptionalStr,
+    "error_back": OptionalStr,
+    "warning_fore": OptionalStr,
+    "warning_back": OptionalStr,
+    "info_fore": OptionalStr,
+    "info_back": OptionalStr,
+    "debug_fore": OptionalStr,
+    "debug_back": OptionalStr,
+    "heading_fore": OptionalStr,
+    "heading_back": OptionalStr,
+    "local_fore": OptionalStr,
+    "local_back": OptionalStr,
+    "implicit_fore": OptionalStr,
+    "implicit_back": OptionalStr,
+    "ephemeral_fore": OptionalStr,
+    "ephemeral_back": OptionalStr,
+    "alias_fore": OptionalStr,
+    "alias_back": OptionalStr,
+    "package_preprocess_function": OptionalStrOrFunction,
+    "package_preprocess_mode": PreprocessMode_,
+    "error_on_missing_variant_requires": Bool,
+    "context_tracking_host": OptionalStr,
+    "variant_shortlinks_dirname": OptionalStr,
+    "build_thread_count": BuildThreadCount_,
+    "resource_caching_maxsize": Int,
+    "max_package_changelog_chars": Int,
+    "max_package_changelog_revisions": Int,
+    "memcached_package_file_min_compress_len": Int,
+    "memcached_context_file_min_compress_len": Int,
+    "memcached_listdir_min_compress_len": Int,
+    "memcached_resolve_min_compress_len": Int,
+    "shell_error_truncate_cap": Int,
+    "package_cache_log_days": Int,
+    "package_cache_max_variant_days": Int,
+    "package_cache_space_buffer": Int,
+    "package_cache_used_threshold": Int,
+    "package_cache_clean_limit": Float,
+    "allow_unversioned_packages": Bool,
+    "package_cache_during_build": Bool,
+    "package_cache_local": Bool,
+    "package_cache_same_device": Bool,
+    "package_cache_async": Bool,
+    "color_enabled": ForceOrBool,
+    "resolve_caching": Bool,
+    "cache_package_files": Bool,
+    "cache_listdir": Bool,
+    "prune_failed_graph": Bool,
+    "all_parent_variables": Bool,
+    "all_resetting_variables": Bool,
+    "package_commands_sourced_first": Bool,
+    "use_variant_shortlinks": Bool,
+    "warn_shell_startup": Bool,
+    "warn_untimestamped": Bool,
+    "warn_all": Bool,
+    "warn_none": Bool,
+    "debug_file_loads": Bool,
+    "debug_plugins": Bool,
+    "debug_package_release": Bool,
+    "debug_bind_modules": Bool,
+    "debug_resources": Bool,
+    "debug_package_exclusions": Bool,
+    "debug_memcache": Bool,
+    "debug_resolve_memcache": Bool,
+    "debug_context_tracking": Bool,
+    "debug_shell_startup": Bool,
+    "debug_all": Bool,
+    "debug_none": Bool,
+    "quiet": Bool,
+    "show_progress": Bool,
+    "catch_rex_errors": Bool,
+    "default_relocatable": Bool,
+    "set_prompt": Bool,
+    "prefix_prompt": Bool,
+    "make_package_temporarily_writable": Bool,
+    "read_package_cache": Bool,
+    "write_package_cache": Bool,
+    "env_var_separators": Dict,
+    "variant_select_mode": VariantSelectMode_,
+    "package_filter": OptionalDictOrDictList,
+    "package_orderers": OptionalDictOrDictList,
+    "new_session_popen_args": OptionalDict,
+    "context_tracking_amqp": OptionalDict,
+    "context_tracking_extra_fields": OptionalDict,
+    "optionvars": OptionalDict,
+    "use_pyside": Bool,
+    "use_pyqt": Bool,
+    "gui_threads": Bool,
 }
 
 _deprecated_settings = {
@@ -1021,7 +1069,8 @@ _deprecated_settings = {
 #   Config File Loading
 # ====================================================================
 
-@lru_cache()
+
+@lru_cache
 def _load_config_py(filepath):
     reserved = dict(
         __name__=os.path.splitext(os.path.basename(filepath))[0],
@@ -1030,23 +1079,25 @@ def _load_config_py(filepath):
     g = reserved.copy()
     with open(filepath) as f:
         try:
-            code = compile(f.read(), filepath, 'exec')
+            code = compile(f.read(), filepath, "exec")
             exec(code, g)
         except Exception as e:
-            raise ConfigurationError("Error loading config from %s: %s" % (filepath, str(e)))
-    return {k: v for k, v in g.items()
-            if k != '__builtins__' and not ismodule(v) and k not in reserved}
+            raise ConfigurationError(f"Error loading config from {filepath}: {str(e)}")
+    return {
+        k: v for k, v in g.items() if k != "__builtins__" and not ismodule(v) and k not in reserved
+    }
 
 
-@lru_cache()
+@lru_cache
 def _load_config_yaml(filepath):
     try:
         from rez_next._native.serialise_ import py_read_package_data
+
         doc = py_read_package_data(filepath, "yaml") or {}
     except Exception as e:
-        raise ConfigurationError("Error loading config from %s: %s" % (filepath, str(e)))
+        raise ConfigurationError(f"Error loading config from {filepath}: {str(e)}")
     if not isinstance(doc, dict):
-        raise ConfigurationError("Expected dict, got %s" % type(doc).__name__)
+        raise ConfigurationError(f"Expected dict, got {type(doc).__name__}")
     return doc
 
 
@@ -1065,7 +1116,10 @@ def _load_config_from_filepaths(filepaths):
                     if k in _deprecated_settings:
                         _deprecations_warn(
                             _deprecated_settings[k].get_message(k),
-                            RezDeprecationWarning, pre_formatted=True, filename=f)
+                            RezDeprecationWarning,
+                            pre_formatted=True,
+                            filename=f,
+                        )
             deep_update(data, d)
             sourced.append(f)
             break
@@ -1088,15 +1142,18 @@ def deep_update(d, u):
 #   Config class — used by ``rez_next.__init__``
 # ====================================================================
 
-class Config(object):
+
+class Config:
     """Rez-compatible configuration facade.
 
     Provides attribute-based access to settings with env var override,
     file-based overrides, and schema validation.
     """
+
     schema = config_schema
 
     if TYPE_CHECKING:
+
         def __getattr__(self, item: str) -> Any:
             pass
 
@@ -1129,14 +1186,18 @@ class Config(object):
         d = self._module_defaults()
         if key in d:
             return d[key]
-        raise AttributeError("No such config setting: %r" % key)
+        raise AttributeError(f"No such config setting: {key!r}")
 
     def get(self, key, default=None):
         if self._native_cfg is not None:
             try:
                 if self._native_cfg.contains_key(key):
-                    for getter in (self._native_cfg.get_string, self._native_cfg.get_int,
-                                   self._native_cfg.get_float, self._native_cfg.get_bool):
+                    for getter in (
+                        self._native_cfg.get_string,
+                        self._native_cfg.get_int,
+                        self._native_cfg.get_float,
+                        self._native_cfg.get_bool,
+                    ):
                         r = getter(key)
                         if r is not None:
                             return r
@@ -1149,12 +1210,18 @@ class Config(object):
         return default
 
     def warn(self, key):
-        return (not self.quiet and not self.warn_none
-                and (self.warn_all or getattr(self, "warn_%s" % key)))
+        return (
+            not self.quiet
+            and not self.warn_none
+            and (self.warn_all or getattr(self, f"warn_{key}"))
+        )
 
     def debug(self, key):
-        return (not self.quiet and not self.debug_none
-                and (self.debug_all or getattr(self, "debug_%s" % key)))
+        return (
+            not self.quiet
+            and not self.debug_none
+            and (self.debug_all or getattr(self, f"debug_{key}"))
+        )
 
     def debug_printer(self, key):
         return _DebugPrinter(self.debug(key))
@@ -1201,7 +1268,7 @@ class Config(object):
         keys = key.split(".")
         if len(keys) > 1:
             if keys[0] != "plugins":
-                raise AttributeError("no such setting: %r" % key)
+                raise AttributeError(f"no such setting: {key!r}")
             self.plugins.override(keys[1:], value)
         else:
             self.overrides[key] = value
@@ -1256,19 +1323,35 @@ class Config(object):
         return data
 
     # Dynamic defaults
-    def _get_tmpdir(self): return None
-    def _get_context_tmpdir(self): return None
-    def _get_image_viewer(self): return None
-    def _get_editor(self): return None
-    def _get_difftool(self): return None
-    def _get_terminal_emulator_command(self): return None
-    def _get_new_session_popen_args(self): return None
+    def _get_tmpdir(self):
+        return None
+
+    def _get_context_tmpdir(self):
+        return None
+
+    def _get_image_viewer(self):
+        return None
+
+    def _get_editor(self):
+        return None
+
+    def _get_difftool(self):
+        return None
+
+    def _get_terminal_emulator_command(self):
+        return None
+
+    def _get_new_session_popen_args(self):
+        return None
 
     @staticmethod
     def _module_defaults():
         m = _sys.modules[__name__]
-        return {n: v for n, v in vars(m).items()
-                if not n.startswith("_") and not callable(v) and not isinstance(v, type)}
+        return {
+            n: v
+            for n, v in vars(m).items()
+            if not n.startswith("_") and not callable(v) and not isinstance(v, type)
+        }
 
     @classmethod
     def _create_main_config(cls, overrides=None):
@@ -1281,13 +1364,13 @@ class Config(object):
         return cls(filepaths, overrides)
 
     def __str__(self):
-        return "%r" % sorted([k for k in self.schema if isinstance(k, str)] + ["plugins"])
+        return "{!r}".format(sorted([k for k in self.schema if isinstance(k, str)] + ["plugins"]))
 
     def __repr__(self):
-        return "%s(%s)" % (self.__class__.__name__, str(self))
+        return f"{self.__class__.__name__}({str(self)})"
 
 
-class _PluginConfigs(object):
+class _PluginConfigs:
     def __init__(self, plugin_data):
         self.__dict__["_data"] = plugin_data
 
@@ -1302,7 +1385,7 @@ class _PluginConfigs(object):
             d = data[attr]
             self.__dict__[attr] = d
             return d
-        raise AttributeError("No such setting: plugins.%s" % attr)
+        raise AttributeError(f"No such setting: plugins.{attr}")
 
     def __iter__(self):
         return iter(self.__dict__["_data"].keys())
@@ -1328,15 +1411,16 @@ class _PluginConfigs(object):
         return d
 
     def __str__(self):
-        return "%r" % sorted(self.__dict__["_data"].keys())
+        return "{!r}".format(sorted(self.__dict__["_data"].keys()))
 
     def __repr__(self):
-        return "%s(%s)" % (self.__class__.__name__, str(self))
+        return f"{self.__class__.__name__}({str(self)})"
 
 
-class _DebugPrinter(object):
+class _DebugPrinter:
     def __init__(self, enabled):
         self.enabled = enabled
+
     def __call__(self, msg, *args, **kwargs):
         if self.enabled:
             print("[DEBUG]", msg)
@@ -1381,6 +1465,7 @@ if os.getenv("REZ_LOG_DEPRECATION_WARNINGS"):
 # ====================================================================
 #   Module-level convenience
 # ====================================================================
+
 
 def get(key, default=None):
     return config.get(key, default)

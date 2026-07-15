@@ -11,7 +11,7 @@ from __future__ import annotations
 import abc
 import os
 import subprocess
-from typing import Any, ClassVar, Optional
+from typing import Any, ClassVar
 
 from rez_next.exceptions import RezSystemError
 from rez_next.packages_ import get_developer_package
@@ -33,9 +33,7 @@ class ReleaseVCS(abc.ABC):
     # Registry: maps VCS name → subclass
     _registry: ClassVar[dict[str, type[ReleaseVCS]]] = {}
 
-    def __init__(
-        self, pkg_root: str, vcs_root: Optional[str] = None
-    ) -> None:
+    def __init__(self, pkg_root: str, vcs_root: str | None = None) -> None:
         """Initialize a VCS instance.
 
         Args:
@@ -50,9 +48,7 @@ class ReleaseVCS(abc.ABC):
         else:
             found = self.find_vcs_root(pkg_root)
             if found is None:
-                raise ReleaseVCSError(
-                    f"No VCS root found for: {pkg_root}"
-                )
+                raise ReleaseVCSError(f"No VCS root found for: {pkg_root}")
             self.vcs_root = found[0]
 
     @property
@@ -83,7 +79,7 @@ class ReleaseVCS(abc.ABC):
         """Return ``True`` if parent directories should be searched."""
 
     @classmethod
-    def find_vcs_root(cls, path: str) -> Optional[tuple[str, int]]:
+    def find_vcs_root(cls, path: str) -> tuple[str, int] | None:
         """Find the VCS root directory by walking up parents.
 
         Returns:
@@ -118,7 +114,7 @@ class ReleaseVCS(abc.ABC):
     def get_changelog(
         self,
         previous_revision: Any = None,
-        max_revisions: Optional[int] = None,
+        max_revisions: int | None = None,
     ) -> str:
         """Get changelog text since the given revision."""
 
@@ -127,9 +123,7 @@ class ReleaseVCS(abc.ABC):
         """Check if a tag exists in the repository."""
 
     @abc.abstractmethod
-    def create_release_tag(
-        self, tag_name: str, message: Optional[str] = None
-    ) -> None:
+    def create_release_tag(self, tag_name: str, message: str | None = None) -> None:
         """Create a release tag in the repository."""
 
     @classmethod
@@ -142,7 +136,7 @@ class ReleaseVCS(abc.ABC):
 
     # ── Optional helper methods ───────────────────────────────────────
 
-    def get_current_branch(self) -> Optional[str]:
+    def get_current_branch(self) -> str | None:
         """Get the current branch name, or ``None`` if in detached HEAD."""
         return None
 
@@ -157,7 +151,7 @@ class ReleaseVCS(abc.ABC):
         return exe
 
     @staticmethod
-    def _which(name: str) -> Optional[str]:
+    def _which(name: str) -> str | None:
         """Find an executable in PATH."""
         for path_dir in os.environ.get("PATH", "").split(os.pathsep):
             candidate = os.path.join(path_dir, name)
@@ -196,7 +190,7 @@ class ReleaseVCS(abc.ABC):
         """Auto-register subclasses in the VCS registry."""
         super().__init_subclass__(**kwargs)
         # Only register concrete subclasses (skip abstract base)
-        if not getattr(cls, '__abstractmethods__', None):
+        if not getattr(cls, "__abstractmethods__", None):
             try:
                 name = cls.name()
                 ReleaseVCS._registry[name] = cls
@@ -218,9 +212,7 @@ def get_release_vcs_types() -> list[str]:
     return sorted(ReleaseVCS._registry.keys())
 
 
-def create_release_vcs(
-    path: str, vcs_name: Optional[str] = None
-) -> ReleaseVCS:
+def create_release_vcs(path: str, vcs_name: str | None = None) -> ReleaseVCS:
     """Create a ``ReleaseVCS`` instance from a path.
 
     If *vcs_name* is given, use that specific VCS type. Otherwise,

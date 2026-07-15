@@ -13,7 +13,6 @@ use pyo3::types::PyDict;
 use rez_next_build::vcs::{ReleaseVCS, VCSMetadata, VCSRevision};
 use std::collections::HashMap;
 use std::path::PathBuf;
-use tracing::info;
 
 // ============================================================================
 /// VCS Metadata for release
@@ -258,7 +257,17 @@ impl From<PyVCSRevision> for VCSRevision {
 // ============================================================================
 #[pyclass(name = "ReleaseVCS", subclass)]
 pub struct PyReleaseVCS {
-    _inner: Option<Box<dyn ReleaseVCS + Send + Sync>>, // prefixed with _ (methods use stub values)
+    _inner: Option<Box<dyn ReleaseVCS + Send + Sync>>,
+}
+
+impl PyReleaseVCS {
+    fn require_inner(&self) -> PyResult<&(dyn ReleaseVCS + Send + Sync)> {
+        self._inner.as_deref().ok_or_else(|| {
+            pyo3::exceptions::PyNotImplementedError::new_err(
+                "ReleaseVCS is an abstract compatibility type; instantiate a concrete VCS implementation",
+            )
+        })
+    }
 }
 
 #[pymethods]
@@ -268,136 +277,82 @@ impl PyReleaseVCS {
         Self { _inner: None }
     }
 
-    pub fn get_type_name(&self) -> String {
-        if let Some(inner) = self._inner.as_ref() {
-            return inner.get_type_name().to_string();
-        }
-        "stub".to_string()
+    pub fn get_type_name(&self) -> PyResult<String> {
+        Ok(self.require_inner()?.get_type_name().to_string())
     }
 
     pub fn get_repo_root(&self) -> PyResult<String> {
-        if let Some(inner) = self._inner.as_ref() {
-            return inner
-                .get_repo_root()
-                .map(|p| p.to_string_lossy().to_string())
-                .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()));
-        }
-        Ok(".".to_string())
+        self.require_inner()?
+            .get_repo_root()
+            .map(|p| p.to_string_lossy().to_string())
+            .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))
     }
 
     pub fn is_clean(&self) -> PyResult<bool> {
-        if let Some(inner) = self._inner.as_ref() {
-            return inner
-                .is_clean()
-                .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()));
-        }
-        Ok(true)
+        self.require_inner()?
+            .is_clean()
+            .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))
     }
 
     pub fn get_current_branch(&self) -> PyResult<String> {
-        if let Some(inner) = self._inner.as_ref() {
-            return inner
-                .get_current_branch()
-                .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()));
-        }
-        Ok("main".to_string())
+        self.require_inner()?
+            .get_current_branch()
+            .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))
     }
 
     pub fn get_latest_commit(&self) -> PyResult<String> {
-        if let Some(inner) = self._inner.as_ref() {
-            return inner
-                .get_latest_commit()
-                .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()));
-        }
-        Ok("stub-commit".to_string())
+        self.require_inner()?
+            .get_latest_commit()
+            .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))
     }
 
     pub fn tag_exists(&self, tag: &str) -> PyResult<bool> {
-        if let Some(inner) = self._inner.as_ref() {
-            return inner
-                .tag_exists(tag)
-                .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()));
-        }
-        Ok(false)
+        self.require_inner()?
+            .tag_exists(tag)
+            .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))
     }
 
     pub fn create_tag(&self, tag: &str, message: &str) -> PyResult<()> {
-        if let Some(inner) = self._inner.as_ref() {
-            return inner
-                .create_tag(tag, message)
-                .map(|_| ())
-                .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()));
-        }
-        // Stub implementation - just log and return Ok
-        info!(
-            "StubVCS: would create tag '{}' with message '{}'",
-            tag, message
-        );
-        Ok(())
+        self.require_inner()?
+            .create_tag(tag, message)
+            .map(|_| ())
+            .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))
     }
 
-    pub fn get_changelog(
-        &self,
-        _from_rev: Option<&str>,
-        _to_rev: Option<&str>,
-    ) -> PyResult<String> {
-        if let Some(inner) = self._inner.as_ref() {
-            return inner
-                .get_changelog(_from_rev, _to_rev)
-                .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()));
-        }
-        Ok("Stub changelog".to_string())
+    pub fn get_changelog(&self, from_rev: Option<&str>, to_rev: Option<&str>) -> PyResult<String> {
+        self.require_inner()?
+            .get_changelog(from_rev, to_rev)
+            .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))
     }
 
     pub fn get_metadata(&self) -> PyResult<PyVCSMetadata> {
-        if let Some(inner) = self._inner.as_ref() {
-            return inner
-                .get_metadata()
-                .map(|m| PyVCSMetadata::from(&m))
-                .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()));
-        }
-        Ok(PyVCSMetadata::from(&VCSMetadata {
-            vcs_type: "stub".to_string(),
-            commit_hash: "stub-commit".to_string(),
-            ..Default::default()
-        }))
+        self.require_inner()?
+            .get_metadata()
+            .map(|m| PyVCSMetadata::from(&m))
+            .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))
     }
 
     pub fn validate_repo_state(&self) -> PyResult<()> {
-        if let Some(inner) = self._inner.as_ref() {
-            return inner
-                .validate_repo_state()
-                .map(|_| ())
-                .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()));
-        }
-        Ok(())
+        self.require_inner()?
+            .validate_repo_state()
+            .map(|_| ())
+            .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))
     }
 
     pub fn is_releasable_branch(&self) -> PyResult<Option<bool>> {
-        if let Some(inner) = self._inner.as_ref() {
-            return inner
-                .is_releasable_branch()
-                .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()));
-        }
-        Ok(None)
+        self.require_inner()?
+            .is_releasable_branch()
+            .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))
     }
 
     /// Get the current revision as a VCSRevision object.
     ///
     /// This aligns with rez's `ReleaseVCS.get_current_revision()`.
     pub fn get_current_revision(&self) -> PyResult<PyVCSRevision> {
-        if let Some(inner) = self._inner.as_ref() {
-            return inner
-                .get_current_revision()
-                .map(PyVCSRevision::from)
-                .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()));
-        }
-
-        // Stub implementation
-        Ok(PyVCSRevision::from(VCSRevision::new(
-            "stub",
-            "stub-revision",
-        )))
+        self.require_inner()?
+            .get_current_revision()
+            .map(PyVCSRevision::from)
+            .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))
     }
 
     /// Export the repository at the given revision to the given path.
@@ -408,20 +363,10 @@ impl PyReleaseVCS {
         let rev: VCSRevision = VCSRevision::from(revision.clone());
         let path = std::path::Path::new(path);
 
-        if let Some(inner) = self._inner.as_ref() {
-            return inner
-                .export(&rev, path)
-                .map(|_| ())
-                .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()));
-        }
-
-        // Stub implementation - just log and return Ok
-        tracing::info!(
-            "StubVCS: would export revision '{}' to '{}'",
-            rev.revision_id,
-            path.display()
-        );
-        Ok(())
+        self.require_inner()?
+            .export(&rev, path)
+            .map(|_| ())
+            .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))
     }
 }
 

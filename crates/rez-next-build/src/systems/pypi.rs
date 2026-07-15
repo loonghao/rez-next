@@ -179,10 +179,10 @@ fn add_windows_runtime_env(env: &mut std::collections::HashMap<String, String>) 
     }
 
     for key in ["SystemRoot", "WINDIR", "TEMP", "TMP"] {
-        if !env.contains_key(key) {
-            if let Ok(value) = std::env::var(key) {
-                env.insert(key.to_string(), value);
-            }
+        if !env.contains_key(key)
+            && let Ok(value) = std::env::var(key)
+        {
+            env.insert(key.to_string(), value);
         }
     }
 }

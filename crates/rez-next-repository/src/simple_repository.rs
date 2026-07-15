@@ -41,6 +41,9 @@ pub struct SimpleRepository {
     /// Cached packages
     package_cache: Arc<tokio::sync::RwLock<HashMap<String, Vec<Arc<Package>>>>>,
 
+    /// Parse failures keyed by the package family directory.
+    package_errors: Arc<tokio::sync::RwLock<HashMap<String, String>>>,
+
     /// Repository name
     name: String,
 }
@@ -51,6 +54,7 @@ impl SimpleRepository {
         Self {
             root_path: root_path.as_ref().to_path_buf(),
             package_cache: Arc::new(tokio::sync::RwLock::new(HashMap::new())),
+            package_errors: Arc::new(tokio::sync::RwLock::new(HashMap::new())),
             name,
         }
     }
@@ -58,9 +62,12 @@ impl SimpleRepository {
     /// Scan the repository for packages
     pub async fn scan(&self) -> Result<(), RezCoreError> {
         let mut cache = self.package_cache.write().await;
+        let mut errors = self.package_errors.write().await;
         cache.clear();
+        errors.clear();
 
-        self.scan_directory(&self.root_path, &mut cache).await?;
+        self.scan_directory(&self.root_path, &mut cache, &mut errors)
+            .await?;
 
         Ok(())
     }
@@ -70,6 +77,7 @@ impl SimpleRepository {
         &'a self,
         dir_path: &'a Path,
         cache: &'a mut HashMap<String, Vec<Arc<Package>>>,
+        errors: &'a mut HashMap<String, String>,
     ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<(), RezCoreError>> + Send + 'a>>
     {
         Box::pin(async move {
@@ -87,16 +95,30 @@ impl SimpleRepository {
                         .find(|p| p.exists());
 
                     if let Some(pkg_path) = pkg_file {
-                        if let Ok(package) = self.load_package_from_path(&pkg_path).await {
-                            let package_name = package.name.clone();
-                            cache
-                                .entry(package_name)
-                                .or_default()
-                                .push(Arc::new(package));
+                        match self.load_package_from_path(&pkg_path).await {
+                            Ok(package) => {
+                                let package_name = package.name.clone();
+                                cache
+                                    .entry(package_name)
+                                    .or_default()
+                                    .push(Arc::new(package));
+                            }
+                            Err(error) => {
+                                let family = path
+                                    .strip_prefix(&self.root_path)
+                                    .ok()
+                                    .and_then(|relative| relative.components().next())
+                                    .map(|component| component.as_os_str().to_string_lossy())
+                                    .unwrap_or_else(|| path.as_os_str().to_string_lossy());
+                                errors.insert(
+                                    family.into_owned(),
+                                    format!("Failed to load {}: {error}", pkg_path.display()),
+                                );
+                            }
                         }
                     } else {
                         // Recursively scan subdirectories
-                        self.scan_directory(&path, cache).await?;
+                        self.scan_directory(&path, cache, errors).await?;
                     }
                 }
             }
@@ -126,9 +148,16 @@ impl PackageRepository for SimpleRepository {
                 return Ok(packages.clone());
             }
         }
+        if let Some(error) = self.package_errors.read().await.get(name) {
+            return Err(RezCoreError::Repository(error.clone()));
+        }
 
         // If not in cache, scan and try again
         self.scan().await?;
+
+        if let Some(error) = self.package_errors.read().await.get(name) {
+            return Err(RezCoreError::Repository(error.clone()));
+        }
 
         let cache = self.package_cache.read().await;
         Ok(cache.get(name).cloned().unwrap_or_default())
@@ -144,10 +173,10 @@ impl PackageRepository for SimpleRepository {
         if let Some(version_str) = version {
             let target_version = rez_next_version::Version::parse(version_str)?;
             for package in packages {
-                if let Some(ref pkg_version) = package.version {
-                    if pkg_version == &target_version {
-                        return Ok(Some(package));
-                    }
+                if let Some(ref pkg_version) = package.version
+                    && pkg_version == &target_version
+                {
+                    return Ok(Some(package));
                 }
             }
         } else {

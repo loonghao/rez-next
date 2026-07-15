@@ -149,10 +149,10 @@ fn find_python(args: &PipArgs) -> RezCoreResult<String> {
 
     // Try common python executables
     for exe in &["python3", "python", "python3.11", "python3.10", "python3.9"] {
-        if let Ok(output) = Command::new(exe).arg("--version").output() {
-            if output.status.success() {
-                return Ok(exe.to_string());
-            }
+        if let Ok(output) = Command::new(exe).arg("--version").output()
+            && output.status.success()
+        {
+            return Ok(exe.to_string());
         }
     }
 

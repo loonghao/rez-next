@@ -36,10 +36,10 @@ pub fn get_latest_package(
         .into_iter()
         .filter(|pkg| {
             if let Some(range_str) = range_ {
-                if let Some(ref version) = pkg.version {
-                    if let Ok(range) = rez_next_version::VersionRange::parse(range_str) {
-                        return range.contains(version);
-                    }
+                if let Some(ref version) = pkg.version
+                    && let Ok(range) = rez_next_version::VersionRange::parse(range_str)
+                {
+                    return range.contains(version);
                 }
                 true
             } else {
@@ -123,10 +123,10 @@ pub fn iter_packages(
         .into_iter()
         .filter(|pkg| {
             if let Some(range_str) = range_ {
-                if let Some(ref version) = pkg.version {
-                    if let Ok(range) = rez_next_version::VersionRange::parse(range_str) {
-                        return range.contains(version);
-                    }
+                if let Some(ref version) = pkg.version
+                    && let Ok(range) = rez_next_version::VersionRange::parse(range_str)
+                {
+                    return range.contains(version);
                 }
                 true
             } else {

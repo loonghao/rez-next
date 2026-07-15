@@ -583,81 +583,57 @@ mod release_tests {
     // PyReleaseVCS tests
     // ========================================================================
     #[test]
-    fn test_py_release_vcs_get_type_name_stub() {
+    fn test_py_release_vcs_get_type_name_fails_closed() {
         let vcs = PyReleaseVCS::new();
-        let result = vcs.get_type_name();
-        assert_eq!(result, "stub", "stub VCS type name should be 'stub'");
+        assert!(vcs.get_type_name().is_err());
     }
 
     #[test]
-    fn test_py_release_vcs_is_clean_stub() {
+    fn test_py_release_vcs_is_clean_fails_closed() {
         let vcs = PyReleaseVCS::new();
-        let result = vcs.is_clean().unwrap();
-        assert!(result, "stub VCS is_clean should return true");
+        assert!(vcs.is_clean().is_err());
     }
 
     #[test]
-    fn test_py_release_vcs_get_current_branch_stub() {
+    fn test_py_release_vcs_get_current_branch_fails_closed() {
         let vcs = PyReleaseVCS::new();
-        let result = vcs.get_current_branch().unwrap();
-        assert_eq!(
-            result, "main",
-            "stub VCS get_current_branch should return 'main'"
-        );
+        assert!(vcs.get_current_branch().is_err());
     }
 
     #[test]
-    fn test_py_release_vcs_get_latest_commit_stub() {
+    fn test_py_release_vcs_get_latest_commit_fails_closed() {
         let vcs = PyReleaseVCS::new();
-        let result = vcs.get_latest_commit().unwrap();
-        assert_eq!(
-            result, "stub-commit",
-            "stub VCS get_latest_commit should return 'stub-commit'"
-        );
+        assert!(vcs.get_latest_commit().is_err());
     }
 
     #[test]
-    fn test_py_release_vcs_tag_exists_stub() {
+    fn test_py_release_vcs_tag_exists_fails_closed() {
         let vcs = PyReleaseVCS::new();
-        let result = vcs.tag_exists("test-tag").unwrap();
-        assert!(!result, "stub VCS tag_exists should return false");
+        assert!(vcs.tag_exists("test-tag").is_err());
     }
 
     #[test]
-    fn test_py_release_vcs_create_tag_stub() {
+    fn test_py_release_vcs_create_tag_fails_closed() {
         let vcs = PyReleaseVCS::new();
-        let result = vcs.create_tag("test-tag", "test message");
-        assert!(result.is_ok(), "stub VCS create_tag should return Ok");
+        assert!(vcs.create_tag("test-tag", "test message").is_err());
     }
 
     #[test]
-    fn test_py_release_vcs_get_changelog_stub() {
+    fn test_py_release_vcs_get_changelog_fails_closed() {
         let vcs = PyReleaseVCS::new();
-        let result = vcs.get_changelog(None, None).unwrap();
-        assert!(
-            result.contains("Stub"),
-            "stub VCS get_changelog should return stub message"
-        );
+        assert!(vcs.get_changelog(None, None).is_err());
     }
 
     #[test]
-    fn test_py_release_vcs_validate_repo_state_stub() {
+    fn test_py_release_vcs_validate_repo_state_fails_closed() {
         let vcs = PyReleaseVCS::new();
-        let result = vcs.validate_repo_state();
-        assert!(
-            result.is_ok(),
-            "stub VCS validate_repo_state should return Ok"
-        );
+        assert!(vcs.validate_repo_state().is_err());
     }
 
     #[test]
-    fn test_py_release_vcs_is_releasable_branch_stub() {
+    fn test_py_release_vcs_is_releasable_branch_fails_closed() {
         let vcs = PyReleaseVCS::new();
-        let result = vcs.is_releasable_branch().unwrap();
-        assert_eq!(
-            result, None,
-            "stub VCS is_releasable_branch should return None"
-        );
+        assert!(vcs.is_releasable_branch().is_err());
     }
 
     // ========================================================================

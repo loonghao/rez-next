@@ -9,8 +9,8 @@ description = "Release hook system for rez-next"
 
 [dependencies]
 # Workspace dependencies
-rez-next-common = { path = "../rez-next-common" }
-rez-next-package = { path = "../rez-next-package" }
+rez-next-common = { version = "0.3.4", path = "../rez-next-common" }
+rez-next-package = { version = "0.3.4", path = "../rez-next-package" }
 
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }

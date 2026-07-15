@@ -146,12 +146,11 @@ fn display_detailed_format(results: &[SearchResult], _args: &SearchArgs) -> RezC
         println!("Repository: {}", result.repository);
         println!("Match Score: {:.1}", result.match_score);
         println!("Matched Fields: {}", result.match_fields.join(", "));
-        if let Some(ts) = result.package.timestamp {
-            if ts > 0 {
-                if let Some(dt) = chrono::DateTime::from_timestamp(ts, 0) {
-                    println!("Timestamp: {}", dt.format("%Y-%m-%d %H:%M:%S UTC"));
-                }
-            }
+        if let Some(ts) = result.package.timestamp
+            && ts > 0
+            && let Some(dt) = chrono::DateTime::from_timestamp(ts, 0)
+        {
+            println!("Timestamp: {}", dt.format("%Y-%m-%d %H:%M:%S UTC"));
         }
     }
 

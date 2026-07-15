@@ -76,13 +76,13 @@ impl RepositoryScanner {
         let normalized_path = self.normalize_path(path);
 
         // Exact match first
-        if let Some(mut entry) = self.scan_cache.get_mut(&normalized_path) {
-            if self.is_cache_entry_valid(&entry) {
-                entry.access_count += 1;
-                entry.last_accessed = SystemTime::now();
-                self.cache_hits.fetch_add(1, Ordering::Relaxed);
-                return Some(entry.result.clone());
-            }
+        if let Some(mut entry) = self.scan_cache.get_mut(&normalized_path)
+            && self.is_cache_entry_valid(&entry)
+        {
+            entry.access_count += 1;
+            entry.last_accessed = SystemTime::now();
+            self.cache_hits.fetch_add(1, Ordering::Relaxed);
+            return Some(entry.result.clone());
         }
 
         // Prefix match fallback
@@ -172,10 +172,11 @@ impl RepositoryScanner {
 
                 // Refresh prefix cache for pre-loaded paths
                 for path in &preload_paths {
-                    if path.exists() && path.is_dir() {
-                        if let Some(mut entry) = prefix_cache.get_mut(path) {
-                            entry.clear();
-                        }
+                    if path.exists()
+                        && path.is_dir()
+                        && let Some(mut entry) = prefix_cache.get_mut(path)
+                    {
+                        entry.clear();
                     }
                 }
             }
@@ -193,10 +194,10 @@ impl RepositoryScanner {
 
     /// Static (no `&self`) version of `is_cache_entry_valid`.
     pub(super) fn is_cache_entry_valid_static(entry: &ScanCacheEntry) -> bool {
-        if let Ok(metadata) = std::fs::metadata(&entry.result.package_file) {
-            if let Ok(mtime) = metadata.modified() {
-                return mtime == entry.mtime && metadata.len() == entry.size;
-            }
+        if let Ok(metadata) = std::fs::metadata(&entry.result.package_file)
+            && let Ok(mtime) = metadata.modified()
+        {
+            return mtime == entry.mtime && metadata.len() == entry.size;
         }
         false
     }

@@ -57,20 +57,20 @@ impl PackageFilter {
     pub fn excludes(&self, package: &Package) -> Option<&RulePod> {
         // Check exclusion rules
         for rule_pod in &self.exclusions {
-            if let Ok(rule) = self.pod_to_rule(rule_pod) {
-                if matches!(rule.apply(package), RuleMatch::Matches) {
-                    // Check if any inclusion rule matches
-                    let included = self.inclusions.iter().any(|inc| {
-                        if let Ok(r) = self.pod_to_rule(inc) {
-                            matches!(r.apply(package), RuleMatch::Matches)
-                        } else {
-                            false
-                        }
-                    });
-
-                    if !included {
-                        return Some(rule_pod);
+            if let Ok(rule) = self.pod_to_rule(rule_pod)
+                && matches!(rule.apply(package), RuleMatch::Matches)
+            {
+                // Check if any inclusion rule matches
+                let included = self.inclusions.iter().any(|inc| {
+                    if let Ok(r) = self.pod_to_rule(inc) {
+                        matches!(r.apply(package), RuleMatch::Matches)
+                    } else {
+                        false
                     }
+                });
+
+                if !included {
+                    return Some(rule_pod);
                 }
             }
         }
@@ -84,10 +84,10 @@ impl PackageFilter {
     pub fn includes(&self, package: &Package) -> bool {
         // Check inclusion rules first
         for rule_pod in &self.inclusions {
-            if let Ok(rule) = self.pod_to_rule(rule_pod) {
-                if matches!(rule.apply(package), RuleMatch::Matches) {
-                    return true;
-                }
+            if let Ok(rule) = self.pod_to_rule(rule_pod)
+                && matches!(rule.apply(package), RuleMatch::Matches)
+            {
+                return true;
             }
         }
 

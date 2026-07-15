@@ -268,48 +268,21 @@ impl BuildManager {
 
     /// Start a build process
     ///
-    /// If the package has variants, this will iterate over each variant
-    /// and create separate build processes for each.
+    /// Each request starts exactly one build. Variant packages require the
+    /// caller to choose a variant explicitly.
     pub async fn start_build(
         &mut self,
         request: BuildRequest,
     ) -> Result<Vec<String>, RezCoreError> {
-        let mut build_ids = Vec::new();
-
-        // Check if package has variants
-        let variants = &request.package.variants;
-
-        if variants.is_empty() {
-            // Non-variant build
-            let build_id = self.start_single_build(request).await?;
-            build_ids.push(build_id);
-        } else {
-            // Variant build - iterate over each variant
-            for (index, variant_reqs) in variants.iter().enumerate() {
-                // Check concurrent build limit
-                if self.active_builds.len() >= self.config.max_concurrent_builds {
-                    return Err(RezCoreError::BuildError(format!(
-                        "Maximum concurrent builds reached. Completed: {}",
-                        build_ids.len()
-                    )));
-                }
-
-                // Create a build request for this variant
-                let variant_request = BuildRequest::for_variant(
-                    request.package.clone(),
-                    request.context.clone(),
-                    request.source_dir.clone(),
-                    index,
-                    variant_reqs.clone(),
-                );
-
-                // Start build for this variant
-                let build_id = self.start_single_build(variant_request).await?;
-                build_ids.push(build_id);
-            }
+        if !request.package.variants.is_empty() && request.variant_index.is_none() {
+            return Err(RezCoreError::BuildError(format!(
+                "Package '{}' requires an explicit variant selection",
+                request.package.name
+            )));
         }
 
-        Ok(build_ids)
+        let build_id = self.start_single_build(request).await?;
+        Ok(vec![build_id])
     }
 
     /// Start a single build (internal helper)

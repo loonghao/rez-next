@@ -9,9 +9,9 @@ description = "Package filtering for rez-next"
 
 [dependencies]
 # Workspace dependencies
-rez-next-common = { path = "../rez-next-common" }
-rez-next-package = { path = "../rez-next-package" }
-rez-next-version = { path = "../rez-next-version" }
+rez-next-common = { version = "0.3.4", path = "../rez-next-common" }
+rez-next-package = { version = "0.3.4", path = "../rez-next-package" }
+rez-next-version = { version = "0.3.4", path = "../rez-next-version" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }

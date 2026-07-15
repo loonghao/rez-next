@@ -64,11 +64,11 @@ impl PySourceManager {
         let script = build_activation_script(&self.packages, shell_name);
 
         let path = PathBuf::from(dest_path);
-        if let Some(parent) = path.parent() {
-            if !parent.as_os_str().is_empty() {
-                std::fs::create_dir_all(parent)
-                    .map_err(|e| pyo3::exceptions::PyIOError::new_err(e.to_string()))?;
-            }
+        if let Some(parent) = path.parent()
+            && !parent.as_os_str().is_empty()
+        {
+            std::fs::create_dir_all(parent)
+                .map_err(|e| pyo3::exceptions::PyIOError::new_err(e.to_string()))?;
         }
         std::fs::write(&path, &script)
             .map_err(|e| pyo3::exceptions::PyIOError::new_err(e.to_string()))?;
@@ -123,28 +123,29 @@ impl PySourceManager {
 
 /// Detect the current shell based on environment variables.
 pub(crate) fn detect_current_shell() -> String {
-    // PowerShell
-    if std::env::var("PSModulePath").is_ok() {
-        return "powershell".to_string();
+    #[cfg(target_os = "windows")]
+    {
+        // PowerShell is rez-next's default Windows activation shell.
+        "powershell".to_string()
     }
-    // POSIX: $SHELL
-    if let Ok(shell) = std::env::var("SHELL") {
-        let shell_lower = shell.to_lowercase();
-        if shell_lower.contains("zsh") {
-            return "zsh".to_string();
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        if let Ok(shell) = std::env::var("SHELL") {
+            let shell_lower = shell.to_lowercase();
+            if shell_lower.contains("zsh") {
+                return "zsh".to_string();
+            }
+            if shell_lower.contains("fish") {
+                return "fish".to_string();
+            }
+            if shell_lower.contains("pwsh") || shell_lower.contains("powershell") {
+                return "powershell".to_string();
+            }
         }
-        if shell_lower.contains("fish") {
-            return "fish".to_string();
-        }
-        if shell_lower.contains("bash") {
-            return "bash".to_string();
-        }
+
+        "bash".to_string()
     }
-    // Windows CMD fallback
-    if cfg!(target_os = "windows") {
-        return "powershell".to_string();
-    }
-    "bash".to_string()
 }
 
 /// Build an activation script string for the given packages and shell.
@@ -280,11 +281,11 @@ pub fn resolve_source_mode(
         }
         SourceMode::File(dest) => {
             let script = build_activation_script(&packages, &shell_resolved);
-            if let Some(parent) = dest.parent() {
-                if !parent.as_os_str().is_empty() {
-                    std::fs::create_dir_all(parent)
-                        .map_err(|e| pyo3::exceptions::PyIOError::new_err(e.to_string()))?;
-                }
+            if let Some(parent) = dest.parent()
+                && !parent.as_os_str().is_empty()
+            {
+                std::fs::create_dir_all(parent)
+                    .map_err(|e| pyo3::exceptions::PyIOError::new_err(e.to_string()))?;
             }
             std::fs::write(&dest, &script)
                 .map_err(|e| pyo3::exceptions::PyIOError::new_err(e.to_string()))?;

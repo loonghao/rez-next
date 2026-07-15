@@ -8,14 +8,15 @@ Aligns with ``rez.packages`` API:
 - ``PackageFormat`` — package file format enum (native)
 - All functions from ``rez.packages_`` (native bridge)
 """
+
 import rez_next._native  # noqa: F401
 
 # Native classes
 from rez_next._native.packages import (  # noqa: F401
     Package,
     PackageFamily,
-    PackageRequirement,
     PackageFormat,
+    PackageRequirement,
 )
 
 # Native functions (re-export)

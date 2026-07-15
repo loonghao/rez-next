@@ -47,7 +47,9 @@ requires = [
 ]
 
 build_command = "python {root}/package.py build"
-commands = env.Python("{root}/package.py")
+
+def commands():
+    env.PATH.prepend("{root}/bin")
 "#;
 
 /// Sample package.py from rez-manager (https://github.com/cuckon/rez-manager)
@@ -99,7 +101,7 @@ def commands():
         env.LD_LIBRARY_PATH.prepend("{root}/lib")
         env.PATH.prepend("{root}/bin")
 
-alias("maya", "maya_bin")
+    alias("maya", "maya_bin")
 "#;
 
 /// Simple package from rez-license-manager

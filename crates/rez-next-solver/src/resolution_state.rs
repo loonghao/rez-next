@@ -99,10 +99,10 @@ impl ResolutionState {
         let mut on_stack: HashSet<String> = HashSet::new();
 
         for node in self.dep_graph.keys() {
-            if !visited.contains(node) {
-                if let Some(cycle) = self.dfs_cycle(node, &mut visited, &mut on_stack, &mut path) {
-                    return Some(cycle);
-                }
+            if !visited.contains(node)
+                && let Some(cycle) = self.dfs_cycle(node, &mut visited, &mut on_stack, &mut path)
+            {
+                return Some(cycle);
             }
         }
         None
@@ -309,7 +309,7 @@ impl ResolutionState {
                     .package
                     .version
                     .as_ref()
-                    .map_or(true, |v| requirement.is_satisfied_by(v))
+                    .is_none_or(|v| requirement.is_satisfied_by(v))
         })
     }
 
@@ -349,7 +349,7 @@ impl ResolutionState {
                     && candidate
                         .version
                         .as_ref()
-                        .map_or(true, |version| conflict.is_satisfied_by(version))
+                        .is_none_or(|version| conflict.is_satisfied_by(version))
             })
             .map(|conflict| ResolutionConflict {
                 package_name: candidate.name.clone(),

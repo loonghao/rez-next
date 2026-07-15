@@ -402,17 +402,17 @@ impl RangeRule {
 impl Rule for RangeRule {
     fn apply(&self, package: &Package) -> RuleMatch {
         // Check family
-        if let Some(family) = self.family() {
-            if package.name != family {
-                return RuleMatch::DoesNotMatch;
-            }
+        if let Some(family) = self.family()
+            && package.name != family
+        {
+            return RuleMatch::DoesNotMatch;
         }
 
         // Check if package version is in range
-        if let Some(ref version) = package.version {
-            if self.range.contains(version) {
-                return RuleMatch::Matches;
-            }
+        if let Some(ref version) = package.version
+            && self.range.contains(version)
+        {
+            return RuleMatch::Matches;
         }
         RuleMatch::DoesNotMatch
     }

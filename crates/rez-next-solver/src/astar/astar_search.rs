@@ -190,23 +190,20 @@ impl AStarSearch {
 
         for pkg in candidates {
             // Filter by version if specified
-            if let Some(ref version_spec) = requirement.version_spec {
-                if let Some(ref pkg_ver) = pkg.version {
-                    if let Ok(range) = VersionRange::parse(version_spec) {
-                        if !range.contains(pkg_ver) {
-                            continue;
-                        }
-                    }
-                }
+            if let Some(ref version_spec) = requirement.version_spec
+                && let Some(ref pkg_ver) = pkg.version
+                && let Ok(range) = VersionRange::parse(version_spec)
+                && !range.contains(pkg_ver)
+            {
+                continue;
             }
 
             // Filter pre-release unless allowed
-            if !self.config.allow_prerelease {
-                if let Some(ref ver) = pkg.version {
-                    if ver.is_prerelease() {
-                        continue;
-                    }
-                }
+            if !self.config.allow_prerelease
+                && let Some(ref ver) = pkg.version
+                && ver.is_prerelease()
+            {
+                continue;
             }
 
             if let Ok(successor) = self
@@ -281,24 +278,21 @@ impl AStarSearch {
 
         // Check for version conflicts
         for requirement in &state.pending_requirements {
-            if let Some(resolved_pkg) = state.resolved_packages.get(&requirement.name) {
-                if let Some(ref version_spec) = requirement.version_spec {
-                    if let Some(ref resolved_ver) = resolved_pkg.version {
-                        if let Ok(range) = VersionRange::parse(version_spec) {
-                            if !range.contains(resolved_ver) {
-                                conflicts_to_add.push(DependencyConflict::new(
-                                    requirement.name.clone(),
-                                    vec![
-                                        requirement.to_string(),
-                                        format!("resolved={}", resolved_ver.as_str()),
-                                    ],
-                                    1.0,
-                                    ConflictType::VersionConflict,
-                                ));
-                            }
-                        }
-                    }
-                }
+            if let Some(resolved_pkg) = state.resolved_packages.get(&requirement.name)
+                && let Some(ref version_spec) = requirement.version_spec
+                && let Some(ref resolved_ver) = resolved_pkg.version
+                && let Ok(range) = VersionRange::parse(version_spec)
+                && !range.contains(resolved_ver)
+            {
+                conflicts_to_add.push(DependencyConflict::new(
+                    requirement.name.clone(),
+                    vec![
+                        requirement.to_string(),
+                        format!("resolved={}", resolved_ver.as_str()),
+                    ],
+                    1.0,
+                    ConflictType::VersionConflict,
+                ));
             }
         }
 
@@ -306,26 +300,27 @@ impl AStarSearch {
         let resolved_names: HashSet<String> = state.resolved_packages.keys().cloned().collect();
 
         for requirement in &state.pending_requirements {
-            if resolved_names.contains(&requirement.name) {
-                if let Some(pkg) = state.resolved_packages.get(&requirement.name) {
-                    for dep_str in pkg.requires.iter() {
-                        let dep_name = dep_str
-                            .split('-')
-                            .next()
-                            .unwrap_or(dep_str.as_str())
-                            .to_string();
-                        if let Some(resolved_dep) = state.resolved_packages.get(&dep_name) {
-                            let dep_requires_parent = resolved_dep.requires.iter().any(|r| {
-                                r.split('-').next().unwrap_or(r.as_str()) == requirement.name
-                            });
-                            if dep_requires_parent {
-                                conflicts_to_add.push(DependencyConflict::new(
-                                    requirement.name.clone(),
-                                    vec![requirement.name.clone(), dep_name.clone()],
-                                    1.0,
-                                    ConflictType::CircularDependency,
-                                ));
-                            }
+            if resolved_names.contains(&requirement.name)
+                && let Some(pkg) = state.resolved_packages.get(&requirement.name)
+            {
+                for dep_str in pkg.requires.iter() {
+                    let dep_name = dep_str
+                        .split('-')
+                        .next()
+                        .unwrap_or(dep_str.as_str())
+                        .to_string();
+                    if let Some(resolved_dep) = state.resolved_packages.get(&dep_name) {
+                        let dep_requires_parent = resolved_dep
+                            .requires
+                            .iter()
+                            .any(|r| r.split('-').next().unwrap_or(r.as_str()) == requirement.name);
+                        if dep_requires_parent {
+                            conflicts_to_add.push(DependencyConflict::new(
+                                requirement.name.clone(),
+                                vec![requirement.name.clone(), dep_name.clone()],
+                                1.0,
+                                ConflictType::CircularDependency,
+                            ));
                         }
                     }
                 }

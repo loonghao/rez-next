@@ -140,6 +140,10 @@ impl InMemoryCache {
             stats: DashMap::new(),
         }
     }
+
+    fn stat(&self, name: &'static str) -> u64 {
+        self.stats.get(name).map_or(0, |value| *value)
+    }
 }
 
 impl Default for InMemoryCache {
@@ -157,12 +161,11 @@ impl CacheBackend for InMemoryCache {
 
                 // Check if entry is still valid
                 let cached = entry.clone();
-                if let Ok(metadata) = std::fs::metadata(path) {
-                    if let Ok(mtime) = metadata.modified() {
-                        if cached.is_valid(mtime) {
-                            return Ok(Some(cached));
-                        }
-                    }
+                if let Ok(metadata) = std::fs::metadata(path)
+                    && let Ok(mtime) = metadata.modified()
+                    && cached.is_valid(mtime)
+                {
+                    return Ok(Some(cached));
                 }
 
                 // Entry is invalid, remove it
@@ -198,11 +201,11 @@ impl CacheBackend for InMemoryCache {
 
     fn stats(&self) -> CacheStats {
         CacheStats {
-            hits: *self.stats.entry("hits").or_insert(0),
-            misses: *self.stats.entry("misses").or_insert(0),
-            puts: *self.stats.entry("puts").or_insert(0),
-            removes: *self.stats.entry("removes").or_insert(0),
-            clears: *self.stats.entry("clears").or_insert(0),
+            hits: self.stat("hits"),
+            misses: self.stat("misses"),
+            puts: self.stat("puts"),
+            removes: self.stat("removes"),
+            clears: self.stat("clears"),
         }
     }
 }
@@ -254,14 +257,13 @@ impl CacheBackend for FileCache {
             let cached: CachedPackage = serde_json::from_str(&content)?;
 
             // Check if entry is still valid
-            if let Ok(metadata) = std::fs::metadata(path) {
-                if let Ok(mtime) = metadata.modified() {
-                    if cached.is_valid(mtime) {
-                        // Update in-memory cache
-                        self.in_memory.put(path, cached.clone())?;
-                        return Ok(Some(cached));
-                    }
-                }
+            if let Ok(metadata) = std::fs::metadata(path)
+                && let Ok(mtime) = metadata.modified()
+                && cached.is_valid(mtime)
+            {
+                // Update in-memory cache
+                self.in_memory.put(path, cached.clone())?;
+                return Ok(Some(cached));
             }
 
             // Entry is invalid, remove it
@@ -599,6 +601,20 @@ mod tests {
         // Hit
         cache.get(&path).unwrap();
         assert_eq!(cache.stats().hits, 1);
+    }
+
+    #[test]
+    fn test_reading_stats_does_not_create_counters() {
+        let cache = InMemoryCache::new();
+
+        let stats = cache.stats();
+
+        assert_eq!(stats.hits, 0);
+        assert_eq!(stats.misses, 0);
+        assert_eq!(stats.puts, 0);
+        assert_eq!(stats.removes, 0);
+        assert_eq!(stats.clears, 0);
+        assert!(cache.stats.is_empty());
     }
 
     #[test]

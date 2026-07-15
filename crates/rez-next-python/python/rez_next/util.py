@@ -4,6 +4,7 @@ Aligns with ``rez.util`` API by re-exporting native utility functions
 and adding Python-level implementations of utility functions not
 available in the native layer.
 """
+
 from __future__ import annotations
 
 import atexit
@@ -12,20 +13,17 @@ import difflib
 import importlib.util
 import inspect
 import math
-import os
 import re
-import sys
 from types import ModuleType
 from typing import Iterable, TypeVar
 
 import rez_next._native  # noqa: F401
+import rez_next._native.util as _native_util
 from rez_next._native.util import *  # noqa: F401,F403
 
 T = TypeVar("T")
 
 # ── Re-export with upstream-compatible signature ─────────────────────
-
-import rez_next._native.util as _native_util
 
 
 def which(*programs, **shutilwhich_kwargs) -> str | None:

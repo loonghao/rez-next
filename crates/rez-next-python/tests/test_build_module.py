@@ -1,10 +1,12 @@
 """Tests for rez_next.build_ module (Cycle 247)."""
-import sys
+
 import os
+import sys
+
 import pytest
 
 # Add the path so we can import rez_next
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import rez_next.build_ as build_
 

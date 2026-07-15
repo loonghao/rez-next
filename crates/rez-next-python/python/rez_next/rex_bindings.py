@@ -13,8 +13,7 @@ Rez API: ``rez.rex_bindings``
 
 from __future__ import annotations
 
-from typing import Any, Iterator, Optional
-
+from typing import Any, Iterator
 
 # ── Base class ─────────────────────────────────────────────────────────────
 
@@ -153,6 +152,7 @@ class VariantBinding(Binding):
         """Return the variant root path (cached or actual)."""
         if self._cached_root:
             import os
+
             variant_subpath = getattr(self._variant, "subpath", "")
             return os.path.normpath(os.path.join(self._cached_root, variant_subpath))
         variant_root = getattr(self._variant, "root", None)
@@ -232,6 +232,7 @@ class RequirementsBinding(RO_MappingBinding):
         if req_str is None:
             return default
         from rez_next import PackageRequirement
+
         return PackageRequirement(req_str)
 
 
@@ -251,6 +252,7 @@ class EphemeralsBinding(RO_MappingBinding):
         if req_str is None:
             return default
         from rez_next import PackageRequirement
+
         return PackageRequirement(req_str)
 
 
@@ -276,7 +278,7 @@ def intersects(
         if intersects(request.maya, "2019+"):
             info("maya >= 2019 is available")
     """
-    from rez_next import VersionRange, PackageRequirement
+    from rez_next import PackageRequirement, VersionRange
 
     # Resolve obj to a VersionRange
     if isinstance(obj, VersionBinding):

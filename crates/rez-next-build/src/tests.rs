@@ -625,18 +625,139 @@ for name, check in checks.items():
             vec!["platform-windows".to_string()],
             vec!["platform-linux".to_string()],
         ];
-        let req = make_request_with_python_context(pkg, tmp.path().to_path_buf(), &tmp).await;
-        let ids = manager.start_build(req).await.unwrap();
-
-        assert_eq!(ids.len(), 2, "each package variant should start a build");
-        for id in ids {
-            let result = manager.wait_for_build(&id).await.unwrap();
+        let request = make_request_with_python_context(pkg, tmp.path().to_path_buf(), &tmp).await;
+        for (index, requirements) in request.package.variants.clone().into_iter().enumerate() {
+            let mut variant_request = request.clone();
+            variant_request.variant_index = Some(index);
+            variant_request.variant_requires = Some(requirements);
+            let ids = manager.start_build(variant_request).await.unwrap();
+            assert_eq!(ids.len(), 1);
+            let result = manager.wait_for_build(&ids[0]).await.unwrap();
             assert!(
                 result.success,
                 "rezbuild.py should receive variant build env after rebuild: {}",
                 result.errors
             );
         }
+    }
+
+    #[tokio::test]
+    async fn test_build_manager_starts_only_the_requested_variant() {
+        let mut manager = BuildManager::new();
+        let tmp = TempDir::new().unwrap();
+
+        std::fs::write(
+            tmp.path().join("package.py"),
+            "name = 'variantpkg'\nversion = '1.0.0'\nvariants = [['python-3.10'], ['python-3.11']]\n",
+        )
+        .unwrap();
+        std::fs::write(
+            tmp.path().join("rezbuild.py"),
+            r#"
+import os
+import sys
+
+if os.environ.get("REZ_BUILD_VARIANT_INDEX") != "1":
+    print("wrong variant", file=sys.stderr)
+    sys.exit(1)
+if os.environ.get("SELECTED_VARIANT") != "yes":
+    print("request options were lost", file=sys.stderr)
+    sys.exit(1)
+"#,
+        )
+        .unwrap();
+
+        let mut pkg = make_package("variantpkg", "1.0.0");
+        pkg.variants = vec![
+            vec!["python-3.10".to_string()],
+            vec!["python-3.11".to_string()],
+        ];
+        let mut request =
+            make_request_with_python_context(pkg, tmp.path().to_path_buf(), &tmp).await;
+        request.variant_index = Some(1);
+        request.variant_requires = Some(vec!["python-3.11".to_string()]);
+        request
+            .options
+            .env_vars
+            .insert("SELECTED_VARIANT".to_string(), "yes".to_string());
+
+        let ids = manager.start_build(request).await.unwrap();
+        assert_eq!(ids.len(), 1, "a preselected variant must not fan out again");
+        let result = manager.wait_for_build(&ids[0]).await.unwrap();
+        assert!(result.success, "{}", result.errors);
+    }
+
+    #[tokio::test]
+    async fn test_custom_build_fails_when_package_test_fails() {
+        let mut manager = BuildManager::new();
+        let tmp = TempDir::new().unwrap();
+        std::fs::write(
+            tmp.path().join("package.py"),
+            "name = 'testedpkg'\nversion = '1.0.0'\n",
+        )
+        .unwrap();
+
+        let mut pkg = make_package("testedpkg", "1.0.0");
+        let command = if cfg!(windows) {
+            "echo package-test-failed 1>&2 & exit /b 7"
+        } else {
+            "echo package-test-failed >&2; exit 7"
+        };
+        pkg.tests.insert("unit".to_string(), command.to_string());
+        let request = make_request_with_python_context(pkg, tmp.path().to_path_buf(), &tmp).await;
+
+        let ids = manager.start_build(request).await.unwrap();
+        let result = manager.wait_for_build(&ids[0]).await.unwrap();
+
+        assert!(!result.success, "a failed package test must fail the build");
+        assert!(result.errors.contains("package-test-failed"), "{result:?}");
+    }
+
+    #[tokio::test]
+    async fn test_build_manager_reports_package_test_setup_errors() {
+        let mut manager = BuildManager::new();
+        let tmp = TempDir::new().unwrap();
+        std::fs::write(
+            tmp.path().join("package.py"),
+            "name = 'testedpkg'\nversion = '1.0.0'\n",
+        )
+        .unwrap();
+
+        let mut pkg = make_package("testedpkg", "1.0.0");
+        pkg.commands = Some("unsupported_rex_operation()".to_string());
+        pkg.tests.insert("unit".to_string(), "echo ok".to_string());
+        let request = make_request_with_python_context(pkg, tmp.path().to_path_buf(), &tmp).await;
+
+        let ids = manager.start_build(request).await.unwrap();
+        let result = manager.wait_for_build(&ids[0]).await.unwrap();
+
+        assert!(
+            !result.success,
+            "invalid package-test setup must fail the build"
+        );
+        assert!(
+            result.errors.contains("unsupported_rex_operation"),
+            "the originating setup error must be retained: {result:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_build_manager_rejects_unselected_variant_package() {
+        let mut manager = BuildManager::new();
+        let tmp = TempDir::new().unwrap();
+        let mut pkg = make_package("variantpkg", "1.0.0");
+        pkg.variants = vec![vec!["python-3.11".to_string()]];
+
+        let error = manager
+            .start_build(make_request(pkg, tmp.path().to_path_buf()))
+            .await
+            .expect_err("variant selection belongs to the caller");
+
+        assert!(
+            error.to_string().contains("requires an explicit variant"),
+            "{error}"
+        );
+        assert!(manager.get_active_builds().is_empty());
     }
 
     #[tokio::test]
@@ -959,9 +1080,11 @@ if os.environ["REZ_BUILD_PROJECT_VERSION"] != "0.0.0":
         .unwrap();
 
         let (event_sender, mut event_receiver) = tokio::sync::mpsc::unbounded_channel();
-        let mut config = BuildConfig::default();
-        config.build_dir = tmp.path().join(".rez_build");
-        config.event_sender = Some(event_sender);
+        let config = BuildConfig {
+            build_dir: tmp.path().join(".rez_build"),
+            event_sender: Some(event_sender),
+            ..BuildConfig::default()
+        };
         let mut manager = BuildManager::with_config(config);
 
         let pkg = make_package("event_test", "1.0.0");

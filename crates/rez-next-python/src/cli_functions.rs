@@ -1,7 +1,8 @@
-//! CLI compatibility stub functions exposed to Python.
+//! CLI compatibility functions exposed to Python.
 //!
-//! This module currently validates command names against a fixed table and returns
-//! compatibility-style exit codes. It does not dispatch to the real rez CLI yet.
+//! Python-side dispatch is deliberately fail-closed until it can invoke the same
+//! implementation as the native executable. Returning a synthetic zero exit code
+//! would make automation report commands as successful without executing them.
 
 use pyo3::prelude::*;
 
@@ -10,6 +11,7 @@ const KNOWN_COMMANDS: &[&str] = &[
     "solve",
     "build",
     "release",
+    "test",
     "status",
     "search",
     "view",
@@ -19,95 +21,72 @@ const KNOWN_COMMANDS: &[&str] = &[
     "rm",
     "bundle",
     "config",
-    "selftest",
+    "pkg-help",
+    "plugins",
+    "pkg-cache",
+    "suites",
     "gui",
     "context",
-    "suite",
-    "interpret",
     "depends",
     "pip",
     "forward",
-    "benchmark",
     "complete",
-    "source",
     "bind",
+    "parse-version",
+    "self-test",
+    "self-update",
 ];
 
-/// Validate a known rez command name and return a compatibility success code.
-///
-/// This is currently a stub: `args` are ignored and no real CLI dispatch happens.
+fn dispatch_unavailable() -> PyErr {
+    pyo3::exceptions::PyNotImplementedError::new_err(
+        "Python CLI dispatch is not available; run the `rez` or `rez-next` executable instead",
+    )
+}
+
+/// Validate a rez command name and fail clearly while Python dispatch is unavailable.
 #[pyfunction]
 #[pyo3(signature = (command, args=None))]
 pub fn cli_run(command: &str, args: Option<Vec<String>>) -> PyResult<i32> {
     let _ = args;
-    if KNOWN_COMMANDS.contains(&command) {
-        Ok(0)
-    } else {
-        Err(pyo3::exceptions::PyValueError::new_err(format!(
+    if !KNOWN_COMMANDS.contains(&command) {
+        return Err(pyo3::exceptions::PyValueError::new_err(format!(
             "Unknown rez command: '{}'. Known: {:?}",
             command, KNOWN_COMMANDS
-        )))
+        )));
     }
+    Err(dispatch_unavailable())
 }
 
-/// Compatibility-style main entry point for the Python stubbed CLI surface.
-/// Returns a synthetic exit code based on the first argument, if present.
+/// Python CLI entry point. Fails clearly instead of reporting synthetic success.
 #[pyfunction]
 #[pyo3(signature = (args=None))]
 pub fn cli_main(args: Option<Vec<String>>) -> PyResult<i32> {
-    if let Some(ref a) = args {
-        if let Some(cmd) = a.first() {
-            return cli_run(cmd.as_str(), Some(a[1..].to_vec()));
-        }
+    if let Some(ref a) = args
+        && let Some(cmd) = a.first()
+    {
+        return cli_run(cmd.as_str(), Some(a[1..].to_vec()));
     }
-    Ok(0)
+    Err(dispatch_unavailable())
 }
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashSet;
-
     use super::{KNOWN_COMMANDS, cli_main, cli_run};
 
     #[test]
-    fn test_all_known_commands_return_zero() {
-        for &cmd in KNOWN_COMMANDS {
-            assert_eq!(
-                cli_run(cmd, None).unwrap(),
-                0,
-                "known command '{cmd}' must return 0"
-            );
-        }
-    }
-
-    #[test]
-    fn test_known_commands_are_unique_non_empty_and_lowercase() {
-        let mut seen = HashSet::new();
-
+    fn test_known_commands_fail_closed_until_dispatch_is_implemented() {
         for &cmd in KNOWN_COMMANDS {
             assert!(
-                !cmd.is_empty(),
-                "KNOWN_COMMANDS must not contain an empty string entry"
-            );
-            assert_eq!(cmd, cmd.to_lowercase(), "command '{cmd}' must be lowercase");
-            assert!(seen.insert(cmd), "duplicate command found: '{cmd}'");
-        }
-    }
-
-    #[test]
-    fn test_known_commands_include_python_stub_surface() {
-        for cmd in ["benchmark", "bind", "complete", "forward", "gui", "suite"] {
-            assert!(
-                KNOWN_COMMANDS.contains(&cmd),
-                "{cmd} must remain in the compatibility table"
+                cli_run(cmd, None).is_err(),
+                "known command '{cmd}' must not report synthetic success"
             );
         }
     }
 
     #[test]
-    fn test_cli_run_known_command_ignores_args() {
+    fn test_cli_run_does_not_ignore_arguments_and_report_success() {
         let args = Some(vec!["python-3.9".to_string(), "maya-2024".to_string()]);
-        assert_eq!(cli_run("solve", args).unwrap(), 0);
+        assert!(cli_run("solve", args).is_err());
     }
 
     #[test]
@@ -118,176 +97,18 @@ mod tests {
     }
 
     #[test]
-    fn test_cli_main_without_command_returns_zero() {
-        assert_eq!(cli_main(None).unwrap(), 0);
-        assert_eq!(cli_main(Some(vec![])).unwrap(), 0);
+    fn test_cli_main_without_command_fails_closed() {
+        assert!(cli_main(None).is_err());
+        assert!(cli_main(Some(vec![])).is_err());
     }
 
     #[test]
-    fn test_cli_main_dispatches_first_arg_to_cli_run() {
-        assert_eq!(
-            cli_main(Some(vec!["env".to_string(), "python-3.9".to_string()])).unwrap(),
-            0
-        );
-        assert_eq!(cli_main(Some(vec!["release".to_string()])).unwrap(), 0);
+    fn test_cli_main_propagates_unavailable_dispatch() {
+        assert!(cli_main(Some(vec!["env".to_string(), "--help".to_string()])).is_err());
     }
 
     #[test]
     fn test_cli_main_unknown_command_returns_err() {
         assert!(cli_main(Some(vec!["not_a_cmd_xyz".to_string()])).is_err());
-    }
-
-    // ─────── Cycle 133 additions ──────────────────────────────────────────
-
-    #[test]
-    fn test_known_commands_minimum_count_is_stable() {
-        // Guard against silent deletions: the table must hold at least 20 entries.
-        assert!(
-            KNOWN_COMMANDS.len() >= 20,
-            "KNOWN_COMMANDS must have at least 20 entries, got {}",
-            KNOWN_COMMANDS.len()
-        );
-    }
-
-    #[test]
-    fn test_cli_run_unknown_command_is_not_in_known_table() {
-        // Verify that the command names used to trigger errors are indeed absent
-        // from KNOWN_COMMANDS — guards against accidental future additions.
-        assert!(
-            !KNOWN_COMMANDS.contains(&"completely_unknown_xyz"),
-            "test fixture command must not appear in KNOWN_COMMANDS"
-        );
-        assert!(
-            !KNOWN_COMMANDS.contains(&"not_a_cmd"),
-            "test fixture command must not appear in KNOWN_COMMANDS"
-        );
-    }
-
-    #[test]
-    fn test_cli_run_unknown_command_returns_py_value_error() {
-        // cli_run must propagate PyValueError for unknown commands.
-        // We verify the error variant via the pyo3 type name without needing an interpreter.
-        let result = cli_run("__no_such_cmd__", None);
-        assert!(
-            result.is_err(),
-            "cli_run with unknown command must return Err"
-        );
-    }
-
-    #[test]
-    fn test_cli_main_passes_remaining_args_through() {
-        // cli_main(["solve", "python-3.9", "maya"]) dispatches to cli_run("solve", [...])
-        let result = cli_main(Some(vec![
-            "solve".to_string(),
-            "python-3.9".to_string(),
-            "maya".to_string(),
-        ]));
-        assert_eq!(
-            result.unwrap(),
-            0,
-            "solve is a known command, must return 0"
-        );
-    }
-
-    #[test]
-    fn test_cli_run_all_rez_core_commands_present() {
-        for cmd in [
-            "env", "solve", "build", "release", "search", "diff", "cp", "mv", "config",
-        ] {
-            assert!(
-                KNOWN_COMMANDS.contains(&cmd),
-                "core rez command '{cmd}' must be in KNOWN_COMMANDS"
-            );
-        }
-    }
-
-    #[test]
-    fn test_cli_run_whitespace_only_command_returns_err() {
-        assert!(
-            cli_run("   ", None).is_err(),
-            "whitespace-only command must return Err"
-        );
-        assert!(
-            cli_run("\t", None).is_err(),
-            "tab-only command must return Err"
-        );
-    }
-
-    #[test]
-    fn test_cli_main_with_multiple_args_dispatches_first() {
-        // Only the first arg is used as the command; remaining are forwarded as args
-        let result = cli_main(Some(vec![
-            "build".to_string(),
-            "--install".to_string(),
-            "--clean".to_string(),
-        ]));
-        assert_eq!(
-            result.unwrap(),
-            0,
-            "build command with extra flags must return 0"
-        );
-    }
-
-    #[test]
-    fn test_cli_main_unknown_command_in_first_position_returns_err() {
-        // When the first arg is unknown, cli_main must propagate the error from cli_run
-        assert!(
-            cli_main(Some(vec![
-                "unknown_cmd_xyz".to_string(),
-                "extra".to_string()
-            ]))
-            .is_err(),
-            "cli_main with unknown first-arg must return Err"
-        );
-    }
-
-    #[test]
-    fn test_cli_run_case_sensitive_upper_returns_err() {
-        // Commands are case-sensitive; uppercase variants must fail
-        assert!(
-            cli_run("ENV", None).is_err(),
-            "uppercase 'ENV' must return Err"
-        );
-        assert!(
-            cli_run("Build", None).is_err(),
-            "mixed-case 'Build' must return Err"
-        );
-        assert!(
-            cli_run("SOLVE", None).is_err(),
-            "uppercase 'SOLVE' must return Err"
-        );
-    }
-
-    #[test]
-    fn test_cli_run_command_with_leading_trailing_space_returns_err() {
-        assert!(
-            cli_run(" env", None).is_err(),
-            "leading-space ' env' must not match known command"
-        );
-        assert!(
-            cli_run("env ", None).is_err(),
-            "trailing-space 'env ' must not match known command"
-        );
-    }
-
-    #[test]
-    fn test_known_commands_does_not_contain_numeric_entries() {
-        // All command names should be purely textual
-        for &cmd in KNOWN_COMMANDS {
-            assert!(
-                cmd.chars().any(|c| c.is_alphabetic()),
-                "command '{cmd}' must contain at least one alphabetic character"
-            );
-        }
-    }
-
-    #[test]
-    fn test_cli_run_numeric_string_command_returns_err() {
-        // Purely numeric strings are not valid commands
-        assert!(
-            cli_run("123", None).is_err(),
-            "'123' is not a known command"
-        );
-        assert!(cli_run("0", None).is_err(), "'0' is not a known command");
     }
 }

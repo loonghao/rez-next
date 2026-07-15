@@ -8,23 +8,24 @@ Aligns with ``rez.resolved_context`` API:
 - ``PatchLock`` — enum for patch-level version locking
 - ``get_lock_request()`` — generate a locked package request from version + lock
 """
+
 from __future__ import annotations
 
 import os
-import sys
 import shutil
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import rez_next._native  # ensure extension module is initialized  # noqa: F401
 
-# Import native ResolvedContext class for monkey-patching
-from rez_next._native.resolved_context import ResolvedContext as _NativeResolvedContext
 # Re-export everything from native for backward compatibility
 from rez_next._native.resolved_context import *  # noqa: F401,F403
 
+# Import native ResolvedContext class for monkey-patching
+from rez_next._native.resolved_context import ResolvedContext as _NativeResolvedContext
 
 # ── Enums (pure Python, no native equivalent) ─────────────────────────
+
 
 class RezToolsVisibility(Enum):
     """Determines if/how rez CLI tools are added back to PATH within a
@@ -32,6 +33,7 @@ class RezToolsVisibility(Enum):
 
     Rez API: ``rez.resolved_context.RezToolsVisibility``
     """
+
     #: Don't expose rez in resolved env
     never = 0
     #: Append to PATH in resolved env
@@ -46,6 +48,7 @@ class SuiteVisibility(Enum):
 
     Rez API: ``rez.resolved_context.SuiteVisibility``
     """
+
     #: Don't attempt to keep any suites visible in a new env
     never = 0
     #: Keep suites visible in any new env
@@ -61,6 +64,7 @@ class PatchLock(Enum):
 
     Rez API: ``rez.resolved_context.PatchLock``
     """
+
     no_lock = ("No locking", -1)
     lock_2 = ("Minor version updates only (X.*)", 1)
     lock_3 = ("Patch version updates only (X.X.*)", 2)
@@ -75,8 +79,7 @@ class PatchLock(Enum):
 # ── Standalone functions ─────────────────────────────────────────────
 
 
-def get_lock_request(name: str, version, patch_lock: PatchLock,
-                     weak: bool = True):
+def get_lock_request(name: str, version, patch_lock: PatchLock, weak: bool = True):
     """Given a package name, version and patch lock type, return the
     equivalent package request.
 
@@ -99,20 +102,21 @@ def get_lock_request(name: str, version, patch_lock: PatchLock,
     if isinstance(version, str):
         version = Version(version)
 
-    ch = '~' if weak else ''
+    ch = "~" if weak else ""
     if patch_lock == PatchLock.lock:
-        return "%s%s==%s" % (ch, name, str(version))
+        return f"{ch}{name}=={str(version)}"
     elif patch_lock == PatchLock.no_lock or not version:
         return None
 
     version_ = version.trim(patch_lock.rank)
-    s = "%s%s-%s" % (ch, name, str(version_))
+    s = f"{ch}{name}-{str(version_)}"
     return s
 
 
 # ── Resolution diff (pure Python, no native equivalent yet) ──────────
 
-def diff_contexts(request_a: List[str], request_b: List[str]) -> Dict[str, Any]:
+
+def diff_contexts(request_a: list[str], request_b: list[str]) -> dict[str, Any]:
     """Compare two sets of package requests and return a diff dictionary.
 
     This is a lightweight Python-level implementation that mirrors
@@ -125,6 +129,7 @@ def diff_contexts(request_a: List[str], request_b: List[str]) -> Dict[str, Any]:
     Returns:
         Dict with keys: ``added``, ``removed``, ``changed``, ``unchanged``.
     """
+
     def _parse(s):
         parts = s.split("-", 1)
         name = parts[0]
@@ -165,6 +170,7 @@ def diff_contexts(request_a: List[str], request_b: List[str]) -> Dict[str, Any]:
 
 # ── Helper functions for monkey-patched methods ──────────────────────
 
+
 def _req_name(requirement):
     """Extract package name from a requirement string."""
     requirement = str(requirement)
@@ -189,7 +195,7 @@ def _resolve_as_exact_requests(self):
     Rez API: ``context.get_resolve_as_exact_requests()``
     """
     result = []
-    for pkg in (getattr(self, "resolved_packages", []) or []):
+    for pkg in getattr(self, "resolved_packages", []) or []:
         name = getattr(pkg, "name", "")
         version = getattr(pkg, "version_str", getattr(pkg, "version", None))
         if name and version is not None:
@@ -199,12 +205,14 @@ def _resolve_as_exact_requests(self):
 
 # ── Monkey-patch methods onto native ResolvedContext ─────────────────
 
+
 def _context_copy(self):
     """Return a shallow copy of this context.
 
     Rez API: ``context.copy()``
     """
     import copy as _copy
+
     return _copy.copy(self)
 
 
@@ -221,15 +229,13 @@ def _context_validate(self):
         )
 
     # Check that all resolved packages exist and have required fields
-    for pkg in (getattr(self, "resolved_packages", []) or []):
+    for pkg in getattr(self, "resolved_packages", []) or []:
         name = getattr(pkg, "name", None)
         if not name:
             raise RuntimeError("Found a package with no name in resolved context")
         version = getattr(pkg, "version", None) or getattr(pkg, "version_str", None)
         if not version:
-            raise RuntimeError(
-                "Package %s has no version in resolved context" % name
-            )
+            raise RuntimeError(f"Package {name} has no version in resolved context")
 
 
 def _context_which(self, cmd, parent_environ=None, fallback=False):
@@ -302,21 +308,28 @@ def _context_get_dependency_graph(self, as_dot=False):
         lines = [
             "digraph dependency_graph {",
             "  rankdir=LR;",
-            '  node [shape=box, style=filled, fillcolor=lightblue];',
+            "  node [shape=box, style=filled, fillcolor=lightblue];",
         ]
         for node in nodes:
-            label = "%s-%s" % (node["name"], node["version"]) if node["version"] else node["name"]
-            lines.append('  "%s";' % label)
+            label = (
+                "{}-{}".format(node["name"], node["version"]) if node["version"] else node["name"]
+            )
+            lines.append(f'  "{label}";')
         for edge in edges:
-            from_label = "%s-%s" % (edge["from"], by_name[edge["from"]].version_str
-                                    if hasattr(by_name[edge["from"]], "version_str")
-                                    and by_name[edge["from"]].version_str
-                                    else edge["from"])
-            to_label = "%s-%s" % (edge["to"], by_name[edge["to"]].version_str
-                                  if hasattr(by_name[edge["to"]], "version_str")
-                                  and by_name[edge["to"]].version_str
-                                  else edge["to"])
-            lines.append('  "%s" -> "%s";' % (from_label, to_label))
+            from_label = "{}-{}".format(
+                edge["from"],
+                by_name[edge["from"]].version_str
+                if hasattr(by_name[edge["from"]], "version_str")
+                and by_name[edge["from"]].version_str
+                else edge["from"],
+            )
+            to_label = "{}-{}".format(
+                edge["to"],
+                by_name[edge["to"]].version_str
+                if hasattr(by_name[edge["to"]], "version_str") and by_name[edge["to"]].version_str
+                else edge["to"],
+            )
+            lines.append(f'  "{from_label}" -> "{to_label}";')
         lines.append("}")
         return "\n".join(lines)
 
@@ -410,7 +423,7 @@ def _context_print_resolve_diff(self, other, heading=None):
         name = getattr(pkg, "name", str(pkg))
         version = getattr(pkg, "version_str", getattr(pkg, "version", None))
         if version:
-            return "%s-%s" % (name, str(version))
+            return f"{name}-{str(version)}"
         return name
 
     diff = diff_contexts(
@@ -426,15 +439,15 @@ def _context_print_resolve_diff(self, other, heading=None):
     if diff.get("added"):
         output.append("  Added packages:")
         for name, ver in diff["added"]:
-            output.append("    + %s-%s" % (name, ver))
+            output.append(f"    + {name}-{ver}")
     if diff.get("removed"):
         output.append("  Removed packages:")
         for name, ver in diff["removed"]:
-            output.append("    - %s-%s" % (name, ver))
+            output.append(f"    - {name}-{ver}")
     if diff.get("changed"):
         output.append("  Changed packages:")
         for (name_a, ver_a), (name_b, ver_b) in diff["changed"]:
-            output.append("    ~ %s: %s -> %s" % (name_a, ver_a, ver_b))
+            output.append(f"    ~ {name_a}: {ver_a} -> {ver_b}")
 
     text = "\n".join(output)
     print(text)
@@ -460,22 +473,23 @@ def _context_to_dot(self):
     lines = [
         "digraph resolved_context {",
         "  rankdir=LR;",
-        '  node [shape=box, style=filled, fillcolor=lightblue];',
+        "  node [shape=box, style=filled, fillcolor=lightblue];",
     ]
     by_name = {getattr(pkg, "name", ""): pkg for pkg in packages}
     for pkg in packages:
-        lines.append('  "%s";' % _pkg_node(pkg))
+        lines.append(f'  "{_pkg_node(pkg)}";')
     for pkg in packages:
         source = _pkg_node(pkg)
         for req in getattr(pkg, "requires", []) or []:
             name = _req_name(req)
             if name and name in by_name:
-                lines.append('  "%s" -> "%s";' % (source, _pkg_node(by_name[name])))
+                lines.append(f'  "{source}" -> "{_pkg_node(by_name[name])}";')
     lines.append("}")
     return "\n".join(lines)
 
 
 # ── Apply all monkey-patches ─────────────────────────────────────────
+
 
 def _apply_patches():
     """Apply all missing methods onto the native ResolvedContext class."""

@@ -267,11 +267,12 @@ impl RepositoryScanner {
 
         // Cache hit check
         if self.config.enable_scan_cache {
-            if let Some(cached_entry) = self.scan_cache.get(package_file) {
-                if cached_entry.mtime == mtime && cached_entry.size == file_size {
-                    self.cache_hits.fetch_add(1, Ordering::Relaxed);
-                    return Ok(cached_entry.result.clone());
-                }
+            if let Some(cached_entry) = self.scan_cache.get(package_file)
+                && cached_entry.mtime == mtime
+                && cached_entry.size == file_size
+            {
+                self.cache_hits.fetch_add(1, Ordering::Relaxed);
+                return Ok(cached_entry.result.clone());
             }
             self.cache_misses.fetch_add(1, Ordering::Relaxed);
         }

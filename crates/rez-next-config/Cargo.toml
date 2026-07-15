@@ -1,12 +1,12 @@
 [package]
 name = "rez-next-config"
-version = "0.3.0" # x-release-please-version
-edition = "2024"
-rust-version = "1.95.0"
-authors = ["LongHao <hal.long@outlook.com>"]
-license = "Apache-2.0"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
 description = "Configuration management for Rez package manager"
-repository = "https://github.com/loonghao/rez-next"
+repository.workspace = true
 
 [dependencies]
 # Workspace dependencies

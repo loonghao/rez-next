@@ -1,12 +1,13 @@
 """Tests for which and which_all functions."""
 
-import pytest
 import os
 import sys
 import tempfile
 
+import pytest
+
 # Add parent directory to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import rez_next.util as util
 
@@ -69,7 +70,7 @@ class TestIntegration:
             fake_exe = os.path.join(tmpdir, "fake_cmd")
             if sys.platform == "win32":
                 fake_exe += ".exe"
-            with open(fake_exe, 'w') as f:
+            with open(fake_exe, "w") as f:
                 f.write("# fake executable")
 
             # On Windows, just check that the file exists

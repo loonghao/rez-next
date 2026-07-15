@@ -43,8 +43,19 @@ fn test_powershell_script_uses_env_var() {
 fn test_cmd_script_uses_set() {
     let env = make_env();
     let script = generate_shell_script(&env, &ShellType::Cmd);
-    assert!(script.contains("SET MY_ROOT="));
+    assert!(script.contains("SET \"MY_ROOT="));
     assert!(script.contains("DOSKEY mypkg="));
+}
+
+#[test]
+fn test_cmd_quotes_environment_values_with_metacharacters() {
+    let mut env = RexEnvironment::new();
+    env.vars
+        .insert("SPECIAL".to_string(), "left&right".to_string());
+
+    let script = generate_shell_script(&env, &ShellType::Cmd);
+
+    assert!(script.contains("SET \"SPECIAL=left&right\""), "{script}");
 }
 
 #[test]
@@ -83,6 +94,19 @@ fn test_powershell_escapes_single_quotes() {
         .insert("MY_VAR".to_string(), "it's a test".to_string());
     let script = generate_shell_script(&env, &ShellType::PowerShell);
     assert!(script.contains("it''s a test"));
+}
+
+#[test]
+fn test_powershell_braces_environment_names_with_special_characters() {
+    let mut env = RexEnvironment::new();
+    env.vars.insert(
+        "ProgramFiles(x86)".to_string(),
+        "C:\\Program Files (x86)".to_string(),
+    );
+
+    let script = generate_shell_script(&env, &ShellType::PowerShell);
+
+    assert!(script.contains("${env:ProgramFiles(x86)} = '"), "{script}");
 }
 
 #[test]
@@ -217,11 +241,11 @@ fn test_cmd_full_output() {
     let script = generate_shell_script(&env, &ShellType::Cmd);
     assert!(script.contains("@echo off"), "Missing @echo off");
     assert!(
-        script.contains("SET MYAPP_ROOT=/opt/myapp/1.2.3"),
+        script.contains("SET \"MYAPP_ROOT=/opt/myapp/1.2.3\""),
         "Missing SET MYAPP_ROOT"
     );
     assert!(
-        script.contains("SET MYAPP_VERSION=1.2.3"),
+        script.contains("SET \"MYAPP_VERSION=1.2.3\""),
         "Missing SET MYAPP_VERSION"
     );
     assert!(script.contains("DOSKEY myapp="), "Missing DOSKEY myapp");

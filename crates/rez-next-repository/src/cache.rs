@@ -65,12 +65,11 @@ impl CacheEntry {
         }
 
         // Check if source file has been modified
-        if let Ok(metadata) = std::fs::metadata(&self.source_path) {
-            if let Ok(mtime) = metadata.modified() {
-                if let Ok(mtime_secs) = mtime.duration_since(UNIX_EPOCH) {
-                    return mtime_secs.as_secs() <= self.source_mtime;
-                }
-            }
+        if let Ok(metadata) = std::fs::metadata(&self.source_path)
+            && let Ok(mtime) = metadata.modified()
+            && let Ok(mtime_secs) = mtime.duration_since(UNIX_EPOCH)
+        {
+            return mtime_secs.as_secs() <= self.source_mtime;
         }
 
         true

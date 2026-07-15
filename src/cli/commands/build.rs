@@ -375,7 +375,7 @@ fn load_current_package(working_dir: &Path) -> RezCoreResult<Package> {
         .map_err(|e| RezCoreError::PackageParse(format!("Failed to load package: {}", e)))
 }
 
-fn resolve_build_context(
+pub(super) fn resolve_build_context(
     package: &Package,
     variant_requires: Option<&[String]>,
     verbose: bool,
@@ -650,20 +650,9 @@ fn execute_build(
             args.output,
         )?
     };
-    let build_result = results.into_iter().next().ok_or_else(|| {
-        RezCoreError::BuildError(
-            "No build occurred - no package specifications provided".to_string(),
-        )
-    })?;
+    let build_count = validate_build_results(results)?;
 
-    if !build_result.success {
-        return Err(RezCoreError::BuildError(format!(
-            "Build failed: {}",
-            build_result.errors
-        )));
-    }
-
-    print_build_success_summary(1, &TermStyle::detect());
+    print_build_success_summary(build_count, &TermStyle::detect());
 
     // Installation is handled by the build system's install step
     // No need for separate installation logic here
@@ -673,6 +662,28 @@ fn execute_build(
     }
 
     Ok(())
+}
+
+fn validate_build_results(results: Vec<rez_next_build::BuildResult>) -> RezCoreResult<usize> {
+    if results.is_empty() {
+        return Err(RezCoreError::BuildError(
+            "No build occurred - no package specifications provided".to_string(),
+        ));
+    }
+
+    let failures: Vec<String> = results
+        .iter()
+        .filter(|result| !result.success)
+        .map(|result| format!("{}: {}", result.build_id, result.errors))
+        .collect();
+    if !failures.is_empty() {
+        return Err(RezCoreError::BuildError(format!(
+            "Build failed: {}",
+            failures.join("; ")
+        )));
+    }
+
+    Ok(results.len())
 }
 
 fn wait_for_builds_with_text(
@@ -755,18 +766,16 @@ fn run_live_build_tui(
 
         if event::poll(std::time::Duration::from_millis(40))
             .map_err(|err| RezCoreError::BuildError(err.to_string()))?
-        {
-            if let Event::Key(key) =
+            && let Event::Key(key) =
                 event::read().map_err(|err| RezCoreError::BuildError(err.to_string()))?
-            {
-                match key.code {
-                    KeyCode::Char('q') | KeyCode::Esc if app.finished => break,
-                    KeyCode::Down | KeyCode::Char('j') => app.next(),
-                    KeyCode::Up | KeyCode::Char('k') => app.previous(),
-                    KeyCode::Enter | KeyCode::Char(' ') => app.toggle_selected(),
-                    KeyCode::Char('c') => app.toggle_mode(),
-                    _ => {}
-                }
+        {
+            match key.code {
+                KeyCode::Char('q') | KeyCode::Esc if app.finished => break,
+                KeyCode::Down | KeyCode::Char('j') => app.next(),
+                KeyCode::Up | KeyCode::Char('k') => app.previous(),
+                KeyCode::Enter | KeyCode::Char(' ') => app.toggle_selected(),
+                KeyCode::Char('c') => app.toggle_mode(),
+                _ => {}
             }
         }
 
@@ -926,6 +935,7 @@ impl BuildTuiApp {
             BuildStep::Testing,
             BuildStep::Packaging,
             BuildStep::Installing,
+            BuildStep::PackageTesting,
             BuildStep::Cleanup,
         ]
         .into_iter()
@@ -1199,6 +1209,7 @@ fn step_label(step: &BuildStep) -> &'static str {
         BuildStep::Testing => "testing",
         BuildStep::Packaging => "packaging",
         BuildStep::Installing => "installing",
+        BuildStep::PackageTesting => "package-testing",
         BuildStep::Cleanup => "cleanup",
     }
 }
@@ -1285,4 +1296,22 @@ fn get_install_path(args: &BuildArgs) -> RezCoreResult<PathBuf> {
     };
 
     Ok(resolved)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rez_next_build::{BuildArtifacts, BuildResult};
+
+    #[test]
+    fn test_validate_build_results_checks_every_result() {
+        let results = vec![
+            BuildResult::success("first".to_string(), BuildArtifacts::default(), 1),
+            BuildResult::failure("second".to_string(), "second failed".to_string(), 1),
+        ];
+
+        let error = validate_build_results(results)
+            .expect_err("a later failed build must fail the command");
+        assert!(error.to_string().contains("second failed"), "{error}");
+    }
 }

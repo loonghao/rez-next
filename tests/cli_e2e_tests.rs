@@ -14,7 +14,8 @@
 //!   target/release/rez-next (if REZ_NEXT_E2E_BINARY is set to release path)
 
 use std::fs;
-use std::process::Command;
+use std::io::Write;
+use std::process::{Command, Stdio};
 
 #[path = "cli_e2e_helpers.rs"]
 mod cli_e2e_helpers;
@@ -75,6 +76,7 @@ fn test_env_executes_package_alias_with_upper_level_flags() {
         "1.0.0",
         r#"
 def commands():
+    command("echo alias-startup-ok")
     alias("hello-alias", "echo alias-ok")
 "#,
     );
@@ -100,7 +102,522 @@ def commands():
         String::from_utf8_lossy(&output.stdout),
         String::from_utf8_lossy(&output.stderr)
     );
-    assert_eq!(String::from_utf8_lossy(&output.stdout).trim(), "alias-ok");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("alias-startup-ok"), "stdout={stdout}");
+    assert!(stdout.contains("alias-ok"), "stdout={stdout}");
+}
+
+#[test]
+fn test_env_executes_direct_command_after_package_actions() {
+    let temp = tempfile::tempdir().unwrap();
+    let repository = temp.path().join("packages");
+    write_package(
+        &repository,
+        "direct_package",
+        "1.0.0",
+        r#"
+def commands():
+    command("echo direct-startup-ok")
+"#,
+    );
+
+    let output = Command::new(env!("CARGO_BIN_EXE_rez"))
+        .args(["env", "-q", "--paths"])
+        .arg(&repository)
+        .args(["direct_package", "--", "rez", "--version"])
+        .output()
+        .expect("rez env direct command should run");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+
+    assert!(output.status.success(), "stdout={stdout}");
+    assert!(stdout.contains("direct-startup-ok"), "stdout={stdout}");
+    assert!(
+        stdout.contains(&format!("rez {}", env!("CARGO_PKG_VERSION"))),
+        "stdout={stdout}"
+    );
+}
+
+#[test]
+fn test_env_command_runs_package_startup_commands() {
+    let temp = tempfile::tempdir().unwrap();
+    let repository = temp.path().join("packages");
+    write_package(
+        &repository,
+        "startup_package",
+        "1.0.0",
+        r#"
+def commands():
+    command("echo startup-ok")
+"#,
+    );
+
+    let output = Command::new(env!("CARGO_BIN_EXE_rez"))
+        .args(["env", "-q", "--paths"])
+        .arg(&repository)
+        .args(["startup_package", "-c", "echo command-ok"])
+        .output()
+        .expect("rez env command should run");
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        output.status.success(),
+        "stdout={stdout} stderr={}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(stdout.contains("startup-ok"), "stdout={stdout}");
+    assert!(stdout.contains("command-ok"), "stdout={stdout}");
+}
+
+#[test]
+fn test_env_stops_when_package_requests_stop() {
+    let temp = tempfile::tempdir().unwrap();
+    let repository = temp.path().join("packages");
+    write_package(
+        &repository,
+        "stopped_package",
+        "1.0.0",
+        r#"
+def commands():
+    stop("package blocked activation")
+"#,
+    );
+
+    let output = Command::new(env!("CARGO_BIN_EXE_rez"))
+        .args(["env", "-q", "--paths"])
+        .arg(&repository)
+        .args(["stopped_package", "-c", "echo should-not-run"])
+        .output()
+        .expect("rez env command should exit");
+    let combined = format!(
+        "{}{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    assert!(!output.status.success(), "output={combined}");
+    assert!(
+        combined.contains("package blocked activation"),
+        "{combined}"
+    );
+    assert!(!combined.contains("should-not-run"), "{combined}");
+}
+
+#[test]
+fn test_env_reports_unsupported_package_definition() {
+    let temp = tempfile::tempdir().unwrap();
+    let repository = temp.path().join("packages");
+    let package_dir = repository.join("dynamic_package").join("1.0.0");
+    fs::create_dir_all(&package_dir).unwrap();
+    fs::write(
+        package_dir.join("package.py"),
+        r#"name = "dynamic_package"
+version = load_version()
+"#,
+    )
+    .unwrap();
+
+    let output = Command::new(env!("CARGO_BIN_EXE_rez"))
+        .args(["env", "-q", "--paths"])
+        .arg(&repository)
+        .args(["dynamic_package", "-c", "echo should-not-run"])
+        .output()
+        .expect("rez env command should exit");
+    let combined = format!(
+        "{}{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    assert!(!output.status.success(), "output={combined}");
+    assert!(combined.contains("Unsupported function call"), "{combined}");
+    assert!(!combined.contains("should-not-run"), "{combined}");
+}
+
+#[test]
+fn test_env_command_exposes_context_files() {
+    let temp = tempfile::tempdir().unwrap();
+    let repository = temp.path().join("packages");
+    write_package(&repository, "context_package", "1.0.0", "");
+    let command = if cfg!(windows) {
+        r#"if exist "%REZ_RXT_FILE%" if exist "%REZ_CONTEXT_FILE%" echo context-ok"#
+    } else {
+        r#"test -f "$REZ_RXT_FILE" && test -f "$REZ_CONTEXT_FILE" && echo context-ok"#
+    };
+
+    let output = Command::new(env!("CARGO_BIN_EXE_rez"))
+        .args(["env", "-q", "--paths"])
+        .arg(&repository)
+        .args(["context_package", "-c", command])
+        .output()
+        .expect("rez env command should run");
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        output.status.success(),
+        "stdout={stdout} stderr={}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(stdout.contains("context-ok"), "stdout={stdout}");
+}
+
+#[test]
+fn test_package_test_runs_in_package_environment() {
+    let temp = tempfile::tempdir().unwrap();
+    let package_dir = temp.path().join("tested_package");
+    fs::create_dir_all(&package_dir).unwrap();
+    let test_command = if cfg!(windows) {
+        r#"if "%TEST_PACKAGE_CONTEXT%"=="ready" (exit /b 0) else (echo missing package context 1>&2 & exit /b 9)"#
+    } else {
+        r#"test "$TEST_PACKAGE_CONTEXT" = "ready" || { echo missing package context >&2; exit 9; }"#
+    };
+    fs::write(
+        package_dir.join("package.py"),
+        format!(
+            r#"name = "tested_package"
+version = "1.0.0"
+def commands():
+    env.TEST_PACKAGE_CONTEXT = "ready"
+tests = {{"context": {test_command:?}}}
+"#
+        ),
+    )
+    .unwrap();
+
+    let output = Command::new(env!("CARGO_BIN_EXE_rez"))
+        .args(["test", "tested_package", "--working-dir"])
+        .arg(&package_dir)
+        .output()
+        .expect("rez test should run");
+
+    assert!(
+        output.status.success(),
+        "stdout={} stderr={}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+
+#[test]
+fn test_package_test_resolves_dependencies_from_paths() {
+    let temp = tempfile::tempdir().unwrap();
+    let repository = temp.path().join("packages");
+    write_package(
+        &repository,
+        "test_dependency",
+        "1.0.0",
+        r#"
+def commands():
+    env.TEST_DEPENDENCY_CONTEXT = "ready"
+"#,
+    );
+    let test_command = if cfg!(windows) {
+        r#"if "%TEST_DEPENDENCY_CONTEXT%"=="ready" (exit /b 0) else (echo missing dependency context 1>&2 & exit /b 9)"#
+    } else {
+        r#"test "$TEST_DEPENDENCY_CONTEXT" = "ready" || { echo missing dependency context >&2; exit 9; }"#
+    };
+    write_package(
+        &repository,
+        "dependent_tests",
+        "1.0.0",
+        &format!(
+            r#"
+requires = ["test_dependency"]
+tests = {{"context": {test_command:?}}}
+"#
+        ),
+    );
+
+    let output = Command::new(env!("CARGO_BIN_EXE_rez"))
+        .args(["test", "dependent_tests", "--paths"])
+        .arg(&repository)
+        .current_dir(temp.path())
+        .output()
+        .expect("rez test should run");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+
+    assert!(
+        output.status.success(),
+        "stdout={stdout} stderr={}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(stdout.contains("All tests passed"), "stdout={stdout}");
+}
+
+#[test]
+fn test_package_test_fails_when_package_is_missing() {
+    let temp = tempfile::tempdir().unwrap();
+    let output = Command::new(env!("CARGO_BIN_EXE_rez"))
+        .args(["test", "missing_test_package", "--working-dir"])
+        .arg(temp.path())
+        .output()
+        .expect("rez test should report the missing package");
+
+    assert!(!output.status.success());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("missing_test_package"), "stderr={stderr}");
+    assert!(stderr.contains("not found"), "stderr={stderr}");
+}
+
+#[test]
+fn test_package_test_applies_pre_test_commands() {
+    let temp = tempfile::tempdir().unwrap();
+    let package_dir = temp.path().join("pre_test_package");
+    fs::create_dir_all(&package_dir).unwrap();
+    let test_command = if cfg!(windows) {
+        r#"if "%PRE_TEST_READY%"=="yes" (exit /b 0) else (exit /b 9)"#
+    } else {
+        r#"test "$PRE_TEST_READY" = "yes""#
+    };
+    fs::write(
+        package_dir.join("package.py"),
+        format!(
+            r#"name = "pre_test_package"
+version = "1.0.0"
+def pre_test_commands():
+    env.PRE_TEST_READY = "yes"
+tests = {{"pre-test": {test_command:?}}}
+"#
+        ),
+    )
+    .unwrap();
+
+    let output = Command::new(env!("CARGO_BIN_EXE_rez"))
+        .args(["test", "pre_test_package", "--working-dir"])
+        .arg(&package_dir)
+        .output()
+        .expect("rez test should run pre-test commands");
+
+    assert!(
+        output.status.success(),
+        "stdout={} stderr={}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+
+#[test]
+fn test_package_test_resolves_a_compatible_variant() {
+    let temp = tempfile::tempdir().unwrap();
+    let repository = temp.path().join("packages");
+    write_package(
+        &repository,
+        "variant_dependency",
+        "1.0.0",
+        r#"
+def commands():
+    env.VARIANT_TEST_CONTEXT = "ready"
+"#,
+    );
+    let test_command = if cfg!(windows) {
+        r#"if "%VARIANT_TEST_CONTEXT%"=="ready" (exit /b 0) else (exit /b 9)"#
+    } else {
+        r#"test "$VARIANT_TEST_CONTEXT" = "ready""#
+    };
+    write_package(
+        &repository,
+        "variant_tests",
+        "1.0.0",
+        &format!(
+            r#"
+variants = [["variant_dependency"]]
+tests = {{"variant": {test_command:?}}}
+"#
+        ),
+    );
+
+    let output = Command::new(env!("CARGO_BIN_EXE_rez"))
+        .args(["test", "variant_tests", "--paths"])
+        .arg(&repository)
+        .current_dir(temp.path())
+        .output()
+        .expect("rez test should resolve a compatible variant");
+
+    assert!(
+        output.status.success(),
+        "stdout={} stderr={}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+
+#[test]
+fn test_env_command_removes_temporary_context_after_exit() {
+    let temp = tempfile::tempdir().unwrap();
+    let repository = temp.path().join("packages");
+    write_package(&repository, "cleanup_package", "1.0.0", "");
+    let command = if cfg!(windows) {
+        "echo %REZ_RXT_FILE%"
+    } else {
+        "printf '%s\\n' \"$REZ_RXT_FILE\""
+    };
+
+    let output = Command::new(env!("CARGO_BIN_EXE_rez"))
+        .args(["env", "-q", "--paths"])
+        .arg(&repository)
+        .args(["cleanup_package", "-c", command])
+        .output()
+        .expect("rez env command should run");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let rxt_path = stdout
+        .lines()
+        .find(|line| line.trim().ends_with(".rxt"))
+        .unwrap();
+
+    assert!(output.status.success(), "stdout={stdout}");
+    assert!(!std::path::Path::new(rxt_path.trim()).exists(), "{stdout}");
+}
+
+#[test]
+fn test_env_interactive_shell_loads_package_actions() {
+    let temp = tempfile::tempdir().unwrap();
+    let repository = temp.path().join("packages");
+    write_package(
+        &repository,
+        "interactive_package",
+        "1.0.0",
+        r#"
+def commands():
+    command("echo interactive-startup-ok")
+    alias("hello-alias", "echo interactive-ok")
+"#,
+    );
+    let shell = if cfg!(windows) { "cmd" } else { "bash" };
+    let input = if cfg!(windows) {
+        b"exit\r\n".as_slice()
+    } else {
+        b"hello-alias\nexit\n".as_slice()
+    };
+
+    let mut child = Command::new(env!("CARGO_BIN_EXE_rez"))
+        .args(["env", "-q", "--shell", shell, "--paths"])
+        .arg(&repository)
+        .arg("interactive_package")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("interactive rez shell should start");
+    child.stdin.as_mut().unwrap().write_all(input).unwrap();
+    let output = child.wait_with_output().unwrap();
+    let stdout = String::from_utf8_lossy(&output.stdout);
+
+    assert!(
+        output.status.success(),
+        "stdout={stdout} stderr={}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(stdout.contains("interactive-startup-ok"), "stdout={stdout}");
+    if !cfg!(windows) {
+        assert!(stdout.contains("interactive-ok"), "stdout={stdout}");
+    }
+}
+
+#[cfg(windows)]
+#[test]
+fn test_env_powershell_loads_package_actions() {
+    let temp = tempfile::tempdir().unwrap();
+    let repository = temp.path().join("packages");
+    write_package(
+        &repository,
+        "powershell_package",
+        "1.0.0",
+        r#"
+def commands():
+    command("Write-Output powershell-startup-ok")
+    alias("hello-alias", "Write-Output")
+"#,
+    );
+
+    let output = Command::new(env!("CARGO_BIN_EXE_rez"))
+        .args(["env", "-q", "--shell", "powershell", "--paths"])
+        .arg(&repository)
+        .args([
+            "powershell_package",
+            "-c",
+            "hello-alias powershell-alias-ok",
+        ])
+        .output()
+        .expect("PowerShell rez environment should run");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+
+    assert!(
+        output.status.success(),
+        "stdout={stdout} stderr={}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(stdout.contains("powershell-startup-ok"), "stdout={stdout}");
+    assert!(stdout.contains("powershell-alias-ok"), "stdout={stdout}");
+}
+
+#[test]
+fn test_env_command_reports_active_status() {
+    let temp = tempfile::tempdir().unwrap();
+    let repository = temp.path().join("packages");
+    write_package(&repository, "status_package", "1.0.0", "");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_rez"))
+        .args(["env", "-q", "--paths"])
+        .arg(&repository)
+        .args(["status_package", "-c", "rez status"])
+        .output()
+        .expect("rez status should run inside rez env");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+
+    assert!(
+        output.status.success(),
+        "stdout={stdout} stderr={}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(stdout.contains("Active Context:"), "stdout={stdout}");
+    assert!(stdout.contains(".rxt"), "stdout={stdout}");
+}
+
+#[test]
+fn test_env_command_reads_current_context() {
+    let temp = tempfile::tempdir().unwrap();
+    let repository = temp.path().join("packages");
+    write_package(&repository, "current_package", "1.0.0", "");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_rez"))
+        .args(["env", "-q", "--paths"])
+        .arg(&repository)
+        .args(["current_package", "-c", "rez context --print-request"])
+        .output()
+        .expect("rez context should run inside rez env");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+
+    assert!(
+        output.status.success(),
+        "stdout={stdout} stderr={}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(stdout.contains("current_package"), "stdout={stdout}");
+}
+
+#[test]
+fn test_env_command_views_current_package() {
+    let temp = tempfile::tempdir().unwrap();
+    let repository = temp.path().join("packages");
+    write_package(&repository, "view_package", "1.0.0", "");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_rez"))
+        .args(["env", "-q", "--paths"])
+        .arg(&repository)
+        .args([
+            "view_package",
+            "-c",
+            "rez view view_package --current --brief",
+        ])
+        .output()
+        .expect("rez view --current should run inside rez env");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+
+    assert!(
+        output.status.success(),
+        "stdout={stdout} stderr={}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(stdout.contains("view_package"), "stdout={stdout}");
 }
 
 #[test]

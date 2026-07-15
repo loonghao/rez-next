@@ -1,8 +1,8 @@
 """Tests for rez_next.serialise_ module."""
 
-import pytest
-import tempfile
 import os
+import tempfile
+
 import rez_next.serialise_ as serialise
 
 
@@ -114,7 +114,7 @@ class TestDumpPackageData:
         try:
             serialise.dump_package_data(data, filepath, "yaml")
             assert os.path.exists(filepath)
-            with open(filepath, "r") as f:
+            with open(filepath) as f:
                 content = f.read()
                 assert "name:" in content
         finally:
@@ -129,7 +129,7 @@ class TestDumpPackageData:
         try:
             serialise.dump_package_data(data, filepath, "json")
             assert os.path.exists(filepath)
-            with open(filepath, "r") as f:
+            with open(filepath) as f:
                 content = f.read()
                 assert "name" in content
         finally:

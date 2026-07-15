@@ -17,12 +17,12 @@ Design:
 from __future__ import annotations
 
 import os
-from typing import Any, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from rez_next.exceptions import PackageCopyError
 
 if TYPE_CHECKING:
-    from rez_next.packages import Package, Variant
+    pass
 
 
 def _resolve_package_name(package: Any) -> str:
@@ -40,7 +40,7 @@ def _resolve_package_name(package: Any) -> str:
     return pkg_str
 
 
-def _resolve_package_version(package: Any, version: Any = None) -> Optional[str]:
+def _resolve_package_version(package: Any, version: Any = None) -> str | None:
     """Resolve a version from a Package object or explicit value."""
     if version is not None:
         return str(version)
@@ -61,7 +61,7 @@ def _resolve_dest_path(dest_repository: Any) -> str:
     return os.path.abspath(str(dest_repository))
 
 
-def _resolve_src_paths(package_repos: Optional[list[Any]] = None) -> Optional[list[str]]:
+def _resolve_src_paths(package_repos: list[Any] | None = None) -> list[str] | None:
     """Resolve source paths from repository objects or strings."""
     if package_repos is None:
         return None
@@ -82,17 +82,17 @@ def copy_package(
     package: Any,
     dest_repository: Any,
     *,
-    variants: Optional[list[int]] = None,
+    variants: list[int] | None = None,
     shallow: bool = False,
-    dest_name: Optional[str] = None,
-    dest_version: Optional[str] = None,
+    dest_name: str | None = None,
+    dest_version: str | None = None,
     overwrite: bool = False,
     force: bool = False,
     follow_symlinks: bool = False,
     dry_run: bool = False,
     keep_timestamp: bool = False,
     skip_payload: bool = False,
-    overrides: Optional[dict[str, Any]] = None,
+    overrides: dict[str, Any] | None = None,
     verbose: bool = False,
 ) -> dict[str, list[tuple[Any, Any]]]:
     """Copy a package to another repository.
@@ -122,6 +122,19 @@ def copy_package(
     if shallow:
         raise PackageCopyError("Shallow copy (symlinks) not yet supported in rez-next")
 
+    unsupported = {
+        "variants": variants is not None,
+        "dest_name": dest_name is not None,
+        "dest_version": dest_version is not None,
+        "follow_symlinks": follow_symlinks,
+        "dry_run": dry_run,
+        "keep_timestamp": keep_timestamp,
+        "skip_payload": skip_payload,
+    }
+    requested = [name for name, enabled in unsupported.items() if enabled]
+    if requested:
+        raise PackageCopyError("Unsupported copy options: " + ", ".join(requested))
+
     if overrides:
         raise PackageCopyError(
             "Custom overrides not yet supported in rez-next. "
@@ -129,20 +142,12 @@ def copy_package(
         )
 
     pkg_name = _resolve_package_name(package)
-    pkg_version = _resolve_package_version(package, dest_version)
+    pkg_version = _resolve_package_version(package)
     dest_path = _resolve_dest_path(dest_repository)
-
-    # Use dry_run by checking for existence rather than attempting the copy
-    if dry_run:
-        dest_pkg_path = os.path.join(dest_path, pkg_name)
-        if pkg_version:
-            dest_pkg_path = os.path.join(dest_pkg_path, pkg_version)
-        if os.path.exists(dest_pkg_path):
-            return {"copied": [], "skipped": []}
-        return {"copied": [], "skipped": []}
 
     try:
         from rez_next._native.packages_ import copy_package as _native_copy
+
         result_path = _native_copy(
             pkg_name=pkg_name,
             dest_path=dest_path,
@@ -169,10 +174,3 @@ def copy_package(
         result["copied"].append((src_info, dst_info))
 
     return result
-
-
-# Re-export from native for advanced use cases
-try:
-    from rez_next._native.packages_ import copy_package as _native_copy  # noqa: F811
-except ImportError:
-    pass

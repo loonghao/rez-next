@@ -250,10 +250,10 @@ pub fn list_bound_packages_in(install_root: &std::path::Path) -> Vec<(String, Ve
 }
 
 fn expand_home(p: &str) -> String {
-    if p.starts_with("~/") || p == "~" {
-        if let Ok(home) = std::env::var("USERPROFILE").or_else(|_| std::env::var("HOME")) {
-            return p.replacen("~", &home, 1);
-        }
+    if (p.starts_with("~/") || p == "~")
+        && let Ok(home) = std::env::var("USERPROFILE").or_else(|_| std::env::var("HOME"))
+    {
+        return p.replacen("~", &home, 1);
     }
     p.to_string()
 }

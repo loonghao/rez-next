@@ -17,8 +17,8 @@ from typing import Any
 # Re-export native command utilities for drop-in compatibility
 from rez_next._native.command import (  # type: ignore[import]  # noqa: F401
     CommandResult,
-    execute_command,
     command_exists,
+    execute_command,
     get_command_output,
     get_command_path,
 )
@@ -42,9 +42,8 @@ class Command(abc.ABC):
         self.type_settings: dict[str, Any] = {}
         try:
             from rez_next.config import config as cfg
-            self.type_settings = getattr(cfg, "plugins", {}).get(
-                "extension", {}
-            )
+
+            self.type_settings = getattr(cfg, "plugins", {}).get("extension", {})
         except Exception:
             pass
         self.settings: Any = self.type_settings.get(self.name())

@@ -172,11 +172,11 @@ impl PackageTestRunner {
         ];
 
         for candidate in &candidates {
-            if candidate.exists() {
-                if let Ok(package) = PackageSerializer::load_from_file(candidate) {
-                    self.extract_tests_from_package(&package);
-                    return Ok(());
-                }
+            if candidate.exists()
+                && let Ok(package) = PackageSerializer::load_from_file(candidate)
+            {
+                self.extract_tests_from_package(&package);
+                return Ok(());
             }
         }
 

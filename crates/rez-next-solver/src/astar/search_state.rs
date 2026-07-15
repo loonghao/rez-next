@@ -185,10 +185,10 @@ impl SearchState {
         package_names.sort();
         for name in package_names {
             name.hash(&mut hasher);
-            if let Some(pkg) = self.resolved_packages.get(name) {
-                if let Some(ref ver) = pkg.version {
-                    ver.as_str().hash(&mut hasher);
-                }
+            if let Some(pkg) = self.resolved_packages.get(name)
+                && let Some(ref ver) = pkg.version
+            {
+                ver.as_str().hash(&mut hasher);
             }
         }
 

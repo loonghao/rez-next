@@ -481,10 +481,10 @@ where
     /// Check if a key exists in the cache
     async fn contains_key(&self, key: &K) -> bool {
         // Check L1 first
-        if let Some(entry) = self.l1_cache.get(key) {
-            if entry.is_valid() {
-                return true;
-            }
+        if let Some(entry) = self.l1_cache.get(key)
+            && entry.is_valid()
+        {
+            return true;
         }
 
         // Check L2

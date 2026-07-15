@@ -200,10 +200,10 @@ pub struct VCSMetadata {
     pub extra: HashMap<String, String>,
 }
 
-/// Stub VCS implementation for testing
+/// Stub VCS implementation for explicit tests
 ///
 /// This is a no-op implementation that returns dummy data.
-/// Used when VCS is not available or for testing.
+/// Production VCS detection never selects this implementation.
 #[derive(Debug)]
 pub struct StubVCS {
     /// Repository root path
@@ -336,19 +336,14 @@ impl ReleaseVCS for Box<dyn ReleaseVCS + Send + Sync> {
 
 /// Detect VCS type from repository path
 pub fn detect_vcs(repo_path: &Path) -> Option<Box<dyn ReleaseVCS + Send + Sync>> {
-    // Check for Stub VCS (used for testing)
-    if repo_path.join(".stub").exists() {
-        return Some(Box::new(StubVCS::new(repo_path.to_path_buf())));
-    }
-
     // Check for Git
     if repo_path.join(".git").exists() {
         #[cfg(feature = "git")]
         return Some(Box::new(git::GitVCS::new(repo_path.to_path_buf()).ok()?));
 
-        // Fall back to StubVCS if git feature is not enabled
+        // A Git repository cannot be handled truthfully without Git support.
         #[cfg(not(feature = "git"))]
-        return Some(Box::new(StubVCS::new(repo_path.to_path_buf())));
+        return None;
     }
 
     // Check for Mercurial
@@ -430,6 +425,14 @@ mod tests {
         let path = PathBuf::from("/tmp/non-repo");
         let result = detect_vcs(&path);
         assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_stub_marker_is_never_auto_detected() {
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        std::fs::write(temp_dir.path().join(".stub"), "").unwrap();
+
+        assert!(detect_vcs(temp_dir.path()).is_none());
     }
 
     #[test]

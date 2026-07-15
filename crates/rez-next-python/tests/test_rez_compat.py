@@ -15,6 +15,7 @@ Split layout:
   - test_compat_advanced.py     — advanced: plugins, search, exceptions, conflict/weak
                                   requirements, selftest, utils, walk_packages
 """
+
 import pytest
 
 rez = pytest.importorskip(
@@ -53,16 +54,19 @@ class TestModuleStructure:
 
     def test_config_submodule(self):
         from rez_next.config import Config
+
         cfg = Config()
         assert hasattr(cfg, "packages_path")
         assert hasattr(cfg, "local_packages_path")
 
     def test_system_submodule(self):
         from rez_next.system import system as sys_obj
+
         assert sys_obj is not None
 
     def test_exceptions_submodule(self):
         from rez_next.exceptions import PackageNotFound, ResolveError
+
         assert PackageNotFound is not None
         assert ResolveError is not None
 
@@ -80,6 +84,7 @@ class TestVersionClasses:
 
     def test_vendor_version_import(self):
         from rez_next._native.vendor.version import Version, VersionRange
+
         v = Version("2.0.0")
         assert str(v) == "2.0.0"
         r = VersionRange(">=1.0,<3.0")
@@ -97,13 +102,15 @@ class TestVersionClasses:
 
     def test_version_range_any_none(self):
         from rez_next._native.vendor.version import VersionRange
+
         any_r = VersionRange.any()
         assert any_r.is_any()
         none_r = VersionRange.none()
         assert none_r.is_empty()
 
     def test_version_range_from_str(self):
-        from rez_next._native.vendor.version import VersionRange, Version
+        from rez_next._native.vendor.version import Version, VersionRange
+
         r = VersionRange.from_str(">=2.0,<3.0")
         assert r.contains(Version("2.5"))
         assert not r.contains(Version("3.0"))
@@ -133,6 +140,7 @@ class TestPackageClasses:
 
     def test_package_family_create(self):
         import rez_next.packages as pkgs
+
         family = pkgs.PackageFamily("python")
         assert family.name == "python"
         assert family.num_versions == 0
@@ -148,6 +156,7 @@ class TestResolvedContext:
 
     def test_resolved_context_import(self):
         from rez_next.resolved_context import ResolvedContext
+
         assert ResolvedContext is not None
 
     def test_resolved_context_empty(self):
@@ -233,6 +242,7 @@ class TestSuites:
 
     def test_suite_import(self):
         from rez_next.suite import Suite, SuiteManager
+
         assert Suite is not None
         assert SuiteManager is not None
 
@@ -271,6 +281,7 @@ class TestTopLevelFunctions:
     def test_packages_submodule(self):
         """rez.packages_ submodule compatibility."""
         import rez_next.packages_ as pkgs
+
         assert callable(pkgs.get_latest_package)
         assert callable(pkgs.iter_packages)
         assert callable(pkgs.get_package_family_names)
@@ -289,6 +300,7 @@ class TestWalkPackages:
 
     def test_packages_module_has_walk_packages(self):
         import rez_next.packages_ as pkgs
+
         assert callable(pkgs.walk_packages)
 
     def test_iter_packages_nonexistent_path(self):

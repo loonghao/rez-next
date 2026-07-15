@@ -53,7 +53,10 @@ import zipfile
 artifact = pathlib.Path(r"{artifact}")
 with zipfile.ZipFile(artifact, "w") as archive:
     archive.writestr("bin/vx.cmd", "@echo off\r\necho vx cli-test\r\n")
-    archive.writestr("bin/vx", "#!/bin/sh\necho vx cli-test\n")
+    executable = zipfile.ZipInfo("bin/vx")
+    executable.create_system = 3
+    executable.external_attr = 0o100755 << 16
+    archive.writestr(executable, "#!/bin/sh\necho vx cli-test\n")
 sha256 = hashlib.sha256(artifact.read_bytes()).hexdigest()
 artifact.with_suffix(".sha256").write_text(sha256, encoding="utf-8")
 "##,
@@ -561,8 +564,41 @@ fn test_build_dot_vx_style_rez_package_with_cli_binary() {
         "rez-next test . should run vx fixture tests\nstdout: {test_stdout}\nstderr: {test_stderr}"
     );
     assert!(
-        test_stdout.contains("Passed") || test_stdout.contains("All tests passed"),
-        "test output should report passing tests: {test_stdout}"
+        test_stdout.contains("Skipped: 1"),
+        "inplace tests should skip when the current Rez environment does not contain vx: {test_stdout}"
+    );
+}
+
+#[test]
+fn test_inplace_package_test_runs_only_for_matching_current_environment() {
+    skip_no_bin!();
+    let tmp = tempfile::tempdir().unwrap();
+    fs::write(
+        tmp.path().join("package.py"),
+        r#"name = "inplace_pkg"
+version = "1.0.0"
+tests = {"current": "echo inplace-ok"}
+"#,
+    )
+    .unwrap();
+
+    let out = Command::new(cli_e2e_helpers::rez_next_bin())
+        .args(["test", ".", "--inplace"])
+        .current_dir(tmp.path())
+        .env("INPLACE_PKG_ROOT", tmp.path())
+        .env("INPLACE_PKG_VERSION", "1.0.0")
+        .output()
+        .unwrap();
+    let stdout = String::from_utf8_lossy(&out.stdout).to_string();
+    let stderr = String::from_utf8_lossy(&out.stderr).to_string();
+
+    assert!(
+        out.status.success(),
+        "matching inplace environment should run package tests\nstdout: {stdout}\nstderr: {stderr}"
+    );
+    assert!(
+        stdout.contains("Passed:  1"),
+        "matching inplace environment should report one passing test: {stdout}"
     );
 }
 

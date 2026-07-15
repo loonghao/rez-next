@@ -1,4 +1,4 @@
-﻿//! rez gui - Launch rez GUI (HTML-based status report generation)
+//! rez gui - Launch rez GUI (HTML-based status report generation)
 //!
 //! In rez-next, we implement this as an HTML report generator
 //! since we don't have a Qt/PySide dependency.
@@ -51,10 +51,10 @@ pub async fn execute(args: &GuiArgs) -> Result<(), Box<dyn std::error::Error>> {
                 let family_name = family_entry.file_name().to_string_lossy().to_string();
 
                 // Apply package filter
-                if let Some(ref filter) = args.package {
-                    if &family_name != filter {
-                        continue;
-                    }
+                if let Some(ref filter) = args.package
+                    && &family_name != filter
+                {
+                    continue;
                 }
 
                 let family_path = family_entry.path();
@@ -103,17 +103,18 @@ pub async fn execute(args: &GuiArgs) -> Result<(), Box<dyn std::error::Error>> {
 fn read_description(pkg_dir: &std::path::Path) -> String {
     // Try package.py
     let py_path = pkg_dir.join("package.py");
-    if py_path.exists() {
-        if let Ok(content) = std::fs::read_to_string(&py_path) {
-            for line in content.lines() {
-                let trimmed = line.trim();
-                if trimmed.starts_with("description") && trimmed.contains('=') {
-                    if let Some(val) = trimmed.split('=').nth(1) {
-                        let s = val.trim().trim_matches('"').trim_matches('\'').to_string();
-                        if !s.is_empty() {
-                            return s;
-                        }
-                    }
+    if py_path.exists()
+        && let Ok(content) = std::fs::read_to_string(&py_path)
+    {
+        for line in content.lines() {
+            let trimmed = line.trim();
+            if trimmed.starts_with("description")
+                && trimmed.contains('=')
+                && let Some(val) = trimmed.split('=').nth(1)
+            {
+                let s = val.trim().trim_matches('"').trim_matches('\'').to_string();
+                if !s.is_empty() {
+                    return s;
                 }
             }
         }

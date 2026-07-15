@@ -220,10 +220,10 @@ async fn build_reverse_dependency_tree(
 
     while let Some((current_package, depth)) = queue.pop_front() {
         // Check depth limit
-        if let Some(max_depth) = max_depth {
-            if depth >= max_depth {
-                continue;
-            }
+        if let Some(max_depth) = max_depth
+            && depth >= max_depth
+        {
+            continue;
         }
 
         if verbose {

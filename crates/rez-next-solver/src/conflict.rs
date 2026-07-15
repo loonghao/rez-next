@@ -74,13 +74,13 @@ impl ConflictResolver {
 
         // Find the latest version among all requirements by parsing version specs
         for requirement in &conflict.conflicting_requirements {
-            if let Some(ref version_spec) = requirement.version_spec {
-                if let Ok(v) = Version::parse(version_spec) {
-                    match &latest_version {
-                        Some(current) if v > *current => latest_version = Some(v),
-                        None => latest_version = Some(v),
-                        _ => {}
-                    }
+            if let Some(ref version_spec) = requirement.version_spec
+                && let Ok(v) = Version::parse(version_spec)
+            {
+                match &latest_version {
+                    Some(current) if v > *current => latest_version = Some(v),
+                    None => latest_version = Some(v),
+                    _ => {}
                 }
             }
         }
@@ -102,13 +102,13 @@ impl ConflictResolver {
         let modified_packages = conflict.source_packages.clone();
 
         for requirement in &conflict.conflicting_requirements {
-            if let Some(ref version_spec) = requirement.version_spec {
-                if let Ok(v) = Version::parse(version_spec) {
-                    match &earliest_version {
-                        Some(current) if v < *current => earliest_version = Some(v),
-                        None => earliest_version = Some(v),
-                        _ => {}
-                    }
+            if let Some(ref version_spec) = requirement.version_spec
+                && let Ok(v) = Version::parse(version_spec)
+            {
+                match &earliest_version {
+                    Some(current) if v < *current => earliest_version = Some(v),
+                    None => earliest_version = Some(v),
+                    _ => {}
                 }
             }
         }
@@ -131,22 +131,22 @@ impl ConflictResolver {
         let mut candidate: Option<Version> = None;
 
         for requirement in &conflict.conflicting_requirements {
-            if let Some(ref version_spec) = requirement.version_spec {
-                if let Ok(v) = Version::parse(version_spec) {
-                    // Check if this version satisfies all other requirements
-                    let satisfies_all = conflict.conflicting_requirements.iter().all(|other_req| {
-                        if let Some(ref other_spec) = other_req.version_spec {
-                            // Simple compatibility: versions match or other has no constraint
-                            other_spec == version_spec || other_spec.is_empty()
-                        } else {
-                            true
-                        }
-                    });
-
-                    if satisfies_all {
-                        candidate = Some(v);
-                        break;
+            if let Some(ref version_spec) = requirement.version_spec
+                && let Ok(v) = Version::parse(version_spec)
+            {
+                // Check if this version satisfies all other requirements
+                let satisfies_all = conflict.conflicting_requirements.iter().all(|other_req| {
+                    if let Some(ref other_spec) = other_req.version_spec {
+                        // Simple compatibility: versions match or other has no constraint
+                        other_spec == version_spec || other_spec.is_empty()
+                    } else {
+                        true
                     }
+                });
+
+                if satisfies_all {
+                    candidate = Some(v);
+                    break;
                 }
             }
         }
