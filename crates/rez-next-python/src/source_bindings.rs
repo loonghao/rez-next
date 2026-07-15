@@ -123,28 +123,29 @@ impl PySourceManager {
 
 /// Detect the current shell based on environment variables.
 pub(crate) fn detect_current_shell() -> String {
-    // PowerShell
-    if std::env::var("PSModulePath").is_ok() {
-        return "powershell".to_string();
+    #[cfg(target_os = "windows")]
+    {
+        // PowerShell is rez-next's default Windows activation shell.
+        "powershell".to_string()
     }
-    // POSIX: $SHELL
-    if let Ok(shell) = std::env::var("SHELL") {
-        let shell_lower = shell.to_lowercase();
-        if shell_lower.contains("zsh") {
-            return "zsh".to_string();
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        if let Ok(shell) = std::env::var("SHELL") {
+            let shell_lower = shell.to_lowercase();
+            if shell_lower.contains("zsh") {
+                return "zsh".to_string();
+            }
+            if shell_lower.contains("fish") {
+                return "fish".to_string();
+            }
+            if shell_lower.contains("pwsh") || shell_lower.contains("powershell") {
+                return "powershell".to_string();
+            }
         }
-        if shell_lower.contains("fish") {
-            return "fish".to_string();
-        }
-        if shell_lower.contains("bash") {
-            return "bash".to_string();
-        }
+
+        "bash".to_string()
     }
-    // Windows CMD fallback
-    if cfg!(target_os = "windows") {
-        return "powershell".to_string();
-    }
-    "bash".to_string()
 }
 
 /// Build an activation script string for the given packages and shell.

@@ -7,6 +7,16 @@ use std::sync::Mutex;
 // cause non-deterministic failures on env-reads like detect_current_status().
 static ENV_MUTEX: Mutex<()> = Mutex::new(());
 
+#[cfg(not(target_os = "windows"))]
+fn restore_env_var(key: &str, value: Option<std::ffi::OsString>) {
+    unsafe {
+        match value {
+            Some(value) => std::env::set_var(key, value),
+            None => std::env::remove_var(key),
+        }
+    }
+}
+
 #[test]
 fn test_is_in_rez_context_false_outside() {
     let _lock = ENV_MUTEX.lock().unwrap();
@@ -88,14 +98,16 @@ fn test_detect_current_shell_returns_valid_shell() {
 #[cfg(not(target_os = "windows"))]
 fn test_detect_current_shell_maps_bash_posix() {
     let _lock = ENV_MUTEX.lock().unwrap();
-    // Only run on POSIX where PSModulePath does not interfere
+    let original_shell = std::env::var_os("SHELL");
+    let original_ps_module_path = std::env::var_os("PSModulePath");
     unsafe {
         std::env::set_var("SHELL", "/bin/bash");
+        std::env::set_var("PSModulePath", "/opt/microsoft/powershell/Modules");
     }
-    assert_eq!(detect_current_shell().as_str(), "bash");
-    unsafe {
-        std::env::remove_var("SHELL");
-    }
+    let detected = detect_current_shell();
+    restore_env_var("SHELL", original_shell);
+    restore_env_var("PSModulePath", original_ps_module_path);
+    assert_eq!(detected, "bash");
 }
 
 #[test]
@@ -273,26 +285,26 @@ fn test_get_rez_env_var_missing_returns_none() {
 #[cfg(not(target_os = "windows"))]
 fn test_detect_current_shell_maps_zsh() {
     let _lock = ENV_MUTEX.lock().unwrap();
+    let original_shell = std::env::var_os("SHELL");
     unsafe {
         std::env::set_var("SHELL", "/usr/bin/zsh");
     }
-    assert_eq!(detect_current_shell().as_str(), "zsh");
-    unsafe {
-        std::env::remove_var("SHELL");
-    }
+    let detected = detect_current_shell();
+    restore_env_var("SHELL", original_shell);
+    assert_eq!(detected, "zsh");
 }
 
 #[test]
 #[cfg(not(target_os = "windows"))]
 fn test_detect_current_shell_maps_fish() {
     let _lock = ENV_MUTEX.lock().unwrap();
+    let original_shell = std::env::var_os("SHELL");
     unsafe {
         std::env::set_var("SHELL", "/usr/local/bin/fish");
     }
-    assert_eq!(detect_current_shell().as_str(), "fish");
-    unsafe {
-        std::env::remove_var("SHELL");
-    }
+    let detected = detect_current_shell();
+    restore_env_var("SHELL", original_shell);
+    assert_eq!(detected, "fish");
 }
 
 // ── get_rez_env_var: empty key handling ───────────────────────────────────
