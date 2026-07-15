@@ -127,29 +127,34 @@ pub fn execute(args: ReleaseArgs) -> RezCoreResult<()> {
         env_vars: std::collections::HashMap::new(),
     };
 
-    let build_request = BuildRequest {
-        package: package.clone(),
-        context: None,
-        source_dir: working_dir.clone(),
-        variant_index: None,
-        variant_requires: None,
-        options: build_options,
-        install_path: Some(install_path),
-    };
-
     let rt = tokio::runtime::Runtime::new()
         .map_err(|e| RezCoreError::BuildError(format!("Failed to create runtime: {}", e)))?;
 
     let mut build_manager = BuildManager::new();
-    let build_ids = rt.block_on(build_manager.start_build(build_request))?;
-    // Wait for the first build to complete (or all builds)
-    let result = rt.block_on(build_manager.wait_for_build(&build_ids[0]))?;
+    for variant_index in release_variant_indices(&package, args.variants.as_deref())? {
+        let variant_requires = variant_index.map(|index| package.variants[index].clone());
+        let build_request = BuildRequest {
+            package: package.clone(),
+            context: None,
+            source_dir: working_dir.clone(),
+            variant_index,
+            variant_requires,
+            options: build_options.clone(),
+            install_path: Some(install_path.clone()),
+        };
+        let build_ids = rt.block_on(build_manager.start_build(build_request))?;
+        let build_id = build_ids
+            .first()
+            .ok_or_else(|| RezCoreError::BuildError("Release did not start a build".to_string()))?;
+        let result = rt.block_on(build_manager.wait_for_build(build_id))?;
 
-    if !result.success {
-        return Err(RezCoreError::BuildError(format!(
-            "Build failed: {}",
-            result.errors
-        )));
+        if !result.success {
+            return Err(RezCoreError::BuildError(format!(
+                "Build failed for variant {}: {}",
+                variant_index.map_or_else(|| "none".to_string(), |index| index.to_string()),
+                result.errors
+            )));
+        }
     }
 
     println!("Build successful.");
@@ -168,6 +173,51 @@ pub fn execute(args: ReleaseArgs) -> RezCoreResult<()> {
 
     println!("Released {}-{} successfully!", package.name, version_str);
     Ok(())
+}
+
+fn release_variant_indices(
+    package: &rez_next_package::Package,
+    selected: Option<&str>,
+) -> RezCoreResult<Vec<Option<usize>>> {
+    if package.variants.is_empty() {
+        if selected.is_some_and(|value| !value.trim().is_empty()) {
+            return Err(RezCoreError::BuildError(format!(
+                "Package '{}' has no variants",
+                package.name
+            )));
+        }
+        return Ok(vec![None]);
+    }
+
+    let Some(selected) = selected else {
+        return Ok((0..package.variants.len()).map(Some).collect());
+    };
+    let mut indices = Vec::new();
+    for value in selected
+        .split(',')
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    {
+        let index = value
+            .parse::<usize>()
+            .map_err(|_| RezCoreError::BuildError(format!("Invalid variant index '{value}'")))?;
+        if index >= package.variants.len() {
+            return Err(RezCoreError::BuildError(format!(
+                "Variant index {index} is out of range for package '{}' ({} variants)",
+                package.name,
+                package.variants.len()
+            )));
+        }
+        if !indices.contains(&Some(index)) {
+            indices.push(Some(index));
+        }
+    }
+    if indices.is_empty() {
+        return Err(RezCoreError::BuildError(
+            "No release variants were selected".to_string(),
+        ));
+    }
+    Ok(indices)
 }
 
 /// Detect VCS type from working directory
@@ -292,4 +342,31 @@ fn read_message_file(path: Option<&PathBuf>) -> Option<String> {
 /// Get release packages path from config
 fn get_release_path() -> String {
     RezCoreConfig::load().release_packages_path
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rez_next_package::Package;
+
+    #[test]
+    fn test_release_variant_indices_selects_requested_variants() {
+        let mut package = Package::new("tool".to_string());
+        package.variants = vec![vec![], vec![], vec![]];
+
+        assert_eq!(
+            release_variant_indices(&package, Some("2,0")).unwrap(),
+            vec![Some(2), Some(0)]
+        );
+    }
+
+    #[test]
+    fn test_release_variant_indices_rejects_out_of_range_variant() {
+        let mut package = Package::new("tool".to_string());
+        package.variants = vec![vec![]];
+
+        let error = release_variant_indices(&package, Some("1"))
+            .expect_err("invalid release variants must not be skipped");
+        assert!(error.to_string().contains("out of range"), "{error}");
+    }
 }

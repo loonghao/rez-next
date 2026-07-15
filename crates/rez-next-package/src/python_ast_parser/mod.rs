@@ -155,6 +155,9 @@ impl PythonAstParser {
             "post_commands" => {
                 self.process_post_commands_function(&func_def.body, package_data)?;
             }
+            "pre_test_commands" => {
+                self.process_pre_test_commands_function(&func_def.body, package_data)?;
+            }
             _ => {
                 return Err(RezCoreError::PackageParse(format!(
                     "Unsupported package.py function: {}",
@@ -636,6 +639,28 @@ for requirement in discover_requirements():
             error
                 .to_string()
                 .contains("Unsupported package.py for loop"),
+            "unexpected error: {error}"
+        );
+    }
+
+    #[test]
+    fn test_structured_package_test_is_rejected_until_supported() {
+        let error = PythonAstParser::parse_package_py(
+            r#"
+name = "test_package"
+version = "1.0.0"
+tests = {
+    "unit": {
+        "command": "python -m pytest",
+        "requires": ["pytest"],
+    },
+}
+"#,
+        )
+        .expect_err("structured test metadata must not be flattened into debug text");
+
+        assert!(
+            error.to_string().contains("Unsupported test definition"),
             "unexpected error: {error}"
         );
     }

@@ -44,7 +44,7 @@ impl RexParser {
         Self {
             // env.setenv('VAR', 'value') or env.setenv("VAR", "value")
             setenv_re: Regex::new(
-                r#"^env\.setenv\s*\(\s*['"]([^'"]+)['"]\s*,\s*['"]([^'"]*)['"]\s*\)$"#
+                r#"^(?:env\.)?setenv\s*\(\s*['"]([^'"]+)['"]\s*,\s*['"]([^'"]*)['"]\s*\)$"#
             ).unwrap(),
             // env.unsetenv('VAR') or unsetenv('VAR')
             unsetenv_re: Regex::new(

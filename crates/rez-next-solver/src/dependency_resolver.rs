@@ -461,6 +461,12 @@ impl DependencyResolver {
         // Determine which variant to use (if package has variants)
         let variant_index = self.select_variant(candidate, state);
         state.variants_evaluated += candidate.variants.len().max(1);
+        if !candidate.variants.is_empty() && variant_index.is_none() {
+            return Err(RezCoreError::Solver(format!(
+                "No compatible variant for package {}",
+                candidate.name
+            )));
+        }
 
         // Get the effective requires list (base + variant-specific)
         let effective_requires = self.get_effective_requires(candidate, variant_index);

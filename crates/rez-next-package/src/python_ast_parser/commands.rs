@@ -1,4 +1,4 @@
-//! Processing logic for `commands`, `pre_commands`, and `post_commands` function bodies.
+//! Processing logic for package command function bodies.
 //! Supports the full Rex DSL used by rez package commands.
 
 use super::PythonAstParser;
@@ -34,6 +34,16 @@ impl PythonAstParser {
         package_data: &mut PackageData,
     ) -> Result<(), RezCoreError> {
         package_data.post_commands = self.process_command_function_body(body)?;
+        Ok(())
+    }
+
+    /// Process the `pre_test_commands` function body.
+    pub(super) fn process_pre_test_commands_function(
+        &mut self,
+        body: &[Stmt],
+        package_data: &mut PackageData,
+    ) -> Result<(), RezCoreError> {
+        package_data.pre_test_commands = self.process_command_function_body(body)?;
         Ok(())
     }
 

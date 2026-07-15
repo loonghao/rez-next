@@ -62,16 +62,57 @@ impl CustomBuildSystem {
 
     pub async fn test(
         &self,
-        _request: &BuildRequest,
-        _environment: &BuildEnvironment,
+        request: &BuildRequest,
+        environment: &BuildEnvironment,
         _child_process: Arc<Mutex<Option<Child>>>,
     ) -> Result<BuildStepResult, RezCoreError> {
+        if request.package.tests.is_empty() {
+            return Ok(BuildStepResult {
+                step: BuildStep::Testing,
+                success: true,
+                output: "No package tests defined".to_string(),
+                errors: String::new(),
+                duration_ms: 0,
+            });
+        }
+
+        let started_at = Instant::now();
+        let executor = ShellExecutor::with_shell(rez_next_context::ShellType::detect())
+            .with_environment(Self::script_env(environment))
+            .with_working_directory(request.source_dir.clone());
+        let mut tests: Vec<_> = request.package.tests.iter().collect();
+        tests.sort_by_key(|(name, _)| *name);
+        let mut output = String::new();
+        for (name, command) in tests {
+            let command = self.expand_build_command_variables(command, request, environment);
+            let result = executor.execute(&command).await?;
+            output.push_str(&format!("Running package test '{name}': {command}\n"));
+            output.push_str(&result.stdout);
+            if !result.is_success() {
+                let errors = if result.stderr.trim().is_empty() {
+                    format!(
+                        "Package test '{name}' exited with code {}",
+                        result.exit_code
+                    )
+                } else {
+                    result.stderr
+                };
+                return Ok(BuildStepResult {
+                    step: BuildStep::Testing,
+                    success: false,
+                    output,
+                    errors,
+                    duration_ms: started_at.elapsed().as_millis() as u64,
+                });
+            }
+        }
+
         Ok(BuildStepResult {
             step: BuildStep::Testing,
             success: true,
-            output: "Tests completed".to_string(),
+            output,
             errors: String::new(),
-            duration_ms: 0,
+            duration_ms: started_at.elapsed().as_millis() as u64,
         })
     }
 

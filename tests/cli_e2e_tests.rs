@@ -261,6 +261,186 @@ fn test_env_command_exposes_context_files() {
 }
 
 #[test]
+fn test_package_test_runs_in_package_environment() {
+    let temp = tempfile::tempdir().unwrap();
+    let package_dir = temp.path().join("tested_package");
+    fs::create_dir_all(&package_dir).unwrap();
+    let test_command = if cfg!(windows) {
+        r#"if "%TEST_PACKAGE_CONTEXT%"=="ready" (exit /b 0) else (echo missing package context 1>&2 & exit /b 9)"#
+    } else {
+        r#"test "$TEST_PACKAGE_CONTEXT" = "ready" || { echo missing package context >&2; exit 9; }"#
+    };
+    fs::write(
+        package_dir.join("package.py"),
+        format!(
+            r#"name = "tested_package"
+version = "1.0.0"
+def commands():
+    env.TEST_PACKAGE_CONTEXT = "ready"
+tests = {{"context": {test_command:?}}}
+"#
+        ),
+    )
+    .unwrap();
+
+    let output = Command::new(env!("CARGO_BIN_EXE_rez"))
+        .args(["test", "tested_package", "--working-dir"])
+        .arg(&package_dir)
+        .output()
+        .expect("rez test should run");
+
+    assert!(
+        output.status.success(),
+        "stdout={} stderr={}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+
+#[test]
+fn test_package_test_resolves_dependencies_from_paths() {
+    let temp = tempfile::tempdir().unwrap();
+    let repository = temp.path().join("packages");
+    write_package(
+        &repository,
+        "test_dependency",
+        "1.0.0",
+        r#"
+def commands():
+    env.TEST_DEPENDENCY_CONTEXT = "ready"
+"#,
+    );
+    let test_command = if cfg!(windows) {
+        r#"if "%TEST_DEPENDENCY_CONTEXT%"=="ready" (exit /b 0) else (echo missing dependency context 1>&2 & exit /b 9)"#
+    } else {
+        r#"test "$TEST_DEPENDENCY_CONTEXT" = "ready" || { echo missing dependency context >&2; exit 9; }"#
+    };
+    write_package(
+        &repository,
+        "dependent_tests",
+        "1.0.0",
+        &format!(
+            r#"
+requires = ["test_dependency"]
+tests = {{"context": {test_command:?}}}
+"#
+        ),
+    );
+
+    let output = Command::new(env!("CARGO_BIN_EXE_rez"))
+        .args(["test", "dependent_tests", "--paths"])
+        .arg(&repository)
+        .current_dir(temp.path())
+        .output()
+        .expect("rez test should run");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+
+    assert!(
+        output.status.success(),
+        "stdout={stdout} stderr={}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(stdout.contains("All tests passed"), "stdout={stdout}");
+}
+
+#[test]
+fn test_package_test_fails_when_package_is_missing() {
+    let temp = tempfile::tempdir().unwrap();
+    let output = Command::new(env!("CARGO_BIN_EXE_rez"))
+        .args(["test", "missing_test_package", "--working-dir"])
+        .arg(temp.path())
+        .output()
+        .expect("rez test should report the missing package");
+
+    assert!(!output.status.success());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("missing_test_package"), "stderr={stderr}");
+    assert!(stderr.contains("not found"), "stderr={stderr}");
+}
+
+#[test]
+fn test_package_test_applies_pre_test_commands() {
+    let temp = tempfile::tempdir().unwrap();
+    let package_dir = temp.path().join("pre_test_package");
+    fs::create_dir_all(&package_dir).unwrap();
+    let test_command = if cfg!(windows) {
+        r#"if "%PRE_TEST_READY%"=="yes" (exit /b 0) else (exit /b 9)"#
+    } else {
+        r#"test "$PRE_TEST_READY" = "yes""#
+    };
+    fs::write(
+        package_dir.join("package.py"),
+        format!(
+            r#"name = "pre_test_package"
+version = "1.0.0"
+def pre_test_commands():
+    env.PRE_TEST_READY = "yes"
+tests = {{"pre-test": {test_command:?}}}
+"#
+        ),
+    )
+    .unwrap();
+
+    let output = Command::new(env!("CARGO_BIN_EXE_rez"))
+        .args(["test", "pre_test_package", "--working-dir"])
+        .arg(&package_dir)
+        .output()
+        .expect("rez test should run pre-test commands");
+
+    assert!(
+        output.status.success(),
+        "stdout={} stderr={}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+
+#[test]
+fn test_package_test_resolves_a_compatible_variant() {
+    let temp = tempfile::tempdir().unwrap();
+    let repository = temp.path().join("packages");
+    write_package(
+        &repository,
+        "variant_dependency",
+        "1.0.0",
+        r#"
+def commands():
+    env.VARIANT_TEST_CONTEXT = "ready"
+"#,
+    );
+    let test_command = if cfg!(windows) {
+        r#"if "%VARIANT_TEST_CONTEXT%"=="ready" (exit /b 0) else (exit /b 9)"#
+    } else {
+        r#"test "$VARIANT_TEST_CONTEXT" = "ready""#
+    };
+    write_package(
+        &repository,
+        "variant_tests",
+        "1.0.0",
+        &format!(
+            r#"
+variants = [["variant_dependency"]]
+tests = {{"variant": {test_command:?}}}
+"#
+        ),
+    );
+
+    let output = Command::new(env!("CARGO_BIN_EXE_rez"))
+        .args(["test", "variant_tests", "--paths"])
+        .arg(&repository)
+        .current_dir(temp.path())
+        .output()
+        .expect("rez test should resolve a compatible variant");
+
+    assert!(
+        output.status.success(),
+        "stdout={} stderr={}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+
+#[test]
 fn test_env_command_removes_temporary_context_after_exit() {
     let temp = tempfile::tempdir().unwrap();
     let repository = temp.path().join("packages");
