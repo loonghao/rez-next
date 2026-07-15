@@ -875,12 +875,13 @@ mod tests {
             ..Default::default()
         };
         let separator = get_path_separator();
-        let mut base = HashMap::from([(
-            "Path".to_string(),
-            format!("parent-path{separator}parent-path"),
-        )]);
+        let mut base =
+            HashMap::from([("PATH".to_string(), format!("base-path{separator}base-path"))]);
         if cfg!(windows) {
-            base.insert("PATH".to_string(), format!("base-path{separator}base-path"));
+            base.insert(
+                "Path".to_string(),
+                format!("shadow-path{separator}shadow-path"),
+            );
         }
         let manager = EnvironmentManager::with_base_environment(
             ContextConfig {
@@ -897,11 +898,7 @@ mod tests {
             std::env::split_paths(environment.get(&environment_key("PATH")).unwrap()).collect();
         let normalized_root = temp.path().join("bin");
         assert_eq!(path.first(), Some(&normalized_root));
-        let base_entry = if cfg!(windows) {
-            "base-path"
-        } else {
-            "parent-path"
-        };
+        let base_entry = "base-path";
         let base_path = PathBuf::from(base_entry);
         assert_eq!(path.last(), Some(&base_path));
         assert_eq!(
