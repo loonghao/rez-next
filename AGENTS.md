@@ -6,18 +6,16 @@
 
 ## Project Overview
 
-rez-next is a **high-performance Rust rewrite** of the [Rez](https://github.com/AcademySoftwareFoundation/rez) package manager with Python bindings. It provides drop-in compatibility for most common Rez workflows while delivering significantly better performance.
+rez-next is a **high-performance Rust rewrite** of the [Rez](https://github.com/AcademySoftwareFoundation/rez) package manager with Python bindings. It supports common Rez workflows without mirroring Rez's internal implementation modules.
 
 **Key facts for agents:**
 - Language: Rust 2024 edition (MSRV 1.95) + Python 3.8+ bindings (PyO3 abi3)
 - Build system: Cargo workspace (20 crates) + Maturin for Python
 - Current version: 0.3.4 (see [CHANGELOG.md](./CHANGELOG.md))
 - License: Apache 2.0
-- Python modules: **40 modules** (43 .py files) + **35 native** PyO3 submodules covering most Rez APIs
-- Native: **35 registered** PyO3 submodules, 28 native classes, ~50 top-level functions
+- Python API: curated top-level interfaces backed by native PyO3 modules
 - CLI: **28 subcommands** (config, context, view, env, release, test, build, search, bind, depends, solve, cp, mv, rm, status, diff, pkg-help, plugins, pkg-cache, suites, bundle, pip, complete, forward, gui, parse-version, self-test, self-update)
-- Tests: **82 test files** (27 Python + 46 Rust + 9 fixtures)
-- Status: Many workflows work with `import rez_next as rez`, but **not yet a seamless drop-in** for every API surface. The [`auto-improve`](https://github.com/loonghao/rez-next/tree/auto-improve) branch has 25+ additional modules in active development (62 total submodules, 56 Python tests).
+- Status: Common workflows work with `import rez_next as rez`; internal namespaces such as `rez.utils` are intentionally not mirrored.
 
 ## Quick Start
 
@@ -27,7 +25,7 @@ import rez_next as rez
 from rez_next.packages_ import iter_packages, get_latest_package
 from rez_next.resolved_context import ResolvedContext
 
-# API is fully compatible
+# Supported top-level API
 ctx = rez.resolve_packages(["python-3.9", "maya-2024"])
 pkg = rez.get_latest_package("python")
 ```
@@ -89,10 +87,10 @@ rez-next/                          # Monorepo root
 
 ## Key Concepts for Agents
 
-### 1. Drop-in Replacement Strategy
-- Users can `import rez_next as rez` for most workflows
-- Python module structure mirrors Rez: `rez_next.packages_`, `rez_next.version`, etc.
-- Not all Rez APIs are implemented yet (check `python-integration.md` for coverage)
+### 1. Curated Compatibility Strategy
+- Users can `import rez_next as rez` for supported workflows
+- Familiar top-level names are retained where they serve those workflows
+- Rez internal implementation modules are not mirrored
 
 ### 2. Development Workflow
 ```bash

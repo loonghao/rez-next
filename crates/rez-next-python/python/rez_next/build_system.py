@@ -23,7 +23,6 @@ if TYPE_CHECKING:
     from rez_next.resolved_context import ResolvedContext
     from rez_next.rex import RexExecutor
     from rez_next.build_process import BuildType
-    from rez_next.developer_package import DeveloperPackage
 
 
 class BuildResult(TypedDict, total=False):
@@ -332,8 +331,7 @@ class BuildSystem(abc.ABC):
         if not pre_build_commands:
             return
 
-        from rez_next.utils.data_utils import RO_AttrDictWrapper as ROA
-        from rez_next.rex_bindings import VariantBinding
+        from rez_next.rex_bindings import RO_MappingBinding, VariantBinding
 
         build_ns = {
             "build_type": build_type.name if hasattr(build_type, "name") else str(build_type),
@@ -350,7 +348,7 @@ class BuildSystem(abc.ABC):
         )
         with executor.reset_globals():
             executor.bind("this", bound_variant)
-            executor.bind("build", ROA(build_ns))
+            executor.bind("build", RO_MappingBinding(build_ns))
             executor.execute_code(pre_build_commands)
 
     @classmethod

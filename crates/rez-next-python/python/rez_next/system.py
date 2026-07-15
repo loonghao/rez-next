@@ -22,22 +22,16 @@ Lessons from upstream rez issues:
 """
 from __future__ import annotations
 
-import functools
 import os as _os
 import platform as _stdlib_platform
 import re
-from typing import TYPE_CHECKING
+from functools import cached_property
 
 import rez_next._native  # noqa: F401 — ensure extension module
 
 from rez_next._native.system import System as _NativeSystem  # noqa: F401
 from rez_next._native.system import system as _native_system
-from rez_next.utils.data_utils import cached_property
 from rez_next.util import get_architecture, get_hostname, get_username, which as _which
-
-if TYPE_CHECKING:
-    from collections.abc import Sequence
-
 
 __all__ = [
     "System",
@@ -265,22 +259,10 @@ class System:
         return txt
 
     def clear_caches(self, hard: bool = False) -> None:
-        """Clear all caches in Rez/Nez-next.
-
-        Clears the package repository cache, and optionally the memcached cache.
-
-        Args:
-            hard: If ``True``, also flush memcached cache.
-        """
+        """Clear package repository caches."""
+        del hard
         from rez_next.package_repository import package_repository_manager
         package_repository_manager.clear_caches()
-        if hard:
-            try:
-                from rez_next.utils.memcached import memcached_client
-                with memcached_client() as client:
-                    client.flush()
-            except ImportError:
-                pass  # memcached module may not be available
 
     def which(self, arg: str) -> str | None:
         """Find an executable in the system PATH.

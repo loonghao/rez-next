@@ -396,19 +396,6 @@ fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
     cli_mod.add_function(wrap_pyfunction!(cli_main, &cli_mod)?)?;
     register_submodule(m, "cli", &cli_mod)?;
 
-    // ── Submodule: rez.utils.resources ───────────────────────────────────────
-    let utils_mod = PyModule::new(m.py(), "utils")?;
-    let resources_mod = PyModule::new(m.py(), "resources")?;
-    resources_mod.add_function(wrap_pyfunction!(get_resource_string, &resources_mod)?)?;
-    utils_mod.add_submodule(&resources_mod)?;
-    {
-        let sys = pyo3::types::PyModule::import(m.py(), "sys")?;
-        let modules = sys.getattr("modules")?;
-        modules.set_item("rez_next._native.utils", &utils_mod)?;
-        modules.set_item("rez_next._native.utils.resources", &resources_mod)?;
-    }
-    register_submodule(m, "utils", &utils_mod)?;
-
     // ── Submodule: rez.pip ────────────────────────────────────────────────────
     let pip_mod = PyModule::new(m.py(), "pip")?;
     pip_mod.add_class::<PyPipPackage>()?;
@@ -693,21 +680,4 @@ fn rez_next_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
     register_submodule(m, "developer_package", &developer_package_mod)?;
 
     Ok(())
-}
-
-/// Get a resource string from rez-next (e.g., version, config schema).
-/// Equivalent to `rez.utils.resources.get_resource_string(name)`
-#[pyfunction]
-fn get_resource_string(name: &str) -> PyResult<String> {
-    match name {
-        "version" => Ok(env!("CARGO_PKG_VERSION").to_string()),
-        "name" => Ok("rez_next".to_string()),
-        "description" => {
-            Ok("rez-next: A Rust implementation of the rez package manager".to_string())
-        }
-        _ => Err(pyo3::exceptions::PyKeyError::new_err(format!(
-            "Unknown resource: '{}'",
-            name
-        ))),
-    }
 }

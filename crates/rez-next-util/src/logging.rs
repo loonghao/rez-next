@@ -1,4 +1,4 @@
-//! Logging utilities aligned with rez.utils.logging.
+//! Logging utilities for rez-next.
 //!
 //! ## Lessons from Rez Issues:
 //! - Avoid excessive debug output that can slow down resolution.

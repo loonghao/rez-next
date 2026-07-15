@@ -5,7 +5,7 @@ build-backend = "maturin"
 [project]
 name = "rez-next"
 version = "0.3.0"  # x-release-please-version
-description = "Next-generation Rez package manager - drop-in Python replacement"
+description = "High-performance Rust package manager with Rez-compatible workflows"
 readme = "README.md"
 license = { text = "Apache-2.0" }
 requires-python = ">=3.8"

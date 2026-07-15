@@ -91,7 +91,7 @@ import rez
 from rez.packages_ import iter_packages, get_latest_package
 from rez.resolved_context import ResolvedContext
 
-# 之后（无缝替换）
+# 之后（支持的接口）
 import rez_next as rez
 from rez_next.packages_ import iter_packages, get_latest_package
 from rez_next.resolved_context import ResolvedContext
@@ -138,7 +138,7 @@ for p in rez.iter_packages("maya"):
 | `rez_next.data` | `rez.data` | 内置数据资源 |
 | `rez_next.cli` | `rez.cli` | CLI 入口（程序化调用）|
 | `rez_next.exceptions` | `rez.exceptions` | 异常类 |
-| `rez_next.deprecations` | `rez.utils.deprecations` | 弃用警告 |
+| `rez_next.deprecations` | — | 弃用警告 |
 | `rez_next.package_cache` | `rez.package_cache` | 包负载缓存 |
 | `rez_next.package_help` | `rez.package_help` | 包帮助 |
 | `rez_next.package_search` | `rez.package_search` | 包搜索 API |
@@ -147,12 +147,8 @@ for p in rez.iter_packages("maya"):
 | `rez_next.solver` | `rez.solver` | 高级求解器 API |
 | `rez_next.serialise_` | `rez.serialise` | 序列化支持 |
 | `rez_next.test` | `rez.test` | 包测试 |
-| `rez_next.util` | `rez.utils` | 通用工具函数 |
-| `rez_next.utils.logging_` | `rez.utils.logging_` | 日志工具 |
-| `rez_next.utils.resources` | `rez.utils.resources` | 资源加载工具 |
+| `rez_next.util` | — | 精选的原生工具函数 |
 | `rez_next.vendor.version` | `rez.vendor.version` | 内置版本模块 |
-
-> **25+ 模块正在积极开发中**，位于 [`auto-improve`](https://github.com/loonghao/rez-next/tree/auto-improve) 分支：`bundle_context`, `build_process`, `build_system`, `command`, `developer_package`, `package_bind`, `package_copy`, `package_filter`, `package_maker`, `package_move`, `package_order`, `package_resources`, `package_serialise`, `package_test`, `plugin_managers`, `release_hook`, `release_vcs`, `resolver`, `rex_bindings`, `shells`, `wrapper`, `utils.*` 扩展, `rezconfig`。
 
 ### API 示例
 
