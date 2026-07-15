@@ -56,9 +56,11 @@ pub fn execute(args: ViewArgs) -> RezCoreResult<()> {
 /// View a package from the current context
 fn view_current_package(args: &ViewArgs) -> RezCoreResult<()> {
     // Try to get context file from environment variable
-    let ctx_file = std::env::var("REZ_CONTEXT_FILE").map_err(|_| {
-        RezCoreError::Repository("Not in a resolved environment context".to_string())
-    })?;
+    let ctx_file = std::env::var("REZ_RXT_FILE")
+        .or_else(|_| std::env::var("REZ_CONTEXT_FILE"))
+        .map_err(|_| {
+            RezCoreError::Repository("Not in a resolved environment context".to_string())
+        })?;
 
     let ctx_path = Path::new(&ctx_file);
     if !ctx_path.exists() {

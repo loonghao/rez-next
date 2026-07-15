@@ -5,8 +5,10 @@
 
 use clap::Args;
 use rez_next_common::{RezCoreError, error::RezCoreResult};
-use rez_next_context::RezResolvedContext;
+use rez_next_context::{ContextStatus, ResolvedContext, ResolvedPackage, RezResolvedContext};
+use rez_next_package::Requirement;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 /// Arguments for the context command
 #[derive(Args, Clone)]
@@ -173,14 +175,17 @@ fn load_context(args: &ContextArgs) -> RezCoreResult<RezResolvedContext> {
         )));
     }
 
-    // Try REZ_CONTEXT_FILE environment variable
-    if let Ok(ctx_file) = std::env::var("REZ_CONTEXT_FILE") {
-        let path = std::path::Path::new(&ctx_file);
-        if path.exists() {
-            let content = std::fs::read_to_string(path).map_err(|e| {
-                RezCoreError::ContextError(format!("Failed to read context file: {}", e))
-            })?;
-            return deserialize_context(&content);
+    // REZ_RXT_FILE is the serialized context. REZ_CONTEXT_FILE is kept as a
+    // fallback for contexts produced by older rez-next versions.
+    for variable in ["REZ_RXT_FILE", "REZ_CONTEXT_FILE"] {
+        if let Ok(ctx_file) = std::env::var(variable) {
+            let path = std::path::Path::new(&ctx_file);
+            if path.exists() {
+                let content = std::fs::read_to_string(path).map_err(|e| {
+                    RezCoreError::ContextError(format!("Failed to read context file: {}", e))
+                })?;
+                return deserialize_context(&content);
+            }
         }
     }
 
@@ -195,9 +200,59 @@ fn deserialize_context(content: &str) -> RezCoreResult<RezResolvedContext> {
     if let Ok(ctx) = serde_json::from_str::<RezResolvedContext>(content) {
         return Ok(ctx);
     }
+    if let Ok(ctx) = serde_json::from_str::<ResolvedContext>(content) {
+        return convert_context(ctx);
+    }
     // Try YAML
-    serde_yaml::from_str::<RezResolvedContext>(content)
-        .map_err(|e| RezCoreError::ContextError(format!("Failed to parse context: {}", e)))
+    if let Ok(ctx) = serde_yaml::from_str::<RezResolvedContext>(content) {
+        return Ok(ctx);
+    }
+    let ctx = serde_yaml::from_str::<ResolvedContext>(content)
+        .map_err(|e| RezCoreError::ContextError(format!("Failed to parse context: {}", e)))?;
+    convert_context(ctx)
+}
+
+fn convert_context(context: ResolvedContext) -> RezCoreResult<RezResolvedContext> {
+    let requested_names = context
+        .requirements
+        .iter()
+        .map(|requirement| requirement.name.clone())
+        .collect::<std::collections::HashSet<_>>();
+    let requirements = context
+        .requirements
+        .iter()
+        .map(|requirement| {
+            requirement
+                .to_string()
+                .parse::<Requirement>()
+                .map_err(|error| {
+                    RezCoreError::ContextError(format!(
+                        "Failed to convert requirement '{requirement}': {error}"
+                    ))
+                })
+        })
+        .collect::<RezCoreResult<Vec<_>>>()?;
+    let mut converted = RezResolvedContext::new(requirements);
+    converted.resolved_packages = context
+        .resolved_packages
+        .into_iter()
+        .map(|package| {
+            let requested = requested_names.contains(&package.name);
+            let root = package.root().map(PathBuf::from).unwrap_or_default();
+            ResolvedPackage::new(Arc::new(package), root, requested)
+        })
+        .collect();
+    converted.environ = context.environment_vars;
+    converted.failed = context.status == ContextStatus::Failed;
+    converted.failure_description = context.metadata.get("failure_description").cloned();
+    converted.metadata = context.metadata;
+    if let Some(platform) = context.platform {
+        converted.platform = platform;
+    }
+    if let Some(arch) = context.arch {
+        converted.arch = arch;
+    }
+    Ok(converted)
 }
 
 /// Print request packages
