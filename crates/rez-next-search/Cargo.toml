@@ -1,6 +1,6 @@
 [package]
 name = "rez-next-search"
-version.workspace = true
+version = "0.3.4" # x-release-please-version
 edition.workspace = true
 rust-version.workspace = true
 authors.workspace = true

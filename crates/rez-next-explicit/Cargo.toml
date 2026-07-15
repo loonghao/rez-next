@@ -1,6 +1,6 @@
 [package]
 name = "rez-next-explicit"
-version.workspace = true
+version = "0.3.4" # x-release-please-version
 edition.workspace = true
 rust-version.workspace = true
 description = "Explicit package support for rez-next"

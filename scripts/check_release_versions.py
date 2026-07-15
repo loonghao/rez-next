@@ -33,15 +33,6 @@ def marked_versions(path: Path) -> list[tuple[int, str]]:
     return versions
 
 
-def package_version(package: dict, workspace_version: str) -> str | None:
-    value = package.get("version")
-    if isinstance(value, str):
-        return value
-    if isinstance(value, dict) and value.get("workspace") is True:
-        return workspace_version
-    return None
-
-
 def dependency_tables(manifest: dict):
     for name in ("dependencies", "dev-dependencies", "build-dependencies"):
         yield manifest.get(name, {})
@@ -66,9 +57,13 @@ def main() -> int:
 
     with (ROOT / "Cargo.toml").open("rb") as stream:
         root_manifest = tomllib.load(stream)
-    cargo_version = root_manifest["workspace"]["package"]["version"]
-    if cargo_version != expected:
-        errors.append(f"Cargo workspace is {cargo_version}, expected {expected}")
+    cargo_version = root_manifest["package"].get("version")
+    if not isinstance(cargo_version, str):
+        errors.append(
+            "root Cargo package.version must be a literal string for release-please"
+        )
+    elif cargo_version != expected:
+        errors.append(f"root Cargo package is {cargo_version!r}, expected {expected}")
 
     with (ROOT / "crates/rez-next-python/pyproject.toml").open("rb") as stream:
         python_version = tomllib.load(stream)["project"]["version"]
@@ -94,9 +89,16 @@ def main() -> int:
         if not package:
             continue
         workspace_names.add(package["name"])
-        version = package_version(package, cargo_version)
-        if version != expected:
-            errors.append(f"{path.relative_to(ROOT)} package is {version}, expected {expected}")
+        version = package.get("version")
+        if not isinstance(version, str):
+            errors.append(
+                f"{path.relative_to(ROOT)} package.version must be a literal string "
+                "for release-please"
+            )
+        elif version != expected:
+            errors.append(
+                f"{path.relative_to(ROOT)} package is {version!r}, expected {expected}"
+            )
 
     for path, manifest_data in parsed_manifests:
         for dependencies in dependency_tables(manifest_data):
