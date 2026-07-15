@@ -4,6 +4,8 @@ Rez-Next: High-performance Rust rewrite of Rez.
 This module provides a drop-in replacement for Rez.
 """
 
+from __future__ import annotations
+
 import os  # noqa: F401
 import warnings  # noqa: F401
 import sys
