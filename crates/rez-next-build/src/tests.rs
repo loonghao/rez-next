@@ -714,6 +714,34 @@ if os.environ.get("SELECTED_VARIANT") != "yes":
     }
 
     #[tokio::test]
+    async fn test_build_manager_reports_package_test_setup_errors() {
+        let mut manager = BuildManager::new();
+        let tmp = TempDir::new().unwrap();
+        std::fs::write(
+            tmp.path().join("package.py"),
+            "name = 'testedpkg'\nversion = '1.0.0'\n",
+        )
+        .unwrap();
+
+        let mut pkg = make_package("testedpkg", "1.0.0");
+        pkg.commands = Some("unsupported_rex_operation()".to_string());
+        pkg.tests.insert("unit".to_string(), "echo ok".to_string());
+        let request = make_request_with_python_context(pkg, tmp.path().to_path_buf(), &tmp).await;
+
+        let ids = manager.start_build(request).await.unwrap();
+        let result = manager.wait_for_build(&ids[0]).await.unwrap();
+
+        assert!(
+            !result.success,
+            "invalid package-test setup must fail the build"
+        );
+        assert!(
+            result.errors.contains("unsupported_rex_operation"),
+            "the originating setup error must be retained: {result:?}"
+        );
+    }
+
+    #[tokio::test]
     async fn test_build_manager_rejects_unselected_variant_package() {
         let mut manager = BuildManager::new();
         let tmp = TempDir::new().unwrap();

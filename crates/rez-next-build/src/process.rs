@@ -158,6 +158,13 @@ impl BuildProcess {
             )
             .await;
 
+            if let Err(error) = &result {
+                let mut errors_guard = errors.lock().await;
+                if errors_guard.trim().is_empty() {
+                    errors_guard.push_str(&error.to_string());
+                }
+            }
+
             let mut status_guard = status.write().await;
             *status_guard = match result {
                 Ok(_) => BuildStatus::Success,

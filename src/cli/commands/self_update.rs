@@ -46,6 +46,7 @@ fn success(msg: &str) {
     println!("success: {}", msg);
 }
 
+#[cfg(windows)]
 fn warn(msg: &str) {
     eprintln!("warn: {}", msg);
 }

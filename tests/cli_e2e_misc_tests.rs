@@ -53,7 +53,10 @@ import zipfile
 artifact = pathlib.Path(r"{artifact}")
 with zipfile.ZipFile(artifact, "w") as archive:
     archive.writestr("bin/vx.cmd", "@echo off\r\necho vx cli-test\r\n")
-    archive.writestr("bin/vx", "#!/bin/sh\necho vx cli-test\n")
+    executable = zipfile.ZipInfo("bin/vx")
+    executable.create_system = 3
+    executable.external_attr = 0o100755 << 16
+    archive.writestr(executable, "#!/bin/sh\necho vx cli-test\n")
 sha256 = hashlib.sha256(artifact.read_bytes()).hexdigest()
 artifact.with_suffix(".sha256").write_text(sha256, encoding="utf-8")
 "##,
