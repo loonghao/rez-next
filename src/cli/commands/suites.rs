@@ -256,10 +256,10 @@ fn cmd_add_context(args: AddContextArgs) -> RezCoreResult<()> {
         .add_context(args.context_name.clone(), args.requests.clone())
         .map_err(|e| RezCoreError::ExecutionError(e.to_string()))?;
 
-    if let Some(prefix) = args.prefix {
-        if let Some(ctx) = suite.get_context_mut(&args.context_name) {
-            ctx.prefix = Some(prefix);
-        }
+    if let Some(prefix) = args.prefix
+        && let Some(ctx) = suite.get_context_mut(&args.context_name)
+    {
+        ctx.prefix = Some(prefix);
     }
 
     suite

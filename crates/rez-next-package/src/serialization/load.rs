@@ -131,84 +131,84 @@ impl PackageLoader {
 
         let mut package = Package::new(name);
 
-        if let Some(version_value) = json_data.get("version") {
-            if let Some(version_str) = version_value.as_str() {
-                let version = Version::parse(version_str)
-                    .map_err(|e| RezCoreError::PackageParse(format!("Invalid version: {}", e)))?;
-                package.version = Some(version);
-            }
+        if let Some(version_value) = json_data.get("version")
+            && let Some(version_str) = version_value.as_str()
+        {
+            let version = Version::parse(version_str)
+                .map_err(|e| RezCoreError::PackageParse(format!("Invalid version: {}", e)))?;
+            package.version = Some(version);
         }
 
-        if let Some(description_value) = json_data.get("description") {
-            if let Some(description) = description_value.as_str() {
-                package.description = Some(description.to_string());
-            }
+        if let Some(description_value) = json_data.get("description")
+            && let Some(description) = description_value.as_str()
+        {
+            package.description = Some(description.to_string());
         }
 
-        if let Some(authors_value) = json_data.get("authors") {
-            if let Some(authors_array) = authors_value.as_array() {
-                package.authors = authors_array
-                    .iter()
-                    .filter_map(|v| v.as_str())
-                    .map(|s| s.to_string())
-                    .collect();
-            }
+        if let Some(authors_value) = json_data.get("authors")
+            && let Some(authors_array) = authors_value.as_array()
+        {
+            package.authors = authors_array
+                .iter()
+                .filter_map(|v| v.as_str())
+                .map(|s| s.to_string())
+                .collect();
         }
 
-        if let Some(requires_value) = json_data.get("requires") {
-            if let Some(requires_array) = requires_value.as_array() {
-                package.requires = requires_array
-                    .iter()
-                    .filter_map(|v| v.as_str())
-                    .map(|s| s.to_string())
-                    .collect();
-            }
+        if let Some(requires_value) = json_data.get("requires")
+            && let Some(requires_array) = requires_value.as_array()
+        {
+            package.requires = requires_array
+                .iter()
+                .filter_map(|v| v.as_str())
+                .map(|s| s.to_string())
+                .collect();
         }
 
-        if let Some(build_requires_value) = json_data.get("build_requires") {
-            if let Some(build_requires_array) = build_requires_value.as_array() {
-                package.build_requires = build_requires_array
-                    .iter()
-                    .filter_map(|v| v.as_str())
-                    .map(|s| s.to_string())
-                    .collect();
-            }
+        if let Some(build_requires_value) = json_data.get("build_requires")
+            && let Some(build_requires_array) = build_requires_value.as_array()
+        {
+            package.build_requires = build_requires_array
+                .iter()
+                .filter_map(|v| v.as_str())
+                .map(|s| s.to_string())
+                .collect();
         }
 
-        if let Some(private_build_requires_value) = json_data.get("private_build_requires") {
-            if let Some(arr) = private_build_requires_value.as_array() {
-                package.private_build_requires = arr
-                    .iter()
-                    .filter_map(|v| v.as_str())
-                    .map(|s| s.to_string())
-                    .collect();
-            }
+        if let Some(private_build_requires_value) = json_data.get("private_build_requires")
+            && let Some(arr) = private_build_requires_value.as_array()
+        {
+            package.private_build_requires = arr
+                .iter()
+                .filter_map(|v| v.as_str())
+                .map(|s| s.to_string())
+                .collect();
         }
 
-        if let Some(variants_value) = json_data.get("variants") {
-            if let Some(variants_array) = variants_value.as_array() {
-                package.variants = variants_array
-                    .iter()
-                    .filter_map(|v| v.as_array())
-                    .map(|variant_array| {
-                        variant_array
-                            .iter()
-                            .filter_map(|v| v.as_str())
-                            .map(|s| s.to_string())
-                            .collect()
-                    })
-                    .collect();
-            }
+        if let Some(variants_value) = json_data.get("variants")
+            && let Some(variants_array) = variants_value.as_array()
+        {
+            package.variants = variants_array
+                .iter()
+                .filter_map(|v| v.as_array())
+                .map(|variant_array| {
+                    variant_array
+                        .iter()
+                        .filter_map(|v| v.as_str())
+                        .map(|s| s.to_string())
+                        .collect()
+                })
+                .collect();
         }
 
-        if let Some(tools_value) = json_data.get("tools") {
-            if let Some(tools_array) = tools_value.as_array() {
-                package.tools = tools_array
-                    .iter()
-                    .filter_map(|v| v.as_str())
-                    .map(|s| s.to_string())
-                    .collect();
-            }
+        if let Some(tools_value) = json_data.get("tools")
+            && let Some(tools_array) = tools_value.as_array()
+        {
+            package.tools = tools_array
+                .iter()
+                .filter_map(|v| v.as_str())
+                .map(|s| s.to_string())
+                .collect();
         }
 
         package.validate()?;

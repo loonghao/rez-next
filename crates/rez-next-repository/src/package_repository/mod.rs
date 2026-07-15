@@ -185,10 +185,10 @@ pub trait PackageRepository: Send + Sync {
         for pkg in packages {
             match version {
                 Some(v) => {
-                    if let Some(pkg_version) = pkg.version() {
-                        if pkg_version.as_str() == v {
-                            return Ok(Some(pkg));
-                        }
+                    if let Some(pkg_version) = pkg.version()
+                        && pkg_version.as_str() == v
+                    {
+                        return Ok(Some(pkg));
                     }
                 }
                 None => return Ok(Some(pkg)),

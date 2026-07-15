@@ -64,11 +64,11 @@ impl PySourceManager {
         let script = build_activation_script(&self.packages, shell_name);
 
         let path = PathBuf::from(dest_path);
-        if let Some(parent) = path.parent() {
-            if !parent.as_os_str().is_empty() {
-                std::fs::create_dir_all(parent)
-                    .map_err(|e| pyo3::exceptions::PyIOError::new_err(e.to_string()))?;
-            }
+        if let Some(parent) = path.parent()
+            && !parent.as_os_str().is_empty()
+        {
+            std::fs::create_dir_all(parent)
+                .map_err(|e| pyo3::exceptions::PyIOError::new_err(e.to_string()))?;
         }
         std::fs::write(&path, &script)
             .map_err(|e| pyo3::exceptions::PyIOError::new_err(e.to_string()))?;
@@ -280,11 +280,11 @@ pub fn resolve_source_mode(
         }
         SourceMode::File(dest) => {
             let script = build_activation_script(&packages, &shell_resolved);
-            if let Some(parent) = dest.parent() {
-                if !parent.as_os_str().is_empty() {
-                    std::fs::create_dir_all(parent)
-                        .map_err(|e| pyo3::exceptions::PyIOError::new_err(e.to_string()))?;
-                }
+            if let Some(parent) = dest.parent()
+                && !parent.as_os_str().is_empty()
+            {
+                std::fs::create_dir_all(parent)
+                    .map_err(|e| pyo3::exceptions::PyIOError::new_err(e.to_string()))?;
             }
             std::fs::write(&dest, &script)
                 .map_err(|e| pyo3::exceptions::PyIOError::new_err(e.to_string()))?;

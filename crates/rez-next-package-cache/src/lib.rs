@@ -157,12 +157,11 @@ impl CacheBackend for InMemoryCache {
 
                 // Check if entry is still valid
                 let cached = entry.clone();
-                if let Ok(metadata) = std::fs::metadata(path) {
-                    if let Ok(mtime) = metadata.modified() {
-                        if cached.is_valid(mtime) {
-                            return Ok(Some(cached));
-                        }
-                    }
+                if let Ok(metadata) = std::fs::metadata(path)
+                    && let Ok(mtime) = metadata.modified()
+                    && cached.is_valid(mtime)
+                {
+                    return Ok(Some(cached));
                 }
 
                 // Entry is invalid, remove it
@@ -254,14 +253,13 @@ impl CacheBackend for FileCache {
             let cached: CachedPackage = serde_json::from_str(&content)?;
 
             // Check if entry is still valid
-            if let Ok(metadata) = std::fs::metadata(path) {
-                if let Ok(mtime) = metadata.modified() {
-                    if cached.is_valid(mtime) {
-                        // Update in-memory cache
-                        self.in_memory.put(path, cached.clone())?;
-                        return Ok(Some(cached));
-                    }
-                }
+            if let Ok(metadata) = std::fs::metadata(path)
+                && let Ok(mtime) = metadata.modified()
+                && cached.is_valid(mtime)
+            {
+                // Update in-memory cache
+                self.in_memory.put(path, cached.clone())?;
+                return Ok(Some(cached));
             }
 
             // Entry is invalid, remove it

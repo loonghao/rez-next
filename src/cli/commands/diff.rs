@@ -238,10 +238,10 @@ async fn find_package(
     // If version specified, find matching version
     if let Some(version) = version_spec {
         for package in packages {
-            if let Some(ref pkg_version) = package.version {
-                if pkg_version.as_str() == version {
-                    return Ok((*package).clone());
-                }
+            if let Some(ref pkg_version) = package.version
+                && pkg_version.as_str() == version
+            {
+                return Ok((*package).clone());
             }
         }
         return Err(RezCoreError::RequirementParse(format!(
@@ -275,10 +275,10 @@ async fn find_previous_version(
     // Find the package with the version just before the current one
     // This is a simplified implementation - in reality we'd need proper version comparison
     for package in packages {
-        if let (Some(pkg_version), Some(current_version)) = (&package.version, &pkg.version) {
-            if pkg_version.as_str() != current_version.as_str() {
-                return Ok((*package).clone());
-            }
+        if let (Some(pkg_version), Some(current_version)) = (&package.version, &pkg.version)
+            && pkg_version.as_str() != current_version.as_str()
+        {
+            return Ok((*package).clone());
         }
     }
 

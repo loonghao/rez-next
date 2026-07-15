@@ -256,13 +256,13 @@ impl super::ReleaseVCS for SvnVCS {
         }
 
         // Ensure parent directory exists (required by rez interface)
-        if let Some(parent) = path.parent() {
-            if !parent.exists() {
-                return Err(RezCoreError::BuildError(format!(
-                    "Parent directory '{}' does not exist",
-                    parent.display()
-                )));
-            }
+        if let Some(parent) = path.parent()
+            && !parent.exists()
+        {
+            return Err(RezCoreError::BuildError(format!(
+                "Parent directory '{}' does not exist",
+                parent.display()
+            )));
         }
 
         // Get the repository URL

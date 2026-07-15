@@ -210,23 +210,20 @@ impl SourceFetcher for HttpFetcher {
 impl HttpFetcher {
     fn extract_filename(&self, url: &str, response: &reqwest::Response) -> RezCoreResult<String> {
         // Try to get filename from Content-Disposition header
-        if let Some(content_disposition) = response.headers().get("content-disposition") {
-            if let Ok(header_value) = content_disposition.to_str() {
-                if let Some(filename) = self.parse_content_disposition(header_value) {
-                    return Ok(filename);
-                }
-            }
+        if let Some(content_disposition) = response.headers().get("content-disposition")
+            && let Ok(header_value) = content_disposition.to_str()
+            && let Some(filename) = self.parse_content_disposition(header_value)
+        {
+            return Ok(filename);
         }
 
         // Fall back to extracting from URL
-        if let Ok(parsed_url) = Url::parse(url) {
-            if let Some(mut segments) = parsed_url.path_segments() {
-                if let Some(last_segment) = segments.next_back() {
-                    if !last_segment.is_empty() {
-                        return Ok(last_segment.to_string());
-                    }
-                }
-            }
+        if let Ok(parsed_url) = Url::parse(url)
+            && let Some(mut segments) = parsed_url.path_segments()
+            && let Some(last_segment) = segments.next_back()
+            && !last_segment.is_empty()
+        {
+            return Ok(last_segment.to_string());
         }
 
         // Default filename

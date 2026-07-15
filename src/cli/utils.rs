@@ -130,10 +130,10 @@ pub fn expand_home_path(p: &str) -> PathBuf {
         if let Some(home) = std::env::var_os("USERPROFILE").or_else(|| std::env::var_os("HOME")) {
             return PathBuf::from(home);
         }
-    } else if let Some(rest) = p.strip_prefix("~/").or_else(|| p.strip_prefix("~\\")) {
-        if let Some(home) = std::env::var_os("USERPROFILE").or_else(|| std::env::var_os("HOME")) {
-            return PathBuf::from(home).join(rest);
-        }
+    } else if let Some(rest) = p.strip_prefix("~/").or_else(|| p.strip_prefix("~\\"))
+        && let Some(home) = std::env::var_os("USERPROFILE").or_else(|| std::env::var_os("HOME"))
+    {
+        return PathBuf::from(home).join(rest);
     }
     PathBuf::from(p)
 }
@@ -215,12 +215,11 @@ fn get_terminal_width_inner(columns_env: Option<&str>) -> usize {
     const DEFAULT_WIDTH: usize = 80;
 
     // Explicit user override via environment variable
-    if let Some(width_str) = columns_env {
-        if let Ok(width) = width_str.parse::<usize>() {
-            if width > 0 {
-                return width;
-            }
-        }
+    if let Some(width_str) = columns_env
+        && let Ok(width) = width_str.parse::<usize>()
+        && width > 0
+    {
+        return width;
     }
 
     // OS-level terminal size query

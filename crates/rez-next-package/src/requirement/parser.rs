@@ -100,33 +100,33 @@ impl RequirementParser {
     fn parse_platform_condition(&self, condition: &str) -> Result<PlatformCondition, String> {
         let negate = condition.contains("!=");
 
-        if let Some(platform_start) = condition.find('\'') {
-            if let Some(platform_end) = condition[platform_start + 1..].find('\'') {
-                let platform =
-                    condition[platform_start + 1..platform_start + 1 + platform_end].to_string();
+        if let Some(platform_start) = condition.find('\'')
+            && let Some(platform_end) = condition[platform_start + 1..].find('\'')
+        {
+            let platform =
+                condition[platform_start + 1..platform_start + 1 + platform_end].to_string();
 
-                let arch = if condition.contains("arch") {
-                    if let Some(arch_start) = condition.rfind('\'') {
-                        if arch_start > platform_start + 1 + platform_end {
-                            condition[arch_start + 1..].find('\'').map(|arch_end| {
-                                condition[arch_start + 1..arch_start + 1 + arch_end].to_string()
-                            })
-                        } else {
-                            None
-                        }
+            let arch = if condition.contains("arch") {
+                if let Some(arch_start) = condition.rfind('\'') {
+                    if arch_start > platform_start + 1 + platform_end {
+                        condition[arch_start + 1..].find('\'').map(|arch_end| {
+                            condition[arch_start + 1..arch_start + 1 + arch_end].to_string()
+                        })
                     } else {
                         None
                     }
                 } else {
                     None
-                };
+                }
+            } else {
+                None
+            };
 
-                return Ok(PlatformCondition {
-                    platform,
-                    arch,
-                    negate,
-                });
-            }
+            return Ok(PlatformCondition {
+                platform,
+                arch,
+                negate,
+            });
         }
 
         Err(format!("Invalid platform condition: {}", condition))
@@ -183,13 +183,13 @@ impl RequirementParser {
             return Ok((name, Some(VersionConstraint::Wildcard(pattern))));
         }
 
-        if s.contains(',') {
-            if let Some(captures) = self.patterns.basic_version.captures(s) {
-                let name = captures.get(1).unwrap().as_str().to_string();
-                let constraints_str = &s[name.len()..];
-                let constraint = self.parse_version_constraints(constraints_str)?;
-                return Ok((name, Some(constraint)));
-            }
+        if s.contains(',')
+            && let Some(captures) = self.patterns.basic_version.captures(s)
+        {
+            let name = captures.get(1).unwrap().as_str().to_string();
+            let constraints_str = &s[name.len()..];
+            let constraint = self.parse_version_constraints(constraints_str)?;
+            return Ok((name, Some(constraint)));
         }
 
         if let Some(captures) = self.patterns.basic_version.captures(s) {
@@ -213,15 +213,15 @@ impl RequirementParser {
         }
 
         // Handle "package-1.0+" syntax
-        if let Some(without_plus) = s.strip_suffix('+') {
-            if let Some(dash_pos) = without_plus.rfind('-') {
-                let name = without_plus[..dash_pos].to_string();
-                let version_str = &without_plus[dash_pos + 1..];
-                if Version::parse(version_str).is_ok() {
-                    let version = Version::parse(version_str)
-                        .map_err(|e| format!("Invalid version {}: {}", version_str, e))?;
-                    return Ok((name, Some(VersionConstraint::GreaterThanOrEqual(version))));
-                }
+        if let Some(without_plus) = s.strip_suffix('+')
+            && let Some(dash_pos) = without_plus.rfind('-')
+        {
+            let name = without_plus[..dash_pos].to_string();
+            let version_str = &without_plus[dash_pos + 1..];
+            if Version::parse(version_str).is_ok() {
+                let version = Version::parse(version_str)
+                    .map_err(|e| format!("Invalid version {}: {}", version_str, e))?;
+                return Ok((name, Some(VersionConstraint::GreaterThanOrEqual(version))));
             }
         }
 

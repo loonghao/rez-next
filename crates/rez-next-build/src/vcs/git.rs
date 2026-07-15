@@ -35,12 +35,11 @@ impl GitVCS {
         let branch_name = branch_name?;
 
         // Try to get the upstream branch
-        if let Ok(branch) = repo.find_branch(branch_name, git2::BranchType::Local) {
-            if let Ok(upstream) = branch.upstream() {
-                if let Ok(upstream_name) = upstream.name() {
-                    return upstream_name.map(|s| s.to_string());
-                }
-            }
+        if let Ok(branch) = repo.find_branch(branch_name, git2::BranchType::Local)
+            && let Ok(upstream) = branch.upstream()
+            && let Ok(upstream_name) = upstream.name()
+        {
+            return upstream_name.map(|s| s.to_string());
         }
 
         // Fallback: try using git command
@@ -48,13 +47,12 @@ impl GitVCS {
             .args(["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"])
             .current_dir(&self.repo_root)
             .output()
+            && output.status.success()
         {
-            if output.status.success() {
-                let stdout = String::from_utf8_lossy(&output.stdout);
-                let branch = stdout.trim();
-                if !branch.is_empty() && !branch.contains("fatal") {
-                    return Some(branch.to_string());
-                }
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            let branch = stdout.trim();
+            if !branch.is_empty() && !branch.contains("fatal") {
+                return Some(branch.to_string());
             }
         }
 
@@ -83,13 +81,12 @@ impl GitVCS {
             .args(["remote", "get-url", "--push", remote_name])
             .current_dir(&self.repo_root)
             .output()
+            && output.status.success()
         {
-            if output.status.success() {
-                let stdout = String::from_utf8_lossy(&output.stdout);
-                let url = stdout.trim();
-                if !url.is_empty() {
-                    return Some(url.to_string());
-                }
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            let url = stdout.trim();
+            if !url.is_empty() {
+                return Some(url.to_string());
             }
         }
 
@@ -142,10 +139,10 @@ impl super::ReleaseVCS for GitVCS {
             .map_err(|e| RezCoreError::BuildError(format!("Failed to get HEAD: {}", e)))?;
 
         // Check if HEAD is a branch reference
-        if head.is_branch() {
-            if let Some(branch_name) = head.shorthand() {
-                return Ok(branch_name.to_string());
-            }
+        if head.is_branch()
+            && let Some(branch_name) = head.shorthand()
+        {
+            return Ok(branch_name.to_string());
         }
 
         // Detached HEAD state
@@ -294,10 +291,10 @@ impl super::ReleaseVCS for GitVCS {
             .map_err(|e| RezCoreError::BuildError(format!("Failed to push to revwalk: {}", e)))?;
 
         // Try to hide from_rev, but don't fail if it doesn't exist
-        if let Ok(from_obj) = repo.revparse_single(from) {
-            if let Ok(from_commit) = from_obj.peel_to_commit() {
-                let _ = revwalk.hide(from_commit.id());
-            }
+        if let Ok(from_obj) = repo.revparse_single(from)
+            && let Ok(from_commit) = from_obj.peel_to_commit()
+        {
+            let _ = revwalk.hide(from_commit.id());
         }
 
         let mut changelog = String::new();
@@ -432,10 +429,10 @@ impl super::ReleaseVCS for GitVCS {
         let mut metadata = std::collections::HashMap::new();
 
         // Add branch name
-        if head.is_branch() {
-            if let Some(branch_name) = head.shorthand() {
-                metadata.insert("branch".to_string(), branch_name.to_string());
-            }
+        if head.is_branch()
+            && let Some(branch_name) = head.shorthand()
+        {
+            metadata.insert("branch".to_string(), branch_name.to_string());
         }
 
         // Add tags pointing to this commit
@@ -503,13 +500,13 @@ impl super::ReleaseVCS for GitVCS {
         }
 
         // Ensure parent directory exists
-        if let Some(parent) = path.parent() {
-            if !parent.exists() {
-                return Err(RezCoreError::BuildError(format!(
-                    "Parent directory '{}' does not exist",
-                    parent.display()
-                )));
-            }
+        if let Some(parent) = path.parent()
+            && !parent.exists()
+        {
+            return Err(RezCoreError::BuildError(format!(
+                "Parent directory '{}' does not exist",
+                parent.display()
+            )));
         }
 
         // Create target directory

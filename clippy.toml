@@ -20,7 +20,7 @@ single-char-binding-names-threshold = 4
 pass-by-value-size-limit = 256
 
 # Minimum supported Rust version
-msrv = "1.70.0"
+msrv = "1.95.0"
 
 # Allow some lints in tests (tests can use unwrap/print for simplicity)
 allow-unwrap-in-tests = true

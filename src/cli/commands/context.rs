@@ -372,10 +372,10 @@ fn interpret_context(context: &RezResolvedContext, args: &ContextArgs) -> RezCor
 /// Check if a variable was set by packages
 fn is_package_variable(var_name: &str, context: &RezResolvedContext) -> bool {
     for resolved_pkg in &context.resolved_packages {
-        if let Some(ref commands) = resolved_pkg.package.commands {
-            if commands.contains(&format!("export {}", var_name)) {
-                return true;
-            }
+        if let Some(ref commands) = resolved_pkg.package.commands
+            && commands.contains(&format!("export {}", var_name))
+        {
+            return true;
         }
     }
     false

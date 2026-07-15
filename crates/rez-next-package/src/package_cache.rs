@@ -561,20 +561,15 @@ impl PackageCache {
                                         let meta_path = meta_entry.path();
                                         if meta_path.extension().and_then(|s| s.to_str())
                                             == Some("json")
+                                            && let Ok(metadata) = Self::read_metadata(&meta_path)
                                         {
-                                            if let Ok(metadata) = Self::read_metadata(&meta_path) {
-                                                let payload_path = meta_path.with_extension("");
-                                                let status = if payload_path.is_dir() {
-                                                    CacheStatus::Found
-                                                } else {
-                                                    CacheStatus::Pending
-                                                };
-                                                results.push((
-                                                    metadata.handle,
-                                                    payload_path,
-                                                    status,
-                                                ));
-                                            }
+                                            let payload_path = meta_path.with_extension("");
+                                            let status = if payload_path.is_dir() {
+                                                CacheStatus::Found
+                                            } else {
+                                                CacheStatus::Pending
+                                            };
+                                            results.push((metadata.handle, payload_path, status));
                                         }
                                     }
                                 }
@@ -633,14 +628,13 @@ impl PackageCache {
 
                 // Check age via metadata file
                 let json_path = path.with_extension("json");
-                if let Ok(metadata) = Self::read_metadata(&json_path) {
-                    if let Some(accessed) = metadata.last_accessed {
-                        if now - accessed > max_age {
-                            let _ = self.remove_variant(&handle);
-                            stats.entries_deleted += 1;
-                            stats.deleted_bytes += metadata.payload_size.unwrap_or(0);
-                        }
-                    }
+                if let Ok(metadata) = Self::read_metadata(&json_path)
+                    && let Some(accessed) = metadata.last_accessed
+                    && now - accessed > max_age
+                {
+                    let _ = self.remove_variant(&handle);
+                    stats.entries_deleted += 1;
+                    stats.deleted_bytes += metadata.payload_size.unwrap_or(0);
                 }
             }
         }
@@ -675,11 +669,11 @@ impl PackageCache {
 
     /// Check if a file appears stalled (no mtime update for too long).
     fn is_file_stalled(path: &Path) -> bool {
-        if let Ok(metadata) = fs::metadata(path) {
-            if let Ok(mtime) = metadata.modified() {
-                let age = SystemTime::now().duration_since(mtime).unwrap_or_default();
-                return age.as_secs() > 300; // 5 minutes = stalled
-            }
+        if let Ok(metadata) = fs::metadata(path)
+            && let Ok(mtime) = metadata.modified()
+        {
+            let age = SystemTime::now().duration_since(mtime).unwrap_or_default();
+            return age.as_secs() > 300; // 5 minutes = stalled
         }
         false
     }

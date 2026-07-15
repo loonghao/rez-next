@@ -109,12 +109,11 @@ pub fn remove_package_version(
     if config.prune_empty_families {
         for base in &config.packages_path {
             let family_dir = base.join(name);
-            if family_dir.exists() {
-                if let Ok(entries) = fs::read_dir(&family_dir) {
-                    if entries.count() == 0 {
-                        fs::remove_dir(&family_dir)?;
-                    }
-                }
+            if family_dir.exists()
+                && let Ok(entries) = fs::read_dir(&family_dir)
+                && entries.count() == 0
+            {
+                fs::remove_dir(&family_dir)?;
             }
         }
     }

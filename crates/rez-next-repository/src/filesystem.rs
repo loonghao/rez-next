@@ -146,42 +146,40 @@ impl Repository for FileSystemRepository {
 
         for (package_name, versions) in package_cache.iter() {
             // Check name pattern
-            if let Some(ref pattern) = criteria.name_pattern {
-                if !self.matches_pattern(package_name, pattern) {
-                    continue;
-                }
+            if let Some(ref pattern) = criteria.name_pattern
+                && !self.matches_pattern(package_name, pattern)
+            {
+                continue;
             }
 
             for (_version_str, package) in versions.iter() {
                 // Check version range
-                if let Some(ref requirement) = criteria.version_requirement {
-                    if let Some(ref version) = package.version {
-                        // Simple string matching for now
-                        if !requirement.is_empty() && version.as_str() != requirement {
-                            continue;
-                        }
+                if let Some(ref requirement) = criteria.version_requirement
+                    && let Some(ref version) = package.version
+                {
+                    // Simple string matching for now
+                    if !requirement.is_empty() && version.as_str() != requirement {
+                        continue;
                     }
                 }
 
                 // Check prerelease filter
-                if !criteria.include_prerelease {
-                    if let Some(ref version) = package.version {
-                        if version.is_prerelease() {
-                            continue;
-                        }
-                    }
+                if !criteria.include_prerelease
+                    && let Some(ref version) = package.version
+                    && version.is_prerelease()
+                {
+                    continue;
                 }
 
                 // Check requirements (simplified)
                 let mut satisfies_requirements = true;
                 for req in &criteria.requirements {
-                    if req.name == package.name {
-                        if let Some(ref version) = package.version {
-                            if !req.satisfied_by(version) {
-                                satisfies_requirements = false;
-                                break;
-                            }
-                        }
+                    if req.name == package.name
+                        && let Some(ref version) = package.version
+                        && !req.satisfied_by(version)
+                    {
+                        satisfies_requirements = false;
+                        break;
                     }
                 }
 
@@ -190,10 +188,10 @@ impl Repository for FileSystemRepository {
                 }
 
                 // Check limit
-                if let Some(limit) = criteria.limit {
-                    if results.len() >= limit {
-                        return Ok(results);
-                    }
+                if let Some(limit) = criteria.limit
+                    && results.len() >= limit
+                {
+                    return Ok(results);
                 }
             }
         }
@@ -346,20 +344,19 @@ impl FileSystemRepository {
             if let Ok(mut version_entries) = fs::read_dir(&family_path).await {
                 while let Ok(Some(version_entry)) = version_entries.next_entry().await {
                     let version_path = version_entry.path();
-                    if version_path.is_dir() {
-                        if let Ok(scan_result) = self
+                    if version_path.is_dir()
+                        && let Ok(scan_result) = self
                             .scan_package_directory(
                                 &version_path,
                                 &mut package_cache,
                                 &mut variant_cache,
                             )
                             .await
-                        {
-                            package_count += scan_result.packages_found;
-                            version_count += scan_result.versions_found;
-                            variant_count += scan_result.variants_found;
-                            size_bytes += scan_result.size_bytes;
-                        }
+                    {
+                        package_count += scan_result.packages_found;
+                        version_count += scan_result.versions_found;
+                        variant_count += scan_result.variants_found;
+                        size_bytes += scan_result.size_bytes;
                     }
                 }
             }

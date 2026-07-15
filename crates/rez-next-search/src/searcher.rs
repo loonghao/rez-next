@@ -113,14 +113,12 @@ impl PackageSearcher {
                 }
 
                 // Apply version range filter
-                if let Some(ref range_str) = self.options.filter.version_range {
-                    if let Some(ref ver) = pkg.version {
-                        if let Ok(range) = rez_next_version::VersionRange::parse(range_str) {
-                            if !range.contains(ver) {
-                                continue;
-                            }
-                        }
-                    }
+                if let Some(ref range_str) = self.options.filter.version_range
+                    && let Some(ref ver) = pkg.version
+                    && let Ok(range) = rez_next_version::VersionRange::parse(range_str)
+                    && !range.contains(ver)
+                {
+                    continue;
                 }
 
                 let ver_str = pkg
@@ -165,10 +163,10 @@ impl PackageSearcher {
 }
 
 fn expand_home(p: &str) -> String {
-    if p.starts_with("~/") || p == "~" {
-        if let Ok(home) = std::env::var("USERPROFILE").or_else(|_| std::env::var("HOME")) {
-            return p.replacen("~", &home, 1);
-        }
+    if (p.starts_with("~/") || p == "~")
+        && let Ok(home) = std::env::var("USERPROFILE").or_else(|_| std::env::var("HOME"))
+    {
+        return p.replacen("~", &home, 1);
     }
     p.to_string()
 }

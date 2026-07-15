@@ -150,7 +150,7 @@ impl Requirement {
             let arch_match = condition
                 .arch
                 .as_ref()
-                .map_or(true, |a| arch.is_some_and(|arch| arch == a));
+                .is_none_or(|a| arch.is_some_and(|arch| arch == a));
 
             let condition_satisfied = platform_match && arch_match;
 

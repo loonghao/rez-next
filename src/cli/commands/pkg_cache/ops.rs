@@ -18,10 +18,10 @@ pub fn determine_cache_directory(args: &PkgCacheArgs) -> RezCoreResult<PathBuf> 
     use rez_next_common::config::RezCoreConfig;
     let config = RezCoreConfig::load();
 
-    if let Some(cache_path) = config.package_cache_path.first() {
-        if !cache_path.is_empty() {
-            return Ok(expand_home_path(cache_path));
-        }
+    if let Some(cache_path) = config.package_cache_path.first()
+        && !cache_path.is_empty()
+    {
+        return Ok(expand_home_path(cache_path));
     }
 
     // Fall back to default ~/.rez/cache/packages
@@ -191,9 +191,9 @@ pub async fn add_variants(
             .unwrap_or_default();
 
         let pkg = packages.into_iter().find(|p| {
-            version.as_ref().map_or(true, |v| {
-                p.version.as_ref().is_some_and(|pv| pv.as_str() == v)
-            })
+            version
+                .as_ref()
+                .is_none_or(|v| p.version.as_ref().is_some_and(|pv| pv.as_str() == v))
         });
 
         let (original_path, cache_dest) = if let Some(ref p) = pkg {
@@ -261,18 +261,18 @@ pub async fn clean_cache(
     let stats_before = cache_manager.get_stats().await;
 
     let mut removed_dirs = 0usize;
-    if cache_dir.exists() {
-        if let Ok(entries) = std::fs::read_dir(cache_dir) {
-            for entry in entries.flatten() {
-                let path = entry.path();
-                if path.is_dir() {
-                    // Remove empty version directories
-                    if let Ok(mut children) = std::fs::read_dir(&path) {
-                        if children.next().is_none() {
-                            let _ = std::fs::remove_dir(&path);
-                            removed_dirs += 1;
-                        }
-                    }
+    if cache_dir.exists()
+        && let Ok(entries) = std::fs::read_dir(cache_dir)
+    {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                // Remove empty version directories
+                if let Ok(mut children) = std::fs::read_dir(&path)
+                    && children.next().is_none()
+                {
+                    let _ = std::fs::remove_dir(&path);
+                    removed_dirs += 1;
                 }
             }
         }

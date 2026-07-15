@@ -201,32 +201,32 @@ pub fn compute_depends(
         }
         for req_str in &pkg.requires {
             // Check if this requirement refers to target_name
-            if let Ok(req) = rez_next_package::PackageRequirement::parse(req_str) {
-                if req.name == target_name {
-                    // Optionally filter by version range
-                    let matches = match (&target_range, &req.version_spec) {
-                        (Some(range), Some(spec)) => {
-                            // Check if the requirement's version spec overlaps target range
-                            VersionRange::parse(spec)
-                                .map(|r| r.intersects(range))
-                                .unwrap_or(true)
-                        }
-                        _ => true,
-                    };
-                    if matches {
-                        let ver = pkg
-                            .version
-                            .as_ref()
-                            .map(|v| v.as_str().to_string())
-                            .unwrap_or_else(|| "unknown".to_string());
-                        direct_dependants.push(PyDependsEntry {
-                            name: pkg.name.clone(),
-                            version: ver,
-                            requirement: req_str.clone(),
-                            dependency_type: "direct".to_string(),
-                        });
-                        break; // Don't add the same package twice
+            if let Ok(req) = rez_next_package::PackageRequirement::parse(req_str)
+                && req.name == target_name
+            {
+                // Optionally filter by version range
+                let matches = match (&target_range, &req.version_spec) {
+                    (Some(range), Some(spec)) => {
+                        // Check if the requirement's version spec overlaps target range
+                        VersionRange::parse(spec)
+                            .map(|r| r.intersects(range))
+                            .unwrap_or(true)
                     }
+                    _ => true,
+                };
+                if matches {
+                    let ver = pkg
+                        .version
+                        .as_ref()
+                        .map(|v| v.as_str().to_string())
+                        .unwrap_or_else(|| "unknown".to_string());
+                    direct_dependants.push(PyDependsEntry {
+                        name: pkg.name.clone(),
+                        version: ver,
+                        requirement: req_str.clone(),
+                        dependency_type: "direct".to_string(),
+                    });
+                    break; // Don't add the same package twice
                 }
             }
         }
@@ -243,21 +243,21 @@ pub fn compute_depends(
                 continue;
             }
             for req_str in &pkg.requires {
-                if let Ok(req) = rez_next_package::PackageRequirement::parse(req_str) {
-                    if direct_names.contains(req.name.as_str()) {
-                        let ver = pkg
-                            .version
-                            .as_ref()
-                            .map(|v| v.as_str().to_string())
-                            .unwrap_or_else(|| "unknown".to_string());
-                        transitive_dependants.push(PyDependsEntry {
-                            name: pkg.name.clone(),
-                            version: ver,
-                            requirement: req_str.clone(),
-                            dependency_type: "transitive".to_string(),
-                        });
-                        break;
-                    }
+                if let Ok(req) = rez_next_package::PackageRequirement::parse(req_str)
+                    && direct_names.contains(req.name.as_str())
+                {
+                    let ver = pkg
+                        .version
+                        .as_ref()
+                        .map(|v| v.as_str().to_string())
+                        .unwrap_or_else(|| "unknown".to_string());
+                    transitive_dependants.push(PyDependsEntry {
+                        name: pkg.name.clone(),
+                        version: ver,
+                        requirement: req_str.clone(),
+                        dependency_type: "transitive".to_string(),
+                    });
+                    break;
                 }
             }
         }

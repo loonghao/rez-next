@@ -142,11 +142,11 @@ impl RezCoreConfig {
         let mut paths = Vec::new();
 
         // 1. Built-in config (if exists)
-        if let Ok(exe_path) = env::current_exe() {
-            if let Some(exe_dir) = exe_path.parent() {
-                paths.push(exe_dir.join("rezconfig.yaml"));
-                paths.push(exe_dir.join("rezconfig.json"));
-            }
+        if let Ok(exe_path) = env::current_exe()
+            && let Some(exe_dir) = exe_path.parent()
+        {
+            paths.push(exe_dir.join("rezconfig.yaml"));
+            paths.push(exe_dir.join("rezconfig.json"));
         }
 
         // 2. Environment variable REZ_CONFIG_FILE
@@ -160,10 +160,10 @@ impl RezCoreConfig {
         if cfg!(unix) {
             paths.push(PathBuf::from("/etc/rez/config.yaml"));
             paths.push(PathBuf::from("/usr/local/etc/rez/config.yaml"));
-        } else if cfg!(windows) {
-            if let Ok(program_data) = env::var("PROGRAMDATA") {
-                paths.push(PathBuf::from(program_data).join("rez").join("config.yaml"));
-            }
+        } else if cfg!(windows)
+            && let Ok(program_data) = env::var("PROGRAMDATA")
+        {
+            paths.push(PathBuf::from(program_data).join("rez").join("config.yaml"));
         }
 
         // 4. User home config (unless disabled)
@@ -177,13 +177,13 @@ impl RezCoreConfig {
                 paths.push(home_path.join(".rezconfig"));
                 paths.push(home_path.join(".rezconfig.yaml"));
                 paths.push(home_path.join(".rez").join("config.yaml"));
-            } else if cfg!(windows) {
-                if let Ok(userprofile) = env::var("USERPROFILE") {
-                    let user_path = PathBuf::from(&userprofile);
-                    paths.push(user_path.join(".rezconfig"));
-                    paths.push(user_path.join(".rezconfig.yaml"));
-                    paths.push(user_path.join(".rez").join("config.yaml"));
-                }
+            } else if cfg!(windows)
+                && let Ok(userprofile) = env::var("USERPROFILE")
+            {
+                let user_path = PathBuf::from(&userprofile);
+                paths.push(user_path.join(".rezconfig"));
+                paths.push(user_path.join(".rezconfig.yaml"));
+                paths.push(user_path.join(".rez").join("config.yaml"));
             }
         }
 
@@ -206,18 +206,18 @@ impl RezCoreConfig {
 
         // Try to load from config files in priority order
         for path in Self::get_search_paths() {
-            if path.exists() {
-                if let Ok(content) = std::fs::read_to_string(&path) {
-                    // Try YAML format
-                    if let Ok(loaded) = serde_yaml::from_str::<RezCoreConfig>(&content) {
-                        config = loaded;
-                        break;
-                    }
-                    // Try JSON format
-                    if let Ok(loaded) = serde_json::from_str::<RezCoreConfig>(&content) {
-                        config = loaded;
-                        break;
-                    }
+            if path.exists()
+                && let Ok(content) = std::fs::read_to_string(&path)
+            {
+                // Try YAML format
+                if let Ok(loaded) = serde_yaml::from_str::<RezCoreConfig>(&content) {
+                    config = loaded;
+                    break;
+                }
+                // Try JSON format
+                if let Ok(loaded) = serde_json::from_str::<RezCoreConfig>(&content) {
+                    config = loaded;
+                    break;
                 }
             }
         }

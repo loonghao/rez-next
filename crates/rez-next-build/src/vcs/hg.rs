@@ -18,12 +18,12 @@ use std::path::PathBuf;
 fn parse_hg_timestamp(date_line: &str) -> Option<i64> {
     let date_line = date_line.trim();
     // hgdate format: "(<timestamp>, <offset>)"
-    if let Some(start) = date_line.find('(') {
-        if let Some(end) = date_line.find(',') {
-            let ts_str = &date_line[start + 1..end];
-            if let Ok(ts) = ts_str.trim().parse::<i64>() {
-                return Some(ts);
-            }
+    if let Some(start) = date_line.find('(')
+        && let Some(end) = date_line.find(',')
+    {
+        let ts_str = &date_line[start + 1..end];
+        if let Ok(ts) = ts_str.trim().parse::<i64>() {
+            return Some(ts);
         }
     }
     None
@@ -306,12 +306,12 @@ impl super::ReleaseVCS for MercurialVCS {
 
         // Check for mq (Mercurial Queues) patches
         let patches = self.run_hg(&["qseries"]).ok();
-        if let Some(ref series) = patches {
-            if !series.is_empty() {
-                return Err(RezCoreError::BuildError(
-                    "Mercurial repository has active mq patches".to_string(),
-                ));
-            }
+        if let Some(ref series) = patches
+            && !series.is_empty()
+        {
+            return Err(RezCoreError::BuildError(
+                "Mercurial repository has active mq patches".to_string(),
+            ));
         }
 
         Ok(())

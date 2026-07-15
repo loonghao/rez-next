@@ -631,13 +631,13 @@ impl DependencyResolver {
     ) -> Vec<String> {
         let mut requires = package.requires.clone();
 
-        if let Some(idx) = variant_index {
-            if let Some(variant_reqs) = package.variants.get(idx) {
-                // Variant requires are appended to base requires
-                for vreq in variant_reqs {
-                    if !requires.contains(vreq) {
-                        requires.push(vreq.clone());
-                    }
+        if let Some(idx) = variant_index
+            && let Some(variant_reqs) = package.variants.get(idx)
+        {
+            // Variant requires are appended to base requires
+            for vreq in variant_reqs {
+                if !requires.contains(vreq) {
+                    requires.push(vreq.clone());
                 }
             }
         }

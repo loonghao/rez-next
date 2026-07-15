@@ -101,10 +101,10 @@ fn test_depends_empty_repo_no_results() {
 
     for pkg in &packages {
         for req in &pkg.requires {
-            if req.starts_with("python") {
-                if let Some(ref ver) = pkg.version {
-                    direct.push(format!("{}-{}", pkg.name, ver.as_str()));
-                }
+            if req.starts_with("python")
+                && let Some(ref ver) = pkg.version
+            {
+                direct.push(format!("{}-{}", pkg.name, ver.as_str()));
             }
         }
     }
@@ -138,12 +138,12 @@ fn test_depends_direct_dependency_detected() {
             continue;
         }
         for req_str in &pkg.requires {
-            if let Ok(req) = PackageRequirement::parse(req_str) {
-                if req.name == target {
-                    let ver = pkg.version.as_ref().map(|v| v.as_str()).unwrap_or("?");
-                    dependants.push(format!("{}-{}", pkg.name, ver));
-                    break;
-                }
+            if let Ok(req) = PackageRequirement::parse(req_str)
+                && req.name == target
+            {
+                let ver = pkg.version.as_ref().map(|v| v.as_str()).unwrap_or("?");
+                dependants.push(format!("{}-{}", pkg.name, ver));
+                break;
             }
         }
     }
@@ -172,11 +172,11 @@ fn test_depends_no_requires_no_dependants() {
     let mut dependants = Vec::new();
     for pkg in &packages {
         for req_str in &pkg.requires {
-            if let Ok(req) = PackageRequirement::parse(req_str) {
-                if req.name == target {
-                    dependants.push(pkg.name.clone());
-                    break;
-                }
+            if let Ok(req) = PackageRequirement::parse(req_str)
+                && req.name == target
+            {
+                dependants.push(pkg.name.clone());
+                break;
             }
         }
     }
@@ -208,19 +208,19 @@ fn test_depends_version_range_filter() {
     let mut dependants = Vec::new();
     for pkg in &packages {
         for req_str in &pkg.requires {
-            if let Ok(req) = PackageRequirement::parse(req_str) {
-                if req.name == target {
-                    // Check if the required version satisfies >=3.0 constraint
-                    let matches = req
-                        .version_spec
-                        .as_ref()
-                        .and_then(|s| Version::parse(s).ok())
-                        .map(|v| v >= filter_min)
-                        .unwrap_or(false);
-                    if matches {
-                        dependants.push(pkg.name.clone());
-                        break;
-                    }
+            if let Ok(req) = PackageRequirement::parse(req_str)
+                && req.name == target
+            {
+                // Check if the required version satisfies >=3.0 constraint
+                let matches = req
+                    .version_spec
+                    .as_ref()
+                    .and_then(|s| Version::parse(s).ok())
+                    .map(|v| v >= filter_min)
+                    .unwrap_or(false);
+                if matches {
+                    dependants.push(pkg.name.clone());
+                    break;
                 }
             }
         }
@@ -263,11 +263,11 @@ fn test_depends_transitive_chain() {
             continue;
         }
         for req_str in &pkg.requires {
-            if let Ok(req) = PackageRequirement::parse(req_str) {
-                if req.name == target {
-                    direct_names.insert(pkg.name.clone());
-                    break;
-                }
+            if let Ok(req) = PackageRequirement::parse(req_str)
+                && req.name == target
+            {
+                direct_names.insert(pkg.name.clone());
+                break;
             }
         }
     }
@@ -287,11 +287,11 @@ fn test_depends_transitive_chain() {
             continue;
         }
         for req_str in &pkg.requires {
-            if let Ok(req) = PackageRequirement::parse(req_str) {
-                if direct_names.contains(&req.name) {
-                    transitive_names.insert(pkg.name.clone());
-                    break;
-                }
+            if let Ok(req) = PackageRequirement::parse(req_str)
+                && direct_names.contains(&req.name)
+            {
+                transitive_names.insert(pkg.name.clone());
+                break;
             }
         }
     }
@@ -321,11 +321,11 @@ fn test_depends_excludes_self() {
             continue;
         } // self-exclusion
         for req_str in &pkg.requires {
-            if let Ok(req) = PackageRequirement::parse(req_str) {
-                if req.name == target {
-                    dependants.push(pkg.name.clone());
-                    break;
-                }
+            if let Ok(req) = PackageRequirement::parse(req_str)
+                && req.name == target
+            {
+                dependants.push(pkg.name.clone());
+                break;
             }
         }
     }
@@ -373,18 +373,18 @@ fn test_depends_deduplication() {
             continue;
         }
         for req_str in &pkg.requires {
-            if let Ok(req) = PackageRequirement::parse(req_str) {
-                if req.name == target {
-                    let key = format!(
-                        "{}-{}",
-                        pkg.name,
-                        pkg.version.as_ref().map(|v| v.as_str()).unwrap_or("?")
-                    );
-                    if seen.insert(key.clone()) {
-                        dependants.push(key);
-                    }
-                    break; // only add once per package
+            if let Ok(req) = PackageRequirement::parse(req_str)
+                && req.name == target
+            {
+                let key = format!(
+                    "{}-{}",
+                    pkg.name,
+                    pkg.version.as_ref().map(|v| v.as_str()).unwrap_or("?")
+                );
+                if seen.insert(key.clone()) {
+                    dependants.push(key);
                 }
+                break; // only add once per package
             }
         }
     }

@@ -54,11 +54,11 @@ fn py_dump_package_data(
     let mut json_value = python_to_json(py, &data)?;
 
     // Apply skip_attributes filter
-    if let Some(ref skip) = skip_attributes {
-        if let Value::Object(ref mut map) = json_value {
-            for key in skip {
-                map.remove(key.as_str());
-            }
+    if let Some(ref skip) = skip_attributes
+        && let Value::Object(ref mut map) = json_value
+    {
+        for key in skip {
+            map.remove(key.as_str());
         }
     }
 
@@ -88,10 +88,10 @@ fn validate_package_data(data: &Value) -> std::result::Result<(), String> {
         }
 
         // Validate name is a string
-        if let Some(name) = map.get("name") {
-            if !name.is_string() {
-                return Err("Field 'name' must be a string".to_string());
-            }
+        if let Some(name) = map.get("name")
+            && !name.is_string()
+        {
+            return Err("Field 'name' must be a string".to_string());
         }
 
         // TODO: Add more validation to fully align with Rez's package_serialise_schema

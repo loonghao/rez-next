@@ -55,10 +55,10 @@ pub fn cli_run(command: &str, args: Option<Vec<String>>) -> PyResult<i32> {
 #[pyfunction]
 #[pyo3(signature = (args=None))]
 pub fn cli_main(args: Option<Vec<String>>) -> PyResult<i32> {
-    if let Some(ref a) = args {
-        if let Some(cmd) = a.first() {
-            return cli_run(cmd.as_str(), Some(a[1..].to_vec()));
-        }
+    if let Some(ref a) = args
+        && let Some(cmd) = a.first()
+    {
+        return cli_run(cmd.as_str(), Some(a[1..].to_vec()));
     }
     Ok(0)
 }

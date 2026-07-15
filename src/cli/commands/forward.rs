@@ -77,10 +77,10 @@ pub fn execute(args: ForwardArgs) -> RezCoreResult<()> {
 /// Find the rez_next binary path
 fn find_rez_next_binary() -> String {
     // 1. REZ_NEXT_BIN environment variable
-    if let Ok(bin) = std::env::var("REZ_NEXT_BIN") {
-        if !bin.is_empty() {
-            return bin;
-        }
+    if let Ok(bin) = std::env::var("REZ_NEXT_BIN")
+        && !bin.is_empty()
+    {
+        return bin;
     }
 
     // 2. Same directory as current executable

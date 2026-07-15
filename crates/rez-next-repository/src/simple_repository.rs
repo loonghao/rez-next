@@ -173,10 +173,10 @@ impl PackageRepository for SimpleRepository {
         if let Some(version_str) = version {
             let target_version = rez_next_version::Version::parse(version_str)?;
             for package in packages {
-                if let Some(ref pkg_version) = package.version {
-                    if pkg_version == &target_version {
-                        return Ok(Some(package));
-                    }
+                if let Some(ref pkg_version) = package.version
+                    && pkg_version == &target_version
+                {
+                    return Ok(Some(package));
                 }
             }
         } else {

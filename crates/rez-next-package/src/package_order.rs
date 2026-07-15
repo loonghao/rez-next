@@ -486,10 +486,10 @@ pub fn get_orderer(
     package_name: &str,
     orderers: Option<&PackageOrderList>,
 ) -> Box<dyn PackageOrder> {
-    if let Some(list) = orderers {
-        if let Some(orderer) = list.get(package_name) {
-            return orderer.clone_box();
-        }
+    if let Some(list) = orderers
+        && let Some(orderer) = list.get(package_name)
+    {
+        return orderer.clone_box();
     }
 
     // Default: no ordering

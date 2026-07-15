@@ -108,10 +108,11 @@ pub fn list_bundles(search_path: Option<&str>) -> PyResult<Vec<String>> {
     if let Ok(entries) = std::fs::read_dir(&base) {
         for entry in entries.filter_map(|e| e.ok()) {
             let path = entry.path();
-            if path.is_dir() && path.join("bundle.yaml").exists() {
-                if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-                    bundles.push(name.to_string());
-                }
+            if path.is_dir()
+                && path.join("bundle.yaml").exists()
+                && let Some(name) = path.file_name().and_then(|n| n.to_str())
+            {
+                bundles.push(name.to_string());
             }
         }
     }

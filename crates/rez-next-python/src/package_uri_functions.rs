@@ -151,18 +151,19 @@ fn find_package_in_path(
     // Try to find package file
     for filename in &["package.py", "package.json"] {
         let file_path = path.join(filename);
-        if file_path.exists() {
-            if let Ok(pkg) = PackageSerializer::load_from_file(&file_path) {
-                return Ok(Some(pkg));
-            }
+        if file_path.exists()
+            && let Ok(pkg) = PackageSerializer::load_from_file(&file_path)
+        {
+            return Ok(Some(pkg));
         }
     }
 
     // If path itself is a package file
-    if path.exists() && (path.ends_with("package.py") || path.ends_with("package.json")) {
-        if let Ok(pkg) = PackageSerializer::load_from_file(&path) {
-            return Ok(Some(pkg));
-        }
+    if path.exists()
+        && (path.ends_with("package.py") || path.ends_with("package.json"))
+        && let Ok(pkg) = PackageSerializer::load_from_file(&path)
+    {
+        return Ok(Some(pkg));
     }
 
     Ok(None)
@@ -262,20 +263,21 @@ pub fn get_package_from_handle(
     let path = Path::new(&path_str);
 
     // Check if it's a direct package file
-    if path.exists() && (path.ends_with("package.py") || path.ends_with("package.json")) {
-        if let Ok(pkg) = PackageSerializer::load_from_file(path) {
-            return Ok(Some(PyPackage(pkg)));
-        }
+    if path.exists()
+        && (path.ends_with("package.py") || path.ends_with("package.json"))
+        && let Ok(pkg) = PackageSerializer::load_from_file(path)
+    {
+        return Ok(Some(PyPackage(pkg)));
     }
 
     // If not a direct file, try to find package files in the directory
     if path.is_dir() {
         for filename in &["package.py", "package.json"] {
             let file_path = path.join(filename);
-            if file_path.exists() {
-                if let Ok(pkg) = PackageSerializer::load_from_file(&file_path) {
-                    return Ok(Some(PyPackage(pkg)));
-                }
+            if file_path.exists()
+                && let Ok(pkg) = PackageSerializer::load_from_file(&file_path)
+            {
+                return Ok(Some(PyPackage(pkg)));
             }
         }
     }
@@ -284,20 +286,20 @@ pub fn get_package_from_handle(
     if let Some(ref search_paths) = paths {
         for search_path in search_paths {
             let full_path = Path::new(search_path).join(&path_str);
-            if full_path.exists() {
-                if let Ok(pkg) = PackageSerializer::load_from_file(&full_path) {
-                    return Ok(Some(PyPackage(pkg)));
-                }
+            if full_path.exists()
+                && let Ok(pkg) = PackageSerializer::load_from_file(&full_path)
+            {
+                return Ok(Some(PyPackage(pkg)));
             }
 
             // Also check for package files in directory
             if full_path.is_dir() {
                 for filename in &["package.py", "package.json"] {
                     let file_path = full_path.join(filename);
-                    if file_path.exists() {
-                        if let Ok(pkg) = PackageSerializer::load_from_file(&file_path) {
-                            return Ok(Some(PyPackage(pkg)));
-                        }
+                    if file_path.exists()
+                        && let Ok(pkg) = PackageSerializer::load_from_file(&file_path)
+                    {
+                        return Ok(Some(PyPackage(pkg)));
                     }
                 }
             }
@@ -328,10 +330,10 @@ pub fn get_package_from_repository(
     // Try to find package file in repo path
     for filename in &["package.py", "package.json"] {
         let file_path = pkg_path.join(filename);
-        if file_path.exists() {
-            if let Ok(pkg) = PackageSerializer::load_from_file(&file_path) {
-                return Ok(Some(PyPackage(pkg)));
-            }
+        if file_path.exists()
+            && let Ok(pkg) = PackageSerializer::load_from_file(&file_path)
+        {
+            return Ok(Some(PyPackage(pkg)));
         }
     }
 
@@ -376,10 +378,10 @@ pub fn get_package_family_from_repository(
     if let Ok(entries) = std::fs::read_dir(&family_path) {
         let mut versions = Vec::new();
         for entry in entries.flatten() {
-            if entry.path().is_dir() {
-                if let Some(dir_name) = entry.file_name().to_str() {
-                    versions.push(dir_name.to_string());
-                }
+            if entry.path().is_dir()
+                && let Some(dir_name) = entry.file_name().to_str()
+            {
+                versions.push(dir_name.to_string());
             }
         }
         dict.set_item("versions", versions)?;

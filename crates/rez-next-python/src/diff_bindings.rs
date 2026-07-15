@@ -256,10 +256,10 @@ pub fn diff_contexts(
                     conflict: false,
                 });
                 let mut pkg = Package::new(pr.name.clone());
-                if let Some(ref spec) = pr.version_spec {
-                    if !spec.is_empty() {
-                        pkg.version = Version::parse(spec).ok();
-                    }
+                if let Some(ref spec) = pr.version_spec
+                    && !spec.is_empty()
+                {
+                    pkg.version = Version::parse(spec).ok();
                 }
                 pkg
             })

@@ -307,9 +307,8 @@ impl HighPerformanceScanner {
 
         // Choose optimal reading strategy
         let content = if file_size > self.config.mmap_threshold {
-            self.read_file_mmap(path).await.map_err(|e| {
+            self.read_file_mmap(path).await.inspect_err(|_e| {
                 self.scan_errors.fetch_add(1, Ordering::Relaxed);
-                e
             })?
         } else {
             fs::read_to_string(path).await.map_err(|e| {

@@ -342,12 +342,11 @@ async fn show_general_status(
             .packages_path
             .iter()
             .map(|p| {
-                if p.starts_with("~/") || p == "~" {
-                    if let Ok(home) =
+                if (p.starts_with("~/") || p == "~")
+                    && let Ok(home) =
                         std::env::var("USERPROFILE").or_else(|_| std::env::var("HOME"))
-                    {
-                        return PathBuf::from(p.replacen("~", &home, 1));
-                    }
+                {
+                    return PathBuf::from(p.replacen("~", &home, 1));
                 }
                 PathBuf::from(p)
             })

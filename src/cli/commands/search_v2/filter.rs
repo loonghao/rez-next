@@ -31,15 +31,15 @@ pub async fn perform_search(
             // Apply timestamp filters if provided
             if newer_than.is_some() || older_than.is_some() {
                 let pkg_timestamp = get_package_timestamp(&package);
-                if let Some(newer) = newer_than {
-                    if pkg_timestamp <= newer {
-                        continue;
-                    }
+                if let Some(newer) = newer_than
+                    && pkg_timestamp <= newer
+                {
+                    continue;
                 }
-                if let Some(older) = older_than {
-                    if pkg_timestamp >= older {
-                        continue;
-                    }
+                if let Some(older) = older_than
+                    && pkg_timestamp >= older
+                {
+                    continue;
                 }
             }
 

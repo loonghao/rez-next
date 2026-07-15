@@ -271,12 +271,12 @@ fn validate_vcs_state(working_dir: &Path, vcs_type: &str, args: &ReleaseArgs) ->
             .current_dir(working_dir)
             .output();
 
-        if let Ok(output) = output {
-            if !output.stdout.is_empty() {
-                let unpushed = String::from_utf8_lossy(&output.stdout);
-                if args.verbose {
-                    println!("Warning: Repository has unpushed commits:\n{}", unpushed);
-                }
+        if let Ok(output) = output
+            && !output.stdout.is_empty()
+        {
+            let unpushed = String::from_utf8_lossy(&output.stdout);
+            if args.verbose {
+                println!("Warning: Repository has unpushed commits:\n{}", unpushed);
             }
         }
     }
@@ -324,11 +324,12 @@ fn create_git_tag(
         .current_dir(working_dir)
         .output();
 
-    if let Ok(push) = push_output {
-        if !push.status.success() && verbose {
-            let stderr = String::from_utf8_lossy(&push.stderr);
-            println!("Warning: Could not push tag to origin: {}", stderr);
-        }
+    if let Ok(push) = push_output
+        && !push.status.success()
+        && verbose
+    {
+        let stderr = String::from_utf8_lossy(&push.stderr);
+        println!("Warning: Could not push tag to origin: {}", stderr);
     }
 
     Ok(())

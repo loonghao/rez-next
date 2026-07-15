@@ -110,10 +110,10 @@ impl RezResolvedContext {
 
     /// Get the variant of a package if it has variants
     pub fn get_variant(&self, package_name: &str) -> Option<&Vec<String>> {
-        if let Some(resolved_pkg) = self.get_package(package_name) {
-            if let Some(variant_index) = resolved_pkg.variant_index {
-                return resolved_pkg.package.variants.get(variant_index);
-            }
+        if let Some(resolved_pkg) = self.get_package(package_name)
+            && let Some(variant_index) = resolved_pkg.variant_index
+        {
+            return resolved_pkg.package.variants.get(variant_index);
         }
         None
     }
@@ -190,31 +190,31 @@ impl RezResolvedContext {
         environ: &mut HashMap<String, String>,
     ) -> Result<(), RezCoreError> {
         // Parse export VAR="value" or export VAR="${VAR}:value"
-        if let Some(assignment) = command.strip_prefix("export ") {
-            if let Some((var_name, value)) = assignment.split_once('=') {
-                let var_name = var_name.trim();
-                let value = value.trim_matches('"');
+        if let Some(assignment) = command.strip_prefix("export ")
+            && let Some((var_name, value)) = assignment.split_once('=')
+        {
+            let var_name = var_name.trim();
+            let value = value.trim_matches('"');
 
-                // Expand variables in the value
-                let expanded_value = self.expand_variables(value, resolved_pkg, environ);
+            // Expand variables in the value
+            let expanded_value = self.expand_variables(value, resolved_pkg, environ);
 
-                // Handle path-like variables (containing ${VAR}:)
-                if value.contains(&format!("${{{}}}:", var_name)) {
-                    // Append to existing value
-                    let existing = environ.get(var_name).cloned().unwrap_or_default();
-                    let new_value = expanded_value
-                        .replace(&format!("${{{}}}:", var_name), &format!("{}:", existing));
-                    environ.insert(var_name.to_string(), new_value);
-                } else if value.contains(&format!(":${{{}}}", var_name)) {
-                    // Prepend to existing value
-                    let existing = environ.get(var_name).cloned().unwrap_or_default();
-                    let new_value = expanded_value
-                        .replace(&format!(":${{{}}}", var_name), &format!(":{}", existing));
-                    environ.insert(var_name.to_string(), new_value);
-                } else {
-                    // Simple assignment
-                    environ.insert(var_name.to_string(), expanded_value);
-                }
+            // Handle path-like variables (containing ${VAR}:)
+            if value.contains(&format!("${{{}}}:", var_name)) {
+                // Append to existing value
+                let existing = environ.get(var_name).cloned().unwrap_or_default();
+                let new_value = expanded_value
+                    .replace(&format!("${{{}}}:", var_name), &format!("{}:", existing));
+                environ.insert(var_name.to_string(), new_value);
+            } else if value.contains(&format!(":${{{}}}", var_name)) {
+                // Prepend to existing value
+                let existing = environ.get(var_name).cloned().unwrap_or_default();
+                let new_value = expanded_value
+                    .replace(&format!(":${{{}}}", var_name), &format!(":{}", existing));
+                environ.insert(var_name.to_string(), new_value);
+            } else {
+                // Simple assignment
+                environ.insert(var_name.to_string(), expanded_value);
             }
         }
         Ok(())

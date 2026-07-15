@@ -263,25 +263,25 @@ where
         }
 
         let patterns = self.patterns.read().unwrap();
-        if let Some(pattern) = patterns.get(key) {
-            if let Some(predicted_time) = pattern.predict_next_access() {
-                let score = pattern.calculate_cache_score();
+        if let Some(pattern) = patterns.get(key)
+            && let Some(predicted_time) = pattern.predict_next_access()
+        {
+            let score = pattern.calculate_cache_score();
 
-                // Only queue if confidence is high enough
-                if pattern.confidence >= self.config.min_confidence_threshold {
-                    let mut queue = self.preheat_queue.write().unwrap();
-                    queue.push_back((key.clone(), score, predicted_time));
+            // Only queue if confidence is high enough
+            if pattern.confidence >= self.config.min_confidence_threshold {
+                let mut queue = self.preheat_queue.write().unwrap();
+                queue.push_back((key.clone(), score, predicted_time));
 
-                    // Keep queue size manageable
-                    if queue.len() > self.config.max_preheat_queue_size {
-                        queue.pop_front();
-                    }
+                // Keep queue size manageable
+                if queue.len() > self.config.max_preheat_queue_size {
+                    queue.pop_front();
+                }
 
-                    // Update statistics
-                    {
-                        let mut stats = self.stats.write().unwrap();
-                        stats.predictions_made += 1;
-                    }
+                // Update statistics
+                {
+                    let mut stats = self.stats.write().unwrap();
+                    stats.predictions_made += 1;
                 }
             }
         }

@@ -92,10 +92,10 @@ pub fn package_repo_stats(paths: Vec<String>) -> RepositoryStats {
                 }
 
                 // Add to size
-                if let Ok(metadata) = entry.metadata() {
-                    if metadata.is_file() {
-                        combined_stats.size_bytes += metadata.len();
-                    }
+                if let Ok(metadata) = entry.metadata()
+                    && metadata.is_file()
+                {
+                    combined_stats.size_bytes += metadata.len();
                 }
             }
         }

@@ -371,22 +371,21 @@ pub fn execute(args: SelfUpdateArgs) -> RezCoreResult<()> {
     );
     let checksums_path = tmp_dir.join("checksums-sha256.txt");
     if download_to_file(downloader, &checksums_url, &checksums_path).is_ok() {
-        if let Ok(checksums) = fs::read_to_string(&checksums_path) {
-            if let Some(expected) = checksums
+        if let Ok(checksums) = fs::read_to_string(&checksums_path)
+            && let Some(expected) = checksums
                 .lines()
                 .find(|l| l.contains(&archive_name))
                 .and_then(|l| l.split_whitespace().next())
-            {
-                let actual = compute_sha256(&archive_path)?;
-                if actual != expected {
-                    let _ = fs::remove_dir_all(&tmp_dir);
-                    return Err(RezCoreError::Python(format!(
-                        "Checksum mismatch! Expected: {}, Got: {}",
-                        expected, actual
-                    )));
-                }
-                success("Checksum verified ✓");
+        {
+            let actual = compute_sha256(&archive_path)?;
+            if actual != expected {
+                let _ = fs::remove_dir_all(&tmp_dir);
+                return Err(RezCoreError::Python(format!(
+                    "Checksum mismatch! Expected: {}, Got: {}",
+                    expected, actual
+                )));
             }
+            success("Checksum verified ✓");
         }
     } else {
         warn("Checksums file not available, skipping verification");
@@ -394,9 +393,8 @@ pub fn execute(args: SelfUpdateArgs) -> RezCoreResult<()> {
 
     // Extract archive
     info("Extracting...");
-    extract_archive(&archive_path, &tmp_dir).map_err(|e| {
+    extract_archive(&archive_path, &tmp_dir).inspect_err(|_e| {
         let _ = fs::remove_dir_all(&tmp_dir);
-        e
     })?;
 
     // Locate new binary
@@ -422,12 +420,12 @@ pub fn execute(args: SelfUpdateArgs) -> RezCoreResult<()> {
 /// Compute SHA-256 of a file using the system sha256sum / shasum tool.
 fn compute_sha256(path: &Path) -> RezCoreResult<String> {
     // Try sha256sum (Linux / Git Bash on Windows)
-    if let Ok(output) = Command::new("sha256sum").arg(path).output() {
-        if output.status.success() {
-            let s = String::from_utf8_lossy(&output.stdout);
-            if let Some(hash) = s.split_whitespace().next() {
-                return Ok(hash.to_string());
-            }
+    if let Ok(output) = Command::new("sha256sum").arg(path).output()
+        && output.status.success()
+    {
+        let s = String::from_utf8_lossy(&output.stdout);
+        if let Some(hash) = s.split_whitespace().next() {
+            return Ok(hash.to_string());
         }
     }
     // Try shasum -a 256 (macOS)
@@ -435,12 +433,11 @@ fn compute_sha256(path: &Path) -> RezCoreResult<String> {
         .args(["-a", "256"])
         .arg(path)
         .output()
+        && output.status.success()
     {
-        if output.status.success() {
-            let s = String::from_utf8_lossy(&output.stdout);
-            if let Some(hash) = s.split_whitespace().next() {
-                return Ok(hash.to_string());
-            }
+        let s = String::from_utf8_lossy(&output.stdout);
+        if let Some(hash) = s.split_whitespace().next() {
+            return Ok(hash.to_string());
         }
     }
     // Try certutil (native Windows)
@@ -448,19 +445,18 @@ fn compute_sha256(path: &Path) -> RezCoreResult<String> {
     if let Ok(output) = Command::new("certutil")
         .args(["-hashfile", path.to_str().unwrap_or(""), "SHA256"])
         .output()
+        && output.status.success()
     {
-        if output.status.success() {
-            let s = String::from_utf8_lossy(&output.stdout);
-            // certutil output has the hash on the second non-empty line
-            let hash = s
-                .lines()
-                .map(str::trim)
-                .find(|l| !l.is_empty() && !l.starts_with("CertUtil") && !l.contains("hash"))
-                .unwrap_or("")
-                .replace(' ', "");
-            if hash.len() == 64 {
-                return Ok(hash);
-            }
+        let s = String::from_utf8_lossy(&output.stdout);
+        // certutil output has the hash on the second non-empty line
+        let hash = s
+            .lines()
+            .map(str::trim)
+            .find(|l| !l.is_empty() && !l.starts_with("CertUtil") && !l.contains("hash"))
+            .unwrap_or("")
+            .replace(' ', "");
+        if hash.len() == 64 {
+            return Ok(hash);
         }
     }
     warn("No SHA256 tool found, skipping checksum verification");
