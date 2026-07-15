@@ -584,6 +584,7 @@ pub fn normalize_environment_paths(env_vars: &mut HashMap<String, String>) {
 mod tests {
     use super::*;
     use crate::ContextConfig;
+    use std::path::PathBuf;
 
     #[test]
     fn test_env_operation_variants() {
@@ -845,22 +846,15 @@ mod tests {
             .filter(|name| name.eq_ignore_ascii_case("PATH"))
             .collect();
         assert_eq!(path_keys.len(), 1);
-        let path = environment
-            .get(&environment_key("PATH"))
-            .unwrap()
-            .replace('/', "\\");
-        assert!(path.starts_with(&temp.path().join("bin").to_string_lossy().into_owned()));
-        let python_path = environment
-            .get(&environment_key("PYTHONPATH"))
-            .unwrap()
-            .replace('/', "\\");
-        assert!(
-            python_path.starts_with(
-                &second_root
-                    .join("site-packages")
-                    .to_string_lossy()
-                    .into_owned()
-            )
+        let path: Vec<_> =
+            std::env::split_paths(environment.get(&environment_key("PATH")).unwrap()).collect();
+        assert_eq!(path.first(), Some(&temp.path().join("bin")));
+        let python_path: Vec<_> =
+            std::env::split_paths(environment.get(&environment_key("PYTHONPATH")).unwrap())
+                .collect();
+        assert_eq!(
+            python_path.first(),
+            Some(&second_root.join("site-packages"))
         );
     }
 
@@ -899,23 +893,23 @@ mod tests {
         let environment = rt
             .block_on(manager.generate_environment(&[package]))
             .unwrap();
-        let path = environment
-            .get(&environment_key("PATH"))
-            .unwrap()
-            .replace('/', "\\");
-        assert!(path.starts_with(&temp.path().join("bin").to_string_lossy().into_owned()));
-        assert!(path.ends_with(if cfg!(windows) {
-            "base-path"
-        } else {
-            "parent-path"
-        }));
-        let normalized_root = temp.path().join("bin").to_string_lossy().replace('/', "\\");
-        assert_eq!(path.matches(&normalized_root).count(), 1);
+        let path: Vec<_> =
+            std::env::split_paths(environment.get(&environment_key("PATH")).unwrap()).collect();
+        let normalized_root = temp.path().join("bin");
+        assert_eq!(path.first(), Some(&normalized_root));
         let base_entry = if cfg!(windows) {
             "base-path"
         } else {
             "parent-path"
         };
-        assert_eq!(path.matches(base_entry).count(), 1);
+        let base_path = PathBuf::from(base_entry);
+        assert_eq!(path.last(), Some(&base_path));
+        assert_eq!(
+            path.iter()
+                .filter(|entry| *entry == &normalized_root)
+                .count(),
+            1
+        );
+        assert_eq!(path.iter().filter(|entry| *entry == &base_path).count(), 1);
     }
 }
