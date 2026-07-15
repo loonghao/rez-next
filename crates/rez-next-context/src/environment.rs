@@ -3,7 +3,7 @@
 use crate::{ContextConfig, PathStrategy, ShellType};
 use rez_next_common::RezCoreError;
 use rez_next_package::Package;
-use rez_next_rex::{RexActionType, RexExecutor};
+use rez_next_rex::{RexAction, RexActionType, RexEnvironment, RexExecutor};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::env;
@@ -69,8 +69,17 @@ impl EnvironmentManager {
         &self,
         packages: &[Package],
     ) -> Result<HashMap<String, String>, RezCoreError> {
+        Ok(self.generate_rex_environment(packages).await?.vars)
+    }
+
+    /// Generate the complete Rex activation state, including aliases and startup actions.
+    pub async fn generate_rex_environment(
+        &self,
+        packages: &[Package],
+    ) -> Result<RexEnvironment, RezCoreError> {
         let mut env_vars = self.base_env.clone();
         let mut env_definitions = Vec::new();
+        let mut shell_actions = Vec::new();
         let mut priority = 0;
 
         // Package metadata is available to every Rex phase.
@@ -91,7 +100,9 @@ impl EnvironmentManager {
         for commands_for in command_phases {
             for package in packages {
                 if let Some(commands) = commands_for(package) {
-                    env_definitions.extend(self.rex_definitions(package, commands, priority)?);
+                    let (definitions, actions) = self.rex_effects(package, commands, priority)?;
+                    env_definitions.extend(definitions);
+                    shell_actions.extend(actions);
                 }
                 priority += 1;
             }
@@ -123,7 +134,10 @@ impl EnvironmentManager {
             env_vars.remove(&environment_key(var_name));
         }
 
-        Ok(env_vars)
+        let mut environment = RexEnvironment::new();
+        environment.vars = env_vars;
+        environment.apply(&shell_actions);
+        Ok(environment)
     }
 
     fn package_metadata_definitions(
@@ -156,13 +170,14 @@ impl EnvironmentManager {
     }
 
     /// Convert one package command phase into environment definitions.
-    fn rex_definitions(
+    fn rex_effects(
         &self,
         package: &Package,
         commands: &str,
         priority: i32,
-    ) -> Result<Vec<EnvVarDefinition>, RezCoreError> {
+    ) -> Result<(Vec<EnvVarDefinition>, Vec<RexAction>), RezCoreError> {
         let mut definitions = Vec::new();
+        let mut shell_actions = Vec::new();
         let package_root = Self::package_root(package);
         let mut executor = RexExecutor::new();
 
@@ -213,6 +228,7 @@ impl EnvironmentManager {
                 _ => None,
             };
             let Some((name, operation)) = definition else {
+                shell_actions.push(action.clone());
                 continue;
             };
             definitions.push(EnvVarDefinition {
@@ -223,7 +239,7 @@ impl EnvironmentManager {
             });
         }
 
-        Ok(definitions)
+        Ok((definitions, shell_actions))
     }
 
     fn package_root(package: &Package) -> String {

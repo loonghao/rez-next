@@ -31,6 +31,11 @@ impl PythonAstParser {
             Expr::Call(call) => self.evaluate_function_call(call),
             Expr::Attribute(attr) => self.evaluate_attribute(attr),
             Expr::Subscript(subscript) => self.evaluate_subscript(subscript),
+            Expr::IfExp(if_expression) => match self.evaluate_expression(&if_expression.test)? {
+                PythonValue::Boolean(true) => self.evaluate_expression(&if_expression.body),
+                PythonValue::Boolean(false) => self.evaluate_expression(&if_expression.orelse),
+                _ => Ok(PythonValue::Expression(format!("{:?}", if_expression))),
+            },
             _ => Ok(PythonValue::Expression(format!("{:?}", expr))),
         }
     }
@@ -135,6 +140,7 @@ impl PythonAstParser {
             let result = match (&left, op, &right) {
                 (PythonValue::Integer(l), CmpOp::Eq, PythonValue::Integer(r)) => *l == *r,
                 (PythonValue::String(l), CmpOp::Eq, PythonValue::String(r)) => l == r,
+                (PythonValue::String(l), CmpOp::NotEq, PythonValue::String(r)) => l != r,
                 (PythonValue::Boolean(l), CmpOp::Eq, PythonValue::Boolean(r)) => l == r,
                 (PythonValue::Integer(l), CmpOp::Lt, PythonValue::Integer(r)) => l < r,
                 (PythonValue::Integer(l), CmpOp::Gt, PythonValue::Integer(r)) => l > r,
@@ -250,15 +256,87 @@ impl PythonAstParser {
             {
                 return Ok(PythonValue::String(value.to_lowercase()));
             }
+
+            if attribute.attr.as_str() == "format"
+                && let PythonValue::String(value) = self.evaluate_expression(&attribute.value)?
+            {
+                return self.format_string(value, &call.args);
+            }
         }
         Ok(PythonValue::Expression(format!("{:?}", call)))
     }
 
-    /// Evaluate attribute access (returns expression string)
+    fn format_string(
+        &self,
+        value: String,
+        arguments: &[Expr],
+    ) -> Result<PythonValue, RezCoreError> {
+        const OPEN_BRACE: &str = "\u{e000}";
+        const CLOSE_BRACE: &str = "\u{e001}";
+        let mut formatted = value.replace("{{", OPEN_BRACE).replace("}}", CLOSE_BRACE);
+        for (index, argument) in arguments.iter().enumerate() {
+            let value = match self.evaluate_expression(argument)? {
+                PythonValue::String(value) => value,
+                PythonValue::Integer(value) => value.to_string(),
+                PythonValue::Float(value) => value.to_string(),
+                PythonValue::Boolean(value) => value.to_string(),
+                value => format!("{:?}", value),
+            };
+            formatted = formatted.replace(&format!("{{{index}}}"), &value);
+        }
+        Ok(PythonValue::String(
+            formatted.replace(OPEN_BRACE, "{").replace(CLOSE_BRACE, "}"),
+        ))
+    }
+
+    /// Evaluate package command context attributes used by Rez package.py files.
     fn evaluate_attribute(
         &self,
         attr: &rustpython_ast::ExprAttribute,
     ) -> Result<PythonValue, RezCoreError> {
+        if let Expr::Name(owner) = &*attr.value {
+            match (owner.id.as_str(), attr.attr.as_str()) {
+                ("system", "platform") => {
+                    let platform = if cfg!(windows) {
+                        "windows"
+                    } else if cfg!(target_os = "macos") {
+                        "osx"
+                    } else {
+                        "linux"
+                    };
+                    return Ok(PythonValue::String(platform.to_string()));
+                }
+                ("this", "version") => {
+                    if let Some(version) = self.context.variables.get("version") {
+                        return Ok(version.clone());
+                    }
+                }
+                ("this", "name") => {
+                    if let Some(name) = self.context.variables.get("name") {
+                        return Ok(name.clone());
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        if let Expr::Attribute(version) = &*attr.value
+            && let Expr::Name(owner) = &*version.value
+            && owner.id.as_str() == "this"
+            && version.attr.as_str() == "version"
+            && let Some(PythonValue::String(value)) = self.context.variables.get("version")
+        {
+            let component = match attr.attr.as_str() {
+                "major" => value.split('.').next(),
+                "minor" => value.split('.').nth(1),
+                "patch" => value.split('.').nth(2),
+                _ => None,
+            };
+            if let Some(component) = component {
+                return Ok(PythonValue::String(component.to_string()));
+            }
+        }
+
         Ok(PythonValue::Expression(format!("{:?}", attr)))
     }
 

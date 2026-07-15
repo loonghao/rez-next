@@ -19,7 +19,7 @@ use std::process::Command;
 #[path = "cli_e2e_helpers.rs"]
 mod cli_e2e_helpers;
 
-use cli_e2e_helpers::{make_test_repo, rez, rez_ok, rez_output};
+use cli_e2e_helpers::{make_test_repo, rez, rez_ok, rez_output, write_package};
 
 macro_rules! skip_no_bin {
     () => {
@@ -63,6 +63,44 @@ fn test_rez_alias_version_flag() {
         .expect("rez alias should run");
     assert!(output.status.success());
     assert!(!output.stdout.is_empty());
+}
+
+#[test]
+fn test_env_executes_package_alias_with_upper_level_flags() {
+    let temp = tempfile::tempdir().unwrap();
+    let repository = temp.path().join("packages");
+    write_package(
+        &repository,
+        "alias_package",
+        "1.0.0",
+        r#"
+def commands():
+    alias("hello-alias", "echo alias-ok")
+"#,
+    );
+
+    let output = Command::new(env!("CARGO_BIN_EXE_rez"))
+        .args([
+            "env",
+            "-q",
+            "--no-local",
+            "--build",
+            "--time",
+            "12345",
+            "--paths",
+        ])
+        .arg(&repository)
+        .args(["alias_package", "--", "hello-alias"])
+        .output()
+        .expect("rez env alias command should run");
+
+    assert!(
+        output.status.success(),
+        "stdout={} stderr={}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(String::from_utf8_lossy(&output.stdout).trim(), "alias-ok");
 }
 
 #[test]

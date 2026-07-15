@@ -47,6 +47,13 @@ impl RexExecutor {
                 .insert("version".to_string(), version.to_string());
             self.context_vars
                 .insert("this.version".to_string(), version.to_string());
+            let mut components = version.split('.');
+            for component in ["major", "minor", "patch"] {
+                if let Some(value) = components.next() {
+                    self.context_vars
+                        .insert(format!("this.version.{component}"), value.to_string());
+                }
+            }
         }
         self.context_vars
             .insert("name".to_string(), package_name.to_string());
