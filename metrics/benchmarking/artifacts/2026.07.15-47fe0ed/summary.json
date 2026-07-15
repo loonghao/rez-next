@@ -1,0 +1,13 @@
+{
+  "timestamp": "2026-07-15 10:02 UTC",
+  "commit": "47fe0ed",
+  "platform": "Linux-6.17.0-1018-azure",
+  "cpu": "AMD EPYC 7763 64-Core Processor",
+  "regressions": [
+    "package_serialization/large_yaml",
+    "package_serialization/simple_python",
+    "package_validation/large_valid",
+    "package_validation/invalid_package"
+  ],
+  "bench_count": 174
+}
