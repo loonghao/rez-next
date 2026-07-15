@@ -410,12 +410,18 @@ async fn test_scan_empty_package_py_does_not_panic() {
     let result = repo.scan().await;
     assert!(result.is_ok());
 
-    let pkgs = repo.find_packages("emptypkg").await.unwrap();
-    assert!(pkgs.is_empty());
+    let error = repo
+        .find_packages("emptypkg")
+        .await
+        .expect_err("an empty requested package must report its parse failure");
+    assert!(
+        error.to_string().contains("Missing 'name' field"),
+        "{error}"
+    );
 }
 
 #[tokio::test]
-async fn test_scan_malformed_package_py_is_skipped() {
+async fn test_scan_malformed_package_py_is_reported_when_requested() {
     let temp_dir = TempDir::new().unwrap();
     let pkg_dir = temp_dir.path().join("badpkg").join("0.1.0");
     fs::create_dir_all(&pkg_dir).await.unwrap();
@@ -426,8 +432,11 @@ async fn test_scan_malformed_package_py_is_skipped() {
     let repo = SimpleRepository::new(temp_dir.path(), "repo".to_string());
     let result = repo.scan().await;
     assert!(result.is_ok());
-    let pkgs = repo.find_packages("badpkg").await.unwrap();
-    assert!(pkgs.is_empty());
+    let error = repo
+        .find_packages("badpkg")
+        .await
+        .expect_err("a malformed requested package must not look missing");
+    assert!(error.to_string().contains("badpkg"), "{error}");
 }
 
 #[tokio::test]

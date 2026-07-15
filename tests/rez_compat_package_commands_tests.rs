@@ -105,6 +105,7 @@ def commands():
 #[test]
 fn test_package_py_def_commands_attr_set_syntax() {
     use rez_next_package::serialization::PackageSerializer;
+    use rez_next_rex::RexExecutor;
     use tempfile::TempDir;
 
     let content = r#"name = 'nuke'
@@ -120,11 +121,25 @@ def commands():
 
     let pkg = PackageSerializer::load_from_file(&path).unwrap();
     assert_eq!(pkg.name, "nuke");
-    // commands or commands_function must be populated from `def commands():` in package.py.
-    let has_commands = pkg.commands.is_some() || pkg.commands_function.is_some();
+    let commands = pkg
+        .commands
+        .as_deref()
+        .or(pkg.commands_function.as_deref())
+        .expect("commands should be extracted");
+    let mut executor = RexExecutor::new();
+    let environment = executor
+        .execute_commands(commands, "nuke", Some("/opt/nuke/14.0.0"), Some("14.0.0"))
+        .expect("standard Rez attribute syntax should execute");
+
+    assert_eq!(
+        environment.vars.get("NUKE_PATH").map(String::as_str),
+        Some("/opt/nuke/14.0.0")
+    );
     assert!(
-        has_commands,
-        "nuke package.py with `def commands():` should populate commands or commands_function"
+        environment
+            .vars
+            .get("PATH")
+            .is_some_and(|value| value.starts_with("/opt/nuke/14.0.0/bin"))
     );
 }
 

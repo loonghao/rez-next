@@ -7,14 +7,6 @@ use rez_next_common::RezCoreError;
 use rustpython_ast::{Expr, Stmt};
 
 impl PythonAstParser {
-    /// Convert a function definition to its string representation
-    pub(super) fn function_to_string(
-        &self,
-        func_def: &rustpython_ast::StmtFunctionDef,
-    ) -> Result<String, RezCoreError> {
-        Ok(format!("def {}(): ...", func_def.name))
-    }
-
     /// Process the `commands` function body
     pub(super) fn process_commands_function(
         &mut self,
@@ -77,10 +69,14 @@ impl PythonAstParser {
     ) -> Result<Option<String>, RezCoreError> {
         match stmt {
             Stmt::If(if_stmt) => {
-                let statements = match self.evaluate_expression(&if_stmt.test) {
-                    Ok(super::types::PythonValue::Boolean(true)) => &if_stmt.body,
-                    Ok(super::types::PythonValue::Boolean(false)) => &if_stmt.orelse,
-                    _ => return Ok(None),
+                let statements = match self.evaluate_expression(&if_stmt.test)? {
+                    super::types::PythonValue::Boolean(true) => &if_stmt.body,
+                    super::types::PythonValue::Boolean(false) => &if_stmt.orelse,
+                    _ => {
+                        return Err(RezCoreError::PackageParse(
+                            "Command condition is not statically boolean".to_string(),
+                        ));
+                    }
                 };
                 let mut commands = Vec::new();
                 for statement in statements {
@@ -96,9 +92,8 @@ impl PythonAstParser {
             // Handle `env.VAR = "value"` (attribute assignment shorthand)
             Stmt::Assign(assign) => {
                 if let Some(Expr::Name(name)) = assign.targets.first() {
-                    if let Ok(value) = self.evaluate_expression(&assign.value) {
-                        self.context.variables.insert(name.id.to_string(), value);
-                    }
+                    let value = self.evaluate_expression(&assign.value)?;
+                    self.context.variables.insert(name.id.to_string(), value);
                     return Ok(None);
                 }
                 if let Some(Expr::Attribute(attr)) = assign.targets.first() {
@@ -310,9 +305,18 @@ impl PythonAstParser {
                             _ => {}
                         }
                     }
+
+                    return Err(RezCoreError::PackageParse(format!(
+                        "Unsupported command statement: {call:?}"
+                    )));
                 }
             }
-            _ => {}
+            Stmt::Import(_) | Stmt::ImportFrom(_) | Stmt::Pass(_) => {}
+            _ => {
+                return Err(RezCoreError::PackageParse(format!(
+                    "Unsupported command statement: {stmt:?}"
+                )));
+            }
         }
 
         Ok(None)

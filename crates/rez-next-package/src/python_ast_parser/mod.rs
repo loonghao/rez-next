@@ -92,9 +92,11 @@ impl PythonAstParser {
             Stmt::Expr(expr_stmt) => {
                 self.process_expression_statement(&expr_stmt.value, package_data)?;
             }
+            Stmt::Pass(_) => {}
             _ => {
-                // Silently skip unhandled statement types (e.g. class def).
-                // Package metadata is only in assignments, function defs, and with blocks.
+                return Err(RezCoreError::PackageParse(format!(
+                    "Unsupported package.py statement: {stmt:?}"
+                )));
             }
         }
         Ok(())
@@ -143,8 +145,6 @@ impl PythonAstParser {
         func_def: &rustpython_ast::StmtFunctionDef,
         package_data: &mut PackageData,
     ) -> Result<(), RezCoreError> {
-        self.context.function_scope.push(func_def.name.to_string());
-
         match func_def.name.as_str() {
             "commands" => {
                 self.process_commands_function(&func_def.body, package_data)?;
@@ -156,14 +156,12 @@ impl PythonAstParser {
                 self.process_post_commands_function(&func_def.body, package_data)?;
             }
             _ => {
-                package_data.functions.insert(
-                    func_def.name.to_string(),
-                    self.function_to_string(func_def)?,
-                );
+                return Err(RezCoreError::PackageParse(format!(
+                    "Unsupported package.py function: {}",
+                    func_def.name
+                )));
             }
         }
-
-        self.context.function_scope.pop();
         Ok(())
     }
 
@@ -173,34 +171,21 @@ impl PythonAstParser {
         if_stmt: &rustpython_ast::StmtIf,
         package_data: &mut PackageData,
     ) -> Result<(), RezCoreError> {
-        if let Ok(condition_result) = self.evaluate_expression(&if_stmt.test) {
-            match condition_result {
-                types::PythonValue::Boolean(true) => {
-                    for stmt in &if_stmt.body {
-                        self.process_statement(stmt, package_data)?;
-                    }
-                }
-                types::PythonValue::Boolean(false) => {
-                    for stmt in &if_stmt.orelse {
-                        self.process_statement(stmt, package_data)?;
-                    }
-                }
-                _ => {
-                    // Can't evaluate statically — process both branches conservatively
-                    for stmt in &if_stmt.body {
-                        self.process_statement(stmt, package_data)?;
-                    }
-                    for stmt in &if_stmt.orelse {
-                        self.process_statement(stmt, package_data)?;
-                    }
+        match self.evaluate_expression(&if_stmt.test)? {
+            types::PythonValue::Boolean(true) => {
+                for stmt in &if_stmt.body {
+                    self.process_statement(stmt, package_data)?;
                 }
             }
-        } else {
-            for stmt in &if_stmt.body {
-                self.process_statement(stmt, package_data)?;
+            types::PythonValue::Boolean(false) => {
+                for stmt in &if_stmt.orelse {
+                    self.process_statement(stmt, package_data)?;
+                }
             }
-            for stmt in &if_stmt.orelse {
-                self.process_statement(stmt, package_data)?;
+            _ => {
+                return Err(RezCoreError::PackageParse(
+                    "Package condition is not statically boolean".to_string(),
+                ));
             }
         }
         Ok(())
@@ -213,11 +198,10 @@ impl PythonAstParser {
         value: &Expr,
         package_data: &mut PackageData,
     ) -> Result<(), RezCoreError> {
-        if let Ok(python_value) = self.evaluate_expression(value) {
-            self.context
-                .variables
-                .insert(var_name.to_string(), python_value.clone());
-        }
+        let python_value = self.evaluate_expression(value)?;
+        self.context
+            .variables
+            .insert(var_name.to_string(), python_value);
 
         match var_name {
             "name" => {
@@ -315,55 +299,40 @@ impl PythonAstParser {
         Ok(())
     }
 
-    /// Process for loops (body traversed without iteration)
+    /// Reject loops because traversing their body once corrupts package metadata.
     fn process_for_statement(
         &mut self,
         for_stmt: &rustpython_ast::StmtFor,
         package_data: &mut PackageData,
     ) -> Result<(), RezCoreError> {
-        for stmt in &for_stmt.body {
-            self.process_statement(stmt, package_data)?;
-        }
-        Ok(())
+        let _ = package_data;
+        Err(RezCoreError::PackageParse(format!(
+            "Unsupported package.py for loop: {for_stmt:?}"
+        )))
     }
 
-    /// Process while loops (body traversed once)
+    /// Reject loops because traversing their body once corrupts package metadata.
     fn process_while_statement(
         &mut self,
         while_stmt: &rustpython_ast::StmtWhile,
         package_data: &mut PackageData,
     ) -> Result<(), RezCoreError> {
-        for stmt in &while_stmt.body {
-            self.process_statement(stmt, package_data)?;
-        }
-        Ok(())
+        let _ = package_data;
+        Err(RezCoreError::PackageParse(format!(
+            "Unsupported package.py while loop: {while_stmt:?}"
+        )))
     }
 
-    /// Process try/except blocks (all branches traversed)
+    /// Reject try/except because evaluating every branch corrupts package metadata.
     fn process_try_statement(
         &mut self,
         try_stmt: &rustpython_ast::StmtTry,
         package_data: &mut PackageData,
     ) -> Result<(), RezCoreError> {
-        for stmt in &try_stmt.body {
-            self.process_statement(stmt, package_data)?;
-        }
-        for handler in &try_stmt.handlers {
-            match handler {
-                rustpython_ast::ExceptHandler::ExceptHandler(eh) => {
-                    for stmt in &eh.body {
-                        self.process_statement(stmt, package_data)?;
-                    }
-                }
-            }
-        }
-        for stmt in &try_stmt.orelse {
-            self.process_statement(stmt, package_data)?;
-        }
-        for stmt in &try_stmt.finalbody {
-            self.process_statement(stmt, package_data)?;
-        }
-        Ok(())
+        let _ = package_data;
+        Err(RezCoreError::PackageParse(format!(
+            "Unsupported package.py try statement: {try_stmt:?}"
+        )))
     }
 
     /// Process with statements
@@ -372,10 +341,10 @@ impl PythonAstParser {
         with_stmt: &rustpython_ast::StmtWith,
         package_data: &mut PackageData,
     ) -> Result<(), RezCoreError> {
-        for stmt in &with_stmt.body {
-            self.process_statement(stmt, package_data)?;
-        }
-        Ok(())
+        let _ = package_data;
+        Err(RezCoreError::PackageParse(format!(
+            "Unsupported package.py with statement: {with_stmt:?}"
+        )))
     }
 
     /// Process standalone expression statements (evaluate for side-effects only)
@@ -384,7 +353,7 @@ impl PythonAstParser {
         expr: &Expr,
         _package_data: &mut PackageData,
     ) -> Result<(), RezCoreError> {
-        let _ = self.evaluate_expression(expr);
+        self.evaluate_expression(expr)?;
         Ok(())
     }
 
@@ -594,6 +563,80 @@ def commands():
                 "alias('tool', 'Tool{{this.version.major}}.{{this.version.minor}}{suffix}')"
             ))
             .as_deref()
+        );
+    }
+
+    #[test]
+    fn test_dynamic_metadata_is_rejected() {
+        let error = PythonAstParser::parse_package_py(
+            r#"
+name = "test_package"
+version = load_version()
+"#,
+        )
+        .expect_err("dynamic metadata must not be converted into debug text");
+
+        assert!(
+            error.to_string().contains("Unsupported function call"),
+            "unexpected error: {error}"
+        );
+    }
+
+    #[test]
+    fn test_unknown_command_is_rejected() {
+        let error = PythonAstParser::parse_package_py(
+            r#"
+name = "test_package"
+version = "1.0.0"
+def commands():
+    env.PATH.extend("/unsupported")
+"#,
+        )
+        .expect_err("unsupported commands must not disappear from the environment");
+
+        assert!(
+            error.to_string().contains("Unsupported command statement"),
+            "unexpected error: {error}"
+        );
+    }
+
+    #[test]
+    fn test_dynamic_metadata_function_is_rejected() {
+        let error = PythonAstParser::parse_package_py(
+            r#"
+name = "test_package"
+@early()
+def version():
+    return "1.0.0"
+"#,
+        )
+        .expect_err("dynamic metadata functions require Python execution");
+
+        assert!(
+            error
+                .to_string()
+                .contains("Unsupported package.py function"),
+            "unexpected error: {error}"
+        );
+    }
+
+    #[test]
+    fn test_dynamic_control_flow_is_rejected() {
+        let error = PythonAstParser::parse_package_py(
+            r#"
+name = "test_package"
+version = "1.0.0"
+for requirement in discover_requirements():
+    requires = [requirement]
+"#,
+        )
+        .expect_err("loops must not be approximated by executing their body once");
+
+        assert!(
+            error
+                .to_string()
+                .contains("Unsupported package.py for loop"),
+            "unexpected error: {error}"
         );
     }
 }

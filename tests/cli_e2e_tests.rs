@@ -195,7 +195,41 @@ def commands():
     );
 
     assert!(!output.status.success(), "output={combined}");
-    assert!(combined.contains("package blocked activation"), "{combined}");
+    assert!(
+        combined.contains("package blocked activation"),
+        "{combined}"
+    );
+    assert!(!combined.contains("should-not-run"), "{combined}");
+}
+
+#[test]
+fn test_env_reports_unsupported_package_definition() {
+    let temp = tempfile::tempdir().unwrap();
+    let repository = temp.path().join("packages");
+    let package_dir = repository.join("dynamic_package").join("1.0.0");
+    fs::create_dir_all(&package_dir).unwrap();
+    fs::write(
+        package_dir.join("package.py"),
+        r#"name = "dynamic_package"
+version = load_version()
+"#,
+    )
+    .unwrap();
+
+    let output = Command::new(env!("CARGO_BIN_EXE_rez"))
+        .args(["env", "-q", "--paths"])
+        .arg(&repository)
+        .args(["dynamic_package", "-c", "echo should-not-run"])
+        .output()
+        .expect("rez env command should exit");
+    let combined = format!(
+        "{}{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    assert!(!output.status.success(), "output={combined}");
+    assert!(combined.contains("Unsupported function call"), "{combined}");
     assert!(!combined.contains("should-not-run"), "{combined}");
 }
 

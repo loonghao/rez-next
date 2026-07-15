@@ -34,9 +34,13 @@ impl PythonAstParser {
             Expr::IfExp(if_expression) => match self.evaluate_expression(&if_expression.test)? {
                 PythonValue::Boolean(true) => self.evaluate_expression(&if_expression.body),
                 PythonValue::Boolean(false) => self.evaluate_expression(&if_expression.orelse),
-                _ => Ok(PythonValue::Expression(format!("{:?}", if_expression))),
+                _ => Err(RezCoreError::PackageParse(
+                    "Conditional expression is not statically boolean".to_string(),
+                )),
             },
-            _ => Ok(PythonValue::Expression(format!("{:?}", expr))),
+            _ => Err(RezCoreError::PackageParse(format!(
+                "Unsupported package.py expression: {expr:?}"
+            ))),
         }
     }
 
@@ -96,9 +100,9 @@ impl PythonAstParser {
             (PythonValue::String(l), Operator::Mult, PythonValue::Integer(r)) => {
                 Ok(PythonValue::String(l.repeat(*r as usize)))
             }
-            _ => Ok(PythonValue::Expression(format!(
-                "{:?} {:?} {:?}",
-                left, binop.op, right
+            _ => Err(RezCoreError::PackageParse(format!(
+                "Unsupported binary operation: {left:?} {:?} {right:?}",
+                binop.op
             ))),
         }
     }
@@ -116,9 +120,9 @@ impl PythonAstParser {
             (UnaryOp::USub, PythonValue::Integer(i)) => Ok(PythonValue::Integer(-i)),
             (UnaryOp::UAdd, PythonValue::Float(f)) => Ok(PythonValue::Float(*f)),
             (UnaryOp::USub, PythonValue::Float(f)) => Ok(PythonValue::Float(-f)),
-            _ => Ok(PythonValue::Expression(format!(
-                "{:?} {:?}",
-                unaryop.op, operand
+            _ => Err(RezCoreError::PackageParse(format!(
+                "Unsupported unary operation: {:?} {operand:?}",
+                unaryop.op
             ))),
         }
     }
@@ -131,7 +135,9 @@ impl PythonAstParser {
         let left = self.evaluate_expression(&compare.left)?;
 
         if compare.ops.len() != compare.comparators.len() {
-            return Ok(PythonValue::Expression(format!("{:?}", compare)));
+            return Err(RezCoreError::PackageParse(
+                "Malformed comparison expression".to_string(),
+            ));
         }
 
         for (op, comparator) in compare.ops.iter().zip(compare.comparators.iter()) {
@@ -145,9 +151,8 @@ impl PythonAstParser {
                 (PythonValue::Integer(l), CmpOp::Lt, PythonValue::Integer(r)) => l < r,
                 (PythonValue::Integer(l), CmpOp::Gt, PythonValue::Integer(r)) => l > r,
                 _ => {
-                    return Ok(PythonValue::Expression(format!(
-                        "{:?} {:?} {:?}",
-                        left, op, right
+                    return Err(RezCoreError::PackageParse(format!(
+                        "Unsupported comparison: {left:?} {op:?} {right:?}"
                     )));
                 }
             };
@@ -263,7 +268,9 @@ impl PythonAstParser {
                 return self.format_string(value, &call.args);
             }
         }
-        Ok(PythonValue::Expression(format!("{:?}", call)))
+        Err(RezCoreError::PackageParse(format!(
+            "Unsupported function call: {call:?}"
+        )))
     }
 
     fn format_string(
@@ -280,7 +287,11 @@ impl PythonAstParser {
                 PythonValue::Integer(value) => value.to_string(),
                 PythonValue::Float(value) => value.to_string(),
                 PythonValue::Boolean(value) => value.to_string(),
-                value => format!("{:?}", value),
+                value => {
+                    return Err(RezCoreError::PackageParse(format!(
+                        "Unsupported format argument: {value:?}"
+                    )));
+                }
             };
             formatted = formatted.replace(&format!("{{{index}}}"), &value);
         }
@@ -305,6 +316,11 @@ impl PythonAstParser {
                         "linux"
                     };
                     return Ok(PythonValue::String(platform.to_string()));
+                }
+                ("os", "name") => {
+                    return Ok(PythonValue::String(
+                        if cfg!(windows) { "nt" } else { "posix" }.to_string(),
+                    ));
                 }
                 ("this", "version") => {
                     if let Some(version) = self.context.variables.get("version") {
@@ -337,7 +353,9 @@ impl PythonAstParser {
             }
         }
 
-        Ok(PythonValue::Expression(format!("{:?}", attr)))
+        Err(RezCoreError::PackageParse(format!(
+            "Unsupported attribute access: {attr:?}"
+        )))
     }
 
     /// Evaluate subscript operations (returns expression string)
@@ -345,6 +363,8 @@ impl PythonAstParser {
         &self,
         subscript: &rustpython_ast::ExprSubscript,
     ) -> Result<PythonValue, RezCoreError> {
-        Ok(PythonValue::Expression(format!("{:?}", subscript)))
+        Err(RezCoreError::PackageParse(format!(
+            "Unsupported subscript expression: {subscript:?}"
+        )))
     }
 }

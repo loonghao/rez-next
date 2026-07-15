@@ -44,63 +44,63 @@ impl RexParser {
         Self {
             // env.setenv('VAR', 'value') or env.setenv("VAR", "value")
             setenv_re: Regex::new(
-                r#"env\.setenv\s*\(\s*['"]([^'"]+)['"]\s*,\s*['"]([^'"]*)['"]\s*\)"#
+                r#"^env\.setenv\s*\(\s*['"]([^'"]+)['"]\s*,\s*['"]([^'"]*)['"]\s*\)$"#
             ).unwrap(),
             // env.unsetenv('VAR') or unsetenv('VAR')
             unsetenv_re: Regex::new(
-                r#"(?:env\.)?unsetenv\s*\(\s*['"]([^'"]+)['"]\s*\)"#
+                r#"^(?:env\.)?unsetenv\s*\(\s*['"]([^'"]+)['"]\s*\)$"#
             ).unwrap(),
             // env.prepend_path('VAR', 'value') or prependenv('VAR', 'value')
             prepend_re: Regex::new(
-                r#"(?:env\.prepend_path|prependenv)\s*\(\s*['"]([^'"]+)['"]\s*,\s*['"]([^'"]*)['"]\s*\)"#
+                r#"^(?:env\.prepend_path|prependenv)\s*\(\s*['"]([^'"]+)['"]\s*,\s*['"]([^'"]*)['"]\s*\)$"#
             ).unwrap(),
             // env.append_path('VAR', 'value') or appendenv('VAR', 'value')
             append_re: Regex::new(
-                r#"(?:env\.append_path|appendenv)\s*\(\s*['"]([^'"]+)['"]\s*,\s*['"]([^'"]*)['"]\s*\)"#
+                r#"^(?:env\.append_path|appendenv)\s*\(\s*['"]([^'"]+)['"]\s*,\s*['"]([^'"]*)['"]\s*\)$"#
             ).unwrap(),
             // env.setenv_if_empty('VAR', 'value')
             setenv_if_empty_re: Regex::new(
-                r#"env\.setenv_if_empty\s*\(\s*['"]([^'"]+)['"]\s*,\s*['"]([^'"]*)['"]\s*\)"#
+                r#"^env\.setenv_if_empty\s*\(\s*['"]([^'"]+)['"]\s*,\s*['"]([^'"]*)['"]\s*\)$"#
             ).unwrap(),
             // alias('name', 'cmd')
             alias_re: Regex::new(
-                r#"alias\s*\(\s*['"]([^'"]+)['"]\s*,\s*['"]([^'"]*)['"]\s*\)"#
+                r#"^(?:env\.)?alias\s*\(\s*['"]([^'"]+)['"]\s*,\s*['"]([^'"]*)['"]\s*\)$"#
             ).unwrap(),
             // export VAR="value" or export VAR=value
             export_re: Regex::new(
-                r#"export\s+([A-Za-z_][A-Za-z0-9_]*)\s*=\s*"?([^"\n]*)"?"#
+                r#"^export\s+([A-Za-z_][A-Za-z0-9_]*)\s*=\s*"?([^"\n]*)"?$"#
             ).unwrap(),
             // setenv VAR value (csh style)
             setenv_sh_re: Regex::new(
-                r#"setenv\s+([A-Za-z_][A-Za-z0-9_]*)\s+(.+)"#
+                r#"^setenv\s+([A-Za-z_][A-Za-z0-9_]*)\s+(.+)$"#
             ).unwrap(),
             // command('cmd arg1 arg2') or command("cmd")
             command_re: Regex::new(
-                r#"command\s*\(\s*['"]([^'"]*)['"]\s*\)"#
+                r#"^command\s*\(\s*['"]([^'"]*)['"]\s*\)$"#
             ).unwrap(),
             // source('path') or source("path")
             source_re: Regex::new(
-                r#"source\s*\(\s*['"]([^'"]*)['"]\s*\)"#
+                r#"^source\s*\(\s*['"]([^'"]*)['"]\s*\)$"#
             ).unwrap(),
             // resetenv('VAR') or env.resetenv('VAR')
             resetenv_re: Regex::new(
-                r#"(?:env\.)?resetenv\s*\(\s*['"]([^'"]+)['"]\s*\)"#
+                r#"^(?:env\.)?resetenv\s*\(\s*['"]([^'"]+)['"]\s*\)$"#
             ).unwrap(),
             // info('message') or info("message")
             info_re: Regex::new(
-                r#"^info\s*\(\s*['"]([^'"]*)['"]\s*\)"#
+                r#"^info\s*\(\s*['"]([^'"]*)['"]\s*\)$"#
             ).unwrap(),
             // error('message') or error("message")
             error_re: Regex::new(
-                r#"^error\s*\(\s*['"]([^'"]*)['"]\s*\)"#
+                r#"^error\s*\(\s*['"]([^'"]*)['"]\s*\)$"#
             ).unwrap(),
             // stop() or stop('message') or stop("message")
             stop_re: Regex::new(
-                r#"^stop\s*\(\s*(?:['"]([^'"]*)['"]\s*)?\)"#
+                r#"^stop\s*\(\s*(?:['"]([^'"]*)['"]\s*)?\)$"#
             ).unwrap(),
             // comment('text') or comment("text")
             comment_fn_re: Regex::new(
-                r#"^comment\s*\(\s*['"]([^'"]*)['"]\s*\)"#
+                r#"^comment\s*\(\s*['"]([^'"]*)['"]\s*\)$"#
             ).unwrap(),
         }
     }
@@ -240,9 +240,11 @@ impl RexParser {
                     },
                     source_package: None,
                 });
+            } else {
+                return Err(RezCoreError::RexError(format!(
+                    "Unsupported Rex statement: {line}"
+                )));
             }
-            // Lines that don't match any pattern are silently ignored
-            // (could be Python code like `def commands(): ...` or `import ...`)
         }
 
         Ok(actions)

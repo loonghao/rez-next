@@ -14,7 +14,6 @@ impl PythonAstParser {
             Ok(PythonValue::Integer(i)) => Ok(i.to_string()),
             Ok(PythonValue::Float(f)) => Ok(f.to_string()),
             Ok(PythonValue::Boolean(b)) => Ok(b.to_string()),
-            Ok(PythonValue::Expression(s)) => Ok(s),
             _ => match expr {
                 Expr::Constant(constant) => match &constant.value {
                     Constant::Str(s) => Ok(s.clone()),
