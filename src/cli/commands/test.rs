@@ -125,6 +125,8 @@ pub struct PackageTestRunner {
     test_definitions: HashMap<String, TestDefinition>,
     /// Resolved package environment used by test commands.
     test_environment: Option<HashMap<String, String>>,
+    /// Why an inplace test cannot run in the current resolved environment.
+    inplace_skip_reason: Option<String>,
 }
 
 impl PackageTestRunner {
@@ -144,6 +146,7 @@ impl PackageTestRunner {
             test_results: Vec::new(),
             test_definitions: HashMap::new(),
             test_environment: None,
+            inplace_skip_reason: None,
         };
 
         // Load test definitions from package file
@@ -245,6 +248,23 @@ impl PackageTestRunner {
         if args.inplace {
             let mut environment = std::env::vars().collect();
             normalize_environment_paths(&mut environment);
+            let root_variable = format!("{}_ROOT", package.name.to_uppercase());
+            let version_variable = format!("{}_VERSION", package.name.to_uppercase());
+            let current_root = environment.get(&root_variable).map(PathBuf::from);
+            let expected_version = package.version.as_ref().map(|version| version.as_str());
+            let current_version = environment.get(&version_variable).map(String::as_str);
+            let version_mismatch = expected_version
+                .zip(current_version)
+                .is_some_and(|(expected, current)| expected != current);
+
+            if current_root.as_ref().is_none_or(|root| !root.is_dir()) || version_mismatch {
+                self.inplace_skip_reason = Some(format!(
+                    "The current environment does not contain package '{}' matching the request",
+                    package.qualified_name()
+                ));
+            } else if let Some(root) = current_root {
+                self.working_dir = root;
+            }
             self.test_environment = Some(environment);
             return Ok(());
         }
@@ -371,7 +391,9 @@ impl PackageTestRunner {
 
         let start_time = Instant::now();
 
-        let (status, output, error, exit_code) = if self.dry_run {
+        let (status, output, error, exit_code) = if let Some(reason) = &self.inplace_skip_reason {
+            (TestStatus::Skipped, reason.clone(), None, 0)
+        } else if self.dry_run {
             (
                 TestStatus::Skipped,
                 "Dry run - test not executed".to_string(),
@@ -428,6 +450,9 @@ impl PackageTestRunner {
             TestStatus::Skipped => {
                 if self.verbose > 0 {
                     println!("  SKIPPED: {} (skipped)", test_name);
+                    if !output.is_empty() {
+                        println!("  Reason: {}", output);
+                    }
                 }
             }
             TestStatus::Error => {
