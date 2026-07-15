@@ -592,7 +592,7 @@ vx cargo clippy --workspace --all-targets
 ## Key Design Decisions
 
 1. **Drop-in replacement**: `import rez_next as rez` works for most common workflows
-2. **abi3-py38**: Single wheel for Python 3.8+, no per-version builds
+2. **abi3-py39**: Single wheel for Python 3.9+, no per-version builds
 3. **A* solver**: Guaranteed optimal solutions with configurable heuristics
 4. **Multi-level cache**: Memory (LRU) → Disk → Repository; transparent for consumers
 5. **State machine parsing**: Version parser uses a state machine for correctness

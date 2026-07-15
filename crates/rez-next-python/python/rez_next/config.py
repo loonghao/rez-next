@@ -25,7 +25,7 @@ import os
 import re
 import sys as _sys
 from contextlib import contextmanager
-from functools import lru_cache
+from functools import cache, lru_cache
 from inspect import ismodule
 from typing import TYPE_CHECKING, Any, TypeVar
 
@@ -1311,7 +1311,7 @@ class Config:
     def _swap(self, other):
         self.__dict__, other.__dict__ = other.__dict__, self.__dict__
 
-    @lru_cache(maxsize=None)
+    @cache
     def _data_without_overrides(self):
         data, self._sourced_filepaths = _load_config_from_filepaths(self.filepaths)
         return data

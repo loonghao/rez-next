@@ -6,7 +6,7 @@ entry points. Provides the ``plugin_manager`` singleton used throughout
 for plugin discovery, registration, and instantiation.
 
 Key differences from Rez:
-- No vendor'd importlib_metadata fallback (Python 3.8+ stdlib)
+- No vendor'd importlib_metadata fallback (Python 3.9+ stdlib)
 - LazySingleton is local (no data_utils import chain)
 - Failed plugins are logged, not silently swallowed
 """

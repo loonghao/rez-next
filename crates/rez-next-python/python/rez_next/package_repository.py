@@ -21,9 +21,10 @@ import abc
 import os
 import threading
 import time
+from collections.abc import Iterator
 from contextlib import contextmanager
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Iterator
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from rez_next.version import Version

@@ -9,7 +9,7 @@
 rez-next is a **high-performance Rust rewrite** of the [Rez](https://github.com/AcademySoftwareFoundation/rez) package manager with Python bindings. It supports common Rez workflows without mirroring Rez's internal implementation modules.
 
 **Key facts for agents:**
-- Language: Rust 2024 edition (MSRV 1.95) + Python 3.8+ bindings (PyO3 abi3)
+- Language: Rust 2024 edition (MSRV 1.95) + Python 3.9+ bindings (PyO3 abi3)
 - Build system: Cargo workspace (20 crates) + Maturin for Python
 - Current version: 0.3.5 (see [CHANGELOG.md](./CHANGELOG.md)) <!-- x-release-please-version -->
 - License: Apache 2.0

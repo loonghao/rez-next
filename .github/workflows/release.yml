@@ -21,6 +21,7 @@ permissions:
 env:
   CARGO_TERM_COLOR: always
   BINARY_NAME: rez-next
+  RUSTUP_TOOLCHAIN: 1.95.0
 
 jobs:
   verify-version:
@@ -209,7 +210,7 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Build wheels (abi3 — compatible with Python 3.8+)
+      - name: Build wheels (abi3 — compatible with Python 3.9+)
         working-directory: crates/rez-next-python
         run: vx maturin build --release --out dist --find-interpreter
 
@@ -241,7 +242,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-22.04, windows-2022, macos-14]
-        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
+        python-version: ["3.9", "3.10", "3.11", "3.12"]
         include:
           - os: ubuntu-22.04
             name: linux

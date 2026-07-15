@@ -10,7 +10,7 @@ Python bindings expose a **curated compatibility surface** through the `rez_next
 
 ```
 rez_next/                              # Main Python package
-├── _native.*.pyd                      # PyO3 native extension (abi3-py38)
+├── _native.*.pyd                      # PyO3 native extension (abi3-py39)
 ├── __init__.py                        # Supported exports and version
 ├── vendor/                            # rez_next.vendor subpackage
 │   ├── __init__.py
@@ -232,7 +232,7 @@ print(result.format())
 ### Prerequisites
 
 - Rust 1.95+ (MSRV in `Cargo.toml`)
-- Python 3.8+
+- Python 3.9+
 - Maturin (`pip install maturin`)
 - (Optional) `vx` for tool management (see `vx.toml`)
 
@@ -313,7 +313,7 @@ See [benchmark_guide.md](./benchmark_guide.md) for details.
 1. **Not all Rez APIs implemented** - Check the table above for coverage
 2. **Some advanced APIs are excluded** - Variant URI lookup, cached pure-Python resolver execution, and direct repository variant installation fail explicitly
 3. **Pre-1.0 project** - API may change
-4. **Python 3.8+ required** - For abi3-py38 support
+4. **Python 3.9+ required** - For abi3-py39 support
 
 ## Troubleshooting
 
@@ -336,10 +336,10 @@ RUST_LOG=debug pytest tests/ -v
 
 ```bash
 # Check Python version
-python --version  # Must be 3.8+
+python --version  # Must be 3.9+
 
 # Rebuild with specific Python
-maturin develop --release --python /path/to/python3.8
+maturin develop --release --python /path/to/python3.9
 ```
 
 ## Links

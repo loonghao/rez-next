@@ -14,8 +14,9 @@ import importlib.util
 import inspect
 import math
 import re
+from collections.abc import Iterable
 from types import ModuleType
-from typing import Iterable, TypeVar
+from typing import TypeVar
 
 import rez_next._native  # noqa: F401
 import rez_next._native.util as _native_util
