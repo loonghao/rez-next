@@ -1,6 +1,6 @@
 [package]
 name = "rez-next-search"
-version = "0.3.4" # x-release-please-version
+version = "0.3.5" # x-release-please-version
 edition.workspace = true
 rust-version.workspace = true
 authors.workspace = true
@@ -9,10 +9,10 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
-rez-next-common = { version = "0.3.4", path = "../rez-next-common" } # x-release-please-version
-rez-next-version = { version = "0.3.4", path = "../rez-next-version" } # x-release-please-version
-rez-next-package = { version = "0.3.4", path = "../rez-next-package" } # x-release-please-version
-rez-next-repository = { version = "0.3.4", path = "../rez-next-repository" } # x-release-please-version
+rez-next-common = { version = "0.3.5", path = "../rez-next-common" } # x-release-please-version
+rez-next-version = { version = "0.3.5", path = "../rez-next-version" } # x-release-please-version
+rez-next-package = { version = "0.3.5", path = "../rez-next-package" } # x-release-please-version
+rez-next-repository = { version = "0.3.5", path = "../rez-next-repository" } # x-release-please-version
 serde = { workspace = true }
 tokio = { workspace = true }
 regex = { workspace = true }
