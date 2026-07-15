@@ -9,26 +9,27 @@ Rez API: ``rez.package_cache``
 """
 
 import os
-import shutil
 import time
 
 from rez_next._native.package_cache import (  # noqa: F401  # type: ignore[import]
-    VariantHandle,
-    CacheConfig,
-    CacheStatus,
-    PackageCache as _NativePackageCache,
-    VARIANT_NOT_FOUND,
-    VARIANT_FOUND,
-    VARIANT_CREATED,
-    VARIANT_COPYING,
     VARIANT_COPY_STALLED,
+    VARIANT_COPYING,
+    VARIANT_CREATED,
+    VARIANT_FOUND,
+    VARIANT_NOT_FOUND,
     VARIANT_PENDING,
     VARIANT_REMOVED,
     VARIANT_SKIPPED,
+    CacheConfig,
+    CacheStatus,
+    VariantHandle,
+)
+from rez_next._native.package_cache import (
+    PackageCache as _NativePackageCache,
 )
 
-
 # ── CacheStats ──────────────────────────────────────────────────────────
+
 
 class CacheStats:
     """Cache statistics with method-style access for compat."""
@@ -64,6 +65,7 @@ class CacheStats:
 
 # ── CachedPackage ───────────────────────────────────────────────────────
 
+
 class CachedPackage:
     """A cached package entry with TTL support."""
 
@@ -96,13 +98,11 @@ class CachedPackage:
         return True
 
     def __repr__(self):
-        return (
-            f"CachedPackage(name={self.name!r}, version={self.version!r}, "
-            f"path={self.path!r})"
-        )
+        return f"CachedPackage(name={self.name!r}, version={self.version!r}, path={self.path!r})"
 
 
 # ── InMemoryCache ───────────────────────────────────────────────────────
+
 
 class InMemoryCache:
     """Simple in-memory package cache."""
@@ -147,6 +147,7 @@ class InMemoryCache:
 
 
 # ── PackageCache ────────────────────────────────────────────────────────
+
 
 class PackageCache(InMemoryCache):
     """Package cache that supports both in-memory and file-based caching.
@@ -246,6 +247,7 @@ class PackageCache(InMemoryCache):
 
 
 # ── Module-level convenience functions ──────────────────────────────────
+
 
 def new_in_memory_cache():
     """Create a new in-memory PackageCache."""

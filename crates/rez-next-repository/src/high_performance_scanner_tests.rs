@@ -243,102 +243,6 @@ mod test_simd_pattern_matcher {
     }
 }
 
-// ── PrefetchPredictor smoke tests ────────────────────────────────────────────
-//
-// NOTE: PrefetchPredictor is a placeholder implementation.
-// All methods return constant / empty values (0.5 / []).
-// These tests only verify that the API compiles, does not panic, and returns
-// values in the expected range.  When real prediction semantics are
-// introduced, replace these smoke tests with contract tests that check
-// actual prediction behavior against known inputs.
-
-mod test_prefetch_predictor_smoke {
-    use super::*;
-
-    #[test]
-    fn predict_directory_priority_smoke_returns_value_in_range() {
-        // Placeholder: always returns 0.5 — just verify range contract holds.
-        let predictor = PrefetchPredictor::new();
-        let priority = predictor.predict_directory_priority(Path::new("/opt/packages/maya"));
-        assert!(
-            (0.0..=1.0).contains(&priority),
-            "placeholder priority {priority} must be in [0.0, 1.0]"
-        );
-    }
-
-    #[test]
-    fn predict_file_access_smoke_empty_input_returns_empty() {
-        // Placeholder: always returns [] for empty input.
-        let predictor = PrefetchPredictor::new();
-        let result = predictor.predict_file_access(&[]);
-        assert!(
-            result.is_empty(),
-            "empty input must yield empty predictions"
-        );
-    }
-
-    #[test]
-    fn predict_file_access_smoke_non_empty_input_returns_subset_in_range() {
-        // Placeholder: always returns [] — subset of input, scores in [0,1].
-        let predictor = PrefetchPredictor::new();
-        let files = vec![
-            PathBuf::from("/opt/packages/maya/2024/package.yaml"),
-            PathBuf::from("/opt/packages/houdini/20/package.yaml"),
-        ];
-        let result = predictor.predict_file_access(&files);
-        assert!(
-            result.len() <= files.len(),
-            "predictions must not exceed input count"
-        );
-        for (path, score) in &result {
-            assert!(
-                files.contains(path),
-                "predicted path {path:?} must be one of the input files"
-            );
-            assert!(
-                (0.0..=1.0).contains(score),
-                "prediction score {score} must be in [0.0, 1.0]"
-            );
-        }
-    }
-
-    #[test]
-    fn calculate_cache_score_smoke_returns_value_in_range() {
-        // Placeholder: always returns 0.5 — verify range contract holds.
-        let predictor = PrefetchPredictor::new();
-        let score = predictor.calculate_cache_score(Path::new("/opt/packages/maya/package.yaml"));
-        assert!(
-            (0.0..=1.0).contains(&score),
-            "placeholder cache score {score} must be in [0.0, 1.0]"
-        );
-    }
-
-    #[test]
-    fn default_and_new_are_equivalent_smoke() {
-        // Verify that Default and new() produce identical placeholder behavior.
-        let a = PrefetchPredictor::new();
-        let b = PrefetchPredictor::default();
-        let dir = Path::new("/tmp");
-        let file = Path::new("/tmp/package.yaml");
-
-        let a_priority = a.predict_directory_priority(dir);
-        let b_priority = b.predict_directory_priority(dir);
-        assert_eq!(
-            a_priority, b_priority,
-            "new() and default() must agree on directory priority"
-        );
-        assert!((0.0..=1.0).contains(&a_priority));
-
-        let a_score = a.calculate_cache_score(file);
-        let b_score = b.calculate_cache_score(file);
-        assert_eq!(
-            a_score, b_score,
-            "new() and default() must agree on cache score"
-        );
-        assert!((0.0..=1.0).contains(&a_score));
-    }
-}
-
 // ── HighPerformanceConfig tests ──────────────────────────────────────────────
 
 mod test_high_performance_config {
@@ -563,6 +467,23 @@ mod test_scan_optimized_async {
         let scanner = HighPerformanceScanner::new(config);
         let result = scanner.scan_repository_optimized(tmp.path()).await.unwrap();
         assert_eq!(result.packages.len(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_prefetch_enabled_counts_successful_metadata_reads() {
+        let tmp = TempDir::new().unwrap();
+        let pkg_dir = tmp.path().join("mypkg").join("1.0");
+        std::fs::create_dir_all(&pkg_dir).unwrap();
+        std::fs::write(
+            pkg_dir.join("package.py"),
+            "name = 'mypkg'\nversion = '1.0'\n",
+        )
+        .unwrap();
+
+        let scanner = HighPerformanceScanner::new(HighPerformanceConfig::default());
+        scanner.scan_repository_optimized(tmp.path()).await.unwrap();
+
+        assert_eq!(scanner.get_performance_stats().prefetch_hits, 1);
     }
 
     #[tokio::test]

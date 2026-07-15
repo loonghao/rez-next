@@ -8,7 +8,6 @@ context bundles from resolved environments.
 from __future__ import annotations
 
 import os
-from typing import Optional
 
 from rez_next._native import bundles
 from rez_next.resolved_context import ResolvedContext

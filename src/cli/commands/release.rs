@@ -88,6 +88,7 @@ pub fn execute(args: ReleaseArgs) -> RezCoreResult<()> {
         .vcs
         .as_deref()
         .unwrap_or_else(|| detect_vcs(&working_dir));
+    ensure_supported_vcs(vcs_type)?;
 
     if args.verbose {
         println!("VCS: {}", vcs_type);
@@ -133,9 +134,14 @@ pub fn execute(args: ReleaseArgs) -> RezCoreResult<()> {
     let mut build_manager = BuildManager::new();
     for variant_index in release_variant_indices(&package, args.variants.as_deref())? {
         let variant_requires = variant_index.map(|index| package.variants[index].clone());
+        let context = super::build::resolve_build_context(
+            &package,
+            variant_requires.as_deref(),
+            args.verbose,
+        )?;
         let build_request = BuildRequest {
             package: package.clone(),
-            context: None,
+            context,
             source_dir: working_dir.clone(),
             variant_index,
             variant_requires,
@@ -233,6 +239,15 @@ fn detect_vcs(working_dir: &Path) -> &'static str {
     }
 }
 
+fn ensure_supported_vcs(vcs_type: &str) -> RezCoreResult<()> {
+    if vcs_type == "git" {
+        return Ok(());
+    }
+    Err(RezCoreError::BuildError(format!(
+        "Release VCS '{vcs_type}' is not supported; only git releases currently provide transactional tagging"
+    )))
+}
+
 /// Load developer package from working directory
 fn load_developer_package(working_dir: &Path) -> RezCoreResult<rez_next_package::Package> {
     let package_py = working_dir.join("package.py");
@@ -318,18 +333,28 @@ fn create_git_tag(
         )));
     }
 
-    // Push the tag to origin if possible
-    let push_output = Command::new("git")
+    let push = Command::new("git")
         .args(["push", "origin", tag])
         .current_dir(working_dir)
-        .output();
+        .output()
+        .map_err(|error| {
+            let _ = Command::new("git")
+                .args(["tag", "-d", tag])
+                .current_dir(working_dir)
+                .output();
+            RezCoreError::BuildError(format!("Failed to push tag '{tag}': {error}"))
+        })?;
 
-    if let Ok(push) = push_output
-        && !push.status.success()
-        && verbose
-    {
+    if !push.status.success() {
         let stderr = String::from_utf8_lossy(&push.stderr);
-        println!("Warning: Could not push tag to origin: {}", stderr);
+        let _ = Command::new("git")
+            .args(["tag", "-d", tag])
+            .current_dir(working_dir)
+            .output();
+        return Err(RezCoreError::BuildError(format!(
+            "Failed to push tag '{tag}' to origin: {}",
+            stderr.trim()
+        )));
     }
 
     Ok(())
@@ -349,6 +374,21 @@ fn get_release_path() -> String {
 mod tests {
     use super::*;
     use rez_next_package::Package;
+    use std::fs;
+
+    fn git(working_dir: &Path, args: &[&str]) {
+        let output = Command::new("git")
+            .args(args)
+            .current_dir(working_dir)
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "git {:?} failed: {}",
+            args,
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
 
     #[test]
     fn test_release_variant_indices_selects_requested_variants() {
@@ -369,5 +409,45 @@ mod tests {
         let error = release_variant_indices(&package, Some("1"))
             .expect_err("invalid release variants must not be skipped");
         assert!(error.to_string().contains("out of range"), "{error}");
+    }
+
+    #[test]
+    fn test_release_resolves_build_requirements() {
+        let mut package = Package::new("tool".to_string());
+        package.build_requires = vec!["definitely-missing-release-build-dependency".to_string()];
+
+        let error = super::super::build::resolve_build_context(&package, None, false)
+            .expect_err("release must not build without its unresolved build dependency");
+        assert!(
+            error
+                .to_string()
+                .contains("definitely-missing-release-build-dependency"),
+            "{error}"
+        );
+    }
+
+    #[test]
+    fn test_create_git_tag_reports_push_failure() {
+        let temp = tempfile::tempdir().unwrap();
+        git(temp.path(), &["init"]);
+        git(temp.path(), &["config", "user.name", "rez-next test"]);
+        git(temp.path(), &["config", "user.email", "test@example.com"]);
+        fs::write(temp.path().join("README.md"), "test").unwrap();
+        git(temp.path(), &["add", "README.md"]);
+        git(temp.path(), &["commit", "-m", "test"]);
+
+        let error = create_git_tag(temp.path(), "tool-1.0.0", "release", false)
+            .expect_err("a release without a pushable origin must fail");
+        assert!(error.to_string().contains("push tag"), "{error}");
+    }
+
+    #[test]
+    fn test_release_rejects_vcs_backends_without_tag_implementation() {
+        assert!(ensure_supported_vcs("git").is_ok());
+        for vcs in ["unknown", "hg", "svn"] {
+            let error = ensure_supported_vcs(vcs)
+                .expect_err("an unsupported VCS must not report a successful release");
+            assert!(error.to_string().contains(vcs), "{error}");
+        }
     }
 }

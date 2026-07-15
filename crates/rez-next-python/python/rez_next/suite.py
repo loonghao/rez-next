@@ -8,17 +8,18 @@ Aligns with ``rez.suite`` API:
 - ``get_tools()`` — list tools across suites
 - ``get_suite_from_tool()`` — find suite containing a tool
 """
+
 from __future__ import annotations
 
 import os
-import rez_next._native  # ensure extension module is initialized  # noqa: F401
-from rez_next._native.suite import *  # noqa: F401,F403
 
+import rez_next._native  # ensure extension module is initialized  # noqa: F401
+from rez_next._native.suite import Suite, SuiteManager
 
 # ── Module-level functions for rez API alignment ─────────────────────
 
 
-def get_suites(paths: list[str] | None = None) -> list[Suite]:  # type: ignore[name-defined]
+def get_suites(paths: list[str] | None = None) -> list[Suite]:
     """Return all available suites visible on the given paths.
 
     Args:
@@ -29,7 +30,7 @@ def get_suites(paths: list[str] | None = None) -> list[Suite]:  # type: ignore[n
 
     Rez API: ``rez.suite.get_suites()``
     """
-    manager = SuiteManager()  # type: ignore[name-defined]
+    manager = SuiteManager()
     if paths:
         for p in paths:
             manager.add_path(p)
@@ -57,7 +58,7 @@ def get_tools(
 
     Rez API: ``rez.suite.get_tools()``
     """
-    manager = SuiteManager()  # type: ignore[name-defined]
+    manager = SuiteManager()
     tools: list[dict[str, str]] = []
     seen: set[str] = set()
 
@@ -83,7 +84,7 @@ def get_tools(
     return tools
 
 
-def get_suite_from_tool(tool_name: str) -> Suite | None:  # type: ignore[name-defined]
+def get_suite_from_tool(tool_name: str) -> Suite | None:
     """Find the suite containing the given tool.
 
     Args:
@@ -94,7 +95,7 @@ def get_suite_from_tool(tool_name: str) -> Suite | None:  # type: ignore[name-de
 
     Rez API: ``rez.suite.get_suite_from_tool()``
     """
-    manager = SuiteManager()  # type: ignore[name-defined]
+    manager = SuiteManager()
 
     for name in manager.list_suite_names():
         try:

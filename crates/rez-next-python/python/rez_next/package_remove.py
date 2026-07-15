@@ -7,8 +7,6 @@ aligned with Rez's package_remove.py interface.
 
 from __future__ import annotations
 
-from typing import Optional
-
 try:
     from rez_next._native.package_repository import FilesystemPackageRepository
 except ImportError:
@@ -18,11 +16,7 @@ except ImportError:
         FilesystemPackageRepository = None
 
 
-def remove_package_family(
-    name: str,
-    path: str,
-    force: bool = False
-) -> bool:
+def remove_package_family(name: str, path: str, force: bool = False) -> bool:
     """
     Remove a package family from a repository.
 
@@ -44,11 +38,7 @@ def remove_package_family(
     return repo.remove_package_family(name, force)
 
 
-def remove_package(
-    name: str,
-    version,
-    path: str
-) -> bool:
+def remove_package(name: str, version, path: str) -> bool:
     """
     Remove a specific package version from a repository.
 
@@ -74,10 +64,7 @@ def remove_package(
 
 
 def remove_packages_ignored_since(
-    days: int,
-    paths: Optional[list[str]] = None,
-    dry_run: bool = False,
-    verbose: bool = False
+    days: int, paths: list[str] | None = None, dry_run: bool = False, verbose: bool = False
 ) -> int:
     """
     Remove packages that have been ignored for more than specified days.
@@ -98,9 +85,7 @@ def remove_packages_ignored_since(
     # This is a simplified implementation - full implementation would
     # use config.packages_path as default
     if paths is None:
-        raise ValueError(
-            "paths must be specified (config.packages_path not yet implemented)"
-        )
+        raise ValueError("paths must be specified (config.packages_path not yet implemented)")
 
     total_removed = 0
     for path in paths:

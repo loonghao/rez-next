@@ -10,6 +10,7 @@ import warnings
 
 class RezDeprecationWarning(DeprecationWarning):
     """Custom deprecation warning for Rez."""
+
     pass
 
 
@@ -45,17 +46,13 @@ def warn(
         lineno: int,
         line: str | None = None,
     ) -> str:
-        return "{0}{1}: {2}\n".format(
-            "{0}: ".format(filename) if filename else "",
-            category.__name__,
-            msg,
-        )
+        location = f"{filename}: " if filename else ""
+        return f"{location}{category.__name__}: {msg}\n"
 
     warnings.formatwarning = formatwarning
 
     warnings.warn(message, category=category, stacklevel=stacklevel + 1, **kwargs)
     warnings.formatwarning = original_formatwarning
-
 
 
 # Emulate rez.deprecations behavior

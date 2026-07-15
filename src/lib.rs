@@ -7,9 +7,11 @@
 //! - Dependency resolution algorithms
 //! - Repository scanning and caching
 //!
-//! ## ⚠️ Work In Progress
+//! ## Compatibility and production use
 //!
-//! This is an experimental project. Do not use in production environments.
+//! Documented common workflows are production-ready when consumers pin a
+//! release and validate their package corpus. This pre-1.0 crate intentionally
+//! does not mirror every Rez internal API.
 
 // Re-export from workspace crates
 pub use rez_next_common as common;

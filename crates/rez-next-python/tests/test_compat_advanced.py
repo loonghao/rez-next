@@ -8,6 +8,7 @@ Usage:
     maturin develop --features extension-module
     pytest tests/test_compat_advanced.py -v
 """
+
 import pytest
 
 rez = pytest.importorskip(
@@ -24,6 +25,7 @@ class TestPluginsModule:
 
     def test_plugins_submodule_exists(self):
         import rez_next.plugins as plugins
+
         assert hasattr(plugins, "get_plugin_manager")
         assert hasattr(plugins, "get_shell_types")
         assert hasattr(plugins, "get_build_system_types")
@@ -32,17 +34,20 @@ class TestPluginsModule:
 
     def test_plugin_manager_singleton(self):
         import rez_next.plugins as plugins
+
         mgr = plugins.plugin_manager
         assert mgr is not None
 
     def test_get_plugin_manager_function(self):
         import rez_next.plugins as plugins
+
         mgr = plugins.get_plugin_manager()
         assert mgr is not None
         assert mgr.count > 0
 
     def test_get_shell_types(self):
         import rez_next.plugins as plugins
+
         shells = plugins.get_shell_types()
         assert isinstance(shells, list)
         assert "bash" in shells
@@ -52,6 +57,7 @@ class TestPluginsModule:
 
     def test_get_build_system_types(self):
         import rez_next.plugins as plugins
+
         build_systems = plugins.get_build_system_types()
         assert isinstance(build_systems, list)
         assert "cmake" in build_systems
@@ -59,12 +65,14 @@ class TestPluginsModule:
 
     def test_is_shell_supported(self):
         import rez_next.plugins as plugins
+
         assert plugins.is_shell_supported("bash")
         assert plugins.is_shell_supported("powershell")
         assert not plugins.is_shell_supported("nonexistent_xyz")
 
     def test_plugin_manager_get_plugins(self):
         import rez_next.plugins as plugins
+
         mgr = plugins.get_plugin_manager()
         shell_plugins = mgr.get_plugins("shell")
         assert isinstance(shell_plugins, list)
@@ -72,6 +80,7 @@ class TestPluginsModule:
 
     def test_plugin_manager_has_plugin(self):
         import rez_next.plugins as plugins
+
         mgr = plugins.get_plugin_manager()
         assert mgr.has_plugin("shell", "bash")
         assert mgr.has_plugin("build_system", "cmake")
@@ -79,6 +88,7 @@ class TestPluginsModule:
 
     def test_plugin_manager_plugin_types(self):
         import rez_next.plugins as plugins
+
         mgr = plugins.get_plugin_manager()
         types = mgr.plugin_types()
         assert "shell" in types
@@ -87,6 +97,7 @@ class TestPluginsModule:
 
     def test_plugin_object_attributes(self):
         import rez_next.plugins as plugins
+
         mgr = plugins.get_plugin_manager()
         plugin = mgr.get_plugin("shell", "bash")
         assert plugin is not None
@@ -108,6 +119,7 @@ class TestSearchModule:
 
     def test_search_submodule_exists(self):
         import rez_next.search as search
+
         assert hasattr(search, "search_packages")
         assert hasattr(search, "search_package_names")
         assert hasattr(search, "search_latest_packages")
@@ -116,27 +128,25 @@ class TestSearchModule:
 
     def test_search_packages_empty_paths_empty_result(self):
         import rez_next.search as search
-        results = search.search_packages(
-            pattern="python", paths=["/nonexistent/path_xyz"]
-        )
+
+        results = search.search_packages(pattern="python", paths=["/nonexistent/path_xyz"])
         assert results == [], f"nonexistent path must yield empty results, got {results}"
 
     def test_search_package_names_returns_empty_for_nonexistent_path(self):
         import rez_next.search as search
-        names = search.search_package_names(
-            pattern="", paths=["/nonexistent/path_xyz"]
-        )
+
+        names = search.search_package_names(pattern="", paths=["/nonexistent/path_xyz"])
         assert names == [], f"nonexistent path must yield empty names, got {names}"
 
     def test_search_latest_packages_returns_empty_for_nonexistent_path(self):
         import rez_next.search as search
-        results = search.search_latest_packages(
-            pattern="", paths=["/nonexistent/path_xyz"]
-        )
+
+        results = search.search_latest_packages(pattern="", paths=["/nonexistent/path_xyz"])
         assert results == [], f"nonexistent path must yield empty results, got {results}"
 
     def test_package_searcher_create(self):
         import rez_next.search as search
+
         searcher = search.PackageSearcher(
             pattern="py",
             paths=["/nonexistent/path_xyz"],
@@ -146,6 +156,7 @@ class TestSearchModule:
 
     def test_package_searcher_repr(self):
         import rez_next.search as search
+
         searcher = search.PackageSearcher(pattern="maya", scope="latest")
         r = repr(searcher)
         assert "maya" in r
@@ -153,20 +164,16 @@ class TestSearchModule:
 
     def test_package_searcher_search_returns_empty_for_nonexistent_path(self):
         import rez_next.search as search
-        searcher = search.PackageSearcher(
-            pattern="", paths=["/nonexistent/path_xyz"]
-        )
+
+        searcher = search.PackageSearcher(pattern="", paths=["/nonexistent/path_xyz"])
         results = searcher.search()
         assert results == [], f"search on nonexistent path must be empty, got {results}"
 
     def test_search_scope_families_vs_latest_both_empty_for_nonexistent(self):
         import rez_next.search as search
-        families = search.search_packages(
-            scope="families", paths=["/nonexistent/path_xyz"]
-        )
-        latest = search.search_packages(
-            scope="latest", paths=["/nonexistent/path_xyz"]
-        )
+
+        families = search.search_packages(scope="families", paths=["/nonexistent/path_xyz"])
+        latest = search.search_packages(scope="latest", paths=["/nonexistent/path_xyz"])
         assert families == [], f"families scope on nonexistent path must be empty, got {families}"
         assert latest == [], f"latest scope on nonexistent path must be empty, got {latest}"
 
@@ -185,6 +192,46 @@ class TestExceptionsSubmodule:
 
     def test_all_exceptions_present(self):
         from rez_next.exceptions import (
+            ConfigurationError,
+            ContextBundleError,
+            PackageNotFound,
+            PackageParseError,
+            PackageVersionConflict,
+            ResolveError,
+            RexError,
+            RezBuildError,
+            SuiteError,
+        )
+
+        assert all(
+            e is not None
+            for e in [
+                PackageNotFound,
+                PackageVersionConflict,
+                ResolveError,
+                RezBuildError,
+                ConfigurationError,
+                PackageParseError,
+                ContextBundleError,
+                SuiteError,
+                RexError,
+            ]
+        )
+
+    def test_all_exceptions_are_subclasses_of_exception(self):
+        from rez_next.exceptions import (
+            ConfigurationError,
+            ContextBundleError,
+            PackageNotFound,
+            PackageParseError,
+            PackageVersionConflict,
+            ResolveError,
+            RexError,
+            RezBuildError,
+            SuiteError,
+        )
+
+        for exc in [
             PackageNotFound,
             PackageVersionConflict,
             ResolveError,
@@ -194,23 +241,6 @@ class TestExceptionsSubmodule:
             ContextBundleError,
             SuiteError,
             RexError,
-        )
-        assert all(e is not None for e in [
-            PackageNotFound, PackageVersionConflict, ResolveError,
-            RezBuildError, ConfigurationError, PackageParseError,
-            ContextBundleError, SuiteError, RexError,
-        ])
-
-    def test_all_exceptions_are_subclasses_of_exception(self):
-        from rez_next.exceptions import (
-            PackageNotFound, PackageVersionConflict, ResolveError,
-            RezBuildError, ConfigurationError, PackageParseError,
-            ContextBundleError, SuiteError, RexError,
-        )
-        for exc in [
-            PackageNotFound, PackageVersionConflict, ResolveError,
-            RezBuildError, ConfigurationError, PackageParseError,
-            ContextBundleError, SuiteError, RexError,
         ]:
             assert issubclass(exc, Exception)
 
@@ -272,13 +302,15 @@ class TestConflictWeakRequirement:
 
     def test_vendor_version_range_any_none(self):
         from rez_next._native.vendor.version import VersionRange
+
         any_r = VersionRange.any()
         assert any_r.is_any()
         none_r = VersionRange.none()
         assert none_r.is_empty()
 
     def test_vendor_version_range_from_str(self):
-        from rez_next._native.vendor.version import VersionRange, Version
+        from rez_next._native.vendor.version import Version, VersionRange
+
         r = VersionRange.from_str(">=2.0,<3.0")
         assert r.contains(Version("2.5"))
         assert not r.contains(Version("3.0"))
@@ -325,36 +357,44 @@ class TestRexModule:
 
     def test_rex_submodule_exists(self):
         import rez_next.rex as rex
+
         assert hasattr(rex, "rex_interpret")
 
     def test_rex_interpret_function(self):
         import rez_next.rex as rex
+
         result = rex.rex_interpret("")
         assert isinstance(result, dict)
 
     def test_rex_interpret_setenv(self):
         import rez_next.rex as rex
+
         result = rex.rex_interpret("env.setenv('MY_VAR', 'hello')")
         assert isinstance(result, dict)
         assert result.get("MY_VAR") == "hello"
 
     def test_rex_interpret_prepend_path(self):
         import rez_next.rex as rex
+
         result = rex.rex_interpret("env.prepend_path('PATH', '/opt/pkg/bin')")
         assert isinstance(result, dict)
 
     def test_rex_interpret_alias(self):
         import rez_next.rex as rex
+
         result = rex.rex_interpret("alias('mypkg', '/opt/pkg/bin/mypkg')")
         assert isinstance(result, dict)
 
     def test_rex_interpret_multiple_commands(self):
         import rez_next.rex as rex
-        commands = "\n".join([
-            "env.setenv('A', '1')",
-            "env.setenv('B', '2')",
-            "env.setenv('C', '3')",
-        ])
+
+        commands = "\n".join(
+            [
+                "env.setenv('A', '1')",
+                "env.setenv('B', '2')",
+                "env.setenv('C', '3')",
+            ]
+        )
         result = rex.rex_interpret(commands)
         assert result.get("A") == "1"
         assert result.get("B") == "2"
@@ -362,11 +402,14 @@ class TestRexModule:
 
     def test_rex_interpret_maya_style(self):
         import rez_next.rex as rex
-        commands = "\n".join([
-            "env.setenv('MAYA_ROOT', '/opt/maya/2024')",
-            "env.setenv('MAYA_VERSION', '2024')",
-            "env.prepend_path('PATH', '/opt/maya/2024/bin')",
-        ])
+
+        commands = "\n".join(
+            [
+                "env.setenv('MAYA_ROOT', '/opt/maya/2024')",
+                "env.setenv('MAYA_VERSION', '2024')",
+                "env.prepend_path('PATH', '/opt/maya/2024/bin')",
+            ]
+        )
         result = rex.rex_interpret(commands)
         assert result.get("MAYA_ROOT") == "/opt/maya/2024"
         assert result.get("MAYA_VERSION") == "2024"

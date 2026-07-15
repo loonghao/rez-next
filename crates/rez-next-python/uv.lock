@@ -228,7 +228,7 @@ wheels = [
 
 [[package]]
 name = "rez-next"
-version = "0.3.0"
+version = "0.3.4"
 source = { editable = "." }
 
 [package.optional-dependencies]

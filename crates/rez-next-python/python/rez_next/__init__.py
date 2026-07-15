@@ -4,78 +4,64 @@ Rez-Next: High-performance Rust rewrite of Rez.
 This module exposes the supported top-level Rez-compatible workflows.
 """
 
+# ruff: noqa: I001
+
 from __future__ import annotations
 
 import os  # noqa: F401
-import warnings  # noqa: F401
 import sys
+import warnings  # noqa: F401
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as distribution_version
 
-# Import _native module (try multiple methods)
 try:
-    from . import _native
-except ImportError:
-    try:
-        import _native
-    except ImportError:
-        # If _native is not available, define stubs
-        class _native:
-            __version__ = "0.3.0"
-            __author__ = "rez-next contributors"
+    _distribution_version = distribution_version("rez-next")
+except PackageNotFoundError:
+    _distribution_version = "0+unknown"
 
-            class Config:
-                pass
-
-            class System:
-                pass
-
-            @staticmethod
-            def resolve_packages(*args, **kwargs):
-                raise NotImplementedError("_native module not available")
-
-            @staticmethod
-            def ResolvedContext(*args, **kwargs):
-                raise NotImplementedError("_native module not available")
-
-# Import all attributes from _native
-try:
-    from ._native import *  # noqa: F401,F403
-except ImportError:
-    try:
-        from _native import *  # noqa: F401,F403
-    except ImportError:
-        pass
+# The wheel is a native extension package. A missing or incompatible extension
+# is an installation error and must fail at import time instead of exposing
+# partial placeholder objects.
+from . import _native
+from ._native import *  # noqa: F401,F403
 
 # Import submodules
-from . import bind  # noqa: F401
-from . import build_process  # noqa: F401
-from . import build_system  # noqa: F401
-from . import bundle_context  # noqa: F401
-from . import command  # noqa: F401
-from . import complete  # noqa: F401
-from . import deprecations  # noqa: F401
-from . import package_cache  # noqa: F401
+# Ensure native submodules used by bridge modules are registered in sys.modules
+# so that "from rez_next.<submodule> import ..." works at runtime.
+import sys as _sys
+import types as _types
 
-from . import package_help  # noqa: F401
-from . import package_py_utils  # noqa: F401
-from . import package_remove  # noqa: F401
-from . import package_repository  # noqa: F401
-from . import package_search  # noqa: F401
-from . import package_serialise  # noqa: F401  — module (rez.package_serialise API: dump_package_data)
-from . import package_test  # noqa: F401  — module (rez.package_test API: PackageTestRunner, PackageTestResults)
-from . import plugin_managers  # noqa: F401
-from . import release_hook  # noqa: F401
-from . import release_vcs  # noqa: F401
-from . import resolver  # noqa: F401
-from . import rex_bindings  # noqa: F401
-from . import solver  # noqa: F401
-from . import status  # noqa: F401  — module (rez.status API: from rez.status import status)
-from . import shells  # noqa: F401  — module (rez.shells API: create_shell, get_shell_types, get_shell_class)
-from . import system  # noqa: F401  — module (rez.system API: from rez.system import system)
-from . import serialise  # noqa: F401
-from . import rezconfig  # noqa: F401
-from . import wrapper  # noqa: F401
-from .exceptions import *  # noqa: F401,F403
+from . import (
+    bind,  # noqa: F401
+    build_process,  # noqa: F401
+    build_system,  # noqa: F401
+    bundle_context,  # noqa: F401
+    command,  # noqa: F401
+    complete,  # noqa: F401
+    deprecations,  # noqa: F401
+    package_cache,  # noqa: F401
+    package_help,  # noqa: F401
+    package_py_utils,  # noqa: F401
+    package_remove,  # noqa: F401
+    package_repository,  # noqa: F401
+    package_search,  # noqa: F401
+    package_serialise,  # noqa: F401  — module (rez.package_serialise API: dump_package_data)
+    package_test,  # noqa: F401  — module (rez.package_test API: PackageTestRunner, PackageTestResults)
+    plugin_managers,  # noqa: F401
+    release_hook,  # noqa: F401
+    release_vcs,  # noqa: F401
+    resolver,  # noqa: F401
+    rex_bindings,  # noqa: F401
+    rezconfig,  # noqa: F401
+    serialise,  # noqa: F401
+    shells,  # noqa: F401  — module (rez.shells API: create_shell, get_shell_types, get_shell_class)
+    solver,  # noqa: F401
+    status,  # noqa: F401  — module (rez.status API: from rez.status import status)
+    system,  # noqa: F401  — module (rez.system API: from rez.system import system)
+    wrapper,  # noqa: F401
+)
 from .config import Config  # noqa: F401
+from .exceptions import *  # noqa: F401,F403
 
 # Package maker — programmatic package creation
 from .package_maker import (  # noqa: F401
@@ -85,14 +71,10 @@ from .package_maker import (  # noqa: F401
     make_package,
 )
 
-# Ensure native submodules used by bridge modules are registered in sys.modules
-# so that "from rez_next.<submodule> import ..." works at runtime.
-import sys as _sys
-import types as _types
-for _name in ('packages_', 'package_search', 'search', 'solver_', 'serialise_', 'bind'):
+for _name in ("packages_", "package_search", "search", "solver_", "serialise_", "bind"):
     _attr = getattr(_native, _name, None)
     if _attr is not None and isinstance(_attr, _types.ModuleType):
-        _full = 'rez_next.' + _name
+        _full = "rez_next." + _name
         if _full not in _sys.modules:
             _sys.modules[_full] = _attr
 
@@ -115,20 +97,19 @@ if _attr is not None:
     for _func_name in (n for n in dir(_attr) if not n.startswith("_")):
         setattr(_packages_module, _func_name, getattr(_attr, _func_name))
 # Build __all__ from all public names
-_packages_module.__all__ = [
-    n for n in dir(_packages_module) if not n.startswith("_")
-]
+_packages_module.__all__ = [n for n in dir(_packages_module) if not n.startswith("_")]
 # Register
 _sys.modules["rez_next.packages"] = _packages_module
 setattr(sys.modules["rez_next"], "packages", _packages_module)
 del _cls_name, _func_name, _packages_module
 
-__version__: str = getattr(_native, "__version__", "0.3.0")
+__version__: str = getattr(_native, "__version__", _distribution_version)
 __author__: str = getattr(_native, "__author__", "rez-next contributors")
 __license__: str = "Apache-2.0"
 
 # Module root path (matches rez.module_root_path API)
 module_root_path: str = os.path.dirname(os.path.abspath(__file__))
+
 
 # ── Logging Initialization ───────────────────────────────────────────────
 # Mirrors upstream rez._init_logging()
@@ -141,19 +122,23 @@ def _init_logging() -> None:
     _logging_conf = os.getenv("REZ_LOGGING_CONF")
     if _logging_conf:
         import logging.config
+
         logging.config.fileConfig(_logging_conf, disable_existing_loggers=False)
         return
 
     import logging
+
     _logger = logging.getLogger("rez")
     _logger.propagate = False
     _logger.setLevel(logging.DEBUG)
     if not _logger.handlers:
         _handler = logging.StreamHandler()
-        _handler.setFormatter(logging.Formatter(
-            fmt="%(asctime)s %(levelname)-8s %(message)s",
-            datefmt="%X",
-        ))
+        _handler.setFormatter(
+            logging.Formatter(
+                fmt="%(asctime)s %(levelname)-8s %(message)s",
+                datefmt="%X",
+            )
+        )
         _logger.addHandler(_handler)
 
 
@@ -168,6 +153,7 @@ if _action:
         import traceback
 
         if _action == "print_stack":
+
             def _callback(sig, frame):  # type: ignore
                 txt = "".join(traceback.format_stack(frame))
                 print()
@@ -191,9 +177,9 @@ config.Config = Config
 resolve = getattr(_native, "resolve_packages", None)
 create_context = getattr(_native, "ResolvedContext", None)
 
-# get_completion_script is available via complete.get_completion_script
-# For top-level access, we import it explicitly
-from .complete import get_completion_script  # noqa: F401
+# Import the Python bridge explicitly: the native module also exports an
+# attribute named ``complete`` and therefore cannot be used for this alias.
+from .complete import get_completion_script as get_completion_script  # noqa: E402
 
 
 def _package_getitem(self, key):
@@ -240,7 +226,7 @@ def _context_to_dot(self):
     lines = [
         "digraph resolved_context {",
         "  rankdir=LR;",
-        '  node [shape=box, style=filled, fillcolor=lightblue];',
+        "  node [shape=box, style=filled, fillcolor=lightblue];",
     ]
     by_name = {getattr(pkg, "name", ""): pkg for pkg in packages}
     for pkg in packages:
@@ -255,12 +241,13 @@ def _context_to_dot(self):
     return "\n".join(lines)
 
 
-try:
-    Package.__getitem__ = _package_getitem  # type: ignore[name-defined]
-    ResolvedContext.get = _context_get  # type: ignore[name-defined]
-    ResolvedContext.to_dot = _context_to_dot  # type: ignore[name-defined]
-except (NameError, AttributeError):
-    pass  # Core classes not yet available — expected in early imports
+_package_class = getattr(_native, "Package", None)
+_resolved_context_class = getattr(_native, "ResolvedContext", None)
+if _package_class is not None:
+    _package_class.__getitem__ = _package_getitem
+if _resolved_context_class is not None:
+    _resolved_context_class.get = _context_get
+    _resolved_context_class.to_dot = _context_to_dot
 
 # ── Deprecation Warnings Filter ──────────────────────────────────────────
 # Mirrors upstream rez behavior: log all rez deprecation warnings by default,

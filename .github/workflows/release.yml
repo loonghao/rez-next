@@ -29,24 +29,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Match tag and package versions
-        shell: python
-        run: |
-          import json
-          import os
-          import tomllib
-
-          expected = os.environ["GITHUB_REF_NAME"].removeprefix("v")
-          with open("Cargo.toml", "rb") as stream:
-              cargo = tomllib.load(stream)["workspace"]["package"]["version"]
-          with open("crates/rez-next-python/pyproject.toml", "rb") as stream:
-              python = tomllib.load(stream)["project"]["version"]
-          with open(".release-please-manifest.json", encoding="utf-8") as stream:
-              manifest = json.load(stream)["."]
-
-          versions = {"tag": expected, "cargo": cargo, "python": python, "manifest": manifest}
-          print(versions)
-          if len(set(versions.values())) != 1:
-              raise SystemExit("release versions do not match")
+        run: python scripts/check_release_versions.py --expected "$GITHUB_REF_NAME"
 
   build:
     name: Build ${{ matrix.target }}
@@ -353,7 +336,14 @@ jobs:
             rez-next-package
             rez-next-rex
             rez-next-cache
+            rez-next-util
+            rez-next-config
+            rez-next-serialise
             rez-next-bind
+            rez-next-package-cache
+            rez-next-package-filter
+            rez-next-release-hook
+            rez-next-explicit
             rez-next-repository
             rez-next-solver
             rez-next-search

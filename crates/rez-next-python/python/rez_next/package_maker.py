@@ -7,8 +7,6 @@ for creating and installing Rez packages.
 Compatible with Rez's `package_maker` module API.
 """
 
-import os
-import uuid as _uuid
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -41,9 +39,7 @@ class PackageMaker:
         # Delegate to internal data dictionary for arbitrary fields
         if name in self._data:
             return self._data[name]
-        raise AttributeError(
-            f"'{type(self).__name__}' object has no attribute '{name}'"
-        )
+        raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
 
     def __setattr__(self, name, value):
         if name.startswith("_"):
@@ -68,15 +64,26 @@ class PackageMaker:
             if key == "version":
                 pkg.set_version(str(value))
             elif key in (
-                "description", "uuid", "build_command", "build_system",
-                "pre_commands", "post_commands", "pre_test_commands",
-                "pre_build_commands", "commands", "requires_rez_version",
+                "description",
+                "uuid",
+                "build_command",
+                "build_system",
+                "pre_commands",
+                "post_commands",
+                "pre_test_commands",
+                "pre_build_commands",
+                "commands",
+                "requires_rez_version",
             ):
                 if value is not None:
                     setattr(pkg, key, value)
             elif key in (
-                "requires", "build_requires", "private_build_requires",
-                "variants", "tools", "authors",
+                "requires",
+                "build_requires",
+                "private_build_requires",
+                "variants",
+                "tools",
+                "authors",
             ):
                 if value:
                     setattr(pkg, key, list(value))
@@ -179,8 +186,7 @@ def make_package(
                     import warnings
 
                     warnings.warn(
-                        f"Variant {variant_idx} already exists at "
-                        f"{variant_install_path}, skipping"
+                        f"Variant {variant_idx} already exists at {variant_install_path}, skipping"
                     )
                 continue
 

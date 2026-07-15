@@ -12,14 +12,13 @@ See https://github.com/AcademySoftwareFoundation/rez/blob/main/src/rez/package_s
 from __future__ import annotations
 
 from .serialise_ import (  # type: ignore[import]
-    dump_package_data,
-    dump_yaml,
+    FileFormat,
     as_block_string,
     dict_to_attributes_code,
+    dump_package_data,
+    dump_yaml,
     package_key_order,
-    FileFormat,
 )
-
 
 __all__ = [
     "dump_package_data",

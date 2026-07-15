@@ -8,20 +8,17 @@ Usage:
     maturin develop --features extension-module
     pytest tests/test_context_repository_api.py -v
 """
+
 import json
 import os
 
 import pytest
-
 from conftest import write_package_py
 
 rez = pytest.importorskip(
     "rez_next",
     reason="rez_next not built — run: maturin develop --features extension-module",
 )
-
-
-
 
 
 # ── ResolvedContext attributes ────────────────────────────────────────────────
@@ -155,8 +152,9 @@ class TestResolvedContextWithRealRepo:
     def test_resolve_single_package(self, tmp_path):
         """Resolve a single package from a real on-disk repo."""
         pkg_dir = tmp_path / "python" / "3.11.0"
-        write_package_py(pkg_dir, "python", "3.11.0",
-                         commands="env.setenv('PYTHON_ROOT', '{root}')")
+        write_package_py(
+            pkg_dir, "python", "3.11.0", commands="env.setenv('PYTHON_ROOT', '{root}')"
+        )
 
         ctx = rez.ResolvedContext(["python"], paths=[str(tmp_path)])
         assert ctx.success is True
@@ -224,8 +222,9 @@ class TestResolvedContextWithRealRepo:
 
     def test_get_environ_with_resolved_context(self, tmp_path):
         pkg_dir = tmp_path / "python" / "3.11.0"
-        write_package_py(pkg_dir, "python", "3.11.0",
-                         commands="env.setenv('PYTHON_ROOT', '/opt/python')")
+        write_package_py(
+            pkg_dir, "python", "3.11.0", commands="env.setenv('PYTHON_ROOT', '/opt/python')"
+        )
 
         ctx = rez.ResolvedContext(["python"], paths=[str(tmp_path)])
         env = ctx.get_environ()
@@ -313,16 +312,6 @@ class TestRepositoryManagerWithRealRepo:
         latest = repo.get_latest_package("python")
         assert latest is not None
         assert "3.11" in latest.version_str
-
-    def test_get_package_family_names_includes_all(self, tmp_path):
-        write_package_py(tmp_path / "python" / "3.11.0", "python", "3.11.0")
-
-        write_package_py(tmp_path / "numpy" / "1.25.0", "numpy", "1.25.0")
-
-        repo = rez.RepositoryManager(paths=[str(tmp_path)])
-        names = repo.get_package_family_names()
-        assert "python" in names
-        assert "numpy" in names
 
     def test_get_package_family_names_sorted(self, tmp_path):
         write_package_py(tmp_path / "zzz_pkg" / "1.0.0", "zzz_pkg", "1.0.0")

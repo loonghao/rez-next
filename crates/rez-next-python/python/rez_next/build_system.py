@@ -16,13 +16,14 @@ from __future__ import annotations
 
 import abc
 import os
-from typing import Any, Optional, Sequence, TypedDict, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Sequence, TypedDict
 
 if TYPE_CHECKING:
     import argparse
+
+    from rez_next.build_process import BuildType
     from rez_next.resolved_context import ResolvedContext
     from rez_next.rex import RexExecutor
-    from rez_next.build_process import BuildType
 
 
 class BuildResult(TypedDict, total=False):
@@ -35,6 +36,7 @@ class BuildResult(TypedDict, total=False):
         extra_files: Additional files produced by the build.
         build_env_script: Path to a generated build environment script.
     """
+
     success: bool
     extra_files: list[str]
     build_env_script: str
@@ -49,6 +51,7 @@ def get_buildsys_types() -> list[str]:
     Rez API: ``rez.build_system.get_buildsys_types()``
     """
     from rez_next.plugin_managers import plugin_manager
+
     return sorted(plugin_manager.get_plugins("build_system"))
 
 
@@ -66,9 +69,9 @@ def get_valid_build_systems(
 
     Rez API: ``rez.build_system.get_valid_build_systems()``
     """
-    from rez_next.plugin_managers import plugin_manager
     from rez_next.developer_package import DeveloperPackage
     from rez_next.exceptions import ResourceContentError
+    from rez_next.plugin_managers import plugin_manager
 
     if package is None:
         try:
@@ -79,7 +82,7 @@ def get_valid_build_systems(
     if package is not None:
         build_command = getattr(package, "build_command", None)
         if build_command is not None:
-            buildsys_name: Optional[str] = "custom"
+            buildsys_name: str | None = "custom"
         else:
             buildsys_name = getattr(package, "build_system", None)
 
@@ -101,13 +104,13 @@ def get_valid_build_systems(
 
 def create_build_system(
     working_dir: str,
-    buildsys_type: Optional[str] = None,
+    buildsys_type: str | None = None,
     package: Any = None,
-    opts: Optional[argparse.Namespace] = None,
+    opts: argparse.Namespace | None = None,
     write_build_scripts: bool = False,
     verbose: bool = False,
-    build_args: Optional[Sequence[str]] = None,
-    child_build_args: Optional[list[str]] = None,
+    build_args: Sequence[str] | None = None,
+    child_build_args: list[str] | None = None,
 ) -> BuildSystem:
     """Create a BuildSystem instance for the source in *working_dir*.
 
@@ -117,20 +120,17 @@ def create_build_system(
 
     Rez API: ``rez.build_system.create_build_system()``
     """
-    from rez_next.plugin_managers import plugin_manager
     from rez_next.exceptions import BuildSystemError
+    from rez_next.plugin_managers import plugin_manager
 
     if buildsys_type is None:
         clss = get_valid_build_systems(working_dir, package=package)
         if not clss:
-            raise BuildSystemError(
-                f"No build system is associated with the path: {working_dir}"
-            )
+            raise BuildSystemError(f"No build system is associated with the path: {working_dir}")
         if len(clss) > 1:
             available = ", ".join(c.name() for c in clss)
             raise BuildSystemError(
-                f"Source could be built with one of: {available}. "
-                "Please specify a build system."
+                f"Source could be built with one of: {available}. Please specify a build system."
             )
         buildsys_type = clss[0].name()
 
@@ -172,7 +172,7 @@ class BuildSystem(abc.ABC):
         raise NotImplementedError
 
     @classmethod
-    def child_build_system(cls) -> Optional[str]:
+    def child_build_system(cls) -> str | None:
         """Return the name of the child build system, if any.
 
         For example, cmake generates makefiles, so ``cmake`` would return
@@ -198,7 +198,7 @@ class BuildSystem(abc.ABC):
     def __init__(
         self,
         working_dir: str,
-        opts: Optional[argparse.Namespace] = None,
+        opts: argparse.Namespace | None = None,
         package: Any = None,
         write_build_scripts: bool = False,
         verbose: bool = False,
@@ -206,10 +206,10 @@ class BuildSystem(abc.ABC):
         child_build_args: list[str] = (),
     ) -> None:
         from rez_next.exceptions import BuildSystemError
+
         if not self.is_valid_root(working_dir):
             raise BuildSystemError(
-                f"Not a valid working directory for build system "
-                f"{self.name()!r}: {working_dir}"
+                f"Not a valid working directory for build system {self.name()!r}: {working_dir}"
             )
         self.working_dir: str = working_dir
         self.package = package
@@ -254,64 +254,48 @@ class BuildSystem(abc.ABC):
         build_type: BuildType,
         install: bool,
         build_path: str,
-        install_path: Optional[str] = None,
+        install_path: str | None = None,
     ) -> None:
         """Set standard environment variables that all build systems can rely on.
 
         Sets variables like ``REZ_BUILD_ENV``, ``REZ_BUILD_PATH``,
         ``REZ_BUILD_THREAD_COUNT``, ``REZ_BUILD_PROJECT_VERSION``, etc.
         """
-        from rez_next.rex import literal
         from rez_next.config import config as rez_config
+        from rez_next.rex import literal
 
         package = variant.parent if hasattr(variant, "parent") else variant
         description = getattr(package, "description", None) or ""
-        variant_requires = [
-            str(r) for r in getattr(variant, "variant_requires", [])
-        ]
+        variant_requires = [str(r) for r in getattr(variant, "variant_requires", [])]
         subpath = getattr(variant, "_non_shortlinked_subpath", "")
 
-        build_type_name = (
-            build_type.name if hasattr(build_type, "name") else str(build_type)
-        )
+        build_type_name = build_type.name if hasattr(build_type, "name") else str(build_type)
 
         vars_: dict[str, Any] = {
             "REZ_BUILD_ENV": literal("1"),
             "REZ_BUILD_PATH": literal(executor.normalize_path(build_path)),
-            "REZ_BUILD_THREAD_COUNT": literal(
-                str(getattr(rez_config, "build_thread_count", 4))
-            ),
-            "REZ_BUILD_VARIANT_INDEX": literal(
-                str(getattr(variant, "index", 0) or 0)
-            ),
+            "REZ_BUILD_THREAD_COUNT": literal(str(getattr(rez_config, "build_thread_count", 4))),
+            "REZ_BUILD_VARIANT_INDEX": literal(str(getattr(variant, "index", 0) or 0)),
             "REZ_BUILD_VARIANT_REQUIRES": literal(" ".join(variant_requires)),
-            "REZ_BUILD_VARIANT_SUBPATH": literal(
-                executor.normalize_path(subpath)
-            ),
+            "REZ_BUILD_VARIANT_SUBPATH": literal(executor.normalize_path(subpath)),
             "REZ_BUILD_PROJECT_VERSION": literal(str(package.version)),
             "REZ_BUILD_PROJECT_NAME": literal(package.name),
             "REZ_BUILD_PROJECT_DESCRIPTION": literal(description.strip()),
-            "REZ_BUILD_PROJECT_FILE": literal(
-                getattr(package, "filepath", "")
-            ),
+            "REZ_BUILD_PROJECT_FILE": literal(getattr(package, "filepath", "")),
             "REZ_BUILD_SOURCE_PATH": literal(
-                executor.normalize_path(
-                    os.path.dirname(getattr(package, "filepath", ""))
-                )
+                executor.normalize_path(os.path.dirname(getattr(package, "filepath", "")))
             ),
-            "REZ_BUILD_REQUIRES": literal(" ".join(
-                str(x) for x in context.requested_packages(True)
-            )),
-            "REZ_BUILD_REQUIRES_UNVERSIONED": literal(" ".join(
-                x.name for x in context.requested_packages(True)
-            )),
+            "REZ_BUILD_REQUIRES": literal(
+                " ".join(str(x) for x in context.requested_packages(True))
+            ),
+            "REZ_BUILD_REQUIRES_UNVERSIONED": literal(
+                " ".join(x.name for x in context.requested_packages(True))
+            ),
             "REZ_BUILD_TYPE": literal(build_type_name),
             "REZ_BUILD_INSTALL": literal("1" if install else "0"),
         }
         if install_path:
-            vars_["REZ_BUILD_INSTALL_PATH"] = literal(
-                executor.normalize_path(install_path)
-            )
+            vars_["REZ_BUILD_INSTALL_PATH"] = literal(executor.normalize_path(install_path))
 
         for key, value in vars_.items():
             executor.env[key] = value
@@ -324,7 +308,7 @@ class BuildSystem(abc.ABC):
         build_type: BuildType,
         install: bool,
         build_path: str,
-        install_path: Optional[str] = None,
+        install_path: str | None = None,
     ) -> None:
         """Execute ``pre_build_commands`` from the package if present."""
         pre_build_commands = getattr(variant, "pre_build_commands", None)
@@ -337,9 +321,7 @@ class BuildSystem(abc.ABC):
             "build_type": build_type.name if hasattr(build_type, "name") else str(build_type),
             "install": install,
             "build_path": executor.normalize_path(build_path),
-            "install_path": (
-                executor.normalize_path(install_path) if install_path else None
-            ),
+            "install_path": (executor.normalize_path(install_path) if install_path else None),
         }
 
         bound_variant = VariantBinding(
@@ -360,7 +342,7 @@ class BuildSystem(abc.ABC):
         build_type: BuildType,
         install: bool,
         build_path: str,
-        install_path: Optional[str] = None,
+        install_path: str | None = None,
     ) -> None:
         """Execute standard build actions common to every build system.
 

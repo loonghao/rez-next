@@ -17,7 +17,6 @@ and verify rez_next behaves correctly for common pipeline workflows:
 import os
 
 import pytest
-
 from conftest import write_package_py
 
 rez = pytest.importorskip(
@@ -275,12 +274,13 @@ class TestCLIModuleE2E:
 
     @pytest.mark.parametrize(
         "cmd",
-        ["env", "solve", "build", "release", "status", "search", "config", "selftest"],
+        ["env", "solve", "build", "release", "status", "search", "config", "self-test"],
     )
-    def test_known_commands_return_zero(self, cmd):
+    def test_known_commands_fail_closed(self, cmd):
         import rez_next.cli as cli
 
-        assert cli.cli_run(cmd) == 0
+        with pytest.raises(NotImplementedError):
+            cli.cli_run(cmd)
 
     def test_unknown_command_raises(self):
         import rez_next.cli as cli
@@ -291,12 +291,14 @@ class TestCLIModuleE2E:
     def test_cli_main_no_args(self):
         import rez_next.cli as cli
 
-        assert cli.cli_main() == 0
+        with pytest.raises(NotImplementedError):
+            cli.cli_main()
 
     def test_cli_main_with_env(self):
         import rez_next.cli as cli
 
-        assert cli.cli_main(["env"]) == 0
+        with pytest.raises(NotImplementedError):
+            cli.cli_main(["env"])
 
 
 # ── Exceptions Submodule ──────────────────────────────────────────────────────
@@ -313,8 +315,8 @@ class TestExceptionsE2E:
             PackageParseError,
             PackageVersionConflict,
             ResolveError,
-            RezBuildError,
             RexError,
+            RezBuildError,
             SuiteError,
         )
 
@@ -380,6 +382,7 @@ class TestBuildModuleE2E:
 
 # ── Realistic VFX Pipeline Repository ─────────────────────────────────────
 
+
 class TestRealisticVfxPipelineE2E:
     """E2E tests with realistic VFX pipeline package structures.
 
@@ -444,8 +447,7 @@ class TestRealisticVfxPipelineE2E:
             "python",
             "3.9.7",
             commands=(
-                'env.setenv("PYTHON_ROOT", "{root}")\\n'
-                'env.prepend_path("PATH", "{root}/bin")'
+                'env.setenv("PYTHON_ROOT", "{root}")\\nenv.prepend_path("PATH", "{root}/bin")'
             ),
         )
 
@@ -456,8 +458,7 @@ class TestRealisticVfxPipelineE2E:
             "python",
             "3.11.5",
             commands=(
-                'env.setenv("PYTHON_ROOT", "{root}")\\n'
-                'env.prepend_path("PATH", "{root}/bin")'
+                'env.setenv("PYTHON_ROOT", "{root}")\\nenv.prepend_path("PATH", "{root}/bin")'
             ),
         )
 
@@ -590,6 +591,7 @@ class TestRealisticVfxPipelineE2E:
 
 # ── Complex Dependency Graph E2E ────────────────────────────────────────────
 
+
 class TestComplexDependencyGraphE2E:
     """E2E tests with complex dependency graphs simulating real studios."""
 
@@ -645,7 +647,7 @@ class TestComplexDependencyGraphE2E:
 
     def test_resolve_diamond_dependency(self, complex_repo):
         """Test resolving diamond dependency: app_e -> middle_c -> base_a
-                                                  -> middle_d -> base_b -> base_a
+        -> middle_d -> base_b -> base_a
         """
         result = rez.resolve(["app_e-1.0+"], paths=[complex_repo])
         assert result is not None

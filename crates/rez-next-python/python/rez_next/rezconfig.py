@@ -12,9 +12,8 @@ See https://github.com/AcademySoftwareFoundation/rez/blob/main/src/rez/rezconfig
 from __future__ import annotations
 
 import os
-import sys
 
-from .config import Config, config
+from .config import Config
 
 # ── Re-export Config for convenience ─────────────────────────────────────────
 

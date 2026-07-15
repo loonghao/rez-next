@@ -173,43 +173,37 @@ fn find_package_in_path(
 ///
 /// Equivalent to `rez.packages.get_variant_from_uri(uri, paths=None)`.
 ///
-/// Returns a `Variant` object, or `None` if not found.
-///
-/// Note: This is a simplified implementation. Full variant support
-/// requires additional work on the variant system.
+/// Variant URI lookup is not part of the supported compatibility surface yet.
+/// The function raises `NotImplementedError` instead of returning `None`, so
+/// callers cannot confuse an unsupported operation with a repository miss.
 #[pyfunction]
-#[pyo3(signature = (uri, _paths=None))]
+#[pyo3(signature = (uri, paths=None))]
 pub fn get_variant_from_uri(
     _py: Python<'_>,
     uri: &str,
-    _paths: Option<Vec<String>>,
+    paths: Option<Vec<String>>,
 ) -> PyResult<Option<Py<PyAny>>> {
-    // Stub: variant resolution not yet implemented upstream
-    tracing::debug!(
-        "get_variant_from_uri called for '{}' (stub — no variant support yet)",
-        uri
-    );
-    Ok(None)
+    let _ = (uri, paths);
+    Err(pyo3::exceptions::PyNotImplementedError::new_err(
+        "variant URI lookup is not implemented; iterate variants from a resolved package instead",
+    ))
 }
 
 /// Get a variant given its package URI and variant index.
 ///
 /// Equivalent to `rez.packages.get_variant(uri, index=None, paths=None)`.
 #[pyfunction]
-#[pyo3(signature = (uri, index=None, _paths=None))]
+#[pyo3(signature = (uri, index=None, paths=None))]
 pub fn get_variant(
     _py: Python<'_>,
     uri: &str,
     index: Option<usize>,
-    _paths: Option<Vec<String>>,
+    paths: Option<Vec<String>>,
 ) -> PyResult<Option<Py<PyAny>>> {
-    // Stub: variant resolution not yet implemented upstream
-    tracing::debug!(
-        "get_variant called for '{}' index={:?} (stub — no variant support yet)",
-        uri,
-        index
-    );
-    Ok(None)
+    let _ = (uri, index, paths);
+    Err(pyo3::exceptions::PyNotImplementedError::new_err(
+        "variant URI lookup is not implemented; iterate variants from a resolved package instead",
+    ))
 }
 
 /// Get a package from a repository handle.

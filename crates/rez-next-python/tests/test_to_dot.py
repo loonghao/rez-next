@@ -4,7 +4,6 @@ Tests for ResolvedContext.to_dot() method — dependency graph visualization.
 
 import pytest
 
-
 rez = pytest.importorskip(
     "rez_next",
     reason="rez_next not built — run: maturin develop --features extension-module",
@@ -13,19 +12,23 @@ rez = pytest.importorskip(
 
 def _make_pkg(name, version_str, requires=None):
     """Create a mock package-like object with required attributes."""
+
     class MockPackage:
         def __init__(self, name, version_str, requires):
             self.name = name
             self.version_str = version_str
             self.requires = requires or []
+
     return MockPackage(name, version_str, requires)
 
 
 def _make_context(packages):
     """Create a mock object with resolved_packages attribute."""
+
     class MockContext:
         def __init__(self, pkgs):
             self.resolved_packages = pkgs
+
     ctx = MockContext(packages)
     # Apply the to_dot method to this mock
     ctx.__class__.to_dot = rez.ResolvedContext.to_dot

@@ -14,23 +14,16 @@ Key differences from Rez:
 from __future__ import annotations
 
 import abc
-import os
-import sys
-import types
 import importlib
 import importlib.metadata as importlib_metadata
-import pkgutil
 import logging
-from typing import Any, ClassVar, TYPE_CHECKING
+import os
+import pkgutil
+import types
+from typing import TYPE_CHECKING, Any, ClassVar
 
 if TYPE_CHECKING:
-    from rez_next.shells import Shell
-    from rez_next.release_vcs import ReleaseVCS
-    from rez_next.release_hook import ReleaseHook
-    from rez_next.build_process import BuildProcess
-    from rez_next.build_system import BuildSystem
-    from rez_next.package_repository import PackageRepository
-    from rez_next.command import Command
+    pass
 
 logger = logging.getLogger(__name__)
 
@@ -60,6 +53,7 @@ def extend_path(path: list[str], name: str) -> list[str]:
     path = path[:]
     try:
         from rez_next.config import config as cfg
+
         plugin_dirs = getattr(cfg, "plugin_path", [])
     except Exception:
         plugin_dirs = []
@@ -85,9 +79,7 @@ class RezPluginType(abc.ABC):
 
     def __init__(self) -> None:
         if not self.type_name:
-            raise TypeError(
-                "Subclasses of RezPluginType must provide a 'type_name' attribute"
-            )
+            raise TypeError("Subclasses of RezPluginType must provide a 'type_name' attribute")
         self.pretty_type_name: str = self.type_name.replace("_", " ")
         self.plugin_classes: dict[str, type] = {}
         self.failed_plugins: dict[str, str] = {}
@@ -122,17 +114,13 @@ class RezPluginType(abc.ABC):
             return
 
         paths: list[str] = (
-            [package.__path__]
-            if isinstance(package.__path__, str)
-            else list(package.__path__)
+            [package.__path__] if isinstance(package.__path__, str) else list(package.__path__)
         )
 
         for path in reversed(paths):
             if not os.path.isdir(path):
                 continue
-            for _importer, modname, _ispkg in pkgutil.iter_modules(
-                [path], f"{type_module_name}."
-            ):
+            for _importer, modname, _ispkg in pkgutil.iter_modules([path], f"{type_module_name}."):
                 plugin_name = modname.rsplit(".", 1)[-1]
                 if plugin_name.startswith("_") or plugin_name == "rezconfig":
                     continue
@@ -159,9 +147,7 @@ class RezPluginType(abc.ABC):
                 continue
             try:
                 plugin_module = ep.load()
-                plugin_path = os.path.dirname(
-                    getattr(plugin_module, "__file__", "")
-                )
+                plugin_path = os.path.dirname(getattr(plugin_module, "__file__", ""))
                 self._register_plugin_module(ep.name, plugin_module, plugin_path)
                 self._load_config_from_plugin(plugin_module)
             except Exception as exc:
@@ -196,6 +182,7 @@ class RezPluginType(abc.ABC):
             return self.plugin_classes[plugin_name]
         except KeyError:
             from rez_next.exceptions import RezPluginError
+
             raise RezPluginError(
                 f"Unrecognised {self.pretty_type_name} plugin: '{plugin_name}'"
             ) from None
@@ -206,6 +193,7 @@ class RezPluginType(abc.ABC):
             return self.plugin_modules[plugin_name]
         except KeyError:
             from rez_next.exceptions import RezPluginError
+
             raise RezPluginError(
                 f"Unrecognised {self.pretty_type_name} plugin: '{plugin_name}'"
             ) from None
@@ -247,25 +235,17 @@ class RezPluginManager:
         """Return the class registered for *plugin_name* under *plugin_type*."""
         return self._get_plugin_type(plugin_type).get_plugin_class(plugin_name)
 
-    def get_plugin_module(
-        self, plugin_type: str, plugin_name: str
-    ) -> types.ModuleType:
+    def get_plugin_module(self, plugin_type: str, plugin_name: str) -> types.ModuleType:
         """Return the module for the named plugin."""
         return self._get_plugin_type(plugin_type).get_plugin_module(plugin_name)
 
     def get_failed_plugins(self, plugin_type: str) -> list[tuple[str, str]]:
         """Return ``[(name, reason), ...]`` for plugins that failed to load."""
-        return list(
-            self._get_plugin_type(plugin_type).failed_plugins.items()
-        )
+        return list(self._get_plugin_type(plugin_type).failed_plugins.items())
 
-    def create_instance(
-        self, plugin_type: str, plugin_name: str, **kwargs: Any
-    ) -> Any:
+    def create_instance(self, plugin_type: str, plugin_name: str, **kwargs: Any) -> Any:
         """Create and return an instance of the named plugin."""
-        return self._get_plugin_type(plugin_type).create_instance(
-            plugin_name, **kwargs
-        )
+        return self._get_plugin_type(plugin_type).create_instance(plugin_name, **kwargs)
 
     def get_summary_string(self) -> str:
         """Return a formatted summary of all loaded plugins."""
@@ -273,13 +253,9 @@ class RezPluginManager:
         for plugin_type in sorted(self.get_plugin_types()):
             pt = self._get_plugin_type(plugin_type)
             for name in sorted(pt.plugin_classes):
-                lines.append(
-                    f"{pt.pretty_type_name:20s} {name:20s} loaded"
-                )
+                lines.append(f"{pt.pretty_type_name:20s} {name:20s} loaded")
             for name, reason in sorted(pt.failed_plugins.items()):
-                lines.append(
-                    f"{pt.pretty_type_name:20s} {name:20s} FAILED: {reason}"
-                )
+                lines.append(f"{pt.pretty_type_name:20s} {name:20s} FAILED: {reason}")
         return "\n".join(lines) if lines else "(no plugins registered)"
 
     def _get_plugin_type(self, plugin_type: str) -> RezPluginType:
@@ -287,9 +263,8 @@ class RezPluginManager:
             return self._plugin_types[plugin_type]()
         except KeyError:
             from rez_next.exceptions import RezPluginError
-            raise RezPluginError(
-                f"Unrecognised plugin type: '{plugin_type}'"
-            ) from None
+
+            raise RezPluginError(f"Unrecognised plugin type: '{plugin_type}'") from None
 
 
 # ── Concrete plugin types ──────────────────────────────────────────────────
@@ -297,36 +272,43 @@ class RezPluginManager:
 
 class ShellPluginType(RezPluginType):
     """Shell plugin type (bash, tcsh, etc.)."""
+
     type_name = "shell"
 
 
 class ReleaseVCSPluginType(RezPluginType):
     """VCS plugin type (git, etc.)."""
+
     type_name = "release_vcs"
 
 
 class ReleaseHookPluginType(RezPluginType):
     """Release hook plugin type (email, etc.)."""
+
     type_name = "release_hook"
 
 
 class BuildSystemPluginType(RezPluginType):
     """Build system plugin type (cmake, make, etc.)."""
+
     type_name = "build_system"
 
 
 class PackageRepositoryPluginType(RezPluginType):
     """Package repository plugin type (filesystem, memory, etc.)."""
+
     type_name = "package_repository"
 
 
 class BuildProcessPluginType(RezPluginType):
     """Build process plugin type."""
+
     type_name = "build_process"
 
 
 class CommandPluginType(RezPluginType):
     """Command plugin type (custom subcommands)."""
+
     type_name = "command"
 
 

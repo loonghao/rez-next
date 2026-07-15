@@ -1,6 +1,5 @@
 """Tests for rez_next.solver module (Cycle #322)."""
 
-import pytest
 import rez_next.solver as solver
 
 
@@ -13,11 +12,11 @@ class TestSolverModule:
 
     def test_has_solver_class(self):
         """Test that Solver class is available."""
-        assert hasattr(solver, 'Solver')
+        assert hasattr(solver, "Solver")
 
     def test_has_solver_status_class(self):
         """Test that SolverStatus class is available."""
-        assert hasattr(solver, 'SolverStatus')
+        assert hasattr(solver, "SolverStatus")
 
     # TODO: Add tests for missing classes/functions when implemented in Rust bindings:
     # - SolverState

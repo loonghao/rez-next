@@ -5,12 +5,31 @@ Provides environment status inspection aligning with ``rez.status`` API:
 - ``Status`` class with ``print_info()`` and ``print_tools()``
 - ``status`` singleton: ``from rez_next.status import status``
 """
+
 from __future__ import annotations
 
 import os
 import sys
+
 import rez_next._native  # ensure extension module is initialized  # noqa: F401
-from rez_next._native.status import *  # noqa: F401,F403
+from rez_next._native.status import (
+    RezStatus,
+    get_context_file,
+    get_current_status,
+    get_resolved_package_names,
+    get_rez_env_var,
+    is_in_rez_context,
+)
+
+__all__ = [
+    "RezStatus",
+    "get_context_file",
+    "get_current_status",
+    "get_resolved_package_names",
+    "get_rez_env_var",
+    "is_in_rez_context",
+    "status",
+]
 
 # ── Python-level wrappers for Rez API alignment ──────────────────────
 
@@ -49,6 +68,7 @@ def _rez_status_print_info(self, obj=None, buf=None):
     # Try tool name
     try:
         from rez_next.suite import Suite  # type: ignore[import-untyped]
+
         if os.path.exists(obj_str):
             is_suite = Suite.is_suite(obj_str)
             if is_suite:
@@ -79,7 +99,7 @@ def _rez_status_print_tools(self, pattern=None, buf=None):
     if buf is None:
         buf = sys.stdout
 
-    from rez_next.suite import Suite, SuiteManager  # type: ignore[import-untyped]
+    from rez_next.suite import SuiteManager  # type: ignore[import-untyped]
 
     tools = []
     seen = set()
@@ -114,11 +134,8 @@ def _rez_status_print_tools(self, pattern=None, buf=None):
 
 
 # Patch the native RezStatus class with Python-level API methods
-try:
-    RezStatus.print_info = _rez_status_print_info  # type: ignore[name-defined]
-    RezStatus.print_tools = _rez_status_print_tools  # type: ignore[name-defined]
-except NameError:
-    pass  # RezStatus not yet available
+RezStatus.print_info = _rez_status_print_info
+RezStatus.print_tools = _rez_status_print_tools
 
 # Singleton matching rez.status API: `from rez.status import status`
-status: "RezStatus" = RezStatus()  # type: ignore[name-defined, misc]
+status: RezStatus = RezStatus()

@@ -5,6 +5,7 @@ Provides version-related classes and utilities aligning with ``rez.version`` API
 This module wraps the native version module and adds Rez-API-compatible
 exception classes and utility functions.
 """
+
 from __future__ import annotations
 
 import rez_next._native  # noqa: F401
@@ -16,6 +17,7 @@ class ParseException(ValueError):
 
     Rez API: ``rez.version.ParseException``
     """
+
     pass
 
 
@@ -24,6 +26,7 @@ class VersionError(Exception):
 
     Rez API: ``rez.version.VersionError``
     """
+
     pass
 
 
@@ -34,10 +37,7 @@ def reverse_sort_key(version):
     """
     try:
         if hasattr(version, "_cmp_key"):
-            return tuple(
-                -x if isinstance(x, (int, float)) else x
-                for x in version._cmp_key
-            )
+            return tuple(-x if isinstance(x, (int, float)) else x for x in version._cmp_key)
     except Exception:
         pass
 

@@ -2,13 +2,13 @@
 
 > **AI-first compact reference.** For full API details, see [llms-full.txt](./llms-full.txt). For human guides, see [docs/](./docs/).
 
-## Project: rez-next v0.3.4
+## Project: rez-next v0.3.4 <!-- x-release-please-version -->
 
 High-performance Rust rewrite of [Rez](https://github.com/AcademySoftwareFoundation/rez) with Python bindings (PyO3). Import as `import rez_next as rez` for most workflows.
 
 - **Language**: Rust 2024 edition (MSRV 1.95) + Python 3.8+ (abi3)
 - **Build**: Cargo workspace (20 crates) + Maturin for Python
-- **Status**: Pre-1.0, experimental. Many Rez APIs work, not all.
+- **Status**: Pre-1.0. Documented common workflows are production-ready; compatibility is curated rather than exhaustive.
 
 ## Quick Commands
 

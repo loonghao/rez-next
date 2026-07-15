@@ -2,12 +2,11 @@
 resolver — aligns with rez.resolver.
 
 Provides the ``Resolver`` class that orchestrates dependency resolution
-by wrapping the native ``Solver`` with optional memcached caching,
-package filtering, and custom ordering.
+by wrapping the native ``Solver`` with package filtering and custom ordering.
 
 Key design:
 - Pure orchestration layer (no solver logic in this class)
-- Memcached caching with cache invalidation via variant state/release time
+- Uncached execution; explicit cache requests fail until safe invalidation exists
 - No legacy ``rez_1_environment_variables`` compatibility
 """
 
@@ -15,30 +14,31 @@ from __future__ import annotations
 
 import enum
 from hashlib import sha1
-from typing import Any, Callable, Optional, TypedDict, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Callable, TypedDict
 
 if TYPE_CHECKING:
-    from rez_next.version import Requirement
-    from rez_next.packages import Variant
-    from rez_next.resolved_context import ResolvedContext
     from rez_next.package_filter import PackageFilterList
     from rez_next.package_order import PackageOrderList
-    from rez_next.solver import Solver, SolverState, SolverCallbackReturn
+    from rez_next.packages import Variant
+    from rez_next.resolved_context import ResolvedContext
+    from rez_next.version import Requirement
 
 
 class SolverDict(TypedDict, total=False):
     """Serialisable solve result for caching."""
+
     status: ResolverStatus
     graph: Any
-    solve_time: Optional[float]
-    load_time: Optional[float]
-    failure_description: Optional[str]
+    solve_time: float | None
+    load_time: float | None
+    failure_description: str | None
     variant_handles: list[dict[str, Any]]
     ephemerals: list[str]
 
 
 class ResolverStatus(enum.Enum):
     """Status of a resolver instance."""
+
     pending = ("The resolve has not yet started.",)
     solved = ("The resolve has completed successfully.",)
     failed = ("The resolve is not possible.",)
@@ -49,7 +49,7 @@ class ResolverStatus(enum.Enum):
 
 
 class Resolver:
-    """Package resolver combining Solver + optional memcached caching.
+    """Package resolver combining Solver, package filters, and ordering.
 
     Rez API: ``rez.resolver.Resolver``
     """
@@ -59,19 +59,24 @@ class Resolver:
         context: ResolvedContext,
         package_requests: list[Requirement],
         package_paths: list[str],
-        package_filter: Optional[PackageFilterList] = None,
-        package_orderers: Optional[PackageOrderList] = None,
-        timestamp: Optional[int] = 0,
-        callback: Optional[Callable] = None,  # SolverState -> tuple
+        package_filter: PackageFilterList | None = None,
+        package_orderers: PackageOrderList | None = None,
+        timestamp: int | None = 0,
+        callback: Callable | None = None,  # SolverState -> tuple
         building: bool = False,
         testing: bool = False,
         verbosity: int = 0,
         buf: Any = None,
-        package_load_callback: Optional[Callable[[Any], None]] = None,
-        caching: bool = True,
+        package_load_callback: Callable[[Any], None] | None = None,
+        caching: bool = False,
         suppress_passive: bool = False,
         print_stats: bool = False,
     ) -> None:
+        if caching:
+            raise NotImplementedError(
+                "Resolver caching is not implemented with safe repository invalidation"
+            )
+
         self.context = context
         self.package_requests = list(package_requests)
         self.package_paths = list(package_paths)
@@ -82,7 +87,7 @@ class Resolver:
         self.building = building
         self.testing = testing
         self.verbosity = verbosity
-        self.caching = caching
+        self.caching = False
         self.buf = buf
         self.suppress_passive = suppress_passive
         self.print_stats = print_stats
@@ -94,24 +99,24 @@ class Resolver:
         )
 
         self.status_: ResolverStatus = ResolverStatus.pending
-        self.resolved_packages_: Optional[list[Variant]] = None
-        self.resolved_ephemerals_: Optional[list[Requirement]] = None
-        self.failure_description: Optional[str] = None
+        self.resolved_packages_: list[Variant] | None = None
+        self.resolved_ephemerals_: list[Requirement] | None = None
+        self.failure_description: str | None = None
         self.graph_: Any = None
         self.from_cache: bool = False
-        self.solve_time: Optional[float] = 0.0
-        self.load_time: Optional[float] = 0.0
+        self.solve_time: float | None = 0.0
+        self.load_time: float | None = 0.0
 
     @property
     def status(self) -> ResolverStatus:
         return self.status_
 
     @property
-    def resolved_packages(self) -> Optional[list[Variant]]:
+    def resolved_packages(self) -> list[Variant] | None:
         return self.resolved_packages_
 
     @property
-    def resolved_ephemerals(self) -> Optional[list[Requirement]]:
+    def resolved_ephemerals(self) -> list[Requirement] | None:
         return self.resolved_ephemerals_
 
     @property
@@ -119,25 +124,15 @@ class Resolver:
         return self.graph_
 
     def solve(self) -> None:
-        """Execute the dependency resolution with optional caching."""
-        solver_dict: Optional[SolverDict] = None
-
-        if self.caching:
-            solver_dict = self._get_cached_solve()
-
-        if solver_dict:
-            self.from_cache = True
-            self._set_result(solver_dict)
-        else:
-            self.from_cache = False
-            solver = self._solve()
-            solver_dict = self._solver_to_dict(solver)
-            self._set_result(solver_dict)
-            self._set_cached_solve(solver_dict)
+        """Execute dependency resolution without a stale-result cache."""
+        self.from_cache = False
+        solver = self._solve()
+        solver_dict = self._solver_to_dict(solver)
+        self._set_result(solver_dict)
 
     def _solve(self) -> Any:  # Solver
-        from rez_next.solver import Solver as NativeSolver
         from rez_next.config import config as cfg
+        from rez_next.solver import Solver as NativeSolver
 
         solver = NativeSolver(
             package_requests=self.package_requests,
@@ -166,13 +161,14 @@ class Resolver:
 
         if self.status_ == ResolverStatus.solved:
             self.resolved_packages_ = []
-            for vh in (solver_dict.get("variant_handles") or []):
+            for vh in solver_dict.get("variant_handles") or []:
                 variant = self._get_variant(vh)
                 self.resolved_packages_.append(variant)
 
             self.resolved_ephemerals_ = []
-            for req_str in (solver_dict.get("ephemerals") or []):
+            for req_str in solver_dict.get("ephemerals") or []:
                 from rez_next.version import Requirement
+
                 self.resolved_ephemerals_.append(Requirement(req_str))
         else:
             self.resolved_packages_ = None
@@ -180,42 +176,28 @@ class Resolver:
 
     def _get_variant(self, variant_handle: Any) -> Any:
         from rez_next.packages import get_variant
+
         return get_variant(variant_handle, context=self.context)
 
-    def _get_cached_solve(self) -> Optional[SolverDict]:
-        """Stub — always returns None (memcached not wired yet).
-
-        Full implementation would:
-        1. Build a cache key from request + repo_ids + filter_hash + orderers_hash
-        2. Check variant state / release time for invalidation
-        3. Return cached SolverDict on hit, None on miss
-        """
-        return None
-
-    def _set_cached_solve(self, solver_dict: SolverDict) -> None:
-        """Stub — cache write is not yet implemented."""
-        pass
-
     @staticmethod
-    def _hash_orderers(orderers: Optional[list]) -> str:
+    def _hash_orderers(orderers: list | None) -> str:
         if not orderers:
             return ""
-        sha1s = "".join(
-            x.sha1 if hasattr(x, "sha1") else ""
-            for x in orderers
-        )
+        sha1s = "".join(x.sha1 if hasattr(x, "sha1") else "" for x in orderers)
         return sha1(sha1s.encode("utf-8")).hexdigest() if sha1s else ""
 
     @classmethod
     def _solver_to_dict(cls, solver: Any) -> SolverDict:
         from rez_next.solver import SolverStatus
 
-        graph_ = getattr(solver, "get_graph", lambda: None)() if hasattr(solver, "get_graph") else None
+        graph_ = (
+            getattr(solver, "get_graph", lambda: None)() if hasattr(solver, "get_graph") else None
+        )
         solve_time = getattr(solver, "solve_time", None)
         load_time = getattr(solver, "load_time", None)
-        failure_description: Optional[str] = None
-        variant_handles: Optional[list] = None
-        ephemerals: Optional[list] = None
+        failure_description: str | None = None
+        variant_handles: list | None = None
+        ephemerals: list | None = None
 
         st = getattr(solver, "status", None)
         if st == SolverStatus.unsolved:
@@ -231,9 +213,7 @@ class Resolver:
         elif st == SolverStatus.solved:
             status_ = ResolverStatus.solved
             resolved = getattr(solver, "resolved_packages", [])
-            variant_handles = [
-                getattr(v, "handle", {}) for v in resolved
-            ]
+            variant_handles = [getattr(v, "handle", {}) for v in resolved]
             resolved_eps = getattr(solver, "resolved_ephemerals", [])
             ephemerals = [str(e) for e in resolved_eps]
         else:

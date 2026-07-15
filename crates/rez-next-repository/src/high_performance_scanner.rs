@@ -5,7 +5,7 @@
 //! - Zero-copy file reading with memory mapping
 //! - Parallel processing with work-stealing
 //! - Advanced caching with LRU eviction
-//! - Predictive prefetching
+//! - Bounded metadata prefetching
 
 use crate::scanner_types::REZ_PACKAGE_FILENAMES;
 use crate::{PackageScanResult, ScanPerformanceMetrics, ScanResult};
@@ -29,7 +29,7 @@ pub struct HighPerformanceConfig {
     pub max_concurrency: usize,
     /// Enable SIMD optimizations
     pub enable_simd: bool,
-    /// Enable predictive prefetching
+    /// Enable bounded package-file metadata prefetching
     pub enable_prefetch: bool,
     /// Cache size in number of entries
     pub cache_size: usize,
@@ -70,8 +70,6 @@ pub struct HighPerformanceScanner {
     cache: Arc<RwLock<LruCache<PathBuf, AdvancedCacheEntry>>>,
     /// SIMD pattern matcher
     pattern_matcher: Arc<SIMDPatternMatcher>,
-    /// Prefetch predictor
-    prefetch_predictor: Arc<PrefetchPredictor>,
     /// Performance counters
     cache_hits: AtomicU64,
     cache_misses: AtomicU64,
@@ -98,7 +96,6 @@ impl HighPerformanceScanner {
                     .unwrap_or(std::num::NonZeroUsize::new(1000).unwrap()),
             ))),
             pattern_matcher: Arc::new(SIMDPatternMatcher::new()),
-            prefetch_predictor: Arc::new(PrefetchPredictor::new()),
             config,
             cache_hits: AtomicU64::new(0),
             cache_misses: AtomicU64::new(0),
@@ -120,13 +117,13 @@ impl HighPerformanceScanner {
     ) -> Result<ScanResult, RezCoreError> {
         let start_time = Instant::now();
 
-        // Phase 1: Predictive directory discovery
-        let directories = self.discover_directories_predictive(root_path).await?;
+        // Phase 1: Deterministic directory discovery
+        let directories = self.discover_directories(root_path).await?;
 
         // Phase 2: Parallel file discovery with SIMD pattern matching
         let package_files = self.discover_package_files_simd(&directories).await?;
 
-        // Phase 3: Predictive prefetching
+        // Phase 3: Bounded metadata prefetching
         if self.config.enable_prefetch {
             self.prefetch_likely_files(&package_files).await;
         }
@@ -141,11 +138,8 @@ impl HighPerformanceScanner {
         Ok(self.build_scan_result(scan_results, total_time))
     }
 
-    /// Discover directories with predictive algorithms
-    async fn discover_directories_predictive(
-        &self,
-        root_path: &Path,
-    ) -> Result<Vec<PathBuf>, RezCoreError> {
+    /// Discover directories in a deterministic order.
+    async fn discover_directories(&self, root_path: &Path) -> Result<Vec<PathBuf>, RezCoreError> {
         let mut directories = Vec::new();
         let mut stack = vec![root_path.to_path_buf()];
 
@@ -156,16 +150,13 @@ impl HighPerformanceScanner {
                 while let Ok(Some(entry)) = entries.next_entry().await {
                     let path = entry.path();
                     if path.is_dir() {
-                        // Use prediction to prioritize likely directories
-                        let priority = self.prefetch_predictor.predict_directory_priority(&path);
-                        subdirs.push((path, priority));
+                        subdirs.push(path);
                     }
                 }
 
-                // Sort by prediction priority
-                subdirs.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+                subdirs.sort();
 
-                for (subdir, _) in subdirs {
+                for subdir in subdirs {
                     directories.push(subdir.clone());
                     stack.push(subdir);
                 }
@@ -214,37 +205,29 @@ impl HighPerformanceScanner {
             futures::future::join_all(futures).await;
         }
 
-        Ok(package_files
+        let mut files: Vec<_> = package_files
             .iter()
             .map(|entry| entry.key().clone())
-            .collect())
+            .collect();
+        files.sort();
+        Ok(files)
     }
 
-    /// Predictive prefetching of likely files
+    /// Prefetch metadata for a bounded number of package files.
     async fn prefetch_likely_files(&self, package_files: &[PathBuf]) {
-        // Predict which files are most likely to be accessed
-        let predictions = self.prefetch_predictor.predict_file_access(package_files);
-
-        // Prefetch top predicted files
-        let top_files: Vec<_> = predictions
-            .into_iter()
-            .filter(|(_, score)| *score > 0.7)
+        let prefetch_futures: Vec<_> = package_files
+            .iter()
             .take(100)
-            .map(|(path, _)| path)
+            .cloned()
+            .map(|path| async move { fs::metadata(path).await.is_ok() })
             .collect();
 
-        // Asynchronously prefetch files
-        let prefetch_futures: Vec<_> = top_files
+        let hits = futures::future::join_all(prefetch_futures)
+            .await
             .into_iter()
-            .map(|path| {
-                async move {
-                    // Simple prefetch: just read file metadata
-                    let _ = fs::metadata(&path).await;
-                }
-            })
-            .collect();
-
-        futures::future::join_all(prefetch_futures).await;
+            .filter(|success| *success)
+            .count() as u64;
+        self.prefetch_hits.fetch_add(hits, Ordering::Relaxed);
     }
 
     /// Process files in parallel with work-stealing
@@ -478,55 +461,6 @@ impl SIMDPatternMatcher {
 
     pub fn is_python_simd(&self, content: &str) -> bool {
         content.contains('=') && (content.contains("name") || content.contains("version"))
-    }
-}
-
-/// Predictive prefetching system.
-///
-/// # Implementation status — PLACEHOLDER
-///
-/// All three methods currently return constant / empty values:
-/// - [`predict_directory_priority`] → always `0.5`
-/// - [`predict_file_access`] → always `[]`
-/// - [`calculate_cache_score`] → always `0.5`
-///
-/// The ML-based prediction logic is not yet implemented. Tests for this type
-/// are explicitly marked as smoke tests and only verify that the API compiles
-/// and returns values in the expected range.  When real prediction semantics
-/// are introduced the smoke tests should be replaced with contract tests.
-///
-/// [`predict_directory_priority`]: PrefetchPredictor::predict_directory_priority
-/// [`predict_file_access`]: PrefetchPredictor::predict_file_access
-/// [`calculate_cache_score`]: PrefetchPredictor::calculate_cache_score
-#[derive(Default)]
-pub struct PrefetchPredictor {
-    // Placeholder: no ML model state yet.
-}
-
-impl PrefetchPredictor {
-    pub fn new() -> Self {
-        Self {}
-    }
-
-    /// Returns a priority score for the given directory path.
-    ///
-    /// **Placeholder**: always returns `0.5` until ML logic is implemented.
-    pub fn predict_directory_priority(&self, _path: &Path) -> f64 {
-        0.5
-    }
-
-    /// Returns predicted access scores for the given file paths.
-    ///
-    /// **Placeholder**: always returns an empty `Vec` until ML logic is implemented.
-    pub fn predict_file_access(&self, _files: &[PathBuf]) -> Vec<(PathBuf, f64)> {
-        Vec::new()
-    }
-
-    /// Returns a cache retention score for the given path.
-    ///
-    /// **Placeholder**: always returns `0.5` until ML logic is implemented.
-    pub fn calculate_cache_score(&self, _path: &Path) -> f64 {
-        0.5
     }
 }
 

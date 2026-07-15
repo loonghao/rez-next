@@ -19,7 +19,7 @@ import os
 import tempfile
 from contextlib import contextmanager
 from enum import Enum
-from typing import Any, Callable, Iterator, TextIO, Optional
+from typing import Any, Callable, Iterator, TextIO
 
 # ── FileFormat (matches rez.serialise.FileFormat) ─────────────────────────────
 
@@ -41,7 +41,7 @@ _file_cache: dict[str, str] = {}
 
 
 @contextmanager
-def open_file_for_write(filepath: str, mode: Optional[int] = None) -> Iterator[TextIO]:
+def open_file_for_write(filepath: str, mode: int | None = None) -> Iterator[TextIO]:
     """Open a file for writing, creating a local temp cache for NFS safety.
 
     Args:
@@ -76,7 +76,7 @@ def open_file_for_write(filepath: str, mode: Optional[int] = None) -> Iterator[T
 def load_from_file(
     filepath: str,
     format_: FileFormat = FileFormat.py,
-    update_data_callback: Optional[Callable] = None,
+    update_data_callback: Callable | None = None,
     disable_memcache: bool = False,
 ) -> Any:
     """Load data from a file.
@@ -96,13 +96,13 @@ def load_from_file(
     if abs_path in _file_cache:
         cache_path = _file_cache[abs_path]
         if os.path.exists(cache_path):
-            with open(cache_path, "r", encoding="utf-8") as f:
+            with open(cache_path, encoding="utf-8") as f:
                 content = f.read()
         else:
-            with open(abs_path, "r", encoding="utf-8") as f:
+            with open(abs_path, encoding="utf-8") as f:
                 content = f.read()
     else:
-        with open(abs_path, "r", encoding="utf-8") as f:
+        with open(abs_path, encoding="utf-8") as f:
             content = f.read()
 
     if format_ == FileFormat.py:
@@ -123,11 +123,12 @@ def load_from_file(
 # ── Format-specific loaders ──────────────────────────────────────────────────
 
 
-def load_py(stream: str, filepath: Optional[str] = None) -> dict[str, Any]:
+def load_py(stream: str, filepath: str | None = None) -> dict[str, Any]:
     """Load Python-format data from a string.
 
-    This is a simplified placeholder that evaluates the stream safely.
-    Full Rez compatibility would require proper importlib-based loading.
+    Rez package definitions are executable Python. This function executes the
+    stream in an isolated namespace, but it is not a security sandbox; only
+    load package definitions from trusted repositories.
 
     Args:
         stream: Python source code as a string.
@@ -136,13 +137,13 @@ def load_py(stream: str, filepath: Optional[str] = None) -> dict[str, Any]:
     Returns:
         Parsed data dictionary.
     """
-    # Simplified: wrap in a namespace dict and exec
+    # Package definitions are executable by design; isolate their namespace.
     namespace: dict[str, Any] = {}
     try:
         exec(stream, namespace)
     except Exception as e:
         raise RuntimeError(
-            f"Failed to load Python package definition"
+            "Failed to load Python package definition"
             + (f" from {filepath}" if filepath else "")
             + f": {e}"
         )
@@ -161,17 +162,15 @@ def load_py(stream: str, filepath: Optional[str] = None) -> dict[str, Any]:
     return data
 
 
-def load_yaml(stream: str, filepath: Optional[str] = None) -> dict[str, Any]:
+def load_yaml(stream: str, filepath: str | None = None) -> dict[str, Any]:
     """Reject the obsolete YAML package-definition format."""
 
     del stream
     location = f" ({filepath})" if filepath else ""
-    raise ValueError(
-        f"YAML package definitions are not supported{location}; use package.py"
-    )
+    raise ValueError(f"YAML package definitions are not supported{location}; use package.py")
 
 
-def load_txt(stream: str, filepath: Optional[str] = None) -> str:
+def load_txt(stream: str, filepath: str | None = None) -> str:
     """Load text-format data from a string.
 
     Args:
@@ -197,7 +196,9 @@ class EarlyThis:
         if attr in self._data:
             value = self._data[attr]
             if callable(value) and hasattr(value, "_early"):
-                raise ValueError(f"Cannot access early-bound function '{attr}' from another early function")
+                raise ValueError(
+                    f"Cannot access early-bound function '{attr}' from another early function"
+                )
             return value
         raise AttributeError(f"'this' object has no attribute '{attr}'")
 
@@ -229,7 +230,7 @@ def get_objects() -> dict[str, Any]:
 # ── Post-processing ──────────────────────────────────────────────────────────
 
 
-def process_python_objects(data: dict[str, Any], filepath: Optional[str] = None) -> dict[str, Any]:
+def process_python_objects(data: dict[str, Any], filepath: str | None = None) -> dict[str, Any]:
     """Post-process Python-loaded package data.
 
     Processes ``@early``/``@late`` decorated functions and rex functions.

@@ -1,10 +1,5 @@
 """Tests for pip_get_pip_dependencies() function."""
 
-import pytest
-import os
-import tempfile
-
-import rez_next as rez
 import rez_next.pip as pip
 
 

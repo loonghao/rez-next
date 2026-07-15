@@ -9,15 +9,13 @@ build_process.py API, without deprecated parameters or legacy
 compatibility code.
 """
 
-import os
-import sys
 import abc
 import enum
 import logging
+import os
 import shutil
 import stat
 import time
-import inspect
 from collections import OrderedDict
 from typing import Any
 
@@ -26,29 +24,35 @@ logger = logging.getLogger(__name__)
 
 class BuildType(enum.IntEnum):
     """Build type: local (developer) vs central (release)."""
+
     local = 0
     central = 1
 
 
 # --- Error hierarchy ---
 
+
 class BuildProcessError(Exception):
     """Base error for build process operations."""
+
     pass
 
 
 class BuildContextResolveError(BuildProcessError):
     """Build environment resolution failed."""
+
     pass
 
 
 class ReleaseError(BuildProcessError):
     """Fatal error during release."""
+
     pass
 
 
 class ReleaseHookCancellingError(BuildProcessError):
     """A release hook cancelled the release."""
+
     pass
 
 
@@ -62,6 +66,7 @@ class ReleaseVCSError(BuildProcessError):
 
 # --- BuildProcess ABC ---
 
+
 class BuildProcess(abc.ABC):
     """Abstract base for build/release process implementations.
 
@@ -72,14 +77,23 @@ class BuildProcess(abc.ABC):
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
-        if (not abc.ABC in getattr(cls, "__bases__", []) and
-                not getattr(cls, "__abstractmethods__", frozenset())):
+        if abc.ABC not in getattr(cls, "__bases__", []) and not getattr(
+            cls, "__abstractmethods__", frozenset()
+        ):
             name = getattr(cls, "name", cls.__name__)
             BuildProcess._registry[name] = cls
 
-    def __init__(self, working_dir="", build_system=None, vcs=None,
-                 ensure_latest=True, skip_repo_errors=False,
-                 ignore_existing_tag=False, verbose=False, quiet=False):
+    def __init__(
+        self,
+        working_dir="",
+        build_system=None,
+        vcs=None,
+        ensure_latest=True,
+        skip_repo_errors=False,
+        ignore_existing_tag=False,
+        verbose=False,
+        quiet=False,
+    ):
         self._working_dir = working_dir or ""
         self._build_system = build_system
         self._vcs = vcs
@@ -131,7 +145,9 @@ class BuildProcess(abc.ABC):
     def _n_of_m(self, n, m):
         return f"[{n}/{m}]"
 
+
 # --- BuildProcessHelper ---
+
 
 class BuildProcessHelper(BuildProcess):
     """Concrete helper with common build/release logic.
@@ -142,17 +158,21 @@ class BuildProcessHelper(BuildProcess):
 
     def repo_operation(self, label=""):
         """Context manager for VCS operations with error suppression."""
+
         class _RepoOperation:
             def __init__(self, outer, label_):
                 self.outer = outer
                 self.label = label_
+
             def __enter__(self):
                 return self
+
             def __exit__(self, exc_type, exc_val, exc_tb):
                 if exc_type is ReleaseVCSError and self.outer._skip_repo_errors:
                     logger.warning("Skipping repo operation %s: %s", self.label, exc_val)
                     return True
                 return False
+
         return _RepoOperation(self, label)
 
     def visit_variants(self, func, variants=None, **kwargs):
@@ -185,13 +205,14 @@ class BuildProcessHelper(BuildProcess):
     def create_build_context(self, variant, build_type, build_path=None):
         """Create a ResolvedContext for a build variant."""
         from rez_next.resolved_context import ResolvedContext
+
         index, requires = variant
         pkg = self.package
         if pkg is None:
             raise BuildProcessError("No package available for build context")
         name = getattr(pkg, "name", "unknown")
         version = getattr(pkg, "version", "unknown")
-        working_dir = self.working_dir or os.getcwd()
+        self.working_dir or os.getcwd()
         request = [f"{name}-{version}"]
         if requires:
             request.extend(str(r) for r in requires)
@@ -210,7 +231,7 @@ class BuildProcessHelper(BuildProcess):
             try:
                 with open(rxt_path, "w") as f:
                     f.write(str(ctx))
-            except (IOError, OSError):
+            except OSError:
                 rxt_path = None
         return ctx, rxt_path
 
@@ -264,6 +285,7 @@ class BuildProcessHelper(BuildProcess):
             else:
                 logger.warning("VCS has no create_tag; tag %s not created", tag_name)
         return tag_name
+
     def get_current_tag_name(self):
         """Get the VCS tag name for the current package version."""
         pkg = self.package
@@ -272,6 +294,7 @@ class BuildProcessHelper(BuildProcess):
         version = getattr(pkg, "version", "unknown")
         tag_format = "v{version}"
         from rez_next import config as cfg
+
         try:
             cfg_tag = cfg.get("plugins.release_vcs.tag_name", None)
             if cfg_tag:
@@ -284,6 +307,7 @@ class BuildProcessHelper(BuildProcess):
         """Run configured release hooks."""
         try:
             from rez_next.release_hook import run_hooks
+
             run_hooks(hook_event, package=self.package, vcs=self._vcs, **kwargs)
         except ReleaseHookCancellingError:
             raise
@@ -302,6 +326,7 @@ class BuildProcessHelper(BuildProcess):
             return None
         try:
             from rez_next.packages_ import get_latest_package
+
             return get_latest_package(name)
         except Exception:
             return None
@@ -370,7 +395,9 @@ class BuildProcessHelper(BuildProcess):
         self._print(f"Release complete: {name}-{version} tagged as {tag_name}")
         return build_count
 
+
 # --- Factory functions ---
+
 
 def get_build_process_types():
     """Get registered build process types."""
@@ -405,8 +432,7 @@ def create_build_process(
     cls = types.get(process_type)
     if cls is None:
         raise BuildProcessError(
-            f"Unknown build process type: {process_type!r}. "
-            f"Available: {list(types.keys())}"
+            f"Unknown build process type: {process_type!r}. Available: {list(types.keys())}"
         )
     return cls(
         build_system=build_system,
@@ -420,6 +446,7 @@ def create_build_process(
 
 
 # --- Platform helpers ---
+
 
 def _remove_readonly(func, path, exc_info):
     """Clear read-only bit and retry (handles AppleDouble on macOS)."""
@@ -442,7 +469,7 @@ def _retry_rmtree(path, max_retries=3, delay=0.1):
             if os.path.exists(path):
                 shutil.rmtree(path, onerror=_remove_readonly)
             return
-        except (OSError, PermissionError) as e:
+        except (OSError, PermissionError):
             if attempt == max_retries - 1:
                 raise
             time.sleep(delay * (attempt + 1))

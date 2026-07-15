@@ -12,16 +12,15 @@ API Reference: rez.package_order
   - PerFamilyOrder: apply different orderers per package family
 """
 
-import rez_next._native  # noqa: F401
-
 from collections import OrderedDict as _OrderedDict
 from typing import Any, Dict, List, Optional
 
+import rez_next._native  # noqa: F401
 from rez_next._native.package_order import (  # noqa: F401
     NullPackageOrder,
     SortedOrder,
-    VersionSplitPackageOrder,
     TimestampPackageOrder,
+    VersionSplitPackageOrder,
 )
 
 # Orderer registry: maps name → class for plugin-like extension

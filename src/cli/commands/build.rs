@@ -375,7 +375,7 @@ fn load_current_package(working_dir: &Path) -> RezCoreResult<Package> {
         .map_err(|e| RezCoreError::PackageParse(format!("Failed to load package: {}", e)))
 }
 
-fn resolve_build_context(
+pub(super) fn resolve_build_context(
     package: &Package,
     variant_requires: Option<&[String]>,
     verbose: bool,

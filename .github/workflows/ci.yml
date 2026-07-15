@@ -20,6 +20,16 @@ env:
   CARGO_INCREMENTAL: 0
 
 jobs:
+  release-version:
+    name: Release Version Consistency
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: python scripts/check_release_versions.py
+
   actionlint:
     name: Actionlint
     runs-on: ubuntu-latest
@@ -251,6 +261,10 @@ jobs:
           pip install maturin pytest pytest-benchmark
           echo "VIRTUAL_ENV=$VIRTUAL_ENV" >> "$GITHUB_ENV"
           echo "$VIRTUAL_ENV/bin" >> "$GITHUB_PATH"
+      - name: Lint Python package
+        if: matrix.python-version == '3.12'
+        working-directory: crates/rez-next-python
+        run: pip install ruff==0.15.21 && ruff check python tests
       - name: Build and install Python binding (dev mode)
         working-directory: crates/rez-next-python
         run: maturin develop --release

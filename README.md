@@ -11,9 +11,9 @@
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/rez-next)](https://pypi.org/project/rez-next/)
 [![Coverage](https://img.shields.io/codecov/c/gh/loonghao/rez-next/main)](https://codecov.io/gh/loonghao/rez-next)
 
-> ⚠️ **Experimental project.** rez-next is a Rust experiment exploring what a full rewrite of the [Rez](https://github.com/AcademySoftwareFoundation/rez) package manager could look like. It is **not** production-ready, **not** an official AcademySoftwareFoundation project, and APIs may change without notice. Use it for evaluation, benchmarking, and research — not for studio-critical pipelines.
+> **Production-ready scope.** Documented common workflows are production-ready when a released version is pinned and validated against your package corpus. rez-next is pre-1.0, uses curated compatibility, is **not** a seamless replacement for every Rez API, and is not an official AcademySoftwareFoundation project.
 
-An experimental Rust implementation of the [Rez](https://github.com/AcademySoftwareFoundation/rez) package manager with Python bindings and growing compatibility coverage. Many common workflows already work with `import rez_next`, but it is not yet a seamless drop-in switch for every API surface.
+A high-performance Rust implementation of common [Rez](https://github.com/AcademySoftwareFoundation/rez) package-management workflows with Python bindings. Unsupported compatibility surfaces fail explicitly instead of reporting false success. See [Production readiness](docs/production-readiness.md) for the supported surface, exclusions, release gates, and adoption checklist.
 
 [English](README.md) | [中文](README_zh.md)
 
@@ -30,14 +30,14 @@ curl -fsSL https://raw.githubusercontent.com/loonghao/rez-next/main/install.sh |
 Or with a specific version:
 
 ```bash
-REZ_NEXT_VERSION=0.3.1 curl -fsSL https://raw.githubusercontent.com/loonghao/rez-next/main/install.sh | sh
+REZ_NEXT_VERSION=0.3.4 curl -fsSL https://raw.githubusercontent.com/loonghao/rez-next/main/install.sh | sh # x-release-please-version
 ```
 
 Environment variables:
 
 | Variable | Description | Default |
 |---|---|---|
-| `REZ_NEXT_VERSION` | Version to install (e.g. `0.3.0`) | latest |
+| `REZ_NEXT_VERSION` | Version to install (e.g. `0.3.4`) | latest | <!-- x-release-please-version -->
 | `REZ_NEXT_INSTALL` | Installation directory | `$HOME/.rez-next/bin` |
 | `REZ_NEXT_MUSL` | Force musl build on Linux | auto-detect |
 
@@ -75,7 +75,7 @@ rez-next self-update
 rez-next self-update --check
 
 # Update to a specific version
-rez-next self-update --version 0.3.1
+rez-next self-update --version 0.3.4 # x-release-please-version
 
 # Force reinstall of the current version
 rez-next self-update --force
@@ -301,7 +301,7 @@ rez-next-python        Python bindings via PyO3 (40 submodules)
 | `rez-next-solver` | Active development (A* enabled) | ~15 |
 | `rez-next-context` | Active development | ~12 |
 | `rez-next-repository` | Mature core | ~8 |
-| `rez-next-build` | Partial (basic flows + placeholders) | ~6 |
+| `rez-next-build` | Supported build/release workflows | ~6 |
 | `rez-next-cache` | Active development | ~5 |
 | `rez-next-suites` | Active development | ~10 |
 | `rez-next-bind` | Active development | ~37 |
@@ -312,7 +312,7 @@ rez-next-python        Python bindings via PyO3 (40 submodules)
 | `rez-next-serialise` | Stable | ~5 |
 | `rez-next-explicit` | Stable | ~5 |
 | `rez-next-util` | Stable | ~5 |
-| `rez-next-python` | Partial compatibility (40 submodules) | ~125 |
+| `rez-next-python` | Curated compatibility (40 submodules) | ~125 |
 | Compat integration tests | Growing coverage | ~210 |
 
 ---

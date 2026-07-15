@@ -4,7 +4,7 @@
 
 ## Status
 
-Python bindings are **partially implemented** in `crates/rez-next-python` and exposed through the `rez_next` Python package. Many common Rez workflows already work with `import rez_next`, but it is **not yet a seamless drop-in** for every API surface.
+Python bindings expose a **curated compatibility surface** through the `rez_next` package. Documented common workflows are production-ready, but rez-next intentionally does not mirror every Rez internal API.
 
 ## Architecture
 
@@ -311,7 +311,7 @@ See [benchmark_guide.md](./benchmark_guide.md) for details.
 ## Known Limitations
 
 1. **Not all Rez APIs implemented** - Check the table above for coverage
-2. **Some advanced features missing** - Build system, release workflow partial
+2. **Some advanced APIs are excluded** - Variant URI lookup, cached pure-Python resolver execution, and direct repository variant installation fail explicitly
 3. **Pre-1.0 project** - API may change
 4. **Python 3.8+ required** - For abi3-py38 support
 

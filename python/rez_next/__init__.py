@@ -8,7 +8,7 @@ from pathlib import Path
 import runpy
 
 # Version info (matches rez.__version__ API)
-__version__ = "0.3.0"
+__version__ = getattr(_native, "__version__", "0+unknown")
 __author__ = "rez-next contributors"
 __license__ = "Apache-2.0"
 

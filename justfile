@@ -50,7 +50,11 @@ run *ARGS:
 check: fmt-check lint test
 
 # Run all CI checks locally (mirrors GitHub Actions)
-ci: actionlint fmt-check lint-ci doc-check test
+ci: version-check actionlint fmt-check lint-ci doc-check test
+
+# Check that all release-managed package versions match
+version-check:
+    vx python scripts/check_release_versions.py
 
 # Check documentation builds without warnings
 doc:
@@ -120,8 +124,8 @@ py-fmt:
 py-lint:
     vx ruff check crates/rez-next-python/
 
-# Build wheel + run all Python tests (full Python CI flow)
-py-ci: py-build py-test
+# Build wheel + run lint and all Python tests (full Python CI flow)
+py-ci: py-lint py-build py-test
 
 # ── CLI E2E ────────────────────────────────────────────────────────────────
 

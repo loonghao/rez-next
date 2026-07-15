@@ -17,13 +17,13 @@ API alignment:
 
 from __future__ import annotations
 
-import os
 import abc
+import os
 import threading
 import time
-from functools import cached_property
 from contextlib import contextmanager
-from typing import Any, Iterator, Optional, TYPE_CHECKING
+from functools import cached_property
+from typing import TYPE_CHECKING, Any, Iterator
 
 if TYPE_CHECKING:
     from rez_next.version import Version
@@ -65,6 +65,7 @@ def get_package_repository_types() -> list[str]:
         Sorted list of registered repository type names.
     """
     from rez_next.plugin_managers import plugin_manager
+
     return sorted(plugin_manager.get_plugins("package_repository"))
 
 
@@ -81,6 +82,7 @@ def create_memory_package_repository(
         A ``MemoryPackageRepository`` instance.
     """
     from rez_next.plugin_managers import plugin_manager
+
     cls = plugin_manager.get_plugin_class("package_repository", "memory")
     return cls.create_repository(repository_data)
 
@@ -230,9 +232,7 @@ class PackageRepository(abc.ABC):
         """
         raise NotImplementedError
 
-    def remove_ignored_since(
-        self, days: int, dry_run: bool = False, verbose: bool = False
-    ) -> int:
+    def remove_ignored_since(self, days: int, dry_run: bool = False, verbose: bool = False) -> int:
         """Remove packages that have been ignored for *days* or more.
 
         Returns:
@@ -254,7 +254,7 @@ class PackageRepository(abc.ABC):
         self,
         variant_resource: Any,
         dry_run: bool = False,
-        overrides: Optional[dict[str, Any]] = None,
+        overrides: dict[str, Any] | None = None,
     ) -> Any:
         """Install a variant into the repository."""
         raise NotImplementedError
@@ -280,9 +280,7 @@ class PackageRepository(abc.ABC):
         """
         return None
 
-    def get_last_release_time(
-        self, package_family_resource: Any
-    ) -> int:
+    def get_last_release_time(self, package_family_resource: Any) -> int:
         """Return the last release time (epoch seconds) for a package family.
 
         Returns 0 if unknown.
@@ -292,11 +290,13 @@ class PackageRepository(abc.ABC):
     # ── Payload path ─────────────────────────────────────────────────
 
     def get_package_payload_path(
-        self, package_name: str,
-        package_version: Optional[str] = None,
+        self,
+        package_name: str,
+        package_version: str | None = None,
     ) -> str:
         """Return the filesystem path to a package's payload directory."""
         raise NotImplementedError
+
 
 # ── Repository manager ────────────────────────────────────────────────────
 
@@ -348,9 +348,11 @@ class PackageRepositoryManager:
     def _create_repository(self, path: str, **repo_args: Any) -> PackageRepository:
         """Instantiate the repository plugin for the given normalised path."""
         from rez_next.plugin_managers import plugin_manager
+
         repo_type, location = path.split("@", 1)
         cls = plugin_manager.get_plugin_class("package_repository", repo_type)
         return cls(location, self.pool, **repo_args)
+
 
 # Module-level singleton (matches rez.package_repository.package_repository_manager)
 package_repository_manager = PackageRepositoryManager()

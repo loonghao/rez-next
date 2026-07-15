@@ -1,9 +1,5 @@
 """Performance benchmark tests for rez_next vs rez."""
 
-import time
-import os
-import tempfile
-
 import rez_next as rez
 import rez_next.pip as pip
 
@@ -36,6 +32,7 @@ class TestPerformanceBenchmark:
 
     def test_walk_packages_performance(self, benchmark):
         """Benchmark walk_packages()."""
+
         # This uses the default package paths (might be empty)
         def run():
             return rez.walk_packages(paths=["/nonexistent/path_xyz"])

@@ -2,14 +2,13 @@
 
 Wraps native shell functions under Rez-expected names.
 """
-import rez_next._native as _native  # noqa: F811
+
 from rez_next._native.shell import (  # noqa: F401,F403
     Shell,
     create_shell_script,
     get_available_shells,
     get_current_shell,
 )
-
 
 # ── Rez-API-compatible aliases ──────────────────────────────────────
 
