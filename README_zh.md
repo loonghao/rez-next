@@ -30,14 +30,14 @@ curl -fsSL https://raw.githubusercontent.com/loonghao/rez-next/main/install.sh |
 或指定版本安装：
 
 ```bash
-REZ_NEXT_VERSION=0.3.5 curl -fsSL https://raw.githubusercontent.com/loonghao/rez-next/main/install.sh | sh # x-release-please-version
+REZ_NEXT_VERSION=0.3.6 curl -fsSL https://raw.githubusercontent.com/loonghao/rez-next/main/install.sh | sh # x-release-please-version
 ```
 
 环境变量说明：
 
 | 变量 | 说明 | 默认值 |
 |---|---|---|
-| `REZ_NEXT_VERSION` | 指定安装版本（如 `0.3.5`） | 最新版本 | <!-- x-release-please-version -->
+| `REZ_NEXT_VERSION` | 指定安装版本（如 `0.3.6`） | 最新版本 | <!-- x-release-please-version -->
 | `REZ_NEXT_INSTALL` | 安装目录 | `$HOME/.rez-next/bin` |
 | `REZ_NEXT_MUSL` | Linux 强制使用 musl 构建 | 自动检测 |
 
@@ -75,7 +75,7 @@ rez-next self-update
 rez-next self-update --check
 
 # 更新到指定版本
-rez-next self-update --version 0.3.5 # x-release-please-version
+rez-next self-update --version 0.3.6 # x-release-please-version
 
 # 强制重新安装当前版本
 rez-next self-update --force

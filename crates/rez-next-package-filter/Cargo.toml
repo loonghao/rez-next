@@ -1,6 +1,6 @@
 [package]
 name = "rez-next-package-filter"
-version = "0.3.5" # x-release-please-version
+version = "0.3.6" # x-release-please-version
 edition.workspace = true
 rust-version.workspace = true
 authors.workspace = true
@@ -9,9 +9,9 @@ description = "Package filtering for rez-next"
 
 [dependencies]
 # Workspace dependencies
-rez-next-common = { version = "0.3.5", path = "../rez-next-common" }
-rez-next-package = { version = "0.3.5", path = "../rez-next-package" }
-rez-next-version = { version = "0.3.5", path = "../rez-next-version" }
+rez-next-common = { version = "0.3.6", path = "../rez-next-common" }
+rez-next-package = { version = "0.3.6", path = "../rez-next-package" }
+rez-next-version = { version = "0.3.6", path = "../rez-next-version" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }

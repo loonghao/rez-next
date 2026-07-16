@@ -1,6 +1,6 @@
 [package]
 name = "rez-next-python"
-version = "0.3.5" # x-release-please-version
+version = "0.3.6" # x-release-please-version
 edition.workspace = true
 rust-version.workspace = true
 authors.workspace = true
@@ -19,24 +19,24 @@ extension-module = ["pyo3/extension-module"]
 git = ["rez-next-build/git"]
 
 [dependencies]
-rez-next-common = { version = "0.3.5", path = "../rez-next-common" } # x-release-please-version
-rez-next-version = { version = "0.3.5", path = "../rez-next-version" } # x-release-please-version
-rez-next-package = { version = "0.3.5", path = "../rez-next-package" } # x-release-please-version
-rez-next-solver = { version = "0.3.5", path = "../rez-next-solver" } # x-release-please-version
-rez-next-repository = { version = "0.3.5", path = "../rez-next-repository" } # x-release-please-version
-rez-next-context = { version = "0.3.5", path = "../rez-next-context" } # x-release-please-version
-rez-next-build = { version = "0.3.5", path = "../rez-next-build" } # x-release-please-version
-rez-next-rex = { version = "0.3.5", path = "../rez-next-rex" } # x-release-please-version
-rez-next-suites = { version = "0.3.5", path = "../rez-next-suites" } # x-release-please-version
-rez-next-bind = { version = "0.3.5", path = "../rez-next-bind" } # x-release-please-version
-rez-next-search = { version = "0.3.5", path = "../rez-next-search" } # x-release-please-version
-rez-next-package-cache = { version = "0.3.5", path = "../rez-next-package-cache" }
-rez-next-serialise = { version = "0.3.5", path = "../rez-next-serialise" } # x-release-please-version
-rez-next-util = { version = "0.3.5", path = "../rez-next-util" }
-rez-next-package-filter = { version = "0.3.5", path = "../rez-next-package-filter" } # x-release-please-version
-rez-next-release-hook = { version = "0.3.5", path = "../rez-next-release-hook" } # x-release-please-version
-rez-next-explicit = { version = "0.3.5", path = "../rez-next-explicit" }
-rez-next-config = { version = "0.3.5", path = "../rez-next-config" } # x-release-please-version
+rez-next-common = { version = "0.3.6", path = "../rez-next-common" } # x-release-please-version
+rez-next-version = { version = "0.3.6", path = "../rez-next-version" } # x-release-please-version
+rez-next-package = { version = "0.3.6", path = "../rez-next-package" } # x-release-please-version
+rez-next-solver = { version = "0.3.6", path = "../rez-next-solver" } # x-release-please-version
+rez-next-repository = { version = "0.3.6", path = "../rez-next-repository" } # x-release-please-version
+rez-next-context = { version = "0.3.6", path = "../rez-next-context" } # x-release-please-version
+rez-next-build = { version = "0.3.6", path = "../rez-next-build" } # x-release-please-version
+rez-next-rex = { version = "0.3.6", path = "../rez-next-rex" } # x-release-please-version
+rez-next-suites = { version = "0.3.6", path = "../rez-next-suites" } # x-release-please-version
+rez-next-bind = { version = "0.3.6", path = "../rez-next-bind" } # x-release-please-version
+rez-next-search = { version = "0.3.6", path = "../rez-next-search" } # x-release-please-version
+rez-next-package-cache = { version = "0.3.6", path = "../rez-next-package-cache" }
+rez-next-serialise = { version = "0.3.6", path = "../rez-next-serialise" } # x-release-please-version
+rez-next-util = { version = "0.3.6", path = "../rez-next-util" }
+rez-next-package-filter = { version = "0.3.6", path = "../rez-next-package-filter" } # x-release-please-version
+rez-next-release-hook = { version = "0.3.6", path = "../rez-next-release-hook" } # x-release-please-version
+rez-next-explicit = { version = "0.3.6", path = "../rez-next-explicit" }
+rez-next-config = { version = "0.3.6", path = "../rez-next-config" } # x-release-please-version
 pyo3 = { version = "0.29", features = ["abi3-py39"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
