@@ -1,0 +1,17 @@
+{
+  "timestamp": "2026-07-19 05:43 UTC",
+  "commit": "12b29eb",
+  "platform": "Linux-6.17.0-1020-azure",
+  "cpu": "AMD EPYC 9V74 80-Core Processor",
+  "regressions": [
+    "package_serialization/simple_yaml",
+    "package_serialization/complex_json",
+    "package_serialization/simple_python",
+    "package_variants/add_variants/10",
+    "package_cloning/simple_clone",
+    "package_requirements/add_requirements/50",
+    "package_requirements/add_build_requirements/10",
+    "package_requirements/add_build_requirements/100"
+  ],
+  "bench_count": 174
+}
