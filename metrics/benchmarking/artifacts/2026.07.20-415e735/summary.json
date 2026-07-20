@@ -1,0 +1,20 @@
+{
+  "timestamp": "2026-07-20 21:35 UTC",
+  "commit": "415e735",
+  "platform": "Linux-6.17.0-1020-azure",
+  "cpu": "AMD EPYC 9V74 80-Core Processor",
+  "regressions": [
+    "package_serialization/simple_yaml",
+    "package_serialization/complex_json",
+    "package_deserialization/simple_yaml",
+    "package_validation/complex_valid",
+    "package_validation/large_valid",
+    "package_variants/add_variants/10",
+    "package_variants/add_variants/25",
+    "package_cloning/simple_clone",
+    "package_cloning/large_clone",
+    "package_requirements/add_requirements/1",
+    "package_requirements/add_build_requirements/1"
+  ],
+  "bench_count": 174
+}
