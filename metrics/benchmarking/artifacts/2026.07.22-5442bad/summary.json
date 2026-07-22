@@ -1,0 +1,27 @@
+{
+  "timestamp": "2026-07-22 05:13 UTC",
+  "commit": "5442bad",
+  "platform": "Linux-6.17.0-1020-azure",
+  "cpu": "AMD EPYC 7763 64-Core Processor",
+  "regressions": [
+    "package_serialization/large_yaml",
+    "package_serialization/simple_python",
+    "package_serialization/complex_python",
+    "package_serialization/large_python",
+    "package_deserialization/simple_json",
+    "package_deserialization/complex_json",
+    "package_deserialization/simple_python",
+    "package_deserialization/complex_python",
+    "package_cloning/simple_clone",
+    "package_cloning/complex_clone",
+    "package_requirements/add_requirements/1",
+    "package_requirements/add_requirements/10",
+    "package_requirements/add_requirements/50",
+    "package_requirements/add_requirements/100",
+    "package_requirements/add_requirements/500",
+    "package_requirements/add_build_requirements/1",
+    "package_requirements/add_build_requirements/50",
+    "package_requirements/add_build_requirements/100"
+  ],
+  "bench_count": 174
+}
