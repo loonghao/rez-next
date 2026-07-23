@@ -23,7 +23,7 @@ uuid = { version = "1.17", features = ["v4", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }
 regex = "1.11"
 serde_yaml = "0.9"
-base64 = "0.22"
+base64 = "0.23"
 whoami = "2.0"
 
 [dev-dependencies]
