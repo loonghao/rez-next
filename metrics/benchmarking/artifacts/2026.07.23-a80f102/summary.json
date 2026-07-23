@@ -1,0 +1,15 @@
+{
+  "timestamp": "2026-07-23 02:22 UTC",
+  "commit": "a80f102",
+  "platform": "Linux-6.17.0-1020-azure",
+  "cpu": "AMD EPYC 9V74 80-Core Processor",
+  "regressions": [
+    "package_deserialization/simple_yaml",
+    "package_deserialization/simple_python",
+    "package_deserialization/complex_python",
+    "package_deserialization/large_python",
+    "package_variants/add_variants/10",
+    "package_variants/add_variants/25"
+  ],
+  "bench_count": 174
+}
