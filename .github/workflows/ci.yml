@@ -26,7 +26,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
       - run: python scripts/check_release_versions.py
@@ -105,7 +105,7 @@ jobs:
           cache: "true"
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - uses: dtolnay/rust-toolchain@1.95.0
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
       - uses: Swatinem/rust-cache@v2
@@ -135,7 +135,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@1.95.0
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
       - uses: Swatinem/rust-cache@v2
@@ -169,7 +169,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@1.95.0
         with:
           targets: x86_64-pc-windows-msvc
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
       - uses: Swatinem/rust-cache@v2
@@ -274,7 +274,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           key: python-binding-${{ matrix.python-version }}
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python-version }}
       - name: Create virtualenv and install maturin and test dependencies
@@ -316,7 +316,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           key: python-binding-windows
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
       - name: Create virtualenv and install test dependencies
