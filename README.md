@@ -158,12 +158,12 @@ for p in rez.iter_packages("maya"):
 import rez_next as rez
 
 # Parse and compare versions
-v1 = rez.PyVersion("1.2.3")
-v2 = rez.PyVersion("2.0.0")
+v1 = rez.Version("1.2.3")
+v2 = rez.Version("2.0.0")
 print(v1 < v2)  # True
 
 # Version ranges
-r = rez.PyVersionRange(">=3.9,<4.0")
+r = rez.VersionRange(">=3.9,<4.0")
 print(r.contains(v1))  # False
 ```
 
@@ -422,6 +422,7 @@ Measured with `pytest-benchmark` (Python layer over Rust core).
 
 ## Documentation
 
+- [API Stability](docs/api-stability.md) — public API contract and semver gate
 - [Contributing](docs/contributing.md) — development workflow and CI
 - [Python Integration](docs/python-integration.md) — Python bindings usage and module coverage
 - [Benchmark Guide](docs/benchmark_guide.md) — running and interpreting benchmarks

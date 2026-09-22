@@ -158,12 +158,12 @@ for p in rez.iter_packages("maya"):
 import rez_next as rez
 
 # 版本解析与比较
-v1 = rez.PyVersion("1.2.3")
-v2 = rez.PyVersion("2.0.0")
+v1 = rez.Version("1.2.3")
+v2 = rez.Version("2.0.0")
 print(v1 < v2)  # True
 
 # 版本范围
-r = rez.PyVersionRange(">=3.9,<4.0")
+r = rez.VersionRange(">=3.9,<4.0")
 print(r.contains(v1))  # False
 ```
 

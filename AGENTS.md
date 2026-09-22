@@ -151,8 +151,8 @@ vx just py-ci
 ### Version Operations
 ```python
 import rez_next as rez
-v1 = rez.PyVersion("1.2.3")
-v2 = rez.PyVersionRange(">=3.9,<4.0")
+v1 = rez.Version("1.2.3")
+v2 = rez.Version("2.0.0")
 ```
 
 ### Package Queries

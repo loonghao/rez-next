@@ -167,17 +167,17 @@ for p in rez.iter_packages("maya"):
 import rez_next as rez
 
 # Parse and compare versions
-v1 = rez.PyVersion("1.2.3")
-v2 = rez.PyVersion("2.0.0")
+v1 = rez.Version("1.2.3")
+v2 = rez.Version("2.0.0")
 print(v1 < v2)  # True
 
 # Version ranges
-r = rez.PyVersionRange(">=3.9,<4.0")
+r = rez.VersionRange(">=3.9,<4.0")
 print(r.contains(v1))  # False
 
 # Rez-compatible semantics
-v3 = rez.PyVersion("1.0")
-v4 = rez.PyVersion("1.0.0")
+v3 = rez.Version("1.0")
+v4 = rez.Version("1.0.0")
 print(v3 > v4)  # True (Rez semantic)
 ```
 

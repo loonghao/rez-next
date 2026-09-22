@@ -53,7 +53,7 @@ crates/
 ### Core Modules
 | Module | Rez Equivalent | Key APIs |
 |--------|---------------|----------|
-| `rez_next.version` | `rez.vendor.version` | `PyVersion`, `PyVersionRange` |
+| `rez_next.version` | `rez.vendor.version` | `Version`, `VersionRange` |
 | `rez_next.packages_` | `rez.packages_` | `iter_packages`, `get_latest_package`, `copy_package`, `move_package`, `remove_package` |
 | `rez_next.packages` | `rez.packages` | Package object model |
 | `rez_next.resolved_context` | `rez.resolved_context` | `ResolvedContext`, `resolve_packages` |
@@ -133,6 +133,11 @@ crates/
 4. Run `vx just ci` before PR
 5. Update docs (this file, llms-full.txt, docs/)
 
+### Change a public Rust API
+1. Read `docs/api-stability.md` for the contract and the stable crates
+2. Only crate-root `pub use` re-exports are contract; `pub mod` leaves are not
+3. Run `vx just semver-check` before PR (gate: `cargo-semver-checks`)
+
 ### Debug solver issues
 → `crates/rez-next-solver/` (A* with backtracking), `RUST_LOG=debug`
 
@@ -158,7 +163,8 @@ crates/
 
 ## CI Pipeline
 
-- `.github/workflows/ci.yml` — main CI (build, test, lint, doc)
+- `.github/workflows/ci.yml` — main CI (build, test, lint, doc, API stability)
+- `docs/api-stability.md` — public API contract enforced by `cargo-semver-checks`
 - `release-please-config.json` — automated releases
 - `renovate.json` — dependency updates
 - `deny.toml` — supply chain audit
