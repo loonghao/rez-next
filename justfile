@@ -52,6 +52,14 @@ check: fmt-check lint test
 # Run all CI checks locally (mirrors GitHub Actions)
 ci: version-check benchmark-tools-test actionlint fmt-check lint-ci doc-check test
 
+# Crates covered by the API stability contract (see docs/api-stability.md)
+api_crates := "-p rez-next-common -p rez-next-version -p rez-next-package -p rez-next-repository -p rez-next-solver -p rez-next-context"
+
+# Check the public API contract for breaking changes against a baseline revision
+# Requires cargo-semver-checks; defaults to comparing against origin/main
+semver-check REV="origin/main":
+    vx cargo semver-checks check-release --baseline-rev "{{ REV }}" {{ api_crates }}
+
 # Check that all release-managed package versions match
 version-check:
     vx python scripts/check_release_versions.py
