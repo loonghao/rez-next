@@ -128,6 +128,38 @@ jobs:
           key: cli-e2e-v4
       - run: vx just cli-e2e
 
+  semver-checks:
+    name: API Stability
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: loonghao/vx@main
+        with:
+          tools: "just"
+          cache: "true"
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: dtolnay/rust-toolchain@1.95.0
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: semver-checks-v1
+      - uses: taiki-e/install-action@cargo-semver-checks
+      - name: Resolve baseline revision
+        id: baseline
+        run: |
+          set -euo pipefail
+          base="${{ github.event.pull_request.base.sha }}"
+          if [ -n "$base" ]; then
+            rev="$(git merge-base "$base" HEAD)"
+          else
+            rev="$(git rev-parse HEAD~1)"
+          fi
+          echo "rev=$rev" >> "$GITHUB_OUTPUT"
+          echo "Comparing public API against $rev"
+      - run: vx just semver-check "${{ steps.baseline.outputs.rev }}"
+
   test-macos:
     name: Test - macOS
     runs-on: macos-26

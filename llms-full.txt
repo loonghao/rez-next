@@ -192,16 +192,16 @@ if let Some(data) = cache.get("key") {
 ```python
 import rez_next as rez
 
-v = rez.PyVersion("1.2.3")
-v2 = rez.PyVersion("2.0.0")
+v = rez.Version("1.2.3")
+v2 = rez.Version("2.0.0")
 assert v < v2
 
-r = rez.PyVersionRange(">=3.9,<4.0")
-r.contains(rez.PyVersion("3.9.7"))  # True
+r = rez.VersionRange(">=3.9,<4.0")
+r.contains(rez.Version("3.9.7"))  # True
 
 # Rez semantics: 1.0 > 1.0.0 (different interpretation)
-v_strict = rez.PyVersion("1.0")
-v_loose = rez.PyVersion("1.0.0")   # v_strict > v_loose
+v_strict = rez.Version("1.0")
+v_loose = rez.Version("1.0.0")   # v_strict > v_loose
 ```
 
 ### Packages
@@ -211,7 +211,7 @@ from rez_next.packages_ import iter_packages, get_latest_package
 
 pkg = get_latest_package("python")
 pkg.name      # "python"
-pkg.version   # PyVersion object
+pkg.version   # Version object
 
 for p in iter_packages("maya", range_=">=2023"):
     print(p.name, p.version)
