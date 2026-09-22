@@ -152,7 +152,7 @@ impl Repository for FileSystemRepository {
                 continue;
             }
 
-            for (_version_str, package) in versions.iter() {
+            for package in versions.values() {
                 // Check version range
                 if let Some(ref requirement) = criteria.version_requirement
                     && let Some(ref version) = package.version
