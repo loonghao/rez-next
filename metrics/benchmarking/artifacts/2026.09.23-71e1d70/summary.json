@@ -1,0 +1,14 @@
+{
+  "timestamp": "2026-09-23 09:58 UTC",
+  "commit": "71e1d70",
+  "platform": "Linux-6.17.0-1022-azure",
+  "cpu": "AMD EPYC 9V45 96-Core Processor",
+  "regressions": [
+    "package_serialization/large_yaml",
+    "package_serialization/simple_json",
+    "package_serialization/large_json",
+    "package_deserialization/large_yaml",
+    "package_deserialization/large_python"
+  ],
+  "bench_count": 174
+}
