@@ -8,27 +8,27 @@ default:
 
 # Build the project
 build:
-    vx cargo build
+    cargo build
 
 # Build in release mode
 build-release:
-    vx cargo build --release
+    cargo build --release
 
 # Run all tests
 test:
-    vx cargo test --workspace -- --test-threads=1
+    cargo test --workspace -- --test-threads=1
 
 # Run tests with output
 test-verbose:
-    vx cargo test --workspace -- --test-threads=1 --nocapture
+    cargo test --workspace -- --test-threads=1 --nocapture
 
 # Run clippy lints (local dev: all features, all targets)
 lint:
-    vx cargo clippy --workspace --all-targets --all-features -- -D warnings
+    cargo clippy --workspace --all-targets --all-features -- -D warnings
 
 # Run the same complete Clippy gate in CI
 lint-ci:
-    vx cargo clippy --workspace --all-targets --all-features -- -D warnings
+    cargo clippy --workspace --all-targets --all-features -- -D warnings
 
 # Check GitHub Actions workflows
 actionlint:
@@ -36,21 +36,21 @@ actionlint:
 
 # Format code
 fmt:
-    vx cargo fmt --all
+    cargo fmt --all
 
 # Check formatting
 fmt-check:
-    vx cargo fmt --all -- --check
+    cargo fmt --all -- --check
 
 # Run the CLI
 run *ARGS:
-    vx cargo run --bin rez-next -- {{ARGS}}
+    cargo run --bin rez-next -- {{ARGS}}
 
 # Check everything (format, lint, test)
 check: fmt-check lint test
 
 # Run all CI checks locally (mirrors GitHub Actions)
-ci: version-check benchmark-tools-test actionlint fmt-check lint-ci doc-check test
+ci: toolchain-check version-check benchmark-tools-test actionlint fmt-check lint-ci doc-check test
 
 # Crates covered by the API stability contract (see docs/api-stability.md)
 api_crates := "-p rez-next-common -p rez-next-version -p rez-next-package -p rez-next-repository -p rez-next-solver -p rez-next-context"
@@ -58,11 +58,15 @@ api_crates := "-p rez-next-common -p rez-next-version -p rez-next-package -p rez
 # Check the public API contract for breaking changes against a baseline revision
 # Requires cargo-semver-checks; defaults to comparing against origin/main
 semver-check REV="origin/main":
-    vx cargo semver-checks check-release --baseline-rev "{{ REV }}" {{ api_crates }}
+    cargo semver-checks check-release --baseline-rev "{{ REV }}" {{ api_crates }}
 
 # Check that all release-managed package versions match
 version-check:
     vx python scripts/check_release_versions.py
+
+# Check that the Rust toolchain pin is identical everywhere (see rust-toolchain.toml)
+toolchain-check:
+    vx python scripts/check_toolchain_pins.py
 
 # Validate the benchmark output parser and regression-gate contract
 benchmark-tools-test:
@@ -70,23 +74,23 @@ benchmark-tools-test:
 
 # Check documentation builds without warnings
 doc:
-    vx cargo doc --workspace --all-features --no-deps
+    cargo doc --workspace --all-features --no-deps
 
 # Check documentation with warnings as errors
 doc-check:
-    vx cargo --config 'build.rustdocflags=["-D", "warnings"]' doc --workspace --all-features --no-deps --document-private-items
+    cargo --config 'build.rustdocflags=["-D", "warnings"]' doc --workspace --all-features --no-deps --document-private-items
 
 # Run benchmarks
 bench:
-    vx cargo bench --bench version_benchmark --bench package_benchmark --bench simple_package_benchmark
+    cargo bench --bench version_benchmark --bench package_benchmark --bench simple_package_benchmark
 
 # Clean build artifacts
 clean:
-    vx cargo clean
+    cargo clean
 
 # Install locally
 install:
-    vx cargo install --path .
+    cargo install --path .
 
 # ── pre-commit ─────────────────────────────────────────────────────────────
 
@@ -143,20 +147,20 @@ py-ci: py-lint py-build py-test
 
 # Build the rez-next binary
 build-bin:
-    vx cargo build --bin rez-next
+    cargo build --bin rez-next
 
 # Run CLI end-to-end tests (requires binary to be built first)
 # Use CARGO_MANIFEST_DIR-based absolute path to avoid cwd issues on Linux
 cli-e2e:
-    vx cargo build --bin rez-next
-    vx cargo test --test cli_e2e_tests -- --nocapture
+    cargo build --bin rez-next
+    cargo test --test cli_e2e_tests -- --nocapture
 
 # Run CLI e2e tests with release binary (faster)
 cli-e2e-release:
-    vx cargo build --release --bin rez-next
-    vx cargo --config 'env.REZ_NEXT_E2E_BINARY="target/release/rez-next"' test --test cli_e2e_tests -- --nocapture
+    cargo build --release --bin rez-next
+    cargo --config 'env.REZ_NEXT_E2E_BINARY="target/release/rez-next"' test --test cli_e2e_tests -- --nocapture
 
 # Run a single CLI e2e test by name
 cli-e2e-one TEST: build-bin
-    vx cargo --config 'env.REZ_NEXT_E2E_BINARY="target/debug/rez-next"' test --test cli_e2e_tests {{TEST}} -- --nocapture
+    cargo --config 'env.REZ_NEXT_E2E_BINARY="target/debug/rez-next"' test --test cli_e2e_tests {{TEST}} -- --nocapture
 

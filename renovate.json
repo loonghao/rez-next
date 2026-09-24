@@ -8,5 +8,13 @@
   "automerge": true,
   "automergeType": "pr",
   "platformAutomerge": true,
-  "rebaseWhen": "behind-base-branch"
+  "rebaseWhen": "behind-base-branch",
+  "packageRules": [
+    {
+      "description": "A rust-toolchain bump only rewrites rust-toolchain.toml, but the same version is also pinned in Cargo.toml (rust-version), clippy.toml (msrv) and every dtolnay/rust-toolchain@ entry in .github/workflows. A partial bump silently puts CI on a different toolchain than the one it advertises, so never automerge it - update every location together and let scripts/check_toolchain_pins.py confirm.",
+      "matchFileNames": ["rust-toolchain.toml"],
+      "automerge": false,
+      "addLabels": ["toolchain"]
+    }
+  ]
 }

@@ -21,17 +21,17 @@ The up-to-date file list is maintained in `benches/README.md`.
 
 ```bash
 # All registered benchmarks
-vx cargo bench
+cargo bench
 
 # Curated fast subset used in local development
 vx just bench
 
 # Individual targets
-vx cargo bench --bench version_benchmark
-vx cargo bench --bench solver_bench_v2
+cargo bench --bench version_benchmark
+cargo bench --bench solver_bench_v2
 
 # Filter within a target
-vx cargo bench --bench version_benchmark -- state_machine
+cargo bench --bench version_benchmark -- state_machine
 ```
 
 ## Interpreting results
@@ -75,10 +75,10 @@ harness = false
 
 ```bash
 # Save a baseline
-vx cargo bench -- --save-baseline main
+cargo bench -- --save-baseline main
 
 # Compare after changes
-vx cargo bench -- --baseline main
+cargo bench -- --baseline main
 ```
 
 ## References

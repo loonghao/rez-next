@@ -1,3 +1,10 @@
+# Single source of truth for the Rust toolchain, local and in CI.
+# This pin must stay in lockstep with:
+#   - `rust-version` in Cargo.toml (declared MSRV)
+#   - `msrv` in clippy.toml
+#   - every `dtolnay/rust-toolchain@<version>` and `RUSTUP_TOOLCHAIN: <version>`
+#     in .github/workflows/*.yml
+# `scripts/check_toolchain_pins.py` enforces the lockstep in CI.
 [toolchain]
-channel = "1.97.1"
+channel = "1.95.0"
 components = ["clippy", "rustfmt"]

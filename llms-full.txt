@@ -550,10 +550,10 @@ vx just pre-commit          # Run on all files
 vx just pre-commit-update   # Update hook versions
 
 # Direct cargo commands
-vx cargo test --workspace
-vx cargo test --package rez-next-solver
-vx cargo bench --bench version_benchmark
-vx cargo clippy --workspace --all-targets
+cargo test --workspace
+cargo test --package rez-next-solver
+cargo bench --bench version_benchmark
+cargo clippy --workspace --all-targets
 ```
 
 ---
