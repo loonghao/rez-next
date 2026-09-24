@@ -421,6 +421,7 @@ cargo bench --bench simple_package_benchmark
 
 ## 文档
 
+- [API 稳定性](docs/api-stability.md) — 公开 API 契约与 semver 门禁
 - [贡献指南](docs/contributing.md) — 开发工作流和 CI
 - [Python 集成](docs/python-integration_zh.md) — Python 绑定使用说明与模块覆盖
 - [基准测试指南](docs/benchmark_guide.md) — 运行和解读基准测试
