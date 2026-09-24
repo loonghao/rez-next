@@ -153,6 +153,11 @@ vx just py-ci
 import rez_next as rez
 v1 = rez.Version("1.2.3")
 v2 = rez.Version("2.0.0")
+print(v1 < v2)  # True
+
+# Version ranges
+r = rez.VersionRange(">=3.9,<4.0")
+print(r.contains(v1))  # False
 ```
 
 ### Package Queries
