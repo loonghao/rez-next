@@ -8,14 +8,29 @@ Thank you for your interest in contributing.
 
 Runs on pushes to `main` / `develop` and pull requests targeting `main`:
 
+- Toolchain pin consistency via `scripts/check_toolchain_pins.py`
 - Formatting check via `vx just fmt-check`
-- CI lint via `vx just lint-ci` (`clippy --exclude rez-next-python -- -A warnings -D clippy::correctness`)
+- CI lint via `vx just lint-ci` (`clippy --workspace --all-targets --all-features -- -D warnings`)
 - Docs check via `vx just doc-check`
-- Workspace tests via `vx cargo test --workspace --exclude rez-next-python` on Linux/macOS/Windows
+- Workspace tests via `cargo test --workspace --exclude rez-next-python` on Linux/macOS/Windows
 - CLI E2E via `vx just cli-e2e`
 - Security auditing via `rustsec/audit-check`
 - Coverage via `cargo llvm-cov`
 - Python binding tests via `maturin develop --release` + `pytest`
+
+### Rust toolchain
+
+`rust-toolchain.toml` is the single source of truth for the Rust toolchain. The
+same version must appear in `Cargo.toml` (`rust-version`), `clippy.toml`
+(`msrv`), and every `dtolnay/rust-toolchain@<version>` / `RUSTUP_TOOLCHAIN`
+entry under `.github/workflows/`; `scripts/check_toolchain_pins.py` fails CI
+when they disagree, and `just toolchain-check` runs the same check locally.
+
+The toolchain always comes from rustup, never from `vx`: `rust` is deliberately
+not listed in `vx.toml`, and the `justfile` calls `cargo` directly. Routing
+cargo through `vx` made it install the `stable` channel at runtime and switch
+the rustup default to it, so CI silently ran on a newer toolchain than the one
+it pinned - any new upstream lint then turned unrelated pull requests red.
 
 ### Release
 
@@ -59,10 +74,10 @@ vx just test
 
 ```bash
 # Fix formatting
-vx cargo fmt
+cargo fmt
 
 # Fix clippy
-vx cargo clippy --fix --workspace --all-targets --all-features
+cargo clippy --fix --workspace --all-targets --all-features
 
 # Update audit DB
 cargo audit --update-db

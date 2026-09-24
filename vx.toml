@@ -1,10 +1,15 @@
 [tools]
+# `rust` is intentionally absent. vx resolves `cargo`/`rustc` through its own
+# store, which ignored the pinned channel: on a clean runner it installed the
+# `stable` channel, switched the rustup default to it, and every `vx just ...`
+# job silently ran on that toolchain instead of the pinned one. Rust now comes
+# from rustup only, driven by rust-toolchain.toml (local) or RUSTUP_TOOLCHAIN
+# (CI); see scripts/check_toolchain_pins.py.
 actionlint = "latest"
 cargo-llvm-cov = "latest"
 just = "latest"
 maturin = "latest"
 python = "3.14.4"
-rust = "1.95.0"
 uv = "latest"
 
 [settings]

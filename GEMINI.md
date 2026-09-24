@@ -66,7 +66,7 @@ chore: upgrade dependencies
 vx just test
 
 # Run specific tests
-vx cargo test --package rez-next-solver
+cargo test --package rez-next-solver
 
 # Run Python tests
 maturin develop --release && pytest

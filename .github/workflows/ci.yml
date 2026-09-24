@@ -21,6 +21,16 @@ env:
   RUSTUP_TOOLCHAIN: 1.95.0
 
 jobs:
+  toolchain-pins:
+    name: Toolchain Pins
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - run: python scripts/check_toolchain_pins.py
+
   release-version:
     name: Release Version Consistency
     runs-on: ubuntu-latest
@@ -74,6 +84,11 @@ jobs:
         with:
           components: clippy
       - uses: Swatinem/rust-cache@v2
+      - name: Report the toolchain in use
+        run: |
+          rustc --version
+          cargo --version
+          cargo clippy --version
       - run: vx just lint-ci
 
   docs:
@@ -109,7 +124,7 @@ jobs:
         with:
           python-version: "3.12"
       - uses: Swatinem/rust-cache@v2
-      - run: vx cargo check --workspace --exclude rez-next-python --all-targets
+      - run: cargo check --workspace --exclude rez-next-python --all-targets
       - run: vx just test
 
   cli-e2e:
