@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.7](https://github.com/loonghao/rez-next/compare/v0.3.6...v0.3.7) (2026-09-24)
+
+
+### 📚 Documentation
+
+* **api-stability:** define public API contract and gate it in CI ([5880a47](https://github.com/loonghao/rez-next/commit/5880a47f2eb5486479663dc9f4ed73274105f8f2))
+* **api-stability:** resolve stable-surface/exclusion overlap ([#274](https://github.com/loonghao/rez-next/issues/274)) ([000ac45](https://github.com/loonghao/rez-next/commit/000ac45e81e52cb9af14affd45bc40b61d4aa0af))
+* define the public API stability contract, gate it in CI, and fix PyVersion drift ([1a787a1](https://github.com/loonghao/rez-next/commit/1a787a1d3c314a0438b8ffc9e6a4eab5be6bd681))
+* define the public API stability contract, gate it in CI, and fix PyVersion drift ([#271](https://github.com/loonghao/rez-next/issues/271)) ([1a787a1](https://github.com/loonghao/rez-next/commit/1a787a1d3c314a0438b8ffc9e6a4eab5be6bd681))
+* fix PyVersion/PyVersionRange drift in Python examples ([ba20b32](https://github.com/loonghao/rez-next/commit/ba20b321d7aac086d5a791d216e80554d46e9753))
+
 ## [0.3.6](https://github.com/loonghao/rez-next/compare/v0.3.5...v0.3.6) (2026-07-16)
 
 
