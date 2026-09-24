@@ -45,8 +45,9 @@ root through a glob (`pub use cache::*;`, `pub use shell::*;`), so a root
 **whether a symbol is in the contract depends on whether it appears in the type
 closure of a promised signature, not on which module it happens to live in.**
 
-Anything reachable from a crate root that fails condition 2 is listed under
-[Not part of the contract](#not-part-of-the-contract).
+Anything reachable from a crate root that fails condition 2 is not covered. The
+[Not part of the contract](#not-part-of-the-contract) list names the non-obvious
+cases and is not exhaustive.
 
 ## Stable surface
 
@@ -55,8 +56,9 @@ signature closure is covered as well; the list calls out the non-obvious ones.
 The full public surface of each crate is what CI compares mechanically; see the
 crate rustdoc for the complete list.
 
-A symbol belongs to exactly one of this list and
-[Not part of the contract](#not-part-of-the-contract) - never to both.
+A symbol never appears on both this list and
+[Not part of the contract](#not-part-of-the-contract). Neither list is
+exhaustive: a root-reachable symbol on neither list is not covered.
 
 ### `rez-next-common`
 
@@ -124,13 +126,15 @@ not an entry point, and no promised signature depends on it.
 - `rez-next-context`: `shell` and `execution` internals. Both are private `mod`s
   behind a glob `pub use`, so the `pub mod` leaf wording of condition 1 does not
   apply to them - condition 2 excludes them instead. The promised
-  `RezResolvedContext` methods only return `HashMap`, `PathBuf`, `Version`,
-  `ResolvedPackage`, `ResolvedContextSummary` and `RezCoreError`; none of
+  `RezResolvedContext` methods only return `Self`, `HashMap`, `PathBuf`,
+  `String`, `ResolvedPackage`, `ResolvedContextSummary` and `RezCoreError`; its
+  public fields add only `bool`, `Vec<Requirement>` and `chrono::DateTime<Utc>`
+  (for `timestamp`). None of
   `ShellType`, `ShellExecutor`, `ShellInfo`, `CommandResult`, `ExecutionConfig`,
   `ContextExecutor`, `SpawnedProcess`, `ProcessResult`, `ExecutionStats` or
   `ContextExecutionBuilder` appears there. The rest of the crate's root
-  re-exports that no promised signature reaches (`environment`, `serialization`)
-  are excluded for the same reason.
+  re-exports that no promised signature reaches (`environment`, `serialization`,
+  `context`) are excluded for the same reason.
 - Anything reached through a `pub mod` path instead of a root `pub use`
 - Any crate not listed in [Which surface is the contract](#which-surface-is-the-contract)
 
