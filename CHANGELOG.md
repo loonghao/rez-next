@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.8](https://github.com/loonghao/rez-next/compare/v0.3.7...v0.3.8) (2026-09-25)
+
+
+### 🐛 Bug Fixes
+
+* **build:** vendor build_plugins.py so rez-next-build can be packaged ([ec07958](https://github.com/loonghao/rez-next/commit/ec07958ed7871131c6829a51b7fb211e8a5a580b))
+* **build:** vendor build_plugins.py so rez-next-build can be published to crates.io ([a88317d](https://github.com/loonghao/rez-next/commit/a88317dfca1d5df8e54f25d7af2ecd94cc62f84b))
+
 ## [0.3.7](https://github.com/loonghao/rez-next/compare/v0.3.6...v0.3.7) (2026-09-24)
 
 
