@@ -177,6 +177,48 @@ jobs:
           echo "Comparing public API against $rev"
       - run: vx just semver-check "${{ steps.baseline.outputs.rev }}"
 
+  package:
+    name: Package
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: loonghao/vx@main
+        with:
+          tools: "just"
+          cache: "true"
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: dtolnay/rust-toolchain@1.95.0
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: cargo-package-v1
+      - name: Report the toolchain in use
+        run: |
+          rustc --version
+          cargo --version
+      # `cargo package` builds a tarball per workspace member and compiles it in
+      # isolation, so a crate that cannot be published fails here instead of at
+      # the release window. Verification is deliberately left on: no
+      # `--no-verify`, no `--allow-dirty`.
+      - name: Package every workspace crate
+        run: vx just package-check
+      # Guard against silent narrowing: `--workspace` covers the top-level
+      # `rez-next` crate, which has no build script and no `include_str!` of its
+      # own but is the last crate in the publish chain. If it ever stops being
+      # packaged, this step fails instead of quietly losing coverage.
+      - name: Assert every workspace member produced a tarball
+        run: |
+          set -euo pipefail
+          packages="$(cargo metadata --format-version 1 --no-deps | jq -r '.packages[] | "\(.name) \(.version)"' | tr -d '\r')"
+          while read -r name version; do
+            tarball="target/package/${name}-${version}.crate"
+            if [ ! -f "$tarball" ]; then
+              echo "::error::cargo package produced no tarball for ${name} ${version} (expected ${tarball})"
+              exit 1
+            fi
+            echo "packaged ${name} ${version} -> ${tarball}"
+          done <<< "$packages"
+
   test-macos:
     name: Test - macOS
     runs-on: macos-26
