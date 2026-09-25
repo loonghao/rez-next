@@ -11,8 +11,18 @@ use tokio::io::{AsyncBufReadExt, AsyncRead, BufReader};
 use tokio::process::Child;
 use tokio::sync::Mutex;
 
-const EMBEDDED_BUILD_PLUGINS: &str =
-    include_str!("../../../rez-next-python/python/rez_next/build_plugins.py");
+// Vendored copy of `crates/rez-next-python/python/rez_next/build_plugins.py`.
+//
+// The canonical file lives in the Python crate because it is part of the wheel's
+// public `rez_next.build_plugins` module, but `cargo publish` can only package
+// files inside a crate's own root: a `package.include` entry pointing outside it
+// is silently dropped, so the previous `include_str!("../../../rez-next-python/...")`
+// made `cargo publish -p rez-next-build` fail verification with
+// "couldn't read src/systems/../../../rez-next-python/.../build_plugins.py".
+//
+// `tests::embedded_build_plugins_matches_python_package` keeps the two copies
+// byte-identical.
+const EMBEDDED_BUILD_PLUGINS: &str = include_str!("../../assets/build_plugins.py");
 
 const PYTHON_BUILD_BOOTSTRAP: &str = r#"
 import runpy
@@ -691,5 +701,31 @@ mod tests {
         assert!(!CustomBuildSystem::should_skip_file("README.md"));
         assert!(!CustomBuildSystem::should_skip_file("main.py"));
         assert!(!CustomBuildSystem::should_skip_file("lib.so"));
+    }
+
+    /// Keeps the vendored `assets/build_plugins.py` in lockstep with the
+    /// canonical copy that ships in the Python wheel.
+    ///
+    /// Skipped when the crate is built from a published tarball, where the
+    /// sibling crate is not available.
+    #[test]
+    fn embedded_build_plugins_matches_python_package() {
+        let canonical = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../rez-next-python/python/rez_next/build_plugins.py");
+
+        if !canonical.is_file() {
+            return;
+        }
+
+        let expected =
+            std::fs::read_to_string(&canonical).expect("read canonical build_plugins.py");
+
+        assert!(
+            EMBEDDED_BUILD_PLUGINS == expected,
+            "assets/build_plugins.py drifted from {canonical:?}: {} vs {} bytes; \
+             copy the canonical file over it",
+            EMBEDDED_BUILD_PLUGINS.len(),
+            expected.len()
+        );
     }
 }
