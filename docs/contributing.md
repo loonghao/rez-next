@@ -14,6 +14,9 @@ Runs on pushes to `main` / `develop` and pull requests targeting `main`:
 - Docs check via `vx just doc-check`
 - Workspace tests via `cargo test --workspace --exclude rez-next-python` on Linux/macOS/Windows
 - CLI E2E via `vx just cli-e2e`
+- API stability via `vx just semver-check`
+- Packagability via `vx just package-check` (`cargo package --workspace`, tarball
+  plus build verification, covering the top-level `rez-next` crate)
 - Security auditing via `rustsec/audit-check`
 - Coverage via `cargo llvm-cov`
 - Python binding tests via `maturin develop --release` + `pytest`

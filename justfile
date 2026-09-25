@@ -143,6 +143,19 @@ py-lint:
 # Build wheel + run lint and all Python tests (full Python CI flow)
 py-ci: py-lint py-build py-test
 
+# ── Packaging ──────────────────────────────────────────────────────────────
+
+# Verify every workspace crate can be packaged for crates.io.
+#
+# `cargo package --workspace` builds a tarball per member and compiles it in
+# isolation, which is the same verification `cargo publish` runs. Packaging the
+# members in one invocation keeps their inter-crate path dependencies intact,
+# so the top-level `rez-next` crate is verified even though its dependencies
+# are not on crates.io yet. Never add `--no-verify` or `--allow-dirty`: the
+# tarball build is the whole point of the check.
+package-check:
+    cargo package --workspace
+
 # ── CLI E2E ────────────────────────────────────────────────────────────────
 
 # Build the rez-next binary

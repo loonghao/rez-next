@@ -707,15 +707,30 @@ mod tests {
     /// canonical copy that ships in the Python wheel.
     ///
     /// Skipped when the crate is built from a published tarball, where the
-    /// sibling crate is not available.
+    /// sibling crate is not available. The skip is keyed on the workspace root
+    /// rather than on the canonical file itself: keying it on the file turned a
+    /// mistyped path into a silent pass, which is exactly the failure mode this
+    /// test exists to catch.
     #[test]
     fn embedded_build_plugins_matches_python_package() {
-        let canonical = Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../rez-next-python/python/rez_next/build_plugins.py");
+        let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
+        let workspace_root = manifest_dir
+            .parent()
+            .and_then(Path::parent)
+            .map(Path::to_path_buf)
+            .unwrap_or_else(|| manifest_dir.to_path_buf());
 
-        if !canonical.is_file() {
+        // A published tarball has no workspace root, so there is nothing to compare.
+        if !workspace_root.join("Cargo.toml").is_file() {
             return;
         }
+
+        let canonical = manifest_dir.join("../rez-next-python/python/rez_next/build_plugins.py");
+
+        assert!(
+            canonical.is_file(),
+            "canonical build_plugins.py missing at {canonical:?}"
+        );
 
         let expected =
             std::fs::read_to_string(&canonical).expect("read canonical build_plugins.py");
