@@ -16,7 +16,9 @@ Runs on pushes to `main` / `develop` and pull requests targeting `main`:
 - CLI E2E via `vx just cli-e2e`
 - API stability via `vx just semver-check`
 - Packagability via `vx just package-check` (`cargo package --workspace`, tarball
-  plus build verification, covering the top-level `rez-next` crate)
+  plus build verification, covering the top-level `rez-next` crate). This requires
+  a clean working tree: Cargo exits 101 with `N files in the working directory
+  contain changes` if anything is uncommitted, so commit or stash first.
 - Security auditing via `rustsec/audit-check`
 - Coverage via `cargo llvm-cov`
 - Python binding tests via `maturin develop --release` + `pytest`

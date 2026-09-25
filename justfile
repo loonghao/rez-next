@@ -153,6 +153,12 @@ py-ci: py-lint py-build py-test
 # so the top-level `rez-next` crate is verified even though its dependencies
 # are not on crates.io yet. Never add `--no-verify` or `--allow-dirty`: the
 # tarball build is the whole point of the check.
+#
+# A dirty working tree makes Cargo exit 101 with `error: N files in the working
+# directory contain changes`, because the tarball would not match the committed
+# source. Commit or stash before running this locally.
+#
+# Verify every workspace crate can be packaged (clean working tree required).
 package-check:
     cargo package --workspace
 
