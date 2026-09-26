@@ -189,9 +189,15 @@ jobs:
           cache: "true"
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - uses: dtolnay/rust-toolchain@1.95.0
+      # Restore only, never save: `cargo package` removes the unpacked tarball
+      # directories under `target/package/` once verification finishes, and the
+      # cache post step then races that cleanup and reports ENOENT errors on a
+      # job that actually succeeded. This job is a packaging check, so it does
+      # not need to warm the cache for anyone else.
       - uses: Swatinem/rust-cache@v2
         with:
           key: cargo-package-v1
+          save-if: ${{ false }}
       - name: Report the toolchain in use
         run: |
           rustc --version
