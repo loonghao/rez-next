@@ -6,17 +6,20 @@
 # from rustup only, driven by rust-toolchain.toml (local) or RUSTUP_TOOLCHAIN
 # (CI); see scripts/check_toolchain_pins.py.
 actionlint = "latest"
-cargo-llvm-cov = "latest"
+# Not a vx-managed tool: `cargo-llvm-cov` is a cargo subcommand that CI installs
+# with taiki-e/install-action@cargo-llvm-cov. Listing it here made `vx lock`
+# fail with `Unknown tool: cargo-llvm-cov`.
 just = "latest"
-maturin = "latest"
+# artifact class: the maturin version ends up in the built wheel, so it is
+# pinned to a minor line instead of floating on `latest`.
+maturin = "1.15"
+# exact patch pin: matches .python-version (3.14) and the python-version used by
+# .github/workflows/benchmark.yml. Bump all three together.
 python = "3.14.4"
 uv = "latest"
 
-[settings]
-# Automatically install missing tools when entering dev environment
-auto_install = true
-# Cache duration for version checks
-cache_duration = "7d"
+# No [settings] here on purpose: `auto_install = true` and `cache_duration`
+# restate vx's own defaults, and a copy of a default is a copy that can drift.
 
 # No [scripts] here on purpose: every entry was a verbatim `just xxx` mirror of
 # a justfile recipe, so the two copies drifted silently whenever a recipe was
