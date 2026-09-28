@@ -1,0 +1,18 @@
+{
+  "timestamp": "2026-09-28 01:48 UTC",
+  "commit": "25fff77",
+  "platform": "Linux-6.17.0-1022-azure",
+  "cpu": "AMD EPYC 9V45 96-Core Processor",
+  "regressions": [
+    "package_deserialization/simple_python",
+    "package_deserialization/complex_python",
+    "package_deserialization/large_python",
+    "package_variants/add_variants/25",
+    "package_requirements/add_requirements/50",
+    "package_requirements/add_requirements/100",
+    "package_requirements/add_build_requirements/1",
+    "package_requirements/add_build_requirements/50",
+    "package_requirements/add_build_requirements/100"
+  ],
+  "bench_count": 174
+}
