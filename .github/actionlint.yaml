@@ -1,0 +1,7 @@
+# actionlint 1.7.12 (latest release, 2026-03-30) predates the ubuntu-26.04
+# GitHub-hosted image, so its built-in label table still stops at ubuntu-24.04.
+# The runner is live (image 20260920.143.1, Ubuntu 26.04.1 LTS); only the linter
+# lags. Remove this file once actionlint ships the label.
+self-hosted-runner:
+  labels:
+    - ubuntu-26.04
