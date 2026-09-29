@@ -1,0 +1,17 @@
+{
+  "timestamp": "2026-09-29 23:28 UTC",
+  "commit": "dee19f7",
+  "platform": "Linux-6.17.0-1022-azure",
+  "cpu": "AMD EPYC 7763 64-Core Processor",
+  "regressions": [
+    "package_serialization/complex_json",
+    "package_serialization/large_json",
+    "package_serialization/simple_python",
+    "package_serialization/large_python",
+    "package_deserialization/complex_yaml",
+    "package_deserialization/simple_python",
+    "package_deserialization/complex_python",
+    "package_deserialization/large_python"
+  ],
+  "bench_count": 174
+}
