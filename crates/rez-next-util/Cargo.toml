@@ -13,7 +13,7 @@ rez-next-common = { version = "0.3.8", path = "../rez-next-common" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 chrono = "0.4"
-dirs = "6.0"
+dirs = "7.0"
 
 [dev-dependencies]
 tempfile = "3.0"
