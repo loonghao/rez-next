@@ -26,7 +26,7 @@ env:
 jobs:
   verify-version:
     name: Verify Release Version
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v7
       - name: Match tag and package versions
@@ -140,7 +140,7 @@ jobs:
   upload:
     name: Upload Release Assets
     needs: build
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
       - name: Download all artifacts
         uses: actions/download-artifact@v8
@@ -308,7 +308,7 @@ jobs:
       - upload
       - test-wheel
     # publish-crates and publish-pypi run concurrently after test-wheel passes.
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@1.95.0
@@ -403,7 +403,7 @@ jobs:
     # Python wheel publishing should not be blocked by Rust crate publishing.
     # Both jobs run after test-wheel passes.
     # Triggered only by workflow_dispatch, so every run is intentional.
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     permissions:
       id-token: write  # required for PyPI Trusted Publisher (OIDC)
     steps:
