@@ -3026,7 +3026,7 @@ dependencies = [
 name = "rez-next-context"
 version = "0.3.8"
 dependencies = [
- "base64 0.22.1",
+ "base64 0.23.1",
  "chrono",
  "regex",
  "rez-next-common",
@@ -3059,7 +3059,7 @@ dependencies = [
 name = "rez-next-package"
 version = "0.3.8"
 dependencies = [
- "base64 0.22.1",
+ "base64 0.23.1",
  "bincode",
  "chrono",
  "dunce",
