@@ -1,0 +1,18 @@
+{
+  "timestamp": "2026-10-02 02:16 UTC",
+  "commit": "79e7658",
+  "platform": "Linux-6.17.0-1022-azure",
+  "cpu": "AMD EPYC 7763 64-Core Processor",
+  "regressions": [
+    "package_creation/package_with_version",
+    "package_serialization/complex_yaml",
+    "package_deserialization/simple_yaml",
+    "package_validation/complex_valid",
+    "package_validation/large_valid",
+    "package_variants/add_variants/10",
+    "package_cloning/complex_clone",
+    "package_requirements/add_requirements/10",
+    "package_requirements/add_build_requirements/50"
+  ],
+  "bench_count": 174
+}
