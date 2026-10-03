@@ -1,0 +1,22 @@
+{
+  "timestamp": "2026-10-03 09:26 UTC",
+  "commit": "909a39a",
+  "platform": "Linux-6.17.0-1022-azure",
+  "cpu": "INTEL(R) XEON(R) PLATINUM 8573C",
+  "regressions": [
+    "package_serialization/simple_yaml",
+    "package_serialization/complex_yaml",
+    "package_serialization/large_yaml",
+    "package_serialization/simple_json",
+    "package_serialization/complex_json",
+    "package_serialization/simple_python",
+    "package_deserialization/simple_yaml",
+    "package_validation/large_valid",
+    "package_variants/add_variants/10",
+    "package_variants/add_variants/50",
+    "package_requirements/add_requirements/100",
+    "package_requirements/add_build_requirements/50",
+    "package_requirements/add_build_requirements/100"
+  ],
+  "bench_count": 174
+}
