@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.9](https://github.com/loonghao/rez-next/compare/v0.3.8...v0.3.9) (2026-10-03)
+
+
+### 🐛 Bug Fixes
+
+* **deps:** update rust crate base64 to 0.23 ([#252](https://github.com/loonghao/rez-next/issues/252)) ([f612e94](https://github.com/loonghao/rez-next/commit/f612e945e710e7dba224e51cc712cf52b59abd8e))
+* **deps:** update rust crate dirs to v7 ([#294](https://github.com/loonghao/rez-next/issues/294)) ([1eff7f5](https://github.com/loonghao/rez-next/commit/1eff7f51e3b3c440b8f788ba35cf22a6b7751149))
+
 ## [0.3.8](https://github.com/loonghao/rez-next/compare/v0.3.7...v0.3.8) (2026-09-25)
 
 
