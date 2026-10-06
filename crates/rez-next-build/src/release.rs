@@ -53,6 +53,12 @@ pub struct ReleaseManager {
     skip_build: bool,
     skip_tests: bool, // now used in release() method
     skip_vcs_validation: bool,
+    /// How to treat an already-existing release tag.
+    ///
+    /// - `Some(false)`: hard-fail (the CLI default).
+    /// - `Some(true)`: proceed, equivalent to `rez release --ignore-existing-tag`.
+    /// - `None`: legacy behaviour — warn and continue.
+    ignore_existing_tag: Option<bool>,
 }
 
 impl ReleaseManager {
@@ -63,6 +69,7 @@ impl ReleaseManager {
             skip_build,
             skip_tests,
             skip_vcs_validation: false,
+            ignore_existing_tag: None,
         }
     }
 
@@ -71,13 +78,21 @@ impl ReleaseManager {
         self.skip_vcs_validation = skip;
     }
 
+    /// Set how an existing release tag is treated.
+    ///
+    /// `None` keeps the legacy warn-and-continue behaviour; `Some(false)` makes
+    /// an existing tag a hard error; `Some(true)` allows re-releasing over it.
+    pub fn set_ignore_existing_tag(&mut self, ignore_existing_tag: Option<bool>) {
+        self.ignore_existing_tag = ignore_existing_tag;
+    }
+
     /// Execute the complete release workflow
     ///
     /// Steps:
     /// 1. Load and validate package definition
     /// 2. Detect and validate VCS repository state
-    /// 3. Build the package (including variants)
-    /// 4. Create VCS tag
+    /// 3. Reject an already-released version (tag check, fails fast)
+    /// 4. Build the package (including variants)
     /// 5. Generate changelog
     /// 6. Write release metadata
     /// 7. Install the package
@@ -115,23 +130,32 @@ impl ReleaseManager {
             return Ok(result);
         }
 
-        // Step 3: Build the package (if not skipped)
+        // Step 3: Reject an already-released version before anything is built
+        // or installed. The tag check must run first: the build step copies
+        // `package.py` into the install path, so checking afterwards would
+        // overwrite an already-released version even when the release is
+        // ultimately rejected.
+        if let Some(ref vcs_impl) = vcs {
+            self.create_vcs_tag(vcs_impl, &package, message, &mut result)?;
+        }
+
+        if !result.errors.is_empty() {
+            result.success = false;
+            return Ok(result);
+        }
+
+        // Step 4: Build the package (if not skipped)
         if !self.skip_build {
             self.build_package(source_dir, &package, &install_path, &mut result)?;
         }
 
-        // Step 3.5: Run tests (if not skipped)
+        // Step 4.5: Run tests (if not skipped)
         if self.skip_tests {
             result
                 .warnings
                 .push("Tests skipped (skip_tests=true)".to_string());
         } else {
             self.run_tests(source_dir, &package, &install_path, &mut result)?;
-        }
-
-        // Step 4: Create VCS tag (if VCS is available)
-        if let Some(ref vcs_impl) = vcs {
-            self.create_vcs_tag(vcs_impl, &package, message, &mut result)?;
         }
 
         // Step 5: Generate changelog (if VCS is available)
@@ -375,12 +399,33 @@ impl ReleaseManager {
         );
 
         match vcs.tag_exists(&tag_name) {
-            Ok(true) => {
-                result
-                    .warnings
-                    .push(format!("Tag '{}' already exists", tag_name));
-                return Ok(());
-            }
+            Ok(true) => match self.ignore_existing_tag {
+                // Explicit opt-in: re-release over the existing tag.
+                Some(true) => {
+                    result
+                        .warnings
+                        .push(format!("Tag '{}' already exists", tag_name));
+                    return Ok(());
+                }
+                // Strict: an existing tag means this version was already
+                // released. Overwriting the install while the tag stays on the
+                // old commit would leave the tag and the installed
+                // `vcs_metadata.json` disagreeing about the source commit.
+                Some(false) => {
+                    result.errors.push(format!(
+                        "Release tag '{}' already exists. Use --ignore-existing-tag to override.",
+                        tag_name
+                    ));
+                    return Ok(());
+                }
+                // Legacy: warn and continue (preserves pre-existing behaviour).
+                None => {
+                    result
+                        .warnings
+                        .push(format!("Tag '{}' already exists", tag_name));
+                    return Ok(());
+                }
+            },
             Ok(false) => {}
             Err(e) => {
                 result
@@ -909,5 +954,131 @@ version = "1.0.0"
         assert!(result.is_ok());
         let output = result.unwrap();
         assert!(!output.status.success());
+    }
+
+    /// A VCS whose tags can be forced to exist, so `create_vcs_tag` can be
+    /// exercised for the already-released case.
+    struct ExistingTagVCS {
+        tag_exists: bool,
+        created: std::sync::Mutex<Vec<String>>,
+    }
+
+    impl crate::vcs::ReleaseVCS for ExistingTagVCS {
+        fn get_type_name(&self) -> &str {
+            "existing-tag-stub"
+        }
+        fn get_repo_root(&self) -> Result<PathBuf, RezCoreError> {
+            Ok(PathBuf::from("."))
+        }
+        fn is_clean(&self) -> Result<bool, RezCoreError> {
+            Ok(true)
+        }
+        fn get_current_branch(&self) -> Result<String, RezCoreError> {
+            Ok("main".to_string())
+        }
+        fn get_latest_commit(&self) -> Result<String, RezCoreError> {
+            Ok("stub-commit".to_string())
+        }
+        fn tag_exists(&self, _tag: &str) -> Result<bool, RezCoreError> {
+            Ok(self.tag_exists)
+        }
+        fn create_tag(&self, tag: &str, _message: &str) -> Result<(), RezCoreError> {
+            self.created.lock().unwrap().push(tag.to_string());
+            Ok(())
+        }
+        fn get_changelog(
+            &self,
+            _from: Option<&str>,
+            _to: Option<&str>,
+        ) -> Result<String, RezCoreError> {
+            Ok(String::new())
+        }
+        fn get_metadata(&self) -> Result<crate::vcs::VCSMetadata, RezCoreError> {
+            Ok(crate::vcs::VCSMetadata::default())
+        }
+    }
+
+    fn manager_with_tag_policy(
+        ignore_existing_tag: Option<bool>,
+    ) -> (ReleaseManager, std::sync::Arc<ExistingTagVCS>) {
+        let mut manager = ReleaseManager::new(ReleaseMode::Release, true, true);
+        manager.set_ignore_existing_tag(ignore_existing_tag);
+        (
+            manager,
+            std::sync::Arc::new(ExistingTagVCS {
+                tag_exists: true,
+                created: std::sync::Mutex::new(Vec::new()),
+            }),
+        )
+    }
+
+    #[test]
+    fn test_create_vcs_tag_strict_rejects_existing_tag() {
+        let (manager, vcs) = manager_with_tag_policy(Some(false));
+        let mut result = ReleaseResult::default();
+        let mut package = rez_next_package::Package::new("tool".to_string());
+        package.version = Some(rez_next_version::Version::new(Some("1.0.0")).unwrap());
+
+        manager
+            .create_vcs_tag(&*vcs, &package, None, &mut result)
+            .unwrap();
+
+        assert!(
+            result.errors.iter().any(|e| e.contains("already exists")),
+            "strict mode must record an error, got {:?}",
+            result.errors
+        );
+        assert!(
+            result
+                .warnings
+                .iter()
+                .all(|w| !w.contains("already exists")),
+            "strict mode must not downgrade the rejection to a warning"
+        );
+        assert!(
+            vcs.created.lock().unwrap().is_empty(),
+            "no tag may be created when the release is rejected"
+        );
+    }
+
+    #[test]
+    fn test_create_vcs_tag_ignore_allows_existing_tag() {
+        let (manager, vcs) = manager_with_tag_policy(Some(true));
+        let mut result = ReleaseResult::default();
+        let mut package = rez_next_package::Package::new("tool".to_string());
+        package.version = Some(rez_next_version::Version::new(Some("1.0.0")).unwrap());
+
+        manager
+            .create_vcs_tag(&*vcs, &package, None, &mut result)
+            .unwrap();
+
+        assert!(
+            result.errors.is_empty(),
+            "explicit opt-in must proceed, got {:?}",
+            result.errors
+        );
+        assert!(result.warnings.iter().any(|w| w.contains("already exists")));
+    }
+
+    #[test]
+    fn test_create_vcs_tag_default_warns_and_continues() {
+        let (manager, vcs) = manager_with_tag_policy(None);
+        let mut result = ReleaseResult::default();
+        let mut package = rez_next_package::Package::new("tool".to_string());
+        package.version = Some(rez_next_version::Version::new(Some("1.0.0")).unwrap());
+
+        manager
+            .create_vcs_tag(&*vcs, &package, None, &mut result)
+            .unwrap();
+
+        assert!(
+            result.errors.is_empty(),
+            "the legacy default must not start failing, got {:?}",
+            result.errors
+        );
+        assert!(
+            result.warnings.iter().any(|w| w.contains("already exists")),
+            "the legacy default still warns"
+        );
     }
 }

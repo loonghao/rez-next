@@ -554,11 +554,16 @@ impl PyReleaseManager {
 
     /// Release a package from a source directory.
     /// Equivalent to running `rez release` from the package directory.
-    #[pyo3(signature = (source_dir=None, message=None))]
+    ///
+    /// `ignore_existing_tag` controls what happens when the release tag is
+    /// already present: `None` keeps the legacy warn-and-continue behaviour,
+    /// `Some(false)` makes it an error, `Some(true)` allows re-releasing.
+    #[pyo3(signature = (source_dir=None, message=None, ignore_existing_tag=None))]
     pub(crate) fn release(
         &self,
         source_dir: Option<&str>,
         message: Option<&str>,
+        ignore_existing_tag: Option<bool>,
     ) -> PyResult<PyReleaseResult> {
         use rez_next_build::release::{
             ReleaseManager as RustReleaseManager, ReleaseMode as RustReleaseMode,
@@ -572,7 +577,8 @@ impl PyReleaseManager {
         };
 
         // Create Rust ReleaseManager
-        let rust_manager = RustReleaseManager::new(mode, self.skip_build, self.skip_tests);
+        let mut rust_manager = RustReleaseManager::new(mode, self.skip_build, self.skip_tests);
+        rust_manager.set_ignore_existing_tag(ignore_existing_tag);
 
         // Convert source_dir to Path
         let cwd = std::env::current_dir()
@@ -702,13 +708,18 @@ impl PyReleaseManager {
 
 /// Quick-release function: release a package from a directory.
 /// Equivalent to `rez release` (non-interactive).
+///
+/// `ignore_existing_tag` controls what happens when the release tag already
+/// exists: `None` (default) keeps the legacy warn-and-continue behaviour,
+/// `false` makes it an error, and `true` allows re-releasing over it.
 #[pyfunction]
-#[pyo3(signature = (source_dir=None, local=false, dry_run=false, message=None))]
+#[pyo3(signature = (source_dir=None, local=false, dry_run=false, message=None, ignore_existing_tag=None))]
 pub fn release_package(
     source_dir: Option<&str>,
     local: bool,
     dry_run: bool,
     message: Option<&str>,
+    ignore_existing_tag: Option<bool>,
 ) -> PyResult<PyReleaseResult> {
     let mode = if dry_run {
         "dry_run"
@@ -718,7 +729,7 @@ pub fn release_package(
         "release"
     };
     let mgr = PyReleaseManager::new(Some(mode), false, false);
-    mgr.release(source_dir, message)
+    mgr.release(source_dir, message, ignore_existing_tag)
 }
 
 #[cfg(test)]
