@@ -126,6 +126,7 @@ windows-sys = { version = "0.61", features = ["Win32_System_Console"] }
 criterion.workspace = true
 tempfile.workspace = true
 serde.workspace = true
+serde_json.workspace = true
 serde_yaml.workspace = true
 thiserror.workspace = true
 rez-next-package = { version = "0.3.8", path = "crates/rez-next-package", default-features = false } # x-release-please-version
