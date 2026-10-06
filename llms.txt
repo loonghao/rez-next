@@ -29,10 +29,15 @@ as a vx command via the `rez_next.release` Python API.
 
 ```bash
 vx ext dev .                          # link this repo as a dev extension
-vx x rez-release release --dry-run    # validate, write nothing
+vx x rez-release --dry-run            # validate, write nothing (bare entrypoint)
 vx x rez-release release -m "msg"     # real release
 vx x rez-release check                # alias for --dry-run
 ```
+
+The subcommand is optional; all forms forward arguments to `scripts/release.py`,
+whose argparse is the single source of truth for flags. Do not add
+`[[entrypoint.arguments]]` to the manifest — doing so stops vx from forwarding
+argv and silently turns `--dry-run` into a real release.
 
 Runs against the caller's directory via `VX_PROJECT_DIR`; accepts an explicit
 path as the first positional argument. Exit codes: `0` ok, `1` release failed,
