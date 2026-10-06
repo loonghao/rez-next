@@ -44,7 +44,10 @@ exclude = ["**/__pycache__/**", "**/*.pyc", "**/*.pyo", "**/*.pdb"]
 strip = false
 
 [project.optional-dependencies]
-test = ["maturin>=1.0,<2.0", "pytest", "pytest-benchmark"]
+# `tomli` is only needed to read TOML on Python < 3.11; 3.11+ uses stdlib
+# `tomllib`. Declared explicitly so the manifest tests do not depend on it
+# being pulled in transitively.
+test = ["maturin>=1.0,<2.0", "pytest", "pytest-benchmark", "tomli; python_version < '3.11'"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

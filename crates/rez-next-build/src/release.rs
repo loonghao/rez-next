@@ -91,15 +91,42 @@ impl ReleaseManager {
     /// Steps:
     /// 1. Load and validate package definition
     /// 2. Detect and validate VCS repository state
-    /// 3. Reject an already-released version (tag check, fails fast)
+    /// 3. Reject an already-released version (tag policy check, fails fast)
     /// 4. Build the package (including variants)
-    /// 5. Generate changelog
-    /// 6. Write release metadata
-    /// 7. Install the package
+    /// 5. Run the package tests
+    /// 6. Generate changelog
+    /// 7. Write release metadata
+    /// 8. Install the package
+    /// 9. Create the VCS tag
+    ///
+    /// The tag is created last on purpose, so the invariant
+    /// **tag exists ⟺ release succeeded** holds. Creating it earlier would
+    /// leave a dangling tag behind whenever a build or test step fails, and
+    /// that tag would then block any retry of the same version.
     pub fn release(
         &self,
         source_dir: &Path,
         message: Option<&str>,
+    ) -> Result<ReleaseResult, RezCoreError> {
+        self.release_with_vcs(source_dir, message, None)
+    }
+
+    /// Run the release flow with a caller-supplied VCS instead of the one
+    /// `detect_vcs` would find.
+    ///
+    /// This is the single implementation of the workflow; `release()` is a thin
+    /// wrapper passing `None` so the VCS is detected. Keeping one copy means a
+    /// test that drives this method really is exercising the same step order
+    /// as production.
+    ///
+    /// `#[doc(hidden)]` because it exists to let tests drive the release flow
+    /// without a real repository.
+    #[doc(hidden)]
+    pub fn release_with_vcs(
+        &self,
+        source_dir: &Path,
+        message: Option<&str>,
+        vcs: Option<std::sync::Arc<dyn ReleaseVCS + Send + Sync>>,
     ) -> Result<ReleaseResult, RezCoreError> {
         let mut result = ReleaseResult::default();
 
@@ -113,11 +140,31 @@ impl ReleaseManager {
         let install_path = self.get_install_path(&package)?;
         result.install_path = install_path.to_string_lossy().to_string();
 
-        // Step 2: VCS validation (if not skipped)
-        let vcs = if !self.skip_vcs_validation {
-            self.validate_vcs(source_dir, &mut result)?
-        } else {
-            None
+        // Step 2: VCS detection and validation. A caller-supplied VCS is still
+        // validated, so injecting one cannot bypass the repository-state check.
+        let vcs = match vcs {
+            Some(vcs_impl) => {
+                if !self.skip_vcs_validation
+                    && let Err(e) = vcs_impl.validate_repo_state()
+                {
+                    result.errors.push(format!("VCS validation failed: {}", e));
+                    return Ok(result);
+                }
+                match vcs_impl.get_metadata() {
+                    Ok(metadata) => result.vcs_metadata = Some(metadata),
+                    Err(e) => result
+                        .warnings
+                        .push(format!("Failed to get VCS metadata: {}", e)),
+                }
+                Some(vcs_impl)
+            }
+            None => {
+                if !self.skip_vcs_validation {
+                    self.validate_vcs(source_dir, &mut result)?
+                } else {
+                    None
+                }
+            }
         };
 
         // For dry-run mode, add prefix and return early
@@ -135,8 +182,12 @@ impl ReleaseManager {
         // `package.py` into the install path, so checking afterwards would
         // overwrite an already-released version even when the release is
         // ultimately rejected.
+        //
+        // Invariant: tag exists ⟺ release succeeded. This step therefore only
+        // checks the policy; the tag itself is created in step 9, after the
+        // package has been installed.
         if let Some(ref vcs_impl) = vcs {
-            self.create_vcs_tag(vcs_impl, &package, message, &mut result)?;
+            self.check_existing_tag(vcs_impl.as_ref(), &package, &mut result)?;
         }
 
         if !result.errors.is_empty() {
@@ -149,7 +200,7 @@ impl ReleaseManager {
             self.build_package(source_dir, &package, &install_path, &mut result)?;
         }
 
-        // Step 4.5: Run tests (if not skipped)
+        // Step 5: Run tests (if not skipped)
         if self.skip_tests {
             result
                 .warnings
@@ -158,16 +209,27 @@ impl ReleaseManager {
             self.run_tests(source_dir, &package, &install_path, &mut result)?;
         }
 
-        // Step 5: Generate changelog (if VCS is available)
+        // Step 6: Generate changelog (if VCS is available)
         if let Some(ref vcs_impl) = vcs {
-            self.generate_changelog(vcs_impl, &package, &mut result)?;
+            self.generate_changelog(vcs_impl.as_ref(), &package, &mut result)?;
         }
 
-        // Step 6: Write release metadata
+        // Step 7: Write release metadata
         self.write_release_metadata(&package, &install_path, &vcs, &mut result)?;
 
-        // Step 7: Install package definition
+        // Step 8: Install package definition
         self.install_package_definition(source_dir, &install_path, &package, &mut result)?;
+
+        // Step 9: Create the VCS tag, and only now. Every mutating step has
+        // happened above, so `errors.is_empty()` means the package really was
+        // installed — a tag therefore never outlives a failed release. A tag
+        // creation failure here is recoverable by re-running the release:
+        // nothing has been overwritten, so the version is not wedged.
+        if let Some(ref vcs_impl) = vcs
+            && result.errors.is_empty()
+        {
+            self.create_vcs_tag(vcs_impl.as_ref(), &package, message, &mut result)?;
+        }
 
         result.success = result.errors.is_empty();
         Ok(result)
@@ -253,7 +315,7 @@ impl ReleaseManager {
         &self,
         source_dir: &Path,
         result: &mut ReleaseResult,
-    ) -> Result<Option<Box<dyn ReleaseVCS + Send + Sync>>, RezCoreError> {
+    ) -> Result<Option<std::sync::Arc<dyn ReleaseVCS + Send + Sync>>, RezCoreError> {
         match detect_vcs(source_dir) {
             Some(vcs_impl) => {
                 // Validate repo state
@@ -274,7 +336,7 @@ impl ReleaseManager {
                     }
                 }
 
-                Ok(Some(vcs_impl))
+                Ok(Some(vcs_impl.into()))
             }
             None => {
                 result
@@ -380,23 +442,21 @@ impl ReleaseManager {
         Ok(())
     }
 
-    /// Create VCS tag for the release
-    fn create_vcs_tag(
+    /// Check whether an already-released version is being released again.
+    ///
+    /// This is the policy gate that runs *before* anything is built or
+    /// installed. It only inspects state, never mutates it: the tag itself is
+    /// created by [`Self::create_vcs_tag`] once the release has succeeded. That
+    /// split keeps the invariant **tag exists ⟺ release succeeded** — a tag
+    /// created before the build would survive a build/test failure and leave a
+    /// version permanently wedged.
+    fn check_existing_tag(
         &self,
         vcs: &dyn ReleaseVCS,
         package: &Package,
-        message: Option<&str>,
         result: &mut ReleaseResult,
     ) -> Result<(), RezCoreError> {
-        let tag_name = format!(
-            "{}-{}",
-            package.name,
-            package
-                .version
-                .as_ref()
-                .map(|v| v.as_str())
-                .unwrap_or("unknown")
-        );
+        let tag_name = Self::release_tag_name(package);
 
         match vcs.tag_exists(&tag_name) {
             Ok(true) => match self.ignore_existing_tag {
@@ -405,7 +465,6 @@ impl ReleaseManager {
                     result
                         .warnings
                         .push(format!("Tag '{}' already exists", tag_name));
-                    return Ok(());
                 }
                 // Strict: an existing tag means this version was already
                 // released. Overwriting the install while the tag stays on the
@@ -416,14 +475,12 @@ impl ReleaseManager {
                         "Release tag '{}' already exists. Use --ignore-existing-tag to override.",
                         tag_name
                     ));
-                    return Ok(());
                 }
                 // Legacy: warn and continue (preserves pre-existing behaviour).
                 None => {
                     result
                         .warnings
                         .push(format!("Tag '{}' already exists", tag_name));
-                    return Ok(());
                 }
             },
             Ok(false) => {}
@@ -434,15 +491,35 @@ impl ReleaseManager {
             }
         }
 
-        let default_message = format!(
-            "Release {}-{}",
+        Ok(())
+    }
+
+    /// Build the VCS tag name for a package version.
+    fn release_tag_name(package: &Package) -> String {
+        format!(
+            "{}-{}",
             package.name,
             package
                 .version
                 .as_ref()
                 .map(|v| v.as_str())
                 .unwrap_or("unknown")
-        );
+        )
+    }
+
+    /// Create the VCS tag for a successfully released version.
+    ///
+    /// Called only after the package has been built, tested and installed, so
+    /// a failure in any of those steps leaves no tag behind.
+    fn create_vcs_tag(
+        &self,
+        vcs: &dyn ReleaseVCS,
+        package: &Package,
+        message: Option<&str>,
+        result: &mut ReleaseResult,
+    ) -> Result<(), RezCoreError> {
+        let tag_name = Self::release_tag_name(package);
+        let default_message = format!("Release {}", tag_name);
         let tag_message = message.unwrap_or(&default_message);
 
         match vcs.create_tag(&tag_name, tag_message) {
@@ -486,7 +563,7 @@ impl ReleaseManager {
         &self,
         _package: &Package,
         install_path: &Path,
-        vcs: &Option<Box<dyn ReleaseVCS + Send + Sync>>,
+        vcs: &Option<std::sync::Arc<dyn ReleaseVCS + Send + Sync>>,
         result: &mut ReleaseResult,
     ) -> Result<(), RezCoreError> {
         // Get VCS metadata if VCS is available
@@ -724,6 +801,14 @@ version = "{}"
         pkg_file
     }
 
+    /// The directory `Local` mode installs a package version into.
+    fn install_dir_for(name: &str, version: &str) -> PathBuf {
+        let config = RezCoreConfig::load();
+        PathBuf::from(expand_home(&config.local_packages_path))
+            .join(name)
+            .join(version)
+    }
+
     #[test]
     fn test_release_mode_from_str() {
         assert_eq!(ReleaseMode::from_str("release"), ReleaseMode::Release);
@@ -804,13 +889,9 @@ version = "1.0.0"
 
         // Manually call write_release_metadata
         let mut result = ReleaseResult::default();
+        let vcs: std::sync::Arc<dyn ReleaseVCS + Send + Sync> = std::sync::Arc::new(vcs);
         manager
-            .write_release_metadata(
-                &pkg,
-                install_dir.path(),
-                &Some(Box::new(vcs) as Box<dyn ReleaseVCS + Send + Sync>),
-                &mut result,
-            )
+            .write_release_metadata(&pkg, install_dir.path(), &Some(vcs), &mut result)
             .unwrap();
 
         // Verify vcs_metadata.json was created
@@ -849,7 +930,7 @@ version = "1.0.0"
         std::fs::write(&pkg_file, content).unwrap();
 
         // No VCS
-        let vcs: Option<Box<dyn ReleaseVCS + Send + Sync>> = None;
+        let vcs: Option<std::sync::Arc<dyn ReleaseVCS + Send + Sync>> = None;
 
         // Create ReleaseManager
         let manager = ReleaseManager::new(ReleaseMode::DryRun, true, true);
@@ -1012,15 +1093,233 @@ version = "1.0.0"
         )
     }
 
+    /// Drive `ReleaseManager::release()` end to end with a stub VCS, so the tag
+    /// policy and its position in the step order are both exercised.
+    ///
+    /// `build_and_test` controls whether the build and test steps run; turning
+    /// it off keeps the run hermetic (no `python` lookup, no shelling out).
+    fn run_release_with_policy(
+        source_dir: &Path,
+        name: &str,
+        version: &str,
+        ignore_existing_tag: Option<bool>,
+        tag_exists: bool,
+        build_and_test: bool,
+    ) -> (ReleaseResult, std::sync::Arc<CountingTagVCS>) {
+        init_git_repo(source_dir);
+        create_test_package(source_dir, name, version);
+
+        let mut manager = ReleaseManager::new(ReleaseMode::Local, !build_and_test, !build_and_test);
+        manager.set_skip_vcs_validation(true);
+        manager.set_ignore_existing_tag(ignore_existing_tag);
+
+        let vcs = std::sync::Arc::new(CountingTagVCS {
+            tag_exists,
+            created: std::sync::Mutex::new(Vec::new()),
+        });
+        let vcs_for_release: std::sync::Arc<dyn crate::vcs::ReleaseVCS + Send + Sync> = vcs.clone();
+
+        let result = manager
+            .release_with_vcs(source_dir, None, Some(vcs_for_release))
+            .expect("release() must not propagate an error");
+
+        (result, vcs)
+    }
+
+    /// Create a directory that `detect_vcs` recognises as a git repository.
+    fn init_git_repo(dir: &Path) {
+        fs::create_dir_all(dir.join(".git")).expect("create .git dir");
+    }
+
+    /// A VCS stub that records every tag it is asked to create.
+    struct CountingTagVCS {
+        tag_exists: bool,
+        created: std::sync::Mutex<Vec<String>>,
+    }
+
+    impl CountingTagVCS {
+        fn created_tags(&self) -> Vec<String> {
+            self.created.lock().unwrap().clone()
+        }
+    }
+
+    impl crate::vcs::ReleaseVCS for CountingTagVCS {
+        fn get_type_name(&self) -> &str {
+            "counting-stub"
+        }
+        fn get_repo_root(&self) -> Result<PathBuf, RezCoreError> {
+            Ok(PathBuf::from("."))
+        }
+        fn is_clean(&self) -> Result<bool, RezCoreError> {
+            Ok(true)
+        }
+        fn get_current_branch(&self) -> Result<String, RezCoreError> {
+            Ok("main".to_string())
+        }
+        fn get_latest_commit(&self) -> Result<String, RezCoreError> {
+            Ok("stub-commit".to_string())
+        }
+        fn tag_exists(&self, _tag: &str) -> Result<bool, RezCoreError> {
+            Ok(self.tag_exists)
+        }
+        fn create_tag(&self, tag: &str, _message: &str) -> Result<(), RezCoreError> {
+            self.created.lock().unwrap().push(tag.to_string());
+            Ok(())
+        }
+        fn get_changelog(
+            &self,
+            _from: Option<&str>,
+            _to: Option<&str>,
+        ) -> Result<String, RezCoreError> {
+            Ok(String::new())
+        }
+        fn get_metadata(&self) -> Result<crate::vcs::VCSMetadata, RezCoreError> {
+            Ok(crate::vcs::VCSMetadata::default())
+        }
+    }
+
+    /// `release()` must reject an existing tag *before* the build step, so an
+    /// already-installed copy of the package is left byte-for-byte untouched.
+    ///
+    /// Regression guard: adding the tag policy without moving the check ahead
+    /// of the build returned the right exit code but still overwrote the
+    /// installed package.
     #[test]
-    fn test_create_vcs_tag_strict_rejects_existing_tag() {
+    fn test_release_rejects_existing_tag_without_touching_installed_copy() {
+        let temp_dir = TempDir::new().unwrap();
+        let source = temp_dir.path().join("src");
+        fs::create_dir_all(&source).unwrap();
+
+        let installed = install_dir_for("released_pkg", "1.0.0");
+        fs::create_dir_all(&installed).unwrap();
+        let installed_copy = installed.join("package.py");
+        let sentinel = b"# the already-released package.py\n";
+        fs::write(&installed_copy, sentinel).unwrap();
+
+        let (result, vcs) =
+            run_release_with_policy(&source, "released_pkg", "1.0.0", Some(false), true, false);
+
+        assert!(
+            result.errors.iter().any(|e| e.contains("already exists")),
+            "strict mode must fail the release, got errors {:?}",
+            result.errors
+        );
+        assert!(!result.success, "success must be false when rejected");
+        assert_eq!(
+            fs::read(&installed_copy).unwrap(),
+            sentinel.to_vec(),
+            "the installed package.py must not be overwritten"
+        );
+        assert!(
+            vcs.created_tags().is_empty(),
+            "a rejected release must not create a tag, got {:?}",
+            vcs.created_tags()
+        );
+    }
+
+    /// A release whose build fails must not leave a tag behind: the invariant
+    /// is **tag exists ⟺ release succeeded**, so a dangling tag would wedge
+    /// the version on every retry.
+    ///
+    /// The failure is induced inside the build step — after the tag policy
+    /// check has passed, which is exactly the window in which a tag created up
+    /// front survives a release that never ships. A variant whose hashed
+    /// subdirectory cannot be created makes `build_package` record an error and
+    /// continue, so the release ends with `success == false` instead of
+    /// aborting early.
+    #[test]
+    fn test_release_does_not_create_tag_when_build_fails() {
+        let temp_dir = TempDir::new().unwrap();
+        let source = temp_dir.path().join("src");
+        fs::create_dir_all(&source).unwrap();
+        init_git_repo(&source);
+
+        let variant: Vec<String> = vec!["python-3.9".to_string()];
+        fs::write(
+            source.join("package.py"),
+            "name = \"wedged_pkg\"\nversion = \"1.0.0\"\nvariants = [[\"python-3.9\"]]\n",
+        )
+        .unwrap();
+
+        let install_dir = install_dir_for("wedged_pkg", "1.0.0");
+        fs::create_dir_all(&install_dir).unwrap();
+
+        // Recreate the variant hash `build_package` computes, then occupy that
+        // path with a file so `create_dir_all` fails for the variant only.
+        let mut hasher = Sha256::new();
+        hasher.update(format!("{:?}", variant).as_bytes());
+        let hash = hex::encode(hasher.finalize())[..8].to_string();
+        fs::write(install_dir.join(&hash), "not a directory").unwrap();
+
+        let mut manager = ReleaseManager::new(ReleaseMode::Local, false, true);
+        manager.set_skip_vcs_validation(true);
+        manager.set_ignore_existing_tag(Some(false));
+
+        let vcs = std::sync::Arc::new(CountingTagVCS {
+            tag_exists: false,
+            created: std::sync::Mutex::new(Vec::new()),
+        });
+        let vcs_for_release: std::sync::Arc<dyn crate::vcs::ReleaseVCS + Send + Sync> = vcs.clone();
+
+        let result = manager
+            .release_with_vcs(&source, None, Some(vcs_for_release))
+            .expect("release() must not propagate an error");
+
+        assert!(
+            result
+                .errors
+                .iter()
+                .any(|e| e.contains("Failed to create variant directory")),
+            "an uncreatable variant directory must fail the release, got {:?}",
+            result.errors
+        );
+        assert!(
+            !result.success,
+            "success must be false after a failed build"
+        );
+        assert!(
+            vcs.created_tags().is_empty(),
+            "a failed build must not create a tag, got {:?}",
+            vcs.created_tags()
+        );
+    }
+
+    /// The complement of the two tests above: a successful release *does* tag,
+    /// and tags exactly once.
+    #[test]
+    fn test_release_creates_tag_on_success() {
+        let temp_dir = TempDir::new().unwrap();
+        let source = temp_dir.path().join("src");
+        fs::create_dir_all(&source).unwrap();
+
+        let installed = install_dir_for("fresh_pkg", "2.0.0");
+        fs::create_dir_all(&installed).unwrap();
+
+        let (result, vcs) =
+            run_release_with_policy(&source, "fresh_pkg", "2.0.0", Some(false), false, false);
+
+        assert!(
+            result.errors.is_empty(),
+            "a clean release must succeed, got {:?}",
+            result.errors
+        );
+        assert!(result.success, "success must be true");
+        assert_eq!(
+            vcs.created_tags(),
+            vec!["fresh_pkg-2.0.0".to_string()],
+            "a successful release must create its tag exactly once"
+        );
+    }
+
+    #[test]
+    fn test_check_existing_tag_strict_rejects() {
         let (manager, vcs) = manager_with_tag_policy(Some(false));
         let mut result = ReleaseResult::default();
         let mut package = rez_next_package::Package::new("tool".to_string());
         package.version = Some(rez_next_version::Version::new(Some("1.0.0")).unwrap());
 
         manager
-            .create_vcs_tag(&*vcs, &package, None, &mut result)
+            .check_existing_tag(&*vcs, &package, &mut result)
             .unwrap();
 
         assert!(
@@ -1037,19 +1336,19 @@ version = "1.0.0"
         );
         assert!(
             vcs.created.lock().unwrap().is_empty(),
-            "no tag may be created when the release is rejected"
+            "the policy check must never create a tag"
         );
     }
 
     #[test]
-    fn test_create_vcs_tag_ignore_allows_existing_tag() {
+    fn test_check_existing_tag_ignore_allows() {
         let (manager, vcs) = manager_with_tag_policy(Some(true));
         let mut result = ReleaseResult::default();
         let mut package = rez_next_package::Package::new("tool".to_string());
         package.version = Some(rez_next_version::Version::new(Some("1.0.0")).unwrap());
 
         manager
-            .create_vcs_tag(&*vcs, &package, None, &mut result)
+            .check_existing_tag(&*vcs, &package, &mut result)
             .unwrap();
 
         assert!(
@@ -1061,14 +1360,14 @@ version = "1.0.0"
     }
 
     #[test]
-    fn test_create_vcs_tag_default_warns_and_continues() {
+    fn test_check_existing_tag_default_warns_and_continues() {
         let (manager, vcs) = manager_with_tag_policy(None);
         let mut result = ReleaseResult::default();
         let mut package = rez_next_package::Package::new("tool".to_string());
         package.version = Some(rez_next_version::Version::new(Some("1.0.0")).unwrap());
 
         manager
-            .create_vcs_tag(&*vcs, &package, None, &mut result)
+            .check_existing_tag(&*vcs, &package, &mut result)
             .unwrap();
 
         assert!(
@@ -1079,6 +1378,42 @@ version = "1.0.0"
         assert!(
             result.warnings.iter().any(|w| w.contains("already exists")),
             "the legacy default still warns"
+        );
+    }
+
+    /// `create_vcs_tag` is now purely the tag-creation step; it must create the
+    /// tag and report it, leaving policy to `check_existing_tag`.
+    #[test]
+    fn test_create_vcs_tag_creates_tag() {
+        let mut manager = ReleaseManager::new(ReleaseMode::Release, true, true);
+        manager.set_ignore_existing_tag(None);
+        let vcs = std::sync::Arc::new(ExistingTagVCS {
+            tag_exists: false,
+            created: std::sync::Mutex::new(Vec::new()),
+        });
+        let mut result = ReleaseResult::default();
+        let mut package = rez_next_package::Package::new("tool".to_string());
+        package.version = Some(rez_next_version::Version::new(Some("1.0.0")).unwrap());
+
+        manager
+            .create_vcs_tag(&*vcs, &package, None, &mut result)
+            .unwrap();
+
+        assert!(
+            result.errors.is_empty(),
+            "tag creation must succeed, got {:?}",
+            result.errors
+        );
+        assert_eq!(
+            vcs.created.lock().unwrap().as_slice(),
+            ["tool-1.0.0".to_string()],
+            "the release tag must be created once"
+        );
+        assert!(
+            result
+                .warnings
+                .iter()
+                .any(|w| w.contains("Created VCS tag"))
         );
     }
 }
