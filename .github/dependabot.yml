@@ -47,3 +47,12 @@ updates:
     commit-message:
       prefix: "chore(deps)"
       include: "scope"
+    ignore:
+      # dtolnay/rust-toolchain is pinned to a Rust release, not an action
+      # release, so its "versions" are Rust version numbers. Dependabot
+      # proposed 1.120.0 (PR #270), a Rust release that does not exist --
+      # rustup fails to download it and every job that uses this action dies
+      # at setup. The pin must move with rust-toolchain.toml, Cargo.toml
+      # rust-version and clippy.toml msrv together (scripts/check_toolchain_pins.py),
+      # so it is bumped by hand as part of an MSRV change.
+      - dependency-name: "dtolnay/rust-toolchain"
