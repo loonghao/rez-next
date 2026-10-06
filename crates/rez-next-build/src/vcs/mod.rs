@@ -75,6 +75,33 @@ impl VCSRevision {
 /// This trait defines the interface for interacting with version control
 /// systems during the package release process.
 /// Compatible with original rez ReleaseVCS interface.
+///
+/// # Implementing a custom VCS
+///
+/// External crates implement this trait and pass an
+/// `Arc<dyn ReleaseVCS + Send + Sync>` to
+/// [`ReleaseManager::release_with_vcs`](crate::ReleaseManager::release_with_vcs)
+/// to drive a release with their own version-control backend. Only
+/// [`ReleaseVCS::get_type_name`], [`ReleaseVCS::get_repo_root`],
+/// [`ReleaseVCS::is_clean`], [`ReleaseVCS::get_current_branch`],
+/// [`ReleaseVCS::get_latest_commit`], [`ReleaseVCS::tag_exists`],
+/// [`ReleaseVCS::create_tag`], [`ReleaseVCS::get_changelog`] and
+/// [`ReleaseVCS::get_metadata`] are required; the rest have default
+/// implementations.
+///
+/// Two behaviours the release flow depends on:
+///
+/// - [`ReleaseVCS::create_tag`] must not move an existing tag. The release flow
+///   never asks for that (it skips tagging when the tag already exists), and
+///   moving one would detach a released version from its provenance.
+/// - A returned `Err` is never fatal to the release. Metadata, changelog, and
+///   tag-check failures are downgraded to warnings; only
+///   [`ReleaseVCS::validate_repo_state`] failing aborts, and only when VCS
+///   validation is enabled.
+///
+/// The trait is already blanket-implemented for `Box<dyn ReleaseVCS + Send +
+/// Sync>` and `Arc<dyn ReleaseVCS + Send + Sync>`, so a trait object can stand
+/// in for an owned implementation.
 pub trait ReleaseVCS: Send + Sync {
     /// Get the VCS type name
     fn get_type_name(&self) -> &str;

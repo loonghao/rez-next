@@ -48,6 +48,8 @@ pkg = rez.get_latest_package("python")
   - `python-integration.md` → Python bindings usage
   - `python-integration_zh.md` → Chinese version
   - `vx-extension.md` → Releasing packages through vx
+  - `release-sdk.md` → Driving releases from Rust, including a custom VCS
+  - `api-stability.md` → Public API contract enforced by `cargo-semver-checks`
   - `PRE_COMMIT_SETUP.md` → Code quality hooks
 
 ### Reference
