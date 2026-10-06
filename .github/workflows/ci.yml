@@ -385,6 +385,14 @@ jobs:
         if: matrix.python-version == '3.12'
         working-directory: crates/rez-next-python
         run: pip install ruff==0.15.21 && ruff check python tests
+      - name: Lint vx extension script
+        if: matrix.python-version == '3.12'
+        # Only scripts/release.py: the other scripts in scripts/ predate these
+        # rules and are out of scope for this change.
+        run: pip install ruff==0.15.21 && ruff check scripts/release.py tests/scripts/
+      - name: Run vx extension script tests
+        # No rez_next import required: the script's own logic is covered here.
+        run: pip install pytest && pytest tests/scripts -v --tb=short
       - name: Build and install Python binding (dev mode)
         working-directory: crates/rez-next-python
         run: maturin develop --release

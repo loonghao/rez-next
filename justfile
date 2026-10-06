@@ -132,13 +132,21 @@ py-test-e2e:
 py-test-module MODULE:
     cd crates/rez-next-python && vx uv run --locked --extra test pytest tests/ -v --tb=short -k "{{MODULE}}"
 
-# Format Python test files with ruff
+# Format Python files with ruff
 py-fmt:
     vx ruff format crates/rez-next-python/
+    vx ruff format scripts/release.py tests/scripts/
 
-# Lint Python test files with ruff
+# Lint Python files with ruff.
+# Only scripts/release.py is targeted: the other scripts in scripts/ predate
+# these rules and are out of scope here.
 py-lint:
     vx ruff check crates/rez-next-python/
+    vx ruff check scripts/release.py tests/scripts/
+
+# Run the vx extension script tests (no rez_next install required)
+py-test-scripts:
+    python -m pytest tests/scripts -v --tb=short
 
 # Build wheel + run lint and all Python tests (full Python CI flow)
 py-ci: py-lint py-build py-test

@@ -41,7 +41,7 @@ mod release_tests {
     #[test]
     fn test_release_missing_source_returns_error() {
         let mgr = PyReleaseManager::new(Some("dry_run"), false, false);
-        let result = mgr.release(Some("/nonexistent/path"), None).unwrap();
+        let result = mgr.release(Some("/nonexistent/path"), None, None).unwrap();
         assert!(!result.success);
         assert!(!result.errors.is_empty());
     }
@@ -55,7 +55,11 @@ mod release_tests {
         writeln!(f, "name = 'testpkg'\nversion = '1.0.0'\n").unwrap();
         let mgr = PyReleaseManager::new(Some("dry_run"), false, false);
         let result = mgr
-            .release(Some(dir.path().to_str().unwrap()), Some("test release"))
+            .release(
+                Some(dir.path().to_str().unwrap()),
+                Some("test release"),
+                None,
+            )
             .unwrap();
         assert!(
             result.success,
@@ -193,7 +197,7 @@ mod release_tests {
         writeln!(f, "name = 'drytestpkg'\nversion = '0.1.0'\n").unwrap();
         let mgr = PyReleaseManager::new(Some("dry_run"), false, false);
         let result = mgr
-            .release(Some(dir.path().to_str().unwrap()), None)
+            .release(Some(dir.path().to_str().unwrap()), None, None)
             .unwrap();
         assert!(result.success);
         assert!(
@@ -213,7 +217,11 @@ mod release_tests {
         writeln!(f, "name = 'notepkg'\nversion = '0.2.0'\n").unwrap();
         let mgr = PyReleaseManager::new(Some("dry_run"), false, false);
         let result = mgr
-            .release(Some(dir.path().to_str().unwrap()), Some("review note"))
+            .release(
+                Some(dir.path().to_str().unwrap()),
+                Some("review note"),
+                None,
+            )
             .unwrap();
         assert!(
             !result.warnings.is_empty(),
@@ -470,7 +478,7 @@ mod release_tests {
     #[test]
     fn test_release_function_dry_run_arg() {
         let result =
-            release_package(Some("/nonexistent/path_dry_test"), false, true, None).unwrap();
+            release_package(Some("/nonexistent/path_dry_test"), false, true, None, None).unwrap();
         let _ = result;
     }
 
@@ -544,8 +552,14 @@ mod release_tests {
 
     #[test]
     fn test_release_package_local_false_dry_false_is_release_mode() {
-        let result =
-            release_package(Some("/nonexistent/release_mode_test"), false, false, None).unwrap();
+        let result = release_package(
+            Some("/nonexistent/release_mode_test"),
+            false,
+            false,
+            None,
+            None,
+        )
+        .unwrap();
         assert!(!result.success, "nonexistent path should yield failure");
     }
 
@@ -569,13 +583,13 @@ mod release_tests {
 
     #[test]
     fn test_release_result_success_field_is_bool() {
-        let result = release_package(Some("/nonexistent/cy126"), false, true, None).unwrap();
+        let result = release_package(Some("/nonexistent/cy126"), false, true, None, None).unwrap();
         let _: bool = result.success;
     }
 
     #[test]
     fn test_release_result_errors_is_vec() {
-        let result = release_package(Some("/nonexistent/cy126b"), false, true, None).unwrap();
+        let result = release_package(Some("/nonexistent/cy126b"), false, true, None, None).unwrap();
         let _ = result.errors.len();
     }
 
@@ -742,7 +756,7 @@ mod release_tests {
     fn test_py_release_manager_release_nonexistent() {
         let mgr = PyReleaseManager::new(Some("dry_run"), false, false);
         let result = mgr
-            .release(Some("/nonexistent/path/xyz_123"), None)
+            .release(Some("/nonexistent/path/xyz_123"), None, None)
             .unwrap();
         assert!(!result.success, "should fail for nonexistent path");
         assert!(!result.errors.is_empty(), "should have errors");
@@ -781,7 +795,7 @@ mod release_tests {
 
         let mgr = PyReleaseManager::new(Some("dry_run"), false, false);
         let result = mgr
-            .release(Some(dir.path().to_str().unwrap()), None)
+            .release(Some(dir.path().to_str().unwrap()), None, None)
             .unwrap();
         assert!(
             result.success,
@@ -830,7 +844,7 @@ mod release_tests {
         // Use local mode to create variant directories
         let mgr = PyReleaseManager::new(Some("local"), false, false);
         let result = mgr
-            .release(Some(dir.path().to_str().unwrap()), None)
+            .release(Some(dir.path().to_str().unwrap()), None, None)
             .unwrap();
 
         // Release should succeed (even if variants are created)
@@ -847,5 +861,31 @@ mod release_tests {
             let entries: Vec<_> = fs::read_dir(&install_base).unwrap().collect();
             let _ = entries;
         }
+    }
+
+    #[test]
+    fn test_release_ignore_existing_tag_is_threaded_through() {
+        // A dry-run release with each tag policy must stay callable; the
+        // policy itself is asserted in rez-next-build's release tests.
+        for policy in [None, Some(false), Some(true)] {
+            let mgr = PyReleaseManager::new(Some("dry_run"), false, false);
+            let result = mgr
+                .release(Some("/nonexistent/path"), None, policy)
+                .unwrap();
+            assert!(
+                !result.success,
+                "policy {policy:?} should not turn a failed load into success"
+            );
+        }
+    }
+
+    #[test]
+    fn test_release_package_accepts_ignore_existing_tag() {
+        // Compile-time check that the public pyfunction signature carries the
+        // new parameter without breaking the legacy positional call shape.
+        let result = release_package(Some("/nonexistent/path"), false, true, None, Some(false));
+        let result = result.unwrap();
+        assert!(!result.success);
+        assert!(!result.errors.is_empty());
     }
 }

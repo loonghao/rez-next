@@ -381,7 +381,8 @@ pm.load("my_plugin") # load specific plugin
 ```python
 from rez_next.release import release_package
 
-# signature: release_package(source_dir=None, local=False, dry_run=False, message=None)
+# signature: release_package(source_dir=None, local=False, dry_run=False,
+#                            message=None, ignore_existing_tag=None)
 # -> ReleaseResult(success, package_name, version, install_path,
 #                  vcs_metadata, changelog, errors, warnings)
 result = release_package(
@@ -389,6 +390,7 @@ result = release_package(
     local=False,
     dry_run=False,
     message="Release maya-2024.1",
+    ignore_existing_tag=False,
 )
 
 if not result.success:
@@ -400,6 +402,20 @@ Modes: `dry_run=True` validates only (no build, no install, no VCS writes);
 `release_packages_path`. Failures are reported through `result.errors`
 (`result.success is False`) rather than raised, except for hard errors which
 surface as `RuntimeError`.
+
+`ignore_existing_tag` decides what happens when the release tag is already
+present:
+
+| Value | Behaviour |
+|-------|-----------|
+| `None` (default) | Legacy: warn (`Tag '...' already exists`) and continue |
+| `False` | Hard error — the release aborts and nothing is installed |
+| `True` | Proceed and re-release over the existing tag |
+
+Prefer `False` for automation. With the legacy `None`, a re-release overwrites
+the installed package and rewrites its `vcs_metadata.json` to the new commit
+while the git tag stays on the old one, so the same version reports two
+different source commits — and the result is still `success=True`.
 
 ### Release via vx
 
@@ -552,20 +568,28 @@ vx x rez-release check   [PATH]         # alias for --dry-run
 | `-n`, `--dry-run` | Validate only — no build, no install, no VCS writes |
 | `-l`, `--local` | Install into `local_packages_path` instead of `release_packages_path` |
 | `-m`, `--message` | Release message used for the VCS tag |
+| `--ignore-existing-tag` | Release even if the release tag already exists (default: refuse) |
 | `--json` | Emit the raw `ReleaseResult` as JSON on stdout |
 
 When `PATH` is omitted the directory is taken from `VX_PROJECT_DIR`, which vx
 sets to the directory it was invoked from.
+
+The extension passes `ignore_existing_tag=False` unless
+`--ignore-existing-tag` is given, so re-releasing an existing version fails
+instead of silently overwriting the installed package. This matches the
+`rez-next release` CLI default.
+
+With `--json`, progress lines go to stderr and stdout carries only the JSON
+document.
 
 ### Exit codes
 
 | Code | Meaning |
 |------|---------|
 | `0` | Release succeeded |
-| `1` | Release reported errors (uncommitted changes, missing `package.py`, …) |
-| `2` | Usage error (package directory not found) |
+| `1` | Release failed (uncommitted changes, missing `package.py`, existing tag, build/test failure, …) |
+| `2` | Usage error (package directory not found, bad arguments) |
 | `3` | `rez-next` Python package is not importable |
-| `4` | Unexpected failure |
 
 ### Installation paths
 

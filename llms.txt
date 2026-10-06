@@ -35,8 +35,11 @@ vx x rez-release check                # alias for --dry-run
 ```
 
 Runs against the caller's directory via `VX_PROJECT_DIR`; accepts an explicit
-path as the first positional argument. Exit codes: `0` ok, `1` release errors,
-`2` usage, `3` `rez-next` not importable, `4` unexpected failure.
+path as the first positional argument. Exit codes: `0` ok, `1` release failed,
+`2` usage, `3` `rez-next` not importable.
+
+Refuses to re-release an existing version by default (the tag check runs before
+anything is installed); pass `--ignore-existing-tag` to override.
 
 Install paths vx discovers (highest priority first): `~/.vx/extensions-dev/`
 (`vx ext dev`), `<project>/.vx/extensions/`, `~/.vx/extensions/`.

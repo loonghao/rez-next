@@ -71,11 +71,19 @@ vx x rez-release check   [PATH]         # alias for --dry-run
 | `-n`, `--dry-run` | Validate only — no build, no install, no VCS writes |
 | `-l`, `--local` | Install into `local_packages_path` instead of `release_packages_path` |
 | `-m`, `--message` | Release message used for the VCS tag |
+| `--ignore-existing-tag` | Release even if the release tag already exists (default: refuse) |
 | `--json` | Emit the raw `ReleaseResult` as JSON on stdout |
 
 When `PATH` is omitted, the directory is taken from `VX_PROJECT_DIR`, which vx
 sets to the directory it was invoked from. Run from inside a package directory
 to release it; pass an explicit path to release a package from elsewhere.
+
+The extension passes `ignore_existing_tag=False` unless `--ignore-existing-tag`
+is given, matching the `rez-next release` CLI default. Re-releasing an existing
+version therefore fails instead of overwriting the installed package.
+
+With `--json`, progress lines go to stderr so stdout carries only the JSON
+document.
 
 ### Examples
 
@@ -91,10 +99,9 @@ vx x rez-release release ~/dev/other --dry-run --json
 | Code | Meaning |
 |------|---------|
 | `0` | Release succeeded |
-| `1` | Release reported errors |
-| `2` | Usage error (package directory not found) |
+| `1` | Release failed (see below) |
+| `2` | Usage error (package directory not found, bad arguments) |
 | `3` | `rez-next` Python package is not importable |
-| `4` | Unexpected failure |
 
 Failure paths are passed through, not swallowed. When a release fails the
 extension prints each entry from `ReleaseResult.errors` to stderr and exits
@@ -102,8 +109,13 @@ non-zero, covering:
 
 - **Uncommitted changes** — `VCS validation failed: ... Repository is not clean`
 - **No package definition** — `No package.py or package.yaml found`
-- **Existing release tag** — reported as a warning (`Tag '...' already exists`)
-  rather than an error, matching the underlying API
+- **Existing release tag** — `Release tag '...' already exists. Use
+  --ignore-existing-tag to override.` Nothing is installed or overwritten.
+- **Build or test failure** — propagated from the Rust layer as a
+  `RuntimeError`
+
+Build, test, and install-path failures are ordinary release failures and exit
+`1`; there is no separate "unexpected failure" code.
 
 ## Notes
 
@@ -112,3 +124,14 @@ non-zero, covering:
   `VX_PROJECT_DIR` rather than the process cwd.
 - `--dry-run` returns before the build, install, and tag steps, so it touches
   neither the filesystem nor the VCS.
+- **Why re-releasing an existing version is refused.** With the permissive
+  legacy behaviour, re-running a release overwrites the installed `package.py`
+  and rewrites its `vcs_metadata.json` to the new commit, while the git tag
+  stays on the old commit. The same version then reports two different source
+  commits depending on whether you read the tag or the installed provenance —
+  and the result still comes back successful. The tag check runs before
+  anything is installed, so a rejected release changes nothing.
+- Any real release imports `package.py`, which creates `__pycache__/` in the
+  **source** directory. If that directory is a git work tree without a
+  `.gitignore` entry for it, the next release is rejected as
+  `Repository is not clean`. Add `__pycache__/` to `.gitignore`.

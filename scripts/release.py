@@ -6,8 +6,8 @@ script with the extension directory as the working directory, so the package
 to release is resolved from the `path` argument, falling back to
 `VX_PROJECT_DIR` (the directory vx was invoked from).
 
-Exit codes: 0 success, 1 release reported errors, 2 usage error,
-3 rez_next is not importable, 4 unexpected failure.
+Exit codes: 0 success, 1 release failed, 2 usage error,
+3 rez_next is not importable.
 """
 
 from __future__ import annotations
@@ -21,7 +21,6 @@ EXIT_OK = 0
 EXIT_RELEASE_FAILED = 1
 EXIT_USAGE = 2
 EXIT_MISSING_REZ_NEXT = 3
-EXIT_UNEXPECTED = 4
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -51,6 +50,11 @@ def build_parser() -> argparse.ArgumentParser:
         "-m", "--message", default=None, help="Release message for the VCS tag"
     )
     parser.add_argument(
+        "--ignore-existing-tag",
+        action="store_true",
+        help="Release even if the release tag already exists (default: refuse)",
+    )
+    parser.add_argument(
         "--json",
         action="store_true",
         help="Emit the raw release result as JSON on stdout",
@@ -67,6 +71,21 @@ def resolve_source_dir(path: str | None) -> tuple[str, str | None]:
     if from_env:
         return from_env, "VX_PROJECT_DIR"
     return os.getcwd(), "current directory"
+
+
+def _decode_vcs_metadata(vcs_metadata: str | None) -> dict | list | str | None:
+    """Decode the JSON string `vcs_metadata` into a nested payload.
+
+    The binding hands this field over as a JSON-encoded string, so embedding it
+    verbatim would double-encode it for machine consumers.
+    """
+    if vcs_metadata is None:
+        return None
+    try:
+        return json.loads(vcs_metadata)
+    except (TypeError, ValueError):
+        # Not valid JSON: expose it as-is rather than dropping provenance.
+        return vcs_metadata
 
 
 def main(argv: list[str]) -> int:
@@ -92,19 +111,30 @@ def main(argv: list[str]) -> int:
         )
         return EXIT_MISSING_REZ_NEXT
 
-    print(f"Releasing from {source_dir} (resolved from {origin})")
+    # `--json` is a machine contract: progress goes to stderr so stdout stays
+    # a single parseable JSON document.
+    progress = sys.stderr if args.json else sys.stdout
+    print(f"Releasing from {source_dir} (resolved from {origin})", file=progress)
     if args.dry_run:
-        print("Mode: dry-run (no build, no install, no VCS changes)")
+        print("Mode: dry-run (no build, no install, no VCS changes)", file=progress)
     elif args.local:
-        print("Mode: local (install into local_packages_path)")
+        print("Mode: local (install into local_packages_path)", file=progress)
     else:
-        print("Mode: release (install into release_packages_path)")
+        print("Mode: release (install into release_packages_path)", file=progress)
 
     try:
-        result = release_package(source_dir, args.local, args.dry_run, args.message)
-    except RuntimeError as exc:  # rez-next raises hard failures as RuntimeError
+        result = release_package(
+            source_dir,
+            args.local,
+            args.dry_run,
+            args.message,
+            args.ignore_existing_tag,
+        )
+    except RuntimeError as exc:
+        # Build failures, test failures and bad install paths surface here.
+        # They are ordinary release failures, not unexpected ones.
         print(f"error: release failed: {exc}", file=sys.stderr)
-        return EXIT_UNEXPECTED
+        return EXIT_RELEASE_FAILED
 
     if args.json:
         print(
@@ -114,7 +144,7 @@ def main(argv: list[str]) -> int:
                     "package_name": result.package_name,
                     "version": result.version,
                     "install_path": result.install_path,
-                    "vcs_metadata": result.vcs_metadata,
+                    "vcs_metadata": _decode_vcs_metadata(result.vcs_metadata),
                     "changelog": result.changelog,
                     "errors": list(result.errors),
                     "warnings": list(result.warnings),
