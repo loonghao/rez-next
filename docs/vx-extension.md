@@ -61,9 +61,13 @@ Copy the same two files into `<project>/.vx/extensions/rez-release/`.
 ## Usage
 
 ```bash
+vx x rez-release [PATH] [options]        # bare entrypoint
 vx x rez-release release [PATH] [options]
-vx x rez-release check   [PATH]         # alias for --dry-run
+vx x rez-release check   [PATH]          # alias for --dry-run
 ```
+
+All three forms accept the same options: the subcommand is optional, and the
+bare entrypoint forwards its arguments to the script unchanged.
 
 | Option | Effect |
 |--------|--------|
@@ -89,7 +93,7 @@ document.
 
 ```bash
 cd ~/dev/mypkg
-vx x rez-release release --dry-run          # check this package
+vx x rez-release --dry-run                  # check this package (bare entrypoint)
 vx x rez-release release -m "mypkg 1.2.0"   # release it
 vx x rez-release release ~/dev/other --dry-run --json
 ```
@@ -119,6 +123,15 @@ Build, test, and install-path failures are ordinary release failures and exit
 
 ## Notes
 
+- **Do not add `[[entrypoint.arguments]]` to `vx-extension.toml`.** When an
+  entrypoint declares arguments, vx parses bare-entrypoint flags itself and
+  passes them as `VX_ARG_*` environment variables *instead of* forwarding argv
+  to the script. The script then sees an empty argv, every argparse flag falls
+  back to its default, and `vx x rez-release --dry-run` silently becomes a real
+  release that builds, installs, and creates a VCS tag. Neither `--` nor
+  unknown flags escape this — vx rejects undeclared flags before the script
+  runs. The script's own argparse is the single source of truth for flags, and
+  bad usage still exits `2`. A regression test guards this.
 - vx runs the entrypoint with the **extension directory** as the working
   directory, which is why the package path comes from the `PATH` argument or
   `VX_PROJECT_DIR` rather than the process cwd.

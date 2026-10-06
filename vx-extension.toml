@@ -12,32 +12,19 @@ requires = "python >= 3.9"
 [entrypoint]
 main = "scripts/release.py"
 
-[[entrypoint.arguments]]
-name = "path"
-positional = true
-help = "Package source directory (defaults to the directory vx was invoked from)"
-
-[[entrypoint.arguments]]
-name = "dry_run"
-type = "flag"
-short = "n"
-help = "Validate only: do not build, install, or touch the VCS"
-
-[[entrypoint.arguments]]
-name = "local"
-type = "flag"
-short = "l"
-help = "Release into local_packages_path instead of release_packages_path"
-
-[[entrypoint.arguments]]
-name = "message"
-short = "m"
-help = "Release message used for the VCS tag"
-
-[[entrypoint.arguments]]
-name = "json"
-type = "flag"
-help = "Emit the raw release result as JSON on stdout"
+# Do NOT add `[[entrypoint.arguments]]` here.
+#
+# When an entrypoint declares arguments, vx parses the bare-entrypoint flags
+# itself and passes them as VX_ARG_* environment variables instead of
+# forwarding argv to the script. The script then sees an empty argv, every
+# argparse flag falls back to its default, and `vx x rez-release --dry-run`
+# silently becomes a real release: it builds, installs, and creates a VCS tag.
+# Neither `--` nor unknown flags escape this — vx rejects undeclared flags
+# before the script runs.
+#
+# Leaving the table out keeps argv passthrough intact and makes the script's
+# own argparse the single source of truth for flags (bad usage still exits 2).
+# Guarded by a regression test in tests/scripts/test_extension_manifest.py.
 
 [commands.release]
 description = "Release a rez package from a source directory"

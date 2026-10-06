@@ -558,9 +558,20 @@ exactly; it adds no release logic of its own.
 
 ```bash
 vx ext dev .                            # link this checkout as a dev extension
+vx x rez-release [PATH] [options]       # bare entrypoint
 vx x rez-release release [PATH] [options]
 vx x rez-release check   [PATH]         # alias for --dry-run
 ```
+
+The subcommand is optional; all three forms forward arguments to
+`scripts/release.py`, whose argparse is the single source of truth for flags.
+
+> **Do not add `[[entrypoint.arguments]]` to the manifest.** Declaring
+> arguments makes vx parse bare-entrypoint flags into `VX_ARG_*` environment
+> variables instead of forwarding argv. The script then sees an empty argv,
+> every flag falls back to its default, and `vx x rez-release --dry-run`
+> silently becomes a real release that builds, installs, and creates a VCS tag.
+> Neither `--` nor unknown flags escape this. A regression test guards it.
 
 | Option | Effect |
 |--------|--------|
