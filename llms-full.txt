@@ -412,6 +412,10 @@ present:
 | `False` | Hard error — the release aborts and nothing is installed |
 | `True` | Proceed and re-release over the existing tag |
 
+When the policy lets a release continue over an existing tag (`None` or
+`True`), the existing tag is **kept as is** — it is not re-created and not
+moved to the new commit. The release still reports success.
+
 Prefer `False` for automation. With the legacy `None`, a re-release overwrites
 the installed package and rewrites its `vcs_metadata.json` to the new commit
 while the git tag stays on the old one, so the same version reports two

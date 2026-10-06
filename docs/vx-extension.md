@@ -149,6 +149,11 @@ Build, test, and install-path failures are ordinary release failures and exit
   installed, which keeps the invariant **tag exists ⟺ release succeeded**. A
   build or test failure therefore leaves no tag behind, so re-running the
   release after fixing it works without passing `--ignore-existing-tag`.
+
+  When a release does go through over an existing tag (`--ignore-existing-tag`
+  or the legacy default), the existing tag is **kept as is** — never
+  re-created, never moved onto the new commit. The release reports success and
+  keeps the `Tag '...' already exists` warning.
 - Any real release imports `package.py`, which creates `__pycache__/` in the
   **source** directory. If that directory is a git work tree without a
   `.gitignore` entry for it, the next release is rejected as

@@ -186,8 +186,9 @@ impl ReleaseManager {
         // Invariant: tag exists ⟺ release succeeded. This step therefore only
         // checks the policy; the tag itself is created in step 9, after the
         // package has been installed.
+        let mut tag_pre_existed = false;
         if let Some(ref vcs_impl) = vcs {
-            self.check_existing_tag(vcs_impl.as_ref(), &package, &mut result)?;
+            tag_pre_existed = self.check_existing_tag(vcs_impl.as_ref(), &package, &mut result)?;
         }
 
         if !result.errors.is_empty() {
@@ -225,8 +226,14 @@ impl ReleaseManager {
         // installed — a tag therefore never outlives a failed release. A tag
         // creation failure here is recoverable by re-running the release:
         // nothing has been overwritten, so the version is not wedged.
+        //
+        // When the tag already existed and step 3 let the release continue
+        // anyway (`Some(true)` or the legacy `None`), there is nothing to
+        // create: re-tagging would fail against the real providers and would
+        // report an installed package as failed. The existing tag is kept.
         if let Some(ref vcs_impl) = vcs
             && result.errors.is_empty()
+            && !tag_pre_existed
         {
             self.create_vcs_tag(vcs_impl.as_ref(), &package, message, &mut result)?;
         }
@@ -450,18 +457,30 @@ impl ReleaseManager {
     /// split keeps the invariant **tag exists ⟺ release succeeded** — a tag
     /// created before the build would survive a build/test failure and leave a
     /// version permanently wedged.
+    ///
+    /// Returns `true` when the tag already existed *and* the policy let the
+    /// release continue anyway. Step 9 uses that to skip `create_tag`: the real
+    /// providers create tags with `force = false` and do not pre-check for
+    /// existence, so re-tagging an existing name would fail and turn an
+    /// installed release into a reported failure. Forcing the tag is not an
+    /// option — it would move an already-released version's tag onto a new
+    /// commit, which is exactly the provenance tampering this policy prevents.
     fn check_existing_tag(
         &self,
         vcs: &dyn ReleaseVCS,
         package: &Package,
         result: &mut ReleaseResult,
-    ) -> Result<(), RezCoreError> {
+    ) -> Result<bool, RezCoreError> {
         let tag_name = Self::release_tag_name(package);
+        let mut tag_pre_existed = false;
 
         match vcs.tag_exists(&tag_name) {
             Ok(true) => match self.ignore_existing_tag {
-                // Explicit opt-in: re-release over the existing tag.
+                // Explicit opt-in: re-release over the existing tag. The tag
+                // keeps pointing at the original commit — moving it is what
+                // `--ignore-existing-tag` deliberately does not do.
                 Some(true) => {
+                    tag_pre_existed = true;
                     result
                         .warnings
                         .push(format!("Tag '{}' already exists", tag_name));
@@ -478,6 +497,7 @@ impl ReleaseManager {
                 }
                 // Legacy: warn and continue (preserves pre-existing behaviour).
                 None => {
+                    tag_pre_existed = true;
                     result
                         .warnings
                         .push(format!("Tag '{}' already exists", tag_name));
@@ -491,7 +511,7 @@ impl ReleaseManager {
             }
         }
 
-        Ok(())
+        Ok(tag_pre_existed)
     }
 
     /// Build the VCS tag name for a package version.
@@ -1098,6 +1118,10 @@ version = "1.0.0"
     ///
     /// `build_and_test` controls whether the build and test steps run; turning
     /// it off keeps the run hermetic (no `python` lookup, no shelling out).
+    ///
+    /// `refuse_existing` makes the stub fail `create_tag` for an existing tag,
+    /// the way the real providers do. It is on by default, including when
+    /// `tag_exists` is false, where it has no effect.
     fn run_release_with_policy(
         source_dir: &Path,
         name: &str,
@@ -1115,6 +1139,7 @@ version = "1.0.0"
 
         let vcs = std::sync::Arc::new(CountingTagVCS {
             tag_exists,
+            refuse_existing: true,
             created: std::sync::Mutex::new(Vec::new()),
         });
         let vcs_for_release: std::sync::Arc<dyn crate::vcs::ReleaseVCS + Send + Sync> = vcs.clone();
@@ -1132,8 +1157,15 @@ version = "1.0.0"
     }
 
     /// A VCS stub that records every tag it is asked to create.
+    ///
+    /// With `refuse_existing` set it also fails `create_tag` for a tag that
+    /// already exists, mirroring the real providers, which create tags with
+    /// `force = false` and do not pre-check for existence. Tests that care
+    /// about a release surviving an existing tag should turn it on: a stub
+    /// that happily re-tags would hide the failure.
     struct CountingTagVCS {
         tag_exists: bool,
+        refuse_existing: bool,
         created: std::sync::Mutex<Vec<String>>,
     }
 
@@ -1163,6 +1195,12 @@ version = "1.0.0"
             Ok(self.tag_exists)
         }
         fn create_tag(&self, tag: &str, _message: &str) -> Result<(), RezCoreError> {
+            if self.refuse_existing && self.tag_exists {
+                return Err(RezCoreError::BuildError(format!(
+                    "tag '{}' already exists",
+                    tag
+                )));
+            }
             self.created.lock().unwrap().push(tag.to_string());
             Ok(())
         }
@@ -1257,6 +1295,7 @@ version = "1.0.0"
 
         let vcs = std::sync::Arc::new(CountingTagVCS {
             tag_exists: false,
+            refuse_existing: true,
             created: std::sync::Mutex::new(Vec::new()),
         });
         let vcs_for_release: std::sync::Arc<dyn crate::vcs::ReleaseVCS + Send + Sync> = vcs.clone();
@@ -1308,6 +1347,84 @@ version = "1.0.0"
             vcs.created_tags(),
             vec!["fresh_pkg-2.0.0".to_string()],
             "a successful release must create its tag exactly once"
+        );
+    }
+
+    /// `--ignore-existing-tag` over an existing tag: the package is installed
+    /// and the release still reports success, without touching the tag.
+    ///
+    /// The stub refuses to re-create an existing tag, exactly like the real
+    /// providers (`force = false`, no existence pre-check). So if step 9 tried
+    /// to tag anyway, the release would end up installed but reported as
+    /// failed — the regression this pins down.
+    #[test]
+    fn test_release_ignore_existing_tag_succeeds_without_retagging() {
+        let temp_dir = TempDir::new().unwrap();
+        let source = temp_dir.path().join("src");
+        fs::create_dir_all(&source).unwrap();
+
+        let installed = install_dir_for("reissue_pkg", "1.0.0");
+        fs::create_dir_all(&installed).unwrap();
+
+        let (result, vcs) =
+            run_release_with_policy(&source, "reissue_pkg", "1.0.0", Some(true), true, false);
+
+        assert!(
+            result.errors.is_empty(),
+            "an explicitly ignored existing tag must not fail the release, got {:?}",
+            result.errors
+        );
+        assert!(result.success, "success must be true");
+        assert!(
+            vcs.created_tags().is_empty(),
+            "an existing tag must not be re-created, got {:?}",
+            vcs.created_tags()
+        );
+        assert!(
+            result.warnings.iter().any(|w| w.contains("already exists")),
+            "the existing-tag warning must be kept, got {:?}",
+            result.warnings
+        );
+        assert!(
+            installed.join("package.py").exists(),
+            "the package must still be installed"
+        );
+    }
+
+    /// The legacy default (`None`) over an existing tag: warn, install, and
+    /// still report success — the behaviour that predates this work and that
+    /// the `Legacy: warn and continue` comment claims to preserve.
+    #[test]
+    fn test_release_legacy_policy_succeeds_without_retagging() {
+        let temp_dir = TempDir::new().unwrap();
+        let source = temp_dir.path().join("src");
+        fs::create_dir_all(&source).unwrap();
+
+        let installed = install_dir_for("legacy_pkg", "1.0.0");
+        fs::create_dir_all(&installed).unwrap();
+
+        let (result, vcs) =
+            run_release_with_policy(&source, "legacy_pkg", "1.0.0", None, true, false);
+
+        assert!(
+            result.errors.is_empty(),
+            "the legacy default must not start failing, got {:?}",
+            result.errors
+        );
+        assert!(result.success, "success must be true");
+        assert!(
+            vcs.created_tags().is_empty(),
+            "an existing tag must not be re-created, got {:?}",
+            vcs.created_tags()
+        );
+        assert!(
+            result.warnings.iter().any(|w| w.contains("already exists")),
+            "the legacy default still warns, got {:?}",
+            result.warnings
+        );
+        assert!(
+            installed.join("package.py").exists(),
+            "the package must still be installed"
         );
     }
 
