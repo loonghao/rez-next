@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.9](https://github.com/loonghao/rez-next/compare/v0.3.8...v0.3.9) (2026-10-06)
+
+
+### 🚀 Features
+
+* **vx:** expose the release workflow as a vx extension ([d551da3](https://github.com/loonghao/rez-next/commit/d551da31f016eb88abf437e0460cf67b5ebb83ba))
+
+
+### 🐛 Bug Fixes
+
+* **deps:** update rust crate base64 to 0.23 ([#252](https://github.com/loonghao/rez-next/issues/252)) ([f612e94](https://github.com/loonghao/rez-next/commit/f612e945e710e7dba224e51cc712cf52b59abd8e))
+* **deps:** update rust crate dirs to v7 ([#294](https://github.com/loonghao/rez-next/issues/294)) ([1eff7f5](https://github.com/loonghao/rez-next/commit/1eff7f51e3b3c440b8f788ba35cf22a6b7751149))
+* **release:** create the VCS tag only after a successful release ([fa39b56](https://github.com/loonghao/rez-next/commit/fa39b56e75485efc98ef4ec82afa52d11f42ec95))
+* **release:** keep an existing tag instead of failing to re-create it ([b7a5ca9](https://github.com/loonghao/rez-next/commit/b7a5ca95c49134878a732ca84249d926d6e6122a))
+* **vx:** refuse to re-release an existing version ([b2d639c](https://github.com/loonghao/rez-next/commit/b2d639c6965c35aa37dc5976356b4f07d9590443))
+* **vx:** stop --dry-run from silently becoming a real release ([196dc95](https://github.com/loonghao/rez-next/commit/196dc9567b6791ee59dc29e3617f0242d57a99e8))
+
 ## [0.3.8](https://github.com/loonghao/rez-next/compare/v0.3.7...v0.3.8) (2026-09-25)
 
 
