@@ -22,6 +22,25 @@ vx just py-build     # Python wheel (maturin develop)
 vx just py-test      # Python tests
 ```
 
+## vx Extension (rez-release)
+
+Ships `vx-extension.toml` + `scripts/release.py`, exposing the release workflow
+as a vx command via the `rez_next.release` Python API.
+
+```bash
+vx ext dev .                          # link this repo as a dev extension
+vx x rez-release release --dry-run    # validate, write nothing
+vx x rez-release release -m "msg"     # real release
+vx x rez-release check                # alias for --dry-run
+```
+
+Runs against the caller's directory via `VX_PROJECT_DIR`; accepts an explicit
+path as the first positional argument. Exit codes: `0` ok, `1` release errors,
+`2` usage, `3` `rez-next` not importable, `4` unexpected failure.
+
+Install paths vx discovers (highest priority first): `~/.vx/extensions-dev/`
+(`vx ext dev`), `<project>/.vx/extensions/`, `~/.vx/extensions/`.
+
 ## Architecture Map (20 crates)
 
 ```
@@ -160,6 +179,8 @@ crates/
 | `docs/` | Detailed human guides |
 | `vx.toml` | Tool version pinning |
 | `justfile` | Task runner recipes |
+| `vx-extension.toml` | vx extension manifest for the release command |
+| `scripts/release.py` | vx extension entrypoint for the release command |
 
 ## CI Pipeline
 

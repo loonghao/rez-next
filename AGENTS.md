@@ -47,6 +47,7 @@ pkg = rez.get_latest_package("python")
   - `performance.md` → Profiling tools
   - `python-integration.md` → Python bindings usage
   - `python-integration_zh.md` → Chinese version
+  - `vx-extension.md` → Releasing packages through vx
   - `PRE_COMMIT_SETUP.md` → Code quality hooks
 
 ### Reference

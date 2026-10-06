@@ -10,8 +10,9 @@
 2. [Rust API](#rust-api)
 3. [Python API](#python-api)
 4. [CLI Reference](#cli-reference)
-5. [Development Commands](#development-commands)
-6. [Configuration Files](#configuration-files)
+5. [vx Extension](#vx-extension)
+6. [Development Commands](#development-commands)
+7. [Configuration Files](#configuration-files)
 
 ---
 
@@ -380,12 +381,30 @@ pm.load("my_plugin") # load specific plugin
 ```python
 from rez_next.release import release_package
 
-release_package(
+# signature: release_package(source_dir=None, local=False, dry_run=False, message=None)
+# -> ReleaseResult(success, package_name, version, install_path,
+#                  vcs_metadata, changelog, errors, warnings)
+result = release_package(
     "/path/to/package",
+    local=False,
+    dry_run=False,
     message="Release maya-2024.1",
-    variants=True,
 )
+
+if not result.success:
+    raise SystemExit("\n".join(result.errors))
 ```
+
+Modes: `dry_run=True` validates only (no build, no install, no VCS writes);
+`local=True` installs into `local_packages_path`; otherwise
+`release_packages_path`. Failures are reported through `result.errors`
+(`result.success is False`) rather than raised, except for hard errors which
+surface as `RuntimeError`.
+
+### Release via vx
+
+`rez-next` ships a vx extension so the same workflow is drivable from vx.
+See [vx Extension](#vx-extension) below.
 
 ### Bind
 
@@ -508,6 +527,62 @@ rez-next info python --all
 rez-next self-update
 rez-next self-update --check
 rez-next self-update --version 0.3.2
+```
+
+---
+
+## vx Extension
+
+`rez-next` ships a vx extension (`vx-extension.toml` + `scripts/release.py`)
+that exposes the release workflow as `vx x rez-release`. It calls
+`rez_next.release.release_package` and therefore inherits its semantics
+exactly; it adds no release logic of its own.
+
+### Usage
+
+```bash
+vx ext dev .                            # link this checkout as a dev extension
+vx x rez-release release [PATH] [options]
+vx x rez-release check   [PATH]         # alias for --dry-run
+```
+
+| Option | Effect |
+|--------|--------|
+| `PATH` (positional) | Package source directory; defaults to the caller's directory |
+| `-n`, `--dry-run` | Validate only — no build, no install, no VCS writes |
+| `-l`, `--local` | Install into `local_packages_path` instead of `release_packages_path` |
+| `-m`, `--message` | Release message used for the VCS tag |
+| `--json` | Emit the raw `ReleaseResult` as JSON on stdout |
+
+When `PATH` is omitted the directory is taken from `VX_PROJECT_DIR`, which vx
+sets to the directory it was invoked from.
+
+### Exit codes
+
+| Code | Meaning |
+|------|---------|
+| `0` | Release succeeded |
+| `1` | Release reported errors (uncommitted changes, missing `package.py`, …) |
+| `2` | Usage error (package directory not found) |
+| `3` | `rez-next` Python package is not importable |
+| `4` | Unexpected failure |
+
+### Installation paths
+
+vx discovers extensions in this priority order:
+
+1. `~/.vx/extensions-dev/<name>` — created by `vx ext dev <dir>` (symlink, use while developing)
+2. `<project>/.vx/extensions/<name>` — project-local
+3. `~/.vx/extensions/<name>` — user-level
+
+```bash
+# develop against this checkout
+vx ext dev /path/to/rez-next
+
+# user-level install (copy only the two files)
+mkdir -p ~/.vx/extensions/rez-release/scripts
+cp vx-extension.toml ~/.vx/extensions/rez-release/
+cp scripts/release.py ~/.vx/extensions/rez-release/scripts/
 ```
 
 ---
