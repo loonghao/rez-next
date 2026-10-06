@@ -334,6 +334,61 @@ impl ReleaseVCS for Box<dyn ReleaseVCS + Send + Sync> {
     }
 }
 
+/// Implement ReleaseVCS for Arc<dyn ReleaseVCS + Send + Sync>
+///
+/// Lets a shared trait object stand in for an owned one, so callers that need
+/// to observe the same VCS instance the release flow uses can hold an `Arc` to
+/// it instead of boxing a fresh one.
+impl ReleaseVCS for std::sync::Arc<dyn ReleaseVCS + Send + Sync> {
+    fn get_type_name(&self) -> &str {
+        (**self).get_type_name()
+    }
+
+    fn get_repo_root(&self) -> Result<PathBuf, RezCoreError> {
+        (**self).get_repo_root()
+    }
+
+    fn is_clean(&self) -> Result<bool, RezCoreError> {
+        (**self).is_clean()
+    }
+
+    fn get_current_branch(&self) -> Result<String, RezCoreError> {
+        (**self).get_current_branch()
+    }
+
+    fn get_latest_commit(&self) -> Result<String, RezCoreError> {
+        (**self).get_latest_commit()
+    }
+
+    fn tag_exists(&self, tag: &str) -> Result<bool, RezCoreError> {
+        (**self).tag_exists(tag)
+    }
+
+    fn create_tag(&self, tag: &str, message: &str) -> Result<(), RezCoreError> {
+        (**self).create_tag(tag, message)
+    }
+
+    fn get_changelog(
+        &self,
+        from_rev: Option<&str>,
+        to_rev: Option<&str>,
+    ) -> Result<String, RezCoreError> {
+        (**self).get_changelog(from_rev, to_rev)
+    }
+
+    fn get_metadata(&self) -> Result<VCSMetadata, RezCoreError> {
+        (**self).get_metadata()
+    }
+
+    fn validate_repo_state(&self) -> Result<(), RezCoreError> {
+        (**self).validate_repo_state()
+    }
+
+    fn is_releasable_branch(&self) -> Result<Option<bool>, RezCoreError> {
+        (**self).is_releasable_branch()
+    }
+}
+
 /// Detect VCS type from repository path
 pub fn detect_vcs(repo_path: &Path) -> Option<Box<dyn ReleaseVCS + Send + Sync>> {
     // Check for Git

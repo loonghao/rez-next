@@ -144,6 +144,11 @@ Build, test, and install-path failures are ordinary release failures and exit
   commits depending on whether you read the tag or the installed provenance —
   and the result still comes back successful. The tag check runs before
   anything is installed, so a rejected release changes nothing.
+
+  The tag itself is created only after the package has been built, tested and
+  installed, which keeps the invariant **tag exists ⟺ release succeeded**. A
+  build or test failure therefore leaves no tag behind, so re-running the
+  release after fixing it works without passing `--ignore-existing-tag`.
 - Any real release imports `package.py`, which creates `__pycache__/` in the
   **source** directory. If that directory is a git work tree without a
   `.gitignore` entry for it, the next release is rejected as
