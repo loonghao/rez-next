@@ -1,0 +1,49 @@
+[extension]
+name = "rez-release"
+version = "0.1.0"
+description = "Run rez-next package releases (release/local/dry-run) through vx"
+type = "command"
+authors = ["rez-next contributors"]
+license = "Apache-2.0"
+
+[runtime]
+requires = "python >= 3.9"
+
+[entrypoint]
+main = "scripts/release.py"
+
+[[entrypoint.arguments]]
+name = "path"
+positional = true
+help = "Package source directory (defaults to the directory vx was invoked from)"
+
+[[entrypoint.arguments]]
+name = "dry_run"
+type = "flag"
+short = "n"
+help = "Validate only: do not build, install, or touch the VCS"
+
+[[entrypoint.arguments]]
+name = "local"
+type = "flag"
+short = "l"
+help = "Release into local_packages_path instead of release_packages_path"
+
+[[entrypoint.arguments]]
+name = "message"
+short = "m"
+help = "Release message used for the VCS tag"
+
+[[entrypoint.arguments]]
+name = "json"
+type = "flag"
+help = "Emit the raw release result as JSON on stdout"
+
+[commands.release]
+description = "Release a rez package from a source directory"
+script = "scripts/release.py"
+
+[commands.check]
+description = "Validate a package without releasing it (alias for --dry-run)"
+script = "scripts/release.py"
+args = ["--dry-run"]

@@ -150,6 +150,20 @@ for p in rez.iter_packages("maya"):
 | `rez_next.util` | — | Curated native utility functions |
 | `rez_next.vendor.version` | `rez.vendor.version` | Vendored version module |
 
+### Releasing packages with vx
+
+`rez-next` ships a [vx](https://github.com/loonghao/vx) extension so the release
+workflow can be driven directly from vx:
+
+```bash
+vx ext dev .                          # link this checkout as a dev extension
+vx x rez-release release --dry-run    # validate without writing anything
+vx x rez-release release -m "msg"     # release the package in the current directory
+```
+
+See [docs/vx-extension.md](docs/vx-extension.md) for installation paths, all
+options, and exit codes.
+
 ### API Examples
 
 #### Version operations

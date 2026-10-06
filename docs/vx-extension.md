@@ -1,0 +1,114 @@
+# vx Extension: `rez-release`
+
+`rez-next` ships a [vx](https://github.com/loonghao/vx) extension that makes the
+release workflow drivable from vx:
+
+```bash
+vx x rez-release release --dry-run
+```
+
+The extension is a thin wrapper: it calls
+`rez_next.release.release_package` and adds no release logic of its own, so
+release semantics (release / local / dry-run modes, VCS validation, tag
+behaviour) are exactly those of the underlying API.
+
+## Files
+
+| File | Purpose |
+|------|---------|
+| `vx-extension.toml` | Extension manifest (name, runtime, entrypoint, arg definitions) |
+| `scripts/release.py` | Entrypoint script; parses arguments and calls `release_package` |
+
+## Requirements
+
+- [`vx`](https://github.com/loonghao/vx) on `PATH`
+- The `rez-next` Python package importable (`pip install rez-next`, or
+  `vx just py-build` from a checkout). The extension exits `3` with an
+  explanatory message when the import fails.
+
+## Installation
+
+vx discovers extensions in this priority order:
+
+1. `~/.vx/extensions-dev/<name>` — created by `vx ext dev <dir>` (a symlink;
+   use this while developing the extension)
+2. `<project>/.vx/extensions/<name>` — project-local
+3. `~/.vx/extensions/<name>` — user-level
+
+### Develop against this checkout
+
+```bash
+cd /path/to/rez-next
+vx ext dev .
+vx ext list        # rez-release should appear with SOURCE = dev
+vx ext dev . --unlink   # remove the link when done
+```
+
+### User-level install
+
+Only the two files are needed:
+
+```bash
+mkdir -p ~/.vx/extensions/rez-release/scripts
+cp vx-extension.toml ~/.vx/extensions/rez-release/
+cp scripts/release.py ~/.vx/extensions/rez-release/scripts/
+```
+
+### Project-local install
+
+Copy the same two files into `<project>/.vx/extensions/rez-release/`.
+
+## Usage
+
+```bash
+vx x rez-release release [PATH] [options]
+vx x rez-release check   [PATH]         # alias for --dry-run
+```
+
+| Option | Effect |
+|--------|--------|
+| `PATH` (positional) | Package source directory; defaults to the caller's directory |
+| `-n`, `--dry-run` | Validate only — no build, no install, no VCS writes |
+| `-l`, `--local` | Install into `local_packages_path` instead of `release_packages_path` |
+| `-m`, `--message` | Release message used for the VCS tag |
+| `--json` | Emit the raw `ReleaseResult` as JSON on stdout |
+
+When `PATH` is omitted, the directory is taken from `VX_PROJECT_DIR`, which vx
+sets to the directory it was invoked from. Run from inside a package directory
+to release it; pass an explicit path to release a package from elsewhere.
+
+### Examples
+
+```bash
+cd ~/dev/mypkg
+vx x rez-release release --dry-run          # check this package
+vx x rez-release release -m "mypkg 1.2.0"   # release it
+vx x rez-release release ~/dev/other --dry-run --json
+```
+
+## Exit codes
+
+| Code | Meaning |
+|------|---------|
+| `0` | Release succeeded |
+| `1` | Release reported errors |
+| `2` | Usage error (package directory not found) |
+| `3` | `rez-next` Python package is not importable |
+| `4` | Unexpected failure |
+
+Failure paths are passed through, not swallowed. When a release fails the
+extension prints each entry from `ReleaseResult.errors` to stderr and exits
+non-zero, covering:
+
+- **Uncommitted changes** — `VCS validation failed: ... Repository is not clean`
+- **No package definition** — `No package.py or package.yaml found`
+- **Existing release tag** — reported as a warning (`Tag '...' already exists`)
+  rather than an error, matching the underlying API
+
+## Notes
+
+- vx runs the entrypoint with the **extension directory** as the working
+  directory, which is why the package path comes from the `PATH` argument or
+  `VX_PROJECT_DIR` rather than the process cwd.
+- `--dry-run` returns before the build, install, and tag steps, so it touches
+  neither the filesystem nor the VCS.

@@ -150,6 +150,18 @@ for p in rez.iter_packages("maya"):
 | `rez_next.util` | — | 精选的原生工具函数 |
 | `rez_next.vendor.version` | `rez.vendor.version` | 内置版本模块 |
 
+### 通过 vx 发布包
+
+`rez-next` 随仓库提供一个 [vx](https://github.com/loonghao/vx) 扩展，可直接用 vx 驱动发布流程：
+
+```bash
+vx ext dev .                          # 将当前仓库链接为开发扩展
+vx x rez-release release --dry-run    # 只校验，不写入任何内容
+vx x rez-release release -m "msg"     # 发布当前目录下的包
+```
+
+安装路径、全部选项与退出码见 [docs/vx-extension.md](docs/vx-extension.md)。
+
 ### API 示例
 
 #### 版本操作
