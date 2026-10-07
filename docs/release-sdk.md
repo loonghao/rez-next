@@ -63,32 +63,35 @@ let result = manager.release_with_vcs(
 Nine methods are required. `validate_repo_state()`, `is_releasable_branch()`,
 `get_current_revision()`, and `export()` have default implementations.
 
-Two behaviours the release flow relies on:
+Three behaviours the release flow relies on:
 
 - **`create_tag` must not move an existing tag.** The flow never asks it to —
   see [Tag policy](#tag-policy).
-- **A returned `Err` is never fatal.** Metadata, changelog, and tag-check
-  failures are downgraded to warnings so a degraded VCS cannot block a release.
-  The one exception is `validate_repo_state()` failing while VCS validation is
-  enabled, which aborts before anything is built.
+- **Most failures are non-fatal.** `get_metadata()`, `get_changelog()` and
+  `tag_exists()` may return `Err` and the release still succeeds, with the
+  problem recorded as a warning. **`create_tag()` is the exception**: its `Err`
+  is recorded as a release error and makes the release unsuccessful.
+- **`validate_repo_state()` failing aborts the release**, but only while VCS
+  validation is enabled.
 
-An injected VCS is still validated, so supplying one cannot bypass the
+An injected VCS is validated in step 2 **unless** you call
+`set_skip_vcs_validation(true)`, in which case supplying one does bypass the
 repository-state check.
 
 ## Reading the result
 
 `ReleaseResult` is returned as `Ok` even when the release was rejected. **Check
-`success` (equivalently, `errors.is_empty()`) before anything else** — `Ok` does
-not mean the release shipped.
+`success` before anything else** — `Ok` does not mean the release shipped.
+Outside dry-run mode, `success` is equivalent to `errors.is_empty()`.
 
 | Field | Meaning |
 | --- | --- |
-| `success` | `errors.is_empty()` |
+| `success` | `errors.is_empty()`, **except in dry-run mode**, which reports `true` regardless |
 | `package_name`, `version` | From the package definition |
 | `install_path` | Where the package was installed; prefixed `[dry-run] ` in dry-run mode |
 | `vcs_metadata` | VCS metadata; also written to `vcs_metadata.json` in `install_path` |
 | `changelog` | From the VCS, when one was available |
-| `errors` | Human-readable failures; non-empty implies `success == false` |
+| `errors` | Human-readable failures; non-empty implies `success == false`, **except in dry-run mode** |
 | `warnings` | Non-fatal notes. A release can succeed with warnings. |
 
 `errors` and `warnings` are diagnostic text for logs. Match on `success` and
@@ -96,6 +99,24 @@ treat the strings as display-only — their wording is not a stable contract.
 
 `Err(RezCoreError)` means the workflow itself could not run, not that the
 release was rejected.
+
+### Dry run breaks the `success` / `errors` equivalence
+
+A dry run reports `success == true` unconditionally, so it can come back
+successful **with a non-empty `errors`** — for example when repository
+validation rejects the working tree:
+
+```text
+success = true
+errors  = ["VCS validation failed: Repository is not clean"]
+```
+
+This is reachable through the `vcs: None` path, where a failed
+`validate_repo_state()` is recorded but does not stop the run. (With an injected
+VCS the same failure returns immediately with `success == false`.)
+
+Since the point of a dry run is to surface problems before committing to a
+release, **check `errors` as well as `success`** when running one.
 
 ## Release modes
 
@@ -105,19 +126,21 @@ release was rejected.
 | `Local` | Install into `local_packages_path` |
 | `DryRun` | Validate only — no build, no install, no VCS writes |
 
-Dry run returns after the package definition and repository state are validated,
-so it touches neither the filesystem nor the VCS.
+A dry run writes nothing, but it still *reads* the VCS: it calls
+`validate_repo_state()` and `get_metadata()` before returning, which is how
+repository problems reach `errors`.
 
 ## Tag policy
 
 The release tag is named `{name}-{version}`. The workflow checks it **before**
 building (step 3) and creates it **last**, after the package is installed
-(step 9). That ordering maintains the invariant:
+(step 9). Where a VCS is in play, that ordering maintains the invariant:
 
 > **tag exists ⟺ release succeeded**
 
 A build or test failure therefore leaves no tag behind, and the same version can
-be retried without an override.
+be retried without an override. With no VCS there is no tag at all, and the
+release can still succeed.
 
 `set_ignore_existing_tag()` selects how an existing tag is treated:
 

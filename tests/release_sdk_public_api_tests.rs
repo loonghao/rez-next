@@ -400,9 +400,14 @@ fn downstream_dry_run_writes_nothing() {
     );
 }
 
-/// `vcs: None` falls back to VCS detection, which finds nothing in a plain
-/// temporary directory. The release still installs, and the caller can tell
-/// from the result that no VCS was involved.
+/// `vcs: None` with VCS validation **enabled** really does fall back to
+/// `detect_vcs`, which finds nothing in a plain temporary directory.
+///
+/// This is the path the earlier `skip_vcs_validation(true)` variant of this
+/// test failed to reach: with validation disabled the `vcs: None` branch
+/// short-circuits to `None` without ever calling `detect_vcs`, so the fallback
+/// itself was untested. Enabling validation is what puts `detect_vcs` on the
+/// path taken.
 #[test]
 fn downstream_none_vcs_falls_back_to_detection() {
     let _lock = paths_lock().lock().unwrap_or_else(PoisonError::into_inner);
@@ -410,8 +415,13 @@ fn downstream_none_vcs_falls_back_to_detection() {
     let source = TempDir::new().unwrap();
     write_package(source.path(), "sdk_novcs", "1.0.0");
 
+    // Validation enabled: `vcs: None` must reach `detect_vcs`.
+    let mut manager = ReleaseManager::new(ReleaseMode::Local, false, true);
+    manager.set_skip_vcs_validation(false);
+    manager.set_ignore_existing_tag(Some(false));
+
     let _guard = InstallRootGuard::new(install_root.path());
-    let result = manager(ReleaseMode::Local, Some(false))
+    let result = manager
         .release_with_vcs(source.path(), None, None)
         .expect("release must not propagate an error");
     drop(_guard);
@@ -426,12 +436,16 @@ fn downstream_none_vcs_falls_back_to_detection() {
         result.vcs_metadata.is_none(),
         "no VCS means no VCS metadata"
     );
+    // Step 2's own wording. Step 7 emits a *different* message
+    // ("No VCS detected, skipping metadata writing") whenever there is no VCS
+    // at all, whichever branch produced that, so it cannot distinguish
+    // "detection ran and found nothing" from "detection was skipped".
     assert!(
         result
             .warnings
             .iter()
-            .any(|w| w.contains("No VCS detected")),
-        "the caller must be told no VCS was found, got {:?}",
+            .any(|w| w.contains("No VCS detected in source directory")),
+        "detect_vcs must have run and found nothing, got warnings {:?}",
         result.warnings
     );
     assert!(
@@ -439,5 +453,97 @@ fn downstream_none_vcs_falls_back_to_detection() {
             .join("package.py")
             .exists(),
         "the package must still be installed"
+    );
+}
+
+/// `vcs: None` with VCS validation **disabled** skips detection entirely.
+///
+/// The counterpart to the test above, and the branch that used to be the only
+/// one covered: with validation off, `detect_vcs` is never called, so a
+/// directory that *would* be recognised as a repository is not consulted.
+#[test]
+fn downstream_none_vcs_skips_detection_when_validation_disabled() {
+    let _lock = paths_lock().lock().unwrap_or_else(PoisonError::into_inner);
+    let install_root = TempDir::new().unwrap();
+    let source = TempDir::new().unwrap();
+    write_package(source.path(), "sdk_skipdetect", "1.0.0");
+    // A marker `detect_vcs` would recognise if it ran.
+    fs::create_dir_all(source.path().join(".git")).unwrap();
+
+    let mut manager = ReleaseManager::new(ReleaseMode::Local, false, true);
+    manager.set_skip_vcs_validation(true);
+    manager.set_ignore_existing_tag(Some(false));
+
+    let _guard = InstallRootGuard::new(install_root.path());
+    let result = manager
+        .release_with_vcs(source.path(), None, None)
+        .expect("release must not propagate an error");
+    drop(_guard);
+
+    // Detection never ran, so no "No VCS detected" warning was recorded and no
+    // repository was validated or opened.
+    assert!(
+        result.errors.is_empty(),
+        "skipping detection must not produce errors, got {:?}",
+        result.errors
+    );
+    // Step 2's wording is absent because detect_vcs never ran. Note that step 7
+    // still says "No VCS detected, skipping metadata writing" here — which is
+    // why that looser string is not evidence that detection happened.
+    assert!(
+        !result
+            .warnings
+            .iter()
+            .any(|w| w.contains("No VCS detected in source directory")),
+        "detect_vcs must not have run, got warnings {:?}",
+        result.warnings
+    );
+    assert!(result.vcs_metadata.is_none());
+}
+
+/// Dry run over a repository whose state validation fails.
+///
+/// This pins the documented exception to the `success == errors.is_empty()`
+/// equivalence: on the detection path a failed `validate_repo_state()` is
+/// recorded but does not stop the run, and the dry-run block then sets
+/// `success = true` regardless. Callers must read `errors` too — see the
+/// rustdoc on `release_with_vcs`.
+#[test]
+fn downstream_dry_run_reports_validation_failure_in_errors() {
+    let _lock = paths_lock().lock().unwrap_or_else(PoisonError::into_inner);
+    let install_root = TempDir::new().unwrap();
+    let source = TempDir::new().unwrap();
+    write_package(source.path(), "sdk_dirty", "1.0.0");
+    fs::create_dir_all(source.path().join(".git")).unwrap();
+
+    // Validation enabled, `vcs: None`: `detect_vcs` finds the marker and its
+    // `validate_repo_state()` fails on the fake repository.
+    let mut manager = ReleaseManager::new(ReleaseMode::DryRun, false, true);
+    manager.set_skip_vcs_validation(false);
+    manager.set_ignore_existing_tag(Some(false));
+
+    let _guard = InstallRootGuard::new(install_root.path());
+    let result = manager
+        .release_with_vcs(source.path(), None, None)
+        .expect("release must not propagate an error");
+    drop(_guard);
+
+    assert!(
+        result
+            .errors
+            .iter()
+            .any(|e| e.contains("VCS validation failed")),
+        "the validation failure must be reported in errors, got {:?}",
+        result.errors
+    );
+    // The documented deviation: success is true even though errors is not empty.
+    assert!(
+        result.success,
+        "a dry run reports success unconditionally even with errors"
+    );
+    assert_ne!(
+        result.success,
+        result.errors.is_empty(),
+        "this is precisely the documented dry-run exception to the invariant"
     );
 }

@@ -14,11 +14,17 @@ use std::path::{Path, PathBuf};
 /// Release mode for the package release process
 ///
 /// `Local` and `Release` differ only in which configured packages path the
-/// package is installed into. `DryRun` never touches the filesystem or the VCS:
-/// it loads and validates the package definition, resolves the install path,
-/// validates the repository state, and returns early with
-/// [`ReleaseResult::success`] set to `true` and the install path prefixed with
-/// `[dry-run] `. Nothing is built, installed, or tagged.
+/// package is installed into. `DryRun` writes nothing: it loads and validates
+/// the package definition, resolves the install path, reads the repository
+/// state, and returns early with [`ReleaseResult::success`] set to `true` and
+/// the install path prefixed with `[dry-run] `. Nothing is built, installed, or
+/// tagged.
+///
+/// "Writes nothing" is about mutation, not access — a dry run still *reads* the
+/// VCS, calling `validate_repo_state()` and `get_metadata()`. It can therefore
+/// report repository problems in [`ReleaseResult::errors`] while still setting
+/// `success = true`; see
+/// [`release_with_vcs`](ReleaseManager::release_with_vcs).
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ReleaseMode {
     /// Normal release to `release_packages_path`.
@@ -47,8 +53,8 @@ impl ReleaseMode {
 ///
 /// A release reports failure through [`errors`](ReleaseResult::errors) rather
 /// than through `Err`, so a caller gets every problem found in one pass instead
-/// of only the first. [`success`](ReleaseResult::success) is therefore just
-/// `errors.is_empty()` and must be checked before anything else:
+/// of only the first. Outside dry-run mode, [`success`](ReleaseResult::success)
+/// is therefore `errors.is_empty()` and must be checked before anything else:
 ///
 /// ```no_run
 /// use rez_next_build::{ReleaseManager, ReleaseMode};
@@ -63,6 +69,12 @@ impl ReleaseMode {
 /// # Ok::<(), rez_next_common::RezCoreError>(())
 /// ```
 ///
+/// In [`ReleaseMode::DryRun`] that equivalence does not hold: a dry run sets
+/// `success = true` unconditionally, so it can return `success == true`
+/// together with a non-empty `errors` when repository validation failed. A dry
+/// run is a check, so read `errors` there too — see
+/// [`release_with_vcs`](ReleaseManager::release_with_vcs).
+///
 /// A returned `Err`([`RezCoreError`]) means the workflow itself could not run —
 /// for example the release metadata could not be written. It never means
 /// "the release was rejected"; a rejection is a successful call with a
@@ -71,14 +83,19 @@ impl ReleaseMode {
 pub struct ReleaseResult {
     /// `true` when the release completed with no errors.
     ///
-    /// Equivalent to `errors.is_empty()`. Always check this first: a rejected
-    /// release returns `Ok` with `success == false`.
+    /// Equivalent to `errors.is_empty()` **except in
+    /// [`ReleaseMode::DryRun`]**, which sets this to `true` unconditionally and
+    /// can therefore report success alongside a non-empty `errors`.
+    ///
+    /// Always check this first: a rejected release returns `Ok` with
+    /// `success == false`.
     pub success: bool,
     /// Package name read from the package definition. Empty when the definition
     /// could not be parsed.
     pub package_name: String,
-    /// Package version read from the package definition, or `"unknown"` when it
-    /// could not be parsed.
+    /// Package version read from the package definition. `"unknown"` when the
+    /// definition parsed but carried no version, and `""` when the definition
+    /// could not be read at all.
     pub version: String,
     /// Directory the package was installed into.
     ///
@@ -96,9 +113,10 @@ pub struct ReleaseResult {
     pub changelog: Option<String>,
     /// Human-readable failures that made the release unsuccessful.
     ///
-    /// Non-empty implies `success == false`. Entries are diagnostic messages
-    /// meant for a log, not a stable machine-readable format — match on
-    /// `success` and treat the text as display-only.
+    /// Non-empty implies `success == false`, except in
+    /// [`ReleaseMode::DryRun`], which reports success regardless. Entries are
+    /// diagnostic messages meant for a log, not a stable machine-readable
+    /// format — match on `success` and treat the text as display-only.
     pub errors: Vec<String>,
     /// Non-fatal notes: skipped steps, degraded VCS metadata, an existing tag
     /// that was kept, and so on. A release can succeed with warnings.
@@ -186,8 +204,10 @@ impl ReleaseManager {
     /// * `vcs` — the VCS to drive the release with. `None` falls back to
     ///   [`detect_vcs`]; when that finds nothing the release proceeds without
     ///   one, recording a warning and skipping metadata, changelog, and the tag.
-    ///   A supplied VCS is still validated (see step 2), so injecting one cannot
-    ///   bypass the repository-state check.
+    ///   A supplied VCS is validated in step 2 **unless VCS validation has been
+    ///   disabled** with
+    ///   [`set_skip_vcs_validation(true)`](Self::set_skip_vcs_validation), in
+    ///   which case injecting one does bypass the repository-state check.
     ///
     /// # Steps
     ///
@@ -201,16 +221,18 @@ impl ReleaseManager {
     /// 8. Install the package
     /// 9. Create the VCS tag
     ///
-    /// [`ReleaseMode::DryRun`] returns between steps 2 and 3: it touches neither
-    /// the filesystem nor the VCS.
+    /// [`ReleaseMode::DryRun`] returns between steps 2 and 3: it writes nothing,
+    /// but it does *read* the VCS first, calling `validate_repo_state()` and
+    /// `get_metadata()`.
     ///
     /// # Tag policy
     ///
     /// The tag name is `{name}-{version}`. Step 3 only *inspects* it; step 9 is
-    /// what creates it, and only after every mutating step has succeeded. That
-    /// ordering keeps the invariant **tag exists ⟺ release succeeded**: a build
-    /// or test failure leaves no tag behind, so the same version can be retried
-    /// without an override.
+    /// what creates it, and only after every mutating step has succeeded. Where
+    /// a VCS is in play, that ordering keeps the invariant **tag exists ⟺
+    /// release succeeded**: a build or test failure leaves no tag behind, so the
+    /// same version can be retried without an override. With no VCS there is no
+    /// tag at all, and the release can still succeed.
     ///
     /// [`set_ignore_existing_tag`](Self::set_ignore_existing_tag) selects how an
     /// existing tag is treated:
@@ -234,6 +256,27 @@ impl ReleaseManager {
     /// for cases where the workflow itself could not run. Always check
     /// [`success`](ReleaseResult::success) rather than assuming `Ok` means
     /// success.
+    ///
+    /// ## Dry run is the exception
+    ///
+    /// In [`ReleaseMode::DryRun`] the `success == errors.is_empty()` equivalence
+    /// that holds elsewhere **does not apply**. A dry run reports
+    /// `success == true` unconditionally, so when step 2 rejects the repository
+    /// state it returns `success == true` *together with* a non-empty `errors`:
+    ///
+    /// ```text
+    /// success = true
+    /// errors  = ["VCS validation failed: Repository is not clean"]
+    /// ```
+    ///
+    /// This is reachable through the `vcs: None` path, where a failed
+    /// `validate_repo_state()` is recorded but does not stop the run. (With an
+    /// injected VCS the same failure returns immediately with
+    /// `success == false`.)
+    ///
+    /// Since a dry run exists to surface problems before committing to a
+    /// release, **check `errors` as well as `success`** when running one —
+    /// treating that result as a pass would defeat its purpose.
     ///
     /// # Errors
     ///
