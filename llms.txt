@@ -65,9 +65,15 @@ if !result.success { /* rejected: read result.errors */ }
 ```
 
 - `Ok` does **not** mean success — a rejected release returns `Ok` with
-  non-empty `errors`; check `success` (`errors.is_empty()`) first.
-- Invariant **tag exists ⟺ release succeeded**: the tag is created last, after
-  install, so a failed build leaves no tag and the version can be retried.
+  non-empty `errors`; check `success` first (it is `errors.is_empty()` except
+  in dry-run mode).
+- **Dry run is the exception**: it reports `success == true` unconditionally, so
+  it can return success *with* a non-empty `errors` (e.g. `VCS validation
+  failed`). Check `errors` too when running one.
+- Invariant **tag exists ⟺ release succeeded** holds where a VCS is in play: the
+  tag is created last, after install, so a failed build leaves no tag and the
+  version can be retried. With no VCS there is no tag and the release can still
+  succeed.
 - An existing tag is never re-created or moved, even with
   `set_ignore_existing_tag(Some(true))`.
 

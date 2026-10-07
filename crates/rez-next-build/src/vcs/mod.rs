@@ -89,15 +89,20 @@ impl VCSRevision {
 /// [`ReleaseVCS::get_metadata`] are required; the rest have default
 /// implementations.
 ///
-/// Two behaviours the release flow depends on:
+/// Three behaviours the release flow depends on:
 ///
 /// - [`ReleaseVCS::create_tag`] must not move an existing tag. The release flow
 ///   never asks for that (it skips tagging when the tag already exists), and
 ///   moving one would detach a released version from its provenance.
-/// - A returned `Err` is never fatal to the release. Metadata, changelog, and
-///   tag-check failures are downgraded to warnings; only
-///   [`ReleaseVCS::validate_repo_state`] failing aborts, and only when VCS
-///   validation is enabled.
+/// - Most failures are non-fatal and downgraded to a warning:
+///   [`ReleaseVCS::get_metadata`], [`ReleaseVCS::get_changelog`] and
+///   [`ReleaseVCS::tag_exists`] may return `Err` without failing the release.
+///   [`ReleaseVCS::create_tag`] is the exception — its `Err` is recorded as a
+///   release error and makes the release unsuccessful.
+/// - [`ReleaseVCS::validate_repo_state`] failing aborts the release, but only
+///   when VCS validation is enabled; it is skipped when
+///   [`ReleaseManager::set_skip_vcs_validation`](crate::ReleaseManager::set_skip_vcs_validation)
+///   has been set to `true`.
 ///
 /// The trait is already blanket-implemented for `Box<dyn ReleaseVCS + Send +
 /// Sync>` and `Arc<dyn ReleaseVCS + Send + Sync>`, so a trait object can stand

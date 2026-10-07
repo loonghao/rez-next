@@ -204,14 +204,21 @@ Contract:
 - **`Ok` does not mean success.** A rejected release returns `Ok` with a
   non-empty `errors`; `success == errors.is_empty()`. `Err` means the workflow
   itself could not run.
+- **Dry run breaks that equivalence.** `ReleaseMode::DryRun` reports
+  `success == true` unconditionally, so it can return success *with* a non-empty
+  `errors` — reachable when `validate_repo_state()` fails on the `vcs: None`
+  path. Check `errors` as well as `success` when running one.
 - **Tag policy.** `set_ignore_existing_tag`: `Some(false)` hard-fails when the
   `{name}-{version}` tag exists; `Some(true)` warns and proceeds; `None`
   (default) is the legacy warn-and-continue. An existing tag is never
   re-created or moved.
-- **tag exists ⟺ release succeeded.** The tag is created last, after install,
-  so a build/test failure leaves no tag and the version can be retried.
-- `ReleaseMode::DryRun` validates only — nothing is built, installed, or
-  tagged, and `install_path` is prefixed `[dry-run] `.
+- **tag exists ⟺ release succeeded** holds where a VCS is in play: the tag is
+  created last, after install, so a build/test failure leaves no tag and the
+  version can be retried. With no VCS there is no tag and the release can still
+  succeed.
+- `ReleaseMode::DryRun` writes nothing — nothing is built, installed, or
+  tagged, and `install_path` is prefixed `[dry-run] `. It still *reads* the VCS
+  (`validate_repo_state()`, `get_metadata()`).
 
 See [`docs/release-sdk.md`](./docs/release-sdk.md). Not covered by the
 [API stability contract](./docs/api-stability.md) — pin a released version.
