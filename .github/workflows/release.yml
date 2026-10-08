@@ -349,6 +349,7 @@ jobs:
             rez-next-solver
             rez-next-search
             rez-next-context
+            rez-next-runtime
             rez-next-build
             rez-next-suites
             rez-next

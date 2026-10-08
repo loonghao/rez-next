@@ -7,7 +7,7 @@
 High-performance Rust rewrite of [Rez](https://github.com/AcademySoftwareFoundation/rez) with Python bindings (PyO3). Import as `import rez_next as rez` for most workflows.
 
 - **Language**: Rust 2024 edition (MSRV 1.95) + Python 3.9+ (abi3)
-- **Build**: Cargo workspace (20 crates) + Maturin for Python
+- **Build**: Cargo workspace (21 crates) + Maturin for Python
 - **Status**: Pre-1.0. Documented common workflows are production-ready; compatibility is curated rather than exhaustive.
 
 ## Quick Commands
@@ -48,6 +48,15 @@ anything is installed); pass `--ignore-existing-tag` to override.
 
 Install paths vx discovers (highest priority first): `~/.vx/extensions-dev/`
 (`vx ext dev`), `<project>/.vx/extensions/`, `~/.vx/extensions/`.
+
+## Runtime SDK (Rust)
+
+`rez-next-runtime` provides `RezRuntime::new(paths)`, explicit target constraints,
+parent environment injection, strict resolution and direct child commands. The
+result exposes `context()`, `environment()`, `command()` and `into_parts()`.
+Use it instead of reproducing repository and solver orchestration. No target is
+inferred by default. See `docs/rust-integration.md` for the support boundary and
+`vx just runtime-test` / `vx just runtime-package-check` for verification.
 
 ## Release SDK (Rust)
 

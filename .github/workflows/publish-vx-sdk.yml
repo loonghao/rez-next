@@ -1,0 +1,75 @@
+name: Publish VX SDK
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish_runtime:
+        description: Publish runtime; disable only after its public registry release has been verified
+        type: boolean
+        default: true
+      adapter_ref:
+        description: Optional reviewed vx-org/vx-rez-adapter commit SHA to publish after the SDK
+        type: string
+        required: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-vx-sdk
+  cancel-in-progress: false
+
+jobs:
+  runtime:
+    name: Publish verified runtime facade
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: loonghao/vx@v0.9.35
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: dtolnay/rust-toolchain@1.95.0
+      - uses: Swatinem/rust-cache@v2
+      - run: vx cargo test --locked -p rez-next-runtime
+      - run: vx cargo package --locked -p rez-next-runtime
+      - name: Publish SDK
+        if: inputs.publish_runtime
+        run: vx cargo publish --locked -p rez-next-runtime
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+
+  adapter:
+    name: Publish reviewed adapter against public SDK
+    needs: runtime
+    if: inputs.adapter_ref != ''
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Require an immutable adapter revision
+        env:
+          ADAPTER_REF: ${{ inputs.adapter_ref }}
+        run: |
+          [[ "$ADAPTER_REF" =~ ^[0-9a-f]{40}$ ]] || {
+            echo 'adapter_ref must be a complete reviewed commit SHA' >&2
+            exit 1
+          }
+      - uses: actions/checkout@v7
+        with:
+          repository: vx-org/vx-rez-adapter
+          ref: ${{ inputs.adapter_ref }}
+          persist-credentials: false
+      - uses: loonghao/vx@v0.9.35
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: dtolnay/rust-toolchain@1.95.0
+      - uses: Swatinem/rust-cache@v2
+      - name: Verify public registry dependencies and adapter
+        run: |
+          vx cargo test --all-features
+          vx cargo package
+      - name: Publish adapter
+        run: vx cargo publish
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}

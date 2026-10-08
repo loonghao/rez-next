@@ -6,6 +6,7 @@ members = [
     "crates/rez-next-solver",
     "crates/rez-next-repository",
     "crates/rez-next-context",
+    "crates/rez-next-runtime",
     "crates/rez-next-build",
     "crates/rez-next-cache",
     "crates/rez-next-rex",
@@ -96,6 +97,7 @@ rez-next-package = { version = "0.3.9", path = "crates/rez-next-package", defaul
 rez-next-solver = { version = "0.3.9", path = "crates/rez-next-solver", default-features = false } # x-release-please-version
 rez-next-repository = { version = "0.3.9", path = "crates/rez-next-repository", default-features = false } # x-release-please-version
 rez-next-context = { version = "0.3.9", path = "crates/rez-next-context", default-features = false } # x-release-please-version
+rez-next-runtime = { version = "0.3.9", path = "crates/rez-next-runtime" } # x-release-please-version
 rez-next-build = { version = "0.3.9", path = "crates/rez-next-build" } # x-release-please-version
 rez-next-cache = { version = "0.3.9", path = "crates/rez-next-cache" } # x-release-please-version
 rez-next-suites = { version = "0.3.9", path = "crates/rez-next-suites" } # x-release-please-version

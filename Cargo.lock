@@ -2929,6 +2929,7 @@ dependencies = [
  "rez-next-package",
  "rez-next-repository",
  "rez-next-rex",
+ "rez-next-runtime",
  "rez-next-search",
  "rez-next-solver",
  "rez-next-suites",
@@ -3197,6 +3198,23 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror 2.0.21",
+]
+
+[[package]]
+name = "rez-next-runtime"
+version = "0.3.9"
+dependencies = [
+ "async-trait",
+ "rez-next-common",
+ "rez-next-context",
+ "rez-next-package",
+ "rez-next-repository",
+ "rez-next-solver",
+ "rez-next-version",
+ "serde_yaml",
+ "tempfile",
+ "thiserror 2.0.21",
+ "tokio",
 ]
 
 [[package]]
