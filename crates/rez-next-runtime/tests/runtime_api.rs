@@ -369,6 +369,46 @@ fn test_resolve_loads_serialized_packages_with_transitive_dependencies() {
 }
 
 #[test]
+fn test_resolve_repeated_yaml_only_transitive_graph_preserves_every_family() {
+    const FAMILIES: usize = 32;
+    let temporary = tempfile::tempdir().unwrap();
+    let mut roots = Vec::new();
+    for index in 0..FAMILIES {
+        let name = format!("yaml_dep_{index}");
+        let root = temporary.path().join(&name).join("1.0");
+        fs::create_dir_all(&root).unwrap();
+        let requires = if index + 1 < FAMILIES {
+            format!("requires: ['yaml_dep_{}-1.0']\n", index + 1)
+        } else {
+            String::new()
+        };
+        fs::write(
+            root.join("package.yaml"),
+            format!(
+                "name: {name}\nversion: '1.0'\n{requires}commands: |\n  env.setenv('YAML_DEP_{index}', '{{root}}')\n"
+            ),
+        )
+        .unwrap();
+        roots.push(root);
+    }
+    let resolver = RezRuntime::new([temporary.path()]).unwrap();
+    let executor = runtime();
+    for iteration in 0..8 {
+        let resolved = executor
+            .block_on(resolver.resolve(["yaml_dep_0-1.0"]))
+            .unwrap_or_else(|error| panic!("YAML graph iteration {iteration}: {error}"));
+        assert_eq!(resolved.context().package_count(), FAMILIES);
+        for (index, root) in roots.iter().enumerate() {
+            assert_eq!(
+                resolved.environment().get(&format!("YAML_DEP_{index}")),
+                Some(&root.to_string_lossy().into_owned()),
+                "YAML graph iteration {iteration}, family {index}"
+            );
+        }
+    }
+}
+
+#[test]
 fn test_resolve_prefers_python_descriptor_to_malformed_serialized_sibling() {
     let temporary = tempfile::tempdir().unwrap();
     let root = write_package(temporary.path(), "tool", "1.0", "");
@@ -385,6 +425,54 @@ fn test_resolve_prefers_python_descriptor_to_malformed_serialized_sibling() {
         resolved.context().get_package("tool").unwrap().root(),
         Some(root.to_string_lossy().into_owned())
     );
+}
+
+#[test]
+fn test_resolve_rejects_malformed_preferred_descriptor_without_format_fallback() {
+    let executor = runtime();
+    for (preferred, malformed, fallback) in [
+        ("package.py", "name = [", "package.yaml"),
+        ("package.yaml", "[invalid yaml", "package.yml"),
+    ] {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path().join("tool").join("1.0");
+        fs::create_dir_all(&root).unwrap();
+        fs::write(root.join(preferred), malformed).unwrap();
+        fs::write(root.join(fallback), "name: tool\nversion: '1.0'\n").unwrap();
+        let error = executor
+            .block_on(
+                RezRuntime::new([temporary.path()])
+                    .unwrap()
+                    .resolve(["tool-1.0"]),
+            )
+            .unwrap_err();
+        assert!(matches!(error, RezRuntimeError::Repository(_)));
+    }
+}
+
+#[test]
+fn test_resolve_ignores_descriptors_outside_canonical_package_locations() {
+    let temporary = tempfile::tempdir().unwrap();
+    fs::write(
+        temporary.path().join("package.py"),
+        "name = 'outside'\nversion = '1.0'\n",
+    )
+    .unwrap();
+    let nested = temporary.path().join("tool").join("1.0").join("payload");
+    fs::create_dir_all(&nested).unwrap();
+    fs::write(
+        nested.join("package.yaml"),
+        "name: outside\nversion: '2.0'\n",
+    )
+    .unwrap();
+    let error = runtime()
+        .block_on(
+            RezRuntime::new([temporary.path()])
+                .unwrap()
+                .resolve(["outside"]),
+        )
+        .unwrap_err();
+    assert!(matches!(error, RezRuntimeError::MissingPackage { .. }));
 }
 
 #[test]

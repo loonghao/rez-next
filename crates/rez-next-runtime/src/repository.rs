@@ -1,7 +1,7 @@
-//! Compatibility discovery for serialized descriptors using the core scanner.
+//! Canonical repository discovery feeding the core package and solver APIs.
 
 use std::collections::HashMap;
-use std::fs::File;
+use std::fs::{self, File};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -10,9 +10,8 @@ use async_trait::async_trait;
 use rez_next_common::RezCoreError;
 use rez_next_package::{Package, PackageSerializer};
 use rez_next_repository::simple_repository::PackageRepository;
-use rez_next_repository::{RepositoryScanner, ScannerConfig};
 
-/// Bridge the core scanner's results into the core solver repository contract.
+/// Bridge canonical package directories into the core solver repository contract.
 pub(crate) struct RuntimeRepository {
     root: PathBuf,
     name: String,
@@ -22,32 +21,20 @@ pub(crate) struct RuntimeRepository {
 
 impl RuntimeRepository {
     pub(crate) async fn new(root: &Path, name: String) -> Result<Self, RezCoreError> {
-        // A repository is root/family[/version]/package.*. Bound
-        // the core scanner so application payloads cannot turn activation into
-        // a recursive scan of an entire Blender or FreeCAD installation.
-        let scanner = RepositoryScanner::new(ScannerConfig {
-            max_depth: 2,
-            include_patterns: vec![
-                "package.py".to_string(),
-                "package.yaml".to_string(),
-                "package.yml".to_string(),
-            ],
-            enable_scan_cache: false,
-            ..ScannerConfig::default()
-        });
-        let scan = scanner.scan_repository(root).await?;
-        // The 0.3.9 scanner discovers every configured descriptor, but parses
-        // all of them as Python. Feed both successful discoveries and failed
-        // parse paths through the core format-aware loading APIs instead.
-        let mut descriptors: Vec<_> = scan
-            .packages
-            .into_iter()
-            .map(|discovered| discovered.package_file)
-            .chain(scan.errors.into_iter().map(|error| error.path))
-            .filter(|path| Self::is_preferred_descriptor(root, path))
-            .collect();
-        descriptors.sort();
-        descriptors.dedup();
+        // Never recurse into an application installation. A family descriptor
+        // ends discovery there; otherwise inspect only its version directories.
+        let mut descriptors = Vec::new();
+        for family in Self::child_directories(root)? {
+            if let Some(descriptor) = Self::preferred_descriptor(&family)? {
+                descriptors.push(descriptor);
+                continue;
+            }
+            for version in Self::child_directories(&family)? {
+                if let Some(descriptor) = Self::preferred_descriptor(&version)? {
+                    descriptors.push(descriptor);
+                }
+            }
+        }
         let mut packages: HashMap<String, Vec<Arc<Package>>> = HashMap::new();
         let mut errors = HashMap::new();
         for descriptor in descriptors {
@@ -101,42 +88,40 @@ impl RuntimeRepository {
         }
     }
 
-    fn is_preferred_descriptor(root: &Path, descriptor: &Path) -> bool {
-        if !descriptor.file_name().is_some_and(|name| {
-            ["package.py", "package.yaml", "package.yml"]
-                .iter()
-                .any(|candidate| name == *candidate)
-        }) {
-            return false;
-        }
-        let Some(directory) = descriptor.parent() else {
-            return false;
+    fn child_directories(directory: &Path) -> Result<Vec<PathBuf>, RezCoreError> {
+        let io_error = |error| {
+            RezCoreError::Repository(format!(
+                "Failed to read directory {}: {error}",
+                directory.display()
+            ))
         };
-        if (descriptor
-            .file_name()
-            .is_some_and(|name| name != "package.py")
-            && directory.join("package.py").is_file())
-            || (descriptor
-                .file_name()
-                .is_some_and(|name| name == "package.yml")
-                && directory.join("package.yaml").is_file())
-        {
-            return false;
-        }
-        let mut ancestor = directory.parent();
-        while let Some(directory) = ancestor {
-            if directory == root {
-                break;
+        let mut directories = Vec::new();
+        for entry in fs::read_dir(directory).map_err(io_error)? {
+            let entry = entry.map_err(io_error)?;
+            if entry.file_type().map_err(io_error)?.is_dir() {
+                directories.push(entry.path());
             }
-            if ["package.py", "package.yaml", "package.yml"]
-                .iter()
-                .any(|name| directory.join(name).is_file())
-            {
-                return false;
-            }
-            ancestor = directory.parent();
         }
-        true
+        directories.sort();
+        Ok(directories)
+    }
+
+    fn preferred_descriptor(directory: &Path) -> Result<Option<PathBuf>, RezCoreError> {
+        for filename in ["package.py", "package.yaml", "package.yml"] {
+            let path = directory.join(filename);
+            match fs::metadata(&path) {
+                Ok(metadata) if metadata.is_file() => return Ok(Some(path)),
+                Ok(_) => {}
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+                Err(error) => {
+                    return Err(RezCoreError::Repository(format!(
+                        "Failed to inspect descriptor {}: {error}",
+                        path.display()
+                    )));
+                }
+            }
+        }
+        Ok(None)
     }
 }
 

@@ -44,12 +44,14 @@ the selected non-hashed variant subdirectory. No `/packages/<name>` layout is
 assumed. Hashed-variant payload lookup is outside the current solver's supported
 materialization behavior.
 
-Package discovery uses the core `RepositoryScanner` and package loading APIs for
-`package.py`, `package.yaml` and `package.yml`, connected to the core solver by a
-private read-only repository bridge. Discovery is bounded to
-`repository/family[/version]/package.*`;
-Python definitions take precedence in the same directory, and descriptors
-inside package payloads are excluded. All formats share the same core solver.
+Package discovery uses a private read-only repository bridge over the canonical
+`repository/family[/version]/package.*` layout. It inspects only family and
+version directories, choosing `package.py`, then `package.yaml`, then
+`package.yml` in each directory. A family-level descriptor stops discovery
+below that family, so application payload directories are never traversed.
+Malformed higher-priority definitions produce an error rather than falling
+back to another format. Repository-root descriptors and deeper layouts are not
+package locations. All formats share the same core solver.
 Python uses `PackageSerializer`; YAML uses the public core `Package`
 deserializer and validation because the legacy 0.3.9 YAML serializer omits Rex
 commands. YAML `commands` is a string containing the same Rex operations used by
