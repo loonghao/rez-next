@@ -21,6 +21,10 @@ A high-performance Rust implementation of common [Rez](https://github.com/Academ
 
 ## Installation
 
+For embedding from Rust, use the standalone `rez-next-runtime` SDK. It resolves
+local repositories, selects target variants and exports an environment for
+direct child execution. See the [Rust integration guide](docs/rust-integration.md).
+
 ### Linux / macOS
 
 ```bash

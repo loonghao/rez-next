@@ -1,0 +1,71 @@
+name: Runtime SDK
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "crates/rez-next-runtime/**"
+      - "crates/rez-next-common/**"
+      - "crates/rez-next-context/**"
+      - "crates/rez-next-package/**"
+      - "crates/rez-next-repository/**"
+      - "crates/rez-next-solver/**"
+      - "crates/rez-next-rex/**"
+      - "crates/rez-next-version/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "justfile"
+      - "scripts/check_runtime_package.py"
+      - ".github/workflows/runtime-sdk.yml"
+  push:
+    branches: [main]
+    paths:
+      - "crates/rez-next-runtime/**"
+      - "crates/rez-next-common/**"
+      - "crates/rez-next-context/**"
+      - "crates/rez-next-package/**"
+      - "crates/rez-next-repository/**"
+      - "crates/rez-next-solver/**"
+      - "crates/rez-next-rex/**"
+      - "crates/rez-next-version/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "justfile"
+      - "scripts/check_runtime_package.py"
+      - ".github/workflows/runtime-sdk.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTUP_TOOLCHAIN: 1.95.0
+
+jobs:
+  runtime:
+    name: Runtime SDK (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, windows-2022, macos-14]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: loonghao/vx@b2c1ce558af4b516261f34a27eb0576a9bec45f1
+        with:
+          tools: "just"
+          cache: ${{ matrix.os != 'windows-2022' }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: dtolnay/rust-toolchain@1.95.0
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: Check SDK formatting
+        run: vx just runtime-format-check
+      - name: Lint SDK
+        run: vx just runtime-lint
+      - name: Test SDK resolution and execution
+        run: vx just runtime-test
+      - name: Verify standalone crates.io package
+        run: vx just runtime-package-check

@@ -64,6 +64,21 @@ semver-check REV="origin/main":
 version-check:
     vx python scripts/check_release_versions.py
 
+# Focused verification for the public runtime embedding SDK.
+runtime-format-check:
+    cargo fmt -p rez-next-runtime --check
+
+runtime-lint:
+    cargo clippy -p rez-next-runtime --all-targets --locked -- -D warnings
+
+runtime-test:
+    cargo test -p rez-next-runtime --locked
+
+# Package this crate alone to verify its dependencies against crates.io.
+runtime-package-check:
+    cargo package -p rez-next-runtime --locked
+    vx python scripts/check_runtime_package.py
+
 # Check that the Rust toolchain pin is identical everywhere (see rust-toolchain.toml)
 toolchain-check:
     vx python scripts/check_toolchain_pins.py

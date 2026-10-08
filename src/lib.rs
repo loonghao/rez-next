@@ -17,6 +17,7 @@
 pub use rez_next_common as common;
 pub use rez_next_context as context;
 pub use rez_next_package as package;
+pub use rez_next_runtime as runtime;
 pub use rez_next_solver as solver;
 pub use rez_next_suites as suites;
 pub use rez_next_version as version;

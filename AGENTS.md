@@ -10,7 +10,7 @@ rez-next is a **high-performance Rust rewrite** of the [Rez](https://github.com/
 
 **Key facts for agents:**
 - Language: Rust 2024 edition (MSRV 1.95) + Python 3.9+ bindings (PyO3 abi3)
-- Build system: Cargo workspace (20 crates) + Maturin for Python
+- Build system: Cargo workspace (21 crates) + Maturin for Python
 - Current version: 0.3.9 (see [CHANGELOG.md](./CHANGELOG.md)) <!-- x-release-please-version -->
 - License: Apache 2.0
 - Python API: curated top-level interfaces backed by native PyO3 modules
@@ -49,6 +49,7 @@ pkg = rez.get_latest_package("python")
   - `python-integration_zh.md` → Chinese version
   - `vx-extension.md` → Releasing packages through vx
   - `release-sdk.md` → Driving releases from Rust, including a custom VCS
+  - `rust-integration.md` → Runtime embedding, target selection and direct execution
   - `api-stability.md` → Public API contract enforced by `cargo-semver-checks`
   - `PRE_COMMIT_SETUP.md` → Code quality hooks
 
@@ -60,7 +61,7 @@ pkg = rez.get_latest_package("python")
 
 ```
 rez-next/                          # Monorepo root
-├── crates/                        # Rust crates (20 total)
+├── crates/                        # Rust crates (21 total)
 │   ├── rez-next-common/           # Shared types, errors, config
 │   ├── rez-next-config/           # Config loading & validation
 │   ├── rez-next-version/          # Version parsing (state machine)
@@ -70,6 +71,7 @@ rez-next/                          # Monorepo root
 │   ├── rez-next-solver/           # Dependency solver (A* + backtracking)
 │   ├── rez-next-repository/       # Repository scanning, caching
 │   ├── rez-next-context/         # Resolved contexts, Rex integration
+│   ├── rez-next-runtime/         # Public runtime embedding facade
 │   ├── rez-next-build/           # Build system integration
 │   ├── rez-next-cache/           # Multi-level caching
 │   ├── rez-next-rex/             # Rex DSL interpreter
