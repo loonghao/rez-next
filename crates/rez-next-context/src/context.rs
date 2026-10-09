@@ -75,11 +75,12 @@ pub struct ContextConfig {
     pub additional_env_vars: HashMap<String, String>,
     /// Variables to unset
     pub unset_vars: Vec<String>,
-    /// PATH modification strategy
+    /// Legacy tools-only PATH fallback strategy for packages without command phases.
+    /// Explicit pre_commands, commands and post_commands remain authoritative.
     pub path_strategy: PathStrategy,
 }
 
-/// PATH modification strategy
+/// Legacy tools-only PATH fallback strategy for packages without command phases.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum PathStrategy {
     /// Prepend to existing PATH

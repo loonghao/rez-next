@@ -5,9 +5,8 @@
 
 use crate::vcs::{ReleaseVCS, VCSMetadata, detect_vcs};
 use rez_next_common::{RezCoreConfig, RezCoreError};
-use rez_next_package::Package;
 use rez_next_package::serialization::PackageSerializer;
-use sha2::{Digest, Sha256};
+use rez_next_package::{Package, PackageInstallLayout};
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -457,11 +456,7 @@ impl ReleaseManager {
     /// Get the install path for the package
     fn get_install_path(&self, package: &Package) -> Result<PathBuf, RezCoreError> {
         let config = RezCoreConfig::load();
-        let version_str = package
-            .version
-            .as_ref()
-            .map(|v| v.as_str().to_string())
-            .unwrap_or_else(|| "unknown".to_string());
+        let package_relative_path = PackageInstallLayout::package_base_relative_path(package)?;
 
         let install_base = match self.mode {
             ReleaseMode::Local | ReleaseMode::DryRun => {
@@ -477,7 +472,7 @@ impl ReleaseManager {
             }
         };
 
-        Ok(install_base.join(&package.name).join(&version_str))
+        Ok(install_base.join(package_relative_path))
     }
 
     /// Validate VCS repository state
@@ -525,6 +520,14 @@ impl ReleaseManager {
         install_path: &Path,
         result: &mut ReleaseResult,
     ) -> Result<(), RezCoreError> {
+        // Validate all destination paths before mutating the repository.
+        let layouts = if package.variants.is_empty() {
+            vec![PackageInstallLayout::for_variant(package, None)?]
+        } else {
+            (0..package.variants.len())
+                .map(|index| PackageInstallLayout::for_variant(package, Some(index)))
+                .collect::<Result<Vec<_>, _>>()?
+        };
         // Create base install directory
         if let Err(e) = fs::create_dir_all(install_path) {
             result
@@ -540,40 +543,23 @@ impl ReleaseManager {
                 package.variants.len()
             ));
 
-            // Create a hashed directory for each variant
-            for variant in &package.variants {
-                // Compute variant hash (SHA256 of variant debug representation)
-                let mut hasher = Sha256::new();
-                hasher.update(format!("{:?}", variant).as_bytes());
-                let hash_bytes = hasher.finalize();
-                let hash = hex::encode(hash_bytes)[..8].to_string();
-
-                let variant_path = install_path.join(&hash);
+            for (index, (variant, layout)) in package.variants.iter().zip(&layouts).enumerate() {
+                let variant_path = install_path.join(layout.variant_subpath());
 
                 if let Err(e) = fs::create_dir_all(&variant_path) {
                     result.errors.push(format!(
-                        "Failed to create variant directory for hash '{}': {}",
-                        hash, e
+                        "Failed to create variant directory '{}': {}",
+                        layout.variant_subpath().display(),
+                        e
                     ));
                     continue;
-                }
-
-                // Copy package.py to variant directory (basic implementation)
-                let pkg_file = source_dir.join("package.py");
-                if pkg_file.exists() {
-                    let dest_file = variant_path.join("package.py");
-                    if let Err(e) = fs::copy(&pkg_file, &dest_file) {
-                        result.warnings.push(format!(
-                            "Failed to copy package.py to variant '{}': {}",
-                            hash, e
-                        ));
-                    }
                 }
 
                 // Write variant metadata file
                 let metadata = serde_json::json!({
                     "variant": variant,
-                    "hash": hash,
+                    "index": index,
+                    "subpath": layout.variant_subpath(),
                 });
                 let metadata_path = variant_path.join("variant.json");
                 if let Err(e) = fs::write(
@@ -581,14 +567,16 @@ impl ReleaseManager {
                     serde_json::to_string_pretty(&metadata).unwrap_or_default(),
                 ) {
                     result.warnings.push(format!(
-                        "Failed to write variant metadata for hash '{}': {}",
-                        hash, e
+                        "Failed to write variant metadata for '{}': {}",
+                        layout.variant_subpath().display(),
+                        e
                     ));
                 }
 
                 result.warnings.push(format!(
-                    "Created variant directory with hash: {} for variant {:?}",
-                    hash, variant
+                    "Created variant directory: {} for variant {:?}",
+                    layout.variant_subpath().display(),
+                    variant
                 ));
             }
         } else {
@@ -596,17 +584,16 @@ impl ReleaseManager {
             result
                 .warnings
                 .push("No variants defined, using base install path".to_string());
+        }
 
-            // Copy package.py to install directory (basic implementation)
-            let pkg_file = source_dir.join("package.py");
-            if pkg_file.exists() {
-                let dest_file = install_path.join("package.py");
-                if let Err(e) = fs::copy(&pkg_file, &dest_file) {
-                    result
-                        .warnings
-                        .push(format!("Failed to copy package.py: {}", e));
-                }
-            }
+        // The definition belongs at the package base for every variant layout.
+        let pkg_file = source_dir.join("package.py");
+        if pkg_file.exists()
+            && let Err(error) = fs::copy(&pkg_file, install_path.join("package.py"))
+        {
+            result
+                .errors
+                .push(format!("Failed to copy package.py: {error}"));
         }
 
         Ok(())
@@ -1435,7 +1422,6 @@ version = "1.0.0"
         fs::create_dir_all(&source).unwrap();
         init_git_repo(&source);
 
-        let variant: Vec<String> = vec!["python-3.9".to_string()];
         fs::write(
             source.join("package.py"),
             "name = \"wedged_pkg\"\nversion = \"1.0.0\"\nvariants = [[\"python-3.9\"]]\n",
@@ -1445,12 +1431,8 @@ version = "1.0.0"
         let install_dir = install_dir_for("wedged_pkg", "1.0.0");
         fs::create_dir_all(&install_dir).unwrap();
 
-        // Recreate the variant hash `build_package` computes, then occupy that
-        // path with a file so `create_dir_all` fails for the variant only.
-        let mut hasher = Sha256::new();
-        hasher.update(format!("{:?}", variant).as_bytes());
-        let hash = hex::encode(hasher.finalize())[..8].to_string();
-        fs::write(install_dir.join(&hash), "not a directory").unwrap();
+        // Occupy the canonical requirement subpath so only the variant fails.
+        fs::write(install_dir.join("python-3.9"), "not a directory").unwrap();
 
         let mut manager = ReleaseManager::new(ReleaseMode::Local, false, true);
         manager.set_skip_vcs_validation(true);

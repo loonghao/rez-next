@@ -3,7 +3,7 @@
 use crate::SolverConfig;
 use crate::resolution_state::ResolutionState;
 use rez_next_common::RezCoreError;
-use rez_next_package::{Package, Requirement, VersionConstraint};
+use rez_next_package::{Package, PackageInstallLayout, Requirement, VersionConstraint};
 use rez_next_repository::simple_repository::RepositoryManager;
 use rez_next_version::Version;
 use std::collections::HashMap;
@@ -59,25 +59,39 @@ pub struct ResolvedPackageInfo {
 
 impl ResolvedPackageInfo {
     /// Return the package descriptor rooted at its selected variant payload.
+    #[deprecated(note = "Use try_materialized_package to report invalid installation layouts")]
     pub fn materialized_package(&self) -> Package {
+        self.try_materialized_package()
+            .expect("resolved package must have a valid canonical installation layout")
+    }
+
+    /// Return a descriptor rooted at the canonical selected variant payload.
+    /// Invalid selections, unsupported layouts and missing variant bases fail.
+    pub fn try_materialized_package(&self) -> Result<Package, RezCoreError> {
+        let layout = PackageInstallLayout::for_variant(&self.package, self.variant_index)?;
         let mut package = (*self.package).clone();
-        if package.hashed_variants != Some(true)
-            && let Some(index) = self.variant_index
-            && let (Some(root), Some(requirements)) = (package.root(), package.variants.get(index))
-        {
-            let variant_root = requirements
-                .iter()
-                .fold(PathBuf::from(root), |path, requirement| {
-                    path.join(requirement)
-                });
-            package.filepath = Some(
-                variant_root
-                    .join("package.py")
-                    .to_string_lossy()
-                    .into_owned(),
-            );
+        if self.variant_index.is_some() {
+            let root = package.root().ok_or_else(|| {
+                RezCoreError::PackageParse(format!(
+                    "Cannot materialize variant of package '{}' without a definition filepath",
+                    package.name
+                ))
+            })?;
+            let definition =
+                PathBuf::from(package.filepath.as_ref().expect("root requires filepath"));
+            let filename = definition
+                .file_name()
+                .ok_or_else(|| {
+                    RezCoreError::PackageParse(
+                        "Cannot materialize a variant without a package definition filename"
+                            .to_string(),
+                    )
+                })?
+                .to_os_string();
+            let variant_root = PathBuf::from(root).join(layout.variant_subpath());
+            package.filepath = Some(variant_root.join(filename).to_string_lossy().into_owned());
         }
-        package
+        Ok(package)
     }
 }
 

@@ -1,7 +1,7 @@
 //! Canonical repository discovery feeding the core package and solver APIs.
 
 use std::collections::HashMap;
-use std::fs::{self, File};
+use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -38,7 +38,7 @@ impl RuntimeRepository {
         let mut packages: HashMap<String, Vec<Arc<Package>>> = HashMap::new();
         let mut errors = HashMap::new();
         for descriptor in descriptors {
-            match Self::load_descriptor(&descriptor) {
+            match PackageSerializer::load_from_file(&descriptor) {
                 Ok(mut package) => {
                     package.filepath = Some(descriptor.to_string_lossy().into_owned());
                     packages
@@ -68,26 +68,6 @@ impl RuntimeRepository {
         })
     }
 
-    fn load_descriptor(path: &Path) -> Result<Package, RezCoreError> {
-        if path
-            .extension()
-            .is_some_and(|extension| extension == "yaml" || extension == "yml")
-        {
-            // The legacy 0.3.9 YAML loader drops commands. The public Package
-            // deserializer preserves the complete core model, including Rex.
-            let file = File::open(path).map_err(|error| {
-                RezCoreError::PackageParse(format!("Failed to read {}: {error}", path.display()))
-            })?;
-            let package: Package = serde_yaml::from_reader(file).map_err(|error| {
-                RezCoreError::PackageParse(format!("Failed to parse {}: {error}", path.display()))
-            })?;
-            package.validate()?;
-            Ok(package)
-        } else {
-            PackageSerializer::load_from_file(path)
-        }
-    }
-
     fn child_directories(directory: &Path) -> Result<Vec<PathBuf>, RezCoreError> {
         let io_error = |error| {
             RezCoreError::Repository(format!(
@@ -107,7 +87,7 @@ impl RuntimeRepository {
     }
 
     fn preferred_descriptor(directory: &Path) -> Result<Option<PathBuf>, RezCoreError> {
-        for filename in ["package.py", "package.yaml", "package.yml"] {
+        for filename in ["package.py", "package.yaml", "package.yml", "package.json"] {
             let path = directory.join(filename);
             match fs::metadata(&path) {
                 Ok(metadata) if metadata.is_file() => return Ok(Some(path)),

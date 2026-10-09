@@ -302,8 +302,8 @@ impl PackageTestRunner {
                         result
                             .resolved_packages
                             .iter()
-                            .map(|resolved| resolved.materialized_package())
-                            .collect(),
+                            .map(|resolved| resolved.try_materialized_package())
+                            .collect::<Result<Vec<_>, _>>()?,
                     );
                     break;
                 }

@@ -13,18 +13,21 @@ readme = "README.md"
 
 [dependencies]
 async-trait = "0.1"
+clap.workspace = true
 rez-next-common = { version = "0.3.9", path = "../rez-next-common" } # x-release-please-version
 rez-next-context = { version = "0.3.9", path = "../rez-next-context" } # x-release-please-version
 rez-next-package = { version = "0.3.9", path = "../rez-next-package" } # x-release-please-version
 rez-next-repository = { version = "0.3.9", path = "../rez-next-repository" } # x-release-please-version
 rez-next-solver = { version = "0.3.9", path = "../rez-next-solver" } # x-release-please-version
 rez-next-version = { version = "0.3.9", path = "../rez-next-version" } # x-release-please-version
-serde_yaml.workspace = true
+serde.workspace = true
+serde_json.workspace = true
 thiserror.workspace = true
+tokio.workspace = true
 
 [dev-dependencies]
+rstest = "0.27"
 tempfile.workspace = true
-tokio.workspace = true
 
 [lints]
 workspace = true

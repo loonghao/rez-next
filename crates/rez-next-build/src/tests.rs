@@ -340,10 +340,10 @@ def commands():
         assert_eq!(req.variant_index, Some(0));
         assert_eq!(req.variant_requires.as_ref().unwrap().len(), 2);
 
-        // Test variant hash computation
+        // Only explicitly hashed variants use hash directories.
+        #[allow(deprecated)]
         let hash = req.variant_hash();
-        assert!(hash.is_some());
-        assert!(!hash.unwrap().is_empty());
+        assert!(hash.is_none());
     }
 
     // ── BuildStats tests ─────────────────────────────────────────────────────

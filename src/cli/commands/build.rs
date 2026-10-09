@@ -443,8 +443,8 @@ pub(super) fn resolve_build_context(
     context.resolved_packages = resolution
         .resolved_packages
         .into_iter()
-        .map(|info| info.materialized_package())
-        .collect();
+        .map(|info| info.try_materialized_package())
+        .collect::<Result<Vec<_>, _>>()?;
     context.status = rez_next_context::ContextStatus::Resolved;
 
     let env_manager = EnvironmentManager::new(ContextConfig {

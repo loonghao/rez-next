@@ -42,5 +42,8 @@ dunce = "1.0"
 name = "rez_next_package"
 crate-type = ["rlib"]
 
+[dev-dependencies]
+rstest = "0.27"
+
 [lints]
 workspace = true
