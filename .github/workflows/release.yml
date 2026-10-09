@@ -33,6 +33,7 @@ jobs:
     name: Verify PyPI publisher identity
     if: inputs.verify_publisher_only
     runs-on: ubuntu-26.04
+    environment: pypi
     permissions:
       contents: read
       id-token: write
@@ -422,6 +423,7 @@ jobs:
     # Both jobs run after test-wheel passes.
     # Triggered only by workflow_dispatch, so every run is intentional.
     runs-on: ubuntu-26.04
+    environment: pypi
     permissions:
       id-token: write  # required for PyPI Trusted Publisher (OIDC)
     steps:
