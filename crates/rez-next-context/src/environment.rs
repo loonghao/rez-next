@@ -336,7 +336,7 @@ impl EnvironmentManager {
         Ok(())
     }
 
-    /// Apply PATH modifications based on package tools
+    /// Apply the legacy tools-only PATH fallback for packages without commands.
     fn apply_path_modifications(
         &self,
         env_vars: &mut HashMap<String, String>,
@@ -348,8 +348,18 @@ impl EnvironmentManager {
 
         let mut tool_paths = Vec::new();
 
-        // Collect tool paths from packages
+        // Explicit Rez command phases define the complete package environment.
+        // https://rez.readthedocs.io/en/stable/package_commands.html
+        // The tools attribute is metadata and must not override those commands,
+        // including an intentional PATH unset or a nonstandard payload layout.
+        // Keep the legacy fallback only for commandless packages.
         for package in packages {
+            if package.pre_commands.is_some()
+                || package.commands.is_some()
+                || package.post_commands.is_some()
+            {
+                continue;
+            }
             for _tool in &package.tools {
                 let tool_path = Self::package_tool_path(package);
                 if !tool_paths.contains(&tool_path) {

@@ -19,7 +19,10 @@ use rez_next_repository::RepositoryManager;
 use rez_next_solver::{DependencyResolver, SolverConfig};
 use rez_next_version::Version;
 
+mod installation_plan;
 mod repository;
+
+pub use installation_plan::{InstallationPlan, InstallationPlanError};
 
 use repository::RuntimeRepository;
 
@@ -311,8 +314,9 @@ impl RezRuntime {
         context.resolved_packages = resolution
             .resolved_packages
             .iter()
-            .map(|package| package.materialized_package())
-            .collect();
+            .map(|package| package.try_materialized_package())
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(RezRuntimeError::Resolve)?;
         context.status = ContextStatus::Resolved;
         if let Some(target) = &self.target {
             for (family, expected) in [

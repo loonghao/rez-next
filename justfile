@@ -74,9 +74,14 @@ runtime-lint:
 runtime-test:
     cargo test -p rez-next-runtime --locked
 
-# Package this crate alone to verify its dependencies against crates.io.
+# Verify the complete SDK dependency closure before its next registry release.
 runtime-package-check:
-    cargo package -p rez-next-runtime --locked
+    vx cargo package -p rez-next-common -p rez-next-version -p rez-next-rex -p rez-next-package -p rez-next-repository -p rez-next-context -p rez-next-solver -p rez-next-runtime --locked
+    vx python scripts/check_runtime_package.py --metadata-only
+
+# Requires the selected core dependency versions to be public on crates.io.
+runtime-registry-check:
+    vx cargo package -p rez-next-runtime --locked
     vx python scripts/check_runtime_package.py
 
 # Check that the Rust toolchain pin is identical everywhere (see rust-toolchain.toml)

@@ -131,10 +131,17 @@ those strings when re-resolving; `REZ_USED_REQUEST` records them for inspection.
 ```bash
 vx just runtime-test
 vx just runtime-package-check
+# After the required core versions are public on crates.io:
+vx just runtime-registry-check
 ```
 
-The package check runs for this crate alone so Cargo verifies its versioned
-dependencies against crates.io. Run it from a clean checkout; the archive build
-and the packaged crate's external contracts must succeed before publishing or
-adopting the SDK in another package. The contract run uses the normalized archive
-manifest with registry dependencies, independently of workspace core sources.
+The package check stages and builds the SDK together with its complete core
+dependency closure using Cargo's multi-package support. This permits checking
+unpublished core API changes without pretending those APIs already exist in the
+public registry. The normalized SDK manifest must contain only crates.io
+dependencies, including target-specific dependencies.
+
+The separate registry check packages the SDK alone and runs all its external
+contracts from the normalized archive manifest against public dependencies.
+Run it from a clean checkout after the required core versions are published;
+it must pass before publishing or adopting the SDK in another package.

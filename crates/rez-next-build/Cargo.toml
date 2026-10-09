@@ -41,6 +41,7 @@ optional = true
 features = ["vendored-libgit2", "vendored-openssl"]
 
 [dev-dependencies]
+rstest = "0.27"
 tempfile.workspace = true
 
 [lints]

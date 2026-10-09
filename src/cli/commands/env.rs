@@ -282,8 +282,8 @@ fn resolve_environment(
     context.resolved_packages = resolution
         .resolved_packages
         .iter()
-        .map(|package| package.materialized_package())
-        .collect();
+        .map(|package| package.try_materialized_package())
+        .collect::<Result<Vec<_>, _>>()?;
     context.status = rez_next_context::ContextStatus::Resolved;
 
     Ok(context)

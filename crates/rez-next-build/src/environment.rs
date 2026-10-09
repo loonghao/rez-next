@@ -3,7 +3,7 @@
 use crate::{BuildEvent, BuildEventKind, BuildStep};
 use rez_next_common::{RezCoreError, utils::get_thread_count};
 use rez_next_context::ResolvedContext;
-use rez_next_package::{Package, PackageRequirement};
+use rez_next_package::{Package, PackageInstallLayout, PackageRequirement};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use tokio::sync::mpsc;
@@ -50,17 +50,12 @@ impl BuildEnvironment {
     ) -> Result<Self, RezCoreError> {
         // Normalize the base build directory to handle various path formats
         let normalized_base = Self::normalize_build_path(base_build_dir)?;
+        let package_relative_path = PackageInstallLayout::package_base_relative_path(package)?;
         let package_build_dir = normalized_base.join(&package.name);
 
         // Use custom install path or default to build directory
         let install_dir = if let Some(custom_path) = install_path {
-            custom_path.join(&package.name).join(
-                package
-                    .version
-                    .as_ref()
-                    .map(|v| v.as_str())
-                    .unwrap_or(DEFAULT_BUILD_VERSION),
-            )
+            custom_path.join(package_relative_path)
         } else {
             package_build_dir.join("install")
         };
@@ -235,6 +230,23 @@ impl BuildEnvironment {
             "REZ_BUILD_VARIANT_SUBPATH".to_string(),
             variant_subpath.to_string(),
         );
+    }
+
+    /// Apply the Core's validated variant layout to build and installation paths.
+    pub(crate) fn apply_install_layout(&mut self, layout: &PackageInstallLayout) {
+        let subpath = layout.variant_subpath();
+        self.build_dir = self.build_dir.join(subpath);
+        self.install_dir = self.install_dir.join(subpath);
+        self.temp_dir = self.temp_dir.join(subpath);
+        self.env_vars.insert(
+            "REZ_BUILD_PATH".to_string(),
+            self.build_dir.to_string_lossy().into_owned(),
+        );
+        self.env_vars.insert(
+            "REZ_BUILD_INSTALL_PATH".to_string(),
+            self.install_dir.to_string_lossy().into_owned(),
+        );
+        self.set_variant_subpath(&subpath.to_string_lossy());
     }
 
     /// Set source-related environment variables.

@@ -11,6 +11,7 @@
 
 pub mod developer_package; // Developer package support (rez.developer_package)
 pub mod filter;
+pub mod install_layout;
 pub mod package;
 pub mod package_cache;
 pub mod package_copy; // Package copy operations (rez.package_copy)
@@ -23,6 +24,7 @@ pub mod serialization; // Always available for CLI usage
 
 pub use developer_package::*; // Developer package support
 pub use filter::*;
+pub use install_layout::PackageInstallLayout;
 pub use package::*;
 pub use package_cache::*;
 pub use package_copy::*; // Package copy operations

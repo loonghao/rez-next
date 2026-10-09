@@ -424,38 +424,3 @@ impl PackageSaver {
         Ok(())
     }
 }
-
-/// Convert YAML value to JSON value
-pub fn yaml_to_json_value(yaml_value: serde_yaml::Value) -> serde_json::Value {
-    match yaml_value {
-        serde_yaml::Value::Null => serde_json::Value::Null,
-        serde_yaml::Value::Bool(b) => serde_json::Value::Bool(b),
-        serde_yaml::Value::Number(n) => {
-            if let Some(i) = n.as_i64() {
-                serde_json::Value::Number(serde_json::Number::from(i))
-            } else if let Some(f) = n.as_f64() {
-                serde_json::Number::from_f64(f)
-                    .map(serde_json::Value::Number)
-                    .unwrap_or(serde_json::Value::Null)
-            } else {
-                serde_json::Value::Null
-            }
-        }
-        serde_yaml::Value::String(s) => serde_json::Value::String(s),
-        serde_yaml::Value::Sequence(seq) => {
-            let json_array: Vec<serde_json::Value> =
-                seq.into_iter().map(yaml_to_json_value).collect();
-            serde_json::Value::Array(json_array)
-        }
-        serde_yaml::Value::Mapping(map) => {
-            let mut json_object = serde_json::Map::new();
-            for (k, v) in map {
-                if let serde_yaml::Value::String(key) = k {
-                    json_object.insert(key, yaml_to_json_value(v));
-                }
-            }
-            serde_json::Value::Object(json_object)
-        }
-        serde_yaml::Value::Tagged(_) => serde_json::Value::Null,
-    }
-}

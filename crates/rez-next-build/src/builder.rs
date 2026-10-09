@@ -3,7 +3,7 @@
 use crate::{BuildArtifacts, BuildEnvironment, BuildEvent, BuildProcess};
 use rez_next_common::RezCoreError;
 use rez_next_context::ResolvedContext;
-use rez_next_package::Package;
+use rez_next_package::{Package, PackageInstallLayout};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -162,17 +162,14 @@ impl BuildRequest {
     }
 
     /// Get the variant hash for hash-based variant paths
+    #[deprecated(note = "Use PackageInstallLayout::for_variant for canonical installation paths")]
     pub fn variant_hash(&self) -> Option<String> {
-        self.variant_requires.as_ref().map(|reqs| {
-            // Compute a hash from the variant requirements
-            use std::collections::hash_map::DefaultHasher;
-            use std::hash::{Hash, Hasher};
-
-            let mut hasher = DefaultHasher::new();
-            for req in reqs {
-                req.hash(&mut hasher);
-            }
-            format!("{:x}", hasher.finish())
+        (self.package.hashed_variants == Some(true) && self.variant_index.is_some()).then(|| {
+            PackageInstallLayout::for_variant(&self.package, self.variant_index)
+                .expect("build request must select a valid canonical variant")
+                .variant_subpath()
+                .to_string_lossy()
+                .into_owned()
         })
     }
 }
@@ -287,6 +284,15 @@ impl BuildManager {
 
     /// Start a single build (internal helper)
     async fn start_single_build(&mut self, request: BuildRequest) -> Result<String, RezCoreError> {
+        let layout = PackageInstallLayout::for_variant(&request.package, request.variant_index)?;
+        if let Some(index) = request.variant_index
+            && let Some(requirements) = &request.variant_requires
+            && requirements != &request.package.variants[index]
+        {
+            return Err(RezCoreError::BuildError(
+                "Build variant requirements do not match the selected package variant".to_string(),
+            ));
+        }
         // Check concurrent build limit
         if self.active_builds.len() >= self.config.max_concurrent_builds {
             return Err(RezCoreError::BuildError(
@@ -306,27 +312,12 @@ impl BuildManager {
         )?;
         build_env.set_source_path(&request.source_dir);
         Self::apply_build_env_overrides(&mut build_env, &request, &self.config);
+        build_env.apply_install_layout(&layout);
 
         // Set variant-related environment variables if this is a variant build
         if let Some(variant_index) = request.variant_index {
-            let variant_requires = request.variant_requires.clone().unwrap_or_default();
-            build_env.set_variant_env(variant_index, &variant_requires);
-
-            // Update install path for hash variants if needed
-            if let Some(variant_hash) = request.variant_hash() {
-                let variant_install_path = build_env.get_variant_install_path(Some(&variant_hash));
-                build_env = BuildEnvironment::with_install_path(
-                    &request.package,
-                    &variant_install_path,
-                    request.context.as_ref(),
-                    request.install_path.as_ref(),
-                )?;
-                build_env.set_source_path(&request.source_dir);
-                Self::apply_build_env_overrides(&mut build_env, &request, &self.config);
-                // Re-set variant env after recreating environment
-                build_env.set_variant_env(variant_index, &variant_requires);
-                build_env.set_variant_subpath(&variant_hash);
-            }
+            let variant_requires = &request.package.variants[variant_index];
+            build_env.set_variant_env(variant_index, variant_requires);
         }
         build_env.set_event_sender(self.config.event_sender.clone(), build_id.clone());
 

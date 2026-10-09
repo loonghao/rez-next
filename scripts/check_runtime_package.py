@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Run SDK contracts from the packaged crate against registry dependencies."""
+"""Check normalized SDK metadata, optionally testing public registry dependencies."""
 
 from __future__ import annotations
 
+import argparse
 import json
 import subprocess
 import tomllib
@@ -11,7 +12,26 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def validate_manifest(packaged: dict) -> None:
+    if packaged.get("patch") or packaged.get("replace"):
+        raise ValueError("Packaged SDK must use registry dependencies without replacements")
+    scopes = [packaged, *packaged.get("target", {}).values()]
+    for scope in scopes:
+        for table in ("dependencies", "dev-dependencies", "build-dependencies"):
+            for name, spec in scope.get(table, {}).items():
+                if isinstance(spec, dict) and any(
+                    key in spec for key in ("path", "git", "registry", "registry-index")
+                ):
+                    raise ValueError(f"Packaged dependency {name} must use crates.io")
+
+
 def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--metadata-only", action="store_true",
+        help="Validate a staged workspace package; public registry tests remain a separate gate",
+    )
+    args = parser.parse_args()
     with (ROOT / "rust-toolchain.toml").open("rb") as stream:
         channel = tomllib.load(stream)["toolchain"]["channel"]
     cargo = ["vx", "cargo", f"+{channel}"]
@@ -25,14 +45,11 @@ def main() -> int:
     manifest = Path(metadata["target_directory"]) / "package" / f"rez-next-runtime-{version}" / "Cargo.toml"
     with manifest.open("rb") as stream:
         packaged = tomllib.load(stream)
-    for table in ("dependencies", "dev-dependencies", "build-dependencies"):
-        for name, spec in packaged.get(table, {}).items():
-            if isinstance(spec, dict) and "path" in spec:
-                raise ValueError(f"Packaged dependency {name} still uses a local path")
-    if packaged.get("patch") or packaged.get("replace"):
-        raise ValueError("Packaged SDK must use registry dependencies without replacements")
+    validate_manifest(packaged)
+    if args.metadata_only:
+        return 0
     return subprocess.call(
-        [*cargo, "test", "--manifest-path", str(manifest), "--test", "runtime_api", "--locked"],
+        [*cargo, "test", "--manifest-path", str(manifest), "--tests", "--locked"],
         cwd=ROOT,
     )
 

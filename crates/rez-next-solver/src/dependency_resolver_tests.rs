@@ -563,7 +563,7 @@ mod tests {
             .find(|package| package.package.name == "python")
             .unwrap();
         assert_eq!(python.variant_index, Some(1));
-        let materialized_root = python.materialized_package().root().unwrap();
+        let materialized_root = python.try_materialized_package().unwrap().root().unwrap();
         assert!(
             std::path::Path::new(&materialized_root)
                 .ends_with(std::path::Path::new("platform-windows").join("!python_embedded"))

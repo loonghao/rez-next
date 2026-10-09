@@ -153,7 +153,10 @@ mod resolved_context_behavior_tests {
                 .to_string_lossy()
                 .to_string(),
         );
-        pkg.commands = Some("env.setenv('PYTHON_HOME', '{root}')".to_string());
+        pkg.commands = Some(
+            "env.setenv('PYTHON_HOME', '{root}')\nenv.prepend_path('PATH', '{root}/bin')"
+                .to_string(),
+        );
         pkg.tools = vec!["python".to_string()];
 
         let rt = tokio::runtime::Runtime::new().unwrap();
@@ -162,10 +165,10 @@ mod resolved_context_behavior_tests {
 
         assert_eq!(vars.get("PYTHON_ROOT"), Some(&root));
         assert_eq!(vars.get("PYTHON_HOME"), Some(&root));
-        assert!(
-            vars.get("PATH")
-                .map(|value| value.contains(&package_root.join("bin").to_string_lossy().to_string()))
-                .unwrap_or(false)
+        assert_eq!(
+            std::env::split_paths(vars.get("PATH").expect("explicit package PATH"))
+                .collect::<Vec<_>>(),
+            [package_root.join("bin")]
         );
     }
 
