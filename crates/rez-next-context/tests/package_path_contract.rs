@@ -42,6 +42,38 @@ fn paths(environment: &HashMap<String, String>) -> Vec<PathBuf> {
 }
 
 #[rstest]
+#[tokio::test]
+async fn test_generate_environment_canonical_root_paths_remain_accessible() {
+    let temporary = tempfile::tempdir().unwrap();
+    let directory = temporary.path().join("canonical root's");
+    fs::create_dir_all(directory.join("payload/bin")).unwrap();
+    let root = directory.canonicalize().unwrap();
+    let mut package = package_with_tools(&root);
+    package.commands = Some(
+        "env.prepend_path('PATH', '{root}/payload/bin')\nenv.setenv('PAYLOAD_HOME', '{root}/payload')"
+            .to_string(),
+    );
+    let environment = manager(PathStrategy::Prepend, HashMap::new())
+        .generate_environment(&[package])
+        .await
+        .unwrap();
+    let entries = paths(&environment);
+    assert_eq!(entries.len(), 1);
+    assert_eq!(
+        entries[0]
+            .canonicalize()
+            .expect("canonical package PATH must remain usable"),
+        root.join("payload/bin").canonicalize().unwrap()
+    );
+    assert_eq!(
+        Path::new(&environment["PAYLOAD_HOME"])
+            .canonicalize()
+            .expect("expanded canonical root must remain usable"),
+        root.join("payload").canonicalize().unwrap()
+    );
+}
+
+#[rstest]
 #[case(PathStrategy::Prepend)]
 #[case(PathStrategy::Append)]
 #[case(PathStrategy::Replace)]

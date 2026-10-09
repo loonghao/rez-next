@@ -95,6 +95,10 @@ impl RexExecutor {
                 // Also support $NAME style
                 result = result.replace(&format!("${}", key.to_uppercase()), value);
             }
+            // Windows verbatim paths do not normalize forward-slash suffixes.
+            if cfg!(windows) && result.starts_with(r"\\?\") {
+                result = result.replace('/', r"\");
+            }
             result
         };
 
