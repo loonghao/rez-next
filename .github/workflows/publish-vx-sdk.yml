@@ -27,7 +27,7 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
-      - uses: loonghao/vx@v0.9.36
+      - uses: loonghao/vx@v0.9.37
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - uses: dtolnay/rust-toolchain@1.95.0
@@ -60,7 +60,7 @@ jobs:
           repository: vx-org/vx-rez-adapter
           ref: ${{ inputs.adapter_ref }}
           persist-credentials: false
-      - uses: loonghao/vx@v0.9.36
+      - uses: loonghao/vx@v0.9.37
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - uses: dtolnay/rust-toolchain@1.95.0
