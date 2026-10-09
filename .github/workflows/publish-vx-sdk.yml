@@ -33,7 +33,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@1.95.0
       - uses: Swatinem/rust-cache@v2
       - run: vx cargo test --locked -p rez-next-runtime
-      - run: vx cargo package --locked -p rez-next-runtime
+      - run: vx just runtime-registry-check
       - name: Publish SDK
         if: inputs.publish_runtime
         run: vx cargo publish --locked -p rez-next-runtime

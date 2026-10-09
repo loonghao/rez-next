@@ -16,6 +16,7 @@ on:
       - "Cargo.lock"
       - "justfile"
       - "scripts/check_runtime_package.py"
+      - "scripts/tests/test_check_runtime_package.py"
       - ".github/workflows/runtime-sdk.yml"
   push:
     branches: [main]
@@ -32,6 +33,7 @@ on:
       - "Cargo.lock"
       - "justfile"
       - "scripts/check_runtime_package.py"
+      - "scripts/tests/test_check_runtime_package.py"
       - ".github/workflows/runtime-sdk.yml"
   workflow_dispatch:
 
@@ -67,5 +69,7 @@ jobs:
         run: vx just runtime-lint
       - name: Test SDK resolution and execution
         run: vx just runtime-test
-      - name: Verify standalone crates.io package
+      - name: Test packaged manifest validation
+        run: vx python -m unittest discover -s scripts/tests -p test_check_runtime_package.py -v
+      - name: Verify packaged SDK and dependency closure
         run: vx just runtime-package-check
