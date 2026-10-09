@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.10](https://github.com/loonghao/rez-next/compare/v0.3.9...v0.3.10) (2026-10-09)
+
+
+### 🚀 Features
+
+* expose strict runtime SDK for package consumers ([#307](https://github.com/loonghao/rez-next/issues/307)) ([e500ac9](https://github.com/loonghao/rez-next/commit/e500ac92abf5199c0df0fb959323a8249d80500d))
+
+
+### 🐛 Bug Fixes
+
+* preserve canonical package layouts and command environments ([#311](https://github.com/loonghao/rez-next/issues/311)) ([1d53d7a](https://github.com/loonghao/rez-next/commit/1d53d7ab53ea91b93f71cfa47b7017ac5b88022d))
+
 ## [0.3.9](https://github.com/loonghao/rez-next/compare/v0.3.8...v0.3.9) (2026-10-06)
 
 
