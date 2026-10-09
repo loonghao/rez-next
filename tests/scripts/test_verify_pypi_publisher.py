@@ -90,3 +90,12 @@ def test_authentication_only_mode_cannot_start_release_builds():
     for job in ("build", "build-wheels"):
         definition = workflow.split(f"  {job}:\n", 1)[1].split("    steps:", 1)[0]
         assert "needs: verify-version" in definition
+
+
+def test_release_jobs_use_configured_pypi_publisher_environment():
+    workflow = (
+        Path(__file__).resolve().parents[2] / ".github/workflows/release.yml"
+    ).read_text()
+    for job in ("verify-publisher", "publish-pypi"):
+        definition = workflow.split(f"  {job}:\n", 1)[1].split("    steps:", 1)[0]
+        assert "    environment: pypi\n" in definition
