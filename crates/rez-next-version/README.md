@@ -19,6 +19,6 @@ let v2 = Version::parse("2.0.0").unwrap();
 assert!(v < v2);
 ```
 
-## Part of [rez-next](https://github.com/loonghao/rez-next)
+## Part of [rez-next](https://github.com/vx-org/rez-next)
 
 License: Apache-2.0

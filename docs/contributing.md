@@ -46,7 +46,7 @@ Automated via [release-please](https://github.com/googleapis/release-please). Mu
 ### Setup
 
 ```bash
-git clone https://github.com/loonghao/rez-next.git
+git clone https://github.com/vx-org/rez-next.git
 cd rez-next
 vx just build
 vx just test
@@ -91,7 +91,7 @@ cargo deny check
 
 ## Links
 
-- [Repository](https://github.com/loonghao/rez-next)
-- [Issues](https://github.com/loonghao/rez-next/issues)
+- [Repository](https://github.com/vx-org/rez-next)
+- [Issues](https://github.com/vx-org/rez-next/issues)
 - [Benchmark Guide](./benchmark_guide.md)
 - [Performance Guide](./performance.md)

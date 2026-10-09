@@ -1,5 +1,5 @@
 # rez-next installer for Windows
-# Usage: irm https://raw.githubusercontent.com/loonghao/rez-next/main/install.ps1 | iex
+# Usage: irm https://raw.githubusercontent.com/vx-org/rez-next/main/install.ps1 | iex
 #
 # Environment variables:
 #   REZ_NEXT_VERSION  - Specific version to install (e.g., "0.1.0"). Default: latest
@@ -7,7 +7,7 @@
 #   REZ_NEXT_NO_PATH  - Set to "1" to skip adding to PATH. Default: auto-add
 
 $ErrorActionPreference = 'Stop'
-$Repo = "loonghao/rez-next"
+$Repo = "vx-org/rez-next"
 $BinaryName = "rez-next"
 
 function Write-Info { param([string]$Message); Write-Host "info: " -ForegroundColor Blue -NoNewline; Write-Host $Message }

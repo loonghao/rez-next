@@ -8,12 +8,17 @@
 #
 # PyPI publishing uses Trusted Publisher (OIDC) — no API token needed.
 # Setup required: https://docs.pypi.org/trusted-publishers/adding-a-publisher/
-#   Publisher: GitHub Actions, Owner: loonghao, Repo: rez-next, Workflow: release.yml
+#   Publisher: GitHub Actions, Owner: vx-org, Repo: rez-next, Workflow: release.yml
 
 name: Release
 
 on:
   workflow_dispatch:
+    inputs:
+      verify_publisher_only:
+        description: Verify migrated PyPI identity without building or publishing
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -24,7 +29,19 @@ env:
   RUSTUP_TOOLCHAIN: 1.95.0
 
 jobs:
+  verify-publisher:
+    name: Verify PyPI publisher identity
+    if: inputs.verify_publisher_only
+    runs-on: ubuntu-26.04
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+      - run: python scripts/verify_pypi_publisher.py
+
   verify-version:
+    if: ${{ !inputs.verify_publisher_only }}
     name: Verify Release Version
     runs-on: ubuntu-26.04
     steps:
@@ -194,7 +211,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: loonghao/vx@main
+      - uses: vx-org/vx@main
         with:
           tools: "maturin"
           # The Windows post-job cache save can fail after a successful wheel build

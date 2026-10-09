@@ -789,9 +789,9 @@ cargo clippy --workspace --all-targets
 
 ## Links
 
-- **Repository**: https://github.com/loonghao/rez-next
-- **Issues**: https://github.com/loonghao/rez-next/issues
-- **Discussions**: https://github.com/loonghao/rez-next/discussions
+- **Repository**: https://github.com/vx-org/rez-next
+- **Issues**: https://github.com/vx-org/rez-next/issues
+- **Discussions**: https://github.com/vx-org/rez-next/discussions
 - **Upstream Rez**: https://github.com/AcademySoftwareFoundation/rez
 - **Crates.io**: https://crates.io/crates/rez-next
 - **PyPI**: https://pypi.org/project/rez-next/

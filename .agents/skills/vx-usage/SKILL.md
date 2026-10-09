@@ -357,7 +357,7 @@ vx provides a GitHub Action (`action.yml`) for CI/CD workflows. Use it in `.gith
 ### Basic Usage
 
 ```yaml
-- uses: loonghao/vx@main
+- uses: vx-org/vx@main
   with:
     version: 'latest'           # vx version (default: latest)
     github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -366,7 +366,7 @@ vx provides a GitHub Action (`action.yml`) for CI/CD workflows. Use it in `.gith
 ### Pre-install Tools
 
 ```yaml
-- uses: loonghao/vx@main
+- uses: vx-org/vx@main
   with:
     tools: 'node go uv'         # Space-separated tools to pre-install
     cache: 'true'               # Enable tool caching (default: true)
@@ -375,7 +375,7 @@ vx provides a GitHub Action (`action.yml`) for CI/CD workflows. Use it in `.gith
 ### Project Setup (vx.toml)
 
 ```yaml
-- uses: loonghao/vx@main
+- uses: vx-org/vx@main
   with:
     setup: 'true'               # Run `vx setup --ci` for vx.toml projects
 ```
@@ -396,7 +396,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - uses: loonghao/vx@main
+      - uses: vx-org/vx@main
         with:
           tools: 'node@22 uv'
           setup: 'true'
@@ -431,7 +431,7 @@ vx also provides a container image for containerized workflows, and it can be co
 
 ```dockerfile
 # Use vx as base image
-FROM ghcr.io/loonghao/vx:latest
+FROM ghcr.io/vx-org/vx:latest
 
 # Tools are auto-installed on first use
 RUN vx node --version
@@ -441,7 +441,7 @@ RUN vx uv pip install mypackage
 ### Multi-stage Build with vx
 
 ```dockerfile
-FROM ghcr.io/loonghao/vx:latest AS builder
+FROM ghcr.io/vx-org/vx:latest AS builder
 RUN vx node --version && vx npm ci && vx npm run build
 
 FROM nginx:alpine
@@ -455,7 +455,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/loonghao/vx:latest
+      image: ghcr.io/vx-org/vx:latest
     steps:
       - uses: actions/checkout@v6
       - run: vx node --version

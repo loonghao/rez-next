@@ -9,6 +9,6 @@ Dependency resolution for rez-next.
 - Conflict detection and reporting
 - Parallel solving support (via rayon)
 
-## Part of [rez-next](https://github.com/loonghao/rez-next)
+## Part of [rez-next](https://github.com/vx-org/rez-next)
 
 License: Apache-2.0

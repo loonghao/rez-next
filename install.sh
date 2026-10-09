@@ -1,6 +1,6 @@
 #!/bin/sh
 # rez-next installer for Linux and macOS
-# Usage: curl -fsSL https://raw.githubusercontent.com/loonghao/rez-next/main/install.sh | sh
+# Usage: curl -fsSL https://raw.githubusercontent.com/vx-org/rez-next/main/install.sh | sh
 #
 # Environment variables:
 #   REZ_NEXT_VERSION  - Specific version to install (e.g., "0.1.0"). Default: latest
@@ -8,7 +8,7 @@
 #   REZ_NEXT_MUSL     - Set to "1" on Linux to prefer musl build. Default: auto-detect
 set -eu
 
-REPO="loonghao/rez-next"
+REPO="vx-org/rez-next"
 BINARY_NAME="rez-next"
 
 # --- Logging helpers ---
