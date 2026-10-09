@@ -1,6 +1,6 @@
 # vx Extension: `rez-release`
 
-`rez-next` ships a [vx](https://github.com/loonghao/vx) extension that makes the
+`rez-next` ships a [vx](https://github.com/vx-org/vx) extension that makes the
 release workflow drivable from vx:
 
 ```bash
@@ -21,7 +21,7 @@ behaviour) are exactly those of the underlying API.
 
 ## Requirements
 
-- [`vx`](https://github.com/loonghao/vx) on `PATH`
+- [`vx`](https://github.com/vx-org/vx) on `PATH`
 - The `rez-next` Python package importable (`pip install rez-next`, or
   `vx just py-build` from a checkout). The extension exits `3` with an
   explanatory message when the import fails.

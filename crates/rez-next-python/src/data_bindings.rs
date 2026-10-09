@@ -98,7 +98,7 @@ def commands():
 
 /// Default rezconfig.py template
 pub(crate) const DEFAULT_REZCONFIG: &str = r#"# rez-next configuration
-# See https://github.com/loonghao/rez-next for documentation
+# See https://github.com/vx-org/rez-next for documentation
 
 # Package search paths
 packages_path = [

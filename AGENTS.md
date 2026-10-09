@@ -204,8 +204,8 @@ result = diff_contexts(["python-3.9"], ["python-3.11", "maya-2024"])
 
 ## Getting Help
 
-- **Issues**: https://github.com/loonghao/rez-next/issues
-- **Discussions**: https://github.com/loonghao/rez-next/discussions
+- **Issues**: https://github.com/vx-org/rez-next/issues
+- **Discussions**: https://github.com/vx-org/rez-next/discussions
 - **CI Status**: Check PR for green checkmarks before merging
 
 ---

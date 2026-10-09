@@ -6,7 +6,7 @@ rust-version.workspace = true
 authors.workspace = true
 description = "Intelligent caching system for rez-next with multi-level cache and predictive preheating"
 license = "Apache-2.0"
-repository = "https://github.com/loonghao/rez-next"
+repository = "https://github.com/vx-org/rez-next"
 keywords = ["rez", "cache", "performance", "intelligent", "multi-level"]
 categories = ["caching", "development-tools"]
 

@@ -25,10 +25,10 @@ classifiers = [
 keywords = ["rez", "package-manager", "vfx", "pipeline", "environment"]
 
 [project.urls]
-Homepage = "https://github.com/loonghao/rez-next"
-Documentation = "https://github.com/loonghao/rez-next"
-Repository = "https://github.com/loonghao/rez-next"
-Issues = "https://github.com/loonghao/rez-next/issues"
+Homepage = "https://github.com/vx-org/rez-next"
+Documentation = "https://github.com/vx-org/rez-next"
+Repository = "https://github.com/vx-org/rez-next"
+Issues = "https://github.com/vx-org/rez-next/issues"
 
 [tool.maturin]
 # Build the cdylib as Python extension

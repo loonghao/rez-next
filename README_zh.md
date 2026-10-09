@@ -2,14 +2,14 @@
 
 [![Rust](https://img.shields.io/badge/rust-1.95+-orange.svg)](https://www.rust-lang.org)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
-[![CI](https://img.shields.io/github/actions/workflow/status/loonghao/rez-next/ci.yml?branch=main)](https://github.com/loonghao/rez-next/actions)
-[![GitHub Release](https://img.shields.io/github/v/release/loonghao/rez-next)](https://github.com/loonghao/rez-next/releases)
+[![CI](https://img.shields.io/github/actions/workflow/status/loonghao/rez-next/ci.yml?branch=main)](https://github.com/vx-org/rez-next/actions)
+[![GitHub Release](https://img.shields.io/github/v/release/loonghao/rez-next)](https://github.com/vx-org/rez-next/releases)
 [![Crates.io](https://img.shields.io/crates/v/rez-next)](https://crates.io/crates/rez-next)
 [![Crates.io Downloads](https://img.shields.io/crates/d/rez-next)](https://crates.io/crates/rez-next)
 [![PyPI - Version](https://img.shields.io/pypi/v/rez-next)](https://pypi.org/project/rez-next/)
 [![PyPI - Downloads](https://img.shields.io/pypi/dm/rez-next)](https://pypi.org/project/rez-next/)
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/rez-next)](https://pypi.org/project/rez-next/)
-[![Coverage](https://img.shields.io/codecov/c/gh/loonghao/rez-next/main)](https://codecov.io/gh/loonghao/rez-next)
+[![Coverage](https://img.shields.io/codecov/c/gh/vx-org/rez-next/main)](https://codecov.io/gh/vx-org/rez-next)
 
 > **生产就绪范围。** 文档明确覆盖的常用工作流，在锁定正式发布版本并通过自身包库验证后可用于生产。rez-next 仍处于 1.0 之前，采用按工作流精选的兼容策略，**不承诺**替代 Rez 的全部 API，也不是 AcademySoftwareFoundation 官方项目。
 
@@ -24,13 +24,13 @@
 ### Linux / macOS
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/loonghao/rez-next/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/vx-org/rez-next/main/install.sh | sh
 ```
 
 或指定版本安装：
 
 ```bash
-REZ_NEXT_VERSION=0.3.10 curl -fsSL https://raw.githubusercontent.com/loonghao/rez-next/main/install.sh | sh # x-release-please-version
+REZ_NEXT_VERSION=0.3.10 curl -fsSL https://raw.githubusercontent.com/vx-org/rez-next/main/install.sh | sh # x-release-please-version
 ```
 
 环境变量说明：
@@ -44,7 +44,7 @@ REZ_NEXT_VERSION=0.3.10 curl -fsSL https://raw.githubusercontent.com/loonghao/re
 ### Windows（PowerShell）
 
 ```powershell
-irm https://raw.githubusercontent.com/loonghao/rez-next/main/install.ps1 | iex
+irm https://raw.githubusercontent.com/vx-org/rez-next/main/install.ps1 | iex
 ```
 
 ### Python（PyPI）
@@ -56,7 +56,7 @@ pip install rez-next
 ### 从源码构建
 
 ```bash
-git clone https://github.com/loonghao/rez-next
+git clone https://github.com/vx-org/rez-next
 cd rez-next
 cargo build --release
 ```
@@ -152,7 +152,7 @@ for p in rez.iter_packages("maya"):
 
 ### 通过 vx 发布包
 
-`rez-next` 随仓库提供一个 [vx](https://github.com/loonghao/vx) 扩展，可直接用 vx 驱动发布流程：
+`rez-next` 随仓库提供一个 [vx](https://github.com/vx-org/vx) 扩展，可直接用 vx 驱动发布流程：
 
 ```bash
 vx ext dev .                          # 将当前仓库链接为开发扩展
@@ -332,7 +332,7 @@ rez-next-python        Python 绑定 via PyO3（40 个子模块）
 ## 从源码构建
 
 ```bash
-git clone https://github.com/loonghao/rez-next
+git clone https://github.com/vx-org/rez-next
 cd rez-next
 cargo build --release
 ```

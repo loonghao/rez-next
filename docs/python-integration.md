@@ -136,7 +136,7 @@ The supported public modules are listed above; internal Rez utility modules are 
 pip install rez-next
 
 # From source (development)
-git clone https://github.com/loonghao/rez-next
+git clone https://github.com/vx-org/rez-next
 cd rez-next
 maturin develop --release
 ```
@@ -349,7 +349,7 @@ maturin develop --release --python /path/to/python3.9
 - **Complete API reference**: See [llms-full.txt](../llms-full.txt) for full API details
 - **Contributing**: See [contributing.md](./contributing.md)
 - **Benchmarks**: See [benchmark_guide.md](./benchmark_guide.md)
-- **Repository**: https://github.com/loonghao/rez-next
+- **Repository**: https://github.com/vx-org/rez-next
 
 ## License
 

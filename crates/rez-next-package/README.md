@@ -23,6 +23,6 @@ pkg.add_requirement("python>=3.8".to_string());
 let yaml = PackageSerializer::save_to_yaml(&pkg).unwrap();
 ```
 
-## Part of [rez-next](https://github.com/loonghao/rez-next)
+## Part of [rez-next](https://github.com/vx-org/rez-next)
 
 License: Apache-2.0

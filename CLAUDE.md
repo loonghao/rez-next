@@ -98,7 +98,7 @@ maturin develop --release && pytest
 - **Project questions**: Read AGENTS.md first
 - **API questions**: Check llms-full.txt
 - **Development questions**: Read docs/contributing.md
-- **Bug reports**: https://github.com/loonghao/rez-next/issues
+- **Bug reports**: https://github.com/vx-org/rez-next/issues
 
 ---
 

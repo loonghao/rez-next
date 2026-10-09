@@ -2,14 +2,14 @@
 
 [![Rust](https://img.shields.io/badge/rust-1.95+-orange.svg)](https://www.rust-lang.org)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
-[![CI](https://img.shields.io/github/actions/workflow/status/loonghao/rez-next/ci.yml?branch=main)](https://github.com/loonghao/rez-next/actions)
-[![GitHub Release](https://img.shields.io/github/v/release/loonghao/rez-next)](https://github.com/loonghao/rez-next/releases)
+[![CI](https://img.shields.io/github/actions/workflow/status/loonghao/rez-next/ci.yml?branch=main)](https://github.com/vx-org/rez-next/actions)
+[![GitHub Release](https://img.shields.io/github/v/release/loonghao/rez-next)](https://github.com/vx-org/rez-next/releases)
 [![Crates.io](https://img.shields.io/crates/v/rez-next)](https://crates.io/crates/rez-next)
 [![Crates.io Downloads](https://img.shields.io/crates/d/rez-next)](https://crates.io/crates/rez-next)
 [![PyPI - Version](https://img.shields.io/pypi/v/rez-next)](https://pypi.org/project/rez-next/)
 [![PyPI - Downloads](https://img.shields.io/pypi/dm/rez-next)](https://pypi.org/project/rez-next/)
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/rez-next)](https://pypi.org/project/rez-next/)
-[![Coverage](https://img.shields.io/codecov/c/gh/loonghao/rez-next/main)](https://codecov.io/gh/loonghao/rez-next)
+[![Coverage](https://img.shields.io/codecov/c/gh/vx-org/rez-next/main)](https://codecov.io/gh/vx-org/rez-next)
 
 > **Production-ready scope.** Documented common workflows are production-ready when a released version is pinned and validated against your package corpus. rez-next is pre-1.0, uses curated compatibility, is **not** a seamless replacement for every Rez API, and is not an official AcademySoftwareFoundation project.
 
@@ -28,13 +28,13 @@ direct child execution. See the [Rust integration guide](docs/rust-integration.m
 ### Linux / macOS
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/loonghao/rez-next/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/vx-org/rez-next/main/install.sh | sh
 ```
 
 Or with a specific version:
 
 ```bash
-REZ_NEXT_VERSION=0.3.10 curl -fsSL https://raw.githubusercontent.com/loonghao/rez-next/main/install.sh | sh # x-release-please-version
+REZ_NEXT_VERSION=0.3.10 curl -fsSL https://raw.githubusercontent.com/vx-org/rez-next/main/install.sh | sh # x-release-please-version
 ```
 
 Environment variables:
@@ -48,7 +48,7 @@ Environment variables:
 ### Windows (PowerShell)
 
 ```powershell
-irm https://raw.githubusercontent.com/loonghao/rez-next/main/install.ps1 | iex
+irm https://raw.githubusercontent.com/vx-org/rez-next/main/install.ps1 | iex
 ```
 
 ### Python (PyPI)
@@ -60,7 +60,7 @@ pip install rez-next
 ### Build from Source
 
 ```bash
-git clone https://github.com/loonghao/rez-next
+git clone https://github.com/vx-org/rez-next
 cd rez-next
 cargo build --release
 ```
@@ -156,7 +156,7 @@ for p in rez.iter_packages("maya"):
 
 ### Releasing packages with vx
 
-`rez-next` ships a [vx](https://github.com/loonghao/vx) extension so the release
+`rez-next` ships a [vx](https://github.com/vx-org/vx) extension so the release
 workflow can be driven directly from vx:
 
 ```bash
@@ -338,7 +338,7 @@ rez-next-python        Python bindings via PyO3 (40 submodules)
 ## Building from source
 
 ```bash
-git clone https://github.com/loonghao/rez-next
+git clone https://github.com/vx-org/rez-next
 cd rez-next
 cargo build --release
 ```

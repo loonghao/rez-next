@@ -57,5 +57,5 @@ through the normal runtime resolver. Missing dependencies fail strictly. Supply
 actual local dependency repositories with repeated `--repository` arguments,
 or use `InstallationPlan::from_definition_with_repositories` in Rust.
 
-See the [Rust integration guide](https://github.com/loonghao/rez-next/blob/main/docs/rust-integration.md)
+See the [Rust integration guide](https://github.com/vx-org/rez-next/blob/main/docs/rust-integration.md)
 for configuration, errors, supported materialization behavior and compatibility.
