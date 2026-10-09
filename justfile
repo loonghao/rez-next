@@ -77,12 +77,12 @@ runtime-test:
 # Verify the complete SDK dependency closure before its next registry release.
 runtime-package-check:
     vx cargo package -p rez-next-common -p rez-next-version -p rez-next-rex -p rez-next-package -p rez-next-repository -p rez-next-context -p rez-next-solver -p rez-next-runtime --locked
-    vx python scripts/check_runtime_package.py --metadata-only
+    vx uv run --no-project python scripts/check_runtime_package.py --metadata-only
 
 # Requires the selected core dependency versions to be public on crates.io.
 runtime-registry-check:
     vx cargo package -p rez-next-runtime --locked
-    vx python scripts/check_runtime_package.py
+    vx uv run --no-project python scripts/check_runtime_package.py
 
 # Check that the Rust toolchain pin is identical everywhere (see rust-toolchain.toml)
 toolchain-check:

@@ -14,6 +14,7 @@ on:
       - "crates/rez-next-version/**"
       - "Cargo.toml"
       - "Cargo.lock"
+      - ".python-version"
       - "justfile"
       - "scripts/check_runtime_package.py"
       - "scripts/tests/test_check_runtime_package.py"
@@ -31,6 +32,7 @@ on:
       - "crates/rez-next-version/**"
       - "Cargo.toml"
       - "Cargo.lock"
+      - ".python-version"
       - "justfile"
       - "scripts/check_runtime_package.py"
       - "scripts/tests/test_check_runtime_package.py"
@@ -70,6 +72,6 @@ jobs:
       - name: Test SDK resolution and execution
         run: vx just runtime-test
       - name: Test packaged manifest validation
-        run: vx python -m unittest discover -s scripts/tests -p test_check_runtime_package.py -v
+        run: vx uv run --no-project python -m unittest discover -s scripts/tests -p test_check_runtime_package.py -v
       - name: Verify packaged SDK and dependency closure
         run: vx just runtime-package-check
