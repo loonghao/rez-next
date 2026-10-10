@@ -1,0 +1,20 @@
+{
+  "timestamp": "2026-10-10 00:03 UTC",
+  "commit": "1b58c32",
+  "platform": "Linux-6.17.0-1022-azure",
+  "cpu": "AMD EPYC 9V74 80-Core Processor",
+  "regressions": [
+    "package_serialization/complex_json",
+    "package_serialization/large_json",
+    "package_deserialization/complex_json",
+    "package_deserialization/large_json",
+    "package_deserialization/simple_python",
+    "package_validation/simple_valid",
+    "package_validation/complex_valid",
+    "package_validation/large_valid",
+    "package_variants/add_variants/10",
+    "package_cloning/large_clone",
+    "package_requirements/add_requirements/50"
+  ],
+  "bench_count": 174
+}
