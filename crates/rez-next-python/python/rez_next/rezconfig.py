@@ -21,9 +21,15 @@ Config = Config
 
 # ── Paths ────────────────────────────────────────────────────────────────────
 
-packages_path: list[str] = ["~/packages"]
+# Aligned with rez 3.4.0 `rezconfig.py`: three entries, and a forward-slash
+# release path on every platform (including Windows).
+packages_path: list[str] = [
+    "~/packages",
+    "~/.rez/packages/int",
+    "~/.rez/packages/ext",
+]
 local_packages_path: str = "~/packages"
-release_packages_path: str = os.path.join("~", ".rez", "packages", "int")
+release_packages_path: str = "~/.rez/packages/int"
 tmpdir: str | None = None
 
 # ── Extensions ───────────────────────────────────────────────────────────────
@@ -80,6 +86,10 @@ debug_resolve_package_order: bool = False
 debug_resolve_package_selection: bool = False
 debug_build: bool = False
 debug_resolve: bool = False
+# Upstream rez spells this `debug_memcache`; the trailing "d" was a rez-next
+# typo. The correct name is authoritative and the old one is kept as a
+# deprecated alias so existing configs keep resolving.
+debug_memcache: bool = False
 debug_memcached: bool = False
 warn_untimestamped: bool = False
 warn_unrelocatable: bool = False
@@ -166,6 +176,7 @@ __all__ = [
     "debug_resolve_package_selection",
     "debug_build",
     "debug_resolve",
+    "debug_memcache",
     "debug_memcached",
     "warn_untimestamped",
     "warn_unrelocatable",
