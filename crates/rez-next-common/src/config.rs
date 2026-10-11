@@ -376,9 +376,8 @@ fn parse_config_layer(
     let display = path.display().to_string();
 
     // YAML is a superset of JSON, so one parse handles both formats.
-    let value = serde_yaml::from_str::<serde_json::Value>(content).map_err(|e| {
-        RezCoreError::ConfigError(format!("{display}: {e}"))
-    })?;
+    let value = serde_yaml::from_str::<serde_json::Value>(content)
+        .map_err(|e| RezCoreError::ConfigError(format!("{display}: {e}")))?;
 
     if value.is_null() {
         // An empty file is valid and simply contributes nothing.
@@ -438,14 +437,12 @@ fn value_kind_name(value: &serde_json::Value) -> &'static str {
 /// the platform path separator; everything else stays a string.
 fn coerce_env_value(key: &str, raw: &str) -> serde_json::Value {
     match key {
-        "packages_path" | "plugin_path" | "package_cache_path" => {
-            serde_json::Value::Array(
-                split_env_paths(raw)
-                    .into_iter()
-                    .map(serde_json::Value::String)
-                    .collect(),
-            )
-        }
+        "packages_path" | "plugin_path" | "package_cache_path" => serde_json::Value::Array(
+            split_env_paths(raw)
+                .into_iter()
+                .map(serde_json::Value::String)
+                .collect(),
+        ),
         "use_rust_version" | "use_rust_solver" | "use_rust_repository" | "rust_fallback" => {
             parse_env_bool(raw)
         }
@@ -665,10 +662,7 @@ mod tests {
         let cfg = RezCoreConfig::load();
         unsafe { env::remove_var("REZ_PACKAGES_PATH_JSON") };
 
-        assert_eq!(
-            cfg.packages_path,
-            vec!["/a".to_string(), "/b".to_string()]
-        );
+        assert_eq!(cfg.packages_path, vec!["/a".to_string(), "/b".to_string()]);
     }
 
     #[test]
