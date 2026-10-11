@@ -37,9 +37,8 @@ pub fn execute(args: ConfigArgs) -> RezCoreResult<()> {
 
     // Load configuration. A malformed config file is a hard error here so the
     // command exits non-zero instead of reporting defaults the user never set.
-    let config = RezCoreConfig::try_load().map_err(|e| {
-        RezCoreError::ConfigError(format!("failed to load configuration: {e}"))
-    })?;
+    let config = RezCoreConfig::try_load()
+        .map_err(|e| RezCoreError::ConfigError(format!("failed to load configuration: {e}")))?;
 
     if let Some(field) = &args.field {
         show_config_field(&config, field, args.json)
