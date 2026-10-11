@@ -10,6 +10,10 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use thiserror::Error;
 
+pub mod keys;
+
+pub use keys::{KeyDef, KeyType, Origin};
+
 // -----------------------------------------------------------------------------
 // Error types
 // -----------------------------------------------------------------------------
@@ -259,23 +263,64 @@ impl Config {
         }
     }
 
-    /// Apply environment variable overrides (REZ_*).
+    /// Apply environment variable overrides (`REZ_*`).
     ///
-    /// `REZ_FOO_BAR=42` becomes `config["foo"]["bar"] = 42`.
-    /// JSON values (booleans, numbers, arrays) are parsed automatically;
-    /// plain strings are stored as strings.
+    /// Keys are **flat snake_case**, matching rez (`src/rez/config.py`): the
+    /// underscores in `REZ_PACKAGES_PATH` are part of the key name, not nesting,
+    /// so it maps to `packages_path`. Mapping underscores to dots made
+    /// nearly every real key resolve to a path that no config reads.
+    ///
+    /// `REZ_<KEY>_JSON` supplies a structured value and takes precedence over
+    /// the plain `REZ_<KEY>` spelling; otherwise the raw string is used.
     fn apply_env_overrides(&mut self) -> Result<(), ConfigError> {
         let mut count = 0usize;
-        for (key, value) in env::vars() {
-            if let Some(config_key) = key.strip_prefix("REZ_") {
-                let dotted = config_key.to_lowercase().replace('_', ".");
-                let parsed: JsonValue = serde_json::from_str(&value)
-                    .unwrap_or_else(|_| JsonValue::String(value.clone()));
-                tracing::debug!("REZ override: {}={}", dotted, parsed);
-                set_nested_value(&mut self.data, &dotted, parsed);
-                count += 1;
+
+        let vars: Vec<(String, String)> = env::vars()
+            .filter_map(|(key, value)| {
+                key.strip_prefix("REZ_")
+                    .map(|suffix| (suffix.to_ascii_lowercase(), value))
+            })
+            .filter(|(suffix, _)| !suffix.is_empty())
+            .collect();
+
+        let mut json_keys: Vec<String> = Vec::new();
+        for (suffix, raw) in &vars {
+            let Some(field) = suffix.strip_suffix("_json").filter(|f| !f.is_empty()) else {
+                continue;
+            };
+            match serde_json::from_str::<JsonValue>(raw) {
+                Ok(parsed) => {
+                    tracing::debug!("REZ override (json): {}={}", field, parsed);
+                    set_flat_value(&mut self.data, field, parsed);
+                    json_keys.push(field.to_string());
+                    count += 1;
+                }
+                Err(e) => {
+                    return Err(ConfigError::EnvVarError(format!(
+                        "REZ_{}: invalid JSON ({e})",
+                        suffix.to_ascii_uppercase()
+                    )));
+                }
             }
         }
+
+        for (suffix, raw) in &vars {
+            if suffix.ends_with("_json") || json_keys.contains(suffix) {
+                continue;
+            }
+            let parsed: JsonValue =
+                serde_json::from_str(raw).unwrap_or_else(|_| JsonValue::String(raw.clone()));
+            tracing::debug!("REZ override: {}={}", suffix, parsed);
+            // `plugins.*` is the one family rez addresses by dotted path; every
+            // other key is flat snake_case.
+            if suffix.starts_with("plugins.") {
+                set_nested_value(&mut self.data, suffix, parsed);
+            } else {
+                set_flat_value(&mut self.data, suffix, parsed);
+            }
+            count += 1;
+        }
+
         if count > 0 {
             tracing::info!("Applied {} REZ_* environment override(s)", count);
         }
@@ -348,6 +393,19 @@ impl Config {
     }
 }
 
+/// Set a flat, `snake_case` key on a JSON object (e.g. `packages_path`).
+///
+/// Underscores are part of the key name; only an explicit `.` in a key such as
+/// the `plugins.*` family denotes nesting.
+fn set_flat_value(root: &mut JsonValue, key: &str, value: JsonValue) {
+    if !root.is_object() {
+        *root = JsonValue::Object(serde_json::Map::new());
+    }
+    if let Some(obj) = root.as_object_mut() {
+        obj.insert(key.to_string(), value);
+    }
+}
+
 /// Set a nested JSON value given a dotted key path (e.g. "plugins.release_vcs.git").
 fn set_nested_value(root: &mut JsonValue, dotted_key: &str, value: JsonValue) {
     let segments: Vec<&str> = dotted_key.split('.').collect();
@@ -390,6 +448,15 @@ impl Default for Config {
 mod tests {
     use super::*;
     use serde_json::json;
+    use std::sync::Mutex;
+
+    /// Guards every test that mutates `REZ_*` environment variables: they are
+    /// process-global, so such tests must not run concurrently.
+    static ENV_LOCK: Mutex<()> = Mutex::new(());
+
+    fn env_lock() -> std::sync::MutexGuard<'static, ()> {
+        ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner())
+    }
 
     #[test]
     fn test_config_new() {
@@ -445,6 +512,60 @@ mod tests {
         assert_eq!(config.get("b.d"), Some(&json!(3)));
         assert_eq!(config.get("b.e"), Some(&json!(5)));
         assert_eq!(config.get("f"), Some(&json!(6)));
+    }
+
+    #[test]
+    fn test_env_override_uses_flat_snake_case_key() {
+        let _guard = env_lock();
+        // Regression: underscores were rewritten to dots, so REZ_PACKAGES_PATH
+        // landed at packages.path and no reader ever saw it.
+        let mut config = Config::new();
+        config.data = json!({});
+        // SAFETY: single-threaded test, value restored immediately after.
+        unsafe { env::set_var("REZ_PACKAGES_PATH", "/env/pkgs") };
+        let result = config.apply_env_overrides();
+        unsafe { env::remove_var("REZ_PACKAGES_PATH") };
+
+        assert!(result.is_ok());
+        assert_eq!(config.get_string("packages_path"), Some("/env/pkgs".into()));
+        // The old dotted form must not be produced.
+        assert!(config.get("packages").is_none());
+    }
+
+    #[test]
+    fn test_env_json_override_overrides_plain_form() {
+        let _guard = env_lock();
+        let mut config = Config::new();
+        config.data = json!({});
+        // SAFETY: single-threaded test, values restored immediately after.
+        unsafe {
+            env::set_var("REZ_IMPLICIT_PACKAGES", "ignored");
+            env::set_var("REZ_IMPLICIT_PACKAGES_JSON", r#"["a", "b"]"#);
+        };
+        let result = config.apply_env_overrides();
+        unsafe {
+            env::remove_var("REZ_IMPLICIT_PACKAGES");
+            env::remove_var("REZ_IMPLICIT_PACKAGES_JSON");
+        };
+
+        assert!(result.is_ok());
+        assert_eq!(
+            config.get_array("implicit_packages"),
+            Some(&vec![json!("a"), json!("b")])
+        );
+    }
+
+    #[test]
+    fn test_env_json_override_invalid_json_errors() {
+        let _guard = env_lock();
+        let mut config = Config::new();
+        config.data = json!({});
+        // SAFETY: single-threaded test, value restored immediately after.
+        unsafe { env::set_var("REZ_PACKAGES_PATH_JSON", "[not json") };
+        let result = config.apply_env_overrides();
+        unsafe { env::remove_var("REZ_PACKAGES_PATH_JSON") };
+
+        assert!(result.is_err(), "invalid JSON must not be silently ignored");
     }
 
     #[test]

@@ -1,11 +1,17 @@
 //! Configuration management for rez-core
 
+use crate::error::RezCoreError;
 use serde::{Deserialize, Serialize};
 use std::env;
 use std::path::PathBuf;
 
 /// Configuration for rez-core components
+///
+/// `#[serde(default)]` at container level is required: without it a user config
+/// file that declares only a subset of keys fails to deserialize and is skipped,
+/// silently discarding every setting the user actually wrote.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
 #[allow(clippy::struct_excessive_bools)]
 pub struct RezCoreConfig {
     /// Enable Rust version system
@@ -68,6 +74,7 @@ pub struct RezCoreConfig {
 
 /// Cache configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
 pub struct CacheConfig {
     /// Enable memory cache
     pub enable_memory_cache: bool,
@@ -151,7 +158,7 @@ impl RezCoreConfig {
 
         // 2. Environment variable REZ_CONFIG_FILE
         if let Ok(config_file) = env::var("REZ_CONFIG_FILE") {
-            for path in config_file.split(std::path::MAIN_SEPARATOR) {
+            for path in config_file.split(path_list_separator()) {
                 paths.push(PathBuf::from(path));
             }
         }
@@ -199,41 +206,134 @@ impl RezCoreConfig {
             .collect()
     }
 
-    /// Load configuration from files (reads actual rezconfig files)
+    /// Load configuration from files, reporting any parse failure.
+    ///
+    /// Configuration layers are applied in [`Self::get_search_paths`] order and
+    /// **deep-merged** rather than replaced: a file declaring only
+    /// `packages_path` leaves every other setting untouched. Within a merge,
+    /// objects are merged recursively while scalars and arrays replace the
+    /// previous value wholesale — the same rule rez applies to its own config
+    /// layers.
+    ///
+    /// A file that exists but cannot be parsed is an **error**, not a reason to
+    /// fall back to defaults: silently ignoring it would discard user settings
+    /// without any signal.
+    pub fn try_load() -> Result<Self, RezCoreError> {
+        let mut merged = serde_json::Map::new();
+
+        for path in Self::get_search_paths() {
+            if !path.exists() {
+                continue;
+            }
+            let content = std::fs::read_to_string(&path).map_err(RezCoreError::Io)?;
+            let layer = parse_config_layer(&path, &content)?;
+            deep_merge_json_object(&mut merged, layer);
+        }
+
+        let mut config: Self = serde_json::from_value(serde_json::Value::Object(merged))?;
+        config.apply_env_overrides();
+        Ok(config)
+    }
+
+    /// Load configuration from files (reads actual rezconfig files).
+    ///
+    /// Malformed configuration is reported on stderr rather than swallowed; see
+    /// [`Self::try_load`] for the fallible variant.
     #[must_use]
     pub fn load() -> Self {
-        let mut config = Self::default();
+        match Self::try_load() {
+            Ok(config) => config,
+            Err(e) => {
+                eprintln!("rez-next: failed to load configuration: {e}");
+                let mut config = Self::default();
+                config.apply_env_overrides();
+                config
+            }
+        }
+    }
 
-        // Try to load from config files in priority order
-        for path in Self::get_search_paths() {
-            if path.exists()
-                && let Ok(content) = std::fs::read_to_string(&path)
-            {
-                // Try YAML format
-                if let Ok(loaded) = serde_yaml::from_str::<RezCoreConfig>(&content) {
-                    config = loaded;
-                    break;
-                }
-                // Try JSON format
-                if let Ok(loaded) = serde_json::from_str::<RezCoreConfig>(&content) {
-                    config = loaded;
-                    break;
-                }
+    /// Apply `REZ_*` environment variable overrides in place.
+    ///
+    /// Implements rez's override rules (`src/rez/config.py`): for every
+    /// `REZ_<KEY>_JSON` the value is parsed as JSON; otherwise `REZ_<KEY>` is
+    /// coerced to the target field's type. Keys are **flat snake_case** — the
+    /// underscores in a key such as `packages_path` are preserved, they do not
+    /// denote nesting.
+    fn apply_env_overrides(&mut self) {
+        // Collect the plain `REZ_<KEY>` variables only. Lower-casing the suffix
+        // yields the flat snake_case field name; underscores are preserved,
+        // matching rez (`src/rez/config.py`) rather than implying nesting.
+        let overrides: Vec<(String, String)> = env::vars()
+            .filter_map(|(key, value)| {
+                key.strip_prefix("REZ_")
+                    .map(|suffix| (suffix.to_ascii_lowercase(), value))
+            })
+            .filter(|(suffix, _)| !suffix.is_empty())
+            .collect();
+
+        // `_JSON` variables carry structured values and win over the plain
+        // spelling of the same key. They are collected separately because a
+        // `_JSON` variable may be set without its plain counterpart.
+        let mut json_overrides: Vec<(String, serde_json::Value)> = Vec::new();
+        for (suffix, raw_value) in &overrides {
+            let Some(field) = suffix.strip_suffix("_json").filter(|f| !f.is_empty()) else {
+                continue;
+            };
+            match serde_json::from_str::<serde_json::Value>(raw_value) {
+                Ok(json) => json_overrides.push((field.to_string(), json)),
+                Err(e) => eprintln!(
+                    "rez-next: ignoring REZ_{}: invalid JSON ({e})",
+                    suffix.to_ascii_uppercase()
+                ),
             }
         }
 
-        // Override with environment variables
-        if let Ok(packages_path) = env::var("REZ_PACKAGES_PATH") {
-            config.packages_path = split_env_paths(&packages_path);
-        }
-        if let Ok(local_path) = env::var("REZ_LOCAL_PACKAGES_PATH") {
-            config.local_packages_path = local_path;
-        }
-        if let Ok(release_path) = env::var("REZ_RELEASE_PACKAGES_PATH") {
-            config.release_packages_path = release_path;
+        // Plain `REZ_<KEY>` overrides, skipped when a `_JSON` twin won above.
+        for (suffix, raw_value) in &overrides {
+            if suffix.ends_with("_json") || suffix.is_empty() {
+                continue;
+            }
+            if json_overrides.iter().any(|(field, _)| field == suffix) {
+                continue;
+            }
+            self.apply_env_field(suffix, coerce_env_value(suffix, raw_value));
         }
 
-        config
+        // Applied last so the JSON form takes precedence.
+        for (field, json) in json_overrides {
+            self.apply_env_field(&field, json);
+        }
+    }
+
+    /// Apply a single parsed override to the matching field.
+    fn apply_env_field(&mut self, key: &str, value: serde_json::Value) {
+        match key {
+            "use_rust_version" => assign(&mut self.use_rust_version, &value),
+            "use_rust_solver" => assign(&mut self.use_rust_solver, &value),
+            "use_rust_repository" => assign(&mut self.use_rust_repository, &value),
+            "rust_fallback" => assign(&mut self.rust_fallback, &value),
+            "thread_count" => assign(&mut self.thread_count, &value),
+            "packages_path" => assign_path_list(&mut self.packages_path, &value),
+            "local_packages_path" => assign(&mut self.local_packages_path, &value),
+            "release_packages_path" => assign(&mut self.release_packages_path, &value),
+            "default_shell" => assign(&mut self.default_shell, &value),
+            "version" => assign(&mut self.version, &value),
+            "plugin_path" => assign_path_list(&mut self.plugin_path, &value),
+            "package_cache_path" => assign_path_list(&mut self.package_cache_path, &value),
+            "tmpdir" => assign(&mut self.tmpdir, &value),
+            "editor" => assign(&mut self.editor, &value),
+            "image_viewer" => assign(&mut self.image_viewer, &value),
+            "browser" => assign(&mut self.browser, &value),
+            "difftool" => assign(&mut self.difftool, &value),
+            "terminal_emulator_command" => assign(&mut self.terminal_emulator_command, &value),
+            // Nested cache.* keys.
+            "cache" => {
+                if let Ok(cache) = serde_json::from_value::<CacheConfig>(value) {
+                    self.cache = cache;
+                }
+            }
+            _ => {}
+        }
     }
 
     /// Get a configuration field by dot-separated path
@@ -254,18 +354,362 @@ impl RezCoreConfig {
 }
 
 fn split_env_paths(paths: &str) -> Vec<String> {
-    let separator = if cfg!(windows) { ';' } else { ':' };
     paths
-        .split(separator)
+        .split(path_list_separator())
         .map(str::trim)
         .filter(|path| !path.is_empty())
         .map(ToString::to_string)
         .collect()
 }
 
+/// Platform path-list separator, matching rez's use of `os.pathsep`.
+#[must_use]
+pub const fn path_list_separator() -> char {
+    if cfg!(windows) { ';' } else { ':' }
+}
+
+/// Parse a single config file body (YAML or JSON) into a JSON object.
+fn parse_config_layer(
+    path: &std::path::Path,
+    content: &str,
+) -> Result<serde_json::Value, RezCoreError> {
+    let display = path.display().to_string();
+
+    // YAML is a superset of JSON, so one parse handles both formats.
+    let value = serde_yaml::from_str::<serde_json::Value>(content).map_err(|e| {
+        RezCoreError::ConfigError(format!("{display}: {e}"))
+    })?;
+
+    if value.is_null() {
+        // An empty file is valid and simply contributes nothing.
+        return Ok(serde_json::Value::Object(serde_json::Map::new()));
+    }
+
+    if !value.is_object() {
+        return Err(RezCoreError::ConfigError(format!(
+            "{display}: expected a mapping at the top level, got {}",
+            value_kind_name(&value)
+        )));
+    }
+
+    Ok(value)
+}
+
+/// Deep-merge `patch` into `base`: objects merge recursively, everything else
+/// (scalars and arrays) replaces the previous value.
+fn deep_merge_json_object(
+    base: &mut serde_json::Map<String, serde_json::Value>,
+    patch: serde_json::Value,
+) {
+    let Some(patch_obj) = patch.as_object() else {
+        return;
+    };
+
+    for (key, patch_value) in patch_obj {
+        match base.get_mut(key) {
+            Some(base_value) if base_value.is_object() && patch_value.is_object() => {
+                let Some(base_obj) = base_value.as_object_mut() else {
+                    continue;
+                };
+                deep_merge_json_object(base_obj, patch_value.clone());
+            }
+            _ => {
+                base.insert(key.clone(), patch_value.clone());
+            }
+        }
+    }
+}
+
+/// Human-readable name for a JSON value kind, used in error messages.
+fn value_kind_name(value: &serde_json::Value) -> &'static str {
+    match value {
+        serde_json::Value::Null => "null",
+        serde_json::Value::Bool(_) => "boolean",
+        serde_json::Value::Number(_) => "number",
+        serde_json::Value::String(_) => "string",
+        serde_json::Value::Array(_) => "array",
+        serde_json::Value::Object(_) => "mapping",
+    }
+}
+
+/// Coerce a plain (non-JSON) environment value to the target field's type.
+///
+/// Booleans accept rez's `0`/`1`/`true`/`false`; path-list fields are split on
+/// the platform path separator; everything else stays a string.
+fn coerce_env_value(key: &str, raw: &str) -> serde_json::Value {
+    match key {
+        "packages_path" | "plugin_path" | "package_cache_path" => {
+            serde_json::Value::Array(
+                split_env_paths(raw)
+                    .into_iter()
+                    .map(serde_json::Value::String)
+                    .collect(),
+            )
+        }
+        "use_rust_version" | "use_rust_solver" | "use_rust_repository" | "rust_fallback" => {
+            parse_env_bool(raw)
+        }
+        "thread_count" => raw
+            .parse::<usize>()
+            .map_or(serde_json::Value::Null, serde_json::Value::from),
+        _ => serde_json::Value::String(raw.to_string()),
+    }
+}
+
+/// Parse a boolean environment value, accepting the forms rez accepts.
+fn parse_env_bool(raw: &str) -> serde_json::Value {
+    match raw.trim().to_ascii_lowercase().as_str() {
+        "1" | "true" | "yes" | "on" | "t" => serde_json::Value::Bool(true),
+        "0" | "false" | "no" | "off" | "f" => serde_json::Value::Bool(false),
+        _ => serde_json::Value::String(raw.to_string()),
+    }
+}
+
+/// Assign `value` to `target` when the value is compatible with the field type.
+fn assign<T: serde::de::DeserializeOwned>(target: &mut T, value: &serde_json::Value) {
+    if let Ok(parsed) = serde_json::from_value::<T>(value.clone()) {
+        *target = parsed;
+    }
+}
+
+/// Assign a value to a path-list field, accepting either a JSON array or a
+/// separator-delimited string.
+fn assign_path_list(target: &mut Vec<String>, value: &serde_json::Value) {
+    match value {
+        serde_json::Value::Array(items) => {
+            let paths: Vec<String> = items
+                .iter()
+                .filter_map(|item| item.as_str().map(String::from))
+                .collect();
+            if !paths.is_empty() || items.is_empty() {
+                *target = paths;
+            }
+        }
+        serde_json::Value::String(raw) => *target = split_env_paths(raw),
+        _ => {}
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Mutex;
+
+    /// Guards every test that mutates `REZ_*` environment variables. These are
+    /// process-global, so tests that set them must not run concurrently.
+    static ENV_LOCK: Mutex<()> = Mutex::new(());
+
+    fn env_lock() -> std::sync::MutexGuard<'static, ()> {
+        ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner())
+    }
+
+    /// Run `body` with `REZ_CONFIG_FILE` pointing at `files`.
+    fn with_config_files<F: FnOnce()>(files: &[&std::path::Path], body: F) {
+        let _guard = env_lock();
+
+        let joined = files
+            .iter()
+            .map(|p| p.to_string_lossy().to_string())
+            .collect::<Vec<_>>()
+            .join(&path_list_separator().to_string());
+
+        // SAFETY: guarded by ENV_LOCK; no other test reads these vars concurrently.
+        unsafe { env::set_var("REZ_CONFIG_FILE", &joined) };
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(body));
+        unsafe { env::remove_var("REZ_CONFIG_FILE") };
+
+        if let Err(payload) = result {
+            std::panic::resume_unwind(payload);
+        }
+    }
+
+    fn write_config(dir: &std::path::Path, name: &str, body: &str) -> std::path::PathBuf {
+        let path = dir.join(name);
+        std::fs::write(&path, body).expect("write config fixture");
+        path
+    }
+
+    #[test]
+    fn test_partial_config_file_is_not_discarded() {
+        // Regression: a file declaring a single key used to fail deserialization
+        // and be silently skipped, so the user's setting never took effect.
+        let dir = tempfile::tempdir().expect("tempdir");
+        let file = write_config(
+            dir.path(),
+            "rezconfig.yaml",
+            "packages_path:\n  - /custom/pkgs\n",
+        );
+
+        with_config_files(&[&file], || {
+            let cfg = RezCoreConfig::try_load().expect("partial config must load");
+            assert_eq!(cfg.packages_path, vec!["/custom/pkgs".to_string()]);
+            // Untouched keys keep their defaults instead of being dropped.
+            assert!(cfg.use_rust_solver);
+            assert_eq!(cfg.local_packages_path, "~/packages");
+        });
+    }
+
+    #[test]
+    fn test_config_layers_deep_merge_in_order() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let lower = write_config(
+            dir.path(),
+            "lower.yaml",
+            "packages_path:\n  - /lower\nlocal_packages_path: /lower-local\ncache:\n  memory_cache_size: 111\n  enable_disk_cache: false\n",
+        );
+        let upper = write_config(
+            dir.path(),
+            "upper.yaml",
+            "packages_path:\n  - /upper\ncache:\n  memory_cache_size: 222\n",
+        );
+
+        with_config_files(&[&lower, &upper], || {
+            let cfg = RezCoreConfig::try_load().expect("layered config must load");
+            // Arrays replace wholesale rather than concatenating.
+            assert_eq!(cfg.packages_path, vec!["/upper".to_string()]);
+            // Keys absent from the upper layer survive from the lower one.
+            assert_eq!(cfg.local_packages_path, "/lower-local");
+            // Nested objects merge key by key, not by whole-object replacement.
+            assert_eq!(cfg.cache.memory_cache_size, 222);
+            assert!(!cfg.cache.enable_disk_cache);
+        });
+    }
+
+    #[test]
+    fn test_multiple_entries_in_rez_config_file() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let first = write_config(dir.path(), "a.yaml", "editor: /bin/first\n");
+        let second = write_config(dir.path(), "b.yaml", "browser: /bin/second\n");
+
+        with_config_files(&[&first, &second], || {
+            let cfg = RezCoreConfig::try_load().expect("multi-file config must load");
+            assert_eq!(cfg.editor, "/bin/first");
+            assert_eq!(cfg.browser, "/bin/second");
+        });
+    }
+
+    #[test]
+    fn test_malformed_config_reports_error_instead_of_defaults() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let file = write_config(dir.path(), "bad.yaml", "packages_path: [unterminated\n");
+
+        with_config_files(&[&file], || {
+            let err = RezCoreConfig::try_load().expect_err("malformed config must error");
+            let msg = err.to_string();
+            assert!(
+                msg.contains("bad.yaml"),
+                "error must name the offending file, got: {msg}"
+            );
+        });
+    }
+
+    #[test]
+    fn test_non_mapping_config_reports_error() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let file = write_config(dir.path(), "list.yaml", "- just\n- a\n- list\n");
+
+        with_config_files(&[&file], || {
+            let err = RezCoreConfig::try_load().expect_err("non-mapping config must error");
+            assert!(err.to_string().contains("list.yaml"));
+        });
+    }
+
+    #[test]
+    fn test_empty_config_file_is_ignored() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let file = write_config(dir.path(), "empty.yaml", "");
+
+        with_config_files(&[&file], || {
+            let cfg = RezCoreConfig::try_load().expect("empty config must load");
+            assert_eq!(cfg.packages_path, RezCoreConfig::default().packages_path);
+        });
+    }
+
+    #[test]
+    fn test_snake_case_env_override_applies() {
+        let _guard = env_lock();
+
+        // SAFETY: guarded by ENV_LOCK.
+        unsafe { env::set_var("REZ_LOCAL_PACKAGES_PATH", "/env/local") };
+        let cfg = RezCoreConfig::load();
+        unsafe { env::remove_var("REZ_LOCAL_PACKAGES_PATH") };
+
+        assert_eq!(cfg.local_packages_path, "/env/local");
+    }
+
+    #[test]
+    fn test_env_override_wins_over_config_file() {
+        let _guard = env_lock();
+
+        let dir = tempfile::tempdir().expect("tempdir");
+        let file = write_config(dir.path(), "c.yaml", "local_packages_path: /from-file\n");
+
+        // SAFETY: guarded by ENV_LOCK.
+        unsafe { env::set_var("REZ_CONFIG_FILE", file.to_string_lossy().to_string()) };
+        unsafe { env::set_var("REZ_LOCAL_PACKAGES_PATH", "/from-env") };
+        let cfg = RezCoreConfig::try_load().expect("load");
+        unsafe {
+            env::remove_var("REZ_LOCAL_PACKAGES_PATH");
+            env::remove_var("REZ_CONFIG_FILE");
+        }
+
+        assert_eq!(cfg.local_packages_path, "/from-env");
+    }
+
+    #[test]
+    fn test_env_json_override_parses_structured_values() {
+        let _guard = env_lock();
+
+        // SAFETY: guarded by ENV_LOCK.
+        unsafe { env::set_var("REZ_PACKAGES_PATH_JSON", r#"["/a","/b"]"#) };
+        let cfg = RezCoreConfig::load();
+        unsafe { env::remove_var("REZ_PACKAGES_PATH_JSON") };
+
+        assert_eq!(
+            cfg.packages_path,
+            vec!["/a".to_string(), "/b".to_string()]
+        );
+    }
+
+    #[test]
+    fn test_env_bool_override_accepts_rez_forms() {
+        let _guard = env_lock();
+
+        // SAFETY: guarded by ENV_LOCK.
+        unsafe { env::set_var("REZ_USE_RUST_SOLVER", "0") };
+        let cfg = RezCoreConfig::load();
+        unsafe { env::remove_var("REZ_USE_RUST_SOLVER") };
+
+        assert!(!cfg.use_rust_solver);
+    }
+
+    #[test]
+    fn test_path_list_separator_matches_platform() {
+        let expected = if cfg!(windows) { ';' } else { ':' };
+        assert_eq!(path_list_separator(), expected);
+    }
+
+    #[test]
+    fn test_deep_merge_replaces_arrays_wholesale() {
+        let mut base = serde_json::from_str::<serde_json::Map<String, serde_json::Value>>(
+            r#"{"a": [1, 2, 3]}"#,
+        )
+        .expect("base");
+        deep_merge_json_object(&mut base, serde_json::json!({"a": [9]}));
+        assert_eq!(base["a"], serde_json::json!([9]));
+    }
+
+    #[test]
+    fn test_deep_merge_merges_nested_objects() {
+        let mut base = serde_json::from_str::<serde_json::Map<String, serde_json::Value>>(
+            r#"{"o": {"x": 1, "y": 2}}"#,
+        )
+        .expect("base");
+        deep_merge_json_object(&mut base, serde_json::json!({"o": {"y": 3, "z": 4}}));
+        assert_eq!(base["o"]["x"], serde_json::json!(1));
+        assert_eq!(base["o"]["y"], serde_json::json!(3));
+        assert_eq!(base["o"]["z"], serde_json::json!(4));
+    }
 
     #[test]
     fn test_default_config_has_sensible_values() {
@@ -355,21 +799,21 @@ mod tests {
 
     #[test]
     fn test_env_override_packages_path() {
-        // Only safe to test if env var is not already set
-        if std::env::var("REZ_PACKAGES_PATH").is_err() {
-            unsafe {
-                let separator = if cfg!(windows) { ';' } else { ':' };
-                std::env::set_var(
-                    "REZ_PACKAGES_PATH",
-                    format!("/tmp/test_pkgs{separator}/tmp/other_pkgs"),
-                );
-            };
-            let cfg = RezCoreConfig::load();
-            assert!(cfg.packages_path.contains(&"/tmp/test_pkgs".to_string()));
-            unsafe {
-                std::env::remove_var("REZ_PACKAGES_PATH");
-            };
-        }
+        let _guard = env_lock();
+
+        // SAFETY: guarded by ENV_LOCK; restored before the guard drops.
+        unsafe {
+            let separator = path_list_separator();
+            env::set_var(
+                "REZ_PACKAGES_PATH",
+                format!("/tmp/test_pkgs{separator}/tmp/other_pkgs"),
+            );
+        };
+        let cfg = RezCoreConfig::load();
+        unsafe {
+            env::remove_var("REZ_PACKAGES_PATH");
+        };
+        assert!(cfg.packages_path.contains(&"/tmp/test_pkgs".to_string()));
     }
 
     #[test]
