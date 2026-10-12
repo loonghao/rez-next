@@ -6,6 +6,7 @@
 //! All custom package repository plugins must implement this trait.
 
 // ── Submodules ──────────────────────────────────────────────────────────────────
+pub mod bridge;
 pub mod filesystem;
 pub mod spec;
 
