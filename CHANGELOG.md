@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.11](https://github.com/vx-org/rez-next/compare/v0.3.10...v0.3.11) (2026-10-12)
+
+
+### 🐛 Bug Fixes
+
+* **bench:** isolate Criterion identities and reject duplicate results ([d3289a4](https://github.com/vx-org/rez-next/commit/d3289a425d94bc40b45e340089adab748f8b76f5))
+* **build:** prevent script-mode side effects and recursive staging copies ([8215605](https://github.com/vx-org/rez-next/commit/82156050818a8b35e1f3f5c54fc40e17ece7c985))
+* **config:** align native loader environment precedence ([3629d67](https://github.com/vx-org/rez-next/commit/3629d673fd58a04aac599583b856fea3aefdca71))
+* **config:** apply layered config files and define keys in one registry ([56c0bfb](https://github.com/vx-org/rez-next/commit/56c0bfb8fd9920b8b9ff5e14455e57aea96acce7))
+* **config:** prefer plain Rez environment overrides over JSON ([5e17de1](https://github.com/vx-org/rez-next/commit/5e17de1a2ac0330632194985e0a6855c29fad041))
+* **python:** load configuration values and reject partial resolved contexts ([f03716f](https://github.com/vx-org/rez-next/commit/f03716f36387324c6095ab11ab0bbc3d9addf300))
+
 ## [0.3.10](https://github.com/loonghao/rez-next/compare/v0.3.9...v0.3.10) (2026-10-09)
 
 

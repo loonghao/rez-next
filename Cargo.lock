@@ -2933,7 +2933,7 @@ dependencies = [
 
 [[package]]
 name = "rez-next"
-version = "0.3.10"
+version = "0.3.11"
 dependencies = [
  "chrono",
  "clap",
@@ -2967,7 +2967,7 @@ dependencies = [
 
 [[package]]
 name = "rez-next-bind"
-version = "0.3.10"
+version = "0.3.11"
 dependencies = [
  "regex",
  "rez-next-common",
@@ -2977,7 +2977,7 @@ dependencies = [
 
 [[package]]
 name = "rez-next-build"
-version = "0.3.10"
+version = "0.3.11"
 dependencies = [
  "async-trait",
  "flate2",
@@ -3004,7 +3004,7 @@ dependencies = [
 
 [[package]]
 name = "rez-next-cache"
-version = "0.3.10"
+version = "0.3.11"
 dependencies = [
  "async-trait",
  "criterion",
@@ -3021,7 +3021,7 @@ dependencies = [
 
 [[package]]
 name = "rez-next-common"
-version = "0.3.10"
+version = "0.3.11"
 dependencies = [
  "serde",
  "serde_json",
@@ -3032,7 +3032,7 @@ dependencies = [
 
 [[package]]
 name = "rez-next-config"
-version = "0.3.10"
+version = "0.3.11"
 dependencies = [
  "dirs",
  "json5",
@@ -3048,7 +3048,7 @@ dependencies = [
 
 [[package]]
 name = "rez-next-context"
-version = "0.3.10"
+version = "0.3.11"
 dependencies = [
  "base64 0.23.1",
  "chrono",
@@ -3070,7 +3070,7 @@ dependencies = [
 
 [[package]]
 name = "rez-next-explicit"
-version = "0.3.10"
+version = "0.3.11"
 dependencies = [
  "rez-next-common",
  "rez-next-package",
@@ -3082,7 +3082,7 @@ dependencies = [
 
 [[package]]
 name = "rez-next-package"
-version = "0.3.10"
+version = "0.3.11"
 dependencies = [
  "base64 0.23.1",
  "bincode",
@@ -3110,7 +3110,7 @@ dependencies = [
 
 [[package]]
 name = "rez-next-package-cache"
-version = "0.3.10"
+version = "0.3.11"
 dependencies = [
  "chrono",
  "dashmap",
@@ -3125,7 +3125,7 @@ dependencies = [
 
 [[package]]
 name = "rez-next-package-filter"
-version = "0.3.10"
+version = "0.3.11"
 dependencies = [
  "criterion",
  "regex",
@@ -3142,7 +3142,7 @@ dependencies = [
 
 [[package]]
 name = "rez-next-python"
-version = "0.3.10"
+version = "0.3.11"
 dependencies = [
  "ctor",
  "hex",
@@ -3175,7 +3175,7 @@ dependencies = [
 
 [[package]]
 name = "rez-next-release-hook"
-version = "0.3.10"
+version = "0.3.11"
 dependencies = [
  "criterion",
  "rez-next-common",
@@ -3189,7 +3189,7 @@ dependencies = [
 
 [[package]]
 name = "rez-next-repository"
-version = "0.3.10"
+version = "0.3.11"
 dependencies = [
  "ahash",
  "async-trait",
@@ -3216,7 +3216,7 @@ dependencies = [
 
 [[package]]
 name = "rez-next-rex"
-version = "0.3.10"
+version = "0.3.11"
 dependencies = [
  "regex",
  "rez-next-common",
@@ -3227,7 +3227,7 @@ dependencies = [
 
 [[package]]
 name = "rez-next-runtime"
-version = "0.3.10"
+version = "0.3.11"
 dependencies = [
  "async-trait",
  "clap",
@@ -3247,7 +3247,7 @@ dependencies = [
 
 [[package]]
 name = "rez-next-search"
-version = "0.3.10"
+version = "0.3.11"
 dependencies = [
  "regex",
  "rez-next-common",
@@ -3262,7 +3262,7 @@ dependencies = [
 
 [[package]]
 name = "rez-next-serialise"
-version = "0.3.10"
+version = "0.3.11"
 dependencies = [
  "criterion",
  "indexmap",
@@ -3276,7 +3276,7 @@ dependencies = [
 
 [[package]]
 name = "rez-next-solver"
-version = "0.3.10"
+version = "0.3.11"
 dependencies = [
  "dashmap",
  "futures",
@@ -3296,7 +3296,7 @@ dependencies = [
 
 [[package]]
 name = "rez-next-suites"
-version = "0.3.10"
+version = "0.3.11"
 dependencies = [
  "rez-next-common",
  "serde",
@@ -3308,7 +3308,7 @@ dependencies = [
 
 [[package]]
 name = "rez-next-util"
-version = "0.3.10"
+version = "0.3.11"
 dependencies = [
  "chrono",
  "dirs",
@@ -3320,7 +3320,7 @@ dependencies = [
 
 [[package]]
 name = "rez-next-version"
-version = "0.3.10"
+version = "0.3.11"
 dependencies = [
  "ahash",
  "criterion",
