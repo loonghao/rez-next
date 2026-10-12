@@ -507,7 +507,7 @@ fn split_env_paths(paths: &str) -> Vec<String> {
 /// on `os.pathsep`. Splitting these on the path separator would break any
 /// element containing `:` on unix, so this follows the upstream rule instead.
 #[must_use]
-pub fn split_env_str_list(value: &str) -> Vec<String> {
+fn split_env_str_list(value: &str) -> Vec<String> {
     value
         .split(',')
         .map(str::trim)
