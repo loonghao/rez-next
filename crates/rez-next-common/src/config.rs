@@ -72,6 +72,15 @@ pub struct RezCoreConfig {
     pub terminal_emulator_command: String,
 }
 
+/// Nested keys accepted by [`CacheConfig`], used to reject unknown overrides
+/// rather than silently ignoring them.
+const CACHE_KEYS: [&str; 4] = [
+    "enable_memory_cache",
+    "enable_disk_cache",
+    "memory_cache_size",
+    "cache_ttl_seconds",
+];
+
 /// Cache configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
@@ -231,7 +240,7 @@ impl RezCoreConfig {
         }
 
         let mut config: Self = serde_json::from_value(serde_json::Value::Object(merged))?;
-        config.apply_env_overrides();
+        config.apply_env_overrides_and_report();
         Ok(config)
     }
 
@@ -246,9 +255,21 @@ impl RezCoreConfig {
             Err(e) => {
                 eprintln!("rez-next: failed to load configuration: {e}");
                 let mut config = Self::default();
-                config.apply_env_overrides();
+                config.apply_env_overrides_and_report();
                 config
             }
+        }
+    }
+
+    /// Apply env overrides, printing any rejected override to stderr.
+    ///
+    /// A malformed override is a user-visible mistake and must not pass
+    /// silently: rez raises `ConfigurationError` for the same condition
+    /// (`src/rez/config.py`), and the config-file side of this loader already
+    /// errors rather than falling back to defaults.
+    fn apply_env_overrides_and_report(&mut self) {
+        for message in self.apply_env_overrides() {
+            eprintln!("rez-next: ignoring {message}");
         }
     }
 
@@ -259,7 +280,13 @@ impl RezCoreConfig {
     /// only when the plain variable is absent. Keys are **flat snake_case** — the
     /// underscores in a key such as `packages_path` are preserved, they do not
     /// denote nesting.
-    fn apply_env_overrides(&mut self) {
+    ///
+    /// Returns the list of overrides that could not be applied. A malformed
+    /// override is **reported, never swallowed**: the field keeps the value it
+    /// already had, so a bad environment variable cannot silently erase a
+    /// setting the user wrote in a config file.
+    fn apply_env_overrides(&mut self) -> Vec<String> {
+        let mut rejected = Vec::new();
         // Collect all `REZ_*` variables. Lower-casing the suffix
         // yields the flat snake_case field name; underscores are preserved,
         // matching rez (`src/rez/config.py`) rather than implying nesting.
@@ -283,10 +310,10 @@ impl RezCoreConfig {
             }
             match serde_json::from_str::<serde_json::Value>(raw_value) {
                 Ok(json) => json_overrides.push((field.to_string(), json)),
-                Err(e) => eprintln!(
-                    "rez-next: ignoring REZ_{}: invalid JSON ({e})",
+                Err(e) => rejected.push(format!(
+                    "REZ_{}: invalid JSON ({e})",
                     suffix.to_ascii_uppercase()
-                ),
+                )),
             }
         }
 
@@ -295,17 +322,27 @@ impl RezCoreConfig {
             if suffix.ends_with("_json") || suffix.is_empty() {
                 continue;
             }
-            self.apply_env_field(suffix, coerce_env_value(suffix, raw_value));
+            if let Err(e) = self.apply_env_field(suffix, coerce_env_value(suffix, raw_value)) {
+                rejected.push(format!("REZ_{}: {e}", suffix.to_ascii_uppercase()));
+            }
         }
 
         // These fields have no plain counterpart, so JSON is the fallback.
         for (field, json) in json_overrides {
-            self.apply_env_field(&field, json);
+            if let Err(e) = self.apply_env_field(&field, json) {
+                rejected.push(format!("REZ_{}_JSON: {e}", field.to_ascii_uppercase()));
+            }
         }
+
+        rejected
     }
 
     /// Apply a single parsed override to the matching field.
-    fn apply_env_field(&mut self, key: &str, value: serde_json::Value) {
+    ///
+    /// Returns `Err` with a human-readable message when the value does not fit
+    /// the field. The field is left untouched in that case, so a bad override
+    /// can never erase a value that came from a config file.
+    fn apply_env_field(&mut self, key: &str, value: serde_json::Value) -> Result<(), String> {
         match key {
             "use_rust_version" => assign(&mut self.use_rust_version, &value),
             "use_rust_solver" => assign(&mut self.use_rust_solver, &value),
@@ -325,14 +362,12 @@ impl RezCoreConfig {
             "browser" => assign(&mut self.browser, &value),
             "difftool" => assign(&mut self.difftool, &value),
             "terminal_emulator_command" => assign(&mut self.terminal_emulator_command, &value),
-            // Nested cache.* keys.
-            "cache" => {
-                if let Ok(cache) = serde_json::from_value::<CacheConfig>(value) {
-                    self.cache = cache;
-                }
-            }
-            _ => {}
+            // Nested cache.* keys: merge into the existing cache so sibling
+            // keys set by a config file survive a partial env object.
+            "cache" => assign_cache(&mut self.cache, &value),
+            _ => Ok(()),
         }
+        .map_err(|e| format!("{key}: {e}"))
     }
 
     /// Get a configuration field by dot-separated path
@@ -445,9 +480,13 @@ fn coerce_env_value(key: &str, raw: &str) -> serde_json::Value {
         "use_rust_version" | "use_rust_solver" | "use_rust_repository" | "rust_fallback" => {
             parse_env_bool(raw)
         }
-        "thread_count" => raw
-            .parse::<usize>()
-            .map_or(serde_json::Value::Null, serde_json::Value::from),
+        // An unparsable count stays a string so `assign` rejects it. Folding it
+        // into `Null` would deserialize successfully as `None`, silently
+        // clearing a `thread_count` the user set in a config file.
+        "thread_count" => raw.parse::<usize>().map_or_else(
+            |_| serde_json::Value::String(raw.to_string()),
+            serde_json::Value::from,
+        ),
         _ => serde_json::Value::String(raw.to_string()),
     }
 }
@@ -462,27 +501,80 @@ fn parse_env_bool(raw: &str) -> serde_json::Value {
 }
 
 /// Assign `value` to `target` when the value is compatible with the field type.
-fn assign<T: serde::de::DeserializeOwned>(target: &mut T, value: &serde_json::Value) {
-    if let Ok(parsed) = serde_json::from_value::<T>(value.clone()) {
-        *target = parsed;
+///
+/// Returns `Err` when the value cannot be assigned, so the caller can report a
+/// malformed override instead of silently keeping (or worse, clearing) the
+/// value that came from a config file.
+fn assign<T: serde::de::DeserializeOwned>(
+    target: &mut T,
+    value: &serde_json::Value,
+) -> Result<(), String> {
+    let parsed = serde_json::from_value::<T>(value.clone())
+        .map_err(|e| format!("invalid {} ({e})", value_kind_name(value)))?;
+    *target = parsed;
+    Ok(())
+}
+
+/// Assign an override to the nested `cache` object, merging it into the
+/// existing value.
+///
+/// A partial object such as `{"memory_cache_size": 999}` must leave the sibling
+/// keys untouched. Deserializing straight into `CacheConfig` would instead let
+/// `#[serde(default)]` fill every unlisted key with the *struct* default,
+/// discarding what a config file had set. Merging first keeps the file's value
+/// for any key the override does not name.
+fn assign_cache(target: &mut CacheConfig, value: &serde_json::Value) -> Result<(), String> {
+    let existing = serde_json::to_value(&*target)
+        .map_err(|e| format!("could not read current cache config ({e})"))?;
+    let mut merged = existing;
+
+    match value {
+        serde_json::Value::Object(patch) => {
+            let Some(base) = merged.as_object_mut() else {
+                return Err("existing cache config is not an object".to_string());
+            };
+            for (key, patch_value) in patch {
+                if !base.contains_key(key) {
+                    return Err(format!(
+                        "unknown cache key '{key}'; expected one of {}",
+                        CACHE_KEYS.join(", ")
+                    ));
+                }
+                base.insert(key.clone(), patch_value.clone());
+            }
+        }
+        // A non-object replaces the whole block, mirroring scalar assignment.
+        other => merged = other.clone(),
     }
+
+    *target = serde_json::from_value::<CacheConfig>(merged)
+        .map_err(|e| format!("invalid cache override ({e})"))?;
+    Ok(())
 }
 
 /// Assign a value to a path-list field, accepting either a JSON array or a
 /// separator-delimited string.
-fn assign_path_list(target: &mut Vec<String>, value: &serde_json::Value) {
+fn assign_path_list(target: &mut Vec<String>, value: &serde_json::Value) -> Result<(), String> {
     match value {
         serde_json::Value::Array(items) => {
             let paths: Vec<String> = items
                 .iter()
                 .filter_map(|item| item.as_str().map(String::from))
                 .collect();
-            if !paths.is_empty() || items.is_empty() {
-                *target = paths;
+            if paths.len() != items.len() {
+                return Err("expected every path entry to be a string".to_string());
             }
+            *target = paths;
+            Ok(())
         }
-        serde_json::Value::String(raw) => *target = split_env_paths(raw),
-        _ => {}
+        serde_json::Value::String(raw) => {
+            *target = split_env_paths(raw);
+            Ok(())
+        }
+        other => Err(format!(
+            "expected a path list, got {}",
+            value_kind_name(other)
+        )),
     }
 }
 
@@ -523,6 +615,79 @@ mod tests {
         let path = dir.join(name);
         std::fs::write(&path, body).expect("write config fixture");
         path
+    }
+
+    // --- P2 regressions: malformed / partial env overrides must not silently
+    // --- clobber values that came from config files.
+
+    #[test]
+    fn test_malformed_env_override_preserves_config_file_value() {
+        let _guard = env_lock();
+
+        let dir = tempfile::tempdir().expect("tempdir");
+        let file = write_config(dir.path(), "c.yaml", "thread_count: 8\n");
+
+        // SAFETY: guarded by ENV_LOCK.
+        unsafe {
+            env::set_var("REZ_CONFIG_FILE", file.to_string_lossy().to_string());
+            env::set_var("REZ_THREAD_COUNT", "abc");
+        };
+        let cfg = RezCoreConfig::try_load().expect("load");
+        unsafe {
+            env::remove_var("REZ_THREAD_COUNT");
+            env::remove_var("REZ_CONFIG_FILE");
+        };
+
+        assert_eq!(
+            cfg.thread_count,
+            Some(8),
+            "an unparsable REZ_THREAD_COUNT must not erase the file value"
+        );
+    }
+
+    #[test]
+    fn test_malformed_env_override_reports_instead_of_silently_ignoring() {
+        let _guard = env_lock();
+
+        // SAFETY: guarded by ENV_LOCK.
+        unsafe { env::set_var("REZ_USE_RUST_SOLVER", "maybe") };
+        let mut cfg = RezCoreConfig::default();
+        let warnings = cfg.apply_env_overrides();
+        unsafe { env::remove_var("REZ_USE_RUST_SOLVER") };
+
+        assert!(
+            warnings.iter().any(|m| m.contains("REZ_USE_RUST_SOLVER")),
+            "malformed env override must be reported, got: {warnings:?}"
+        );
+    }
+
+    #[test]
+    fn test_env_cache_json_merges_into_config_file_cache() {
+        let _guard = env_lock();
+
+        let dir = tempfile::tempdir().expect("tempdir");
+        let file = write_config(
+            dir.path(),
+            "c.yaml",
+            "cache:\n  enable_disk_cache: false\n  memory_cache_size: 500\n",
+        );
+
+        // SAFETY: guarded by ENV_LOCK.
+        unsafe {
+            env::set_var("REZ_CONFIG_FILE", file.to_string_lossy().to_string());
+            env::set_var("REZ_CACHE_JSON", r#"{"memory_cache_size": 999}"#);
+        };
+        let cfg = RezCoreConfig::try_load().expect("load");
+        unsafe {
+            env::remove_var("REZ_CACHE_JSON");
+            env::remove_var("REZ_CONFIG_FILE");
+        };
+
+        assert_eq!(cfg.cache.memory_cache_size, 999, "env value must apply");
+        assert!(
+            !cfg.cache.enable_disk_cache,
+            "sibling cache keys from the file must survive a partial env object"
+        );
     }
 
     #[test]
