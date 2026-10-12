@@ -615,6 +615,7 @@ impl CustomBuildSystem {
                 | ".hgignore"
                 | ".svn"
                 | "build"
+                | ".rez_build"
                 | "dist"
                 | "__pycache__"
                 | ".pytest_cache"
@@ -686,6 +687,35 @@ mod tests {
         assert!(CustomBuildSystem::should_skip_file(".gitignore"));
         assert!(CustomBuildSystem::should_skip_file("__pycache__"));
         assert!(CustomBuildSystem::should_skip_file("node_modules"));
+    }
+
+    #[tokio::test]
+    async fn test_copy_excludes_default_build_tree_inside_source() {
+        let source = tempfile::tempdir().unwrap();
+        let install = source.path().join(".rez_build/tool/install");
+        tokio::fs::create_dir_all(&install).await.unwrap();
+        tokio::fs::write(source.path().join("payload.txt"), "payload")
+            .await
+            .unwrap();
+
+        let count = CustomBuildSystem::copy_package_files(source.path(), &install)
+            .await
+            .unwrap();
+
+        assert_eq!(count, 1);
+        assert_eq!(
+            tokio::fs::read_to_string(install.join("payload.txt"))
+                .await
+                .unwrap(),
+            "payload"
+        );
+        assert!(!install.join(".rez_build").exists());
+        assert_eq!(
+            tokio::fs::read_to_string(source.path().join("payload.txt"))
+                .await
+                .unwrap(),
+            "payload"
+        );
     }
 
     #[test]
