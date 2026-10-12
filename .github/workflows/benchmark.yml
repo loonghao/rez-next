@@ -80,10 +80,10 @@ jobs:
           retention-days: 14
 
   # ─────────────────────────────────────────────────────────────────────────
-  # Full benchmark suite + auto-commit RESULTS.md  (push to main only)
+  # Full benchmark suite — preserve measurements before attempting publication
   # ─────────────────────────────────────────────────────────────────────────
   bench-full:
-    name: Full Benchmarks + Publish Results
+    name: Full Benchmarks
     runs-on: ubuntu-latest
     timeout-minutes: 45
     if: >-
@@ -92,13 +92,16 @@ jobs:
        github.event.inputs.benchmark_type == 'comprehensive')
 
     permissions:
-      contents: write   # needed to push RESULTS.md back to main
+      contents: read
+
+    outputs:
+      report_artifact_id: ${{ steps.report-bundle.outputs.artifact-id }}
 
     steps:
       - uses: actions/checkout@v7
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
+          persist-credentials: false
 
       - uses: dtolnay/rust-toolchain@1.95.0
 
@@ -160,28 +163,22 @@ jobs:
               print('No performance regressions detected.')
           "
 
-      - name: Commit RESULTS.md and artifacts
-        run: |
-          git config user.name  "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-          # Stage results
-          git add metrics/benchmarking/RESULTS.md
-          git add metrics/benchmarking/artifacts/ || true
-
-          # Only commit if something changed
-          if git diff --cached --quiet; then
-            echo "No changes to benchmark results."
-          else
-            SHORT_SHA=$(git rev-parse --short HEAD)
-            git commit -m "chore(bench): update performance results [${SHORT_SHA}] [skip ci]"
-            git push origin HEAD:main
-          fi
-
-      - name: Upload full benchmark artifacts
+      - name: Save result bundle for independent publication retries
+        id: report-bundle
         uses: actions/upload-artifact@v7
         with:
-          name: bench-full-${{ github.sha }}
+          name: bench-full-report-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            metrics/benchmarking/RESULTS.md
+            metrics/benchmarking/artifacts/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload full benchmark artifacts
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: bench-full-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
             benchmark-full.txt
             benchmark-full.json
@@ -189,6 +186,39 @@ jobs:
             metrics/benchmarking/artifacts/
             target/criterion/
           retention-days: 30
+
+  # This job can be retried without rerunning the expensive measurements.
+  publish-results:
+    name: Publish Benchmark Results
+    needs: [bench-full]
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+
+      - name: Download the measured commit's saved result bundle
+        uses: actions/download-artifact@v8
+        with:
+          artifact-ids: ${{ needs.bench-full.outputs.report_artifact_id }}
+          path: metrics/benchmarking/
+
+      - name: Publish only while main still matches the measured commit
+        env:
+          MEASURED_SHA: ${{ github.sha }}
+        run: python metrics/benchmarking/scripts/publish_results.py --measured-sha "$MEASURED_SHA"
 
   # ─────────────────────────────────────────────────────────────────────────
   # Regression gate — fail PR if any Criterion regression detected
