@@ -448,9 +448,9 @@ impl RezCoreConfig {
             "difftool" => assign(&mut self.difftool, &value),
             "terminal_emulator_command" => assign(&mut self.terminal_emulator_command, &value),
             // Settings that were declared but never read; now overridable too.
-            "implicit_packages" => assign_path_list(&mut self.implicit_packages, &value),
-            "parent_variables" => assign_path_list(&mut self.parent_variables, &value),
-            "resetting_variables" => assign_path_list(&mut self.resetting_variables, &value),
+            "implicit_packages" => assign_str_list(&mut self.implicit_packages, &value),
+            "parent_variables" => assign_str_list(&mut self.parent_variables, &value),
+            "resetting_variables" => assign_str_list(&mut self.resetting_variables, &value),
             "env_var_separators" => assign(&mut self.env_var_separators, &value),
             "platform_map" => assign(&mut self.platform_map, &value),
             "default_relocatable" => assign(&mut self.default_relocatable, &value),
@@ -624,6 +624,38 @@ fn assign<T: serde::de::DeserializeOwned>(
         .map_err(|e| format!("invalid {} ({e})", value_kind_name(value)))?;
     *target = parsed;
     Ok(())
+}
+
+/// Assign a plain string list, honouring the registry's `StrList` type.
+///
+/// `assign_path_list` splits bare strings on `os.pathsep`, which is correct for
+/// `packages_path` but wrong for lists whose elements may legitimately contain
+/// a separator. Implicit-package requests (`~os=={system.os}`) and unquoted
+/// variant syntax can contain `:`, and `implicit_packages` /
+/// `parent_variables` / `resetting_variables` are all registered as `StrList`,
+/// not path lists. A bare string for those is treated as a single element.
+fn assign_str_list(target: &mut Vec<String>, value: &serde_json::Value) -> Result<(), String> {
+    match value {
+        serde_json::Value::Array(items) => {
+            let entries: Vec<String> = items
+                .iter()
+                .filter_map(|item| item.as_str().map(String::from))
+                .collect();
+            if entries.len() != items.len() {
+                return Err("expected every list entry to be a string".to_string());
+            }
+            *target = entries;
+            Ok(())
+        }
+        serde_json::Value::String(raw) => {
+            *target = vec![raw.clone()];
+            Ok(())
+        }
+        other => Err(format!(
+            "expected a string list, got {}",
+            value_kind_name(other)
+        )),
+    }
 }
 
 /// Assign an override to the nested `cache` object, merging it into the
@@ -1085,6 +1117,54 @@ mod tests {
         assert!(cfg.packages_path.contains(&"/tmp/test_pkgs".to_string()));
     }
 
+    /// `implicit_packages`, `parent_variables` and `resetting_variables` are
+    /// registered as `StrList`, not path lists, so a bare string must stay a
+    /// single element. Implicit-package requests can contain `:`, which
+    /// `split_env_paths` would break apart on unix.
+    /// `implicit_packages`, `parent_variables` and `resetting_variables` are
+    /// registered as `StrList`, not path lists, so a bare string must stay a
+    /// single element. Package requests can contain `:`, which
+    /// `split_env_paths` breaks apart on unix. The token below is chosen to
+    /// carry a colon so this test discriminates on every platform.
+    #[test]
+    fn test_str_list_settings_are_not_path_split() {
+        for (key, field) in [
+            ("implicit_packages", "implicit_packages"),
+            ("parent_variables", "parent_variables"),
+            ("resetting_variables", "resetting_variables"),
+        ] {
+            let mut cfg = RezCoreConfig::new();
+            cfg.apply_env_field(key, serde_json::json!("python:3.9"))
+                .unwrap_or_else(|e| panic!("{key} must accept a string list ({e})"));
+
+            let value = match field {
+                "implicit_packages" => &cfg.implicit_packages,
+                "parent_variables" => &cfg.parent_variables,
+                _ => &cfg.resetting_variables,
+            };
+            assert_eq!(
+                value,
+                &vec!["python:3.9".to_string()],
+                "{key} must keep the colon-bearing request as one element"
+            );
+        }
+    }
+
+    #[test]
+    fn test_str_list_settings_accept_yaml_arrays() {
+        let mut cfg = RezCoreConfig::new();
+        cfg.apply_env_field(
+            "implicit_packages",
+            serde_json::json!(["python:3.9", "~os=={system.os}"]),
+        )
+        .expect("arrays must load");
+
+        assert_eq!(
+            cfg.implicit_packages,
+            vec!["python:3.9".to_string(), "~os=={system.os}".to_string()]
+        );
+    }
+
     #[test]
     fn test_split_env_paths_uses_platform_separator() {
         let separator = if cfg!(windows) { ';' } else { ':' };
@@ -1238,7 +1318,12 @@ mod tests {
         merged.insert("totally_made_up_key".to_string(), serde_json::json!(1));
         merged.insert("another_unknown".to_string(), serde_json::json!(2));
 
-        let unknown = RezCoreConfig::unknown_keys(&merged);
+        let mut unknown = RezCoreConfig::unknown_keys(&merged);
+        // The report order follows the merged map's iteration order, which is
+        // an implementation detail of the underlying map. Sort before asserting
+        // so the test checks *which* keys are reported, not how they happen to
+        // be ordered.
+        unknown.sort();
 
         assert_eq!(
             unknown,

@@ -224,6 +224,26 @@ so no exemption is needed for field growth. Construct via
 literal, and pattern matches must keep a wildcard arm. Exemptions use `warn`
 rather than `allow` so a regression stays visible in CI output.
 
+### Known follow-ups
+
+Config-related debt that is tracked but not yet resolved, recorded here so it is
+visible alongside the exemptions above.
+
+- **`RezCoreConfig` needs a minor bump before its next release.** The
+  `#[non_exhaustive]` attribute above is a one-off major break that landed
+  without a version bump, so a consumer running `cargo update` would receive it
+  silently. Tracked separately; the bump must land before the next release that
+  includes `rez-next-common`.
+- **String-list settings are not path lists.** `implicit_packages`,
+  `parent_variables` and `resetting_variables` are registered as `KeyType::StrList`
+  and are assigned with `assign_str_list`, which keeps a bare string as a single
+  element. Do not route them through `assign_path_list`: that splits on
+  `os.pathsep`, which breaks package requests containing `:`.
+- **Upstream default values are asserted against an independent snapshot.** The
+  alignment test transcribes rez 3.4.0's defaults separately from `rez_default`
+  so the two are compared, not merely restated. Extending `rez_default` means
+  extending that snapshot too.
+
 ## Changing this document
 
 Adding a crate to the contract means three edits, and all of them are required:
