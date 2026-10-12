@@ -7,6 +7,9 @@ use rez_next_package::{Package, PackageSerializer};
 use rez_next_version::Version;
 use std::hint::black_box;
 
+#[path = "support/package_criterion.rs"]
+mod package_criterion;
+
 /// Benchmark package creation with different complexity levels
 fn bench_package_creation(c: &mut Criterion) {
     let mut group = c.benchmark_group("package_creation");
@@ -382,22 +385,10 @@ fn create_package_with_variants(variant_count: usize) -> Package {
     package
 }
 
-fn ci_criterion() -> Criterion {
-    let ci = std::env::var("CRITERION_QUICK").is_ok();
-    Criterion::default()
-        .sample_size(if ci { 30 } else { 100 })
-        .measurement_time(std::time::Duration::from_secs(if ci { 2 } else { 5 }))
-        .warm_up_time(std::time::Duration::from_millis(if ci {
-            500
-        } else {
-            3000
-        }))
-}
-
 // Criterion benchmark groups
 criterion_group!(
     name = package_benches;
-    config = ci_criterion();
+    config = package_criterion::configured();
     targets =
         bench_package_creation,
         bench_package_serialization,

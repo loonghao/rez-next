@@ -16,6 +16,9 @@ use std::hint::black_box;
 use std::time::SystemTime;
 use thiserror::Error;
 
+#[path = "support/package_criterion.rs"]
+mod package_criterion;
+
 // Minimal benchmark framework used by this standalone benchmark target.
 use std::time::Duration;
 
@@ -159,7 +162,7 @@ impl ModuleBenchmark for PackageBenchmark {
 impl PackageBenchmark {
     /// Benchmark package creation with different complexity levels
     fn bench_package_creation(&self, c: &mut Criterion) {
-        let mut group = c.benchmark_group("package_creation");
+        let mut group = c.benchmark_group("package_full_creation");
 
         // Simple package creation
         group.bench_function("simple_package", |b| {
@@ -195,7 +198,7 @@ impl PackageBenchmark {
 
     /// Benchmark package serialization performance across different formats
     fn bench_package_serialization(&self, c: &mut Criterion) {
-        let mut group = c.benchmark_group("package_serialization");
+        let mut group = c.benchmark_group("package_full_serialization");
 
         // Create test packages of different complexity
         let simple_package = self.create_simple_package();
@@ -246,7 +249,7 @@ impl PackageBenchmark {
 
     /// Benchmark package deserialization performance
     fn bench_package_deserialization(&self, c: &mut Criterion) {
-        let mut group = c.benchmark_group("package_deserialization");
+        let mut group = c.benchmark_group("package_full_deserialization");
 
         // Prepare serialized test data
         let simple_package = self.create_simple_package();
@@ -309,7 +312,7 @@ impl PackageBenchmark {
 
     /// Benchmark package validation performance
     fn bench_package_validation(&self, c: &mut Criterion) {
-        let mut group = c.benchmark_group("package_validation");
+        let mut group = c.benchmark_group("package_full_validation");
 
         let simple_package = self.create_simple_package();
         let complex_package = self.create_complex_package();
@@ -337,7 +340,7 @@ impl PackageBenchmark {
 
     /// Benchmark package variant handling performance
     fn bench_package_variants(&self, c: &mut Criterion) {
-        let mut group = c.benchmark_group("package_variants");
+        let mut group = c.benchmark_group("package_full_variants");
 
         // Test with different numbers of variants
         for variant_count in [1, 5, 10, 25, 50].iter() {
@@ -374,7 +377,7 @@ impl PackageBenchmark {
 
     /// Benchmark package cloning performance
     fn bench_package_cloning(&self, c: &mut Criterion) {
-        let mut group = c.benchmark_group("package_cloning");
+        let mut group = c.benchmark_group("package_full_cloning");
 
         let simple_package = self.create_simple_package();
         let complex_package = self.create_complex_package();
@@ -397,7 +400,7 @@ impl PackageBenchmark {
 
     /// Benchmark package requirements processing
     fn bench_package_requirements(&self, c: &mut Criterion) {
-        let mut group = c.benchmark_group("package_requirements");
+        let mut group = c.benchmark_group("package_full_requirements");
 
         // Test adding different numbers of requirements
         for req_count in [1, 10, 50, 100, 500].iter() {
@@ -538,18 +541,10 @@ impl PackageBenchmark {
     }
 }
 
-fn ci_criterion() -> Criterion {
-    let ci = std::env::var("CRITERION_QUICK").is_ok();
-    Criterion::default()
-        .sample_size(if ci { 20 } else { 100 })
-        .measurement_time(Duration::from_secs(if ci { 2 } else { 5 }))
-        .warm_up_time(Duration::from_millis(if ci { 300 } else { 3000 }))
-}
-
 // Criterion benchmark groups
 criterion_group!(
     name = package_benches;
-    config = ci_criterion();
+    config = package_criterion::configured();
     targets =
         bench_package_creation,
         bench_package_serialization,
