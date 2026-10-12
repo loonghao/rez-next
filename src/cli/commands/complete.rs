@@ -6,7 +6,10 @@
 use crate::cli::utils::expand_home_path as expand_home;
 use clap::Args;
 use rez_next_common::{RezCoreConfig, error::RezCoreResult};
-use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
+use rez_next_repository::package_repository::FilesystemPackageRepository;
+use rez_next_repository::package_repository::bridge::AsyncRepositoryAdapter;
+use rez_next_repository::package_repository::spec::RepositorySpec;
+use rez_next_repository::simple_repository::RepositoryManager;
 
 /// Arguments for the complete command
 #[derive(Args, Clone)]
@@ -198,19 +201,36 @@ Register-ArgumentCompleter -Native -CommandName rez -ScriptBlock {{
     }
 }
 
+/// Build a manager over `packages_path`, serving reads from the
+/// upstream-faithful filesystem repository.
+///
+/// Entries may name their repository type (`filesystem@/packages/int`); a bare
+/// path means a filesystem repository. Only filesystem repositories are added
+/// here — the completion path only reads package names and versions, and no
+/// other repository type is implemented yet.
+fn build_manager(config: &RezCoreConfig) -> RepositoryManager {
+    let mut manager = RepositoryManager::new();
+    for (i, entry) in config.packages_path.iter().enumerate() {
+        let spec = RepositorySpec::parse(entry);
+        if !spec.is_filesystem() {
+            continue;
+        }
+        let path = expand_home(&spec.location);
+        if !path.exists() {
+            continue;
+        }
+        let repository = FilesystemPackageRepository::with_name(path, format!("repo_{i}"));
+        manager.add_repository(Box::new(AsyncRepositoryAdapter::new(repository)));
+    }
+    manager
+}
+
 /// List package names matching a prefix
 fn complete_package_names(prefix: &str) -> RezCoreResult<()> {
     let config = RezCoreConfig::load();
     let rt = tokio::runtime::Runtime::new().map_err(rez_next_common::RezCoreError::Io)?;
 
-    let mut manager = RepositoryManager::new();
-    for (i, path_str) in config.packages_path.iter().enumerate() {
-        let path = expand_home(path_str);
-        if path.exists() {
-            manager.add_repository(Box::new(SimpleRepository::new(path, format!("repo_{}", i))));
-        }
-    }
-
+    let manager = build_manager(&config);
     let names = rt.block_on(manager.list_packages())?;
     for name in names {
         if name.starts_with(prefix) {
@@ -225,14 +245,7 @@ fn complete_package_versions(pkg_name: &str, prefix: &str) -> RezCoreResult<()> 
     let config = RezCoreConfig::load();
     let rt = tokio::runtime::Runtime::new().map_err(rez_next_common::RezCoreError::Io)?;
 
-    let mut manager = RepositoryManager::new();
-    for (i, path_str) in config.packages_path.iter().enumerate() {
-        let path = expand_home(path_str);
-        if path.exists() {
-            manager.add_repository(Box::new(SimpleRepository::new(path, format!("repo_{}", i))));
-        }
-    }
-
+    let manager = build_manager(&config);
     let packages = rt.block_on(manager.find_packages(pkg_name))?;
     for pkg in packages {
         if let Some(ref v) = pkg.version {
@@ -328,6 +341,83 @@ fn get_subcommand_names() -> Vec<&'static str> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
+    use tempfile::TempDir;
+
+    /// Build `<root>/<family>/<version>` directories, the layout the
+    /// filesystem repository scans for.
+    fn make_repository(versions: &[(&str, &[&str])]) -> TempDir {
+        let root = TempDir::new().unwrap();
+        for (family, family_versions) in versions {
+            for version in *family_versions {
+                fs::create_dir_all(root.path().join(family).join(version)).unwrap();
+            }
+        }
+        root
+    }
+
+    /// `RezCoreConfig` is `#[non_exhaustive]`, so it must be built via
+    /// `Default` and field assignment rather than a struct literal.
+    fn config_with_paths(paths: Vec<String>) -> RezCoreConfig {
+        let mut config = RezCoreConfig::default();
+        config.packages_path = paths;
+        config
+    }
+
+    #[test]
+    fn build_manager_serves_reads_through_the_bridge() {
+        // Proves the migration path: completion reads are answered by the
+        // upstream-faithful repository via AsyncRepositoryAdapter, not by
+        // SimpleRepository.
+        let root = make_repository(&[("python", &["3.9.1", "3.11.0"])]);
+        let config = config_with_paths(vec![root.path().to_string_lossy().to_string()]);
+
+        let manager = build_manager(&config);
+        let rt = tokio::runtime::Runtime::new().unwrap();
+
+        let names = rt.block_on(manager.list_packages()).unwrap();
+        assert_eq!(names, vec!["python".to_string()]);
+
+        let packages = rt.block_on(manager.find_packages("python")).unwrap();
+        let versions: Vec<String> = packages
+            .iter()
+            .filter_map(|p| p.version.as_ref().map(|v| v.as_str().to_string()))
+            .collect();
+        assert_eq!(versions, vec!["3.11.0", "3.9.1"]);
+    }
+
+    #[test]
+    fn build_manager_accepts_typed_packages_path_entries() {
+        let root = make_repository(&[("maya", &["2024.1"])]);
+        let config = config_with_paths(vec![format!(
+            "filesystem@{}",
+            root.path().to_string_lossy()
+        )]);
+
+        let manager = build_manager(&config);
+        let rt = tokio::runtime::Runtime::new().unwrap();
+
+        let names = rt.block_on(manager.list_packages()).unwrap();
+        assert_eq!(names, vec!["maya".to_string()]);
+    }
+
+    #[test]
+    fn build_manager_skips_non_filesystem_and_missing_paths() {
+        let root = make_repository(&[("python", &["3.9.1"])]);
+        let config = config_with_paths(vec![
+            // Not a filesystem repository, and no such type is implemented.
+            "memory@local".to_string(),
+            // Filesystem, but the path does not exist.
+            "/nonexistent/repository/path".to_string(),
+            format!("filesystem@{}", root.path().to_string_lossy()),
+        ]);
+
+        let manager = build_manager(&config);
+        let rt = tokio::runtime::Runtime::new().unwrap();
+
+        let names = rt.block_on(manager.list_packages()).unwrap();
+        assert_eq!(names, vec!["python".to_string()]);
+    }
 
     #[test]
     fn test_complete_args_default() {
