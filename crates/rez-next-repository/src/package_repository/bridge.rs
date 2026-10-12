@@ -1,5 +1,5 @@
 //! Bridge from the full, upstream-faithful [`FilesystemPackageRepository`] to
-//! the async repository trait used by [`RepositoryManager`].
+//! the async repository trait used by [`crate::simple_repository::RepositoryManager`].
 //!
 //! The repository crate currently ships two `PackageRepository` traits with
 //! the same name and different shapes:
@@ -36,7 +36,8 @@ pub struct AsyncRepositoryAdapter {
 }
 
 impl AsyncRepositoryAdapter {
-    /// Wrap a filesystem repository so it can be added to a [`RepositoryManager`].
+    /// Wrap a filesystem repository so it can be added to a
+    /// [`crate::simple_repository::RepositoryManager`].
     pub fn new(repository: FilesystemPackageRepository) -> Self {
         Self {
             inner: Arc::new(repository),
