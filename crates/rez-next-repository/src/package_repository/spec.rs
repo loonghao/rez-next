@@ -27,12 +27,20 @@ impl RepositorySpec {
     ///
     /// Windows drive letters contain a colon rather than an `@`, so a path
     /// like `C:\packages` never looks like a type prefix.
+    ///
+    /// A path may still legitimately contain an `@` (`/packages/@studio/tools`,
+    /// `C:\my@pkgs`), so the prefix is only honoured when it looks like a
+    /// repository type name. Otherwise the entry would be misread as an
+    /// unknown type and dropped, silently breaking a path that resolved
+    /// before.
     pub fn parse(entry: &str) -> Self {
         match entry.split_once('@') {
-            Some((repo_type, location)) if !repo_type.is_empty() && !location.is_empty() => Self {
-                repo_type: repo_type.to_string(),
-                location: location.to_string(),
-            },
+            Some((repo_type, location)) if is_type_prefix(repo_type) && !location.is_empty() => {
+                Self {
+                    repo_type: repo_type.to_string(),
+                    location: location.to_string(),
+                }
+            }
             _ => Self {
                 repo_type: FILESYSTEM_REPO_TYPE.to_string(),
                 location: entry.to_string(),
@@ -49,6 +57,19 @@ impl RepositorySpec {
     pub fn path(&self) -> PathBuf {
         Path::new(&self.location).to_path_buf()
     }
+}
+
+/// Whether `s` could be a repository type name.
+///
+/// Type names are short identifiers, so this rejects anything containing path
+/// syntax: separators, drive letters, dots and whitespace. That is what keeps
+/// a bare path holding an `@` (a ZFS/btrfs subvolume such as `@pkgs`, or any
+/// directory simply named with an `@`) from being read as a type prefix.
+fn is_type_prefix(s: &str) -> bool {
+    !s.is_empty()
+        && s.len() <= 32
+        && s.chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
 }
 
 #[cfg(test)]
@@ -95,6 +116,33 @@ mod tests {
         let spec = RepositorySpec::parse("C:\\packages");
         assert_eq!(spec.repo_type, "filesystem");
         assert_eq!(spec.location, "C:\\packages");
+    }
+
+    #[test]
+    fn bare_path_with_at_is_filesystem() {
+        // A path may contain an `@` without naming a repository type: ZFS and
+        // btrfs subvolumes are conventionally named `@something`, and any
+        // directory can simply have an `@` in it. Only a well-formed type
+        // name is a prefix, so these stay usable paths.
+        for entry in [
+            "/packages/@studio/tools",
+            "/mnt/@pkgs/rez",
+            r"C:\my@pkgs",
+            "/pkgs/@",
+        ] {
+            let spec = RepositorySpec::parse(entry);
+            assert_eq!(spec.repo_type, "filesystem", "entry: {entry}");
+            assert_eq!(spec.location, entry, "entry: {entry}");
+            assert!(spec.is_filesystem(), "entry: {entry}");
+        }
+    }
+
+    #[test]
+    fn type_prefix_must_look_like_an_identifier() {
+        // Path syntax in the prefix means it is not a type name.
+        let spec = RepositorySpec::parse("sub/dir@/packages");
+        assert_eq!(spec.repo_type, "filesystem");
+        assert_eq!(spec.location, "sub/dir@/packages");
     }
 
     #[test]
