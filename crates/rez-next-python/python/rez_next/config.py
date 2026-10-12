@@ -11,11 +11,10 @@ Settings priority (higher number = higher precedence):
 2) Overridden by file(s) pointed at by ``$REZ_CONFIG_FILE`` (multiple allowed,
    separated by ``os.pathsep``);
 3) Overridden by ``$HOME/.rezconfig`` (unless ``$REZ_DISABLE_HOME_CONFIG`` is 1);
-4) Overridden by environment variable ``$REZ_XXX``;
-5) Overridden by environment variable ``$REZ_XXX_JSON``;
-6) Special: package ``config`` section during build/release.
+4) Overridden by ``$REZ_XXX`` when present, otherwise ``$REZ_XXX_JSON``;
+5) Special: package ``config`` section during build/release.
 
-Plugins settings (``plugins.*``) do not support env var overrides (rules 4-5).
+Plugins settings (``plugins.*``) do not support env var overrides (rule 4).
 """
 
 from __future__ import annotations
