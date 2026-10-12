@@ -77,6 +77,13 @@ pub struct RezCoreConfig {
     pub terminal_emulator_command: String,
 
     /// Packages implicitly added to every resolve (`implicit_packages`)
+    ///
+    /// Deliberate divergence: upstream rez 3.4.0 defaults this to
+    /// `["~platform=={system.platform}", "~arch=={system.arch}", "~os=={system.os}"]`,
+    /// but those are implicit-package request strings that rez-next cannot
+    /// parse yet. Defaulting to empty keeps the setting inert rather than
+    /// feeding unparseable requests into the solver; align with upstream once
+    /// that syntax is supported.
     pub implicit_packages: Vec<String>,
 
     /// Environment variables treated as path-like and joined rather than
@@ -168,30 +175,29 @@ impl Default for RezCoreConfig {
                 "xterm"
             }
             .to_string(),
-            // Upstream rez 3.4.0 defaults for the settings that were inert.
+            // Upstream rez 3.4.0 defaults for the settings that were inert,
+            // except implicit_packages - see the note on that field.
             implicit_packages: vec![],
             parent_variables: vec![],
             resetting_variables: vec![],
             env_var_separators: default_env_var_separators(),
             platform_map: BTreeMap::new(),
-            default_relocatable: false,
+            default_relocatable: true,
             build_directory: "build".to_string(),
-            context_tmpdir: String::new(),
+            context_tmpdir: std::env::temp_dir().to_string_lossy().to_string(),
         }
     }
 }
 
-/// rez 3.4.0's `env_var_separators` default.
+/// rez 3.4.0's `env_var_separators` default (src/rez/rezconfig.py:528).
 ///
-/// `PATH`-style variables join with the platform path separator; `PYTHONPATH`
-/// is a rez addition that upstream also declares.
+/// Path-style variables are *not* listed here: upstream falls back to
+/// `os.pathsep` for any variable absent from this map, so only the two
+/// overrides need declaring.
 fn default_env_var_separators() -> BTreeMap<String, String> {
-    let separator = path_list_separator().to_string();
     BTreeMap::from([
-        ("PATH".to_string(), separator.clone()),
-        ("LD_LIBRARY_PATH".to_string(), separator.clone()),
-        ("DYLD_LIBRARY_PATH".to_string(), separator.clone()),
-        ("PYTHONPATH".to_string(), separator),
+        ("CMAKE_MODULE_PATH".to_string(), ";".to_string()),
+        ("DOXYGEN_TAGFILES".to_string(), " ".to_string()),
     ])
 }
 
@@ -280,14 +286,14 @@ impl RezCoreConfig {
     ///
     /// Unknown keys are reported but never fatal: a key rez-next has yet to
     /// implement should degrade to a warning, not break the whole config.
-    fn warn_unknown_keys(merged: &serde_json::Map<String, serde_json::Value>) {
-        for key in merged.keys() {
-            if rez_next_config::keys::find(key).is_none() {
-                eprintln!(
-                    "rez-next: ignoring unknown config key {key:?} (not in the key registry)"
-                );
-            }
-        }
+    /// Returns the keys that are absent from the shared key registry, so the
+    /// caller can both report them and be asserted against in tests.
+    fn unknown_keys(merged: &serde_json::Map<String, serde_json::Value>) -> Vec<String> {
+        merged
+            .keys()
+            .filter(|key| rez_next_config::keys::find(key).is_none())
+            .cloned()
+            .collect()
     }
 
     /// Load configuration from files, reporting any parse failure.
@@ -314,7 +320,9 @@ impl RezCoreConfig {
             deep_merge_json_object(&mut merged, layer);
         }
 
-        Self::warn_unknown_keys(&merged);
+        for key in Self::unknown_keys(&merged) {
+            eprintln!("rez-next: ignoring unknown config key {key:?} (not in the key registry)");
+        }
 
         let mut config: Self = serde_json::from_value(serde_json::Value::Object(merged))?;
         config.apply_env_overrides_and_report();
@@ -451,7 +459,18 @@ impl RezCoreConfig {
             // Nested cache.* keys: merge into the existing cache so sibling
             // keys set by a config file survive a partial env object.
             "cache" => assign_cache(&mut self.cache, &value),
-            _ => Ok(()),
+            other => {
+                // An override for a key rez-next does not model is as invisible
+                // as one in a config file, so report it the same way rather
+                // than letting REZ_<KEY> fail silently.
+                if rez_next_config::keys::find(other).is_none() {
+                    eprintln!(
+                        "rez-next: ignoring unknown config key {other:?} \
+                         (not in the key registry)"
+                    );
+                }
+                Ok(())
+            }
         }
         .map_err(|e| format!("{key}: {e}"))
     }
@@ -1127,23 +1146,33 @@ mod tests {
     #[test]
     fn test_previously_inert_settings_have_upstream_defaults() {
         let cfg = RezCoreConfig::default();
+        // implicit_packages stays empty by design; see the field's doc comment.
         assert!(cfg.implicit_packages.is_empty());
         assert!(cfg.parent_variables.is_empty());
         assert!(cfg.resetting_variables.is_empty());
         assert!(cfg.platform_map.is_empty());
-        assert!(!cfg.default_relocatable);
+        assert!(cfg.default_relocatable);
         assert_eq!(cfg.build_directory, "build");
-        assert!(cfg.context_tmpdir.is_empty());
+        assert_eq!(
+            cfg.context_tmpdir,
+            std::env::temp_dir().to_string_lossy().to_string()
+        );
 
-        // rez 3.4.0 declares these separators by default.
-        let expected = path_list_separator().to_string();
-        for var in ["PATH", "LD_LIBRARY_PATH", "DYLD_LIBRARY_PATH", "PYTHONPATH"] {
-            assert_eq!(
-                cfg.env_var_separators.get(var).map(String::as_str),
-                Some(expected.as_str()),
-                "{var} must join with the platform path separator"
-            );
-        }
+        // rez 3.4.0 declares exactly these two separator overrides; every other
+        // variable falls back to os.pathsep at the shell layer.
+        assert_eq!(cfg.env_var_separators.len(), 2);
+        assert_eq!(
+            cfg.env_var_separators
+                .get("CMAKE_MODULE_PATH")
+                .map(String::as_str),
+            Some(";")
+        );
+        assert_eq!(
+            cfg.env_var_separators
+                .get("DOXYGEN_TAGFILES")
+                .map(String::as_str),
+            Some(" ")
+        );
     }
 
     #[test]
@@ -1197,6 +1226,42 @@ mod tests {
             let cfg = RezCoreConfig::try_load().expect("unknown key must not be fatal");
             assert!(!cfg.packages_path.is_empty());
         });
+    }
+
+    #[test]
+    fn test_unknown_keys_are_identified_distinctly_from_known_ones() {
+        // Guards the reporting itself: this fails if unknown key detection is
+        // removed, not merely if the load breaks.
+        let mut merged = serde_json::Map::new();
+        merged.insert("packages_path".to_string(), serde_json::json!(["/tmp"]));
+        merged.insert("default_shell".to_string(), serde_json::json!("bash"));
+        merged.insert("totally_made_up_key".to_string(), serde_json::json!(1));
+        merged.insert("another_unknown".to_string(), serde_json::json!(2));
+
+        let unknown = RezCoreConfig::unknown_keys(&merged);
+
+        assert_eq!(
+            unknown,
+            vec![
+                "another_unknown".to_string(),
+                "totally_made_up_key".to_string()
+            ],
+            "only registry-backed keys may be excluded from the report"
+        );
+    }
+
+    #[test]
+    fn test_known_keys_produce_no_unknown_key_report() {
+        let cfg = RezCoreConfig::default();
+        let merged =
+            serde_json::to_value(&cfg).expect("config must serialize")["packages_path"].clone();
+        let mut map = serde_json::Map::new();
+        map.insert("packages_path".to_string(), merged);
+
+        assert!(
+            RezCoreConfig::unknown_keys(&map).is_empty(),
+            "keys the binary models are registered and must not be reported"
+        );
     }
 
     #[test]
