@@ -52,6 +52,46 @@ pub enum RezCoreError {
 
     #[error("Configuration error: {0}")]
     ConfigError(String),
+
+    /// The command was invoked incorrectly: an unknown key, a missing
+    /// argument, or a bad flag combination.
+    #[error("{0}")]
+    UsageError(String),
+
+    /// Configuration failed validation.
+    ///
+    /// Carries the location so the message can be acted on directly, and so the
+    /// process can exit `3` — distinct from a generic failure — which lets a
+    /// caller tell "your config is wrong" from "rez-next broke".
+    #[error("{file}:{line}: {key}: expected {expected}, got {actual}")]
+    ValidationError {
+        /// File the offending key was written in.
+        file: String,
+        /// 1-based line number of the key.
+        line: usize,
+        /// The key that failed validation.
+        key: String,
+        /// The type the registry declares for the key.
+        expected: String,
+        /// The type actually found.
+        actual: String,
+    },
+}
+
+impl RezCoreError {
+    /// The process exit code this error should produce.
+    ///
+    /// The mapping is fixed so callers can branch on it:
+    /// `2` for a usage mistake and `3` for a config that fails validation are
+    /// both recoverable by the caller, unlike `1`, which covers everything else.
+    #[must_use]
+    pub const fn exit_code(&self) -> i32 {
+        match self {
+            Self::UsageError(_) => 2,
+            Self::ValidationError { .. } => 3,
+            _ => 1,
+        }
+    }
 }
 
 /// Result type alias for rez-core operations
@@ -183,5 +223,47 @@ mod tests {
     fn test_rez_core_result_err() {
         let result: RezCoreResult<i32> = Err(RezCoreError::Solver("test".to_string()));
         assert!(result.is_err());
+    }
+
+    fn validation_error() -> RezCoreError {
+        RezCoreError::ValidationError {
+            file: "rezconfig.yaml".to_string(),
+            line: 3,
+            key: "packages_path".to_string(),
+            expected: "a list of paths".to_string(),
+            actual: "a string".to_string(),
+        }
+    }
+
+    #[test]
+    fn test_exit_codes_are_stable() {
+        // Callers branch on these, so they must not drift.
+        assert_eq!(RezCoreError::UsageError("bad flag".into()).exit_code(), 2);
+        assert_eq!(validation_error().exit_code(), 3);
+        assert_eq!(RezCoreError::Solver("x".into()).exit_code(), 1);
+        assert_eq!(RezCoreError::ConfigError("x".into()).exit_code(), 1);
+        assert_eq!(RezCoreError::Io(std::io::Error::other("x")).exit_code(), 1);
+    }
+
+    #[test]
+    fn test_validation_error_message_names_file_line_key_and_types() {
+        // The message is the whole contract: an agent must be able to fix the
+        // file from this line alone.
+        let message = validation_error().to_string();
+        assert!(message.contains("rezconfig.yaml"), "{message}");
+        assert!(message.contains(":3:"), "{message}");
+        assert!(message.contains("packages_path"), "{message}");
+        assert!(message.contains("a list of paths"), "{message}");
+        assert!(message.contains("a string"), "{message}");
+    }
+
+    #[test]
+    fn test_usage_error_message_is_not_prefixed() {
+        // A usage error is printed after "Error: " by the binary, so it must
+        // not carry a second "error:" prefix of its own.
+        assert_eq!(
+            RezCoreError::UsageError("unknown key 'nope'".into()).to_string(),
+            "unknown key 'nope'"
+        );
     }
 }

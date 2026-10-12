@@ -4,7 +4,7 @@ use crate::error::RezCoreError;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::env;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 /// Configuration for rez-core components
 ///
@@ -212,6 +212,63 @@ impl Default for CacheConfig {
     }
 }
 
+/// Which configuration layer a value came from.
+///
+/// Variants are ordered from lowest to highest precedence, matching the order
+/// [`RezCoreConfig::get_search_paths`] returns and the order
+/// [`RezCoreConfig::load_layers`] yields.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum LayerSource {
+    /// Config shipped next to the executable.
+    Builtin,
+    /// Files named by `REZ_CONFIG_FILE`.
+    ConfigFileEnv,
+    /// System-wide config (`/etc/rez/...`, `%PROGRAMDATA%\rez\...`).
+    System,
+    /// User home config (`~/.rezconfig`, `~/.rez/config.yaml`).
+    User,
+    /// Project config found by walking up from the current directory.
+    ///
+    /// **rez-next extension**: upstream rez has no project-level config file;
+    /// it only reads `REZ_CONFIG_FILE` and `~/.rezconfig`.
+    Project,
+    /// `REZ_*` environment variable overrides (highest precedence).
+    Environment,
+}
+
+impl std::fmt::Display for LayerSource {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let name = match self {
+            Self::Builtin => "builtin",
+            Self::ConfigFileEnv => "env-file",
+            Self::System => "system",
+            Self::User => "user",
+            Self::Project => "project",
+            Self::Environment => "environment",
+        };
+        f.write_str(name)
+    }
+}
+
+/// A single configuration layer, kept unmerged so its origin stays visible.
+#[derive(Debug, Clone)]
+pub struct ConfigLayer {
+    /// File this layer was read from. `None` for the environment layer.
+    pub path: Option<PathBuf>,
+    /// Which layer this is.
+    pub source: LayerSource,
+    /// The parsed config mapping contributed by this layer.
+    pub data: serde_json::Map<String, serde_json::Value>,
+}
+
+/// The file names probed for a project config, in priority order.
+const PROJECT_CONFIG_NAMES: &[&str] = &[
+    "rezconfig.toml",
+    "rezconfig.yaml",
+    "rezconfig.yml",
+    "rezconfig.json",
+];
+
 impl RezCoreConfig {
     /// Get the list of configuration file paths that are searched
     #[must_use]
@@ -264,7 +321,160 @@ impl RezCoreConfig {
             }
         }
 
+        // 5. Project config (rez-next extension, see `find_project_config_file`).
+        // Ordered after the user layer so a project overrides a user setting,
+        // and before `REZ_*` overrides so the environment still wins.
+        if let Some(project) = Self::find_project_config_file(&cwd()) {
+            paths.push(project);
+        }
+
         paths
+    }
+
+    /// Find the project configuration file by walking up from `from`.
+    ///
+    /// **rez-next extension**: upstream rez has no project-level config file —
+    /// it reads `REZ_CONFIG_FILE` and `~/.rezconfig` only. This lookup is a
+    /// rez-next addition and does not change rez's own behaviour.
+    ///
+    /// The walk is nearest-first and stops at the first of:
+    ///
+    /// 1. a directory containing `.rez/rezconfig.{toml,yaml,yml,json}` — adopted;
+    /// 2. the git root (a directory containing `.git`) — checked once, then stop;
+    /// 3. `$REZ_PROJECT_ROOT` — stop;
+    /// 4. the filesystem root — stop.
+    #[must_use]
+    pub fn find_project_config_file(from: &Path) -> Option<PathBuf> {
+        let project_root = env::var("REZ_PROJECT_ROOT").ok().filter(|v| !v.is_empty());
+
+        let mut dir = Some(from);
+
+        while let Some(current) = dir {
+            if let Some(found) = project_config_in(current) {
+                return Some(found);
+            }
+
+            // Stop after the git root itself has been checked (rule 2).
+            if current.join(".git").exists() {
+                break;
+            }
+
+            // Stop at $REZ_PROJECT_ROOT (rule 3).
+            if let Some(root) = &project_root
+                && paths_equal(current, Path::new(root))
+            {
+                break;
+            }
+
+            dir = current.parent();
+        }
+
+        // `REZ_PROJECT_ROOT` is also a candidate: when the cwd is not below it,
+        // the upward walk never reaches it, so check it explicitly once.
+        if let Some(root) = &project_root
+            && let Some(found) = project_config_in(Path::new(root))
+        {
+            return Some(found);
+        }
+
+        None
+    }
+
+    /// Read every configuration layer without merging them.
+    ///
+    /// Layers are returned lowest-precedence first so the last layer that
+    /// contains a key is the effective one; this is what `rez config where`
+    /// reports. The environment layer is appended last because `REZ_*`
+    /// overrides beat every file.
+    pub fn load_layers() -> Result<Vec<ConfigLayer>, RezCoreError> {
+        let mut layers = Vec::new();
+
+        for path in Self::get_search_paths() {
+            if !path.exists() {
+                continue;
+            }
+            let content = std::fs::read_to_string(&path).map_err(RezCoreError::Io)?;
+            let value = parse_config_layer(&path, &content)?;
+            let Some(data) = value.as_object().cloned() else {
+                continue;
+            };
+            let source = classify_layer_path(&path);
+            layers.push(ConfigLayer {
+                path: Some(path),
+                source,
+                data,
+            });
+        }
+
+        layers.push(Self::environment_layer());
+
+        Ok(layers)
+    }
+
+    /// Build the `REZ_*` environment override layer.
+    ///
+    /// Mirrors [`RezCoreConfig::apply_env_overrides`]: a present `REZ_<KEY>`
+    /// wins over `REZ_<KEY>_JSON`, and keys are flat snake_case.
+    #[must_use]
+    pub fn environment_layer() -> ConfigLayer {
+        let mut data = serde_json::Map::new();
+
+        let vars: Vec<(String, String)> = env::vars()
+            .filter_map(|(key, value)| {
+                key.strip_prefix("REZ_")
+                    .map(|suffix| (suffix.to_ascii_lowercase(), value))
+            })
+            .filter(|(suffix, _)| !suffix.is_empty())
+            .collect();
+
+        for (suffix, raw) in &vars {
+            let Some(field) = suffix.strip_suffix("_json").filter(|f| !f.is_empty()) else {
+                continue;
+            };
+            if vars.iter().any(|(name, _)| name == field) {
+                continue;
+            }
+            if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(raw) {
+                data.insert(field.to_string(), parsed);
+            }
+        }
+
+        for (suffix, raw) in &vars {
+            if suffix.ends_with("_json") {
+                continue;
+            }
+            data.insert(suffix.clone(), coerce_env_value(suffix, raw));
+        }
+
+        ConfigLayer {
+            path: None,
+            source: LayerSource::Environment,
+            data,
+        }
+    }
+
+    /// Resolve which layer supplies the effective value of `key`.
+    ///
+    /// Returns the value together with its layer and originating file, so
+    /// `rez config where` can say where a setting came from rather than only
+    /// what it is.
+    #[must_use]
+    pub fn locate(key: &str) -> Option<LocatedValue> {
+        let layers = Self::load_layers().ok()?;
+
+        // Highest precedence last, so scan in reverse.
+        for layer in layers.iter().rev() {
+            if let Some(value) = lookup_dotted(&layer.data, key) {
+                return Some(LocatedValue {
+                    key: key.to_string(),
+                    value: value.clone(),
+                    source: layer.source,
+                    path: layer.path.clone(),
+                });
+            }
+        }
+
+        None
     }
 
     /// Get the list of configuration files that actually exist and are sourced
@@ -489,6 +699,107 @@ impl RezCoreConfig {
         }
 
         Some(current.clone())
+    }
+}
+
+/// The effective value of a key, together with where it came from.
+#[derive(Debug, Clone)]
+pub struct LocatedValue {
+    /// The key that was looked up.
+    pub key: String,
+    /// The effective value.
+    pub value: serde_json::Value,
+    /// The layer that supplies it.
+    pub source: LayerSource,
+    /// File the value came from; `None` for the environment layer.
+    pub path: Option<PathBuf>,
+}
+
+/// Look up a dotted key path in a config mapping.
+///
+/// Returns `None` as soon as any segment is missing or a non-object is
+/// traversed, so a partial prefix is never mistaken for a value.
+fn lookup_dotted<'v>(
+    data: &'v serde_json::Map<String, serde_json::Value>,
+    key: &str,
+) -> Option<&'v serde_json::Value> {
+    let segments: Vec<&str> = key.split('.').collect();
+    let mut current = data.get(*segments.first()?)?;
+
+    for segment in &segments[1..] {
+        current = current.as_object()?.get(*segment)?;
+    }
+
+    Some(current)
+}
+
+/// Map a config file path back to the layer it belongs to.
+fn classify_layer_path(path: &Path) -> LayerSource {
+    if let Ok(config_file) = env::var("REZ_CONFIG_FILE") {
+        for entry in config_file.split(path_list_separator()) {
+            if paths_equal(path, Path::new(entry)) {
+                return LayerSource::ConfigFileEnv;
+            }
+        }
+    }
+
+    if let Ok(exe) = env::current_exe()
+        && let Some(exe_dir) = exe.parent()
+        && path.parent().is_some_and(|p| paths_equal(p, exe_dir))
+    {
+        return LayerSource::Builtin;
+    }
+
+    if let Some(project) = RezCoreConfig::find_project_config_file(&cwd())
+        && paths_equal(path, &project)
+    {
+        return LayerSource::Project;
+    }
+
+    if let Some(home) = home_dir()
+        && path.starts_with(&home)
+    {
+        return LayerSource::User;
+    }
+
+    LayerSource::System
+}
+
+/// The current working directory, falling back to an empty path.
+fn cwd() -> PathBuf {
+    env::current_dir().unwrap_or_default()
+}
+
+/// The user's home directory, honouring both `HOME` and `USERPROFILE`.
+fn home_dir() -> Option<PathBuf> {
+    env::var("HOME")
+        .or_else(|_| env::var("USERPROFILE"))
+        .ok()
+        .filter(|v| !v.is_empty())
+        .map(PathBuf::from)
+}
+
+/// Return the project config file inside `dir`, if that directory has one.
+fn project_config_in(dir: &Path) -> Option<PathBuf> {
+    let rez_dir = dir.join(".rez");
+    PROJECT_CONFIG_NAMES
+        .iter()
+        .map(|name| rez_dir.join(name))
+        .find(|candidate| candidate.is_file())
+}
+
+/// Compare two paths for equality without requiring both to exist.
+///
+/// A canonicalized comparison silently fails on Windows for paths under
+/// temporary directories, so compare the paths as given first and only fall
+/// back to canonicalization when both sides resolve.
+fn paths_equal(a: &Path, b: &Path) -> bool {
+    if a == b {
+        return true;
+    }
+    match (a.canonicalize(), b.canonicalize()) {
+        (Ok(a), Ok(b)) => a == b,
+        _ => false,
     }
 }
 
@@ -1109,6 +1420,146 @@ mod tests {
             p.to_string_lossy().contains(".rezconfig") || p.to_string_lossy().contains(".rez")
         });
         assert!(has_home);
+    }
+
+    // ── Project-config lookup (rez-next extension) ──────────────────────────
+
+    /// Create `<dir>/.rez/rezconfig.yaml` containing `body`.
+    fn write_project_config(dir: &std::path::Path, body: &str) -> std::path::PathBuf {
+        let rez_dir = dir.join(".rez");
+        std::fs::create_dir_all(&rez_dir).expect("create .rez dir");
+        write_config(&rez_dir, "rezconfig.yaml", body)
+    }
+
+    #[test]
+    fn test_project_config_search_is_adopted_from_a_subdirectory() {
+        // The acceptance criterion: running in a nested directory must resolve
+        // the same project config as running at the project root.
+        let project = tempfile::tempdir().expect("tempdir");
+        let file = write_project_config(project.path(), "thread_count: 7\n");
+        let nested = project.path().join("a").join("b").join("c");
+        std::fs::create_dir_all(&nested).expect("create nested dir");
+
+        assert_eq!(
+            RezCoreConfig::find_project_config_file(&nested).as_deref(),
+            Some(file.as_path()),
+            "a nested directory must walk up to the project config"
+        );
+    }
+
+    #[test]
+    fn test_project_config_search_prefers_the_nearest_directory() {
+        // Nearest-first: a config in an intermediate directory wins over one
+        // further up the tree.
+        let project = tempfile::tempdir().expect("tempdir");
+        let _outer = write_project_config(project.path(), "thread_count: 1\n");
+        let inner = project.path().join("a");
+        let inner_file = write_project_config(&inner, "thread_count: 2\n");
+
+        assert_eq!(
+            RezCoreConfig::find_project_config_file(&inner).as_deref(),
+            Some(inner_file.as_path())
+        );
+    }
+
+    #[test]
+    fn test_project_config_search_stops_at_the_git_root() {
+        // Rule 2: a config above the git root must not be adopted, otherwise a
+        // checkout would silently inherit settings from an unrelated ancestor.
+        let root = tempfile::tempdir().expect("tempdir");
+        let _above = write_project_config(root.path(), "thread_count: 111\n");
+
+        let git_root = root.path().join("repo");
+        let deep = git_root.join("src").join("deep");
+        std::fs::create_dir_all(git_root.join(".git")).expect("create .git");
+        std::fs::create_dir_all(&deep).expect("create deep dir");
+
+        assert_eq!(
+            RezCoreConfig::find_project_config_file(&deep),
+            None,
+            "the walk must stop at the git root and not adopt the outer config"
+        );
+    }
+
+    #[test]
+    fn test_project_config_search_checks_the_git_root_itself() {
+        // Rule 2 stops *after* the git root has been checked, so a config
+        // sitting exactly at the git root is still adopted.
+        let root = tempfile::tempdir().expect("tempdir");
+        let git_root = root.path().join("repo");
+        std::fs::create_dir_all(git_root.join(".git")).expect("create .git");
+        let file = write_project_config(&git_root, "thread_count: 3\n");
+        let deep = git_root.join("src");
+        std::fs::create_dir_all(&deep).expect("create deep dir");
+
+        assert_eq!(
+            RezCoreConfig::find_project_config_file(&deep).as_deref(),
+            Some(file.as_path())
+        );
+    }
+
+    #[test]
+    fn test_project_config_search_stops_at_rez_project_root() {
+        // Rule 3: $REZ_PROJECT_ROOT bounds the walk. A config above it must not
+        // leak in, even from inside the project tree.
+        let root = tempfile::tempdir().expect("tempdir");
+        let _above = write_project_config(root.path(), "thread_count: 111\n");
+
+        let project = root.path().join("project");
+        let deep = project.join("a").join("b");
+        std::fs::create_dir_all(&deep).expect("create deep dir");
+
+        let _guard = env_lock();
+        // SAFETY: guarded by ENV_LOCK; removed before the guard drops.
+        unsafe { env::set_var("REZ_PROJECT_ROOT", &project) };
+
+        let found = RezCoreConfig::find_project_config_file(&deep);
+
+        unsafe { env::remove_var("REZ_PROJECT_ROOT") };
+
+        assert_eq!(found, None, "the walk must stop at $REZ_PROJECT_ROOT");
+    }
+
+    #[test]
+    fn test_project_config_root_is_checked_when_cwd_is_outside_it() {
+        // When the cwd is not below $REZ_PROJECT_ROOT the upward walk never
+        // reaches it, so the root is probed explicitly once.
+        let project = tempfile::tempdir().expect("tempdir");
+        let file = write_project_config(project.path(), "thread_count: 222\n");
+
+        let elsewhere = tempfile::tempdir().expect("tempdir");
+
+        let _guard = env_lock();
+        // SAFETY: guarded by ENV_LOCK; removed before the guard drops.
+        unsafe { env::set_var("REZ_PROJECT_ROOT", project.path()) };
+
+        let found = RezCoreConfig::find_project_config_file(elsewhere.path());
+
+        unsafe { env::remove_var("REZ_PROJECT_ROOT") };
+
+        assert_eq!(found.as_deref(), Some(file.as_path()));
+    }
+
+    #[test]
+    fn test_project_config_search_terminates_without_a_config() {
+        // Rule 4: reaching the filesystem root returns None rather than
+        // looping or panicking.
+        let root = tempfile::tempdir().expect("tempdir");
+        let deep = root.path().join("a").join("b").join("c").join("d");
+        std::fs::create_dir_all(&deep).expect("create deep dir");
+
+        assert_eq!(RezCoreConfig::find_project_config_file(&deep), None);
+    }
+
+    #[test]
+    fn test_find_project_config_file_without_rez_project_root_returns_none() {
+        // An unset $REZ_PROJECT_ROOT must not be treated as the filesystem root.
+        let dir = tempfile::tempdir().expect("tempdir");
+        let _guard = env_lock();
+        // SAFETY: guarded by ENV_LOCK; no other test sets this concurrently.
+        unsafe { env::remove_var("REZ_PROJECT_ROOT") };
+
+        assert_eq!(RezCoreConfig::find_project_config_file(dir.path()), None);
     }
 
     #[test]
