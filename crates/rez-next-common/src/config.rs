@@ -254,13 +254,13 @@ impl RezCoreConfig {
 
     /// Apply `REZ_*` environment variable overrides in place.
     ///
-    /// Implements rez's override rules (`src/rez/config.py`): for every
-    /// `REZ_<KEY>_JSON` the value is parsed as JSON; otherwise `REZ_<KEY>` is
-    /// coerced to the target field's type. Keys are **flat snake_case** — the
+    /// Implements rez's override rules (`src/rez/config.py`): a present
+    /// `REZ_<KEY>` wins, including an empty value. `REZ_<KEY>_JSON` is parsed
+    /// only when the plain variable is absent. Keys are **flat snake_case** — the
     /// underscores in a key such as `packages_path` are preserved, they do not
     /// denote nesting.
     fn apply_env_overrides(&mut self) {
-        // Collect the plain `REZ_<KEY>` variables only. Lower-casing the suffix
+        // Collect all `REZ_*` variables. Lower-casing the suffix
         // yields the flat snake_case field name; underscores are preserved,
         // matching rez (`src/rez/config.py`) rather than implying nesting.
         let overrides: Vec<(String, String)> = env::vars()
@@ -271,14 +271,16 @@ impl RezCoreConfig {
             .filter(|(suffix, _)| !suffix.is_empty())
             .collect();
 
-        // `_JSON` variables carry structured values and win over the plain
-        // spelling of the same key. They are collected separately because a
-        // `_JSON` variable may be set without its plain counterpart.
+        // Match Rez's presence check, not a truthiness check: even an empty
+        // plain value masks its JSON counterpart. Do not parse masked JSON.
         let mut json_overrides: Vec<(String, serde_json::Value)> = Vec::new();
         for (suffix, raw_value) in &overrides {
             let Some(field) = suffix.strip_suffix("_json").filter(|f| !f.is_empty()) else {
                 continue;
             };
+            if overrides.iter().any(|(name, _)| name == field) {
+                continue;
+            }
             match serde_json::from_str::<serde_json::Value>(raw_value) {
                 Ok(json) => json_overrides.push((field.to_string(), json)),
                 Err(e) => eprintln!(
@@ -288,18 +290,15 @@ impl RezCoreConfig {
             }
         }
 
-        // Plain `REZ_<KEY>` overrides, skipped when a `_JSON` twin won above.
+        // Plain `REZ_<KEY>` overrides always take precedence.
         for (suffix, raw_value) in &overrides {
             if suffix.ends_with("_json") || suffix.is_empty() {
-                continue;
-            }
-            if json_overrides.iter().any(|(field, _)| field == suffix) {
                 continue;
             }
             self.apply_env_field(suffix, coerce_env_value(suffix, raw_value));
         }
 
-        // Applied last so the JSON form takes precedence.
+        // These fields have no plain counterpart, so JSON is the fallback.
         for (field, json) in json_overrides {
             self.apply_env_field(&field, json);
         }
