@@ -270,8 +270,9 @@ impl Config {
     /// so it maps to `packages_path`. Mapping underscores to dots made
     /// nearly every real key resolve to a path that no config reads.
     ///
-    /// `REZ_<KEY>_JSON` supplies a structured value and takes precedence over
-    /// the plain `REZ_<KEY>` spelling; otherwise the raw string is used.
+    /// A present `REZ_<KEY>` takes precedence, including an empty value.
+    /// `REZ_<KEY>_JSON` supplies a structured fallback only when the plain
+    /// spelling is absent. Plain values keep their JSON-or-string conversion.
     fn apply_env_overrides(&mut self) -> Result<(), ConfigError> {
         let mut count = 0usize;
 
@@ -283,16 +284,18 @@ impl Config {
             .filter(|(suffix, _)| !suffix.is_empty())
             .collect();
 
-        let mut json_keys: Vec<String> = Vec::new();
         for (suffix, raw) in &vars {
             let Some(field) = suffix.strip_suffix("_json").filter(|f| !f.is_empty()) else {
                 continue;
             };
+            // Presence, not truthiness: do not even parse a masked JSON value.
+            if vars.iter().any(|(name, _)| name == field) {
+                continue;
+            }
             match serde_json::from_str::<JsonValue>(raw) {
                 Ok(parsed) => {
                     tracing::debug!("REZ override (json): {}={}", field, parsed);
                     set_flat_value(&mut self.data, field, parsed);
-                    json_keys.push(field.to_string());
                     count += 1;
                 }
                 Err(e) => {
@@ -305,7 +308,7 @@ impl Config {
         }
 
         for (suffix, raw) in &vars {
-            if suffix.ends_with("_json") || json_keys.contains(suffix) {
+            if suffix.ends_with("_json") {
                 continue;
             }
             let parsed: JsonValue =
@@ -458,6 +461,42 @@ mod tests {
         ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner())
     }
 
+    /// Exercise the public loader while restoring the caller's environment.
+    fn load_with_env_override(
+        key: &str,
+        plain: Option<&str>,
+        json_value: &str,
+    ) -> Result<Config, ConfigError> {
+        let _guard = env_lock();
+        let variable = format!("REZ_{}", key.to_ascii_uppercase());
+        let json_variable = format!("{variable}_JSON");
+        let originals = [
+            (variable.clone(), env::var_os(&variable)),
+            (json_variable.clone(), env::var_os(&json_variable)),
+        ];
+        // SAFETY: all tests mutating these variables hold ENV_LOCK.
+        unsafe {
+            if let Some(value) = plain {
+                env::set_var(&variable, value);
+            } else {
+                env::remove_var(&variable);
+            }
+            env::set_var(&json_variable, json_value);
+        }
+        let result = Config::load();
+        for (name, value) in originals {
+            // SAFETY: ENV_LOCK is still held while restoring both variables.
+            unsafe {
+                if let Some(value) = value {
+                    env::set_var(name, value);
+                } else {
+                    env::remove_var(name);
+                }
+            }
+        }
+        result
+    }
+
     #[test]
     fn test_config_new() {
         let config = Config::new();
@@ -533,39 +572,68 @@ mod tests {
     }
 
     #[test]
-    fn test_env_json_override_overrides_plain_form() {
-        let _guard = env_lock();
-        let mut config = Config::new();
-        config.data = json!({});
-        // SAFETY: single-threaded test, values restored immediately after.
-        unsafe {
-            env::set_var("REZ_IMPLICIT_PACKAGES", "ignored");
-            env::set_var("REZ_IMPLICIT_PACKAGES_JSON", r#"["a", "b"]"#);
-        };
-        let result = config.apply_env_overrides();
-        unsafe {
-            env::remove_var("REZ_IMPLICIT_PACKAGES");
-            env::remove_var("REZ_IMPLICIT_PACKAGES_JSON");
-        };
-
-        assert!(result.is_ok());
+    fn test_env_plain_override_wins_over_json_form() {
+        let config = load_with_env_override("implicit_packages", Some("plain"), r#"["a", "b"]"#)
+            .expect("plain override must load");
         assert_eq!(
-            config.get_array("implicit_packages"),
-            Some(&vec![json!("a"), json!("b")])
+            config.get_string("implicit_packages"),
+            Some("plain".to_string())
         );
     }
 
     #[test]
-    fn test_env_json_override_invalid_json_errors() {
-        let _guard = env_lock();
-        let mut config = Config::new();
-        config.data = json!({});
-        // SAFETY: single-threaded test, value restored immediately after.
-        unsafe { env::set_var("REZ_PACKAGES_PATH_JSON", "[not json") };
-        let result = config.apply_env_overrides();
-        unsafe { env::remove_var("REZ_PACKAGES_PATH_JSON") };
+    fn test_env_plain_override_preserves_empty_false_and_zero() {
+        for (key, plain, json_value, expected) in [
+            ("default_shell", "", r#""json""#, json!("")),
+            ("use_rust_solver", "false", "true", json!(false)),
+            ("thread_count", "0", "4", json!(0)),
+            ("packages_path", "[]", r#"["/json"]"#, json!([])),
+        ] {
+            let config = load_with_env_override(key, Some(plain), json_value)
+                .expect("present plain override must load");
+            assert_eq!(config.get(key), Some(&expected), "{key}");
+        }
+    }
 
-        assert!(result.is_err(), "invalid JSON must not be silently ignored");
+    #[test]
+    fn test_env_masked_invalid_json_is_not_parsed() {
+        for plain in ["plain", ""] {
+            let config = load_with_env_override("default_shell", Some(plain), "not-json")
+                .expect("masked JSON must not be parsed");
+            assert_eq!(config.get_string("default_shell"), Some(plain.to_string()));
+        }
+    }
+
+    #[test]
+    fn test_env_json_override_is_used_when_plain_is_absent() {
+        for (key, json_value, expected) in [
+            ("default_shell", r#""json""#, json!("json")),
+            ("use_rust_solver", "false", json!(false)),
+            ("thread_count", "0", json!(0)),
+            ("packages_path", r#"["/json"]"#, json!(["/json"])),
+        ] {
+            let config = load_with_env_override(key, None, json_value)
+                .expect("JSON-only override must load");
+            assert_eq!(config.get(key), Some(&expected), "{key}");
+        }
+    }
+
+    #[test]
+    fn test_env_plain_plugin_override_keeps_nested_path() {
+        let config = load_with_env_override("plugins.shell.default", Some("plain"), "not-json")
+            .expect("plain plugin override must mask JSON");
+        assert_eq!(
+            config.get_string("plugins.shell.default"),
+            Some("plain".to_string())
+        );
+        assert!(config.data.get("plugins.shell.default").is_none());
+    }
+
+    #[test]
+    fn test_env_json_override_invalid_json_errors() {
+        let error = load_with_env_override("packages_path", None, "[not json")
+            .expect_err("unmasked invalid JSON must not be silently ignored");
+        assert!(error.to_string().contains("REZ_PACKAGES_PATH_JSON"));
     }
 
     #[test]
