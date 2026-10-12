@@ -76,7 +76,11 @@ runtime-test:
 
 # Verify the complete SDK dependency closure before its next registry release.
 runtime-package-check:
-    vx cargo package -p rez-next-common -p rez-next-version -p rez-next-rex -p rez-next-package -p rez-next-repository -p rez-next-context -p rez-next-solver -p rez-next-runtime --locked
+    # Keep this list closed under workspace-internal dependencies: cargo resolves a
+    # path dependency locally only when that dependency is packaged in the same
+    # invocation, so a crate that is depended on but missing here is resolved from
+    # crates.io instead and fails whenever its version is not published yet.
+    vx cargo package -p rez-next-config -p rez-next-common -p rez-next-version -p rez-next-rex -p rez-next-package -p rez-next-repository -p rez-next-context -p rez-next-solver -p rez-next-runtime --locked
     vx uv run --no-project python scripts/check_runtime_package.py --metadata-only
 
 # Requires the selected core dependency versions to be public on crates.io.
