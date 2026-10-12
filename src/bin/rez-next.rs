@@ -21,7 +21,7 @@ fn main() {
         let cli = RezCli::parse();
         if let Err(e) = cli.run() {
             eprintln!("Error: {}", e);
-            process::exit(1);
+            process::exit(e.exit_code());
         }
     }
 }
@@ -58,7 +58,7 @@ fn handle_grouped_command(args: Vec<String>) {
                             arg_groups[1].clone(),
                         ) {
                             eprintln!("Error: {}", e);
-                            process::exit(1);
+                            process::exit(e.exit_code());
                         }
                         return;
                     }
@@ -79,7 +79,7 @@ fn handle_grouped_command(args: Vec<String>) {
             // Execute normally if no extra args
             if let Err(e) = cli.run() {
                 eprintln!("Error: {}", e);
-                process::exit(1);
+                process::exit(e.exit_code());
             }
         }
         Err(e) => {
