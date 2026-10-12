@@ -62,7 +62,8 @@ exhaustive: a root-reachable symbol on neither list is not covered.
 
 ### `rez-next-common`
 
-- `RezCoreError`, `RezCoreResult`, `RezCoreConfig`
+- `RezCoreError`, `RezCoreResult`, `RezCoreConfig` (the last is
+  `#[non_exhaustive]` - see [Current exemptions](#current-exemptions))
 
 ### `rez-next-version`
 
@@ -173,11 +174,17 @@ The baseline revision must be reachable locally, so `git fetch` first.
 
 ### Baseline selection
 
-No crate is published to crates.io yet, so a registry baseline is not available.
-The gate compares against a **git revision** instead: the merge base with the
-target branch on pull requests, and `HEAD~1` on pushes. Once the crates are
-published, the gate can move to registry baselines, which is the more accurate
-comparison - a git baseline also sees changes that were never released.
+The crates are published to crates.io, but the gate still compares against a
+**git revision**: the merge base with the target branch on pull requests, and
+`HEAD~1` on pushes. A git baseline also sees changes that were never released,
+so it is the stricter of the two; moving to registry baselines remains an option
+once the release cadence settles.
+
+Note that publishing and the gate interact: `just runtime-package-check` runs
+`cargo package`, which resolves internal dependencies through the crates.io
+index rather than the local path. A workspace-wide bump therefore fails on
+`Runtime SDK` until every dependency is published at the new version - see
+[When the gate fails](#when-the-gate-fails).
 
 ### When the gate fails
 
@@ -190,10 +197,32 @@ finding in one of three ways, in order of preference:
 2. **Bump the crate's minor version in the same PR** if the break is intended and
    unavoidable. Keep `.release-please-manifest.json`, the workspace, and every
    `x-release-please-version` marker in sync - the `Release Version Consistency`
-   job enforces this on every PR.
+   job enforces this on every PR. The release tooling manages a single root
+   version, so a bump moves the whole workspace.
+
+   This route is unavailable while a dependency that the bumped crate requires
+   is not yet published at the new version: `just runtime-package-check` resolves
+   internal dependencies through the crates.io index, so a bump fails there
+   until the dependency is available. Publish dependencies first, or pick
+   another route.
 3. **Narrow the lint** for a finding that only touches a non-contract leaf, using
    `[package.metadata.cargo-semver-checks.lints]` in that crate's `Cargo.toml`.
    Say so explicitly in the PR description.
+
+### Current exemptions
+
+Every exemption is recorded here so the contract never drifts silently.
+
+`rez-next-common` narrows `struct_marked_non_exhaustive` to a warning.
+`RezCoreConfig` is marked `#[non_exhaustive]` because it keeps growing: modelling
+a further upstream setting adds a field, and the attribute keeps that additive
+instead of breaking every downstream struct literal. Marking the struct is itself
+a one-off major break, which is the debt `rez-next-common` owes until its next
+minor bump; the attribute disables `constructible_struct_adds_field` permanently,
+so no exemption is needed for field growth. Construct via
+`RezCoreConfig::default()` and assign fields rather than writing a struct
+literal, and pattern matches must keep a wildcard arm. Exemptions use `warn`
+rather than `allow` so a regression stays visible in CI output.
 
 ## Changing this document
 

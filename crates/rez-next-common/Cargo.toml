@@ -19,9 +19,18 @@ serde.workspace = true
 serde_json.workspace = true
 serde_yaml.workspace = true
 thiserror.workspace = true
+rez-next-config = { version = "0.3.11", path = "../rez-next-config" } # x-release-please-version
 
 [dev-dependencies]
 tempfile = { workspace = true }
 
 [lints]
 workspace = true
+
+# RezCoreConfig is marked #[non_exhaustive] so that modelling further upstream
+# settings stays additive: the attribute disables constructible_struct_adds_field
+# permanently. Marking it is itself a one-off major break, which is the debt
+# this crate owes until the next minor bump. Downgraded to a warning rather
+# than allowed, so the debt stays visible in CI output.
+[package.metadata.cargo-semver-checks.lints]
+struct_marked_non_exhaustive = "warn"

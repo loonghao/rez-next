@@ -362,6 +362,28 @@ static REGISTRY: Lazy<Vec<KeyDef>> = Lazy::new(|| {
             deprecated: true,
             doc: "Deprecated: rez 1 compatibility is always disabled.",
         },
+        // The keys the Rust binary actually models. They were absent from the
+        // registry even though `RezCoreConfig` reads them, so validating a
+        // config against the registry flagged them as unknown.
+        key("packages_path", KeyType::PathList, Origin::Rez),
+        key("local_packages_path", KeyType::Str, Origin::Rez),
+        key("release_packages_path", KeyType::Str, Origin::Rez),
+        key("plugin_path", KeyType::PathList, Origin::Rez),
+        key("package_cache_path", KeyType::PathList, Origin::Rez),
+        key("default_shell", KeyType::Str, Origin::Rez),
+        key("tmpdir", KeyType::Str, Origin::Rez),
+        key("implicit_packages", KeyType::StrList, Origin::Rez),
+        key("parent_variables", KeyType::StrList, Origin::Rez),
+        key("default_relocatable", KeyType::Bool, Origin::Rez),
+        key("build_directory", KeyType::Str, Origin::Rez),
+        // rez-next extensions: upstream rez has no counterpart.
+        key("use_rust_version", KeyType::Bool, Origin::RezNext),
+        key("use_rust_solver", KeyType::Bool, Origin::RezNext),
+        key("use_rust_repository", KeyType::Bool, Origin::RezNext),
+        key("rust_fallback", KeyType::Bool, Origin::RezNext),
+        key("thread_count", KeyType::OptionalStr, Origin::RezNext),
+        key("cache", KeyType::Dict, Origin::RezNext),
+        key("version", KeyType::Str, Origin::RezNext),
     ]
 });
 
@@ -431,6 +453,80 @@ mod tests {
             assert!(
                 find(name).is_some(),
                 "divergent key {name} must be registered"
+            );
+        }
+    }
+
+    /// The keys `RezCoreConfig` models and therefore reads from a config file.
+    ///
+    /// If the struct gains a field that is not registered here, validating a
+    /// config against the registry reports a key the binary understands as
+    /// unknown — a false positive that would make the warning useless. This
+    /// keeps the two sides in step.
+    const BINARY_CONFIG_KEYS: &[&str] = &[
+        "packages_path",
+        "local_packages_path",
+        "release_packages_path",
+        "plugin_path",
+        "package_cache_path",
+        "default_shell",
+        "tmpdir",
+        "editor",
+        "image_viewer",
+        "browser",
+        "difftool",
+        "terminal_emulator_command",
+        "implicit_packages",
+        "parent_variables",
+        "resetting_variables",
+        "env_var_separators",
+        "platform_map",
+        "default_relocatable",
+        "build_directory",
+        "context_tmpdir",
+        "use_rust_version",
+        "use_rust_solver",
+        "use_rust_repository",
+        "rust_fallback",
+        "thread_count",
+        "cache",
+        "version",
+    ];
+
+    #[test]
+    fn test_every_binary_config_key_is_registered() {
+        for name in BINARY_CONFIG_KEYS {
+            assert!(
+                find(name).is_some(),
+                "binary config key {name} must be registered, or config \
+                 validation will flag it as unknown"
+            );
+        }
+    }
+
+    #[test]
+    fn test_binary_keys_that_rez_defines_are_labelled_rez() {
+        for name in [
+            "packages_path",
+            "local_packages_path",
+            "release_packages_path",
+            "plugin_path",
+            "package_cache_path",
+            "default_shell",
+            "tmpdir",
+            "implicit_packages",
+            "parent_variables",
+            "resetting_variables",
+            "env_var_separators",
+            "platform_map",
+            "default_relocatable",
+            "build_directory",
+            "context_tmpdir",
+        ] {
+            assert_eq!(
+                find(name).unwrap().origin,
+                Origin::Rez,
+                "{name} is an upstream rez key and must not be labelled an extension"
             );
         }
     }

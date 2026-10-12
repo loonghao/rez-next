@@ -3023,6 +3023,7 @@ dependencies = [
 name = "rez-next-common"
 version = "0.3.11"
 dependencies = [
+ "rez-next-config",
  "serde",
  "serde_json",
  "serde_yaml",
