@@ -349,14 +349,18 @@ jobs:
             exit 1
           fi
 
+          # Dependency order: a crate must appear after every workspace crate it
+          # depends on, otherwise `cargo publish` resolves its dependency from
+          # crates.io before that version exists there. Keep this list in
+          # topological order when adding or renaming workspace crates.
           packages=(
+            rez-next-config
             rez-next-common
             rez-next-version
             rez-next-package
             rez-next-rex
             rez-next-cache
             rez-next-util
-            rez-next-config
             rez-next-serialise
             rez-next-bind
             rez-next-package-cache
