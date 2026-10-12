@@ -166,7 +166,7 @@ class TestConfigInstance:
     def test_config_get_packages_path(self):
         result = rez_config_singleton.get("packages_path")
         assert isinstance(result, list)
-        assert "~/packages" in result
+        assert os.path.expanduser("~/packages") in result
 
     def test_config_get_caching(self):
         assert rez_config_singleton.get("resolve_caching") is True
@@ -192,7 +192,7 @@ class TestModuleLevelGet:
 
         result = get("packages_path")
         assert isinstance(result, list)
-        assert "~/packages" in result
+        assert os.path.expanduser("~/packages") in result
 
 
 if __name__ == "__main__":

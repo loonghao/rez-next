@@ -25,7 +25,7 @@ import os
 import re
 import sys as _sys
 from contextlib import contextmanager
-from functools import cache, lru_cache
+from functools import cached_property, lru_cache
 from inspect import ismodule
 from typing import TYPE_CHECKING, Any, TypeVar
 
@@ -1077,6 +1077,10 @@ def _load_config_py(filepath):
         __file__=filepath,
     )
     g = reserved.copy()
+    if os.path.abspath(filepath) == get_module_root_config():
+        # The bundled defaults module imports Config relatively. User config
+        # files remain standalone scripts, matching upstream Rez.
+        g["__package__"] = __package__
     with open(filepath) as f:
         try:
             code = compile(f.read(), filepath, "exec")
@@ -1084,7 +1088,9 @@ def _load_config_py(filepath):
         except Exception as e:
             raise ConfigurationError(f"Error loading config from {filepath}: {str(e)}")
     return {
-        k: v for k, v in g.items() if k != "__builtins__" and not ismodule(v) and k not in reserved
+        k: v
+        for k, v in g.items()
+        if k not in ("__builtins__", "__package__") and not ismodule(v) and k not in reserved
     }
 
 
@@ -1158,7 +1164,7 @@ class Config:
             pass
 
     def __init__(self, filepaths=None, overrides=None, locked=False):
-        self.filepaths = filepaths or []
+        self.filepaths = [get_module_root_config()] if filepaths is None else list(filepaths)
         self._sourced_filepaths = None
         self.overrides = overrides or {}
         self.locked = locked
@@ -1189,6 +1195,12 @@ class Config:
         raise AttributeError(f"No such config setting: {key!r}")
 
     def get(self, key, default=None):
+        # Explicit filepaths/overrides belong to this Config instance. A
+        # separately loaded native global config must not shadow their values.
+        try:
+            return getattr(self, key)
+        except AttributeError:
+            pass
         if self._native_cfg is not None:
             try:
                 if self._native_cfg.contains_key(key):
@@ -1198,15 +1210,11 @@ class Config:
                         self._native_cfg.get_float,
                         self._native_cfg.get_bool,
                     ):
-                        r = getter(key)
-                        if r is not None:
-                            return r
+                        result = getter(key)
+                        if result is not None:
+                            return result
             except Exception:
                 pass
-        try:
-            return getattr(self, key)
-        except (AttributeError, Exception):
-            pass
         return default
 
     def warn(self, key):
@@ -1231,7 +1239,7 @@ class Config:
         _ = self._data
         return self._sourced_filepaths or []
 
-    @property
+    @cached_property
     def plugins(self):
         return _PluginConfigs(self._data.get("plugins", {}))
 
@@ -1301,22 +1309,23 @@ class Config:
         return []
 
     def _uncache(self, key=None):
-        if key and hasattr(self, key):
-            delattr(self, key)
-        if hasattr(self, "_data"):
-            delattr(self, "_data")
-        if hasattr(self, "plugins"):
-            delattr(self, "plugins")
+        # Values are cached as instance attributes by __getattr__.  A copy
+        # with new overrides must invalidate every previously read setting.
+        keys = [key] if key is not None else self.schema
+        for setting in keys:
+            self.__dict__.pop(setting, None)
+        self.__dict__.pop("_data", None)
+        self.__dict__.pop("plugins", None)
 
     def _swap(self, other):
         self.__dict__, other.__dict__ = other.__dict__, self.__dict__
 
-    @cache
+    @cached_property
     def _data_without_overrides(self):
         data, self._sourced_filepaths = _load_config_from_filepaths(self.filepaths)
         return data
 
-    @property
+    @cached_property
     def _data(self):
         data = copy.deepcopy(self._data_without_overrides)
         deep_update(data, self.overrides)
@@ -1406,9 +1415,9 @@ class _PluginConfigs:
             del self.__dict__[ks[0]]
 
     def data(self):
-        d = self.__dict__.copy()
-        del d["_data"]
-        return d
+        # Reading a configuration must not depend on which plugin attributes
+        # happened to have been accessed beforehand.
+        return copy.deepcopy(self.__dict__["_data"])
 
     def __str__(self):
         return "{!r}".format(sorted(self.__dict__["_data"].keys()))

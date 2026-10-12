@@ -60,7 +60,7 @@ from . import (
     system,  # noqa: F401  — module (rez.system API: from rez.system import system)
     wrapper,  # noqa: F401
 )
-from .config import Config  # noqa: F401
+from .config import Config, config  # noqa: F401
 from .exceptions import *  # noqa: F401,F403
 
 # Package maker — programmatic package creation
@@ -170,7 +170,6 @@ if _action:
 action: str | None = _action
 
 # Top-level singletons — compatible with `from rez import config`
-config = Config()
 config.Config = Config
 
 # Aliases for API compatibility with original rez

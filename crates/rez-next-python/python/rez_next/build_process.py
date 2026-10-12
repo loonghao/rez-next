@@ -4,9 +4,9 @@ build_process - Build and release process framework.
 Provides the abstract base classes and factory functions
 for managing package build and release workflows.
 
-This module is a pure Python implementation aligned with rez's
-build_process.py API, without deprecated parameters or legacy
-compatibility code.
+This module is a pure Python implementation of a curated subset of rez's
+build_process.py API. The factory accepts Rez's deprecated arguments so
+callers can retain the upstream call signature.
 """
 
 import abc
@@ -406,7 +406,9 @@ def get_build_process_types():
 
 def create_build_process(
     process_type: str,
+    working_dir: str = "",
     build_system: Any = None,
+    package: Any = None,
     vcs: Any = None,
     ensure_latest: bool = True,
     skip_repo_errors: bool = False,
@@ -420,6 +422,8 @@ def create_build_process(
 
     Args:
         process_type: Name of the build process implementation.
+        working_dir: Accepted for compatibility with Rez 3.4.0.
+        package: Accepted for compatibility; build_system owns the package.
         build_system: BuildSystem instance used to build the package.
         vcs: ReleaseVCS for release process.
         ensure_latest: If True, do not allow release if newer version exists.
@@ -435,6 +439,7 @@ def create_build_process(
             f"Unknown build process type: {process_type!r}. Available: {list(types.keys())}"
         )
     return cls(
+        working_dir=working_dir,
         build_system=build_system,
         vcs=vcs,
         ensure_latest=ensure_latest,
