@@ -43,6 +43,7 @@
         {"type": "perf", "section": "⚡ Performance", "hidden": false},
         {"type": "deps", "section": "📦 Dependencies", "hidden": false},
         {"type": "docs", "section": "📚 Documentation", "hidden": false},
+        {"type": "config", "section": "⚙️ Configuration", "hidden": false},
         {"type": "chore", "section": "🔧 Miscellaneous", "hidden": true},
         {"type": "ci", "section": "👷 CI", "hidden": true},
         {"type": "test", "section": "✅ Tests", "hidden": true},
