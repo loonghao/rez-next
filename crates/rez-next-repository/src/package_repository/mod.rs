@@ -7,6 +7,7 @@
 
 // ── Submodules ──────────────────────────────────────────────────────────────────
 pub mod filesystem;
+pub mod spec;
 
 // ── Re-exports ──────────────────────────────────────────────────────────────────
 pub use filesystem::FILESYSTEM_REPO_TYPE;
