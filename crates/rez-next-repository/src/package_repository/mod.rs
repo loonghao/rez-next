@@ -6,7 +6,9 @@
 //! All custom package repository plugins must implement this trait.
 
 // ── Submodules ──────────────────────────────────────────────────────────────────
+pub mod bridge;
 pub mod filesystem;
+pub mod spec;
 
 // ── Re-exports ──────────────────────────────────────────────────────────────────
 pub use filesystem::FILESYSTEM_REPO_TYPE;
