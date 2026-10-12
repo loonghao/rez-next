@@ -19,6 +19,7 @@ serde.workspace = true
 serde_json.workspace = true
 serde_yaml.workspace = true
 thiserror.workspace = true
+rez-next-config = { version = "0.3.11", path = "../rez-next-config" } # x-release-please-version
 
 [dev-dependencies]
 tempfile = { workspace = true }

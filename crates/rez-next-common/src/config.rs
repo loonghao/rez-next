@@ -2,6 +2,7 @@
 
 use crate::error::RezCoreError;
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 use std::env;
 use std::path::PathBuf;
 
@@ -70,6 +71,33 @@ pub struct RezCoreConfig {
 
     /// Terminal type
     pub terminal_emulator_command: String,
+
+    /// Packages implicitly added to every resolve (`implicit_packages`)
+    pub implicit_packages: Vec<String>,
+
+    /// Environment variables treated as path-like and joined rather than
+    /// replaced (`parent_variables`)
+    pub parent_variables: Vec<String>,
+
+    /// Environment variables replaced rather than appended to
+    /// (`resetting_variables`)
+    pub resetting_variables: Vec<String>,
+
+    /// Per-variable separator used when appending to a parent variable
+    /// (`env_var_separators`)
+    pub env_var_separators: BTreeMap<String, String>,
+
+    /// Platform name overrides (`platform_map`)
+    pub platform_map: BTreeMap<String, String>,
+
+    /// Whether newly built packages are relocatable (`default_relocatable`)
+    pub default_relocatable: bool,
+
+    /// Directory packages are built in (`build_directory`)
+    pub build_directory: String,
+
+    /// Directory contexts are written to (`context_tmpdir`)
+    pub context_tmpdir: String,
 }
 
 /// Nested keys accepted by [`CacheConfig`], used to reject unknown overrides
@@ -136,8 +164,31 @@ impl Default for RezCoreConfig {
                 "xterm"
             }
             .to_string(),
+            // Upstream rez 3.4.0 defaults for the settings that were inert.
+            implicit_packages: vec![],
+            parent_variables: vec![],
+            resetting_variables: vec![],
+            env_var_separators: default_env_var_separators(),
+            platform_map: BTreeMap::new(),
+            default_relocatable: false,
+            build_directory: "build".to_string(),
+            context_tmpdir: String::new(),
         }
     }
+}
+
+/// rez 3.4.0's `env_var_separators` default.
+///
+/// `PATH`-style variables join with the platform path separator; `PYTHONPATH`
+/// is a rez addition that upstream also declares.
+fn default_env_var_separators() -> BTreeMap<String, String> {
+    let separator = path_list_separator().to_string();
+    BTreeMap::from([
+        ("PATH".to_string(), separator.clone()),
+        ("LD_LIBRARY_PATH".to_string(), separator.clone()),
+        ("DYLD_LIBRARY_PATH".to_string(), separator.clone()),
+        ("PYTHONPATH".to_string(), separator),
+    ])
 }
 
 impl Default for CacheConfig {
@@ -215,6 +266,26 @@ impl RezCoreConfig {
             .collect()
     }
 
+    /// Report configuration keys that rez-next does not know about.
+    ///
+    /// The Rust binary previously accepted a config file, deserialized only the
+    /// 19 fields it models, and dropped every other key without a word — so a
+    /// studio migrating an upstream `rezconfig.py` saw most of it silently
+    /// ignored. Validating against the shared key registry turns that silence
+    /// into a warning that names the key.
+    ///
+    /// Unknown keys are reported but never fatal: a key rez-next has yet to
+    /// implement should degrade to a warning, not break the whole config.
+    fn warn_unknown_keys(merged: &serde_json::Map<String, serde_json::Value>) {
+        for key in merged.keys() {
+            if rez_next_config::keys::find(key).is_none() {
+                eprintln!(
+                    "rez-next: ignoring unknown config key {key:?} (not in the key registry)"
+                );
+            }
+        }
+    }
+
     /// Load configuration from files, reporting any parse failure.
     ///
     /// Configuration layers are applied in [`Self::get_search_paths`] order and
@@ -238,6 +309,8 @@ impl RezCoreConfig {
             let layer = parse_config_layer(&path, &content)?;
             deep_merge_json_object(&mut merged, layer);
         }
+
+        Self::warn_unknown_keys(&merged);
 
         let mut config: Self = serde_json::from_value(serde_json::Value::Object(merged))?;
         config.apply_env_overrides_and_report();
@@ -362,6 +435,15 @@ impl RezCoreConfig {
             "browser" => assign(&mut self.browser, &value),
             "difftool" => assign(&mut self.difftool, &value),
             "terminal_emulator_command" => assign(&mut self.terminal_emulator_command, &value),
+            // Settings that were declared but never read; now overridable too.
+            "implicit_packages" => assign_path_list(&mut self.implicit_packages, &value),
+            "parent_variables" => assign_path_list(&mut self.parent_variables, &value),
+            "resetting_variables" => assign_path_list(&mut self.resetting_variables, &value),
+            "env_var_separators" => assign(&mut self.env_var_separators, &value),
+            "platform_map" => assign(&mut self.platform_map, &value),
+            "default_relocatable" => assign(&mut self.default_relocatable, &value),
+            "build_directory" => assign(&mut self.build_directory, &value),
+            "context_tmpdir" => assign(&mut self.context_tmpdir, &value),
             // Nested cache.* keys: merge into the existing cache so sibling
             // keys set by a config file survive a partial env object.
             "cache" => assign_cache(&mut self.cache, &value),
@@ -471,12 +553,18 @@ fn value_kind_name(value: &serde_json::Value) -> &'static str {
 /// the platform path separator; everything else stays a string.
 fn coerce_env_value(key: &str, raw: &str) -> serde_json::Value {
     match key {
-        "packages_path" | "plugin_path" | "package_cache_path" => serde_json::Value::Array(
+        "packages_path"
+        | "plugin_path"
+        | "package_cache_path"
+        | "implicit_packages"
+        | "parent_variables"
+        | "resetting_variables" => serde_json::Value::Array(
             split_env_paths(raw)
                 .into_iter()
                 .map(serde_json::Value::String)
                 .collect(),
         ),
+        "default_relocatable" => parse_env_bool(raw),
         "use_rust_version" | "use_rust_solver" | "use_rust_repository" | "rust_fallback" => {
             parse_env_bool(raw)
         }
@@ -992,6 +1080,117 @@ mod tests {
                 r"D:\local\packages".to_string()
             ]
         );
+    }
+
+    #[test]
+    fn test_registry_backed_keys_are_accepted_not_dropped() {
+        // Regression for #368: keys that rez defines and the registry knows
+        // used to be deserialized away silently, so a migrated rezconfig.py
+        // appeared to load while most of it was discarded.
+        let dir = tempfile::tempdir().expect("tempdir");
+        let file = write_config(
+            dir.path(),
+            "rezconfig.yaml",
+            "implicit_packages:\n  - python\n\
+             parent_variables:\n  - PYTHONPATH\n\
+             resetting_variables:\n  - REZ_USED\n\
+             default_relocatable: true\n\
+             build_directory: _build\n\
+             context_tmpdir: /tmp/ctx\n\
+             platform_map:\n  centos: linux\n\
+             env_var_separators:\n  MYVAR: \";\"\n",
+        );
+
+        with_config_files(&[&file], || {
+            let cfg = RezCoreConfig::try_load().expect("registry-backed config must load");
+            assert_eq!(cfg.implicit_packages, vec!["python".to_string()]);
+            assert_eq!(cfg.parent_variables, vec!["PYTHONPATH".to_string()]);
+            assert_eq!(cfg.resetting_variables, vec!["REZ_USED".to_string()]);
+            assert!(cfg.default_relocatable);
+            assert_eq!(cfg.build_directory, "_build");
+            assert_eq!(cfg.context_tmpdir, "/tmp/ctx");
+            assert_eq!(
+                cfg.platform_map.get("centos").map(String::as_str),
+                Some("linux")
+            );
+            assert_eq!(
+                cfg.env_var_separators.get("MYVAR").map(String::as_str),
+                Some(";")
+            );
+        });
+    }
+
+    #[test]
+    fn test_previously_inert_settings_have_upstream_defaults() {
+        let cfg = RezCoreConfig::default();
+        assert!(cfg.implicit_packages.is_empty());
+        assert!(cfg.parent_variables.is_empty());
+        assert!(cfg.resetting_variables.is_empty());
+        assert!(cfg.platform_map.is_empty());
+        assert!(!cfg.default_relocatable);
+        assert_eq!(cfg.build_directory, "build");
+        assert!(cfg.context_tmpdir.is_empty());
+
+        // rez 3.4.0 declares these separators by default.
+        let expected = path_list_separator().to_string();
+        for var in ["PATH", "LD_LIBRARY_PATH", "DYLD_LIBRARY_PATH", "PYTHONPATH"] {
+            assert_eq!(
+                cfg.env_var_separators.get(var).map(String::as_str),
+                Some(expected.as_str()),
+                "{var} must join with the platform path separator"
+            );
+        }
+    }
+
+    #[test]
+    fn test_env_overrides_apply_to_previously_inert_settings() {
+        let _guard = env_lock();
+
+        // SAFETY: guarded by ENV_LOCK; removed before the guard drops.
+        unsafe {
+            env::set_var("REZ_IMPLICIT_PACKAGES", "python;maya");
+            env::set_var("REZ_DEFAULT_RELOCATABLE", "1");
+            env::set_var("REZ_BUILD_DIRECTORY", "_builddir");
+        }
+        let cfg = RezCoreConfig::load();
+        unsafe {
+            env::remove_var("REZ_IMPLICIT_PACKAGES");
+            env::remove_var("REZ_DEFAULT_RELOCATABLE");
+            env::remove_var("REZ_BUILD_DIRECTORY");
+        }
+
+        assert_eq!(cfg.implicit_packages.len(), 2);
+        assert!(cfg.default_relocatable);
+        assert_eq!(cfg.build_directory, "_builddir");
+    }
+
+    #[test]
+    fn test_env_var_separators_accept_json_object() {
+        let _guard = env_lock();
+
+        // SAFETY: guarded by ENV_LOCK.
+        unsafe { env::set_var("REZ_ENV_VAR_SEPARATORS_JSON", r#"{"MYVAR": "|"}"#) };
+        let cfg = RezCoreConfig::load();
+        unsafe { env::remove_var("REZ_ENV_VAR_SEPARATORS_JSON") };
+
+        assert_eq!(
+            cfg.env_var_separators.get("MYVAR").map(String::as_str),
+            Some("|")
+        );
+    }
+
+    #[test]
+    fn test_unknown_key_is_reported_not_silently_dropped() {
+        // The registry is the shared contract: a key neither rez nor rez-next
+        // defines must not vanish without a word.
+        let dir = tempfile::tempdir().expect("tempdir");
+        let file = write_config(dir.path(), "c.yaml", "totally_made_up_key: 1\n");
+
+        with_config_files(&[&file], || {
+            // Unknown keys warn but never fail the load.
+            let cfg = RezCoreConfig::try_load().expect("unknown key must not be fatal");
+            assert!(!cfg.packages_path.is_empty());
+        });
     }
 
     #[test]
