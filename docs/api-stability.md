@@ -234,11 +234,19 @@ visible alongside the exemptions above.
   without a version bump, so a consumer running `cargo update` would receive it
   silently. Tracked separately; the bump must land before the next release that
   includes `rez-next-common`.
-- **String-list settings are not path lists.** `implicit_packages`,
-  `parent_variables` and `resetting_variables` are registered as `KeyType::StrList`
-  and are assigned with `assign_str_list`, which keeps a bare string as a single
-  element. Do not route them through `assign_path_list`: that splits on
-  `os.pathsep`, which breaks package requests containing `:`.
+- **String-list settings are not path lists, on either input channel.**
+  `implicit_packages`, `parent_variables` and `resetting_variables` are
+  registered as `KeyType::StrList`. Upstream rez separates `StrList` values with
+  a comma; only `PathList` splits on `os.pathsep`. Two code paths must both
+  honour this:
+  - config-file values go through `assign_str_list`, which keeps a bare string
+    as a single element;
+  - plain `REZ_*` environment values are coerced by `coerce_env_value` before
+    any assignment helper sees them, and use `split_env_str_list` (comma).
+    Coercing them with `split_env_paths` would break package requests
+    containing `:` on unix.
+
+  A fix applied to only one of the two leaves the other reachable route broken.
 - **Upstream default values are asserted against an independent snapshot.** The
   alignment test transcribes rez 3.4.0's defaults separately from `rez_default`
   so the two are compared, not merely restated. Extending `rez_default` means

@@ -501,6 +501,21 @@ fn split_env_paths(paths: &str) -> Vec<String> {
         .collect()
 }
 
+/// Split a plain environment value for a rez `StrList` setting.
+///
+/// Upstream rez separates `StrList` values with a comma; only `PathList` splits
+/// on `os.pathsep`. Splitting these on the path separator would break any
+/// element containing `:` on unix, so this follows the upstream rule instead.
+#[must_use]
+pub fn split_env_str_list(value: &str) -> Vec<String> {
+    value
+        .split(',')
+        .map(str::trim)
+        .filter(|entry| !entry.is_empty())
+        .map(ToString::to_string)
+        .collect()
+}
+
 /// Platform path-list separator, matching rez's use of `os.pathsep`.
 #[must_use]
 pub const fn path_list_separator() -> char {
@@ -576,17 +591,23 @@ fn value_kind_name(value: &serde_json::Value) -> &'static str {
 /// the platform path separator; everything else stays a string.
 fn coerce_env_value(key: &str, raw: &str) -> serde_json::Value {
     match key {
-        "packages_path"
-        | "plugin_path"
-        | "package_cache_path"
-        | "implicit_packages"
-        | "parent_variables"
-        | "resetting_variables" => serde_json::Value::Array(
+        "packages_path" | "plugin_path" | "package_cache_path" => serde_json::Value::Array(
             split_env_paths(raw)
                 .into_iter()
                 .map(serde_json::Value::String)
                 .collect(),
         ),
+        // These are rez's `StrList`, not `PathList`: upstream separates them
+        // with a comma, and only `PathList` splits on `os.pathsep`. Package
+        // requests may contain `:`, which path splitting would break apart.
+        "implicit_packages" | "parent_variables" | "resetting_variables" => {
+            serde_json::Value::Array(
+                split_env_str_list(raw)
+                    .into_iter()
+                    .map(serde_json::Value::String)
+                    .collect(),
+            )
+        }
         "default_relocatable" => parse_env_bool(raw),
         "use_rust_version" | "use_rust_solver" | "use_rust_repository" | "rust_fallback" => {
             parse_env_bool(raw)
@@ -1119,13 +1140,12 @@ mod tests {
 
     /// `implicit_packages`, `parent_variables` and `resetting_variables` are
     /// registered as `StrList`, not path lists, so a bare string must stay a
-    /// single element. Implicit-package requests can contain `:`, which
-    /// `split_env_paths` would break apart on unix.
-    /// `implicit_packages`, `parent_variables` and `resetting_variables` are
-    /// registered as `StrList`, not path lists, so a bare string must stay a
-    /// single element. Package requests can contain `:`, which
-    /// `split_env_paths` breaks apart on unix. The token below is chosen to
-    /// carry a colon so this test discriminates on every platform.
+    /// single element.
+    ///
+    /// The token carries both separators on purpose. `split_env_paths` splits on
+    /// `;`, which only Windows uses; it splits on `:`, which only unix uses. A
+    /// token containing just one of them is invisible to the other platform's
+    /// lane, so this test would go green on Windows even with the bug present.
     #[test]
     fn test_str_list_settings_are_not_path_split() {
         for (key, field) in [
@@ -1134,7 +1154,7 @@ mod tests {
             ("resetting_variables", "resetting_variables"),
         ] {
             let mut cfg = RezCoreConfig::new();
-            cfg.apply_env_field(key, serde_json::json!("python:3.9"))
+            cfg.apply_env_field(key, serde_json::json!("python:3.9;maya"))
                 .unwrap_or_else(|e| panic!("{key} must accept a string list ({e})"));
 
             let value = match field {
@@ -1144,10 +1164,46 @@ mod tests {
             };
             assert_eq!(
                 value,
-                &vec!["python:3.9".to_string()],
-                "{key} must keep the colon-bearing request as one element"
+                &vec!["python:3.9;maya".to_string()],
+                "{key} must keep the whole request as one element"
             );
         }
+    }
+
+    /// The environment channel is a separate code path from config files: plain
+    /// `REZ_*` values are coerced before `assign_str_list` ever sees them, so a
+    /// fix confined to the assignment helper leaves this reachable route broken.
+    #[test]
+    fn test_env_str_list_uses_comma_not_path_separator() {
+        let _guard = env_lock();
+
+        // SAFETY: guarded by ENV_LOCK; removed before the guard drops.
+        unsafe {
+            env::set_var("REZ_IMPLICIT_PACKAGES", "python:3.9,maya-2024");
+        }
+        let cfg = RezCoreConfig::load();
+        unsafe {
+            env::remove_var("REZ_IMPLICIT_PACKAGES");
+        }
+
+        // Upstream rez separates `StrList` with a comma, so the colon and the
+        // package name stay together in one element.
+        assert_eq!(
+            cfg.implicit_packages,
+            vec!["python:3.9".to_string(), "maya-2024".to_string()]
+        );
+    }
+
+    #[test]
+    fn test_env_str_list_single_value_is_not_split() {
+        let _guard = env_lock();
+
+        // SAFETY: guarded by ENV_LOCK; removed before the guard drops.
+        unsafe { env::set_var("REZ_IMPLICIT_PACKAGES", "~os=={system.os}") };
+        let cfg = RezCoreConfig::load();
+        unsafe { env::remove_var("REZ_IMPLICIT_PACKAGES") };
+
+        assert_eq!(cfg.implicit_packages, vec!["~os=={system.os}".to_string()]);
     }
 
     #[test]
@@ -1170,6 +1226,26 @@ mod tests {
         let separator = if cfg!(windows) { ';' } else { ':' };
         let result = split_env_paths(&format!("first{separator}second"));
         assert_eq!(result, vec!["first".to_string(), "second".to_string()]);
+    }
+
+    /// Upstream rez's `StrList` separates on a comma, and only `PathList` splits
+    /// on `os.pathsep`. Neither separator may appear here, on any platform.
+    #[test]
+    fn test_split_env_str_list_uses_comma_only() {
+        assert_eq!(
+            split_env_str_list("python:3.9,maya-2024"),
+            vec!["python:3.9".to_string(), "maya-2024".to_string()]
+        );
+        assert_eq!(
+            split_env_str_list("first;second"),
+            vec!["first;second".to_string()],
+            "semicolons are not a StrList separator, even on unix"
+        );
+        assert_eq!(
+            split_env_str_list("~os=={system.os}"),
+            vec!["~os=={system.os}".to_string()]
+        );
+        assert!(split_env_str_list(" , , ").is_empty());
     }
 
     #[cfg(windows)]
@@ -1259,11 +1335,11 @@ mod tests {
     fn test_env_overrides_apply_to_previously_inert_settings() {
         let _guard = env_lock();
 
-        // Path lists split on `os.pathsep`, which differs per platform.
-        let separator = path_list_separator();
+        // `implicit_packages` is a rez `StrList`, which upstream separates with
+        // a comma; only `PathList` splits on `os.pathsep`.
         // SAFETY: guarded by ENV_LOCK; removed before the guard drops.
         unsafe {
-            env::set_var("REZ_IMPLICIT_PACKAGES", format!("python{separator}maya"));
+            env::set_var("REZ_IMPLICIT_PACKAGES", "python,maya");
             env::set_var("REZ_DEFAULT_RELOCATABLE", "1");
             env::set_var("REZ_BUILD_DIRECTORY", "_builddir");
         }
@@ -1319,10 +1395,11 @@ mod tests {
         merged.insert("another_unknown".to_string(), serde_json::json!(2));
 
         let mut unknown = RezCoreConfig::unknown_keys(&merged);
-        // The report order follows the merged map's iteration order, which is
-        // an implementation detail of the underlying map. Sort before asserting
-        // so the test checks *which* keys are reported, not how they happen to
-        // be ordered.
+        // The report order follows the merged map's iteration order. That is
+        // already sorted today because `serde_json::Map` is a `BTreeMap`, so
+        // this sort is currently a no-op; it is kept so the assertion states
+        // that it checks *which* keys are reported and stays correct if the map
+        // ever stops preserving insertion or key order.
         unknown.sort();
 
         assert_eq!(
