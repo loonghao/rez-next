@@ -11,8 +11,12 @@ use std::path::PathBuf;
 /// `#[serde(default)]` at container level is required: without it a user config
 /// file that declares only a subset of keys fails to deserialize and is skipped,
 /// silently discarding every setting the user actually wrote.
+/// Not exhaustively constructible: modelling a new upstream setting adds a
+/// field, and external struct literals would break on every addition.
+/// Construct via [`RezCoreConfig::default`] and assign fields instead.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
+#[non_exhaustive]
 #[allow(clippy::struct_excessive_bools)]
 pub struct RezCoreConfig {
     /// Enable Rust version system

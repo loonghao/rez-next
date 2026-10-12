@@ -39,10 +39,8 @@ fn test_config_release_packages_path_is_string() {
 /// rez.config: packages_path can be overridden by direct field assignment
 #[test]
 fn test_config_override_packages_path_direct() {
-    let cfg = RezCoreConfig {
-        packages_path: vec!["/tmp/pkgs".to_string(), "/opt/pkgs".to_string()],
-        ..RezCoreConfig::default()
-    };
+    let mut cfg = RezCoreConfig::default();
+    cfg.packages_path = vec!["/tmp/pkgs".to_string(), "/opt/pkgs".to_string()];
     assert_eq!(
         cfg.packages_path.len(),
         2,

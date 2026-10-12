@@ -1,6 +1,6 @@
 [package]
 name = "rez-next-common"
-version = "0.3.11" # x-release-please-version
+version = "0.4.0" # x-release-please-version
 edition.workspace = true
 rust-version.workspace = true
 authors.workspace = true
@@ -19,18 +19,10 @@ serde.workspace = true
 serde_json.workspace = true
 serde_yaml.workspace = true
 thiserror.workspace = true
-rez-next-config = { version = "0.3.11", path = "../rez-next-config" } # x-release-please-version
+rez-next-config = { version = "0.4.0", path = "../rez-next-config" } # x-release-please-version
 
 [dev-dependencies]
 tempfile = { workspace = true }
 
 [lints]
 workspace = true
-
-# RezCoreConfig grows a field whenever an upstream setting is modelled, which is
-# the point of the config work. Flagging each addition as a major break would
-# make the SemVer contract unusable for this type, so the lint is downgraded to
-# a warning rather than allowed: real regressions stay visible in CI output.
-# Callers should construct via RezCoreConfig::default() and assign fields.
-[package.metadata.cargo-semver-checks.lints]
-constructible_struct_adds_field = "warn"
