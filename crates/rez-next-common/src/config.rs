@@ -1146,9 +1146,11 @@ mod tests {
     fn test_env_overrides_apply_to_previously_inert_settings() {
         let _guard = env_lock();
 
+        // Path lists split on `os.pathsep`, which differs per platform.
+        let separator = path_list_separator();
         // SAFETY: guarded by ENV_LOCK; removed before the guard drops.
         unsafe {
-            env::set_var("REZ_IMPLICIT_PACKAGES", "python;maya");
+            env::set_var("REZ_IMPLICIT_PACKAGES", format!("python{separator}maya"));
             env::set_var("REZ_DEFAULT_RELOCATABLE", "1");
             env::set_var("REZ_BUILD_DIRECTORY", "_builddir");
         }
@@ -1159,7 +1161,7 @@ mod tests {
             env::remove_var("REZ_BUILD_DIRECTORY");
         }
 
-        assert_eq!(cfg.implicit_packages.len(), 2);
+        assert_eq!(cfg.implicit_packages, vec!["python", "maya"]);
         assert!(cfg.default_relocatable);
         assert_eq!(cfg.build_directory, "_builddir");
     }
