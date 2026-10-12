@@ -34,6 +34,8 @@ repository miss:
   supported.
 - The pure-Python `Resolver` does not provide a solve cache until safe
   repository invalidation is implemented.
+- CLI build script generation (`--scripts`) is not yet supported. The command
+  fails before loading sources, executing a builder, or installing files.
 - CLI release currently supports Git. Mercurial and SVN are available through
   the lower-level VCS library but are not part of the CLI release contract.
 - Advanced copy options such as variant selection, destination renaming,

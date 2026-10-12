@@ -54,7 +54,7 @@ pub struct BuildArgs {
     #[arg(long = "fail-graph")]
     pub fail_graph: bool,
 
-    /// Create build scripts rather than performing the full build
+    /// Request build scripts (currently unsupported; never runs a build)
     #[arg(short = 's', long = "scripts")]
     pub scripts: bool,
 
@@ -147,6 +147,14 @@ impl BuildOutputMode {
 
 /// Execute the build command
 pub fn execute(args: BuildArgs) -> RezCoreResult<()> {
+    // --scripts requests script generation, never a build. Until generation
+    // is implemented, reject it before loading sources or starting side effects.
+    if args.scripts {
+        return Err(RezCoreError::BuildError(
+            "Generating build environment scripts (--scripts) is not yet supported".to_string(),
+        ));
+    }
+
     // Determine source directory first
     let (source_dir, package) = if let Some(ref source_url) = args.source {
         // Network or remote source
