@@ -67,6 +67,28 @@ package_creation/package_with_version
 
         self.assertEqual(suite.regressions, ["example"])
 
+    def test_duplicate_ids_from_separate_runs_are_rejected(self) -> None:
+        with self.assertRaisesRegex(ValueError, "Duplicate Criterion benchmark ID"):
+            parse([
+                "package_creation/simple time: [1.0 ns 2.0 ns 3.0 ns]",
+                "package_creation/simple",
+                "                        time: [2.0 ns 3.0 ns 4.0 ns]",
+                "                        Performance has regressed.",
+            ])
+
+    def test_duplicate_ids_fail_cli_without_emitting_partial_json(self) -> None:
+        text = "example time: [1.0 ns 2.0 ns 3.0 ns]\n" * 2
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        with (
+            patch("sys.stdin", io.StringIO(text)),
+            redirect_stdout(stdout),
+            redirect_stderr(stderr),
+        ):
+            self.assertEqual(main([]), 2)
+        self.assertEqual(stdout.getvalue(), "")
+        self.assertIn("Duplicate Criterion benchmark ID", stderr.getvalue())
+
     def test_cli_only_fails_on_regression_when_requested(self) -> None:
         benchmark_output = """example time: [1.0 ns 2.0 ns 3.0 ns]
 Performance has regressed.

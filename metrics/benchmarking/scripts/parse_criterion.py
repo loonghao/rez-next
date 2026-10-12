@@ -20,7 +20,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
-
 # Criterion output line patterns. Grouped benchmarks print their name and timing
 # interval on separate lines, while standalone benchmarks use a single line.
 _TIME_INTERVAL = (
@@ -98,6 +97,7 @@ class BenchSuite:
 
 def parse(lines: list[str]) -> BenchSuite:
     suite = BenchSuite()
+    seen_names: set[str] = set()
     pending: Optional[BenchResult] = None
     candidate_name: Optional[str] = None
 
@@ -111,6 +111,13 @@ def parse(lines: list[str]) -> BenchSuite:
             name = candidate_name if m else None
 
         if m:
+            result_name = name or "unknown"
+            if result_name in seen_names:
+                raise ValueError(
+                    f"Duplicate Criterion benchmark ID: {result_name!r}. "
+                    "Use distinct IDs for separate benchmark executables."
+                )
+            seen_names.add(result_name)
             # Flush previous
             if pending:
                 suite.results.append(pending)
@@ -119,7 +126,7 @@ def parse(lines: list[str]) -> BenchSuite:
             low_ns = _to_ns(float(m["low"]), m["low_unit"])
             high_ns = _to_ns(float(m["high"]), m["high_unit"])
             pending = BenchResult(
-                name=name or "unknown",
+                name=result_name,
                 mean_ns=mean_ns,
                 low_ns=low_ns,
                 high_ns=high_ns,
@@ -166,7 +173,11 @@ def main(argv: Optional[list[str]] = None) -> int:
     else:
         text = sys.stdin.read()
 
-    suite = parse(text.splitlines())
+    try:
+        suite = parse(text.splitlines())
+    except ValueError as exc:
+        sys.stderr.write(f"[ERROR] {exc}\n")
+        return 2
     print(json.dumps(suite.as_dict(), indent=2, ensure_ascii=False))
 
     if suite.regressions:
