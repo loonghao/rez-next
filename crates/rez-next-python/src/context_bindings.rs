@@ -76,7 +76,15 @@ impl PyResolvedContext {
         let rt = get_runtime();
 
         let repo_arc = Arc::new(repo_manager);
-        let mut resolver = DependencyResolver::new(Arc::clone(&repo_arc), SolverConfig::default());
+        // A Python context may only report success when every required
+        // dependency resolves, just like the public Rust runtime facade.
+        let mut resolver = DependencyResolver::new(
+            Arc::clone(&repo_arc),
+            SolverConfig {
+                strict_mode: true,
+                ..SolverConfig::default()
+            },
+        );
         let resolution = rt
             .block_on(resolver.resolve(resolver_reqs))
             .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
