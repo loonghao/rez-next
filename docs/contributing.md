@@ -47,10 +47,10 @@ trigger â€” it tags the release and dispatches the crates.io and PyPI uploads â€
 so a draft is a guard rail, not a safe state, and clearing it is not a
 confirmation step.
 
-Clear the draft and merge in one pass: release-please rewrites an open release
-PR whenever its body changes, and that rewrite restores the draft state. A
-release PR left un-drafted across another push to `main` goes back to draft and
-has to be un-drafted again.
+Clear the draft and merge in one pass. release-please rewrites an open release
+PR whenever its body changes; whether that rewrite re-applies the draft state
+is not yet confirmed, so do not rely on it, and do not leave an un-drafted
+release PR open across another push to `main`.
 
 ## Development
 
