@@ -10,6 +10,7 @@ use rez_next_repository::package_repository::FilesystemPackageRepository;
 use rez_next_repository::package_repository::bridge::AsyncRepositoryAdapter;
 use rez_next_repository::package_repository::spec::RepositorySpec;
 use rez_next_repository::simple_repository::RepositoryManager;
+use std::collections::HashSet;
 
 /// Arguments for the complete command
 #[derive(Args, Clone)]
@@ -208,10 +209,27 @@ Register-ArgumentCompleter -Native -CommandName rez -ScriptBlock {{
 /// path means a filesystem repository. Only filesystem repositories are added
 /// here — the completion path only reads package names and versions, and no
 /// other repository type is implemented yet.
+///
+/// An entry naming a type that does not exist is reported on stderr and
+/// skipped. Completion output goes to stdout where the shell consumes it, so a
+/// diagnostic there would corrupt the completion list; but dropping the entry
+/// with no trace at all is what left a mistyped `packages_path` entry looking
+/// like an empty repository. Each entry is reported at most once per process,
+/// so one bad entry costs one line rather than one line per Tab.
 fn build_manager(config: &RezCoreConfig) -> RepositoryManager {
     let mut manager = RepositoryManager::new();
+    let mut reported_unknown_types: HashSet<String> = HashSet::new();
     for (i, entry) in config.packages_path.iter().enumerate() {
-        let spec = RepositorySpec::parse(entry);
+        let parsed = RepositorySpec::parse_spec(entry);
+        if let Some(unknown) = parsed.unknown_type() {
+            if reported_unknown_types.insert(entry.clone()) {
+                eprintln!("rez-next: warning: {unknown}");
+            }
+            continue;
+        }
+        let Some(spec) = parsed.spec() else {
+            continue;
+        };
         if !spec.is_filesystem() {
             continue;
         }
@@ -342,18 +360,38 @@ fn get_subcommand_names() -> Vec<&'static str> {
 mod tests {
     use super::*;
     use std::fs;
+    use std::path::PathBuf;
     use tempfile::TempDir;
 
     /// Build `<root>/<family>/<version>` directories, the layout the
     /// filesystem repository scans for.
     fn make_repository(versions: &[(&str, &[&str])]) -> TempDir {
         let root = TempDir::new().unwrap();
+        make_repository_layout(root.path(), versions);
+        root
+    }
+
+    /// Same as [`make_repository`], but the repository root gets a
+    /// caller-chosen directory name rather than a random one.
+    ///
+    /// The parent `TempDir` has to outlive the returned path, so it is moved
+    /// into a static leak. That costs one directory per call, which is fine
+    /// for tests and keeps the helper usable at a call site that only wants a
+    /// `PathBuf`.
+    fn make_repository_at(name: &str, versions: &[(&str, &[&str])]) -> PathBuf {
+        let parent = TempDir::new().unwrap();
+        let root = parent.path().join(name);
+        make_repository_layout(&root, versions);
+        let leaked: &'static TempDir = Box::leak(Box::new(parent));
+        leaked.path().join(name)
+    }
+
+    fn make_repository_layout(root: &std::path::Path, versions: &[(&str, &[&str])]) {
         for (family, family_versions) in versions {
             for version in *family_versions {
-                fs::create_dir_all(root.path().join(family).join(version)).unwrap();
+                fs::create_dir_all(root.join(family).join(version)).unwrap();
             }
         }
-        root
     }
 
     /// `RezCoreConfig` is `#[non_exhaustive]`, so it must be built via
@@ -410,6 +448,47 @@ mod tests {
             // Filesystem, but the path does not exist.
             "/nonexistent/repository/path".to_string(),
             format!("filesystem@{}", root.path().to_string_lossy()),
+        ]);
+
+        let manager = build_manager(&config);
+        let rt = tokio::runtime::Runtime::new().unwrap();
+
+        let names = rt.block_on(manager.list_packages()).unwrap();
+        assert_eq!(names, vec!["python".to_string()]);
+    }
+
+    #[test]
+    fn build_manager_keeps_an_identifier_shaped_existing_directory() {
+        // The regression #388 fixed, pinned at the level where it was
+        // observable rather than at the parser: a directory named `pkgs@v1`
+        // is legal on Unix and Windows, and used to be dropped from the
+        // completion list. Building it in place rather than nesting it keeps
+        // the directory from also scanning as a package family of a parent.
+        let root = make_repository(&[("python", &["3.9.1"])]);
+        let identifier_shaped = make_repository_at("pkgs@v1", &[("maya", &["2024.1"])]);
+
+        let config = config_with_paths(vec![
+            identifier_shaped.to_string_lossy().to_string(),
+            root.path().to_string_lossy().to_string(),
+        ]);
+
+        let manager = build_manager(&config);
+        let rt = tokio::runtime::Runtime::new().unwrap();
+
+        let mut names = rt.block_on(manager.list_packages()).unwrap();
+        names.sort();
+        assert_eq!(names, vec!["maya".to_string(), "python".to_string()]);
+    }
+
+    #[test]
+    fn build_manager_skips_an_unknown_repository_type() {
+        // `server` is not a repository type. The entry must not be coerced
+        // into a path that silently fails to resolve, and it must not keep
+        // the rest of `packages_path` from being scanned.
+        let root = make_repository(&[("python", &["3.9.1"])]);
+        let config = config_with_paths(vec![
+            "server@host/path".to_string(),
+            root.path().to_string_lossy().to_string(),
         ]);
 
         let manager = build_manager(&config);
