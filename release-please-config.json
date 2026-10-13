@@ -7,6 +7,7 @@
       "include-v-in-tag": true,
       "include-component-in-tag": false,
       "draft": false,
+      "draft-pull-request": true,
       "prerelease": false,
       "bump-minor-pre-major": true,
       "bump-patch-for-minor-pre-major": true,
