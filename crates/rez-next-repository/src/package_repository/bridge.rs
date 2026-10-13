@@ -260,9 +260,12 @@ mod tests {
         assert_eq!(families, vec!["maya".to_string(), "python".to_string()]);
     }
 
-    /// A repository that answers every query with nothing, used to prove the
-    /// assertions above are sensitive to the adapter actually returning data
-    /// rather than passing regardless of what the manager is wired to.
+    /// A repository that answers every query with nothing.
+    ///
+    /// This is registered with the manager directly, never through
+    /// `AsyncRepositoryAdapter`, so it says nothing about the adapter itself.
+    /// It pins down the manager contract: an empty backend must surface as
+    /// empty, not as an error or a defaulted value.
     struct EmptyRepository;
 
     #[async_trait::async_trait]
@@ -292,9 +295,13 @@ mod tests {
         }
     }
 
-    /// Guards the guard: the manager-level assertions above must fail when the
-    /// repository wired into the manager stops returning packages. Without this,
-    /// a regression that silently bypasses the adapter would still look green.
+    /// Confirms an empty backend surfaces as empty through the manager.
+    ///
+    /// This documents the manager's contract for a backend that returns
+    /// nothing; it does not exercise the adapter, and so cannot detect the
+    /// adapter being bypassed. The adapter's discriminating power is covered
+    /// by `manager_routes_queries_through_the_adapter` failing when the
+    /// adapter stops returning data.
     #[tokio::test]
     async fn manager_level_assertions_reject_an_empty_repository() {
         use crate::simple_repository::RepositoryManager;
