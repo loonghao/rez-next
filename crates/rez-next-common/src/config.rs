@@ -503,14 +503,13 @@ fn split_env_paths(paths: &str) -> Vec<String> {
 
 /// Split a plain environment value for a rez `StrList` setting.
 ///
-/// Upstream rez separates `StrList` values with a comma; only `PathList` splits
-/// on `os.pathsep`. Splitting these on the path separator would break any
-/// element containing `:` on unix, so this follows the upstream rule instead.
+/// Upstream rez replaces commas with spaces, then uses Python's `str.split()`;
+/// only `PathList` splits on `os.pathsep`. Keep `:` and `;` inside each element.
 #[must_use]
 fn split_env_str_list(value: &str) -> Vec<String> {
+    // Python also treats the four C0 information separators as whitespace.
     value
-        .split(',')
-        .map(str::trim)
+        .split(|ch: char| ch == ',' || ch.is_whitespace() || matches!(ch, '\u{1c}'..='\u{1f}'))
         .filter(|entry| !entry.is_empty())
         .map(ToString::to_string)
         .collect()
@@ -598,8 +597,8 @@ fn coerce_env_value(key: &str, raw: &str) -> serde_json::Value {
                 .collect(),
         ),
         // These are rez's `StrList`, not `PathList`: upstream separates them
-        // with a comma, and only `PathList` splits on `os.pathsep`. Package
-        // requests may contain `:`, which path splitting would break apart.
+        // with commas and whitespace; only `PathList` splits on `os.pathsep`.
+        // Package requests may contain `:`, which path splitting would break apart.
         "implicit_packages" | "parent_variables" | "resetting_variables" => {
             serde_json::Value::Array(
                 split_env_str_list(raw)
@@ -1179,18 +1178,21 @@ mod tests {
 
         // SAFETY: guarded by ENV_LOCK; removed before the guard drops.
         unsafe {
-            env::set_var("REZ_IMPLICIT_PACKAGES", "python:3.9,maya-2024");
+            env::set_var("REZ_IMPLICIT_PACKAGES", "python:3.9,maya;2024\thoudini-20");
         }
         let cfg = RezCoreConfig::load();
         unsafe {
             env::remove_var("REZ_IMPLICIT_PACKAGES");
         }
 
-        // Upstream rez separates `StrList` with a comma, so the colon and the
-        // package name stay together in one element.
+        // Commas and whitespace split values; literal path separators do not.
         assert_eq!(
             cfg.implicit_packages,
-            vec!["python:3.9".to_string(), "maya-2024".to_string()]
+            vec![
+                "python:3.9".to_string(),
+                "maya;2024".to_string(),
+                "houdini-20".to_string()
+            ]
         );
     }
 
@@ -1228,10 +1230,10 @@ mod tests {
         assert_eq!(result, vec!["first".to_string(), "second".to_string()]);
     }
 
-    /// Upstream rez's `StrList` separates on a comma, and only `PathList` splits
-    /// on `os.pathsep`. Neither separator may appear here, on any platform.
+    /// Upstream rez's `StrList` separates on commas and whitespace. Path
+    /// separators stay inside the values, on every platform.
     #[test]
-    fn test_split_env_str_list_uses_comma_only() {
+    fn test_split_env_str_list_uses_upstream_separators() {
         assert_eq!(
             split_env_str_list("python:3.9,maya-2024"),
             vec!["python:3.9".to_string(), "maya-2024".to_string()]
@@ -1246,6 +1248,14 @@ mod tests {
             vec!["~os=={system.os}".to_string()]
         );
         assert!(split_env_str_list(" , , ").is_empty());
+        assert_eq!(
+            split_env_str_list(" python:3.9\tmaya;2024,houdini-20\n~os=={system.os} "),
+            vec!["python:3.9", "maya;2024", "houdini-20", "~os=={system.os}"]
+        );
+        assert_eq!(
+            split_env_str_list("first\u{a0}second\u{1c}third"),
+            vec!["first", "second", "third"]
+        );
     }
 
     #[cfg(windows)]

@@ -623,10 +623,25 @@ mod tests {
 
     #[test]
     fn test_upstream_default_snapshot_stays_exhaustive() {
-        // Guards the guard: every key the snapshot tracks must actually be
-        // defined by `rez_default` and registered, so the alignment test cannot
-        // silently shrink to covering fewer keys.
-        for (key, _) in upstream_3_4_0_defaults() {
+        let snapshot = upstream_3_4_0_defaults();
+        let snapshot_keys: std::collections::BTreeSet<_> =
+            snapshot.iter().map(|(key, _)| *key).collect();
+        let defined_keys: std::collections::BTreeSet<_> = registry()
+            .iter()
+            .filter(|key| rez_default(key.name).is_some())
+            .map(|key| key.name)
+            .collect();
+
+        // Check both directions: deleting a snapshot entry must fail even
+        // though all remaining entries still have registered defaults.
+        assert_eq!(snapshot_keys, defined_keys);
+        assert_eq!(
+            snapshot_keys.len(),
+            snapshot.len(),
+            "duplicate snapshot key"
+        );
+
+        for (key, _) in snapshot {
             assert!(
                 rez_default(key).is_some(),
                 "{key} is in the snapshot but `rez_default` does not define it"

@@ -237,12 +237,13 @@ visible alongside the exemptions above.
 - **String-list settings are not path lists, on either input channel.**
   `implicit_packages`, `parent_variables` and `resetting_variables` are
   registered as `KeyType::StrList`. Upstream rez separates `StrList` values with
-  a comma; only `PathList` splits on `os.pathsep`. Two code paths must both
-  honour this:
+  commas and whitespace; only `PathList` splits on `os.pathsep`. Two code paths
+  must both honour this:
   - config-file values go through `assign_str_list`, which keeps a bare string
     as a single element;
   - plain `REZ_*` environment values are coerced by `coerce_env_value` before
-    any assignment helper sees them, and use `split_env_str_list` (comma).
+    any assignment helper sees them, and use `split_env_str_list` (commas and
+    whitespace).
     Coercing them with `split_env_paths` would break package requests
     containing `:` on unix.
 
