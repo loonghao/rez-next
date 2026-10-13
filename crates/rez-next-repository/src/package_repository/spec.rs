@@ -35,7 +35,11 @@ impl RepositorySpec {
     /// before.
     pub fn parse(entry: &str) -> Self {
         match entry.split_once('@') {
-            Some((repo_type, location)) if is_type_prefix(repo_type) && !location.is_empty() => {
+            Some((repo_type, location))
+                if is_type_prefix(repo_type)
+                    && is_known_type(repo_type)
+                    && !location.is_empty() =>
+            {
                 Self {
                     repo_type: repo_type.to_string(),
                     location: location.to_string(),
@@ -70,6 +74,24 @@ fn is_type_prefix(s: &str) -> bool {
         && s.len() <= 32
         && s.chars()
             .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
+}
+
+/// Whether `s` names a repository type that upstream rez defines.
+///
+/// `is_type_prefix` only checks the shape of the name, so on its own it would
+/// accept a real directory such as `pkgs@v1`: the entry would be read as a
+/// typed spec, found to have no implementation, and dropped — silently
+/// breaking a path that used to resolve.
+///
+/// The allowlist names the types upstream defines, so an entry is read as a
+/// typed spec only when the prefix is one of them; anything else is a path
+/// that happens to contain an `@`. Types listed here need not be implemented
+/// by this build — `memory` is upstream's example and is preserved as a type
+/// so callers see the requested type rather than a silently rewritten path.
+const KNOWN_REPO_TYPES: &[&str] = &[FILESYSTEM_REPO_TYPE, "memory"];
+
+fn is_known_type(s: &str) -> bool {
+    KNOWN_REPO_TYPES.contains(&s)
 }
 
 #[cfg(test)]
@@ -143,6 +165,18 @@ mod tests {
         let spec = RepositorySpec::parse("sub/dir@/packages");
         assert_eq!(spec.repo_type, "filesystem");
         assert_eq!(spec.location, "sub/dir@/packages");
+    }
+
+    #[test]
+    fn identifier_shaped_prefix_that_is_not_a_registered_type_is_a_path() {
+        // A real directory named `pkgs@v1` is legal on Unix and Windows. The
+        // prefix is identifier-shaped, but `pkgs` is not a repository type
+        // this build provides, so the entry must stay a filesystem path
+        // rather than being read as a typed spec and silently dropped.
+        let spec = RepositorySpec::parse("pkgs@v1");
+        assert_eq!(spec.repo_type, "filesystem");
+        assert_eq!(spec.location, "pkgs@v1");
+        assert!(spec.is_filesystem());
     }
 
     #[test]
