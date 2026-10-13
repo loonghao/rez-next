@@ -41,6 +41,17 @@ it pinned - any new upstream lint then turned unrelated pull requests red.
 
 Automated via [release-please](https://github.com/googleapis/release-please). Multi-platform builds for Linux, macOS, and Windows.
 
+Release pull requests are created as drafts, so merging one takes a deliberate
+action: open the PR and clear the draft state first. Merging is the publish
+trigger — it tags the release and dispatches the crates.io and PyPI uploads —
+so a draft is a guard rail, not a safe state, and clearing it is not a
+confirmation step.
+
+Clear the draft and merge in one pass: release-please rewrites an open release
+PR whenever its body changes, and that rewrite restores the draft state. A
+release PR left un-drafted across another push to `main` goes back to draft and
+has to be un-drafted again.
+
 ## Development
 
 ### Setup
