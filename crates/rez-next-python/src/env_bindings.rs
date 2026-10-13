@@ -11,7 +11,9 @@ use crate::runtime::get_runtime;
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use rez_next_package::{PackageRequirement, Requirement};
-use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
+use rez_next_repository::package_repository::FilesystemPackageRepository;
+use rez_next_repository::package_repository::bridge::AsyncRepositoryAdapter;
+use rez_next_repository::simple_repository::RepositoryManager;
 use rez_next_rex::{RexExecutor, ShellType, generate_shell_script};
 use rez_next_solver::{DependencyResolver, SolverConfig};
 use std::collections::HashMap;
@@ -86,10 +88,9 @@ impl PyRezEnv {
         let mut repo_manager = RepositoryManager::new();
         for (i, path) in pkg_paths.iter().enumerate() {
             if path.exists() {
-                repo_manager.add_repository(Box::new(SimpleRepository::new(
-                    path.clone(),
-                    format!("repo_{}", i),
-                )));
+                let repository =
+                    FilesystemPackageRepository::with_name(path.clone(), format!("repo_{i}"));
+                repo_manager.add_repository(Box::new(AsyncRepositoryAdapter::new(repository)));
             }
         }
 

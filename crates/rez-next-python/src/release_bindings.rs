@@ -665,7 +665,9 @@ impl PyReleaseManager {
     ) -> PyResult<Vec<String>> {
         use crate::package_functions::expand_home;
         use rez_next_common::config::RezCoreConfig;
-        use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
+        use rez_next_repository::package_repository::FilesystemPackageRepository;
+        use rez_next_repository::package_repository::bridge::AsyncRepositoryAdapter;
+        use rez_next_repository::simple_repository::RepositoryManager;
         use std::path::PathBuf;
 
         let rt = get_runtime();
@@ -685,10 +687,9 @@ impl PyReleaseManager {
 
         for (i, path) in pkg_paths.iter().enumerate() {
             if path.exists() {
-                repo_manager.add_repository(Box::new(SimpleRepository::new(
-                    path.clone(),
-                    format!("repo_{}", i),
-                )));
+                let repository =
+                    FilesystemPackageRepository::with_name(path.clone(), format!("repo_{i}"));
+                repo_manager.add_repository(Box::new(AsyncRepositoryAdapter::new(repository)));
             }
         }
 

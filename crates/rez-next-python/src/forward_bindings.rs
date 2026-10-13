@@ -88,7 +88,9 @@ pub fn resolve_forward_tool(
     paths: Option<Vec<String>>,
 ) -> PyResult<Option<(String, String)>> {
     use rez_next_common::config::RezCoreConfig;
-    use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
+    use rez_next_repository::package_repository::FilesystemPackageRepository;
+    use rez_next_repository::package_repository::bridge::AsyncRepositoryAdapter;
+    use rez_next_repository::simple_repository::RepositoryManager;
     use std::path::PathBuf;
 
     let _ = paths;
@@ -99,14 +101,25 @@ pub fn resolve_forward_tool(
     for (i, p) in config.packages_path.iter().enumerate() {
         let path = PathBuf::from(crate::package_functions::expand_home(p));
         if path.exists() {
-            repo_manager
-                .add_repository(Box::new(SimpleRepository::new(path, format!("repo_{}", i))));
+            let repository = FilesystemPackageRepository::with_name(path, format!("repo_{i}"));
+            repo_manager.add_repository(Box::new(AsyncRepositoryAdapter::new(repository)));
         }
     }
 
-    let packages = rt
-        .block_on(repo_manager.find_packages(""))
+    // Collect all packages: list_packages() returns family names, then fetch each by
+    // name. find_packages("") never matches anything because "" is not a valid
+    // package name.
+    let family_names = rt
+        .block_on(repo_manager.list_packages())
         .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+
+    let mut packages = Vec::new();
+    for family_name in &family_names {
+        packages.extend(
+            rt.block_on(repo_manager.find_packages(family_name))
+                .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?,
+        );
+    }
 
     for pkg in &packages {
         if pkg.tools.iter().any(|t| t == tool_name) {

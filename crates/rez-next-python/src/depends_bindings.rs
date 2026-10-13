@@ -159,17 +159,18 @@ pub fn compute_depends(
     pkg_paths: &[std::path::PathBuf],
     transitive: bool,
 ) -> Result<PyDependsResult, String> {
-    use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
+    use rez_next_repository::package_repository::FilesystemPackageRepository;
+    use rez_next_repository::package_repository::bridge::AsyncRepositoryAdapter;
+    use rez_next_repository::simple_repository::RepositoryManager;
     use rez_next_version::VersionRange;
 
     let rt = get_runtime();
     let mut repo_manager = RepositoryManager::new();
     for (i, path) in pkg_paths.iter().enumerate() {
         if path.exists() {
-            repo_manager.add_repository(Box::new(SimpleRepository::new(
-                path.clone(),
-                format!("repo_{}", i),
-            )));
+            let repository =
+                FilesystemPackageRepository::with_name(path.clone(), format!("repo_{i}"));
+            repo_manager.add_repository(Box::new(AsyncRepositoryAdapter::new(repository)));
         }
     }
 

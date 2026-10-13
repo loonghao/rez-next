@@ -272,8 +272,34 @@ impl PackageRepository for FilesystemPackageRepository {
                 // Try to parse version string
                 let version = rez_next_version::Version::parse(&version_str).ok();
 
-                // Create a Package object
-                let mut pkg = rez_next_package::Package::new(package_family.name.clone());
+                // Load the full package definition when the version directory carries
+                // one, so dependency metadata (`requires`, `build_requires`,
+                // `private_build_requires`, `tools`) is populated; upstream rez
+                // resolves all of those from this file. A version directory with no
+                // definition is still a valid, dependency-free package.
+                //
+                // A definition that exists but cannot be loaded is an error, not an
+                // empty package: callers rely on `find_packages` failing closed so a
+                // broken definition is never silently reported as "no packages".
+                let mut pkg = match ["package.py", "package.yaml", "package.yml", "package.json"]
+                    .iter()
+                    .map(|name| path.join(name))
+                    .find(|candidate| candidate.is_file())
+                {
+                    Some(definition_path) => {
+                        rez_next_package::serialization::PackageSerializer::load_from_file(
+                            &definition_path,
+                        )
+                        .map_err(|e| {
+                            RezCoreError::Repository(format!(
+                                "Failed to load {}: {}",
+                                definition_path.display(),
+                                e
+                            ))
+                        })?
+                    }
+                    None => rez_next_package::Package::new(package_family.name.clone()),
+                };
                 pkg.version = version;
 
                 // Create PackageResource

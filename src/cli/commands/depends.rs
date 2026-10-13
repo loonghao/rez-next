@@ -251,6 +251,19 @@ async fn build_reverse_dependency_tree(
     Ok(tree)
 }
 
+/// Report whether a requirement string such as `python-3+` names `package`.
+///
+/// Requirements are package *requests*: a name optionally followed by a version
+/// range after `-` or `==`. Comparing the whole string against a bare package
+/// name never matches, which silently hid every reverse dependency.
+fn requirement_names_package(requirement: &str, package: &str) -> bool {
+    let name = requirement
+        .split_once('-')
+        .or_else(|| requirement.split_once("=="))
+        .map_or(requirement, |(name, _)| name);
+    name == package
+}
+
 /// Find packages that depend on the target package
 async fn find_package_dependents(
     repo_manager: &RepositoryManager,
@@ -260,38 +273,32 @@ async fn find_package_dependents(
 ) -> Result<Vec<String>, RezCoreError> {
     let mut dependents = Vec::new();
 
-    // Get all packages by searching with empty string (gets all)
-    let all_packages = repo_manager.find_packages("").await?;
+    // Collect every package: list_packages() returns family names, then fetch each
+    // by name. find_packages("") is not a valid family name, so it never enumerates
+    // them all.
+    let mut all_packages = Vec::new();
+    for family_name in repo_manager.list_packages().await? {
+        all_packages.extend(repo_manager.find_packages(&family_name).await?);
+    }
 
     for package in all_packages {
-        let mut has_dependency = false;
+        let matches = |requirements: &[String]| {
+            requirements
+                .iter()
+                .any(|req| requirement_names_package(req, target_package))
+        };
 
         // Check regular requires
-        for req_name in &package.requires {
-            if req_name == target_package {
-                has_dependency = true;
-                break;
-            }
-        }
+        let mut has_dependency = matches(&package.requires);
 
         // Check build requires if requested
         if !has_dependency && include_build_requires {
-            for req_name in &package.build_requires {
-                if req_name == target_package {
-                    has_dependency = true;
-                    break;
-                }
-            }
+            has_dependency = matches(&package.build_requires);
         }
 
         // Check private build requires if requested
         if !has_dependency && include_private_build_requires {
-            for req_name in &package.private_build_requires {
-                if req_name == target_package {
-                    has_dependency = true;
-                    break;
-                }
-            }
+            has_dependency = matches(&package.private_build_requires);
         }
 
         if has_dependency {
@@ -367,6 +374,20 @@ mod tests {
         assert_eq!(tree.max_depth, Some(3));
         assert!(tree.nodes.is_empty());
         assert!(tree.depth_levels.is_empty());
+    }
+
+    #[test]
+    fn test_requirement_names_package() {
+        // A version-ranged request must still resolve to its package name;
+        // comparing the raw request against a bare name matched nothing.
+        assert!(requirement_names_package("python", "python"));
+        assert!(requirement_names_package("python-3+", "python"));
+        assert!(requirement_names_package("python==3.11", "python"));
+        assert!(requirement_names_package("maya-2024", "maya"));
+
+        assert!(!requirement_names_package("python-3+", "pytho"));
+        assert!(!requirement_names_package("python-3+", "maya"));
+        assert!(!requirement_names_package("pythonextra-1", "python"));
     }
 
     #[test]

@@ -4,7 +4,9 @@ use crate::package_bindings::PyPackage;
 use crate::package_functions::expand_home;
 use crate::runtime::get_runtime;
 use pyo3::prelude::*;
-use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
+use rez_next_repository::package_repository::FilesystemPackageRepository;
+use rez_next_repository::package_repository::bridge::AsyncRepositoryAdapter;
+use rez_next_repository::simple_repository::RepositoryManager;
 use std::path::PathBuf;
 
 /// Python-accessible RepositoryManager class
@@ -19,10 +21,9 @@ impl PyRepositoryManager {
         let mut manager = RepositoryManager::new();
         for (i, path) in self.paths.iter().enumerate() {
             if path.exists() {
-                manager.add_repository(Box::new(SimpleRepository::new(
-                    path.clone(),
-                    format!("repo_{}", i),
-                )));
+                let repository =
+                    FilesystemPackageRepository::with_name(path.clone(), format!("repo_{i}"));
+                manager.add_repository(Box::new(AsyncRepositoryAdapter::new(repository)));
             }
         }
         manager

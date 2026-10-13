@@ -95,11 +95,21 @@ impl PackageSearcher {
                 format!("repo_{}", idx),
             )));
 
-            // Use empty string to get all packages from this repository
-            let all_packages = match repo_manager.find_packages("").await {
-                Ok(pkgs) => pkgs,
+            // Enumerate every package: list_packages() returns family names, then
+            // fetch each by name. find_packages("") is not a valid family name, so
+            // it never enumerates them all.
+            let mut all_packages = Vec::new();
+            match repo_manager.list_packages().await {
+                Ok(names) => {
+                    for name in names {
+                        match repo_manager.find_packages(&name).await {
+                            Ok(pkgs) => all_packages.extend(pkgs),
+                            Err(_) => continue,
+                        }
+                    }
+                }
                 Err(_) => continue,
-            };
+            }
 
             result_set.total_scanned += all_packages.len();
 
@@ -314,8 +324,17 @@ mod tests {
         let searcher = PackageSearcher::new(opts);
         let results = searcher.search();
 
-        // May or may not find depending on repository scan — but must not panic
-        let _ = results.len();
+        // Enumerating families via list_packages() must reach the package on disk.
+        // A regression to find_packages("") would silently report zero packages.
+        assert_eq!(
+            results.total_scanned, 1,
+            "expected the package to be scanned"
+        );
+        assert!(
+            results.results.iter().any(|r| r.name == "python"),
+            "expected a 'python' result, got {:?}",
+            results.results
+        );
     }
 
     #[test]
