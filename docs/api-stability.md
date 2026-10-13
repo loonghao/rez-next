@@ -224,16 +224,26 @@ so no exemption is needed for field growth. Construct via
 literal, and pattern matches must keep a wildcard arm. Exemptions use `warn`
 rather than `allow` so a regression stays visible in CI output.
 
+`rez-next-common` narrows `enum_marked_non_exhaustive` to a warning for the same
+reason. `RezCoreError` is marked `#[non_exhaustive]` because it gains a variant
+whenever a subsystem needs to report a distinct failure — the CLI already maps
+variants to exit codes, so growth is expected rather than hypothetical. The
+attribute keeps that growth additive instead of breaking every downstream match,
+which must now keep a wildcard arm. Marking the enum is itself a one-off major
+break, so the lint is downgraded to `warn` rather than `allow`, keeping it
+visible in CI output.
+
 ### Known follow-ups
 
 Config-related debt that is tracked but not yet resolved, recorded here so it is
 visible alongside the exemptions above.
 
-- **`RezCoreConfig` needs a minor bump before its next release.** The
-  `#[non_exhaustive]` attribute above is a one-off major break that landed
-  without a version bump, so a consumer running `cargo update` would receive it
-  silently. Tracked separately; the bump must land before the next release that
-  includes `rez-next-common`.
+- **`RezCoreConfig` and `RezCoreError` need a minor bump, which now means
+  0.4.0.** The `#[non_exhaustive]` attributes above are one-off major breaks
+  that landed without a version bump, so a consumer running `cargo update` would
+  receive them silently. `RezCoreConfig` shipped that way in 0.3.12, so 0.3.x
+  can no longer absorb the bump; both must land in the next minor release that
+  includes `rez-next-common`. Tracked separately.
 - **String-list settings are not path lists, on either input channel.**
   `implicit_packages`, `parent_variables` and `resetting_variables` are
   registered as `KeyType::StrList`. Upstream rez separates `StrList` values with

@@ -3018,7 +3018,6 @@ dependencies = [
  "dirs",
  "json5",
  "once_cell",
- "rez-next-common",
  "serde",
  "serde_json",
  "serde_yaml",

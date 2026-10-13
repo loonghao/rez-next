@@ -427,9 +427,9 @@ static REGISTRY: Lazy<Vec<KeyDef>> = Lazy::new(|| {
             default: Some(JsonValue::Array(vec![JsonValue::String(
                 "~/.rez/cache".to_string(),
             )])),
-            origin: Origin::RezNext,
+            origin: Origin::Rez,
             deprecated: false,
-            doc: "rez-next extension: where package payload caches are written.",
+            doc: "Where package payload caches are written.",
         },
         KeyDef {
             name: "default_shell",

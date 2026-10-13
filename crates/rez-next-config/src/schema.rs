@@ -2,7 +2,7 @@
 //!
 //! **rez-next extension**: upstream rez validates its config with a Python
 //! schema module and exposes no machine-readable schema. Generating JSON Schema
-//! from the [`KeyDef`](crate::keys::KeyDef) registry lets editors and agents
+//! from the [`KeyDef`] registry lets editors and agents
 //! validate a `rezconfig` before rez-next ever reads it.
 
 use crate::keys::{KeyDef, KeyType, registry};

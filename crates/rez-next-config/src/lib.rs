@@ -11,10 +11,14 @@ use std::path::{Path, PathBuf};
 use thiserror::Error;
 
 pub mod keys;
+pub mod project;
 pub mod schema;
 pub mod validate;
 
 pub use keys::{KeyDef, KeyType, Origin};
+pub use project::{
+    PROJECT_CONFIG_NAMES, find_project_config_file, paths_equal, project_config_in, sourced_paths,
+};
 pub use schema::json_schema;
 pub use validate::{ValidationIssue, validate_all, validate_file};
 
@@ -372,12 +376,11 @@ impl Config {
     /// it reads `REZ_CONFIG_FILE` and `~/.rezconfig` only. The upward walk is a
     /// rez-next addition.
     ///
-    /// The lookup is shared with the CLI's [`RezCoreConfig`] so both entry
-    /// points agree on which file is the project config; two copies of the walk
-    /// would drift apart.
+    /// The lookup is shared with the CLI so both entry points agree on which
+    /// file is the project config; two copies of the walk would drift apart.
     fn find_project_config() -> Option<PathBuf> {
         let current = env::current_dir().ok()?;
-        rez_next_common::config::RezCoreConfig::find_project_config_file(&current)
+        crate::project::find_project_config_file(&current)
     }
 
     /// Get all loaded configuration sources.

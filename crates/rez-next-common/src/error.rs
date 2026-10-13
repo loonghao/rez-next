@@ -3,7 +3,13 @@
 use thiserror::Error;
 
 /// Main error type for rez-core operations
+///
+/// `#[non_exhaustive]` because it gains a variant whenever a subsystem needs
+/// to report a distinct failure: several already exist, and the CLI maps
+/// variants to process exit codes. Marking it now keeps adding one a minor
+/// change instead of a major one.
 #[derive(Error, Debug)]
+#[non_exhaustive]
 pub enum RezCoreError {
     #[error("Version parsing error: {0}")]
     VersionParse(String),
@@ -60,22 +66,13 @@ pub enum RezCoreError {
 
     /// Configuration failed validation.
     ///
-    /// Carries the location so the message can be acted on directly, and so the
-    /// process can exit `3` — distinct from a generic failure — which lets a
-    /// caller tell "your config is wrong" from "rez-next broke".
-    #[error("{file}:{line}: {key}: expected {expected}, got {actual}")]
-    ValidationError {
-        /// File the offending key was written in.
-        file: String,
-        /// 1-based line number of the key.
-        line: usize,
-        /// The key that failed validation.
-        key: String,
-        /// The type the registry declares for the key.
-        expected: String,
-        /// The type actually found.
-        actual: String,
-    },
+    /// The message is pre-formatted by the validator, which already holds the
+    /// file, line, key and types; carrying them as separate fields would make
+    /// the enum large enough to trip clippy's `result_large_err` in every crate
+    /// that returns it. Exiting `3` - distinct from a generic failure - still
+    /// lets a caller tell "your config is wrong" from "rez-next broke".
+    #[error("{0}")]
+    ValidationError(String),
 }
 
 impl RezCoreError {
@@ -226,13 +223,9 @@ mod tests {
     }
 
     fn validation_error() -> RezCoreError {
-        RezCoreError::ValidationError {
-            file: "rezconfig.yaml".to_string(),
-            line: 3,
-            key: "packages_path".to_string(),
-            expected: "a list of paths".to_string(),
-            actual: "a string".to_string(),
-        }
+        RezCoreError::ValidationError(
+            "rezconfig.yaml:3: packages_path: expected a list of paths, got a string".to_string(),
+        )
     }
 
     #[test]

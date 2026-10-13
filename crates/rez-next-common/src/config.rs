@@ -217,7 +217,12 @@ impl Default for CacheConfig {
 /// Variants are ordered from lowest to highest precedence, matching the order
 /// [`RezCoreConfig::get_search_paths`] returns and the order
 /// [`RezCoreConfig::load_layers`] yields.
+///
+/// `#[non_exhaustive]` because new layers are expected: the set tracks the
+/// search path, which grows whenever rez-next adopts another config location.
+/// Marking it now keeps adding a layer a minor change instead of a major one.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[non_exhaustive]
 pub enum LayerSource {
     /// Config shipped next to the executable.
     Builtin,
@@ -260,14 +265,6 @@ pub struct ConfigLayer {
     /// The parsed config mapping contributed by this layer.
     pub data: serde_json::Map<String, serde_json::Value>,
 }
-
-/// The file names probed for a project config, in priority order.
-const PROJECT_CONFIG_NAMES: &[&str] = &[
-    "rezconfig.toml",
-    "rezconfig.yaml",
-    "rezconfig.yml",
-    "rezconfig.json",
-];
 
 impl RezCoreConfig {
     /// Get the list of configuration file paths that are searched
@@ -345,39 +342,7 @@ impl RezCoreConfig {
     /// 4. the filesystem root — stop.
     #[must_use]
     pub fn find_project_config_file(from: &Path) -> Option<PathBuf> {
-        let project_root = env::var("REZ_PROJECT_ROOT").ok().filter(|v| !v.is_empty());
-
-        let mut dir = Some(from);
-
-        while let Some(current) = dir {
-            if let Some(found) = project_config_in(current) {
-                return Some(found);
-            }
-
-            // Stop after the git root itself has been checked (rule 2).
-            if current.join(".git").exists() {
-                break;
-            }
-
-            // Stop at $REZ_PROJECT_ROOT (rule 3).
-            if let Some(root) = &project_root
-                && paths_equal(current, Path::new(root))
-            {
-                break;
-            }
-
-            dir = current.parent();
-        }
-
-        // `REZ_PROJECT_ROOT` is also a candidate: when the cwd is not below it,
-        // the upward walk never reaches it, so check it explicitly once.
-        if let Some(root) = &project_root
-            && let Some(found) = project_config_in(Path::new(root))
-        {
-            return Some(found);
-        }
-
-        None
+        rez_next_config::project::find_project_config_file(from)
     }
 
     /// Read every configuration layer without merging them.
@@ -413,7 +378,7 @@ impl RezCoreConfig {
 
     /// Build the `REZ_*` environment override layer.
     ///
-    /// Mirrors [`RezCoreConfig::apply_env_overrides`]: a present `REZ_<KEY>`
+    /// Mirrors `apply_env_overrides`: a present `REZ_<KEY>`
     /// wins over `REZ_<KEY>_JSON`, and keys are flat snake_case.
     #[must_use]
     pub fn environment_layer() -> ConfigLayer {
@@ -779,28 +744,13 @@ fn home_dir() -> Option<PathBuf> {
         .map(PathBuf::from)
 }
 
-/// Return the project config file inside `dir`, if that directory has one.
-fn project_config_in(dir: &Path) -> Option<PathBuf> {
-    let rez_dir = dir.join(".rez");
-    PROJECT_CONFIG_NAMES
-        .iter()
-        .map(|name| rez_dir.join(name))
-        .find(|candidate| candidate.is_file())
-}
-
 /// Compare two paths for equality without requiring both to exist.
 ///
 /// A canonicalized comparison silently fails on Windows for paths under
 /// temporary directories, so compare the paths as given first and only fall
 /// back to canonicalization when both sides resolve.
 fn paths_equal(a: &Path, b: &Path) -> bool {
-    if a == b {
-        return true;
-    }
-    match (a.canonicalize(), b.canonicalize()) {
-        (Ok(a), Ok(b)) => a == b,
-        _ => false,
-    }
+    rez_next_config::project::paths_equal(a, b)
 }
 
 fn split_env_paths(paths: &str) -> Vec<String> {

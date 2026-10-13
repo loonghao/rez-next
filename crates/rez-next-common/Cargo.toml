@@ -34,3 +34,11 @@ workspace = true
 # than allowed, so the debt stays visible in CI output.
 [package.metadata.cargo-semver-checks.lints]
 struct_marked_non_exhaustive = "warn"
+
+# RezCoreError is marked #[non_exhaustive] for the same reason as RezCoreConfig:
+# it gains a variant whenever a subsystem needs to report a distinct failure,
+# and the CLI maps variants to exit codes. The attribute keeps that additive
+# instead of breaking every downstream match. Marking it is itself a one-off
+# major break - the same debt recorded for RezCoreConfig - so it is downgraded
+# to a warning rather than allowed, keeping it visible in CI output.
+enum_marked_non_exhaustive = "warn"

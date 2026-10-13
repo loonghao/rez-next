@@ -175,7 +175,7 @@ fn show_full_config(config: &RezCoreConfig, json_output: bool) -> RezCoreResult<
 
     println!("# Rez Core Configuration");
     let mut sorted: Vec<(&String, &JsonValue)> = values.iter().collect();
-    sorted.sort_by(|(a, _), (b, _)| a.cmp(b));
+    sorted.sort_by_key(|(key, _)| *key);
     for (key, value) in sorted {
         if matches!(value, JsonValue::Array(_) | JsonValue::Object(_)) {
             println!("{key}:");
@@ -365,13 +365,7 @@ fn run_validate(file: Option<PathBuf>) -> RezCoreResult<()> {
         .into_iter()
         .next()
         .expect("issues is non-empty: just iterated it");
-    Err(RezCoreError::ValidationError {
-        file: first.file.display().to_string(),
-        line: first.line,
-        key: first.key,
-        expected: first.expected,
-        actual: first.actual,
-    })
+    Err(RezCoreError::ValidationError(first.to_string()))
 }
 
 // ── Value rendering ──────────────────────────────────────────────────────────
@@ -394,7 +388,7 @@ fn print_value(value: &JsonValue, depth: usize) {
         }
         JsonValue::Object(map) => {
             let mut sorted: Vec<(&String, &JsonValue)> = map.iter().collect();
-            sorted.sort_by(|(a, _), (b, _)| a.cmp(b));
+            sorted.sort_by_key(|(key, _)| *key);
             for (key, item) in sorted {
                 match item {
                     JsonValue::Array(_) | JsonValue::Object(_) => {
@@ -512,10 +506,10 @@ mod tests {
 
     #[test]
     fn test_all_values_reflects_loaded_config() {
-        let config = RezCoreConfig {
-            packages_path: vec!["/from/config".to_string()],
-            ..RezCoreConfig::default()
-        };
+        // `RezCoreConfig` is `#[non_exhaustive]`, so it cannot be built with a
+        // struct literal from another crate; start from the default instead.
+        let mut config = RezCoreConfig::default();
+        config.packages_path = vec!["/from/config".to_string()];
         let values = all_values(&config);
         assert_eq!(
             values["packages_path"],

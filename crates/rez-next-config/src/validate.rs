@@ -50,7 +50,7 @@ impl fmt::Display for ValidationIssue {
 pub fn validate_all(paths: &[PathBuf]) -> Vec<ValidationIssue> {
     let owned: Vec<PathBuf>;
     let targets = if paths.is_empty() {
-        owned = rez_next_common::config::RezCoreConfig::get_sourced_paths();
+        owned = crate::project::sourced_paths();
         &owned
     } else {
         paths
