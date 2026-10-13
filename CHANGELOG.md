@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.12](https://github.com/vx-org/rez-next/compare/v0.3.11...v0.3.12) (2026-10-13)
+
+
+### 🚀 Features
+
+* **repository:** parse upstream type@location repository specs and bridge the upstream-faithful repository ([#381](https://github.com/vx-org/rez-next/issues/381)) ([a24f2f1](https://github.com/vx-org/rez-next/commit/a24f2f1f85c4d863f7bb01b61d554af914b5054a))
+
+
+### 🐛 Bug Fixes
+
+* **config:** align StrList environment parsing with upstream Rez ([#383](https://github.com/vx-org/rez-next/issues/383)) ([55ddc5c](https://github.com/vx-org/rez-next/commit/55ddc5ccd244cc407cafcbe3fb0f1873e921d579))
+* **config:** reject malformed env overrides and merge cache overrides ([#378](https://github.com/vx-org/rez-next/issues/378)) ([9905452](https://github.com/vx-org/rez-next/commit/9905452e8d003930e929923bbbeac42db06dec6b))
+* **deps:** update quinn-proto to 0.11.18 for security advisories ([#386](https://github.com/vx-org/rez-next/issues/386)) ([9439804](https://github.com/vx-org/rez-next/commit/9439804cb785280f1dd2b109cdee4323d32a7e1e))
+
+
+### ⚙️ Configuration
+
+* surface upstream settings that the Rust binary silently dropped ([#377](https://github.com/vx-org/rez-next/issues/377)) ([bb7b9fe](https://github.com/vx-org/rez-next/commit/bb7b9fefa985e136505eb28e7ba495fcbb60d31c))
+
 ## [0.3.11](https://github.com/vx-org/rez-next/compare/v0.3.10...v0.3.11) (2026-10-12)
 
 
