@@ -272,9 +272,39 @@ impl PackageRepository for FilesystemPackageRepository {
                 // Try to parse version string
                 let version = rez_next_version::Version::parse(&version_str).ok();
 
-                // Create a Package object
+                // Create a Package object. When the version directory carries a
+                // package.py, parse it so dependency metadata (`requires`,
+                // `build_requires`, `private_build_requires`, `tools`) is populated;
+                // upstream rez resolves all of those from this file.
+                //
+                // A package.py that exists but cannot be parsed is an error, not an
+                // empty package: callers rely on `find_packages` failing closed so a
+                // broken definition is never silently reported as "no packages".
                 let mut pkg = rez_next_package::Package::new(package_family.name.clone());
                 pkg.version = version;
+
+                let package_py = path.join("package.py");
+                if package_py.is_file() {
+                    let content = fs::read_to_string(&package_py).map_err(|e| {
+                        RezCoreError::Repository(format!(
+                            "Failed to read '{}': {}",
+                            package_py.display(),
+                            e
+                        ))
+                    })?;
+                    let parsed = rez_next_package::PythonAstParser::parse_package_py(&content)
+                        .map_err(|e| {
+                            RezCoreError::Repository(format!(
+                                "Failed to parse '{}': {}",
+                                package_py.display(),
+                                e
+                            ))
+                        })?;
+                    pkg.requires = parsed.requires;
+                    pkg.build_requires = parsed.build_requires;
+                    pkg.private_build_requires = parsed.private_build_requires;
+                    pkg.tools = parsed.tools;
+                }
 
                 // Create PackageResource
                 let resource = PackageResource::new(

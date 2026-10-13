@@ -16,7 +16,9 @@ pub use types::{SearchArgs, SearchResult};
 
 use crate::cli::utils::expand_home_path;
 use rez_next_common::{config::RezCoreConfig, error::RezCoreResult};
-use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
+use rez_next_repository::package_repository::FilesystemPackageRepository;
+use rez_next_repository::package_repository::bridge::AsyncRepositoryAdapter;
+use rez_next_repository::simple_repository::RepositoryManager;
 
 /// Execute the search command
 pub fn execute(args: SearchArgs) -> RezCoreResult<()> {
@@ -44,8 +46,8 @@ async fn search_async(args: SearchArgs) -> RezCoreResult<()> {
     } else {
         for (i, repo_path) in args.repository.iter().enumerate() {
             let expanded = expand_home_path(&repo_path.to_string_lossy());
-            let repo = SimpleRepository::new(expanded, format!("repo_{}", i));
-            repo_manager.add_repository(Box::new(repo));
+            let repository = FilesystemPackageRepository::with_name(expanded, format!("repo_{i}"));
+            repo_manager.add_repository(Box::new(AsyncRepositoryAdapter::new(repository)));
         }
     }
 
@@ -72,8 +74,8 @@ async fn add_default_repositories(repo_manager: &mut RepositoryManager) -> RezCo
     for (i, path_str) in config.packages_path.iter().enumerate() {
         let path = expand_home_path(path_str);
         if path.exists() {
-            let repo = SimpleRepository::new(&path, format!("repo_{}", i));
-            repo_manager.add_repository(Box::new(repo));
+            let repository = FilesystemPackageRepository::with_name(&path, format!("repo_{i}"));
+            repo_manager.add_repository(Box::new(AsyncRepositoryAdapter::new(repository)));
         }
     }
 

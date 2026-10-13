@@ -125,7 +125,9 @@ fn load_package_from_directory(dir_path: &Path) -> RezCoreResult<Package> {
 /// Load package from configured repositories by name (and optional version)
 fn load_package_from_repos(spec: &str) -> RezCoreResult<Package> {
     use rez_next_common::config::RezCoreConfig;
-    use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
+    use rez_next_repository::package_repository::FilesystemPackageRepository;
+    use rez_next_repository::package_repository::bridge::AsyncRepositoryAdapter;
+    use rez_next_repository::simple_repository::RepositoryManager;
 
     // Parse "name" or "name-version" spec
     let (pkg_name, version_str) = if let Some(pos) = spec.rfind('-') {
@@ -148,8 +150,9 @@ fn load_package_from_repos(spec: &str) -> RezCoreResult<Package> {
     for (i, path_str) in config.packages_path.iter().enumerate() {
         let path = expand_home_path(path_str);
         if path.exists() {
-            repo_manager
-                .add_repository(Box::new(SimpleRepository::new(path, format!("repo_{}", i))));
+            repo_manager.add_repository(Box::new(AsyncRepositoryAdapter::new(
+                FilesystemPackageRepository::with_name(path, format!("repo_{i}")),
+            )));
         }
     }
 

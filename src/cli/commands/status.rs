@@ -5,7 +5,9 @@
 use crate::cli::utils::{expand_home_path, expand_home_str};
 use clap::Args;
 use rez_next_common::{RezCoreError, config::RezCoreConfig, error::RezCoreResult};
-use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
+use rez_next_repository::package_repository::FilesystemPackageRepository;
+use rez_next_repository::package_repository::bridge::AsyncRepositoryAdapter;
+use rez_next_repository::simple_repository::RepositoryManager;
 use std::collections::HashMap;
 use std::path::PathBuf;
 
@@ -139,9 +141,9 @@ async fn setup_repositories(args: &StatusArgs) -> RezCoreResult<RepositoryManage
     };
 
     for (i, path) in paths.iter().enumerate() {
-        let repo_name = format!("repo_{}", i);
-        let simple_repo = SimpleRepository::new(path.clone(), repo_name);
-        repo_manager.add_repository(Box::new(simple_repo));
+        let repo_name = format!("repo_{i}");
+        let repository = FilesystemPackageRepository::with_name(path.clone(), repo_name);
+        repo_manager.add_repository(Box::new(AsyncRepositoryAdapter::new(repository)));
     }
 
     Ok(repo_manager)
@@ -250,8 +252,13 @@ async fn show_family_status(
     println!("====================");
     println!();
 
-    // Get all packages
-    let packages = repo_manager.find_packages("").await?;
+    // Collect every package: list_packages() returns family names, then fetch each
+    // by name. find_packages("") is not a valid family name, so it never enumerates
+    // them all.
+    let mut packages = Vec::new();
+    for family_name in repo_manager.list_packages().await? {
+        packages.extend(repo_manager.find_packages(&family_name).await?);
+    }
 
     // Group by family
     let mut families: HashMap<String, Vec<_>> = HashMap::new();
@@ -317,8 +324,13 @@ async fn show_general_status(
     println!("==================");
     println!();
 
-    // Get all packages
-    let packages = repo_manager.find_packages("").await?;
+    // Collect every package: list_packages() returns family names, then fetch each
+    // by name. find_packages("") is not a valid family name, so it never enumerates
+    // them all.
+    let mut packages = Vec::new();
+    for family_name in repo_manager.list_packages().await? {
+        packages.extend(repo_manager.find_packages(&family_name).await?);
+    }
 
     // Calculate statistics
     let total_packages = packages.len();
