@@ -227,6 +227,86 @@ mod tests {
         assert_eq!(names, vec!["maya".to_string(), "python".to_string()]);
     }
 
+    /// The adapter only earns its place if the manager actually routes through
+    /// it. Registering it with a `RepositoryManager` and querying through the
+    /// manager covers the wiring that per-method tests cannot: the manager's
+    /// own dispatch, and the fact that the adapter is what answers.
+    #[tokio::test]
+    async fn manager_routes_queries_through_the_adapter() {
+        use crate::simple_repository::RepositoryManager;
+
+        let root = make_repository(&[("python", &["3.9.1", "3.11.0"]), ("maya", &["2024.1"])]);
+        let mut manager = RepositoryManager::new();
+        manager.add_repository(Box::new(AsyncRepositoryAdapter::new(
+            FilesystemPackageRepository::with_name(root.path(), "fs".to_string()),
+        )));
+
+        let packages = manager.find_packages("python").await.unwrap();
+        let versions: Vec<String> = packages
+            .iter()
+            .filter_map(|p| p.version.as_ref().map(|v| v.as_str().to_string()))
+            .collect();
+        assert_eq!(versions, vec!["3.11.0", "3.9.1"]);
+
+        let latest = manager
+            .get_package("python", None)
+            .await
+            .unwrap()
+            .expect("latest python must resolve through the manager");
+        assert_eq!(latest.version.as_ref().map(|v| v.as_str()), Some("3.11.0"));
+
+        let mut families = manager.list_packages().await.unwrap();
+        families.sort();
+        assert_eq!(families, vec!["maya".to_string(), "python".to_string()]);
+    }
+
+    /// A repository that answers every query with nothing, used to prove the
+    /// assertions above are sensitive to the adapter actually returning data
+    /// rather than passing regardless of what the manager is wired to.
+    struct EmptyRepository;
+
+    #[async_trait::async_trait]
+    impl AsyncPackageRepository for EmptyRepository {
+        async fn find_packages(&self, _name: &str) -> Result<Vec<Arc<Package>>, RezCoreError> {
+            Ok(Vec::new())
+        }
+
+        async fn get_package(
+            &self,
+            _name: &str,
+            _version: Option<&str>,
+        ) -> Result<Option<Arc<Package>>, RezCoreError> {
+            Ok(None)
+        }
+
+        async fn list_packages(&self) -> Result<Vec<String>, RezCoreError> {
+            Ok(Vec::new())
+        }
+
+        fn name(&self) -> &str {
+            "empty"
+        }
+
+        fn root_path(&self) -> &std::path::Path {
+            std::path::Path::new("")
+        }
+    }
+
+    /// Guards the guard: the manager-level assertions above must fail when the
+    /// repository wired into the manager stops returning packages. Without this,
+    /// a regression that silently bypasses the adapter would still look green.
+    #[tokio::test]
+    async fn manager_level_assertions_reject_an_empty_repository() {
+        use crate::simple_repository::RepositoryManager;
+
+        let mut manager = RepositoryManager::new();
+        manager.add_repository(Box::new(EmptyRepository));
+
+        assert!(manager.find_packages("python").await.unwrap().is_empty());
+        assert!(manager.get_package("python", None).await.unwrap().is_none());
+        assert!(manager.list_packages().await.unwrap().is_empty());
+    }
+
     #[test]
     fn name_and_root_path_come_from_the_wrapped_repository() {
         let root = make_repository(&[("python", &["3.9.1"])]);
