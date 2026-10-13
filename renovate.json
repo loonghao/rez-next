@@ -11,6 +11,11 @@
   "rebaseWhen": "behind-base-branch",
   "packageRules": [
     {
+      "description": "rust-toolchain.toml carries the declared MSRV, not \"latest rust\": CI is deliberately pinned so it builds and tests at the MSRV it advertises. Raising it is a compatibility change for downstream consumers and must ride a breaking release, so renovate must not propose it at all - see the revert in 486719c, where a bare bump broke lockstep and had to be rolled back.",
+      "matchFileNames": ["rust-toolchain.toml"],
+      "enabled": false
+    },
+    {
       "description": "A rust-toolchain bump only rewrites rust-toolchain.toml, but the same version is also pinned in Cargo.toml (rust-version), clippy.toml (msrv) and every dtolnay/rust-toolchain@ entry in .github/workflows. A partial bump silently puts CI on a different toolchain than the one it advertises, so never automerge it - update every location together and let scripts/check_toolchain_pins.py confirm.",
       "matchFileNames": ["rust-toolchain.toml"],
       "automerge": false,
