@@ -404,6 +404,10 @@ pub fn find(name: &str) -> Option<&'static KeyDef> {
 ///
 /// These are recorded as data rather than prose so the alignment test can
 /// assert rez-next matches upstream exactly.
+///
+/// The test keeps its own independent copy of the upstream values, so editing
+/// this function to match a wrong test expectation is not enough to turn it
+/// green.
 #[must_use]
 pub fn rez_default(key: &str) -> Option<JsonValue> {
     match key {
@@ -580,30 +584,73 @@ mod tests {
         }
     }
 
+    /// Build the snapshot of defaults rez 3.4.0 declares in
+    /// `src/rez/rezconfig.py`.
+    ///
+    /// Transcribed from the upstream source, deliberately held separately from
+    /// `rez_default` so the alignment test compares two independently written
+    /// values. Each entry cites the line it was read from. Built at runtime
+    /// because `serde_json::json!` is not a const expression.
+    fn upstream_3_4_0_defaults() -> Vec<(&'static str, JsonValue)> {
+        vec![
+            // rezconfig.py L60-64
+            (
+                "packages_path",
+                serde_json::json!(["~/packages", "~/.rez/packages/int", "~/.rez/packages/ext",]),
+            ),
+            // rezconfig.py L67
+            ("local_packages_path", serde_json::json!("~/packages")),
+            // rezconfig.py L71; rez uses forward slashes on every platform.
+            (
+                "release_packages_path",
+                serde_json::json!("~/.rez/packages/int"),
+            ),
+            // rezconfig.py L747
+            ("debug_memcache", serde_json::json!(false)),
+        ]
+    }
+
     #[test]
     fn test_rez_defaults_match_upstream_rez_3_4_0() {
-        // Values verified against rez 3.4.0 `src/rez/rezconfig.py`.
+        for (key, upstream) in upstream_3_4_0_defaults() {
+            assert_eq!(
+                rez_default(key).as_ref(),
+                Some(&upstream),
+                "default for {key} must match rez 3.4.0"
+            );
+        }
+    }
+
+    #[test]
+    fn test_upstream_default_snapshot_stays_exhaustive() {
+        let snapshot = upstream_3_4_0_defaults();
+        let snapshot_keys: std::collections::BTreeSet<_> =
+            snapshot.iter().map(|(key, _)| *key).collect();
+        let defined_keys: std::collections::BTreeSet<_> = registry()
+            .iter()
+            .filter(|key| rez_default(key.name).is_some())
+            .map(|key| key.name)
+            .collect();
+
+        // Check both directions: deleting a snapshot entry must fail even
+        // though all remaining entries still have registered defaults.
+        assert_eq!(snapshot_keys, defined_keys);
         assert_eq!(
-            rez_default("packages_path"),
-            Some(serde_json::json!([
-                "~/packages",
-                "~/.rez/packages/int",
-                "~/.rez/packages/ext",
-            ]))
+            snapshot_keys.len(),
+            snapshot.len(),
+            "duplicate snapshot key"
         );
-        assert_eq!(
-            rez_default("local_packages_path"),
-            Some(serde_json::json!("~/packages"))
-        );
-        // rez uses forward slashes on every platform, including Windows.
-        assert_eq!(
-            rez_default("release_packages_path"),
-            Some(serde_json::json!("~/.rez/packages/int"))
-        );
-        assert_eq!(
-            rez_default("debug_memcache"),
-            Some(serde_json::json!(false))
-        );
+
+        for (key, _) in snapshot {
+            assert!(
+                rez_default(key).is_some(),
+                "{key} is in the snapshot but `rez_default` does not define it"
+            );
+            assert!(
+                find(key).is_some(),
+                "{key} has a rez default and must be registered"
+            );
+        }
     }
 
     #[test]
