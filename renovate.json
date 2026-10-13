@@ -11,6 +11,13 @@
   "rebaseWhen": "behind-base-branch",
   "packageRules": [
     {
+      "description": "Hold the Rust toolchain at 1.95.0 by ignoring every update renovate raises for it. `rust-toolchain.toml` is the source of truth for the toolchain, but `Cargo.toml` `rust-version` is the declared MSRV, so bumping it is a compatibility change for downstream consumers rather than a routine dependency update. Per the project's release policy an MSRV bump rides a breaking release (0.4.0), never a patch. Renovate only rewrites `rust-toolchain.toml`, which leaves the pins in `Cargo.toml`, `clippy.toml` and every `dtolnay/rust-toolchain@` entry behind and fails `scripts/check_toolchain_pins.py`, so it cannot land as proposed either. Remove this rule as part of the MSRV bump when one is authorized.",
+      "matchManagers": ["custom.regex"],
+      "matchDepNames": ["rust"],
+      "matchFileNames": ["rust-toolchain.toml"],
+      "enabled": false
+    },
+    {
       "description": "A rust-toolchain bump only rewrites rust-toolchain.toml, but the same version is also pinned in Cargo.toml (rust-version), clippy.toml (msrv) and every dtolnay/rust-toolchain@ entry in .github/workflows. A partial bump silently puts CI on a different toolchain than the one it advertises, so never automerge it - update every location together and let scripts/check_toolchain_pins.py confirm.",
       "matchFileNames": ["rust-toolchain.toml"],
       "automerge": false,
