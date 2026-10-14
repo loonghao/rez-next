@@ -263,6 +263,49 @@ visible alongside the exemptions above.
   so the two are compared, not merely restated. Extending `rez_default` means
   extending that snapshot too.
 
+## Recording a review fingerprint
+
+A review decision binds to the diff it approved through
+`approved_diff_fingerprint`. That value must be produced by calling the merge
+gate's own `fingerprint` function, never by assembling the input by hand:
+
+```python
+import pr_merge_gate as gate
+
+fp = gate.fingerprint(files, recipe)   # files: the PR's compare `.files` array
+```
+
+Record the recipe name next to every fingerprint. A fingerprint without its
+recipe is unverifiable, because the reader cannot tell which of the two accepted
+shapes produced it.
+
+### The two accepted recipes
+
+| recipe | input | trailing newline |
+| --- | --- | --- |
+| `compare-lines-final-lf` | lines, after splitting entries with `splitlines()` | yes |
+| `pull-files-records-no-final-lf` | whole `filename\tpatch` entries, unsplit | no |
+
+Both sort; they differ in the sort unit and in the trailing newline. Treat that
+pair as one discriminator, because neither half identifies a recipe on its own:
+sorting entries is not the same operation as sorting the lines those entries
+contain.
+
+### Traps when computing a fingerprint
+
+- Do not pipe jq output through shell `sort`. GNU `sort` is line-oriented, and
+  an entry's patch body contains newlines, so each entry is shredded into
+  separate records and reordered. The result matches neither recipe. Sort inside
+  jq, against the array:
+  `[.files[] | .filename + "\t" + (.patch // "")] | sort | join("\n")`
+- `gh api ... -q` appends a trailing newline of its own. Do not add a second one
+  when hashing; feed the `.files` array straight into the gate instead of
+  round-tripping through a shell text pipe.
+- A fingerprint is comparable only as value plus recipe. Values produced under
+  different recipes are not comparable, so a mismatch between two of them is a
+  recipe difference rather than evidence of tampering. Values already recorded
+  under a retired recipe stay as recorded and are never recomputed.
+
 ## Changing this document
 
 Adding a crate to the contract means three edits, and all of them are required:
