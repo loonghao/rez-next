@@ -45,7 +45,10 @@ Release pull requests are created as drafts, so merging one takes a deliberate
 action: open the PR and clear the draft state first (use the "Ready for review"
 button on the pull request page). Merging is the publish trigger — it tags the
 release and dispatches the crates.io and PyPI uploads — so a draft is a guard
-rail, not a safe state, and clearing it is not a confirmation step.
+rail, not a safe state, and clearing it is not a confirmation step. Clearing the
+draft is durable: release-please rewrites a release PR's title and body but never
+touches its draft state, so an un-drafted release PR stays un-drafted across
+later pushes to `main`.
 
 ## Development
 
