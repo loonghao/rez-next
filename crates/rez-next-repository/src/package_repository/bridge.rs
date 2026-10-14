@@ -31,17 +31,33 @@
 //! solve. Errors are memoized too, so a family whose definition fails to parse
 //! keeps failing closed instead of silently reporting an empty family on a
 //! later call.
+//!
+//! The memo uses `std::sync::RwLock` rather than `tokio::sync::RwLock` on
+//! purpose. `tokio`'s lock is neither `UnwindSafe` nor `RefUnwindSafe`, so
+//! adding it silently dropped those auto traits from this public type — a
+//! breaking change that `cargo-semver-checks` catches but that nothing in the
+//! test suite would. The memo guards are never held across an `.await`, so the
+//! std lock costs nothing here. The assertion below keeps it that way.
 
 use std::collections::HashMap;
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 
 use rez_next_common::RezCoreError;
 use rez_next_package::Package;
-use tokio::sync::RwLock;
 
 use super::{FilesystemPackageRepository, PackageRepository as SyncPackageRepository};
 use crate::resources::PackageFamilyResource;
 use crate::simple_repository::PackageRepository as AsyncPackageRepository;
+
+/// Guards the auto traits `AsyncRepositoryAdapter` had before it memoized.
+///
+/// Swapping the memo to a container with interior mutability that is not
+/// unwind-safe would remove these from a public type, which is a breaking
+/// change. This turns that into a compile error.
+const _: fn() = || {
+    fn assert_unwind_safe<T: std::panic::UnwindSafe + std::panic::RefUnwindSafe>() {}
+    assert_unwind_safe::<AsyncRepositoryAdapter>();
+};
 
 /// Exposes a [`FilesystemPackageRepository`] through the async repository trait.
 #[derive(Debug, Clone)]
@@ -75,11 +91,11 @@ impl AsyncRepositoryAdapter {
     /// family, so repeated look-ups of a missing package stay cheap rather than
     /// re-walking the directory each time.
     async fn packages_for_family(&self, name: &str) -> Result<Vec<Arc<Package>>, RezCoreError> {
-        if let Some(packages) = self.packages.read().await.get(name) {
-            return Ok(packages.clone());
+        if let Some(packages) = self.packages.read().ok().and_then(|g| g.get(name).cloned()) {
+            return Ok(packages);
         }
-        if let Some(error) = self.errors.read().await.get(name) {
-            return Err(RezCoreError::Repository(error.clone()));
+        if let Some(error) = self.errors.read().ok().and_then(|g| g.get(name).cloned()) {
+            return Err(RezCoreError::Repository(error));
         }
 
         let repository = Arc::clone(&self.inner);
@@ -98,18 +114,16 @@ impl AsyncRepositoryAdapter {
 
         match result {
             Ok(packages) => {
-                self.packages
-                    .write()
-                    .await
-                    .insert(owned_name, packages.clone());
+                if let Ok(mut guard) = self.packages.write() {
+                    guard.insert(owned_name, packages.clone());
+                }
                 Ok(packages)
             }
             Err(error) => {
                 let message = error.to_string();
-                self.errors
-                    .write()
-                    .await
-                    .insert(owned_name, message.clone());
+                if let Ok(mut guard) = self.errors.write() {
+                    guard.insert(owned_name, message.clone());
+                }
                 Err(RezCoreError::Repository(message))
             }
         }
