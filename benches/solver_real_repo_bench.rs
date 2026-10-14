@@ -16,8 +16,10 @@ use rez_next_solver::{DependencyResolver, SolverConfig};
 use std::fs;
 use std::hint::black_box;
 use std::sync::Arc;
-use std::time::Duration;
 use tempfile::TempDir;
+
+#[path = "support/package_criterion.rs"]
+mod package_criterion;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -163,7 +165,6 @@ fn build_large_repo(n_packages: usize, n_versions: usize) -> (TempDir, Arc<Repos
 /// Benchmark: repository scan speed
 fn bench_repo_scan(c: &mut Criterion) {
     let mut group = c.benchmark_group("repo_scan");
-    group.measurement_time(Duration::from_secs(5));
 
     let rt = make_rt();
     let (_tmp, repo) = build_dcc_repo();
@@ -188,7 +189,6 @@ fn bench_repo_scan(c: &mut Criterion) {
 /// Benchmark: resolve single package from DCC repo
 fn bench_resolve_single_dcc(c: &mut Criterion) {
     let mut group = c.benchmark_group("resolve_single_dcc");
-    group.measurement_time(Duration::from_secs(5));
 
     let rt = make_rt();
     let (_tmp, repo) = build_dcc_repo();
@@ -212,7 +212,6 @@ fn bench_resolve_single_dcc(c: &mut Criterion) {
 /// Benchmark: resolve with transitive dependencies
 fn bench_resolve_transitive_dcc(c: &mut Criterion) {
     let mut group = c.benchmark_group("resolve_transitive_dcc");
-    group.measurement_time(Duration::from_secs(5));
 
     let rt = make_rt();
     let (_tmp, repo) = build_dcc_repo();
@@ -334,8 +333,6 @@ fn bench_version_constraint_check(c: &mut Criterion) {
 /// Benchmark: large repo resolution
 fn bench_resolve_large_repo(c: &mut Criterion) {
     let mut group = c.benchmark_group("resolve_large_repo");
-    group.measurement_time(Duration::from_secs(10));
-    group.sample_size(10);
 
     let rt = make_rt();
 
@@ -367,12 +364,14 @@ fn bench_resolve_large_repo(c: &mut Criterion) {
 }
 
 criterion_group!(
-    benches,
-    bench_repo_scan,
-    bench_resolve_single_dcc,
-    bench_resolve_transitive_dcc,
-    bench_requirement_parsing,
-    bench_version_constraint_check,
-    bench_resolve_large_repo,
+    name = benches;
+    config = package_criterion::configured();
+    targets =
+        bench_repo_scan,
+        bench_resolve_single_dcc,
+        bench_resolve_transitive_dcc,
+        bench_requirement_parsing,
+        bench_version_constraint_check,
+        bench_resolve_large_repo,
 );
 criterion_main!(benches);

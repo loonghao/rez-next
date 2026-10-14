@@ -19,11 +19,25 @@
 //! The filesystem work is blocking, so it runs on [`tokio::task::spawn_blocking`]
 //! rather than being polled inline: calling it directly would block the
 //! runtime worker for the duration of a directory walk.
+//!
+//! # Caching
+//!
+//! `find_packages` memoizes per family, on both the success and the error side.
+//! The wrapped repository re-reads and re-parses every `package.py` of a family
+//! on each call, and the solver asks for the same families over and over:
+//! `AStarSearch::generate_successors` calls `find_packages` once per expanded
+//! state. Without memoization that turns a bounded wall-clock budget
+//! (`max_search_time`) into resolution failures on repositories that used to
+//! solve. Errors are memoized too, so a family whose definition fails to parse
+//! keeps failing closed instead of silently reporting an empty family on a
+//! later call.
 
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use rez_next_common::RezCoreError;
 use rez_next_package::Package;
+use tokio::sync::RwLock;
 
 use super::{FilesystemPackageRepository, PackageRepository as SyncPackageRepository};
 use crate::resources::PackageFamilyResource;
@@ -33,6 +47,10 @@ use crate::simple_repository::PackageRepository as AsyncPackageRepository;
 #[derive(Debug, Clone)]
 pub struct AsyncRepositoryAdapter {
     inner: Arc<FilesystemPackageRepository>,
+    /// Packages per family, newest first, as returned by [`family_packages`].
+    packages: Arc<RwLock<HashMap<String, Vec<Arc<Package>>>>>,
+    /// Parse failures per family, mirroring `SimpleRepository::package_errors`.
+    errors: Arc<RwLock<HashMap<String, String>>>,
 }
 
 impl AsyncRepositoryAdapter {
@@ -41,12 +59,60 @@ impl AsyncRepositoryAdapter {
     pub fn new(repository: FilesystemPackageRepository) -> Self {
         Self {
             inner: Arc::new(repository),
+            packages: Arc::new(RwLock::new(HashMap::new())),
+            errors: Arc::new(RwLock::new(HashMap::new())),
         }
     }
 
     /// The wrapped upstream-faithful repository.
     pub fn inner(&self) -> &FilesystemPackageRepository {
         &self.inner
+    }
+
+    /// Resolve a family, memoizing the result on both paths.
+    ///
+    /// A family that is absent from the repository is memoized as an empty
+    /// family, so repeated look-ups of a missing package stay cheap rather than
+    /// re-walking the directory each time.
+    async fn packages_for_family(&self, name: &str) -> Result<Vec<Arc<Package>>, RezCoreError> {
+        if let Some(packages) = self.packages.read().await.get(name) {
+            return Ok(packages.clone());
+        }
+        if let Some(error) = self.errors.read().await.get(name) {
+            return Err(RezCoreError::Repository(error.clone()));
+        }
+
+        let repository = Arc::clone(&self.inner);
+        let owned_name = name.to_string();
+        let lookup_name = owned_name.clone();
+        let result = tokio::task::spawn_blocking(move || {
+            let family = PackageFamilyResource::new(
+                lookup_name,
+                repository.repository_type().to_string(),
+                repository.location().display().to_string(),
+            );
+            family_packages(&repository, family)
+        })
+        .await
+        .map_err(|e| RezCoreError::Repository(format!("Repository task panicked: {e}")))?;
+
+        match result {
+            Ok(packages) => {
+                self.packages
+                    .write()
+                    .await
+                    .insert(owned_name, packages.clone());
+                Ok(packages)
+            }
+            Err(error) => {
+                let message = error.to_string();
+                self.errors
+                    .write()
+                    .await
+                    .insert(owned_name, message.clone());
+                Err(RezCoreError::Repository(message))
+            }
+        }
     }
 }
 
@@ -74,18 +140,7 @@ fn family_packages(
 #[async_trait::async_trait]
 impl AsyncPackageRepository for AsyncRepositoryAdapter {
     async fn find_packages(&self, name: &str) -> Result<Vec<Arc<Package>>, RezCoreError> {
-        let repository = Arc::clone(&self.inner);
-        let name = name.to_string();
-        tokio::task::spawn_blocking(move || {
-            let family = PackageFamilyResource::new(
-                name,
-                repository.repository_type().to_string(),
-                repository.location().display().to_string(),
-            );
-            family_packages(&repository, family)
-        })
-        .await
-        .map_err(|e| RezCoreError::Repository(format!("Repository task panicked: {e}")))?
+        self.packages_for_family(name).await
     }
 
     async fn get_package(
@@ -524,5 +579,78 @@ mod tests {
                     .as_ref()
             )
         );
+    }
+
+    /// A family is read from disk once, then served from the adapter's memo.
+    ///
+    /// This is the regression that matters for the solver:
+    /// `AStarSearch::generate_successors` calls `find_packages` once per
+    /// expanded state, over the same families. Re-reading and re-parsing every
+    /// `package.py` per call made that ~1700x slower than the cached
+    /// `SimpleRepository`, and because `AStarSearch` has a `max_search_time`
+    /// wall-clock budget, slowness turned into resolutions that fail to
+    /// complete rather than merely being slow.
+    ///
+    /// The observable consequence of memoization is that mutations made after
+    /// the first read are no longer visible: the second call below returns the
+    /// memoized two versions, not the three now on disk.
+    #[tokio::test]
+    async fn family_is_read_once_then_memoized() {
+        let root = make_repository(&[("python", &["3.9.1", "3.11.0"])]);
+        let adapter = AsyncRepositoryAdapter::new(FilesystemPackageRepository::new(root.path()));
+
+        let first = adapter.find_packages("python").await.unwrap();
+        assert_eq!(first.len(), 2, "fixture has two versions");
+
+        // Add a version after the first read.
+        let added = root.path().join("python").join("3.12.0");
+        fs::create_dir_all(&added).unwrap();
+        fs::write(
+            added.join("package.py"),
+            "name = 'python'\nversion = '3.12.0'\n",
+        )
+        .unwrap();
+
+        let second = adapter.find_packages("python").await.unwrap();
+        assert_eq!(
+            second.len(),
+            2,
+            "a memoized family must not be re-read from disk"
+        );
+    }
+
+    /// A family whose definition fails to parse keeps failing.
+    ///
+    /// Errors are memoized alongside successes so that a broken definition
+    /// fails closed on every call, rather than reporting an empty family after
+    /// the first failure.
+    #[tokio::test]
+    async fn a_broken_family_fails_closed_on_every_call() {
+        let root = TempDir::new().unwrap();
+        let dir = root.path().join("broken").join("1.0.0");
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(dir.join("package.py"), "this is not valid python!! (((").unwrap();
+
+        let adapter = AsyncRepositoryAdapter::new(FilesystemPackageRepository::new(root.path()));
+
+        assert!(
+            adapter.find_packages("broken").await.is_err(),
+            "a broken definition must be an error, not an empty family"
+        );
+        assert!(
+            adapter.find_packages("broken").await.is_err(),
+            "the error must be memoized, not downgraded to empty on repeat calls"
+        );
+    }
+
+    /// A family that is absent is memoized as empty, so repeated look-ups of a
+    /// missing package do not re-walk the directory.
+    #[tokio::test]
+    async fn a_missing_family_stays_empty_and_is_memoized() {
+        let root = make_repository(&[("python", &["3.9.1"])]);
+        let adapter = AsyncRepositoryAdapter::new(FilesystemPackageRepository::new(root.path()));
+
+        assert!(adapter.find_packages("absent").await.unwrap().is_empty());
+        assert!(adapter.find_packages("absent").await.unwrap().is_empty());
     }
 }
