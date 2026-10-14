@@ -2925,6 +2925,7 @@ dependencies = [
  "rez-next-build",
  "rez-next-cache",
  "rez-next-common",
+ "rez-next-config",
  "rez-next-context",
  "rez-next-package",
  "rez-next-repository",

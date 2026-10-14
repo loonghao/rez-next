@@ -11,8 +11,16 @@ use std::path::{Path, PathBuf};
 use thiserror::Error;
 
 pub mod keys;
+pub mod project;
+pub mod schema;
+pub mod validate;
 
 pub use keys::{KeyDef, KeyType, Origin};
+pub use project::{
+    PROJECT_CONFIG_NAMES, find_project_config_file, paths_equal, project_config_in, sourced_paths,
+};
+pub use schema::json_schema;
+pub use validate::{ValidationIssue, validate_all, validate_file};
 
 // -----------------------------------------------------------------------------
 // Error types
@@ -363,16 +371,16 @@ impl Config {
     }
 
     /// Find project-level configuration file.
+    ///
+    /// **rez-next extension**: upstream rez has no project-level config file —
+    /// it reads `REZ_CONFIG_FILE` and `~/.rezconfig` only. The upward walk is a
+    /// rez-next addition.
+    ///
+    /// The lookup is shared with the CLI so both entry points agree on which
+    /// file is the project config; two copies of the walk would drift apart.
     fn find_project_config() -> Option<PathBuf> {
-        // TODO: Walk up from current directory to find .rez/rezconfig.toml
         let current = env::current_dir().ok()?;
-
-        let project_config = current.join(".rez").join("rezconfig.toml");
-        if project_config.exists() {
-            return Some(project_config);
-        }
-
-        None
+        crate::project::find_project_config_file(&current)
     }
 
     /// Get all loaded configuration sources.

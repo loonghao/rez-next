@@ -102,6 +102,7 @@ rez-next-build = { version = "0.3.12", path = "crates/rez-next-build" } # x-rele
 rez-next-cache = { version = "0.3.12", path = "crates/rez-next-cache" } # x-release-please-version
 rez-next-suites = { version = "0.3.12", path = "crates/rez-next-suites" } # x-release-please-version
 rez-next-rex = { version = "0.3.12", path = "crates/rez-next-rex" } # x-release-please-version
+rez-next-config = { version = "0.3.12", path = "crates/rez-next-config" } # x-release-please-version
 
 
 
