@@ -6,7 +6,9 @@ use crate::cli::utils::expand_home_path;
 use clap::Args;
 use rez_next_common::{RezCoreError, error::RezCoreResult};
 use rez_next_package::Package;
-use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
+use rez_next_repository::package_repository::FilesystemPackageRepository;
+use rez_next_repository::package_repository::bridge::AsyncRepositoryAdapter;
+use rez_next_repository::simple_repository::RepositoryManager;
 use std::path::PathBuf;
 
 /// Arguments for the mv command
@@ -114,9 +116,9 @@ async fn execute_move_async(args: &MvArgs) -> RezCoreResult<()> {
     };
 
     for (i, path) in source_paths.iter().enumerate() {
-        let repo_name = format!("repo_{}", i);
-        let simple_repo = SimpleRepository::new(path.clone(), repo_name);
-        repo_manager.add_repository(Box::new(simple_repo));
+        let repo_name = format!("repo_{i}");
+        let repository = FilesystemPackageRepository::with_name(path.clone(), repo_name);
+        repo_manager.add_repository(Box::new(AsyncRepositoryAdapter::new(repository)));
     }
 
     // Find source package and its location

@@ -8,7 +8,9 @@ use clap::Args;
 use rez_next_common::{RezCoreError, config::RezCoreConfig, error::RezCoreResult};
 use rez_next_context::{ContextConfig, ResolvedContext};
 use rez_next_package::PackageRequirement;
-use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
+use rez_next_repository::package_repository::FilesystemPackageRepository;
+use rez_next_repository::package_repository::bridge::AsyncRepositoryAdapter;
+use rez_next_repository::simple_repository::RepositoryManager;
 use rez_next_rex::{RexEnvironment, ShellType, generate_shell_script};
 use rez_next_solver::{DependencyResolver, SolverConfig};
 use serde::{Deserialize, Serialize};
@@ -292,10 +294,9 @@ fn resolve_context(
 
     for (i, path) in search_paths.iter().enumerate() {
         if path.exists() {
-            repo_manager.add_repository(Box::new(SimpleRepository::new(
-                path.clone(),
-                format!("repo_{}", i),
-            )));
+            let repository =
+                FilesystemPackageRepository::with_name(path.clone(), format!("repo_{i}"));
+            repo_manager.add_repository(Box::new(AsyncRepositoryAdapter::new(repository)));
         }
     }
 

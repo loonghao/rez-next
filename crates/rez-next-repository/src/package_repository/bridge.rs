@@ -324,4 +324,205 @@ mod tests {
         assert_eq!(adapter.root_path(), root.path());
         assert_eq!(adapter.inner().repository_type(), "filesystem");
     }
+
+    /// One version to write: family, version, and the requirements its
+    /// definition declares.
+    struct Definition<'a> {
+        family: &'a str,
+        version: &'a str,
+        requires: &'a [&'a str],
+    }
+
+    /// Writes package definitions carrying dependency metadata, so a test can
+    /// tell "the definition was read" apart from "a directory name was used".
+    fn make_repository_with_definitions(definitions: &[Definition<'_>]) -> TempDir {
+        let root = TempDir::new().unwrap();
+        for definition in definitions {
+            let dir = root.path().join(definition.family).join(definition.version);
+            fs::create_dir_all(&dir).unwrap();
+            let body = if definition.requires.is_empty() {
+                format!(
+                    "name = '{}'\nversion = '{}'\n",
+                    definition.family, definition.version
+                )
+            } else {
+                let listed = definition
+                    .requires
+                    .iter()
+                    .map(|r| format!("'{r}'"))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                format!(
+                    "name = '{}'\nversion = '{}'\nrequires = [{listed}]\n",
+                    definition.family, definition.version
+                )
+            };
+            fs::write(dir.join("package.py"), body).unwrap();
+        }
+        root
+    }
+
+    /// The adapter must surface dependency metadata, not just directory names.
+    ///
+    /// `iter_packages` builds each package from the version directory *and* its
+    /// definition file. A regression back to names-only would still report the
+    /// right versions, so this asserts on `requires` — the field that only a
+    /// parsed definition can supply.
+    #[tokio::test]
+    async fn find_packages_reports_dependencies_from_the_definition() {
+        let root = make_repository_with_definitions(&[
+            Definition {
+                family: "maya",
+                version: "2024.1",
+                requires: &["python-3"],
+            },
+            Definition {
+                family: "maya",
+                version: "2023.1",
+                requires: &[],
+            },
+        ]);
+        let adapter = AsyncRepositoryAdapter::new(FilesystemPackageRepository::new(root.path()));
+
+        let packages = adapter.find_packages("maya").await.unwrap();
+        let with_requires: Vec<_> = packages.iter().filter(|p| !p.requires.is_empty()).collect();
+
+        assert_eq!(
+            with_requires.len(),
+            1,
+            "only the 2024.1 definition has deps"
+        );
+        assert_eq!(with_requires[0].requires.len(), 1);
+        assert!(
+            with_requires[0].requires[0].to_string().contains("python"),
+            "requirement should name python, got {:?}",
+            with_requires[0].requires[0].to_string()
+        );
+    }
+
+    /// Upstream rez reads packages from a flat two-level layout and does not
+    /// recurse into grouping directories.
+    ///
+    /// This is the contract that separates the upstream-faithful repository from
+    /// the recursive scan it replaced: under `<root>/studio/nuke/<version>`,
+    /// `studio` is the family and `nuke` is a *version* of it, so `find_packages("nuke")`
+    /// is empty. A recursive implementation would instead report `nuke` as a
+    /// family, which upstream rez does not do -- see
+    /// `_get_family_dirs` in upstream's
+    /// `src/rezplugins/package_repository/filesystem.py`, a single `os.listdir`.
+    #[tokio::test]
+    async fn nested_layout_is_not_recursed_into() {
+        let root = TempDir::new().unwrap();
+        let nested = root.path().join("studio").join("nuke").join("15.0");
+        fs::create_dir_all(&nested).unwrap();
+        fs::write(
+            nested.join("package.py"),
+            "name = 'nuke'\nversion = '15.0'\n",
+        )
+        .unwrap();
+
+        let adapter = AsyncRepositoryAdapter::new(FilesystemPackageRepository::new(root.path()));
+
+        assert!(
+            adapter.find_packages("nuke").await.unwrap().is_empty(),
+            "a nested package must not be reported as a family"
+        );
+        // The grouping directory is the family, and the package name is its version.
+        let families = adapter.list_packages().await.unwrap();
+        assert_eq!(families, vec!["studio".to_string()]);
+    }
+
+    /// An ignored version is invisible to every Rust consumer.
+    ///
+    /// Ignore markers are the feature the issue calls out as behaving
+    /// differently between Python and the CLI. Now that both sides route through
+    /// this one implementation, the marker must hide the version from the async
+    /// trait too, not just from the sync one.
+    #[tokio::test]
+    async fn ignored_versions_are_invisible_through_the_adapter() {
+        let root = make_repository(&[("python", &["3.9.1", "3.11.0"])]);
+        let marker = root.path().join("python").join(".ignore3.11.0");
+        fs::write(&marker, "").unwrap();
+
+        let adapter = AsyncRepositoryAdapter::new(FilesystemPackageRepository::new(root.path()));
+
+        let versions: Vec<String> = adapter
+            .find_packages("python")
+            .await
+            .unwrap()
+            .iter()
+            .filter_map(|p| p.version.as_ref().map(|v| v.as_str().to_string()))
+            .collect();
+        assert_eq!(versions, vec!["3.9.1".to_string()]);
+
+        // The ignored version is not the latest either.
+        let latest = adapter
+            .get_package("python", None)
+            .await
+            .unwrap()
+            .expect("3.9.1 must resolve");
+        assert_eq!(latest.version.as_ref().map(|v| v.as_str()), Some("3.9.1"));
+    }
+
+    /// Payload paths reach Rust consumers through the wrapped repository.
+    ///
+    /// The issue lists payload paths as CLI-divergent. `inner()` is the seam that
+    /// exposes the full trait's methods, which the 5-method async trait cannot
+    /// carry.
+    #[test]
+    fn payload_path_is_reachable_from_rust() {
+        let root = make_repository(&[("python", &["3.9.1"])]);
+        let adapter = AsyncRepositoryAdapter::new(FilesystemPackageRepository::new(root.path()));
+
+        let payload = adapter
+            .inner()
+            .get_package_payload_path("python", Some("3.9.1"))
+            .unwrap();
+
+        assert_eq!(payload, Some(root.path().join("python").join("3.9.1")));
+    }
+
+    /// Packages carry the path of the definition they were loaded from.
+    ///
+    /// `Package::root()` is derived from `filepath`, and variant
+    /// materialisation fails without it. The serializer keeps the path on its
+    /// container rather than on the package, so the repository has to transfer
+    /// it -- without this, `rez test` on a variant package reports "Cannot
+    /// materialize variant ... without a definition filepath".
+    #[tokio::test]
+    async fn packages_carry_the_definition_filepath() {
+        let root = make_repository_with_definitions(&[Definition {
+            family: "python",
+            version: "3.9.1",
+            requires: &[],
+        }]);
+        let adapter = AsyncRepositoryAdapter::new(FilesystemPackageRepository::new(root.path()));
+
+        let package = adapter
+            .get_package("python", Some("3.9.1"))
+            .await
+            .unwrap()
+            .expect("python 3.9.1 must resolve");
+
+        let expected = root
+            .path()
+            .join("python")
+            .join("3.9.1")
+            .join("package.py")
+            .to_string_lossy()
+            .to_string();
+        assert_eq!(package.filepath.as_deref(), Some(expected.as_str()));
+
+        // `root()` is what variant materialisation actually reads.
+        assert_eq!(
+            package.root().as_deref(),
+            Some(
+                root.path()
+                    .join("python")
+                    .join("3.9.1")
+                    .to_string_lossy()
+                    .as_ref()
+            )
+        );
+    }
 }

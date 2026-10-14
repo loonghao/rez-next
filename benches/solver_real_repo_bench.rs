@@ -9,7 +9,9 @@
 
 use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
 use rez_next_package::Requirement;
-use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
+use rez_next_repository::package_repository::FilesystemPackageRepository;
+use rez_next_repository::package_repository::bridge::AsyncRepositoryAdapter;
+use rez_next_repository::simple_repository::RepositoryManager;
 use rez_next_solver::{DependencyResolver, SolverConfig};
 use std::fs;
 use std::hint::black_box;
@@ -115,9 +117,8 @@ fn build_dcc_repo() -> (TempDir, Arc<RepositoryManager>) {
     );
 
     let mut mgr = RepositoryManager::new();
-    mgr.add_repository(Box::new(SimpleRepository::new(
-        repo_dir.clone(),
-        "bench_repo".to_string(),
+    mgr.add_repository(Box::new(AsyncRepositoryAdapter::new(
+        FilesystemPackageRepository::with_name(repo_dir.clone(), "bench_repo".to_string()),
     )));
 
     (tmp, Arc::new(mgr))
@@ -150,9 +151,8 @@ fn build_large_repo(n_packages: usize, n_versions: usize) -> (TempDir, Arc<Repos
     }
 
     let mut mgr = RepositoryManager::new();
-    mgr.add_repository(Box::new(SimpleRepository::new(
-        repo_dir.clone(),
-        "large_repo".to_string(),
+    mgr.add_repository(Box::new(AsyncRepositoryAdapter::new(
+        FilesystemPackageRepository::with_name(repo_dir.clone(), "large_repo".to_string()),
     )));
 
     (tmp, Arc::new(mgr))

@@ -3,7 +3,9 @@
 use clap::Args;
 use rez_next_common::{RezCoreError, config::RezCoreConfig, error::RezCoreResult};
 use rez_next_package::Requirement;
-use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
+use rez_next_repository::package_repository::FilesystemPackageRepository;
+use rez_next_repository::package_repository::bridge::AsyncRepositoryAdapter;
+use rez_next_repository::simple_repository::RepositoryManager;
 use rez_next_solver::dependency_resolver::DetailedResolutionResult;
 use rez_next_solver::{ConflictStrategy, DependencyResolver, SolverConfig};
 use std::path::PathBuf;
@@ -66,8 +68,11 @@ async fn solve_async(args: SolveArgs) -> RezCoreResult<()> {
         add_default_repositories(&mut repo_manager).await?;
     } else {
         for repo_path in &args.repository {
-            let repo = SimpleRepository::new(repo_path, format!("repo_{}", repo_path.display()));
-            repo_manager.add_repository(Box::new(repo));
+            let repo = FilesystemPackageRepository::with_name(
+                repo_path,
+                format!("repo_{}", repo_path.display()),
+            );
+            repo_manager.add_repository(Box::new(AsyncRepositoryAdapter::new(repo)));
         }
     }
 
@@ -131,8 +136,8 @@ async fn add_default_repositories(repo_manager: &mut RepositoryManager) -> RezCo
 
         let path = PathBuf::from(&expanded);
         if path.exists() {
-            let repo = SimpleRepository::new(&path, format!("repo_{}", i));
-            repo_manager.add_repository(Box::new(repo));
+            let repo = FilesystemPackageRepository::with_name(&path, format!("repo_{i}"));
+            repo_manager.add_repository(Box::new(AsyncRepositoryAdapter::new(repo)));
         }
     }
 

@@ -2,7 +2,9 @@
 
 use clap::Args;
 use rez_next_common::{RezCoreConfig, RezCoreError};
-use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
+use rez_next_repository::package_repository::FilesystemPackageRepository;
+use rez_next_repository::package_repository::bridge::AsyncRepositoryAdapter;
+use rez_next_repository::simple_repository::RepositoryManager;
 use rez_next_version::Version;
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::path::PathBuf;
@@ -152,9 +154,9 @@ pub async fn execute_depends(args: DependsArgs) -> Result<(), RezCoreError> {
 
     // Add filesystem repositories
     for (i, path) in package_paths.iter().enumerate() {
-        let repo_name = format!("repo_{}", i);
-        let simple_repo = SimpleRepository::new(path.clone(), repo_name);
-        repo_manager.add_repository(Box::new(simple_repo));
+        let repo_name = format!("repo_{i}");
+        let repository = FilesystemPackageRepository::with_name(path.clone(), repo_name);
+        repo_manager.add_repository(Box::new(AsyncRepositoryAdapter::new(repository)));
     }
 
     // Build reverse dependency tree

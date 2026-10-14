@@ -3,7 +3,9 @@
 use crate::filter::SearchFilter;
 use crate::result::{SearchResult, SearchResultSet};
 use rez_next_common::config::RezCoreConfig;
-use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
+use rez_next_repository::package_repository::FilesystemPackageRepository;
+use rez_next_repository::package_repository::bridge::AsyncRepositoryAdapter;
+use rez_next_repository::simple_repository::RepositoryManager;
 use std::path::PathBuf;
 
 /// What to search for
@@ -90,9 +92,8 @@ impl PackageSearcher {
             }
 
             let mut repo_manager = RepositoryManager::new();
-            repo_manager.add_repository(Box::new(SimpleRepository::new(
-                repo_path.clone(),
-                format!("repo_{}", idx),
+            repo_manager.add_repository(Box::new(AsyncRepositoryAdapter::new(
+                FilesystemPackageRepository::with_name(repo_path.clone(), format!("repo_{idx}")),
             )));
 
             // Enumerate every package: list_packages() returns family names, then
