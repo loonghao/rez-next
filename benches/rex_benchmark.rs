@@ -172,21 +172,32 @@ fn bench_parser_cached_access(c: &mut Criterion) {
 
 // ── Groups ────────────────────────────────────────────────────────────────────
 
+// CRITERION_QUICK is set in the PR-triggered quick job, where the whole lane has
+// a 15-minute budget shared with compilation. These groups previously ignored it
+// and kept their full settings, so adding a fourth bench to the quick set pushed
+// the job past the timeout and got it cancelled. Scale down under quick mode,
+// matching the policy the other quick benches use.
+fn quick_config(base_sample_size: usize, base_measurement_secs: u64) -> Criterion {
+    let quick = std::env::var("CRITERION_QUICK").is_ok();
+    Criterion::default()
+        .sample_size(if quick { 30 } else { base_sample_size })
+        .measurement_time(Duration::from_secs(if quick {
+            2
+        } else {
+            base_measurement_secs
+        }))
+        .warm_up_time(Duration::from_millis(if quick { 500 } else { 2000 }))
+}
+
 criterion_group!(
     name = rex_parser_benches;
-    config = Criterion::default()
-        .sample_size(200)
-        .measurement_time(Duration::from_secs(5))
-        .warm_up_time(Duration::from_secs(2));
+    config = quick_config(200, 5);
     targets = bench_parser_simple, bench_parser_commands_blocks, bench_parser_new, bench_parser_cached_access
 );
 
 criterion_group!(
     name = rex_executor_benches;
-    config = Criterion::default()
-        .sample_size(100)
-        .measurement_time(Duration::from_secs(8))
-        .warm_up_time(Duration::from_secs(2));
+    config = quick_config(100, 8);
     targets = bench_executor_execute, bench_executor_multi_package
 );
 
