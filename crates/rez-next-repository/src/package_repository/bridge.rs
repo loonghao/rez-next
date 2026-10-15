@@ -90,11 +90,18 @@ impl AsyncRepositoryAdapter {
     /// A family that is absent from the repository is memoized as an empty
     /// family, so repeated look-ups of a missing package stay cheap rather than
     /// re-walking the directory each time.
+    ///
+    /// A poisoned lock is recovered rather than skipped. Treating
+    /// `PoisonError` as "no entry" would fall through to the disk read on every
+    /// call, which silently reverts to the pre-memoization behaviour: same
+    /// results, no error, no test failure — just the solver's hot path slowing
+    /// back down. The memo holds already-published immutable snapshots, so
+    /// recovering the guard is safe.
     async fn packages_for_family(&self, name: &str) -> Result<Vec<Arc<Package>>, RezCoreError> {
-        if let Some(packages) = self.packages.read().ok().and_then(|g| g.get(name).cloned()) {
+        if let Some(packages) = read_memo(&self.packages, name) {
             return Ok(packages);
         }
-        if let Some(error) = self.errors.read().ok().and_then(|g| g.get(name).cloned()) {
+        if let Some(error) = read_memo(&self.errors, name) {
             return Err(RezCoreError::Repository(error));
         }
 
@@ -114,20 +121,31 @@ impl AsyncRepositoryAdapter {
 
         match result {
             Ok(packages) => {
-                if let Ok(mut guard) = self.packages.write() {
-                    guard.insert(owned_name, packages.clone());
-                }
+                insert_memo(&self.packages, owned_name, packages.clone());
                 Ok(packages)
             }
             Err(error) => {
                 let message = error.to_string();
-                if let Ok(mut guard) = self.errors.write() {
-                    guard.insert(owned_name, message.clone());
-                }
+                insert_memo(&self.errors, owned_name, message.clone());
                 Err(RezCoreError::Repository(message))
             }
         }
     }
+}
+
+/// Read a memo entry, recovering from a poisoned lock.
+fn read_memo<T: Clone>(memo: &RwLock<HashMap<String, T>>, key: &str) -> Option<T> {
+    memo.read()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+        .get(key)
+        .cloned()
+}
+
+/// Write a memo entry, recovering from a poisoned lock.
+fn insert_memo<T>(memo: &RwLock<HashMap<String, T>>, key: String, value: T) {
+    memo.write()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+        .insert(key, value);
 }
 
 /// Collect the packages of one family, newest first.
@@ -630,6 +648,47 @@ mod tests {
             second.len(),
             2,
             "a memoized family must not be re-read from disk"
+        );
+    }
+
+    /// A poisoned memo lock still serves cached entries.
+    ///
+    /// If `PoisonError` were treated as "no entry", every look-up would fall
+    /// through to a disk read: correct results, no error, no failing test —
+    /// just the solver's hot path quietly reverting to pre-memoization cost.
+    /// This pins the recovery.
+    #[tokio::test]
+    async fn memoization_survives_a_poisoned_lock() {
+        let root = make_repository(&[("python", &["3.9.1", "3.11.0"])]);
+        let adapter = AsyncRepositoryAdapter::new(FilesystemPackageRepository::new(root.path()));
+
+        // Populate the memo.
+        assert_eq!(adapter.find_packages("python").await.unwrap().len(), 2);
+
+        // Poison the memo by panicking while the write guard is held.
+        let poison = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let _guard = adapter.packages.write().unwrap();
+            panic!("poison the memo lock");
+        }));
+        assert!(poison.is_err(), "the panic must have poisoned the lock");
+        assert!(adapter.packages.is_poisoned());
+
+        // A version added after poisoning: the cached entry must still win,
+        // which is only observable if the poisoned lock was recovered rather
+        // than skipped.
+        let added = root.path().join("python").join("3.12.0");
+        fs::create_dir_all(&added).unwrap();
+        fs::write(
+            added.join("package.py"),
+            "name = 'python'\nversion = '3.12.0'\n",
+        )
+        .unwrap();
+
+        let packages = adapter.find_packages("python").await.unwrap();
+        assert_eq!(
+            packages.len(),
+            2,
+            "a poisoned memo must still serve its cached entry, not re-read disk"
         );
     }
 

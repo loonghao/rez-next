@@ -185,6 +185,70 @@ fn solve_skips_an_ignored_version() {
     );
 }
 
+// ── Nested layouts ───────────────────────────────────────────────────────────
+
+/// Nested package layouts are deliberately not supported.
+///
+/// The consolidated repository reads a flat two-level
+/// `<root>/<family>/<version>` layout, matching upstream rez's
+/// `_get_family_dirs`, which is a single `os.listdir`. The recursive scan it
+/// replaced would find a package nested under grouping directories.
+///
+/// This is a user-visible behaviour change, so it is pinned at the CLI level
+/// rather than only in the adapter's unit tests: without it, restoring
+/// recursion would look like a bug fix rather than a contract break.
+#[test]
+fn search_does_not_recurse_into_grouping_directories() {
+    skip_no_bin!();
+    let tmp = tempfile::tempdir().unwrap();
+    let repo = tmp.path().join("packages");
+    // A package nested one level below a grouping directory.
+    let nested = repo.join("studio").join("nuke").join("15.0");
+    fs::create_dir_all(&nested).unwrap();
+    fs::write(
+        nested.join("package.py"),
+        "name = \"nuke\"\nversion = \"15.0\"\n",
+    )
+    .unwrap();
+    // A sibling at the supported depth, so the repository itself is readable.
+    write_package(&repo, "maya", "2024.0", "");
+
+    let out = rez(&[
+        "search",
+        "nuke",
+        "--repository",
+        repo.to_str().unwrap(),
+        "--format",
+        "json",
+    ]);
+    let stdout = String::from_utf8_lossy(&out.stdout).to_string();
+    assert!(
+        out.status.success(),
+        "stdout={stdout} stderr={}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    assert!(
+        !stdout.contains("nuke"),
+        "a nested package must not be discovered: {stdout}"
+    );
+
+    // The supported layout still works, so the negative above means
+    // "not nested" rather than "repository unreadable".
+    let out = rez(&[
+        "search",
+        "maya",
+        "--repository",
+        repo.to_str().unwrap(),
+        "--format",
+        "json",
+    ]);
+    let stdout = String::from_utf8_lossy(&out.stdout).to_string();
+    assert!(
+        stdout.contains("maya"),
+        "a package at the supported depth must be found: {stdout}"
+    );
+}
+
 // ── Depends ───────────────────────────────────────────────────────────────────
 
 /// `depends` was migrated in this change and compares requirement strings
