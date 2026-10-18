@@ -34,14 +34,14 @@ curl -fsSL https://raw.githubusercontent.com/vx-org/rez-next/main/install.sh | s
 Or with a specific version:
 
 ```bash
-REZ_NEXT_VERSION=0.3.12 curl -fsSL https://raw.githubusercontent.com/vx-org/rez-next/main/install.sh | sh # x-release-please-version
+REZ_NEXT_VERSION=0.4.0 curl -fsSL https://raw.githubusercontent.com/vx-org/rez-next/main/install.sh | sh # x-release-please-version
 ```
 
 Environment variables:
 
 | Variable | Description | Default |
 |---|---|---|
-| `REZ_NEXT_VERSION` | Version to install (e.g. `0.3.12`) | latest | <!-- x-release-please-version -->
+| `REZ_NEXT_VERSION` | Version to install (e.g. `0.4.0`) | latest | <!-- x-release-please-version -->
 | `REZ_NEXT_INSTALL` | Installation directory | `$HOME/.rez-next/bin` |
 | `REZ_NEXT_MUSL` | Force musl build on Linux | auto-detect |
 
@@ -79,7 +79,7 @@ rez-next self-update
 rez-next self-update --check
 
 # Update to a specific version
-rez-next self-update --version 0.3.12 # x-release-please-version
+rez-next self-update --version 0.4.0 # x-release-please-version
 
 # Force reinstall of the current version
 rez-next self-update --force
