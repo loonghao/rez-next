@@ -7,7 +7,9 @@ use super::search_state::{ConflictType, DependencyConflict, OrdByEstimatedCost, 
 use crate::SolverConfig;
 use rez_next_common::RezCoreError;
 use rez_next_package::{Package, PackageRequirement};
-use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
+use rez_next_repository::package_repository::FilesystemPackageRepository;
+use rez_next_repository::package_repository::bridge::AsyncRepositoryAdapter;
+use rez_next_repository::simple_repository::RepositoryManager;
 use rez_next_version::VersionRange;
 use std::collections::{BinaryHeap, HashSet};
 use std::path::PathBuf;
@@ -91,8 +93,9 @@ impl AStarSearch {
     ) -> Self {
         let mut repo_manager = RepositoryManager::new();
         for (i, path) in paths.into_iter().filter(|p| p.exists()).enumerate() {
-            repo_manager
-                .add_repository(Box::new(SimpleRepository::new(path, format!("repo_{}", i))));
+            repo_manager.add_repository(Box::new(AsyncRepositoryAdapter::new(
+                FilesystemPackageRepository::with_name(path, format!("repo_{i}")),
+            )));
         }
         Self::new(Arc::new(repo_manager), config, max_search_time, max_states)
     }
@@ -415,9 +418,8 @@ mod tests {
         setup_repo_with_package(temp_dir.path(), "python", "3.9.0").await;
 
         let mut repo_manager = RepositoryManager::new();
-        repo_manager.add_repository(Box::new(SimpleRepository::new(
-            temp_dir.path(),
-            "test_repo".to_string(),
+        repo_manager.add_repository(Box::new(AsyncRepositoryAdapter::new(
+            FilesystemPackageRepository::with_name(temp_dir.path(), "test_repo".to_string()),
         )));
 
         let config = SolverConfig::default();

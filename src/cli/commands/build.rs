@@ -23,7 +23,9 @@ use rez_next_build::{
 use rez_next_common::{RezCoreError, config::RezCoreConfig, error::RezCoreResult};
 use rez_next_context::{ContextConfig, EnvironmentManager, ResolvedContext};
 use rez_next_package::{Package, PackageRequirement, Requirement};
-use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
+use rez_next_repository::package_repository::FilesystemPackageRepository;
+use rez_next_repository::package_repository::bridge::AsyncRepositoryAdapter;
+use rez_next_repository::simple_repository::RepositoryManager;
 use rez_next_solver::{DependencyResolver, SolverConfig};
 use std::collections::{HashMap, HashSet};
 use std::io;
@@ -405,10 +407,9 @@ pub(super) fn resolve_build_context(
     for (index, search_path) in config.packages_path.iter().enumerate() {
         let path = expand_home_path(search_path);
         if path.exists() {
-            repo_manager.add_repository(Box::new(SimpleRepository::new(
-                path,
-                format!("build_repo_{}", index),
-            )));
+            let repository =
+                FilesystemPackageRepository::with_name(path, format!("build_repo_{index}"));
+            repo_manager.add_repository(Box::new(AsyncRepositoryAdapter::new(repository)));
         }
     }
 

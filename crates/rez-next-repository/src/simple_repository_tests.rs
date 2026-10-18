@@ -169,7 +169,9 @@ async fn test_repository_manager_list_packages() {
 }
 
 #[tokio::test]
-async fn test_scan_nested_packages() {
+async fn test_scan_multiple_families() {
+    // Both families sit at the top level. Despite the old name, nothing here is
+    // nested: `<root>/<family>/<version>` is the flat two-level layout.
     let temp_dir = TempDir::new().unwrap();
     create_package_file(temp_dir.path(), "top_pkg", "1.0.0").await;
     create_package_file(temp_dir.path(), "nested_pkg", "2.0.0").await;
@@ -283,21 +285,22 @@ async fn test_scan_depth3_standard_layout() {
 }
 
 #[tokio::test]
-async fn test_scan_deep_nesting() {
+async fn test_scan_finds_packages_below_the_family_level() {
+    // `<root>/<family>/<version>` is the layout this repository scans. A version
+    // directory may itself contain files and subdirectories, so the scan has to
+    // look one level below the family rather than treating any `package.py`
+    // anywhere as a family.
     let temp_dir = TempDir::new().unwrap();
-    let deep_dir = temp_dir
-        .path()
-        .join("category")
-        .join("subcategory")
-        .join("mypkg")
-        .join("1.0.0");
-    fs::create_dir_all(&deep_dir).await.unwrap();
+    let version_dir = temp_dir.path().join("mypkg").join("1.0.0");
+    let nested = version_dir.join("extra").join("deeper");
+    fs::create_dir_all(&nested).await.unwrap();
     fs::write(
-        deep_dir.join("package.py"),
+        version_dir.join("package.py"),
         "name = 'mypkg'\nversion = '1.0.0'\n",
     )
     .await
     .unwrap();
+    fs::write(nested.join("payload.txt"), "data").await.unwrap();
 
     let repo = SimpleRepository::new(temp_dir.path(), "deep_repo".to_string());
     repo.scan().await.unwrap();

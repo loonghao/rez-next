@@ -287,16 +287,24 @@ impl PackageRepository for FilesystemPackageRepository {
                     .find(|candidate| candidate.is_file())
                 {
                     Some(definition_path) => {
-                        rez_next_package::serialization::PackageSerializer::load_from_file(
-                            &definition_path,
-                        )
-                        .map_err(|e| {
-                            RezCoreError::Repository(format!(
-                                "Failed to load {}: {}",
-                                definition_path.display(),
-                                e
-                            ))
-                        })?
+                        let mut loaded =
+                            rez_next_package::serialization::PackageSerializer::load_from_file(
+                                &definition_path,
+                            )
+                            .map_err(|e| {
+                                RezCoreError::Repository(format!(
+                                    "Failed to load {}: {}",
+                                    definition_path.display(),
+                                    e
+                                ))
+                            })?;
+                        // The serializer stores the path on the container, not on
+                        // the package. Callers reach the package root through
+                        // `Package::root()`, which derives it from `filepath`, so
+                        // variant materialisation and payload paths depend on this
+                        // being set here.
+                        loaded.filepath = Some(definition_path.to_string_lossy().to_string());
+                        loaded
                     }
                     None => rez_next_package::Package::new(package_family.name.clone()),
                 };

@@ -23,12 +23,21 @@ env:
 
 jobs:
   # ─────────────────────────────────────────────────────────────────────────
-  # Quick benchmarks — version + package + rex  (~2 min, every PR)
+  # Quick benchmarks — version + package + rex + solver real repo (every PR)
+  #
+  # `solver_real_repo_bench` is here so the repository access path the solver
+  # depends on is gated on every PR. It previously ran only in the full
+  # push-only suite while the regression gate reads the quick artifact, so
+  # changes to that path were never gated at all.
   # ─────────────────────────────────────────────────────────────────────────
   bench-quick:
     name: Quick Benchmarks
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # A single `cargo bench` invocation compiles every bench in the set, and that
+    # alone measured ~7 minutes here. With four benches the remainder left too
+    # little headroom at 15 minutes and the job was cancelled mid-run, so give it
+    # room rather than trimming the quick set back.
+    timeout-minutes: 30
 
     steps:
       - uses: actions/checkout@v7
@@ -44,7 +53,7 @@ jobs:
         with:
           python-version: "3.14"
 
-      - name: Run quick benchmarks (version + package + rex)
+      - name: Run quick benchmarks (version + package + rex + solver real repo)
         env:
           CRITERION_QUICK: "1"
         run: |
@@ -52,6 +61,7 @@ jobs:
             --bench version_benchmark \
             --bench simple_package_benchmark \
             --bench rex_benchmark \
+            --bench solver_real_repo_bench \
             2>&1 | tee benchmark-quick.txt
 
       - name: Parse Criterion output → JSON

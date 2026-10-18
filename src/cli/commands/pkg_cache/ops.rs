@@ -153,7 +153,9 @@ pub async fn add_variants(
     args: &PkgCacheArgs,
 ) -> RezCoreResult<()> {
     use rez_next_common::config::RezCoreConfig;
-    use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
+    use rez_next_repository::package_repository::FilesystemPackageRepository;
+    use rez_next_repository::package_repository::bridge::AsyncRepositoryAdapter;
+    use rez_next_repository::simple_repository::RepositoryManager;
 
     println!("Adding {} variant(s) to cache:", variant_uris.len());
 
@@ -180,8 +182,9 @@ pub async fn add_variants(
         for (i, path_str) in config.packages_path.iter().enumerate() {
             let path = std::path::PathBuf::from(path_str);
             if path.exists() {
-                repo_manager
-                    .add_repository(Box::new(SimpleRepository::new(path, format!("repo_{}", i))));
+                repo_manager.add_repository(Box::new(AsyncRepositoryAdapter::new(
+                    FilesystemPackageRepository::with_name(path, format!("repo_{i}")),
+                )));
             }
         }
 

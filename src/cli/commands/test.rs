@@ -12,7 +12,9 @@ use clap::Args;
 use rez_next_common::{RezCoreError, config::RezCoreConfig, error::RezCoreResult};
 use rez_next_context::{ContextConfig, EnvironmentManager, normalize_environment_paths};
 use rez_next_package::{Requirement, serialization::PackageSerializer};
-use rez_next_repository::simple_repository::{RepositoryManager, SimpleRepository};
+use rez_next_repository::package_repository::FilesystemPackageRepository;
+use rez_next_repository::package_repository::bridge::AsyncRepositoryAdapter;
+use rez_next_repository::simple_repository::RepositoryManager;
 use rez_next_solver::{DependencyResolver, SolverConfig};
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -274,10 +276,9 @@ impl PackageTestRunner {
         })?;
         let mut repositories = RepositoryManager::new();
         for (index, path) in search_paths.iter().filter(|path| path.exists()).enumerate() {
-            repositories.add_repository(Box::new(SimpleRepository::new(
-                path,
-                format!("test_repo_{index}"),
-            )));
+            let repository =
+                FilesystemPackageRepository::with_name(path, format!("test_repo_{index}"));
+            repositories.add_repository(Box::new(AsyncRepositoryAdapter::new(repository)));
         }
         let repositories = Arc::new(repositories);
         let requirement_sets = test_requirement_sets(package, args, from_repository);
