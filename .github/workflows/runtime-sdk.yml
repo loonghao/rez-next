@@ -56,7 +56,7 @@ jobs:
         os: [ubuntu-22.04, windows-2022, macos-14]
     steps:
       - uses: actions/checkout@v7
-      - uses: vx-org/vx@6948178844826716e636b474ab322dd8dc115578
+      - uses: vx-org/vx@2589de6521c6bc07cd174b2a4089dd63f4df0fc1
         with:
           tools: "just"
           cache: ${{ matrix.os != 'windows-2022' }}
