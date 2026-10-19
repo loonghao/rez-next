@@ -23,7 +23,7 @@ jobs:
   runtime:
     name: Publish verified runtime facade
     if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
@@ -44,7 +44,7 @@ jobs:
     name: Publish reviewed adapter against public SDK
     needs: runtime
     if: inputs.adapter_ref != ''
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 30
     steps:
       - name: Require an immutable adapter revision
